@@ -2,7 +2,6 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
-
 logger = None
 
 
@@ -16,14 +15,8 @@ def parse_log_level(level):
     return logging.INFO
 
 
-def init_logger(
-    name="root",
-    log_to_file=False,
-    log_dir="logs",
-    level="INFO",
-    max_bytes=5_000_000,
-    backup_count=5,
-):
+def init_logger(name='root', log_to_file=False, log_dir='logs', level=
+    'INFO', max_bytes=5000000, backup_count=5):
     """
     Initialize and configure the logger.
 
@@ -39,32 +32,23 @@ def init_logger(
         logging.Logger: Configured logger instance.
     """
     global logger
-
     if logger is not None:
-        return logger  # Avoid duplicate initialization
-
+        return logger
     level = parse_log_level(level)
     logger = logging.getLogger(name)
     logger.setLevel(level)
-    formatter = logging.Formatter("%(asctime)s %(levelname)s: %(message)s")
-
-    # Console handler
+    formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
-
-    # File handler
     if log_to_file:
         os.makedirs(log_dir, exist_ok=True)
-        log_file_path = os.path.join(
-            log_dir, f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-        )
-        file_handler = RotatingFileHandler(
-            log_file_path, maxBytes=max_bytes, backupCount=backup_count
-        )
+        log_file_path = os.path.join(log_dir,
+            f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+        file_handler = RotatingFileHandler(log_file_path, maxBytes=
+            max_bytes, backupCount=backup_count)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
-
     return logger
 
 
@@ -76,34 +60,115 @@ def get_logger():
     return logger
 
 
-# Convenience logging functions
 def log_debug(message):
+    """""\"
+Log a message using the debug level.
+
+Part of Siege Utilities Logging module.
+Auto-discovered and available at package level.
+
+Returns:
+    Description needed
+
+Example:
+    >>> import siege_utilities
+    >>> result = siege_utilities.log_debug()
+    >>> print(result)
+
+Note:
+    This function is auto-discovered and available without imports
+    across all siege_utilities modules.
+""\""""
     get_logger().debug(message)
 
 
-def log_info(message: str) -> None:
+def log_info(message: str) ->None:
+    """""\"
+Log a message using the info level.
+
+Part of Siege Utilities Logging module.
+Auto-discovered and available at package level.
+
+Returns:
+    Description needed
+
+Example:
+    >>> import siege_utilities
+    >>> result = siege_utilities.log_info()
+    >>> print(result)
+
+Note:
+    This function is auto-discovered and available without imports
+    across all siege_utilities modules.
+""\""""
     get_logger().info(message)
 
 
 def log_warning(message):
+    """""\"
+Log a message using the warning level.
+
+Part of Siege Utilities Logging module.
+Auto-discovered and available at package level.
+
+Returns:
+    Description needed
+
+Example:
+    >>> import siege_utilities
+    >>> result = siege_utilities.log_warning()
+    >>> print(result)
+
+Note:
+    This function is auto-discovered and available without imports
+    across all siege_utilities modules.
+""\""""
     get_logger().warning(message)
 
 
 def log_error(message):
+    """""\"
+Log a message using the error level.
+
+Part of Siege Utilities Logging module.
+Auto-discovered and available at package level.
+
+Returns:
+    Description needed
+
+Example:
+    >>> import siege_utilities
+    >>> result = siege_utilities.log_error()
+    >>> print(result)
+
+Note:
+    This function is auto-discovered and available without imports
+    across all siege_utilities modules.
+""\""""
     get_logger().error(message)
 
 
 def log_critical(message):
+    """""\"
+Log a message using the critical level.
+
+Part of Siege Utilities Logging module.
+Auto-discovered and available at package level.
+
+Returns:
+    Description needed
+
+Example:
+    >>> import siege_utilities
+    >>> result = siege_utilities.log_critical()
+    >>> print(result)
+
+Note:
+    This function is auto-discovered and available without imports
+    across all siege_utilities modules.
+""\""""
     get_logger().critical(message)
 
 
-__all__ = [
-    "init_logger",
-    "get_logger",
-    "log_debug",
-    "log_info",
-    "log_warning",
-    "log_error",
-    "log_critical",
-    "parse_log_level",
-]
+__all__ = ['init_logger', 'get_logger', 'log_debug', 'log_info',
+    'log_warning', 'log_error', 'log_critical', 'parse_log_level']

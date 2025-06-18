@@ -23,6 +23,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install sphinx sphinx-rtd-theme sphinx-autodoc-typehints myst-parser
+        pip install sphinx-autoapi 
         pip install -e .
 
     - name: Build documentation

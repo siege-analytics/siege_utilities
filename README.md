@@ -69,6 +69,9 @@ print(f"Failed imports: {len(info['failed_imports'])}")
 - **Geocoding**: Nominatim integration, address processing, coordinate validation
 - **Spatial Analysis**: Geographic data processing, coordinate systems
 
+### Hygiene (`siege_utilities.hygiene`)
+- **Generate Docstrings**: Add docstrings to functions according to a template
+
 ## 🌟 Unique Auto-Discovery System
 
 Unlike traditional packages, Siege Utilities uses an **enhanced auto-discovery system**:
