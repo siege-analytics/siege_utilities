@@ -1,17 +1,13 @@
-pathlib
-requests
-tqdm
-pandas
-tabulate
+requests>=2.25.0
+tqdm>=4.60.0
 
 [dev]
-pytest
-black
-flake8
+pytest>=6.0.0
+black>=21.0.0
+flake8>=3.8.0
 
 [distributed]
-pyspark
+pyspark>=3.0.0
 
 [geo]
-geopy
-apache-sedona
+geopy>=2.0.0

@@ -11,8 +11,17 @@ from pathlib import Path
 import ast
 import re
 
-# Add current directory to path
-sys.path.insert(0, str(Path(__file__).parent))
+# Smart path detection - if we're inside the package, add parent directory
+current_dir = Path(__file__).parent
+if current_dir.name == 'siege_utilities' or (current_dir / '__init__.py').exists():
+    # We're inside the package directory - add parent to path
+    parent_dir = current_dir.parent
+    sys.path.insert(0, str(parent_dir))
+    print(f"📂 Detected package directory, using parent: {parent_dir}")
+else:
+    # We're outside the package - add current directory
+    sys.path.insert(0, str(current_dir))
+    print(f"📂 Using current directory: {current_dir}")
 
 
 def find_python_files():
@@ -143,16 +152,46 @@ def main():
                 print(f"📊 Package reports {info.get('total_functions', 0)} functions")
                 print(f"📊 Package reports {info.get('total_modules', 0)} modules")
 
+                # Show available functions by category
+                if hasattr(siege_utilities, 'list_available_functions'):
+                    all_funcs = siege_utilities.list_available_functions()
+                    log_funcs = [f for f in all_funcs if f.startswith('log_')]
+                    file_funcs = [f for f in all_funcs if 'file' in f.lower()]
+
+                    print(f"📊 Function categories:")
+                    print(f"   🪵 Logging functions: {len(log_funcs)}")
+                    print(f"   📁 File functions: {len(file_funcs)}")
+
                 failed = info.get('failed_imports', {})
                 if failed:
                     print(f"⚠️  Package reports {len(failed)} failed imports:")
                     for module, error in failed.items():
                         print(f"   ❌ {module}: {error}")
+                else:
+                    print("✅ All imports successful!")
 
             except Exception as e:
                 print(f"❌ get_package_info failed: {e}")
         else:
             print("⚠️  No get_package_info function available")
+
+        # Test a few key functions
+        print("\n🧪 Testing key functionality...")
+        try:
+            siege_utilities.log_info("Test log message from diagnostic")
+            print("✅ Logging works")
+        except Exception as e:
+            print(f"❌ Logging failed: {e}")
+
+        try:
+            if hasattr(siege_utilities, 'remove_wrapping_quotes_and_trim'):
+                result = siege_utilities.remove_wrapping_quotes_and_trim('  "test"  ')
+                if result == 'test':
+                    print("✅ String utilities work")
+                else:
+                    print(f"❌ String utilities incorrect result: {result}")
+        except Exception as e:
+            print(f"❌ String utilities failed: {e}")
 
     except Exception as e:
         print(f"❌ Main package import failed: {e}")
@@ -249,8 +288,22 @@ def main():
         print("⚠️  Many modules failing - likely systematic import issues")
         print("💡 Focus on fixing core.logging first")
     else:
-        print("✅ Most modules importing successfully")
-        print("💡 Check function dependencies and mutual availability")
+        print("✅ Most/all modules importing successfully")
+        print("💡 Your enhanced auto-discovery system is working!")
+
+        # Provide usage examples
+        print("\n🎯 USAGE EXAMPLES:")
+        print(">>> import siege_utilities")
+        print(">>> siege_utilities.log_info('Hello world')")
+        print(">>> hash_val = siege_utilities.get_file_hash('somefile.txt')")
+        print(">>> info = siege_utilities.get_package_info()")
+        print(">>> funcs = siege_utilities.list_available_functions()")
+
+        print("\n📝 FOR DEVELOPMENT:")
+        print("- All functions are mutually available across modules")
+        print("- No need to import within your modules")
+        print("- Add new .py files and they'll be auto-discovered")
+        print("- Check failed imports with siege_utilities.get_package_info()")
 
 
 if __name__ == "__main__":

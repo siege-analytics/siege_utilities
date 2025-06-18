@@ -1,4 +1,6 @@
 LICENSE
+MANIFEST.in
+README.md
 setup.py
 core/__init__.py
 core/logging.py

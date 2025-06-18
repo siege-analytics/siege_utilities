@@ -17,9 +17,7 @@ GEOCODER_CONFIG = {
 }
 
 
-def concatenate_addresses(
-    street=None, city=None, state_province_area=None, postal_code=None, country=None
-):
+def concatenate_addresses(street=None, city=None, state_province_area=None, postal_code=None, country=None):
     """
     Concatenate address components into a single string suitable for geocoding.
     Returns a properly formatted address string.
