@@ -4,6 +4,7 @@ A comprehensive Python utilities package with **enhanced auto-discovery** that a
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Documentation Status](https://readthedocs.org/projects/siege-utilities/badge/?version=latest)](https://siege-utilities.readthedocs.io/en/latest/?badge=latest)
 
 ## ✨ Key Features
 
@@ -305,100 +306,5 @@ MIT License - see LICENSE file for details.
 
 **Siege Utilities**: Where every function is available everywhere! 🚀
 
----
-
-## Updated setup.py for PyPI
-
-```python
-from setuptools import setup, find_packages
-
-with open("README.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read()
-
-setup(
-    name="siege-utilities",
-    version="1.0.0",
-    author="Dheeraj Chand",
-    author_email="dheeraj@siegeanalytics.com",
-    description="A comprehensive Python utilities package with enhanced auto-discovery",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-    url="https://github.com/siege-analytics/siege_utilities",
-    project_urls={
-        "Bug Tracker": "https://github.com/siege-analytics/siege_utilities/issues",
-        "Documentation": "https://github.com/siege-analytics/siege_utilities#readme",
-        "Source Code": "https://github.com/siege-analytics/siege_utilities",
-    },
-    classifiers=[
-        "Development Status :: 4 - Beta",
-        "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
-        "Programming Language :: Python :: 3.12",
-        "Topic :: Software Development :: Libraries :: Python Modules",
-        "Topic :: Utilities",
-    ],
-    packages=find_packages(),
-    python_requires=">=3.8",
-    install_requires=[
-        "pathlib2; python_version<'3.4'",
-        "requests>=2.25.0",
-        "tqdm>=4.60.0",
-    ],
-    extras_require={
-        "distributed": [
-            "pyspark>=3.0.0",
-        ],
-        "geo": [
-            "geopy>=2.0.0",
-            "apache-sedona>=1.4.0",
-        ],
-        "dev": [
-            "pytest>=6.0.0",
-            "black>=21.0.0",
-            "flake8>=3.8.0",
-            "twine>=3.4.0",
-        ],
-    },
-    entry_points={
-        "console_scripts": [
-            "siege-utils-check=siege_utilities.check_imports:main",
-        ],
-    },
-    keywords="utilities, auto-discovery, logging, file-operations, distributed-computing, geocoding",
-    include_package_data=True,
-    zip_safe=False,
-)
-```
-
-## PyPI Publishing Commands
-
-```bash
-# 1. Install build dependencies
-pip install build twine
-
-# 2. Clean previous builds
-rm -rf dist/ build/ *.egg-info/
-
-# 3. Build the package
-python -m build
-
-# 4. Check the package
-twine check dist/*
-
-# 5. Upload to Test PyPI first
-twine upload --repository testpypi dist/*
-
-# 6. Test installation from Test PyPI
-pip install --index-url https://test.pypi.org/simple/ siege-utilities
-
-# 7. If everything works, upload to real PyPI
-twine upload dist/*
-```
 
 
