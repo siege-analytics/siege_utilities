@@ -1,0 +1,21 @@
+Metadata-Version: 2.4
+Name: siege_utilities
+Version: 1.0.0
+Requires-Python: >=3.8
+Requires-Dist: pathlib
+Requires-Dist: requests
+Requires-Dist: tqdm
+Requires-Dist: pandas
+Requires-Dist: tabulate
+Provides-Extra: distributed
+Requires-Dist: pyspark; extra == "distributed"
+Provides-Extra: geo
+Requires-Dist: geopy; extra == "geo"
+Requires-Dist: apache-sedona; extra == "geo"
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: black; extra == "dev"
+Requires-Dist: flake8; extra == "dev"
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python

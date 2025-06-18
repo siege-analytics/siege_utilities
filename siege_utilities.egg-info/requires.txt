@@ -1,0 +1,17 @@
+pathlib
+requests
+tqdm
+pandas
+tabulate
+
+[dev]
+pytest
+black
+flake8
+
+[distributed]
+pyspark
+
+[geo]
+geopy
+apache-sedona
