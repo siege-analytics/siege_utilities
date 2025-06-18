@@ -11,7 +11,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
-    'autoapi.extension',  # Re-enabled!
+    'autoapi.extension',
 ]
 
 # AutoAPI settings
