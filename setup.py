@@ -12,7 +12,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/siege-analytics/siege_utilities",
-    packages=find_packages(),
+    packages=find_packages(),  # Now this will work perfectly!
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
