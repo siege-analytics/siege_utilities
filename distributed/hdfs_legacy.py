@@ -15,7 +15,6 @@ from typing import Optional, Tuple, Dict
 
 # Import your utilities (with fallbacks for missing functions)
 try:
-    from siege_siege_utilities.core.logging import log_info, log_error
 except ImportError:
 
     def log_info(msg):
@@ -26,7 +25,6 @@ except ImportError:
 
 
 try:
-    from siege_siege_utilities.files.paths import ensure_path_exists
 except ImportError:
 
     def ensure_path_exists(path):
@@ -35,7 +33,6 @@ except ImportError:
 
 # Import hash functions - with proper fallbacks
 try:
-    from siege_siege_utilities.files.hashing import (
         generate_sha256_hash_for_file,
         get_file_hash,
         get_quick_file_signature,

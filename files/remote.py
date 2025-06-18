@@ -18,7 +18,6 @@ import zipfile
 
 import logging
 
-from siege_siege_utilities.core.logging import *
 
 logging.getLogger(__name__)
 

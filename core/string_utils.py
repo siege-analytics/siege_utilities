@@ -3,7 +3,6 @@ from logging import lastResort
 
 # custom functions and data
 
-from siege_siege_utilities.core import *
 
 # logging
 

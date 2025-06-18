@@ -18,7 +18,6 @@ from geopy import geocoders
 
 # logging
 import logging
-from siege_siege_utilities.core.logging import (
     init_logger,
     log_info,
     log_error,

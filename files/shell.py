@@ -18,8 +18,6 @@ import zipfile
 
 import logging
 
-from siege_siege_utilities.core import *
-from siege_siege_utilities.core.logging import (
     init_logger,
     log_info,
     log_error,

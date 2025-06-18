@@ -29,7 +29,6 @@ import pandas as pd
 from tabulate import tabulate  # Ensure tabulate is installed (pip install tabulate)
 
 # dheeraj defined
-from siege_siege_utilities.core.logging import log_info, log_error
 # Settings import - configure as needed
 
 # These Spark functions will need to be organised into a subfolder because some are Sedona
