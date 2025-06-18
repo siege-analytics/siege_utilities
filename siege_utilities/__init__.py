@@ -260,6 +260,17 @@ def inject_functions_into_modules():
 inject_functions_into_modules()
 
 # Phase 7: Package information and diagnostics
+def _get_subpackages():
+    subpackages = []
+    for name in __all__:
+        try:
+            module_name = f"{__name__}.{name}"
+            if module_name in sys.modules and hasattr(sys.modules[module_name], '__path__'):
+                subpackages.append(name)
+        except (KeyError, AttributeError):
+            pass
+    return subpackages
+
 def get_package_info() -> Dict[str, Any]:
     """
     Get comprehensive information about the package state.
@@ -279,7 +290,8 @@ def get_package_info() -> Dict[str, Any]:
         'failed_imports': _FAILED_IMPORTS,
         'available_functions': list(_FUNCTION_REGISTRY.keys()),
         'available_modules': list(_MODULE_REGISTRY.keys()),
-        'subpackages': [name for name in __all__ if name in sys.modules and hasattr(sys.modules[f"{__name__}.{name}"], '__path__')],
+        'subpackages': _get_subpackages(),
+
     }
 
 def list_available_functions(filter_pattern: str = None) -> List[str]:
