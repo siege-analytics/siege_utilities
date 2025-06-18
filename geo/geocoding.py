@@ -1,30 +1,9 @@
 # python stdlib imports
 import time
 import json
-
-# pyspark/sedona
-
-from sedona.sql.types import *
-from pyspark.sql.functions import udf
-from pyspark.sql.types import StringType
-
-# custom functions and data
-
-
-# python expanded libraries
+import logging
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
-from geopy import geocoders
-
-# logging
-import logging
-    init_logger,
-    log_info,
-    log_error,
-    log_debug,
-    log_warning,
-    log_critical,
-)
 
 logger = logging.getLogger(__name__)
 

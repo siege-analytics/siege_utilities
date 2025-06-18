@@ -1,32 +1,9 @@
 # Python stdlib
 
-import io
-import hashlib
-from pyexpat.errors import messages
-
-from IPython.utils.capture import capture_output
-import pathlib
-import requests
 import subprocess
-
-from pkg_resources import working_set
-from tqdm import tqdm
-
-import zipfile
-
-# Logging
-
 import logging
 
-    init_logger,
-    log_info,
-    log_error,
-    log_debug,
-    log_warning,
-    log_critical,
-)
-
-logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def run_subprocess(command_list):

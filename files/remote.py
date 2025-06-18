@@ -1,25 +1,11 @@
 # Python stdlib
 
-import io
-import hashlib
-from pyexpat.errors import messages
-
-from IPython.utils.capture import capture_output
 import pathlib
 import requests
-import subprocess
-
-from pkg_resources import working_set
-from tqdm import tqdm
-
-import zipfile
-
-# Logging
-
 import logging
 
+logger = logging.getLogger(__name__)
 
-logging.getLogger(__name__)
 
 
 def download_file(url, local_filename):

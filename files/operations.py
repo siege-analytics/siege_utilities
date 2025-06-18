@@ -1,31 +1,11 @@
 # Python stdlib
 
-import io
-import hashlib
-from pyexpat.errors import messages
-
-from IPython.utils.capture import capture_output
 import pathlib
-import requests
 import subprocess
-
-from pkg_resources import working_set
-from tqdm import tqdm
-
-import zipfile
-
-# Logging
-
 import logging
 
-    log_info,
-    log_debug,
-    log_warning,
-    log_error,
-    log_critical,
-)
-
-#  from code.python.utilities import log_info
+# Remove all the broken from siege_utilities imports
+# Functions will be injected by the enhanced init
 
 logger = logging.getLogger(__name__)
 

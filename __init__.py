@@ -163,7 +163,7 @@ for core_module in CORE_MODULES:
 log_import_info("Phase 2: Importing direct modules...")
 
 for filename in os.listdir(package_dir):
-    if filename.endswith(".py") and filename != "__init__.py":
+    if filename.endswith(".py") and filename not in ["__init__.py", "setup.py"]:
         module_name = filename[:-3]  # Remove .py extension
         module_path = f"{__name__}.{module_name}"
         new_names = import_all_from_module(module_path)

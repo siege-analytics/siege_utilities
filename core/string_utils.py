@@ -1,14 +1,7 @@
 # python stdlib imports
-from logging import lastResort
-
-# custom functions and data
-
-
-# logging
-
 import logging
 
-logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def remove_wrapping_quotes_and_trim(target_string: str) -> str:

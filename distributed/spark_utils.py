@@ -4,35 +4,17 @@ import os
 import pathlib
 import json
 import time
-import uuid
-import shutil
-from pathlib import Path
-from builtins import sum as py_sum
-from builtins import round as py_round
+import logging
 
-# spark/sedona
-from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.types import *
-from pyspark.sql.column import Column
-from pyspark.sql.functions import *
+try:
+    from pyspark.sql import DataFrame, SparkSession
+    from pyspark.sql.types import *
+    from pyspark.sql.functions import *
+    PYSPARK_AVAILABLE = True
+except ImportError:
+    PYSPARK_AVAILABLE = False
 
-# sedona
-from sedona.sql import *
-from sedona.register import SedonaRegistrator
-from sedona.sql.types import GeometryType
-from sedona.utils import SedonaKryoRegistrator, KryoSerializer
-
-# extra pandas
-import pandas as pd
-
-# extra Python
-from tabulate import tabulate  # Ensure tabulate is installed (pip install tabulate)
-
-# dheeraj defined
-# Settings import - configure as needed
-
-# These Spark functions will need to be organised into a subfolder because some are Sedona
-
+logger = logging.getLogger(__name__)
 
 def sanitise_dataframe_column_names(df: DataFrame) -> Optional[DataFrame]:
     """
