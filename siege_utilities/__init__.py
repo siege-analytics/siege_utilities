@@ -51,13 +51,13 @@ def _bootstrap_logging():
             print(f"[{level}] siege_utilities: {message}")
 
         fallback_functions = {
-            'log_info': lambda msg: fallback_log("INFO", msg),
-            'log_debug': lambda msg: fallback_log("DEBUG", msg),
-            'log_warning': lambda msg: fallback_log("WARNING", msg),
-            'log_error': lambda msg: fallback_log("ERROR", msg),
-            'log_critical': lambda msg: fallback_log("CRITICAL", msg),
+            'log_info': lambda message, logger_name=None: fallback_log("INFO", message),
+            'log_debug': lambda message, logger_name=None: fallback_log("DEBUG", message),
+            'log_warning': lambda message, logger_name=None: fallback_log("WARNING", message),
+            'log_error': lambda message, logger_name=None: fallback_log("ERROR", message),
+            'log_critical': lambda message, logger_name=None: fallback_log("CRITICAL", message),
             'init_logger': lambda *args, **kwargs: None,
-            'get_logger': lambda: None,
+            'get_logger': lambda *args, **kwargs: None,
         }
 
         for name, func in fallback_functions.items():
@@ -109,6 +109,10 @@ def import_all_from_module(module_path: str, is_core: bool = False) -> List[str]
         for name, obj in inspect.getmembers(module):
             if inspect.isfunction(obj) and not name.startswith("_"):
                 try:
+                    # ADD DEBUG
+                    if 'log_' in name:
+                        print(f"🔍 Registering {name} from {module_path}")
+
                     # Store in registry
                     _FUNCTION_REGISTRY[name] = {
                         'function': obj,
@@ -244,6 +248,12 @@ def inject_functions_into_modules():
                     if not hasattr(module, func_name):
                         setattr(module, func_name, func_info['function'])
                         injection_count += 1
+
+                # ADD DEBUG HERE
+                if module_path == 'siege_utilities.files.operations' and func_name == 'log_info':
+                    print(f"✅ Injected {func_name} into {module_path}")
+                    print(f"   Function: {func_info['function']}")
+                    print(f"   Type: {type(func_info['function'])}")
 
                 # Also inject logging functions
                 for log_func_name, log_func in _LOGGING_FUNCTIONS.items():

@@ -18,26 +18,30 @@ package_dir = os.path.dirname(__file__)
 def _get_logging_functions():
     """Get logging functions from parent package."""
     try:
-        # Try to get from parent package globals
         parent_module = sys.modules.get(__name__.split('.')[0])
         if parent_module:
             return {
-                'log_info': getattr(parent_module, 'log_info', lambda x: print(f"INFO: {x}")),
-                'log_error': getattr(parent_module, 'log_error', lambda x: print(f"ERROR: {x}")),
-                'log_debug': getattr(parent_module, 'log_debug', lambda x: print(f"DEBUG: {x}")),
-                'log_warning': getattr(parent_module, 'log_warning', lambda x: print(f"WARNING: {x}"))
+                'log_info': getattr(parent_module, 'log_info', None),
+                'log_error': getattr(parent_module, 'log_error', None),
+                'log_debug': getattr(parent_module, 'log_debug', None),
+                'log_warning': getattr(parent_module, 'log_warning', None)
             }
     except:
         pass
 
-    # Fallback logging
-    return {
-        'log_info': lambda x: print(f"INFO: {x}"),
-        'log_error': lambda x: print(f"ERROR: {x}"),
-        'log_debug': lambda x: print(f"DEBUG: {x}"),
-        'log_warning': lambda x: print(f"WARNING: {x}")
-    }
+    # Fallback functions that accept any arguments
+    def make_fallback(level):
+        def fallback(*args, **kwargs):
+            message = args[0] if args else kwargs.get('message', 'No message')
+            print(f"{level}: {message}")
+        return fallback
 
+    return {
+        'log_info': make_fallback('INFO'),
+        'log_error': make_fallback('ERROR'),
+        'log_debug': make_fallback('DEBUG'),
+        'log_warning': make_fallback('WARNING')
+    }
 # Get logging functions
 _log_funcs = _get_logging_functions()
 log_info = _log_funcs['log_info']
