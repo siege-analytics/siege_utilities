@@ -1,6 +1,11 @@
 # Siege Utilities
 
-A comprehensive Python utilities package with **enhanced auto-discovery** that automatically imports and makes all functions mutually available across modules.
+A Python utilities package with **enhanced auto-discovery** that automatically imports and makes all functions mutually available across modules.
+Because this makes use of Spark, you will need to have all relevant environment variables configured to get access to Spark/Sedona functionality, such as
+
+- `JAVA_HOME`
+
+My recommendation is to install things with [SDK Man](https://sdkman.io). I have a fairly intense `.zshrc` configuration that you can discover more about in my [backup repository](https://github.com/dheerajchand/zshrc_backups/tree/main).
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
