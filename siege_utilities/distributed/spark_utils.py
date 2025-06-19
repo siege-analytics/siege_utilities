@@ -11,8 +11,8 @@ try:
     PYSPARK_AVAILABLE = True
 except ImportError:
     PYSPARK_AVAILABLE = False
-logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
 
 def sanitise_dataframe_column_names(df: DataFrame) ->Optional[DataFrame]:
     """
@@ -155,11 +155,11 @@ Note:
     try:
         columns = list(df.columns)
         column_to_move = column_name
-        new_column_order = [column_to_move] + [col for col in df.columns if
+        new_column_order = [column_to_move] + [col for col in columns if
             col != column_to_move]
         df_reordered = df.select(*new_column_order)
         df_reordered.printSchema()
-        return df
+        return df_reordered
     except Exception as e:
         log_error(f'Error repartitioning and caching dataframe: {e}')
         return None
