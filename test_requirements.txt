@@ -1,0 +1,25 @@
+# ================================================================
+# FILE: test_requirements.txt
+# ================================================================
+# Test requirements for siege-utilities
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+pytest-xdist>=3.0.0
+
+# Optional dependencies that siege-utilities might use
+# Install these if you want to test those features
+pyspark>=3.3.0
+geopy>=2.3.0
+pandas>=1.5.0
+requests>=2.28.0
+
+# For documentation generation tests
+astor>=0.8.1
+
+# For better test output
+pytest-html>=3.1.0
+pytest-json-report>=1.5.0
+
+# For testing concurrent operations
+pytest-forked>=1.4.0
