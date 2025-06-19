@@ -1,4 +1,7 @@
 import logging
+
+from django.db.models.fields import return_None
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,7 +19,8 @@ def remove_wrapping_quotes_and_trim(target_string: str) ->str:
         return ''
     strings_to_ignore = ['', '\n']
     if target_string in strings_to_ignore:
-        return target_string.strip()
+        return_string = target_string
+        return return_string
     return_string = target_string.strip()
     wrapping_characters = ['"', "'"]
     if len(return_string) >= 2:
