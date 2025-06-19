@@ -1,6 +1,7 @@
 import pathlib
 import requests
 import logging
+import tqdm
 logger = logging.getLogger(__name__)
 
 
@@ -25,8 +26,7 @@ def download_file(url, local_filename):
                 initial_pos = 0
                 with open(local_filename, 'wb') as f:
                     with tqdm(total=total_size, unit_scale=True, desc=
-                        local_filename, initial=initial_pos, ascii=True
-                        ) as pbar:
+                        local_filename, initial=initial_pos, ascii=True) as pbar:
                         for chunk in r.iter_content(chunk_size=1024):
                             if chunk:
                                 f.write(chunk)
