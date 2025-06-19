@@ -97,9 +97,9 @@ def main():
     if args.mode == "smoke":
         print("🔥 Running SMOKE TESTS - Quick tests to find broken functions")
         cmd.extend([
-            "-m", "smoke or (unit and not slow)",
             "--maxfail=10",  # Stop after 10 failures
-            "--tb=short"
+            "--tb=short",
+            "-x"  # Stop on first failure for quick feedback
         ])
 
     elif args.mode == "fast":

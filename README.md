@@ -31,7 +31,7 @@ siege_utilities.log_info("Package loaded successfully!")
 hash_value = siege_utilities.get_file_hash("myfile.txt")
 siege_utilities.ensure_path_exists("data/processed")
 
-# String utilities  
+# String utilities
 clean_text = siege_utilities.remove_wrapping_quotes_and_trim('  "hello"  ')
 
 # Distributed computing (if PySpark available)
@@ -53,7 +53,7 @@ print(f"Failed imports: {len(info['failed_imports'])}")
 - **Logging**: Comprehensive logging with file rotation, multiple levels
 - **String Utils**: Text processing, quote removal, trimming
 
-### File Utilities (`siege_utilities.files`) 
+### File Utilities (`siege_utilities.files`)
 - **Hashing**: SHA256, MD5, quick signatures, integrity verification
 - **Operations**: File existence, row counting, duplicate detection, data writing
 - **Paths**: Directory creation, zip extraction, path management
@@ -92,7 +92,7 @@ import siege_utilities
 
 def my_function():
     log_info("Starting process")      # Available everywhere
-    result_a = function_a()           # Available everywhere  
+    result_a = function_a()           # Available everywhere
     result_b = function_b()           # Available everywhere
 ```
 
@@ -142,7 +142,7 @@ pip install siege-utilities
 # With distributed computing support
 pip install siege-utilities[distributed]
 
-# With geospatial support  
+# With geospatial support
 pip install siege-utilities[geo]
 
 # Full installation (all optional dependencies)
@@ -163,32 +163,32 @@ import siege_utilities
 
 def process_data_files(input_dir, output_dir):
     """Complete file processing pipeline using siege utilities."""
-    
+
     # Setup with logging
     siege_utilities.init_logger("data_processor", log_to_file=True)
     siege_utilities.log_info(f"Starting processing: {input_dir} -> {output_dir}")
-    
+
     # Ensure output directory exists
     siege_utilities.ensure_path_exists(output_dir)
-    
+
     # Process each file
     for file_path in pathlib.Path(input_dir).glob("*.txt"):
         if siege_utilities.check_if_file_exists_at_path(file_path):
-            
+
             # Generate file hash for integrity
             file_hash = siege_utilities.get_file_hash(file_path)
             siege_utilities.log_info(f"Processing {file_path.name}: {file_hash}")
-            
+
             # Count rows and check for issues
             total_rows = siege_utilities.count_total_rows_in_file_using_sed(file_path)
             empty_rows = siege_utilities.count_empty_rows_in_file_using_awk(file_path)
-            
+
             siege_utilities.log_info(f"File stats: {total_rows} total, {empty_rows} empty")
-            
+
             # Process and save results
             output_path = output_dir / f"processed_{file_path.name}"
             # ... your processing logic here
-            
+
     siege_utilities.log_info("Processing complete!")
 ```
 
@@ -199,37 +199,204 @@ import siege_utilities
 
 def distributed_geocoding_pipeline(data_path):
     """Distributed geocoding using Spark and HDFS."""
-    
+
     # Check if distributed features are available
     deps = siege_utilities.check_dependencies()
     if not deps['pyspark']:
         siege_utilities.log_error("PySpark required for distributed processing")
         return
-    
+
     # Setup distributed environment
     config = siege_utilities.create_cluster_config(data_path)
     spark, hdfs_path = siege_utilities.setup_distributed_environment(config)
-    
+
     if spark and hdfs_path:
         siege_utilities.log_info(f"Distributed environment ready: {hdfs_path}")
-        
+
         # Load and process data
         df = spark.read.parquet(hdfs_path)
         df = siege_utilities.sanitise_dataframe_column_names(df)
         df = siege_utilities.validate_geocode_data(df, "latitude", "longitude")
-        
+
         # Geocoding operations
         geocoder = siege_utilities.NominatimGeoClassifier()
         # ... geocoding logic here
-        
+
         # Save results
         output_path = hdfs_path.replace("input", "output")
         siege_utilities.write_df_to_parquet(df, output_path)
-        
+
         spark.stop()
     else:
         siege_utilities.log_error("Failed to setup distributed environment")
 ```
+
+## 🧪 Testing & Quality Assurance
+
+This package includes a comprehensive test suite designed to **smoke out broken functions** and ensure reliability.
+
+### Quick Smoke Test
+
+```bash
+# Basic functionality check (30 seconds)
+python run_tests.py
+
+# Or with specific mode
+python run_tests.py --mode smoke
+```
+
+### Test Installation
+
+```bash
+# Install test dependencies
+pip install -r test_requirements.txt
+
+# Or install with development extras
+pip install -e ".[dev]"
+```
+
+### Test Modes
+
+#### 🔥 Smoke Tests (Recommended First)
+```bash
+python run_tests.py --mode smoke
+```
+- **Purpose**: Quickly find broken functions
+- **Duration**: ~30 seconds
+- **Stops after**: 10 failures
+- **Best for**: Initial assessment
+
+#### ⚡ Fast Tests
+```bash
+python run_tests.py --mode fast
+```
+- **Purpose**: Skip slow tests, focus on core functionality
+- **Duration**: ~2 minutes
+- **Excludes**: Network tests, large file operations
+
+#### 🧪 Unit Tests
+```bash
+python run_tests.py --mode unit
+```
+- **Purpose**: Test individual functions in isolation
+- **Duration**: ~5 minutes
+- **Includes**: All unit tests
+
+#### 📊 Coverage Analysis
+```bash
+python run_tests.py --mode coverage
+```
+- **Purpose**: Generate code coverage report
+- **Duration**: ~10 minutes
+- **Output**: HTML coverage report in `htmlcov/`
+
+#### 🎯 All Tests
+```bash
+python run_tests.py --mode all
+```
+- **Purpose**: Run complete test suite
+- **Duration**: ~15 minutes
+- **Includes**: Everything
+
+### Module-Specific Testing
+
+Test specific modules to focus on particular areas:
+
+```bash
+# Test core functions only
+python run_tests.py --module core
+
+# Test file operations
+python run_tests.py --module files
+
+# Test distributed computing
+python run_tests.py --module distributed
+
+# Test geocoding
+python run_tests.py --module geo
+
+# Test package discovery
+python run_tests.py --module discovery
+```
+
+### Performance Options
+
+```bash
+# Parallel execution (requires pytest-xdist)
+python run_tests.py --mode smoke --parallel
+
+# Verbose output for debugging
+python run_tests.py --mode smoke --verbose
+
+# Install dependencies automatically
+python run_tests.py --install-deps --mode smoke
+```
+
+### 🐛 Expected Test Results
+
+The tests are **designed to find issues**. Here's what to expect:
+
+#### ✅ **Should Pass**
+- Package discovery and import mechanisms
+- Basic string manipulation
+- File hashing operations
+- Path creation and management
+- Geocoding (if geopy is installed)
+
+#### ❌ **Known Issues** (Will Fail)
+1. **File Operations**:
+   - `count_total_rows_in_file_pythonically()` - **BUG**: Uses filename in loop instead of file handle
+   - `count_empty_rows_in_file_pythonically()` - **BUG**: Same issue as above
+
+2. **Shell Operations**:
+   - Missing import for `io` module in `remove_empty_rows_in_file_using_sed()`
+   - Undefined variables in error handling paths
+
+3. **Distributed Computing**:
+   - `move_column_to_front_of_dataframe()` - **BUG**: Returns original DataFrame instead of reordered one
+   - Multiple functions use undefined variables like `RESULTS_OUTPUT_FORMAT`
+   - Easter egg: `reproject_geom_columns()` prints "I LOVE LEENA" 🎉
+
+#### ⚠️ **Conditional Tests**
+- Spark utilities (require PySpark installation)
+- Geocoding (requires geopy)
+- Remote operations (require network access)
+
+### Debugging Failed Tests
+
+```bash
+# Run specific test
+pytest tests/test_file_operations.py::TestFileOperations::test_count_total_rows_in_file_pythonically_bug -v
+
+# Run with debugging
+pytest tests/test_file_operations.py -v -s --tb=long
+
+# Focus on one module
+pytest tests/test_core_*.py -v
+```
+
+### Test Reports
+
+After running tests with coverage:
+
+```bash
+python run_tests.py --mode coverage
+```
+
+View reports:
+- **HTML Coverage**: `htmlcov/index.html`
+- **Test Report**: `reports/pytest_report.html`
+- **JSON Report**: `reports/pytest_report.json`
+
+### 💡 Testing Tips
+
+1. **Start with Smoke Tests**: Always run smoke tests first
+2. **Fix High-Impact Issues**: Focus on functions that completely fail
+3. **Test After Each Fix**: Re-run tests after making changes
+4. **Use Verbose Mode**: When debugging specific issues
+5. **Check Dependencies**: Some tests require optional packages
+
+**Remember**: Finding issues is **success** - it means the tests are working! 🔥
 
 ## 🏗️ Development
 
@@ -243,11 +410,11 @@ Just create a new `.py` file anywhere in the package:
 def my_awesome_function(data):
     """This function will be auto-discovered!"""
     log_info("my_awesome_function called")  # Logging available automatically
-    
+
     # All other siege utilities functions are available
     file_hash = get_file_hash(data)  # No import needed!
     ensure_path_exists("output")     # No import needed!
-    
+
     return f"processed_{file_hash}"
 
 def another_function():
@@ -283,15 +450,25 @@ print(f'Failed: {len(info[\"failed_imports\"])}')
 "
 ```
 
+### Development Workflow
+
+1. **Add new functions** to existing modules or create new ones
+2. **Test with diagnostics**: `python3 check_imports.py`
+3. **Run smoke tests**: `python run_tests.py --mode smoke`
+4. **Fix any issues** found by tests
+5. **Run full tests**: `python run_tests.py --mode all`
+6. **Check coverage**: `python run_tests.py --mode coverage`
+
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature-name`
 3. Add your functions to existing modules or create new ones
-4. Test with: `python3 check_imports.py`
-5. Commit changes: `git commit -am 'Add new feature'`
-6. Push: `git push origin feature-name`
-7. Submit a Pull Request
+4. **Run tests**: `python run_tests.py --mode smoke`
+5. Test with: `python3 check_imports.py`
+6. Commit changes: `git commit -am 'Add new feature'`
+7. Push: `git push origin feature-name`
+8. Submit a Pull Request
 
 The auto-discovery system will automatically find and integrate your new functions!
 
@@ -307,8 +484,4 @@ MIT License - see LICENSE file for details.
 
 ---
 
-**Siege Utilities**: Where every function is available everywhere! 🚀
-
-
-
-# Test
+**Siege Utilities**:Spatial Intelligence, In Python! 🚀
