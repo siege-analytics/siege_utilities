@@ -5,18 +5,49 @@
 Tests for siege_utilities.distributed.spark_utils module.
 These tests focus on exposing issues in Spark DataFrame operations.
 """
-import pytest
-import json
-from unittest.mock import Mock, patch, MagicMock
-import siege_utilities
 
-# Skip all tests if PySpark is not available
-pytest.importorskip("pyspark", reason="PySpark not available")
+# Python standard
+
+import sys
+import os
+import json
+
+# PySpark
+
+# Unit Testing
+import pytest
+from unittest.mock import Mock, patch, MagicMock
+
+# Spark functions
 
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 from pyspark.sql.functions import col
 
+# Siege Utilities
+
+import siege_utilities
+
+# Skip all tests if PySpark is not available
+pytest.importorskip("pyspark", reason="PySpark not available")
+
+
+# Skip all tests if necessary envs are not available
+# Import ensure_env_vars from run_tests.py if it's available
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+try:
+    from run_tests import ensure_env_vars
+    ensure_env_vars(["JAVA_HOME", "SPARK_HOME"])
+except ImportError:
+    pass
+
+missing = [v for v in ["JAVA_HOME", "SPARK_HOME"] if not os.environ.get(v)]
+if missing:
+    pytest.skip(
+        f"Skipping Spark tests — missing env vars: {', '.join(missing)}",
+        allow_module_level=True
+    )
 
 class TestSparkUtils:
     """Test Spark utility functions."""

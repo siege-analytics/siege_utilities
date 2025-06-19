@@ -14,21 +14,98 @@ import argparse
 from pathlib import Path
 
 
-def run_command(cmd, description):
-    """Run a command and handle errors."""
+def ensure_env_vars(required_vars):
+    """
+    Ensure required environment variables are set.
+    If missing, use default values for SDKMAN-managed tools on macOS
+    (Homebrew installed at /opt/homebrew/opt/sdkman-cli/...).
+
+    Returns:
+        dict: {var_name: resolved_value_or_None}
+    """
+    import os
+    import subprocess
+
+    sdk_root = "/opt/homebrew/opt/sdkman-cli/libexec/candidates"
+    resolved = {}
+
+    for var in required_vars:
+        if os.environ.get(var):
+            resolved[var] = os.environ[var]
+            continue
+
+        if var == "JAVA_HOME":
+            java_home = os.path.join(sdk_root, "java", "current")
+            if os.path.exists(java_home):
+                os.environ[var] = java_home
+                resolved[var] = java_home
+            else:
+                resolved[var] = None
+
+        elif var == "SPARK_HOME":
+            spark_home = os.path.join(sdk_root, "spark", "current")
+            if os.path.exists(spark_home):
+                os.environ[var] = spark_home
+                resolved[var] = spark_home
+            else:
+                resolved[var] = None
+
+        elif var == "HADOOP_HOME":
+            hadoop_home = os.path.join(sdk_root, "hadoop", "current")
+            if os.path.exists(hadoop_home):
+                os.environ[var] = hadoop_home
+                resolved[var] = hadoop_home
+            else:
+                resolved[var] = None
+
+        elif var == "SCALA_HOME":
+            scala_home = os.path.join(sdk_root, "scala", "current")
+            if os.path.exists(scala_home):
+                os.environ[var] = scala_home
+                resolved[var] = scala_home
+            else:
+                resolved[var] = None
+
+        else:
+            resolved[var] = None  # Unknown env var — leave unset
+
+    return resolved
+
+
+def run_command(cmd, description, log_file=None):
+    """Run a command, print all output live, print errors on failure, and optionally write to a log file."""
+    import subprocess
+
     print(f"\n🔄 {description}")
     print(f"Running: {' '.join(cmd)}")
     print("-" * 60)
 
-    result = subprocess.run(cmd, capture_output=False)
+    if log_file:
+        with open(log_file, "w") as f:
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            for line in process.stdout:
+                print(line, end='')
+                f.write(line)
+            _, stderr = process.communicate()
+            if stderr:
+                print(stderr, file=sys.stderr)
+                f.write(stderr)
+            returncode = process.returncode
+    else:
+        process = subprocess.run(cmd)
+        returncode = process.returncode
 
-    if result.returncode == 0:
+    if returncode == 0:
         print(f"✅ {description} completed successfully")
     else:
-        print(f"❌ {description} failed with return code {result.returncode}")
+        print(f"❌ {description} failed with return code {returncode}")
 
-    return result.returncode == 0
-
+    return returncode == 0
 
 def main():
     parser = argparse.ArgumentParser(description="Run siege-utilities tests")
@@ -87,7 +164,7 @@ def main():
 
     # Add verbosity
     if args.verbose:
-        cmd.extend(["-vv", "-s"])
+        cmd.extend(["-vv", "-s", "--tb=long"])
 
     # Add parallel execution
     if args.parallel:
@@ -196,6 +273,7 @@ def quick_smoke_test():
 
 
 if __name__ == "__main__":
+    ensure_env_vars(["JAVA_HOME", "SPARK_HOME", "SCALA_HOME", "HADOOP_HOME"])
     if len(sys.argv) == 1:
         # No arguments - run quick smoke test
         success = quick_smoke_test()
