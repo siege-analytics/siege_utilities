@@ -181,6 +181,7 @@ SUBPACKAGE_ORDER = [
     'files',        # Basic file operations, minimal dependencies
     'distributed',  # May depend on files, has optional dependencies
     'geo',          # May depend on files and distributed
+    'testing',      # Testing and environment variables
 ]
 
 def import_subpackage(subpackage_name: str) -> int:
@@ -355,27 +356,22 @@ def check_dependencies() -> Dict[str, bool]:
         'requests': False,
     }
 
-    # Test each dependency properly
+    # Special import mappings for packages with different import names
+    import_mappings = {
+        'apache-sedona': 'sedona',  # Package name vs import name differ
+    }
+
     for dep in dependencies:
         try:
-            if dep == 'apache-sedona':
-                # Test actual Sedona functionality
-                from sedona.spark import SedonaContext
-                dependencies[dep] = True
-            elif dep == 'pyspark':
-                from pyspark.sql import SparkSession
-                dependencies[dep] = True
-            elif dep == 'geopy':
-                from geopy.geocoders import Nominatim
-                dependencies[dep] = True
-            else:
-                # Standard import for others
-                importlib.import_module(dep.replace('-', '_'))
-                dependencies[dep] = True
+            # Use special mapping if available, otherwise use standard conversion
+            import_name = import_mappings.get(dep, dep.replace('-', '_'))
+            importlib.import_module(import_name)
+            dependencies[dep] = True
         except ImportError:
             pass
 
     return dependencies
+
 # Add utility functions to exports
 __all__.extend(['get_package_info', 'list_available_functions', 'get_function_info', 'check_dependencies'])
 

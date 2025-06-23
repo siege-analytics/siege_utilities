@@ -31,23 +31,13 @@ import siege_utilities
 # Skip all tests if PySpark is not available
 pytest.importorskip("pyspark", reason="PySpark not available")
 
-
-# Skip all tests if necessary envs are not available
-# Import ensure_env_vars from run_tests.py if it's available
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 try:
-    from run_tests import ensure_env_vars
-    ensure_env_vars(["JAVA_HOME", "SPARK_HOME"])
+    import siege_utilities
+    # Quick environment setup that handles everything
+    if not siege_utilities.setup_spark_environment():
+        pytest.skip("Spark environment setup failed", allow_module_level=True)
 except ImportError:
-    pass
-
-missing = [v for v in ["JAVA_HOME", "SPARK_HOME"] if not os.environ.get(v)]
-if missing:
-    pytest.skip(
-        f"Skipping Spark tests — missing env vars: {', '.join(missing)}",
-        allow_module_level=True
-    )
+    pytest.skip("siege_utilities package not available", allow_module_level=True)
 
 class TestSparkUtils:
     """Test Spark utility functions."""

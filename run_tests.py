@@ -1,120 +1,35 @@
-# ================================================================
-# FILE: run_tests.py
-# ================================================================
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 """
-Test runner script for siege-utilities.
-This script provides an easy way to run different test suites.
+Integrated test runner script for siege-utilities.
+This script is now a thin wrapper around siege_utilities testing functions.
 """
 
 import sys
-import os
-import subprocess
 import argparse
 from pathlib import Path
 
 
-def ensure_env_vars(required_vars):
-    """
-    Ensure required environment variables are set.
-    If missing, use default values for SDKMAN-managed tools on macOS
-    (Homebrew installed at /opt/homebrew/opt/sdkman-cli/...).
-
-    Returns:
-        dict: {var_name: resolved_value_or_None}
-    """
-    import os
-    import subprocess
-
-    sdk_root = "/opt/homebrew/opt/sdkman-cli/libexec/candidates"
-    resolved = {}
-
-    for var in required_vars:
-        if os.environ.get(var):
-            resolved[var] = os.environ[var]
-            continue
-
-        if var == "JAVA_HOME":
-            java_home = os.path.join(sdk_root, "java", "current")
-            if os.path.exists(java_home):
-                os.environ[var] = java_home
-                resolved[var] = java_home
-            else:
-                resolved[var] = None
-
-        elif var == "SPARK_HOME":
-            spark_home = os.path.join(sdk_root, "spark", "current")
-            if os.path.exists(spark_home):
-                os.environ[var] = spark_home
-                resolved[var] = spark_home
-            else:
-                resolved[var] = None
-
-        elif var == "HADOOP_HOME":
-            hadoop_home = os.path.join(sdk_root, "hadoop", "current")
-            if os.path.exists(hadoop_home):
-                os.environ[var] = hadoop_home
-                resolved[var] = hadoop_home
-            else:
-                resolved[var] = None
-
-        elif var == "SCALA_HOME":
-            scala_home = os.path.join(sdk_root, "scala", "current")
-            if os.path.exists(scala_home):
-                os.environ[var] = scala_home
-                resolved[var] = scala_home
-            else:
-                resolved[var] = None
-
-        else:
-            resolved[var] = None  # Unknown env var — leave unset
-
-    return resolved
-
-
-def run_command(cmd, description, log_file=None):
-    """Run a command, print all output live, print errors on failure, and optionally write to a log file."""
-    import subprocess
-
-    print(f"\n🔄 {description}")
-    print(f"Running: {' '.join(cmd)}")
-    print("-" * 60)
-
-    if log_file:
-        with open(log_file, "w") as f:
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            for line in process.stdout:
-                print(line, end='')
-                f.write(line)
-            _, stderr = process.communicate()
-            if stderr:
-                print(stderr, file=sys.stderr)
-                f.write(stderr)
-            returncode = process.returncode
-    else:
-        process = subprocess.run(cmd)
-        returncode = process.returncode
-
-    if returncode == 0:
-        print(f"✅ {description} completed successfully")
-    else:
-        print(f"❌ {description} failed with return code {returncode}")
-
-    return returncode == 0
-
 def main():
-    parser = argparse.ArgumentParser(description="Run siege-utilities tests")
+    """Main test runner using siege_utilities integrated functions."""
+    parser = argparse.ArgumentParser(
+        description="Run siege-utilities tests using integrated testing functions",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python run_tests.py                          # Quick smoke test
+  python run_tests.py --mode smoke --verbose   # Verbose smoke test  
+  python run_tests.py --mode distributed       # Test Spark functionality
+  python run_tests.py --mode all --parallel    # Full test suite in parallel
+  python run_tests.py --comprehensive          # Complete diagnostic + test suite
+  python run_tests.py --diagnose               # Environment diagnostics only
+        """
+    )
 
     parser.add_argument(
         "--mode",
         choices=["smoke", "unit", "integration", "all", "coverage", "fast"],
         default="smoke",
-        help="Test mode to run"
+        help="Test mode to run (default: smoke)"
     )
 
     parser.add_argument(
@@ -141,7 +56,41 @@ def main():
         help="Install test dependencies first"
     )
 
+    parser.add_argument(
+        "--setup-env",
+        action="store_true",
+        default=True,
+        help="Set up environment before running tests (default: True)"
+    )
+
+    parser.add_argument(
+        "--no-setup-env",
+        action="store_true",
+        help="Skip environment setup"
+    )
+
+    parser.add_argument(
+        "--diagnose",
+        action="store_true",
+        help="Run environment diagnostics only"
+    )
+
+    parser.add_argument(
+        "--comprehensive",
+        action="store_true",
+        help="Run comprehensive test suite (diagnostics + smoke + unit tests)"
+    )
+
+    parser.add_argument(
+        "--report",
+        action="store_true",
+        help="Generate detailed test report"
+    )
+
     args = parser.parse_args()
+
+    # Determine environment setup preference
+    setup_environment = args.setup_env and not args.no_setup_env
 
     # Ensure we're in the right directory
     if not Path("siege_utilities").exists():
@@ -149,136 +98,123 @@ def main():
         print("Please run this script from the project root directory.")
         sys.exit(1)
 
-    # Create reports directory
-    Path("reports").mkdir(exist_ok=True)
+    try:
+        # Import siege_utilities to use integrated functions
+        import siege_utilities
+        print("✅ siege_utilities package loaded successfully")
 
-    # Install dependencies if requested
-    if args.install_deps:
-        print("📦 Installing test dependencies...")
-        subprocess.run([
-            sys.executable, "-m", "pip", "install", "-r", "test_requirements.txt"
-        ])
-
-    # Build pytest command
-    cmd = [sys.executable, "-m", "pytest"]
-
-    # Add verbosity
-    if args.verbose:
-        cmd.extend(["-vv", "-s", "--tb=long"])
-
-    # Add parallel execution
-    if args.parallel:
-        cmd.extend(["-n", "auto"])
-
-    # Configure based on mode
-    if args.mode == "smoke":
-        print("🔥 Running SMOKE TESTS - Quick tests to find broken functions")
-        cmd.extend([
-            "--maxfail=10",  # Stop after 10 failures
-            "--tb=short",
-            "-x"  # Stop on first failure for quick feedback
-        ])
-
-    elif args.mode == "fast":
-        print("⚡ Running FAST TESTS - Skip slow tests")
-        cmd.extend([
-            "-m", "not slow",
-            "--maxfail=5"
-        ])
-
-    elif args.mode == "unit":
-        print("🧪 Running UNIT TESTS")
-        cmd.extend(["-m", "unit or not integration"])
-
-    elif args.mode == "coverage":
-        print("📊 Running COVERAGE ANALYSIS")
-        cmd.extend([
-            "--cov=siege_utilities",
-            "--cov-report=html:htmlcov",
-            "--cov-report=term-missing",
-            "--cov-report=xml:coverage.xml",
-            "--cov-fail-under=60"  # Fail if coverage below 60%
-        ])
-
-    elif args.mode == "all":
-        print("🎯 Running ALL TESTS")
-        # No additional filters
-
-    # Filter by module if specified
-    if args.module:
-        print(f"🎯 Filtering tests for module: {args.module}")
-        if args.module == "core":
-            cmd.append("tests/test_core_*.py")
-        elif args.module == "files":
-            cmd.append("tests/test_*file*.py")
-        elif args.module == "distributed":
-            cmd.append("tests/test_*spark*.py")
-        elif args.module == "geo":
-            cmd.append("tests/test_*geo*.py")
-        elif args.module == "discovery":
-            cmd.append("tests/test_package_discovery.py")
-
-    # Run the tests
-    success = run_command(cmd, f"siege-utilities {args.mode.upper()} tests")
-
-    if success:
-        print("\n🎉 Tests completed successfully!")
-
-        # Show coverage report location if generated
-        if args.mode == "coverage" or "cov" in cmd:
-            if Path("htmlcov").exists():
-                print(f"📊 Coverage report: file://{Path('htmlcov/index.html').absolute()}")
-
-        # Show test report location
-        if Path("reports/pytest_report.html").exists():
-            print(f"📋 Test report: file://{Path('reports/pytest_report.html').absolute()}")
-
-    else:
-        print("\n❌ Some tests failed!")
-        print("\nDebugging tips:")
-        print("1. Check the test output above for specific errors")
-        print("2. Run with --verbose for more details")
-        print("3. Run specific test files: pytest tests/test_specific_file.py")
-        print("4. Run a single test: pytest tests/test_file.py::TestClass::test_method")
+    except ImportError as e:
+        print(f"❌ Could not import siege_utilities: {e}")
+        print("💡 Try: pip install -e .")
         sys.exit(1)
 
+    # Handle special modes first
+    if args.diagnose:
+        print("🔍 Running environment diagnostics...")
+        success = siege_utilities.diagnose_environment()
+        sys.exit(0 if success else 1)
 
-def quick_smoke_test():
-    """Run a very quick smoke test to check basic functionality."""
-    print("🔥 Quick Smoke Test - Testing basic imports and functions")
+    if args.comprehensive:
+        print("🎯 Running comprehensive test suite...")
+        success = siege_utilities.run_comprehensive_test()
+        sys.exit(0 if success else 1)
 
+    if args.report:
+        print("📊 Generating test report...")
+        report = siege_utilities.get_test_report()
+
+        print("\n" + "=" * 60)
+        print("TEST REPORT")
+        print("=" * 60)
+        print(f"Environment healthy: {report['environment_healthy']}")
+        print(f"Smoke test passed: {report['smoke_test_passed']}")
+
+        print(f"\nDependencies ({len(report['dependencies'])} total):")
+        for dep, available in report['dependencies'].items():
+            status = "✅" if available else "❌"
+            print(f"  {status} {dep}")
+
+        if report.get('suggestions'):
+            print(f"\nSuggestions:")
+            for suggestion in report['suggestions']:
+                print(f"  💡 {suggestion}")
+
+        # Show system info if verbose
+        if args.verbose:
+            print(f"\nSystem Information:")
+            for key, value in report['system_info'].items():
+                print(f"  {key}: {value}")
+
+        sys.exit(0)
+
+    # Run standard test suite
+    print(f"🚀 Running {args.mode} tests using siege_utilities integrated functions...")
+
+    success = siege_utilities.run_test_suite(
+        mode=args.mode,
+        module=args.module,
+        parallel=args.parallel,
+        verbose=args.verbose,
+        install_deps=args.install_deps,
+        setup_environment=setup_environment
+    )
+
+    if success:
+        print("\n🎉 Test run completed successfully!")
+        print("\n💡 More options:")
+        print("  python run_tests.py --comprehensive  # Full diagnostic suite")
+        print("  python run_tests.py --report         # Detailed report")
+        print("  python run_tests.py --diagnose       # Environment check only")
+    else:
+        print("\n❌ Test run failed!")
+        print("\n🔍 Debugging options:")
+        print("  python run_tests.py --diagnose       # Check environment")
+        print("  python run_tests.py --report         # Get detailed report")
+        print("  python run_tests.py --verbose        # More detailed output")
+
+    sys.exit(0 if success else 1)
+
+
+def quick_run():
+    """Quick smoke test when script is run without arguments."""
     try:
         import siege_utilities
-        print("✅ Package imports successfully")
+        print("🔥 Running quick smoke test...")
 
-        # Test basic functions
-        info = siege_utilities.get_package_info()
-        print(f"✅ Package info: {info['total_functions']} functions found")
+        success = siege_utilities.quick_smoke_test()
 
-        # Test logging
-        siege_utilities.log_info("Smoke test message")
-        print("✅ Logging works")
+        if success:
+            print("\n✅ Quick smoke test PASSED!")
+            print("\n💡 More test options:")
+            print("  python run_tests.py --mode all       # Run all tests")
+            print("  python run_tests.py --comprehensive  # Full diagnostic suite")
+            print("  python run_tests.py --help           # See all options")
+        else:
+            print("\n❌ Quick smoke test FAILED!")
+            print("\n🔍 Try these debugging steps:")
+            print("  python run_tests.py --diagnose       # Check environment")
+            print("  python run_tests.py --report         # Get detailed report")
+            print("  python run_tests.py --mode smoke --verbose  # Verbose smoke test")
 
-        # Test string utils
-        result = siege_utilities.remove_wrapping_quotes_and_trim('"test"')
-        assert result == "test"
-        print("✅ String utilities work")
+        return success
 
-        print("\n🎉 Basic smoke test PASSED!")
-        return True
+    except ImportError as e:
+        print(f"❌ Could not import siege_utilities: {e}")
+        print("💡 Installation suggestions:")
+        print("  pip install -e .                     # Install in development mode")
+        print("  pip install pyspark                  # Install PySpark if missing")
+        return False
 
     except Exception as e:
-        print(f"\n❌ Basic smoke test FAILED: {e}")
+        print(f"❌ Quick smoke test failed: {e}")
         return False
 
 
 if __name__ == "__main__":
-    ensure_env_vars(["JAVA_HOME", "SPARK_HOME", "SCALA_HOME", "HADOOP_HOME"])
     if len(sys.argv) == 1:
         # No arguments - run quick smoke test
-        success = quick_smoke_test()
-        if not success:
-            print("\n💡 Try running: python run_tests.py --mode smoke")
+        success = quick_run()
         sys.exit(0 if success else 1)
     else:
+        # Arguments provided - run main function
         main()
