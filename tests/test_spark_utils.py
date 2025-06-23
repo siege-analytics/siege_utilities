@@ -69,12 +69,17 @@ class TestSparkUtils:
         return spark.createDataFrame(data, schema)
 
     def test_move_column_to_front_of_dataframe(self, sample_df):
-        """Test moving column to front - this function has a bug."""
-        # The function has a bug: it returns `df` instead of `df_reordered`
+        """Test moving column to front - should work correctly."""
         result_df = siege_utilities.move_column_to_front_of_dataframe(sample_df, "age")
 
-        # The bug means it returns the original DataFrame, not the reordered one
-        assert result_df.columns == sample_df.columns  # Bug: no reordering happened
+        # Age should now be first
+        expected_columns = ['age', 'name', 'job']  # age moved to front
+        assert result_df.columns == expected_columns
+
+        # Test with another column
+        result_df2 = siege_utilities.move_column_to_front_of_dataframe(sample_df, "name")
+        expected_columns2 = ['name', 'age', 'job']  # name stays first (already was)
+        assert result_df2.columns == expected_columns2
 
     def test_reproject_geom_columns_function_exists(self):
         """Test that reproject_geom_columns function exists and has the easter egg."""
