@@ -346,18 +346,7 @@ def get_function_info(function_name: str) -> Optional[Dict[str, Any]]:
     return _FUNCTION_REGISTRY.get(function_name)
 
 def check_dependencies() -> Dict[str, bool]:
-    """
-    Check the status of optional dependencies.
-
-    Returns:
-        Dictionary mapping dependency names to availability status
-
-    Example:
-        >>> import siege_utilities
-        >>> deps = siege_utilities.check_dependencies()
-        >>> if deps['pyspark']:
-        >>>     print("Distributed computing features available")
-    """
+    """Check the status of optional dependencies."""
     dependencies = {
         'pyspark': False,
         'geopy': False,
@@ -366,15 +355,27 @@ def check_dependencies() -> Dict[str, bool]:
         'requests': False,
     }
 
+    # Test each dependency properly
     for dep in dependencies:
         try:
-            importlib.import_module(dep.replace('-', '_'))
-            dependencies[dep] = True
+            if dep == 'apache-sedona':
+                # Test actual Sedona functionality
+                from sedona.spark import SedonaContext
+                dependencies[dep] = True
+            elif dep == 'pyspark':
+                from pyspark.sql import SparkSession
+                dependencies[dep] = True
+            elif dep == 'geopy':
+                from geopy.geocoders import Nominatim
+                dependencies[dep] = True
+            else:
+                # Standard import for others
+                importlib.import_module(dep.replace('-', '_'))
+                dependencies[dep] = True
         except ImportError:
             pass
 
     return dependencies
-
 # Add utility functions to exports
 __all__.extend(['get_package_info', 'list_available_functions', 'get_function_info', 'check_dependencies'])
 
