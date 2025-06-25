@@ -119,22 +119,10 @@ def main():
     for file_name in files_with_issues.keys():
         print(f"   grep -n 'return ' {file_name}")
 
-    print(f"\n📝 SUMMARY - Functions to fix by file:")
-    print("=" * 50)
+    print(f"\n📝 Summary by file:")
     for file_name, functions in files_with_issues.items():
         func_names = [f['function'] for f in functions]
-        print(f"📁 {file_name}")
-        for func_name in func_names:
-            print(f"   - {func_name}")
-        print()
-
-    if len(files_with_issues) == 1:
-        file_name = list(files_with_issues.keys())[0]
-        print(f"💡 All issues are in one file: {file_name}")
-        print(f"   Edit this file and replace return statements with assertions")
-    else:
-        print(f"💡 Issues found in {len(files_with_issues)} files")
-        print(f"   Edit each file and replace return statements with assertions")
+        print(f"   {file_name}: {', '.join(func_names)}")
 
 
 if __name__ == "__main__":

@@ -179,6 +179,7 @@ log_import_info("Phase 3: Importing subpackages...")
 # Define subpackage import order (dependencies first)
 SUBPACKAGE_ORDER = [
     'files',        # Basic file operations, minimal dependencies
+    'config',       # db connections, paths, etc.
     'distributed',  # May depend on files, has optional dependencies
     'geo',          # May depend on files and distributed
     'testing',      # Testing and environment variables
