@@ -1,0 +1,1428 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>siege_utilities.distributed.spark_utils &mdash; Siege Utilities 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=a12e3537"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Siege Utilities
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#core-capabilities">Core Capabilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#core-utilities-16-functions">🔧 <strong>Core Utilities (16 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#file-operations-22-functions">📁 <strong>File Operations (22 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#distributed-computing-503-functions">🚀 <strong>Distributed Computing (503+ functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#geospatial-2-functions">🌍 <strong>Geospatial (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#configuration-management-15-functions">⚙️ <strong>Configuration Management (15 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#analytics-integration-6-functions">📊 <strong>Analytics Integration (6 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#code-hygiene-2-functions">🧹 <strong>Code Hygiene (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#testing-development-2-functions">🧪 <strong>Testing &amp; Development (2 functions)</strong></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#real-world-workflow-examples">Real-World Workflow Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#installation-and-dependencies">Installation and Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#performance-and-scalability">Performance and Scalability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../architecture_diagram.html">Library Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#core-architecture">Core Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#function-distribution">Function Distribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#key-features">Key Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#integration-points">Integration Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#usage-patterns">Usage Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../autodiscovery.html">Enhanced Auto-Discovery System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#how-it-works">How It Works</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#the-five-phase-discovery-process">The Five-Phase Discovery Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#benefits">Benefits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#monitoring-your-package">Monitoring Your Package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#adding-new-functions">Adding New Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../all_functions.html">Complete Function Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-core-logging">siege_utilities.core.logging</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.get_logger"><code class="docutils literal notranslate"><span class="pre">get_logger()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.init_logger"><code class="docutils literal notranslate"><span class="pre">init_logger()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.log_critical"><code class="docutils literal notranslate"><span class="pre">log_critical()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.log_debug"><code class="docutils literal notranslate"><span class="pre">log_debug()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.log_error"><code class="docutils literal notranslate"><span class="pre">log_error()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.log_info"><code class="docutils literal notranslate"><span class="pre">log_info()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.log_warning"><code class="docutils literal notranslate"><span class="pre">log_warning()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-core-string-utils">siege_utilities.core.string_utils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.remove_wrapping_quotes_and_trim"><code class="docutils literal notranslate"><span class="pre">remove_wrapping_quotes_and_trim()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-distributed-hdfs-config">siege_utilities.distributed.hdfs_config</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.create_cluster_config"><code class="docutils literal notranslate"><span class="pre">create_cluster_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.create_geocoding_config"><code class="docutils literal notranslate"><span class="pre">create_geocoding_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.create_hdfs_config"><code class="docutils literal notranslate"><span class="pre">create_hdfs_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.create_local_config"><code class="docutils literal notranslate"><span class="pre">create_local_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.dataclass"><code class="docutils literal notranslate"><span class="pre">dataclass()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-distributed-hdfs-legacy">siege_utilities.distributed.hdfs_legacy</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.check_hdfs_status"><code class="docutils literal notranslate"><span class="pre">check_hdfs_status()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.get_quick_file_signature"><code class="docutils literal notranslate"><span class="pre">get_quick_file_signature()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-distributed-hdfs-operations">siege_utilities.distributed.hdfs_operations</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.create_hdfs_operations"><code class="docutils literal notranslate"><span class="pre">create_hdfs_operations()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.setup_distributed_environment"><code class="docutils literal notranslate"><span class="pre">setup_distributed_environment()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-distributed-spark-utils">siege_utilities.distributed.spark_utils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.atomic_write_with_staging"><code class="docutils literal notranslate"><span class="pre">atomic_write_with_staging()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.backup_full_dataframe"><code class="docutils literal notranslate"><span class="pre">backup_full_dataframe()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.clean_and_reorder_bbox"><code class="docutils literal notranslate"><span class="pre">clean_and_reorder_bbox()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.col"><code class="docutils literal notranslate"><span class="pre">col()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.compute_walkability"><code class="docutils literal notranslate"><span class="pre">compute_walkability()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.create_unique_staging_directory"><code class="docutils literal notranslate"><span class="pre">create_unique_staging_directory()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.ensure_literal"><code class="docutils literal notranslate"><span class="pre">ensure_literal()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.export_prepared_df_as_csv_to_path_using_delimiter"><code class="docutils literal notranslate"><span class="pre">export_prepared_df_as_csv_to_path_using_delimiter()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.export_pyspark_df_to_excel"><code class="docutils literal notranslate"><span class="pre">export_pyspark_df_to_excel()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.expr"><code class="docutils literal notranslate"><span class="pre">expr()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.flatten_json_column_and_join_back_to_df"><code class="docutils literal notranslate"><span class="pre">flatten_json_column_and_join_back_to_df()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.get_row_count"><code class="docutils literal notranslate"><span class="pre">get_row_count()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.mark_valid_geocode_data"><code class="docutils literal notranslate"><span class="pre">mark_valid_geocode_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.move_column_to_front_of_dataframe"><code class="docutils literal notranslate"><span class="pre">move_column_to_front_of_dataframe()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.new_walkability_udf"><code class="docutils literal notranslate"><span class="pre">new_walkability_udf()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.pivot_summary_table_for_bools"><code class="docutils literal notranslate"><span class="pre">pivot_summary_table_for_bools()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.pivot_summary_with_metrics"><code class="docutils literal notranslate"><span class="pre">pivot_summary_with_metrics()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.prepare_dataframe_for_export"><code class="docutils literal notranslate"><span class="pre">prepare_dataframe_for_export()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.prepare_summary_dataframe"><code class="docutils literal notranslate"><span class="pre">prepare_summary_dataframe()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.print_debug_table"><code class="docutils literal notranslate"><span class="pre">print_debug_table()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.read_parquet_to_df"><code class="docutils literal notranslate"><span class="pre">read_parquet_to_df()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.register_temp_table"><code class="docutils literal notranslate"><span class="pre">register_temp_table()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.repartition_and_cache"><code class="docutils literal notranslate"><span class="pre">repartition_and_cache()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.reproject_geom_columns"><code class="docutils literal notranslate"><span class="pre">reproject_geom_columns()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.sanitise_dataframe_column_names"><code class="docutils literal notranslate"><span class="pre">sanitise_dataframe_column_names()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.tabulate_null_vs_not_null"><code class="docutils literal notranslate"><span class="pre">tabulate_null_vs_not_null()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.validate_geocode_data"><code class="docutils literal notranslate"><span class="pre">validate_geocode_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.validate_geometry"><code class="docutils literal notranslate"><span class="pre">validate_geometry()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.write_df_to_parquet"><code class="docutils literal notranslate"><span class="pre">write_df_to_parquet()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-files-hashing">siege_utilities.files.hashing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.calculate_file_hash"><code class="docutils literal notranslate"><span class="pre">calculate_file_hash()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.generate_sha256_hash_for_file"><code class="docutils literal notranslate"><span class="pre">generate_sha256_hash_for_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.get_file_hash"><code class="docutils literal notranslate"><span class="pre">get_file_hash()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.verify_file_integrity"><code class="docutils literal notranslate"><span class="pre">verify_file_integrity()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-files-operations">siege_utilities.files.operations</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.check_for_file_type_in_directory"><code class="docutils literal notranslate"><span class="pre">check_for_file_type_in_directory()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.check_if_file_exists_at_path"><code class="docutils literal notranslate"><span class="pre">check_if_file_exists_at_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.count_duplicate_rows_in_file_using_awk"><code class="docutils literal notranslate"><span class="pre">count_duplicate_rows_in_file_using_awk()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.count_empty_rows_in_file_pythonically"><code class="docutils literal notranslate"><span class="pre">count_empty_rows_in_file_pythonically()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.count_empty_rows_in_file_using_awk"><code class="docutils literal notranslate"><span class="pre">count_empty_rows_in_file_using_awk()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.count_total_rows_in_file_pythonically"><code class="docutils literal notranslate"><span class="pre">count_total_rows_in_file_pythonically()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.count_total_rows_in_file_using_sed"><code class="docutils literal notranslate"><span class="pre">count_total_rows_in_file_using_sed()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.delete_existing_file_and_replace_it_with_an_empty_file"><code class="docutils literal notranslate"><span class="pre">delete_existing_file_and_replace_it_with_an_empty_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.remove_empty_rows_in_file_using_sed"><code class="docutils literal notranslate"><span class="pre">remove_empty_rows_in_file_using_sed()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.write_data_to_a_new_empty_file"><code class="docutils literal notranslate"><span class="pre">write_data_to_a_new_empty_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.write_data_to_an_existing_file"><code class="docutils literal notranslate"><span class="pre">write_data_to_an_existing_file()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-files-paths">siege_utilities.files.paths</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.ensure_path_exists"><code class="docutils literal notranslate"><span class="pre">ensure_path_exists()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.unzip_file_to_its_own_directory"><code class="docutils literal notranslate"><span class="pre">unzip_file_to_its_own_directory()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-files-remote">siege_utilities.files.remote</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.download_file"><code class="docutils literal notranslate"><span class="pre">download_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.generate_local_path_from_url"><code class="docutils literal notranslate"><span class="pre">generate_local_path_from_url()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-files-shell">siege_utilities.files.shell</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.run_subprocess"><code class="docutils literal notranslate"><span class="pre">run_subprocess()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-geo-geocoding">siege_utilities.geo.geocoding</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.concatenate_addresses"><code class="docutils literal notranslate"><span class="pre">concatenate_addresses()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.use_nominatim_geocoder"><code class="docutils literal notranslate"><span class="pre">use_nominatim_geocoder()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../testing_guide.html">Testing Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-structure">Test Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#running-tests">Running Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#basic-test-execution">Basic Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#coverage-and-reporting">Coverage and Reporting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#parallel-execution">Parallel Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-markers">Test Markers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#writing-new-tests">Writing New Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-file-structure">Test File Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-naming-conventions">Test Naming Conventions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#example-test-patterns">Example Test Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-fixtures">Test Fixtures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-configuration">Test Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#pytest-configuration">Pytest Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#coverage-configuration">Coverage Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#continuous-integration">Continuous Integration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#ci-pipeline">CI Pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#debugging-tests">Debugging Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#verbose-output">Verbose Output</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#debug-mode">Debug Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#single-test-execution">Single Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-isolation">Test Isolation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#performance-testing">Performance Testing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#benchmark-tests">Benchmark Tests</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#load-testing">Load Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-data-management">Test Data Management</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-data-generation">Test Data Generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#data-cleanup">Data Cleanup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-organization">Test Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-independence">Test Independence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-coverage">Test Coverage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#performance-considerations">Performance Considerations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#common-patterns">Common Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#configuration-testing">Configuration Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#file-operation-testing">File Operation Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#api-testing">API Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#common-issues">Common Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#getting-help">Getting Help</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Siege Utilities</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">siege_utilities.distributed.spark_utils</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for siege_utilities.distributed.spark_utils</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Tuple</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pathlib</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">pyspark.sql</span> <span class="kn">import</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">SparkSession</span>
+    <span class="kn">from</span> <span class="nn">pyspark.sql.types</span> <span class="kn">import</span> <span class="o">*</span>
+    <span class="kn">from</span> <span class="nn">pyspark.sql.functions</span> <span class="kn">import</span> <span class="o">*</span>
+    <span class="n">PYSPARK_AVAILABLE</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">PYSPARK_AVAILABLE</span> <span class="o">=</span> <span class="kc">False</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<div class="viewcode-block" id="sanitise_dataframe_column_names">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.sanitise_dataframe_column_names">[docs]</a>
+<span class="k">def</span> <span class="nf">sanitise_dataframe_column_names</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span><span class="n">DataFrame</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Cleans dataframe column names by converting them to lowercase and replacing</span>
+<span class="sd">    slashes/spaces with underscores.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        df (DataFrame): Input Spark DataFrame.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Optional[DataFrame]: Sanitised DataFrame or None if an error occurred.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Sanitising column names for dataframe </span><span class="si">{</span><span class="n">df</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">toDF</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span>
+            <span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">])</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;Successfully sanitised columns for dataframe </span><span class="si">{</span><span class="n">df</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">df</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;There was a problem sanitising column names for dataframe </span><span class="si">{</span><span class="n">df</span><span class="si">}</span><span class="s1">:</span><span class="se">\n</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="p">)</span>
+        <span class="n">log_error</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="tabulate_null_vs_not_null">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.tabulate_null_vs_not_null">[docs]</a>
+<span class="k">def</span> <span class="nf">tabulate_null_vs_not_null</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">column_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span>
+    <span class="n">DataFrame</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a dataframe showing the count of null and non-null values for a given column.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        df (DataFrame): Input Spark DataFrame.</span>
+<span class="sd">        column_name (str): Name of the column to analyze.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Optional[DataFrame]: Resulting DataFrame with null vs non-null counts.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">NULL_COLUMNS_NAME</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">column_name</span><span class="si">}</span><span class="s1">_null_count&#39;</span>
+        <span class="n">NOT_NULL_COLUMNS_NAME</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">column_name</span><span class="si">}</span><span class="s1">_not_null_count&#39;</span>
+        <span class="n">result_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">groupBy</span><span class="p">(</span><span class="n">column_name</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">when</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">column_name</span><span class="p">)</span><span class="o">.</span>
+            <span class="n">isNull</span><span class="p">(),</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">NULL_COLUMNS_NAME</span><span class="p">),</span> <span class="nb">sum</span><span class="p">(</span><span class="n">when</span><span class="p">(</span>
+            <span class="n">col</span><span class="p">(</span><span class="n">column_name</span><span class="p">)</span><span class="o">.</span><span class="n">isNotNull</span><span class="p">(),</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span>
+            <span class="n">NOT_NULL_COLUMNS_NAME</span><span class="p">))</span>
+        <span class="n">result_df</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">truncate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result_df</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log_error</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;Error in tabulate_null_vs_not_null for column </span><span class="si">{</span><span class="n">column_name</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="get_row_count">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.get_row_count">[docs]</a>
+<span class="k">def</span> <span class="nf">get_row_count</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the count of rows in the dataframe.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        df (DataFrame): Input Spark DataFrame.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Optional[int]: Row count or None if an error occurred.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Row count for dataframe: </span><span class="si">{</span><span class="n">count</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">count</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error getting row count: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="repartition_and_cache">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.repartition_and_cache">[docs]</a>
+<span class="k">def</span> <span class="nf">repartition_and_cache</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">partitions</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span>
+    <span class="n">DataFrame</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Repartitions and caches a dataframe.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        df (DataFrame): Input Spark DataFrame.</span>
+<span class="sd">        partitions (int, optional): Number of partitions. Default is 100.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Optional[DataFrame]: Repartitioned and cached DataFrame or None if an error occurred.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">repartition</span><span class="p">(</span><span class="n">partitions</span><span class="p">)</span><span class="o">.</span><span class="n">cache</span><span class="p">()</span>
+        <span class="n">log_info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;Dataframe repartitioned to </span><span class="si">{</span><span class="n">partitions</span><span class="si">}</span><span class="s1"> partitions and cached.&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">df</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error repartitioning and caching dataframe: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="register_temp_table">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.register_temp_table">[docs]</a>
+<span class="k">def</span> <span class="nf">register_temp_table</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">table_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span><span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Registers a temporary view from a dataframe.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        df (DataFrame): Input Spark DataFrame.</span>
+<span class="sd">        table_name (str): Name for the temporary view.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        bool: True if successful, False otherwise.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">createOrReplaceTempView</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Temporary view &#39;</span><span class="si">{</span><span class="n">table_name</span><span class="si">}</span><span class="s2">&#39; registered.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error registering temporary table &#39;</span><span class="si">{</span><span class="n">table_name</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+
+<div class="viewcode-block" id="move_column_to_front_of_dataframe">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.move_column_to_front_of_dataframe">[docs]</a>
+<span class="k">def</span> <span class="nf">move_column_to_front_of_dataframe</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">column_name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span><span class="n">DataFrame</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
+<span class="sd">Utility function: move column to front of dataframe.</span>
+
+<span class="sd">Part of Siege Utilities Utilities module.</span>
+<span class="sd">Auto-discovered and available at package level.</span>
+
+<span class="sd">Returns:</span>
+<span class="sd">    Description needed</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
+<span class="sd">    &gt;&gt;&gt; result = siege_utilities.move_column_to_front_of_dataframe()</span>
+<span class="sd">    &gt;&gt;&gt; print(result)</span>
+
+<span class="sd">Note:</span>
+<span class="sd">    This function is auto-discovered and available without imports</span>
+<span class="sd">    across all siege_utilities modules.</span>
+<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">columns</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+        <span class="n">column_to_move</span> <span class="o">=</span> <span class="n">column_name</span>
+        <span class="n">new_column_order</span> <span class="o">=</span> <span class="p">[</span><span class="n">column_to_move</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">col</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">columns</span> <span class="k">if</span>
+            <span class="n">col</span> <span class="o">!=</span> <span class="n">column_to_move</span><span class="p">]</span>
+        <span class="n">df_reordered</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="o">*</span><span class="n">new_column_order</span><span class="p">)</span>
+        <span class="n">df_reordered</span><span class="o">.</span><span class="n">printSchema</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">df_reordered</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error repartitioning and caching dataframe: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="write_df_to_parquet">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.write_df_to_parquet">[docs]</a>
+<span class="k">def</span> <span class="nf">write_df_to_parquet</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;overwrite&#39;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span><span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Writes a DataFrame to a Parquet file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        df (DataFrame): Input Spark DataFrame.</span>
+<span class="sd">        path (str): Output path.</span>
+<span class="sd">        mode (str): Write mode. Defaults to &quot;overwrite&quot;.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        bool: True if successful, False otherwise.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">write</span><span class="o">.</span><span class="n">mode</span><span class="p">(</span><span class="n">mode</span><span class="p">)</span><span class="o">.</span><span class="n">parquet</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Dataframe written to parquet at </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2"> with mode &#39;</span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error writing dataframe to parquet at </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+
+<div class="viewcode-block" id="read_parquet_to_df">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.read_parquet_to_df">[docs]</a>
+<span class="k">def</span> <span class="nf">read_parquet_to_df</span><span class="p">(</span><span class="n">spark</span><span class="p">:</span> <span class="n">SparkSession</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span><span class="n">DataFrame</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Reads a Parquet file into a Spark DataFrame.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        spark (SparkSession): Active Spark session.</span>
+<span class="sd">        path (str): Path to the Parquet file.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Optional[DataFrame]: Loaded DataFrame or None if an error occurred.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">parquet</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Successfully read parquet from </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">df</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error reading parquet from </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="flatten_json_column_and_join_back_to_df">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.flatten_json_column_and_join_back_to_df">[docs]</a>
+<span class="k">def</span> <span class="nf">flatten_json_column_and_join_back_to_df</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">json_column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;json_column_&#39;</span><span class="p">,</span> <span class="n">logger</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">any</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">drop_original</span><span class="p">:</span>
+    <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">explode_arrays</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">flatten_level</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;shallow&#39;</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sample_size</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">show_samples</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span>
+    <span class="p">)</span> <span class="o">-&gt;</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Flattens a JSON column in a Spark DataFrame, extracting fields and adding them as columns.</span>
+<span class="sd">    Has fallback mechanisms for corrupt JSON data.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        df (DataFrame): The input Spark DataFrame.</span>
+<span class="sd">        json_column (str): The name of the column containing JSON strings.</span>
+<span class="sd">        prefix (str, optional): Prefix to add to the flattened column names. Defaults to &quot;json_column_&quot;.</span>
+<span class="sd">        logger (Optional[any], optional): Logger object for logging messages. Defaults to None.</span>
+<span class="sd">        drop_original (bool, optional): Whether to drop the original JSON column after flattening. Defaults to True.</span>
+<span class="sd">        explode_arrays (bool, optional): Whether to explode array columns. Defaults to False.</span>
+<span class="sd">        flatten_level (str, optional):  &quot;shallow&quot; or &quot;deep&quot; flattening. Defaults to &quot;shallow&quot;.</span>
+<span class="sd">        verbose (bool, optional): Controls whether to log detailed messages. Defaults to False.</span>
+<span class="sd">        sample_size (int, optional): Number of samples to check. Defaults to 5.</span>
+<span class="sd">        show_samples (bool, optional): Whether to display sample data. Defaults to False.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        DataFrame: The DataFrame with the JSON column flattened.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">log_info</span><span class="p">(</span><span class="n">message</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
+<span class="sd">Log a message using the info level.</span>
+
+<span class="sd">Part of Siege Utilities Logging module.</span>
+<span class="sd">Auto-discovered and available at package level.</span>
+
+<span class="sd">Returns:</span>
+<span class="sd">    Description needed</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
+<span class="sd">    &gt;&gt;&gt; result = siege_utilities.log_info()</span>
+<span class="sd">    &gt;&gt;&gt; print(result)</span>
+
+<span class="sd">Note:</span>
+<span class="sd">    This function is auto-discovered and available without imports</span>
+<span class="sd">    across all siege_utilities modules.</span>
+<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+        <span class="k">if</span> <span class="n">logger</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">log_error</span><span class="p">(</span><span class="n">message</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
+<span class="sd">Log a message using the error level.</span>
+
+<span class="sd">Part of Siege Utilities Logging module.</span>
+<span class="sd">Auto-discovered and available at package level.</span>
+
+<span class="sd">Returns:</span>
+<span class="sd">    Description needed</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
+<span class="sd">    &gt;&gt;&gt; result = siege_utilities.log_error()</span>
+<span class="sd">    &gt;&gt;&gt; print(result)</span>
+
+<span class="sd">Note:</span>
+<span class="sd">    This function is auto-discovered and available without imports</span>
+<span class="sd">    across all siege_utilities modules.</span>
+<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+        <span class="k">if</span> <span class="n">logger</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;ERROR: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="n">log_info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;Flattening JSON in column: </span><span class="si">{</span><span class="n">json_column</span><span class="si">}</span><span class="s1"> with prefix: </span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">show_samples</span><span class="p">:</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">createOrReplaceTempView</span><span class="p">(</span><span class="s1">&#39;json_data_view&#39;</span><span class="p">)</span>
+        <span class="n">sample_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">json_column</span><span class="p">)</span><span class="o">.</span><span class="n">isNotNull</span><span class="p">())</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">json_column</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="n">sample_size</span><span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Sample of JSON data in </span><span class="si">{</span><span class="n">json_column</span><span class="si">}</span><span class="s1">:&#39;</span><span class="p">)</span>
+        <span class="n">sample_df</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">truncate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">sample_json</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">json_column</span><span class="p">)</span><span class="o">.</span><span class="n">isNotNull</span><span class="p">()</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">length</span><span class="p">(</span><span class="n">trim</span><span class="p">(</span><span class="n">col</span>
+        <span class="p">(</span><span class="n">json_column</span><span class="p">)))</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">))</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">json_column</span><span class="p">)</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="n">sample_size</span><span class="p">)</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">sample_json</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">sample_json</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">sample_json</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]:</span>
+        <span class="n">log_info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;No valid JSON sample available in column </span><span class="si">{</span><span class="n">json_column</span><span class="si">}</span><span class="s1">, skipping flattening&#39;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">json_column</span><span class="p">)</span> <span class="k">if</span> <span class="n">drop_original</span> <span class="k">else</span> <span class="n">df</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Inferring schema from sample JSON in column </span><span class="si">{</span><span class="n">json_column</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">sample_rdd</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">sparkSession</span><span class="o">.</span><span class="n">sparkContext</span><span class="o">.</span><span class="n">parallelize</span><span class="p">([</span><span class="n">sample_json</span><span class="p">[</span>
+            <span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]])</span>
+        <span class="n">inferred_schema</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">sparkSession</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">json</span><span class="p">(</span><span class="n">sample_rdd</span><span class="p">)</span><span class="o">.</span><span class="n">schema</span>
+        <span class="k">if</span> <span class="s1">&#39;_corrupt_record&#39;</span> <span class="ow">in</span> <span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">inferred_schema</span><span class="o">.</span><span class="n">fields</span>
+            <span class="p">]:</span>
+            <span class="n">log_info</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;Found corrupt JSON records in column </span><span class="si">{</span><span class="n">json_column</span><span class="si">}</span><span class="s1">. Sample: </span><span class="si">{</span><span class="n">sample_json</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">][:</span><span class="mi">100</span><span class="p">]</span><span class="si">}</span><span class="s1">...&#39;</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sample_json</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">sample_json</span><span class="p">)):</span>
+                    <span class="k">if</span> <span class="n">sample_json</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]:</span>
+                        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Trying with another sample (#</span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
+                        <span class="n">sample_rdd</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">sparkSession</span><span class="o">.</span><span class="n">sparkContext</span><span class="o">.</span><span class="n">parallelize</span><span class="p">([</span>
+                            <span class="n">sample_json</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]])</span>
+                        <span class="n">inferred_schema</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">sparkSession</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">json</span><span class="p">(</span><span class="n">sample_rdd</span>
+                            <span class="p">)</span><span class="o">.</span><span class="n">schema</span>
+                        <span class="k">if</span> <span class="s1">&#39;_corrupt_record&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span>
+                            <span class="n">inferred_schema</span><span class="o">.</span><span class="n">fields</span><span class="p">]:</span>
+                            <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Found valid schema with sample #</span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s1">&#39;</span>
+                                <span class="p">)</span>
+                            <span class="k">break</span>
+            <span class="k">if</span> <span class="s1">&#39;_corrupt_record&#39;</span> <span class="ow">in</span> <span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span>
+                <span class="n">inferred_schema</span><span class="o">.</span><span class="n">fields</span><span class="p">]:</span>
+                <span class="n">log_info</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;All samples contain corrupt JSON. Falling back to string schema for </span><span class="si">{</span><span class="n">json_column</span><span class="si">}</span><span class="s1">&#39;</span>
+                    <span class="p">)</span>
+
+                <span class="k">def</span> <span class="nf">validate_json</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+<span class="w">                    </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
+<span class="sd">Utility function: validate json.</span>
+
+<span class="sd">Part of Siege Utilities Utilities module.</span>
+<span class="sd">Auto-discovered and available at package level.</span>
+
+<span class="sd">Returns:</span>
+<span class="sd">    Description needed</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
+<span class="sd">    &gt;&gt;&gt; result = siege_utilities.validate_json()</span>
+<span class="sd">    &gt;&gt;&gt; print(result)</span>
+
+<span class="sd">Note:</span>
+<span class="sd">    This function is auto-discovered and available without imports</span>
+<span class="sd">    across all siege_utilities modules.</span>
+<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+                    <span class="k">if</span> <span class="n">s</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="kc">None</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+                        <span class="k">return</span> <span class="n">s</span>
+                    <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">):</span>
+                        <span class="k">return</span> <span class="kc">None</span>
+                <span class="n">df_with_json</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;validated_json&#39;</span><span class="p">,</span> <span class="n">when</span><span class="p">(</span><span class="n">col</span><span class="p">(</span>
+                    <span class="n">json_column</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="n">lit</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span>
+                    <span class="n">validate_json</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">json_column</span><span class="p">))))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">,</span>
+                    <span class="n">from_json</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s1">&#39;validated_json&#39;</span><span class="p">),</span> <span class="n">StringType</span><span class="p">(),</span> <span class="p">{</span><span class="s1">&#39;mode&#39;</span><span class="p">:</span>
+                    <span class="s1">&#39;PERMISSIVE&#39;</span><span class="p">}))</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;validated_json&#39;</span><span class="p">)</span>
+                <span class="n">df_with_json</span> <span class="o">=</span> <span class="n">df_with_json</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">,</span> <span class="n">when</span><span class="p">(</span>
+                    <span class="n">col</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="n">lit</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">StringType</span><span class="p">(</span>
+                    <span class="p">)))</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">)))</span>
+                <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">json_column</span><span class="p">)</span> <span class="k">if</span> <span class="n">drop_original</span> <span class="k">else</span> <span class="n">df</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Inferred schema: </span><span class="si">{</span><span class="n">inferred_schema</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">df_with_json</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">,</span> <span class="n">from_json</span><span class="p">(</span><span class="n">col</span><span class="p">(</span>
+            <span class="n">json_column</span><span class="p">),</span> <span class="n">inferred_schema</span><span class="p">))</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error inferring schema for </span><span class="si">{</span><span class="n">json_column</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Falling back to string schema for </span><span class="si">{</span><span class="n">json_column</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="k">def</span> <span class="nf">validate_json</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
+<span class="sd">Utility function: validate json.</span>
+
+<span class="sd">Part of Siege Utilities Utilities module.</span>
+<span class="sd">Auto-discovered and available at package level.</span>
+
+<span class="sd">Returns:</span>
+<span class="sd">    Description needed</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
+<span class="sd">    &gt;&gt;&gt; result = siege_utilities.validate_json()</span>
+<span class="sd">    &gt;&gt;&gt; print(result)</span>
+
+<span class="sd">Note:</span>
+<span class="sd">    This function is auto-discovered and available without imports</span>
+<span class="sd">    across all siege_utilities modules.</span>
+<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+                <span class="k">if</span> <span class="n">s</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">None</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">s</span>
+                <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="kc">None</span>
+            <span class="n">df_with_json</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;validated_json&#39;</span><span class="p">,</span> <span class="n">when</span><span class="p">(</span><span class="n">col</span><span class="p">(</span>
+                <span class="n">json_column</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="n">lit</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="n">validate_json</span><span class="p">(</span>
+                <span class="n">col</span><span class="p">(</span><span class="n">json_column</span><span class="p">))))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">,</span> <span class="n">from_json</span><span class="p">(</span><span class="n">col</span>
+                <span class="p">(</span><span class="s1">&#39;validated_json&#39;</span><span class="p">),</span> <span class="n">StringType</span><span class="p">(),</span> <span class="p">{</span><span class="s1">&#39;mode&#39;</span><span class="p">:</span> <span class="s1">&#39;PERMISSIVE&#39;</span><span class="p">})</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;validated_json&#39;</span><span class="p">)</span>
+            <span class="n">df_with_json</span> <span class="o">=</span> <span class="n">df_with_json</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">,</span> <span class="n">when</span><span class="p">(</span><span class="n">col</span><span class="p">(</span>
+                <span class="s1">&#39;parsed_json&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="n">lit</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">StringType</span><span class="p">()))</span><span class="o">.</span>
+                <span class="n">otherwise</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">)))</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">log_error</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;Failed even with string schema for </span><span class="si">{</span><span class="n">json_column</span><span class="si">}</span><span class="s1">. Returning original dataframe.&#39;</span>
+                <span class="p">)</span>
+            <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">json_column</span><span class="p">)</span> <span class="k">if</span> <span class="n">drop_original</span> <span class="k">else</span> <span class="n">df</span>
+    <span class="n">columns_to_extract</span> <span class="o">=</span> <span class="n">df_with_json</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s1">&#39;parsed_json.*&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">columns</span>
+    <span class="n">result_df</span> <span class="o">=</span> <span class="n">df_with_json</span>
+    <span class="k">if</span> <span class="n">flatten_level</span> <span class="o">==</span> <span class="s1">&#39;shallow&#39;</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">columns_to_extract</span><span class="p">:</span>
+            <span class="n">result_df</span> <span class="o">=</span> <span class="n">result_df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}{</span><span class="n">field</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;parsed_json.</span><span class="si">{</span><span class="n">field</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+
+        <span class="k">def</span> <span class="nf">flatten_struct</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">struct_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">flatten_level</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Recursively flattens all struct and array fields in a column.&quot;&quot;&quot;</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">schema</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">struct_col</span><span class="p">)</span><span class="o">.</span><span class="n">schema</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">dataType</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="n">StructType</span><span class="p">):</span>
+                    <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">schema</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
+                        <span class="n">field_name</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span>
+                        <span class="n">full_field</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">struct_col</span><span class="si">}</span><span class="s1">.</span><span class="si">{</span><span class="n">field_name</span><span class="si">}</span><span class="s1">&#39;</span>
+                        <span class="n">new_col_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}{</span><span class="n">field_name</span><span class="si">}</span><span class="s1">&#39;</span>
+                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">dataType</span><span class="p">,</span> <span class="n">StructType</span><span class="p">):</span>
+                            <span class="k">if</span> <span class="n">flatten_level</span> <span class="o">==</span> <span class="s1">&#39;deep&#39;</span><span class="p">:</span>
+                                <span class="n">df</span> <span class="o">=</span> <span class="n">flatten_struct</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+                                    <span class="n">new_col_name</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="n">full_field</span><span class="p">)),</span>
+                                    <span class="n">new_col_name</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">new_col_name</span><span class="si">}</span><span class="s1">_&#39;</span><span class="p">,</span>
+                                    <span class="n">flatten_level</span><span class="p">)</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">new_col_name</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span>
+                                    <span class="n">full_field</span><span class="p">))</span>
+                        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">dataType</span><span class="p">,</span> <span class="n">ArrayType</span>
+                            <span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">dataType</span><span class="o">.</span><span class="n">elementType</span><span class="p">,</span>
+                            <span class="n">StructType</span><span class="p">):</span>
+                            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">new_col_name</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="n">full_field</span><span class="p">))</span>
+                            <span class="k">if</span> <span class="n">flatten_level</span> <span class="o">==</span> <span class="s1">&#39;deep&#39;</span><span class="p">:</span>
+                                <span class="n">df</span> <span class="o">=</span> <span class="n">flatten_struct</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">new_col_name</span><span class="p">,</span>
+                                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">new_col_name</span><span class="si">}</span><span class="s1">_&#39;</span><span class="p">,</span> <span class="n">flatten_level</span><span class="p">)</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">new_col_name</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="n">full_field</span><span class="p">))</span>
+                    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">struct_col</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">df</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error in flatten_struct: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">df</span>
+        <span class="n">result_df</span> <span class="o">=</span> <span class="n">flatten_struct</span><span class="p">(</span><span class="n">df_with_json</span><span class="p">,</span> <span class="s1">&#39;parsed_json&#39;</span><span class="p">,</span> <span class="n">prefix</span><span class="p">,</span>
+            <span class="n">flatten_level</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">explode_arrays</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">array_columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">col_name</span> <span class="k">for</span> <span class="n">col_name</span><span class="p">,</span> <span class="n">data_type</span> <span class="ow">in</span> <span class="n">result_df</span><span class="o">.</span>
+                <span class="n">dtypes</span> <span class="k">if</span> <span class="s1">&#39;array&#39;</span> <span class="ow">in</span> <span class="n">data_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span>
+            <span class="k">for</span> <span class="n">array_column</span> <span class="ow">in</span> <span class="n">array_columns</span><span class="p">:</span>
+                <span class="n">result_df</span> <span class="o">=</span> <span class="n">result_df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">array_column</span><span class="p">,</span>
+                    <span class="n">explode_outer</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">array_column</span><span class="p">)))</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error exploding arrays: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="n">columns_to_drop</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">drop_original</span><span class="p">:</span>
+        <span class="n">columns_to_drop</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">json_column</span><span class="p">)</span>
+    <span class="n">result_df</span> <span class="o">=</span> <span class="n">result_df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="o">*</span><span class="n">columns_to_drop</span><span class="p">)</span>
+    <span class="n">log_info</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s1">&#39;Finished flattening JSON column </span><span class="si">{</span><span class="n">json_column</span><span class="si">}</span><span class="s1">. Drop original: </span><span class="si">{</span><span class="n">drop_original</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;Columns after flattening:&#39;</span><span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">result_df</span><span class="o">.</span><span class="n">columns</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">result_df</span></div>
+
+
+
+<div class="viewcode-block" id="validate_geocode_data">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.validate_geocode_data">[docs]</a>
+<span class="k">def</span> <span class="nf">validate_geocode_data</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">lat_col_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">lon_col_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Filters out rows with invalid geographic coordinates using string-based column names.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">lat_col_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="ow">or</span> <span class="n">lon_col_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;Columns </span><span class="si">{</span><span class="n">lat_col_name</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="n">lon_col_name</span><span class="si">}</span><span class="s1"> not found in DataFrame&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">lat_col_name</span><span class="p">]</span><span class="o">.</span><span class="n">isNotNull</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">df</span><span class="p">[</span><span class="n">lon_col_name</span><span class="p">]</span><span class="o">.</span>
+        <span class="n">isNotNull</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">df</span><span class="p">[</span><span class="n">lat_col_name</span><span class="p">]</span><span class="o">.</span><span class="n">between</span><span class="p">(</span><span class="o">-</span><span class="mi">90</span><span class="p">,</span> <span class="mi">90</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">df</span><span class="p">[</span><span class="n">lon_col_name</span><span class="p">]</span><span class="o">.</span>
+        <span class="n">between</span><span class="p">(</span><span class="o">-</span><span class="mi">180</span><span class="p">,</span> <span class="mi">180</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="mark_valid_geocode_data">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.mark_valid_geocode_data">[docs]</a>
+<span class="k">def</span> <span class="nf">mark_valid_geocode_data</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">lat_col_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">lon_col_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">output_col_name</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;is_valid&#39;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Adds a boolean flag column to the DataFrame indicating whether the geographic coordinates are valid.</span>
+
+<span class="sd">    A set of coordinates is considered valid if:</span>
+<span class="sd">    - The latitude and longitude columns are not null.</span>
+<span class="sd">    - The latitude is between -90 and 90.</span>
+<span class="sd">    - The longitude is between -180 and 180.</span>
+
+<span class="sd">    Unlike filtering functions, this function preserves all rows in the DataFrame by simply marking</span>
+<span class="sd">    each row with a True (valid) or False (invalid) value in the new output column.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">      df (DataFrame): The Spark DataFrame containing geocode data.</span>
+<span class="sd">      lat_col_name (str): The name of the latitude column.</span>
+<span class="sd">      lon_col_name (str): The name of the longitude column.</span>
+<span class="sd">      output_col_name (str, optional): The name of the output column to store the validity flag.</span>
+<span class="sd">                                       Defaults to &quot;is_valid&quot;.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      DataFrame: A new DataFrame with an additional column indicating geocode validity.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">lat_col_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="ow">or</span> <span class="n">lon_col_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Columns &#39;</span><span class="si">{</span><span class="n">lat_col_name</span><span class="si">}</span><span class="s2">&#39;, &#39;</span><span class="si">{</span><span class="n">lon_col_name</span><span class="si">}</span><span class="s2">&#39; not found in DataFrame&quot;</span>
+            <span class="p">)</span>
+    <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">output_col_name</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="n">lat_col_name</span><span class="p">)</span><span class="o">.</span><span class="n">isNotNull</span><span class="p">()</span> <span class="o">&amp;</span>
+        <span class="n">col</span><span class="p">(</span><span class="n">lon_col_name</span><span class="p">)</span><span class="o">.</span><span class="n">isNotNull</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">col</span><span class="p">(</span><span class="n">lat_col_name</span><span class="p">)</span><span class="o">.</span><span class="n">between</span><span class="p">(</span><span class="o">-</span><span class="mi">90</span><span class="p">,</span> <span class="mi">90</span><span class="p">)</span> <span class="o">&amp;</span>
+        <span class="n">col</span><span class="p">(</span><span class="n">lon_col_name</span><span class="p">)</span><span class="o">.</span><span class="n">between</span><span class="p">(</span><span class="o">-</span><span class="mi">180</span><span class="p">,</span> <span class="mi">180</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="clean_and_reorder_bbox">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.clean_and_reorder_bbox">[docs]</a>
+<span class="k">def</span> <span class="nf">clean_and_reorder_bbox</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">bbox_col</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Removes brackets from bounding box strings and reorders coordinates for Sedona.</span>
+
+<span class="sd">    Assumes input is a comma separated list in the order:</span>
+<span class="sd">      min latitude, max latitude, min longitude, max longitude</span>
+<span class="sd">    Produces an array in the order: [min_lon, min_lat, max_lon, max_lat]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cleaned_bbox_col_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">bbox_col</span><span class="si">}</span><span class="s1">_cleaned&#39;</span>
+    <span class="n">split_bbox_col_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">bbox_col</span><span class="si">}</span><span class="s1">_split&#39;</span>
+    <span class="n">min_lat_col_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">bbox_col</span><span class="si">}</span><span class="s1">_min_lat&#39;</span>
+    <span class="n">max_lat_col_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">bbox_col</span><span class="si">}</span><span class="s1">_max_lat&#39;</span>
+    <span class="n">min_lon_col_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">bbox_col</span><span class="si">}</span><span class="s1">_min_lon&#39;</span>
+    <span class="n">max_lon_col_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">bbox_col</span><span class="si">}</span><span class="s1">_max_lon&#39;</span>
+    <span class="n">reordered_bbox_col_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">bbox_col</span><span class="si">}</span><span class="s1">_reordered&#39;</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">cleaned_bbox_col_name</span><span class="p">,</span> <span class="n">translate</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">bbox_col</span><span class="p">),</span> <span class="s1">&#39;[]&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">split_bbox_col_name</span><span class="p">,</span> <span class="n">split</span><span class="p">(</span><span class="n">col</span><span class="p">(</span>
+        <span class="n">cleaned_bbox_col_name</span><span class="p">),</span> <span class="s1">&#39;,&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">min_lat_col_name</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span>
+        <span class="n">split_bbox_col_name</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s1">&#39;double&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">max_lat_col_name</span><span class="p">,</span>
+        <span class="n">col</span><span class="p">(</span><span class="n">split_bbox_col_name</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s1">&#39;double&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">min_lon_col_name</span>
+        <span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="n">split_bbox_col_name</span><span class="p">)[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s1">&#39;double&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+        <span class="n">max_lon_col_name</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="n">split_bbox_col_name</span><span class="p">)[</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s1">&#39;double&#39;</span><span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">reordered_bbox_col_name</span><span class="p">,</span> <span class="n">array</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">min_lon_col_name</span><span class="p">),</span>
+        <span class="n">col</span><span class="p">(</span><span class="n">min_lat_col_name</span><span class="p">),</span> <span class="n">col</span><span class="p">(</span><span class="n">max_lon_col_name</span><span class="p">),</span> <span class="n">col</span><span class="p">(</span><span class="n">max_lat_col_name</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">df</span></div>
+
+
+
+<div class="viewcode-block" id="ensure_literal">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.ensure_literal">[docs]</a>
+<span class="k">def</span> <span class="nf">ensure_literal</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert any value to a Spark literal (Column) unless it is already a Spark Column.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">      value: Any value to be converted.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A pyspark.sql.Column containing the value (or its Spark literal),</span>
+<span class="sd">      unless the value is already a Column.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Column</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">value</span>
+    <span class="k">return</span> <span class="n">lit</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div>
+
+
+
+<span class="kn">from</span> <span class="nn">pyspark.sql.functions</span> <span class="kn">import</span> <span class="n">expr</span><span class="p">,</span> <span class="n">col</span>
+<span class="kn">from</span> <span class="nn">pyspark.sql</span> <span class="kn">import</span> <span class="n">SparkSession</span>
+<span class="kn">from</span> <span class="nn">pyspark.sql</span> <span class="kn">import</span> <span class="n">functions</span> <span class="k">as</span> <span class="n">F</span>
+<span class="kn">from</span> <span class="nn">pyspark.sql.functions</span> <span class="kn">import</span> <span class="n">expr</span>
+
+
+<div class="viewcode-block" id="reproject_geom_columns">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.reproject_geom_columns">[docs]</a>
+<span class="k">def</span> <span class="nf">reproject_geom_columns</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">geom_columns</span><span class="p">,</span> <span class="n">source_srid</span><span class="p">,</span> <span class="n">target_srid</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Reprojects geometry columns using the three-argument version of ST_Transform:</span>
+<span class="sd">    ST_Transform(geom, &#39;source_srid&#39;, &#39;target_srid&#39;)</span>
+
+<span class="sd">    Only reprojects if the current SRID is not equal to the target.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">      df (DataFrame): Spark DataFrame containing the geometry columns.</span>
+<span class="sd">      geom_columns (list): List of column names (strings) to reproject.</span>
+<span class="sd">      source_srid (str): The source CRS (e.g. &quot;EPSG:4326&quot;).</span>
+<span class="sd">      target_srid (str): The target CRS (e.g. &quot;EPSG:27700&quot;).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      DataFrame: The DataFrame with each specified geometry column conditionally reprojected.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;I LOVE LEENA&#39;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">target_srid_int</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">target_srid</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">geom_col</span> <span class="ow">in</span> <span class="n">geom_columns</span><span class="p">:</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">geom_col</span><span class="p">,</span> <span class="n">expr</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;CASE WHEN ST_SRID(</span><span class="si">{</span><span class="n">geom_col</span><span class="si">}</span><span class="s2">) = </span><span class="si">{</span><span class="n">target_srid_int</span><span class="si">}</span><span class="s2"> THEN </span><span class="si">{</span><span class="n">geom_col</span><span class="si">}</span><span class="s2"> ELSE ST_Transform(</span><span class="si">{</span><span class="n">geom_col</span><span class="si">}</span><span class="s2">, &#39;</span><span class="si">{</span><span class="n">source_srid</span><span class="si">}</span><span class="s2">&#39;, &#39;</span><span class="si">{</span><span class="n">target_srid</span><span class="si">}</span><span class="s2">&#39;) END&quot;</span>
+                <span class="p">))</span>
+        <span class="k">return</span> <span class="n">df</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;AN ERROR OCCURRED in reproject_geom_columns:&#39;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">spark</span> <span class="o">=</span> <span class="n">SparkSession</span><span class="o">.</span><span class="n">getActiveSession</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">spark</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">spark</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Spark session stopped due to error.&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;No active Spark session to stop.&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">stop_exc</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Failed to stop Spark session:&#39;</span><span class="p">,</span> <span class="n">stop_exc</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">e</span></div>
+
+
+
+<div class="viewcode-block" id="prepare_dataframe_for_export">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.prepare_dataframe_for_export">[docs]</a>
+<span class="k">def</span> <span class="nf">prepare_dataframe_for_export</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">logger_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Prepares a DataFrame for export (e.g., to CSV) by:</span>
+<span class="sd">      - Converting binary columns to Base64-encoded strings.</span>
+<span class="sd">      - Casting simple scalar fields (non-string, non-complex) to strings.</span>
+<span class="sd">      - Dropping intermediate columns (e.g., &#39;parsed_json&#39;) if present.</span>
+<span class="sd">      - Converting complex (StructType/ArrayType) columns to JSON strings.</span>
+<span class="sd">      - Handling null values appropriately.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        df: Spark DataFrame to prepare</span>
+<span class="sd">        logger_func: Optional logging function (defaults to print)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The transformed DataFrame with all columns as strings or JSON strings.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">pyspark.sql.types</span> <span class="kn">import</span> <span class="n">BinaryType</span><span class="p">,</span> <span class="n">StringType</span><span class="p">,</span> <span class="n">StructType</span><span class="p">,</span> <span class="n">ArrayType</span><span class="p">,</span> <span class="n">IntegerType</span><span class="p">,</span> <span class="n">LongType</span><span class="p">,</span> <span class="n">DoubleType</span><span class="p">,</span> <span class="n">FloatType</span><span class="p">,</span> <span class="n">BooleanType</span><span class="p">,</span> <span class="n">DateType</span><span class="p">,</span> <span class="n">TimestampType</span>
+    <span class="kn">from</span> <span class="nn">pyspark.sql.functions</span> <span class="kn">import</span> <span class="n">base64</span><span class="p">,</span> <span class="n">col</span><span class="p">,</span> <span class="n">to_json</span><span class="p">,</span> <span class="n">when</span><span class="p">,</span> <span class="n">isnan</span><span class="p">,</span> <span class="n">isnull</span>
+    <span class="n">log</span> <span class="o">=</span> <span class="n">logger_func</span> <span class="k">if</span> <span class="n">logger_func</span> <span class="k">else</span> <span class="nb">print</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">log</span><span class="p">(</span><span class="s1">&#39;🔄 Preparing DataFrame for export...&#39;</span><span class="p">)</span>
+        <span class="n">original_columns</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+        <span class="n">binary_columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">fields</span> <span class="k">if</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">dataType</span><span class="p">,</span> <span class="n">BinaryType</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="n">binary_columns</span><span class="p">:</span>
+            <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;   Converting </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">binary_columns</span><span class="p">)</span><span class="si">}</span><span class="s1"> binary columns to Base64&#39;</span>
+                <span class="p">)</span>
+            <span class="k">for</span> <span class="n">bcol</span> <span class="ow">in</span> <span class="n">binary_columns</span><span class="p">:</span>
+                <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">bcol</span><span class="p">,</span> <span class="n">base64</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">bcol</span><span class="p">)))</span>
+        <span class="n">simple_fields</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">dataType</span><span class="p">,</span> <span class="n">StringType</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span>
+                <span class="n">field</span><span class="o">.</span><span class="n">dataType</span><span class="p">,</span> <span class="p">(</span><span class="n">StructType</span><span class="p">,</span> <span class="n">ArrayType</span><span class="p">)</span>
+                <span class="p">)</span> <span class="ow">and</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span> <span class="o">!=</span> <span class="s1">&#39;parsed_json&#39;</span><span class="p">:</span>
+                <span class="n">simple_fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">simple_fields</span><span class="p">:</span>
+            <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;   Converting </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">simple_fields</span><span class="p">)</span><span class="si">}</span><span class="s1"> scalar fields to strings&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">field_name</span> <span class="ow">in</span> <span class="n">simple_fields</span><span class="p">:</span>
+                <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">field_name</span><span class="p">,</span> <span class="n">when</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">field_name</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(</span>
+                    <span class="p">),</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">isnan</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">field_name</span><span class="p">)),</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="n">col</span><span class="p">(</span>
+                    <span class="n">field_name</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">StringType</span><span class="p">())))</span>
+        <span class="n">intermediate_columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">]</span>
+        <span class="n">columns_to_drop</span> <span class="o">=</span> <span class="p">[</span><span class="n">col_name</span> <span class="k">for</span> <span class="n">col_name</span> <span class="ow">in</span> <span class="n">intermediate_columns</span> <span class="k">if</span>
+            <span class="n">col_name</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">columns_to_drop</span><span class="p">:</span>
+            <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;   Dropping </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">columns_to_drop</span><span class="p">)</span><span class="si">}</span><span class="s1"> intermediate columns: </span><span class="si">{</span><span class="n">columns_to_drop</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="p">)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="o">*</span><span class="n">columns_to_drop</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">identify_complex_columns</span><span class="p">(</span><span class="n">dframe</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
+<span class="sd">Utility function: identify complex columns.</span>
+
+<span class="sd">Part of Siege Utilities Utilities module.</span>
+<span class="sd">Auto-discovered and available at package level.</span>
+
+<span class="sd">Returns:</span>
+<span class="sd">    Description needed</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
+<span class="sd">    &gt;&gt;&gt; result = siege_utilities.identify_complex_columns()</span>
+<span class="sd">    &gt;&gt;&gt; print(result)</span>
+
+<span class="sd">Note:</span>
+<span class="sd">    This function is auto-discovered and available without imports</span>
+<span class="sd">    across all siege_utilities modules.</span>
+<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+            <span class="n">complex_cols</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">dframe</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">dataType</span><span class="p">,</span> <span class="p">(</span><span class="n">StructType</span><span class="p">,</span> <span class="n">ArrayType</span><span class="p">)):</span>
+                    <span class="n">complex_cols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">complex_cols</span>
+        <span class="n">complex_columns</span> <span class="o">=</span> <span class="n">identify_complex_columns</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">complex_columns</span><span class="p">:</span>
+            <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;   Converting </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">complex_columns</span><span class="p">)</span><span class="si">}</span><span class="s1"> complex columns to JSON: </span><span class="si">{</span><span class="n">complex_columns</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="p">)</span>
+            <span class="k">for</span> <span class="n">column_name</span> <span class="ow">in</span> <span class="n">complex_columns</span><span class="p">:</span>
+                <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">column_name</span><span class="p">,</span> <span class="n">when</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">column_name</span><span class="p">)</span><span class="o">.</span>
+                    <span class="n">isNull</span><span class="p">(),</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="n">to_json</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">column_name</span><span class="p">))))</span>
+        <span class="n">remaining_complex</span> <span class="o">=</span> <span class="n">identify_complex_columns</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">remaining_complex</span><span class="p">:</span>
+            <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;⚠️  Some complex columns could not be converted: </span><span class="si">{</span><span class="n">remaining_complex</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">log</span><span class="p">(</span><span class="s1">&#39;✅ All columns successfully prepared for export&#39;</span><span class="p">)</span>
+        <span class="n">final_columns</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+        <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;   DataFrame prepared: </span><span class="si">{</span><span class="n">original_columns</span><span class="si">}</span><span class="s1"> → </span><span class="si">{</span><span class="n">final_columns</span><span class="si">}</span><span class="s1"> columns&#39;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">df</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;❌ Error preparing DataFrame for export: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">raise</span></div>
+
+
+
+<div class="viewcode-block" id="prepare_summary_dataframe">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.prepare_summary_dataframe">[docs]</a>
+<span class="k">def</span> <span class="nf">prepare_summary_dataframe</span><span class="p">(</span><span class="n">data_tuples</span><span class="p">,</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;metric&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">],</span>
+    <span class="n">logger_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Helper function to create summary DataFrames with consistent string types.</span>
+<span class="sd">    Prevents type merging errors by ensuring all values are strings.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        data_tuples: List of tuples with data</span>
+<span class="sd">        column_names: Column names for the DataFrame</span>
+<span class="sd">        logger_func: Optional logging function</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Spark DataFrame with all string columns</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">log</span> <span class="o">=</span> <span class="n">logger_func</span> <span class="k">if</span> <span class="n">logger_func</span> <span class="k">else</span> <span class="nb">print</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">string_data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data_tuples</span><span class="p">:</span>
+            <span class="n">string_row</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span> <span class="k">for</span>
+                <span class="n">value</span> <span class="ow">in</span> <span class="n">row</span><span class="p">)</span>
+            <span class="n">string_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">string_row</span><span class="p">)</span>
+        <span class="kn">from</span> <span class="nn">pyspark.sql.types</span> <span class="kn">import</span> <span class="n">StructType</span><span class="p">,</span> <span class="n">StructField</span><span class="p">,</span> <span class="n">StringType</span>
+        <span class="n">schema</span> <span class="o">=</span> <span class="n">StructType</span><span class="p">([</span><span class="n">StructField</span><span class="p">(</span><span class="n">col_name</span><span class="p">,</span> <span class="n">StringType</span><span class="p">(),</span> <span class="kc">True</span><span class="p">)</span> <span class="k">for</span>
+            <span class="n">col_name</span> <span class="ow">in</span> <span class="n">column_names</span><span class="p">])</span>
+        <span class="kn">from</span> <span class="nn">pyspark.sql</span> <span class="kn">import</span> <span class="n">SparkSession</span>
+        <span class="n">spark</span> <span class="o">=</span> <span class="n">SparkSession</span><span class="o">.</span><span class="n">getActiveSession</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">spark</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;No active Spark session found&#39;</span><span class="p">)</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">(</span><span class="n">string_data</span><span class="p">,</span> <span class="n">schema</span><span class="p">)</span>
+        <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;✅ Created summary DataFrame with </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">data_tuples</span><span class="p">)</span><span class="si">}</span><span class="s1"> rows&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">df</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;❌ Error creating summary DataFrame: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">raise</span></div>
+
+
+
+<div class="viewcode-block" id="export_pyspark_df_to_excel">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.export_pyspark_df_to_excel">[docs]</a>
+<span class="k">def</span> <span class="nf">export_pyspark_df_to_excel</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s1">&#39;output.xlsx&#39;</span><span class="p">,</span> <span class="n">sheet_name</span><span class="o">=</span><span class="s1">&#39;Sheet1&#39;</span>
+    <span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Converts a PySpark DataFrame to a Pandas DataFrame and exports it to an Excel file.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">        spark_df (pyspark.sql.DataFrame): The PySpark DataFrame to export.</span>
+<span class="sd">        file_name (str): The name of the output Excel file.</span>
+<span class="sd">        sheet_name (str): The sheet name in the Excel file.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">pandas_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">toPandas</span><span class="p">()</span>
+        <span class="n">pandas_df</span><span class="o">.</span><span class="n">to_excel</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">sheet_name</span><span class="o">=</span><span class="n">sheet_name</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;DataFrame successfully exported to </span><span class="si">{</span><span class="n">file_name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error exporting DataFrame: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="pivot_summary_table_for_bools">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.pivot_summary_table_for_bools">[docs]</a>
+<span class="k">def</span> <span class="nf">pivot_summary_table_for_bools</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">columns</span><span class="p">,</span> <span class="n">spark</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate a pivot table summary for given boolean flag columns in a DataFrame.</span>
+<span class="sd">    The pivot table includes three metrics:</span>
+<span class="sd">       - &quot;Count&quot;: Sum of rows where the flag is True.</span>
+<span class="sd">       - &quot;Percentage (%)&quot;: Percentage relative to total records.</span>
+<span class="sd">       - &quot;Total&quot;: The total number of records (repeated for each column).</span>
+<span class="sd">    All numeric values are converted to float to ensure a consistent type.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">      df (DataFrame): The source Spark DataFrame.</span>
+<span class="sd">      columns (list): List of column names (assumed to be boolean flags) to summarize.</span>
+<span class="sd">      spark (SparkSession): The active Spark session.</span>
+<span class="sd">    Returns:</span>
+<span class="sd">      DataFrame: A Spark DataFrame representing the pivot table.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">pyspark.sql</span> <span class="kn">import</span> <span class="n">functions</span> <span class="k">as</span> <span class="n">F</span>
+    <span class="n">total_records</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+    <span class="n">total_records_float</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">total_records</span><span class="p">)</span>
+    <span class="n">agg_exprs</span> <span class="o">=</span> <span class="p">[</span><span class="n">F</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">col_name</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span>
+        <span class="n">col_name</span><span class="p">)</span> <span class="k">for</span> <span class="n">col_name</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">]</span>
+    <span class="n">agg_results</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="o">*</span><span class="n">agg_exprs</span><span class="p">)</span><span class="o">.</span><span class="n">collect</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">counts</span> <span class="o">=</span> <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">agg_results</span><span class="p">[</span><span class="n">col</span><span class="p">])</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">}</span>
+    <span class="n">percentages</span> <span class="o">=</span> <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="p">(</span><span class="n">py_round</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">agg_results</span><span class="p">[</span><span class="n">col</span><span class="p">])</span> <span class="o">/</span>
+        <span class="n">total_records_float</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">total_records</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">)</span> <span class="k">for</span>
+        <span class="n">col</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">}</span>
+    <span class="n">pivot_data</span> <span class="o">=</span> <span class="p">[{</span><span class="s1">&#39;Metric&#39;</span><span class="p">:</span> <span class="s1">&#39;Count&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">counts</span><span class="p">},</span> <span class="p">{</span><span class="s1">&#39;Metric&#39;</span><span class="p">:</span>
+        <span class="s1">&#39;Percentage (%)&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">percentages</span><span class="p">},</span> <span class="p">{</span><span class="s1">&#39;Metric&#39;</span><span class="p">:</span> <span class="s1">&#39;Total&#39;</span><span class="p">,</span> <span class="o">**</span><span class="p">{</span><span class="n">col</span><span class="p">:</span>
+        <span class="n">total_records_float</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">}}]</span>
+    <span class="n">pivot_df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">(</span><span class="n">pivot_data</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pivot_df</span></div>
+
+
+
+<div class="viewcode-block" id="pivot_summary_with_metrics">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.pivot_summary_with_metrics">[docs]</a>
+<span class="k">def</span> <span class="nf">pivot_summary_with_metrics</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">group_col</span><span class="p">,</span> <span class="n">pivot_col</span><span class="p">,</span> <span class="n">spark</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate a pivot summary for a categorical column against one or more grouping columns,</span>
+<span class="sd">    including rows for &quot;Count&quot;, &quot;Percentage (%)&quot;, and &quot;Total&quot; for each group.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">      df (DataFrame): The source Spark DataFrame.</span>
+<span class="sd">      group_col (str or list): The column name (or list of column names) used for grouping.</span>
+<span class="sd">                               For example, &quot;geocode_granularity&quot; or [&quot;state&quot;, &quot;region&quot;].</span>
+<span class="sd">      pivot_col (str): The categorical column to pivot on (e.g., &quot;final_geocode_choice&quot;).</span>
+<span class="sd">      spark (SparkSession): The active Spark session.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      DataFrame: A Spark DataFrame in which each original group appears as three rows:</span>
+<span class="sd">                 one for the counts, one for the percentages, and one for the total count.</span>
+<span class="sd">                 The non-grouping columns represent each distinct pivot column value.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">group_col</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">group_cols</span> <span class="o">=</span> <span class="p">[</span><span class="n">group_col</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">group_cols</span> <span class="o">=</span> <span class="n">group_col</span>
+    <span class="n">pivot_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">groupBy</span><span class="p">(</span><span class="o">*</span><span class="n">group_cols</span><span class="p">)</span><span class="o">.</span><span class="n">pivot</span><span class="p">(</span><span class="n">pivot_col</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+    <span class="n">total_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">groupBy</span><span class="p">(</span><span class="o">*</span><span class="n">group_cols</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">()</span><span class="o">.</span><span class="n">withColumnRenamed</span><span class="p">(</span><span class="s1">&#39;count&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Total&#39;</span><span class="p">)</span>
+    <span class="n">agg_df</span> <span class="o">=</span> <span class="n">pivot_df</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">total_df</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">group_cols</span><span class="p">)</span>
+    <span class="n">pivot_categories</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">agg_df</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">group_cols</span> <span class="o">+</span>
+        <span class="p">[</span><span class="s1">&#39;Total&#39;</span><span class="p">]]</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">agg_df</span><span class="o">.</span><span class="n">collect</span><span class="p">():</span>
+        <span class="n">group_vals</span> <span class="o">=</span> <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">group_cols</span><span class="p">}</span>
+        <span class="n">total_val</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;Total&#39;</span><span class="p">]</span>
+        <span class="n">count_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Metric&#39;</span><span class="p">:</span> <span class="s1">&#39;Count&#39;</span><span class="p">}</span>
+        <span class="k">for</span> <span class="n">cat</span> <span class="ow">in</span> <span class="n">pivot_categories</span><span class="p">:</span>
+            <span class="n">count_dict</span><span class="p">[</span><span class="n">cat</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">cat</span><span class="p">])</span> <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="n">cat</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">0.0</span>
+        <span class="n">count_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">group_vals</span><span class="p">)</span>
+        <span class="n">percent_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Metric&#39;</span><span class="p">:</span> <span class="s1">&#39;Percentage (%)&#39;</span><span class="p">}</span>
+        <span class="k">for</span> <span class="n">cat</span> <span class="ow">in</span> <span class="n">pivot_categories</span><span class="p">:</span>
+            <span class="n">count_val</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">cat</span><span class="p">])</span> <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="n">cat</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">0.0</span>
+            <span class="n">percent</span> <span class="o">=</span> <span class="n">py_round</span><span class="p">(</span><span class="n">count_val</span> <span class="o">/</span> <span class="n">total_val</span> <span class="o">*</span> <span class="mi">100</span> <span class="k">if</span> <span class="n">total_val</span> <span class="o">&gt;</span> <span class="mi">0</span>
+                 <span class="k">else</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">percent_dict</span><span class="p">[</span><span class="n">cat</span><span class="p">]</span> <span class="o">=</span> <span class="n">percent</span>
+        <span class="n">percent_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">group_vals</span><span class="p">)</span>
+        <span class="n">total_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Metric&#39;</span><span class="p">:</span> <span class="s1">&#39;Total&#39;</span><span class="p">}</span>
+        <span class="k">for</span> <span class="n">cat</span> <span class="ow">in</span> <span class="n">pivot_categories</span><span class="p">:</span>
+            <span class="n">total_dict</span><span class="p">[</span><span class="n">cat</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">total_val</span><span class="p">)</span>
+        <span class="n">total_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">group_vals</span><span class="p">)</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">count_dict</span><span class="p">,</span> <span class="n">percent_dict</span><span class="p">,</span> <span class="n">total_dict</span><span class="p">])</span>
+    <span class="n">out_cols</span> <span class="o">=</span> <span class="n">group_cols</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;Metric&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">pivot_categories</span><span class="p">)</span>
+    <span class="n">final_df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">final_df</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="o">*</span><span class="n">out_cols</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="export_prepared_df_as_csv_to_path_using_delimiter">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.export_prepared_df_as_csv_to_path_using_delimiter">[docs]</a>
+<span class="k">def</span> <span class="nf">export_prepared_df_as_csv_to_path_using_delimiter</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">write_path</span><span class="p">:</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span> <span class="n">delimiter</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">)</span> <span class="o">-&gt;</span><span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Exports DataFrame **with necessary transformations** to ensure Spark compatibility.</span>
+
+<span class="sd">    :param df: Target DataFrame</span>
+<span class="sd">    :param write_path: Pathlib object for export destination</span>
+<span class="sd">    :param delimiter: CSV delimiter (default is comma)</span>
+<span class="sd">    :return: bool indicating success/failure</span>
+
+<span class="sd">    Applies `prepare_dataframe_for_export()` to prevent Spark export issues.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">prepared_df</span> <span class="o">=</span> <span class="n">prepare_dataframe_for_export</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+        <span class="n">prepared_df</span><span class="o">.</span><span class="n">coalesce</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">RESULTS_OUTPUT_FORMAT</span><span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span>
+            <span class="s1">&#39;header&#39;</span><span class="p">,</span> <span class="s1">&#39;true&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s1">&#39;delimiter&#39;</span><span class="p">,</span> <span class="n">delimiter</span><span class="p">)</span><span class="o">.</span><span class="n">mode</span><span class="p">(</span><span class="s1">&#39;overwrite&#39;</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">write_path</span><span class="p">))</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Data successfully exported for step: </span><span class="si">{</span><span class="n">write_path</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error exporting DataFrame for </span><span class="si">{</span><span class="n">write_path</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+
+<div class="viewcode-block" id="print_debug_table">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.print_debug_table">[docs]</a>
+<span class="k">def</span> <span class="nf">print_debug_table</span><span class="p">(</span><span class="n">spark_df</span><span class="p">,</span> <span class="n">title</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Helper function to convert a Spark DataFrame into a Pandas DataFrame,</span>
+<span class="sd">    format it using tabulate, and print the result with a title.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">pdf</span> <span class="o">=</span> <span class="n">spark_df</span><span class="o">.</span><span class="n">toPandas</span><span class="p">()</span>
+    <span class="n">table_str</span> <span class="o">=</span> <span class="n">tabulate</span><span class="p">(</span><span class="n">pdf</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="s1">&#39;keys&#39;</span><span class="p">,</span> <span class="n">tablefmt</span><span class="o">=</span><span class="s1">&#39;psql&#39;</span><span class="p">,</span> <span class="n">showindex</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s1">:</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">table_str</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+
+
+<span class="kn">from</span> <span class="nn">pyspark.sql.types</span> <span class="kn">import</span> <span class="n">MapType</span><span class="p">,</span> <span class="n">StringType</span>
+<span class="kn">import</span> <span class="nn">pyspark.sql.functions</span> <span class="k">as</span> <span class="nn">F</span>
+<span class="n">walkability_config</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Trivial&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="s1">&#39;Trivial (&lt;100m)&#39;</span><span class="p">},</span>
+    <span class="s1">&#39;Tolerable&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="mi">250</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="s1">&#39;Tolerable (100-250m)&#39;</span><span class="p">},</span>
+    <span class="s1">&#39;Moderate&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="mi">250</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="mi">400</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="s1">&#39;Moderate (250-400m)&#39;</span><span class="p">},</span>
+    <span class="s1">&#39;Borderline&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="mi">400</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="mi">500</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="s1">&#39;Borderline (400-500m)&#39;</span>
+    <span class="p">},</span> <span class="s1">&#39;Outside&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="mi">500</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="s1">&#39;Outside (&gt;500m)&#39;</span><span class="p">}}</span>
+
+
+<div class="viewcode-block" id="compute_walkability">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.compute_walkability">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_walkability</span><span class="p">(</span><span class="n">distance</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
+<span class="sd">Utility function: compute walkability.</span>
+
+<span class="sd">Part of Siege Utilities Utilities module.</span>
+<span class="sd">Auto-discovered and available at package level.</span>
+
+<span class="sd">Returns:</span>
+<span class="sd">    Description needed</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
+<span class="sd">    &gt;&gt;&gt; result = siege_utilities.compute_walkability()</span>
+<span class="sd">    &gt;&gt;&gt; print(result)</span>
+
+<span class="sd">Note:</span>
+<span class="sd">    This function is auto-discovered and available without imports</span>
+<span class="sd">    across all siege_utilities modules.</span>
+<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+    <span class="k">if</span> <span class="n">distance</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">distance</span> <span class="o">&lt;</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Trivial&#39;</span><span class="p">][</span><span class="s1">&#39;max&#39;</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;grade&#39;</span><span class="p">:</span> <span class="s1">&#39;Trivial&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Trivial&#39;</span><span class="p">][</span>
+            <span class="s1">&#39;label&#39;</span><span class="p">]}</span>
+    <span class="k">elif</span> <span class="n">distance</span> <span class="o">&lt;</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Tolerable&#39;</span><span class="p">][</span><span class="s1">&#39;max&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">distance</span> <span class="o">&gt;=</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Tolerable&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;grade&#39;</span><span class="p">:</span> <span class="s1">&#39;Tolerable&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">walkability_config</span><span class="p">[</span>
+                <span class="s1">&#39;Tolerable&#39;</span><span class="p">][</span><span class="s1">&#39;label&#39;</span><span class="p">]}</span>
+    <span class="k">elif</span> <span class="n">distance</span> <span class="o">&lt;</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Moderate&#39;</span><span class="p">][</span><span class="s1">&#39;max&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">distance</span> <span class="o">&gt;=</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Moderate&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;grade&#39;</span><span class="p">:</span> <span class="s1">&#39;Moderate&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">walkability_config</span><span class="p">[</span>
+                <span class="s1">&#39;Moderate&#39;</span><span class="p">][</span><span class="s1">&#39;label&#39;</span><span class="p">]}</span>
+    <span class="k">elif</span> <span class="n">distance</span> <span class="o">&lt;</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Borderline&#39;</span><span class="p">][</span><span class="s1">&#39;max&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">distance</span> <span class="o">&gt;=</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Borderline&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;grade&#39;</span><span class="p">:</span> <span class="s1">&#39;Borderline&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">walkability_config</span><span class="p">[</span>
+                <span class="s1">&#39;Borderline&#39;</span><span class="p">][</span><span class="s1">&#39;label&#39;</span><span class="p">]}</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;grade&#39;</span><span class="p">:</span> <span class="s1">&#39;Outside&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Outside&#39;</span><span class="p">][</span>
+            <span class="s1">&#39;label&#39;</span><span class="p">]}</span></div>
+
+
+
+<span class="n">new_walkability_udf</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">udf</span><span class="p">(</span><span class="n">compute_walkability</span><span class="p">,</span> <span class="n">MapType</span><span class="p">(</span><span class="n">StringType</span><span class="p">(),</span>
+    <span class="n">StringType</span><span class="p">()))</span>
+<span class="kn">from</span> <span class="nn">pyspark.sql.functions</span> <span class="kn">import</span> <span class="n">expr</span>
+
+
+<div class="viewcode-block" id="validate_geometry">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.validate_geometry">[docs]</a>
+<span class="k">def</span> <span class="nf">validate_geometry</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">geom_col</span><span class="p">,</span> <span class="n">step_name</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Validates a single geometry column.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">    - df (DataFrame): Spark DataFrame containing geometry data.</span>
+<span class="sd">    - geom_col (str): Name of the geometry column to check.</span>
+<span class="sd">    - step_name (str): Label for the debug output.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Validating geometry in step: </span><span class="si">{</span><span class="n">step_name</span><span class="si">}</span><span class="s1"> for column: </span><span class="si">{</span><span class="n">geom_col</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="p">)</span>
+    <span class="n">validation_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s1">&#39;postal_code&#39;</span><span class="p">,</span> <span class="n">geom_col</span><span class="p">,</span> <span class="n">F</span><span class="o">.</span><span class="n">expr</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s1">&#39;typeof(</span><span class="si">{</span><span class="n">geom_col</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;geometry_type&#39;</span><span class="p">),</span> <span class="n">F</span><span class="o">.</span><span class="n">expr</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s1">&#39;ST_SRID(</span><span class="si">{</span><span class="n">geom_col</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;srid&#39;</span><span class="p">))</span>
+    <span class="n">validation_df</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">truncate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Completed validation for &#39;</span><span class="si">{</span><span class="n">geom_col</span><span class="si">}</span><span class="s2">&#39; in step: </span><span class="si">{</span><span class="n">step_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">df</span></div>
+
+
+
+<div class="viewcode-block" id="backup_full_dataframe">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.backup_full_dataframe">[docs]</a>
+<span class="k">def</span> <span class="nf">backup_full_dataframe</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">step_name</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
+<span class="sd">Utility function: backup full dataframe.</span>
+
+<span class="sd">Part of Siege Utilities Utilities module.</span>
+<span class="sd">Auto-discovered and available at package level.</span>
+
+<span class="sd">Returns:</span>
+<span class="sd">    Description needed</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
+<span class="sd">    &gt;&gt;&gt; result = siege_utilities.backup_full_dataframe()</span>
+<span class="sd">    &gt;&gt;&gt; print(result)</span>
+
+<span class="sd">Note:</span>
+<span class="sd">    This function is auto-discovered and available without imports</span>
+<span class="sd">    across all siege_utilities modules.</span>
+<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+    <span class="n">backup_path</span> <span class="o">=</span> <span class="n">DEBUG_SUBDIRECTORY</span> <span class="o">/</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">step_name</span><span class="si">}</span><span class="s1">_full_persisted&#39;</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">write</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">RESULTS_OUTPUT_FORMAT</span><span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s1">&#39;header&#39;</span><span class="p">,</span> <span class="s1">&#39;true&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span>
+        <span class="s1">&#39;delimiter&#39;</span><span class="p">,</span> <span class="n">RESULTS_OUTPUT_DELIMITER</span><span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">backup_path</span><span class="p">))</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">step_name</span><span class="si">}</span><span class="s1">: Full DataFrame successfully backed up.&#39;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="atomic_write_with_staging">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.atomic_write_with_staging">[docs]</a>
+<span class="k">def</span> <span class="nf">atomic_write_with_staging</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">final_destination</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">staging_directory</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">file_format</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;csv&#39;</span><span class="p">,</span> <span class="n">delimiter</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">,</span>
+    <span class="n">header</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;overwrite&#39;</span><span class="p">)</span> <span class="o">-&gt;</span><span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Performs atomic write operations using a staging directory to prevent partial/corrupted files.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Starting atomic write operation to </span><span class="si">{</span><span class="n">final_destination</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Using staging directory: </span><span class="si">{</span><span class="n">staging_directory</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">staging_directory</span><span class="p">):</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">staging_directory</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">staging_directory</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Writing data to staging directory&#39;</span><span class="p">)</span>
+        <span class="n">writer</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">write</span><span class="o">.</span><span class="n">mode</span><span class="p">(</span><span class="n">mode</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">file_format</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;csv&#39;</span><span class="p">:</span>
+            <span class="n">writer</span> <span class="o">=</span> <span class="n">writer</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;csv&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s1">&#39;header&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">header</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s1">&#39;delimiter&#39;</span><span class="p">,</span> <span class="n">delimiter</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">file_format</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;parquet&#39;</span><span class="p">:</span>
+            <span class="n">writer</span> <span class="o">=</span> <span class="n">writer</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;parquet&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">file_format</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;json&#39;</span><span class="p">:</span>
+            <span class="n">writer</span> <span class="o">=</span> <span class="n">writer</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;json&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">writer</span> <span class="o">=</span> <span class="n">writer</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">file_format</span><span class="p">)</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">staging_directory</span><span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;Successfully wrote data to staging directory&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">final_destination</span><span class="p">):</span>
+            <span class="n">backup_dir</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">final_destination</span><span class="si">}</span><span class="s1">_backup_</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">final_destination</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span>
+                <span class="n">final_destination</span><span class="p">):</span>
+                <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Backing up existing data to </span><span class="si">{</span><span class="n">backup_dir</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">final_destination</span><span class="p">,</span> <span class="n">backup_dir</span><span class="p">)</span>
+                <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Existing data backed up successfully&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">final_destination</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;Removed empty destination directory&#39;</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">final_destination</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;Moving staged files to final destination&#39;</span><span class="p">)</span>
+        <span class="n">files_moved</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">staging_directory</span><span class="p">):</span>
+            <span class="n">source_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">staging_directory</span><span class="p">,</span> <span class="n">item</span><span class="p">)</span>
+            <span class="n">dest_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">final_destination</span><span class="p">,</span> <span class="n">item</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">source_path</span><span class="p">):</span>
+                <span class="n">shutil</span><span class="o">.</span><span class="n">copytree</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="n">dest_path</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">shutil</span><span class="o">.</span><span class="n">copy2</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="n">dest_path</span><span class="p">)</span>
+            <span class="n">files_moved</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Successfully moved </span><span class="si">{</span><span class="n">files_moved</span><span class="si">}</span><span class="s1"> items to final destination&#39;</span>
+            <span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Atomic write operation completed successfully&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error in atomic write operation: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">staging_directory</span><span class="p">):</span>
+                <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">staging_directory</span><span class="p">)</span>
+                <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;Cleaned up staging directory&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">cleanup_error</span><span class="p">:</span>
+            <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error cleaning up staging directory: </span><span class="si">{</span><span class="n">cleanup_error</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="create_unique_staging_directory">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.create_unique_staging_directory">[docs]</a>
+<span class="k">def</span> <span class="nf">create_unique_staging_directory</span><span class="p">(</span><span class="n">base_path</span><span class="p">,</span> <span class="n">operation_name</span><span class="o">=</span><span class="s1">&#39;operation&#39;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates a unique staging directory for atomic operations.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">staging_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">base_path</span>
+        <span class="p">)</span> <span class="o">/</span> <span class="sa">f</span><span class="s1">&#39;staging_</span><span class="si">{</span><span class="n">operation_name</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="si">}</span><span class="s1">&#39;</span>
+    <span class="n">staging_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">staging_dir</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Dheeraj Chand.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

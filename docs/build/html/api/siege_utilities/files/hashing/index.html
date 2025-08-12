@@ -1,0 +1,270 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>siege_utilities.files.hashing &mdash; Siege Utilities 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=a12e3537"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Siege Utilities
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../autodiscovery.html">Enhanced Auto-Discovery System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../autodiscovery.html#how-it-works">How It Works</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../autodiscovery.html#the-five-phase-discovery-process">The Five-Phase Discovery Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../autodiscovery.html#benefits">Benefits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../autodiscovery.html#monitoring-your-package">Monitoring Your Package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../autodiscovery.html#adding-new-functions">Adding New Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../all_functions.html">Complete Function Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-core-logging">siege_utilities.core.logging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-core-string-utils">siege_utilities.core.string_utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-distributed-hdfs-config">siege_utilities.distributed.hdfs_config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-distributed-hdfs-legacy">siege_utilities.distributed.hdfs_legacy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-distributed-hdfs-operations">siege_utilities.distributed.hdfs_operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-distributed-spark-utils">siege_utilities.distributed.spark_utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-files-hashing">siege_utilities.files.hashing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-files-operations">siege_utilities.files.operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-files-paths">siege_utilities.files.paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-files-remote">siege_utilities.files.remote</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-files-shell">siege_utilities.files.shell</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-geo-geocoding">siege_utilities.geo.geocoding</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../testing_guide.html">Testing Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#test-structure">Test Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#running-tests">Running Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#basic-test-execution">Basic Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#coverage-and-reporting">Coverage and Reporting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#parallel-execution">Parallel Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#test-markers">Test Markers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#writing-new-tests">Writing New Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#test-file-structure">Test File Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#test-naming-conventions">Test Naming Conventions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#example-test-patterns">Example Test Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#test-fixtures">Test Fixtures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#test-configuration">Test Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#pytest-configuration">Pytest Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#coverage-configuration">Coverage Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#continuous-integration">Continuous Integration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#ci-pipeline">CI Pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#debugging-tests">Debugging Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#verbose-output">Verbose Output</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#debug-mode">Debug Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#single-test-execution">Single Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#test-isolation">Test Isolation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#performance-testing">Performance Testing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#benchmark-tests">Benchmark Tests</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#load-testing">Load Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#test-data-management">Test Data Management</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#test-data-generation">Test Data Generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#data-cleanup">Data Cleanup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#test-organization">Test Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#test-independence">Test Independence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#test-coverage">Test Coverage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#performance-considerations">Performance Considerations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#common-patterns">Common Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#configuration-testing">Configuration Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#file-operation-testing">File Operation Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#api-testing">API Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#common-issues">Common Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#getting-help">Getting Help</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Siege Utilities</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">siege_utilities.files.hashing</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-siege_utilities.files.hashing">
+<span id="siege-utilities-files-hashing"></span><h1>siege_utilities.files.hashing<a class="headerlink" href="#module-siege_utilities.files.hashing" title="Link to this heading"></a></h1>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.files.hashing.calculate_file_hash">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.files.hashing.</span></span><span class="sig-name descname"><span class="pre">calculate_file_hash</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#siege_utilities.files.hashing.calculate_file_hash" title="Link to this definition"></a></dt>
+<dd><p>Alias for get_file_hash with SHA256 - for backward compatibility</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.files.hashing.generate_sha256_hash_for_file">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.files.hashing.</span></span><span class="sig-name descname"><span class="pre">generate_sha256_hash_for_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#siege_utilities.files.hashing.generate_sha256_hash_for_file" title="Link to this definition"></a></dt>
+<dd><p>Generate SHA256 hash for a file - chunked reading for large files</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>file_path</strong> – Path to the file (str or Path object)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>SHA256 hash as hexadecimal string, or None if error</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.files.hashing.get_file_hash">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.files.hashing.</span></span><span class="sig-name descname"><span class="pre">get_file_hash</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">algorithm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sha256'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#siege_utilities.files.hashing.get_file_hash" title="Link to this definition"></a></dt>
+<dd><p>Generate hash for a file using specified algorithm</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_path</strong> – Path to the file (str or Path object)</p></li>
+<li><p><strong>algorithm</strong> – Hash algorithm to use (‘sha256’, ‘md5’, ‘sha1’, etc.)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Hash as hexadecimal string, or None if error</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.files.hashing.get_quick_file_signature">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.files.hashing.</span></span><span class="sig-name descname"><span class="pre">get_quick_file_signature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#siege_utilities.files.hashing.get_quick_file_signature" title="Link to this definition"></a></dt>
+<dd><p>Generate a quick file signature using file stats + partial hash
+Faster for change detection, not cryptographically secure</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>file_path</strong> – Path to the file</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Quick signature string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.files.hashing.test_hash_functions">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.files.hashing.</span></span><span class="sig-name descname"><span class="pre">test_hash_functions</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.files.hashing.test_hash_functions" title="Link to this definition"></a></dt>
+<dd><p>Test the hash functions with a temporary file</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.files.hashing.verify_file_integrity">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.files.hashing.</span></span><span class="sig-name descname"><span class="pre">verify_file_integrity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expected_hash</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">algorithm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sha256'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#siege_utilities.files.hashing.verify_file_integrity" title="Link to this definition"></a></dt>
+<dd><p>Verify file integrity by comparing with expected hash</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_path</strong> – Path to the file</p></li>
+<li><p><strong>expected_hash</strong> – Expected hash value</p></li>
+<li><p><strong>algorithm</strong> – Hash algorithm used</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if file matches expected hash, False otherwise</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Dheeraj Chand.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

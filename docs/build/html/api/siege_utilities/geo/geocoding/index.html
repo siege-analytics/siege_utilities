@@ -1,0 +1,394 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>siege_utilities.geo.geocoding &mdash; Siege Utilities 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=a12e3537"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Siege Utilities
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../autodiscovery.html">Enhanced Auto-Discovery System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../autodiscovery.html#how-it-works">How It Works</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../autodiscovery.html#the-five-phase-discovery-process">The Five-Phase Discovery Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../autodiscovery.html#benefits">Benefits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../autodiscovery.html#monitoring-your-package">Monitoring Your Package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../autodiscovery.html#adding-new-functions">Adding New Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../all_functions.html">Complete Function Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-core-logging">siege_utilities.core.logging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-core-string-utils">siege_utilities.core.string_utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-distributed-hdfs-config">siege_utilities.distributed.hdfs_config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-distributed-hdfs-legacy">siege_utilities.distributed.hdfs_legacy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-distributed-hdfs-operations">siege_utilities.distributed.hdfs_operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-distributed-spark-utils">siege_utilities.distributed.spark_utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-files-hashing">siege_utilities.files.hashing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-files-operations">siege_utilities.files.operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-files-paths">siege_utilities.files.paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-files-remote">siege_utilities.files.remote</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-files-shell">siege_utilities.files.shell</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../all_functions.html#siege-utilities-geo-geocoding">siege_utilities.geo.geocoding</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../testing_guide.html">Testing Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#test-structure">Test Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#running-tests">Running Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#basic-test-execution">Basic Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#coverage-and-reporting">Coverage and Reporting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#parallel-execution">Parallel Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#test-markers">Test Markers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#writing-new-tests">Writing New Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#test-file-structure">Test File Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#test-naming-conventions">Test Naming Conventions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#example-test-patterns">Example Test Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#test-fixtures">Test Fixtures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#test-configuration">Test Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#pytest-configuration">Pytest Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#coverage-configuration">Coverage Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#continuous-integration">Continuous Integration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#ci-pipeline">CI Pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#debugging-tests">Debugging Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#verbose-output">Verbose Output</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#debug-mode">Debug Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#single-test-execution">Single Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#test-isolation">Test Isolation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#performance-testing">Performance Testing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#benchmark-tests">Benchmark Tests</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#load-testing">Load Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#test-data-management">Test Data Management</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#test-data-generation">Test Data Generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#data-cleanup">Data Cleanup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#test-organization">Test Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#test-independence">Test Independence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#test-coverage">Test Coverage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#performance-considerations">Performance Considerations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#common-patterns">Common Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#configuration-testing">Configuration Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#file-operation-testing">File Operation Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#api-testing">API Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../testing_guide.html#common-issues">Common Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../testing_guide.html#getting-help">Getting Help</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Siege Utilities</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">siege_utilities.geo.geocoding</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-siege_utilities.geo.geocoding">
+<span id="siege-utilities-geo-geocoding"></span><h1>siege_utilities.geo.geocoding<a class="headerlink" href="#module-siege_utilities.geo.geocoding" title="Link to this heading"></a></h1>
+<section id="attributes">
+<h2>Attributes<a class="headerlink" href="#attributes" title="Link to this heading"></a></h2>
+</section>
+<section id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h2>
+</section>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="siege_utilities.geo.geocoding.NominatimGeoClassifier">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.geocoding.</span></span><span class="sig-name descname"><span class="pre">NominatimGeoClassifier</span></span><a class="headerlink" href="#siege_utilities.geo.geocoding.NominatimGeoClassifier" title="Link to this definition"></a></dt>
+<dd><p>geo = GeoRankClassifier()
+place_rank_udf, importance_udf = geo.register_udfs(spark)</p>
+<p>df = df.withColumn(“place_rank_label”, place_rank_udf(“nominatim_place_rank”))
+df = df.withColumn(“importance_label”, importance_udf(“nominatim_importance”))</p>
+<p>geo.get_place_ranks_by_label(“Town or village”)  # → [19, 20, 21, 22]
+geo.get_importance_threshold_by_label(“City or notable place”)  # → 0.01</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.geocoding.NominatimGeoClassifier.get_importance_label">
+<span class="sig-name descname"><span class="pre">get_importance_label</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">importance</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.geocoding.NominatimGeoClassifier.get_importance_label" title="Link to this definition"></a></dt>
+<dd><p>“””
+Utility function: get importance label.</p>
+<p>Part of Siege Utilities Utilities module.
+Auto-discovered and available at package level.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Description needed</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">siege_utilities</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">get_importance_label</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This function is auto-discovered and available without imports
+across all siege_utilities modules.</p>
+</div>
+<p>“””</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.geocoding.NominatimGeoClassifier.get_importance_threshold_by_label">
+<span class="sig-name descname"><span class="pre">get_importance_threshold_by_label</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.geocoding.NominatimGeoClassifier.get_importance_threshold_by_label" title="Link to this definition"></a></dt>
+<dd><p>“””
+Utility function: get importance threshold by label.</p>
+<p>Part of Siege Utilities Utilities module.
+Auto-discovered and available at package level.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Description needed</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">siege_utilities</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">get_importance_threshold_by_label</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This function is auto-discovered and available without imports
+across all siege_utilities modules.</p>
+</div>
+<p>“””</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.geocoding.NominatimGeoClassifier.get_place_rank_label">
+<span class="sig-name descname"><span class="pre">get_place_rank_label</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rank</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.geocoding.NominatimGeoClassifier.get_place_rank_label" title="Link to this definition"></a></dt>
+<dd><p>“””
+Utility function: get place rank label.</p>
+<p>Part of Siege Utilities Utilities module.
+Auto-discovered and available at package level.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Description needed</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">siege_utilities</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">get_place_rank_label</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This function is auto-discovered and available without imports
+across all siege_utilities modules.</p>
+</div>
+<p>“””</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.geocoding.NominatimGeoClassifier.get_place_ranks_by_label">
+<span class="sig-name descname"><span class="pre">get_place_ranks_by_label</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.geocoding.NominatimGeoClassifier.get_place_ranks_by_label" title="Link to this definition"></a></dt>
+<dd><p>“””
+Utility function: get place ranks by label.</p>
+<p>Part of Siege Utilities Utilities module.
+Auto-discovered and available at package level.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Description needed</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">siege_utilities</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">get_place_ranks_by_label</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This function is auto-discovered and available without imports
+across all siege_utilities modules.</p>
+</div>
+<p>“””</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.geocoding.NominatimGeoClassifier.register_udfs">
+<span class="sig-name descname"><span class="pre">register_udfs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">spark</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.geocoding.NominatimGeoClassifier.register_udfs" title="Link to this definition"></a></dt>
+<dd><p>Register PySpark UDFs and return them.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.geocoding.NominatimGeoClassifier.to_json">
+<span class="sig-name descname"><span class="pre">to_json</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.geocoding.NominatimGeoClassifier.to_json" title="Link to this definition"></a></dt>
+<dd><p>“””
+Utility function: to json.</p>
+<p>Part of Siege Utilities Utilities module.
+Auto-discovered and available at package level.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Description needed</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">siege_utilities</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">to_json</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This function is auto-discovered and available without imports
+across all siege_utilities modules.</p>
+</div>
+<p>“””</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.geo.geocoding.NominatimGeoClassifier.importance_dict">
+<span class="sig-name descname"><span class="pre">importance_dict</span></span><a class="headerlink" href="#siege_utilities.geo.geocoding.NominatimGeoClassifier.importance_dict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.geo.geocoding.NominatimGeoClassifier.place_rank_dict">
+<span class="sig-name descname"><span class="pre">place_rank_dict</span></span><a class="headerlink" href="#siege_utilities.geo.geocoding.NominatimGeoClassifier.place_rank_dict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.geo.geocoding.concatenate_addresses">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.geocoding.</span></span><span class="sig-name descname"><span class="pre">concatenate_addresses</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">street</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">city</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_province_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">postal_code</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">country</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.geocoding.concatenate_addresses" title="Link to this definition"></a></dt>
+<dd><p>Concatenate address components into a single string suitable for geocoding.
+Returns a properly formatted address string.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.geo.geocoding.use_nominatim_geocoder">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.geocoding.</span></span><span class="sig-name descname"><span class="pre">use_nominatim_geocoder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query_address</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">country_codes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_retries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.geocoding.use_nominatim_geocoder" title="Link to this definition"></a></dt>
+<dd><p>Geocode an address using Nominatim with proper rate limiting and error handling.
+Returns the result as a JSON string for Spark UDF compatibility.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>query_address</strong> – The address to geocode</p></li>
+<li><p><strong>id</strong> – An identifier for tracking</p></li>
+<li><p><strong>country_codes</strong> – Optional country code filter (default from settings)</p></li>
+<li><p><strong>max_retries</strong> – Number of retry attempts for transient errors</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>JSON string of geocoding result or None if failed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="siege_utilities.geo.geocoding.GEOCODER_CONFIG">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.geocoding.</span></span><span class="sig-name descname"><span class="pre">GEOCODER_CONFIG</span></span><a class="headerlink" href="#siege_utilities.geo.geocoding.GEOCODER_CONFIG" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="siege_utilities.geo.geocoding.logger">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.geocoding.</span></span><span class="sig-name descname"><span class="pre">logger</span></span><a class="headerlink" href="#siege_utilities.geo.geocoding.logger" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Dheeraj Chand.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

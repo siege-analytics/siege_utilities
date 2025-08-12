@@ -1,0 +1,357 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HDFS Operations &mdash; Siege Utilities 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=a12e3537"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Spark Utilities" href="spark_utilities.html" />
+    <link rel="prev" title="Distributed Computing" href="distributed_computing.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Siege Utilities
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#core-capabilities">Core Capabilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#core-utilities-16-functions">🔧 <strong>Core Utilities (16 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#file-operations-22-functions">📁 <strong>File Operations (22 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#distributed-computing-503-functions">🚀 <strong>Distributed Computing (503+ functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#geospatial-2-functions">🌍 <strong>Geospatial (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#configuration-management-15-functions">⚙️ <strong>Configuration Management (15 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#analytics-integration-6-functions">📊 <strong>Analytics Integration (6 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#code-hygiene-2-functions">🧹 <strong>Code Hygiene (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#testing-development-2-functions">🧪 <strong>Testing &amp; Development (2 functions)</strong></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#real-world-workflow-examples">Real-World Workflow Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#installation-and-dependencies">Installation and Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#performance-and-scalability">Performance and Scalability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="architecture_diagram.html">Library Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#core-architecture">Core Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#function-distribution">Function Distribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#key-features">Key Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#integration-points">Integration Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#usage-patterns">Usage Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="autodiscovery.html">Enhanced Auto-Discovery System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#how-it-works">How It Works</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#the-five-phase-discovery-process">The Five-Phase Discovery Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#benefits">Benefits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#monitoring-your-package">Monitoring Your Package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#adding-new-functions">Adding New Functions</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Core Utilities:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="core_utilities.html">Core Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="core_utilities.html#package-discovery">Package Discovery</a></li>
+<li class="toctree-l2"><a class="reference internal" href="core_utilities.html#functions">Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="core_utilities.html#siege_utilities.core.__init__"><code class="docutils literal notranslate"><span class="pre">__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="core_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="core_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="string_utilities.html">String Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="string_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="string_utilities.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="string_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="string_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="logging_utilities.html">Logging Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="logging_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="logging_utilities.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="logging_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="logging_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Distributed Computing:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="distributed_computing.html">Distributed Computing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#hdfs-configuration">HDFS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#hdfs-operations">HDFS Operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#id1">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#hdfs-legacy-operations">HDFS Legacy Operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#id2">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#id3">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">HDFS Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="spark_utilities.html">Spark Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="spark_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spark_utilities.html#functions-by-category">Functions by Category</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="spark_utilities.html#mathematical-functions">Mathematical Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="spark_utilities.html#array-functions">Array Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="spark_utilities.html#aggregation-functions">Aggregation Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="spark_utilities.html#cryptographic-functions">Cryptographic Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="spark_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spark_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">File Operations:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="file_operations.html">File Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="file_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="file_hashing.html">File Hashing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="file_hashing.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_hashing.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_hashing.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_hashing.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="remote_operations.html">Remote Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="remote_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="remote_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="remote_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="remote_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="shell_operations.html">Shell Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="shell_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="shell_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="shell_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="shell_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Geographic &amp; Analytics:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="geocoding.html">Geocoding</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="geocoding.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geocoding.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geocoding.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geocoding.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="analytics.html">Analytics</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#facebook-business-analytics">Facebook Business Analytics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#google-analytics">Google Analytics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#id1">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#id2">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development &amp; Testing:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="testing_guide.html">Testing Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-structure">Test Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#running-tests">Running Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#basic-test-execution">Basic Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#coverage-and-reporting">Coverage and Reporting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#parallel-execution">Parallel Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-markers">Test Markers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#writing-new-tests">Writing New Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-file-structure">Test File Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-naming-conventions">Test Naming Conventions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#example-test-patterns">Example Test Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-fixtures">Test Fixtures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-configuration">Test Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#pytest-configuration">Pytest Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#coverage-configuration">Coverage Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#continuous-integration">Continuous Integration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#ci-pipeline">CI Pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#debugging-tests">Debugging Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#verbose-output">Verbose Output</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#debug-mode">Debug Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#single-test-execution">Single Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-isolation">Test Isolation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#performance-testing">Performance Testing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#benchmark-tests">Benchmark Tests</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#load-testing">Load Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-data-management">Test Data Management</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-data-generation">Test Data Generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#data-cleanup">Data Cleanup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-organization">Test Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-independence">Test Independence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-coverage">Test Coverage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#performance-considerations">Performance Considerations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#common-patterns">Common Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#configuration-testing">Configuration Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#file-operation-testing">File Operation Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#api-testing">API Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#common-issues">Common Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#getting-help">Getting Help</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Siege Utilities</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">HDFS Operations</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="hdfs-operations">
+<h1>HDFS Operations<a class="headerlink" href="#hdfs-operations" title="Link to this heading"></a></h1>
+<p>The HDFS operations module provides utilities for working with Hadoop Distributed File System operations, including file management, configuration, and environment setup.</p>
+<section id="module-overview">
+<h2>Module Overview<a class="headerlink" href="#module-overview" title="Link to this heading"></a></h2>
+<p id="module-siege_utilities.distributed.hdfs_operations">Abstract HDFS Operations - Fully Configurable and Reusable
+Zero hard-coded project dependencies</p>
+</section>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.distributed.hdfs_operations.</span></span><span class="sig-name descname"><span class="pre">create_hdfs_operations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/hdfs_operations.html#create_hdfs_operations"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Factory function to create HDFS operations instance</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.distributed.hdfs_operations.</span></span><span class="sig-name descname"><span class="pre">setup_distributed_environment</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dependency_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/hdfs_operations.html#setup_distributed_environment"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Convenience function to set up distributed environment</p>
+</dd></dl>
+
+</section>
+<section id="usage-examples">
+<h2>Usage Examples<a class="headerlink" href="#usage-examples" title="Link to this heading"></a></h2>
+<p>Basic HDFS operations setup:</p>
+<p>File operations:</p>
+<p>File transfer operations:</p>
+<p>Batch operations:</p>
+</section>
+<section id="unit-tests">
+<h2>Unit Tests<a class="headerlink" href="#unit-tests" title="Link to this heading"></a></h2>
+<p>The HDFS operations module has comprehensive test coverage:</p>
+<p>Test Results: All HDFS operations tests pass successfully with comprehensive coverage.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="distributed_computing.html" class="btn btn-neutral float-left" title="Distributed Computing" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="spark_utilities.html" class="btn btn-neutral float-right" title="Spark Utilities" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Dheeraj Chand.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

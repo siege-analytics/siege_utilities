@@ -1,0 +1,974 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Testing Guide &mdash; Siege Utilities 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=a12e3537"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Complete Function Reference" href="all_functions.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Siege Utilities
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#core-capabilities">Core Capabilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#core-utilities-16-functions">🔧 <strong>Core Utilities (16 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#file-operations-22-functions">📁 <strong>File Operations (22 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#distributed-computing-503-functions">🚀 <strong>Distributed Computing (503+ functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#geospatial-2-functions">🌍 <strong>Geospatial (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#configuration-management-15-functions">⚙️ <strong>Configuration Management (15 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#analytics-integration-6-functions">📊 <strong>Analytics Integration (6 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#code-hygiene-2-functions">🧹 <strong>Code Hygiene (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#testing-development-2-functions">🧪 <strong>Testing &amp; Development (2 functions)</strong></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#real-world-workflow-examples">Real-World Workflow Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#installation-and-dependencies">Installation and Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#performance-and-scalability">Performance and Scalability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="architecture_diagram.html">Library Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#core-architecture">Core Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#function-distribution">Function Distribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#key-features">Key Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#integration-points">Integration Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#usage-patterns">Usage Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="autodiscovery.html">Enhanced Auto-Discovery System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#how-it-works">How It Works</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#the-five-phase-discovery-process">The Five-Phase Discovery Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#benefits">Benefits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#monitoring-your-package">Monitoring Your Package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#adding-new-functions">Adding New Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="all_functions.html">Complete Function Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-core-logging">siege_utilities.core.logging</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.get_logger"><code class="docutils literal notranslate"><span class="pre">get_logger()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.init_logger"><code class="docutils literal notranslate"><span class="pre">init_logger()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.log_critical"><code class="docutils literal notranslate"><span class="pre">log_critical()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.log_debug"><code class="docutils literal notranslate"><span class="pre">log_debug()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.log_error"><code class="docutils literal notranslate"><span class="pre">log_error()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.log_info"><code class="docutils literal notranslate"><span class="pre">log_info()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.log_warning"><code class="docutils literal notranslate"><span class="pre">log_warning()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-core-string-utils">siege_utilities.core.string_utils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.remove_wrapping_quotes_and_trim"><code class="docutils literal notranslate"><span class="pre">remove_wrapping_quotes_and_trim()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-distributed-hdfs-config">siege_utilities.distributed.hdfs_config</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.create_cluster_config"><code class="docutils literal notranslate"><span class="pre">create_cluster_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.create_geocoding_config"><code class="docutils literal notranslate"><span class="pre">create_geocoding_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.create_hdfs_config"><code class="docutils literal notranslate"><span class="pre">create_hdfs_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.create_local_config"><code class="docutils literal notranslate"><span class="pre">create_local_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.dataclass"><code class="docutils literal notranslate"><span class="pre">dataclass()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-distributed-hdfs-legacy">siege_utilities.distributed.hdfs_legacy</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.check_hdfs_status"><code class="docutils literal notranslate"><span class="pre">check_hdfs_status()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.get_quick_file_signature"><code class="docutils literal notranslate"><span class="pre">get_quick_file_signature()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-distributed-hdfs-operations">siege_utilities.distributed.hdfs_operations</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.create_hdfs_operations"><code class="docutils literal notranslate"><span class="pre">create_hdfs_operations()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.setup_distributed_environment"><code class="docutils literal notranslate"><span class="pre">setup_distributed_environment()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-distributed-spark-utils">siege_utilities.distributed.spark_utils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.atomic_write_with_staging"><code class="docutils literal notranslate"><span class="pre">atomic_write_with_staging()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.backup_full_dataframe"><code class="docutils literal notranslate"><span class="pre">backup_full_dataframe()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.clean_and_reorder_bbox"><code class="docutils literal notranslate"><span class="pre">clean_and_reorder_bbox()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.col"><code class="docutils literal notranslate"><span class="pre">col()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.compute_walkability"><code class="docutils literal notranslate"><span class="pre">compute_walkability()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.create_unique_staging_directory"><code class="docutils literal notranslate"><span class="pre">create_unique_staging_directory()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.ensure_literal"><code class="docutils literal notranslate"><span class="pre">ensure_literal()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.export_prepared_df_as_csv_to_path_using_delimiter"><code class="docutils literal notranslate"><span class="pre">export_prepared_df_as_csv_to_path_using_delimiter()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.export_pyspark_df_to_excel"><code class="docutils literal notranslate"><span class="pre">export_pyspark_df_to_excel()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.expr"><code class="docutils literal notranslate"><span class="pre">expr()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.flatten_json_column_and_join_back_to_df"><code class="docutils literal notranslate"><span class="pre">flatten_json_column_and_join_back_to_df()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.get_row_count"><code class="docutils literal notranslate"><span class="pre">get_row_count()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.mark_valid_geocode_data"><code class="docutils literal notranslate"><span class="pre">mark_valid_geocode_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.move_column_to_front_of_dataframe"><code class="docutils literal notranslate"><span class="pre">move_column_to_front_of_dataframe()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.new_walkability_udf"><code class="docutils literal notranslate"><span class="pre">new_walkability_udf()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.pivot_summary_table_for_bools"><code class="docutils literal notranslate"><span class="pre">pivot_summary_table_for_bools()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.pivot_summary_with_metrics"><code class="docutils literal notranslate"><span class="pre">pivot_summary_with_metrics()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.prepare_dataframe_for_export"><code class="docutils literal notranslate"><span class="pre">prepare_dataframe_for_export()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.prepare_summary_dataframe"><code class="docutils literal notranslate"><span class="pre">prepare_summary_dataframe()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.print_debug_table"><code class="docutils literal notranslate"><span class="pre">print_debug_table()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.read_parquet_to_df"><code class="docutils literal notranslate"><span class="pre">read_parquet_to_df()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.register_temp_table"><code class="docutils literal notranslate"><span class="pre">register_temp_table()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.repartition_and_cache"><code class="docutils literal notranslate"><span class="pre">repartition_and_cache()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.reproject_geom_columns"><code class="docutils literal notranslate"><span class="pre">reproject_geom_columns()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.sanitise_dataframe_column_names"><code class="docutils literal notranslate"><span class="pre">sanitise_dataframe_column_names()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.tabulate_null_vs_not_null"><code class="docutils literal notranslate"><span class="pre">tabulate_null_vs_not_null()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.validate_geocode_data"><code class="docutils literal notranslate"><span class="pre">validate_geocode_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.validate_geometry"><code class="docutils literal notranslate"><span class="pre">validate_geometry()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.write_df_to_parquet"><code class="docutils literal notranslate"><span class="pre">write_df_to_parquet()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-files-hashing">siege_utilities.files.hashing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.calculate_file_hash"><code class="docutils literal notranslate"><span class="pre">calculate_file_hash()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.generate_sha256_hash_for_file"><code class="docutils literal notranslate"><span class="pre">generate_sha256_hash_for_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.get_file_hash"><code class="docutils literal notranslate"><span class="pre">get_file_hash()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.verify_file_integrity"><code class="docutils literal notranslate"><span class="pre">verify_file_integrity()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-files-operations">siege_utilities.files.operations</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.check_for_file_type_in_directory"><code class="docutils literal notranslate"><span class="pre">check_for_file_type_in_directory()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.check_if_file_exists_at_path"><code class="docutils literal notranslate"><span class="pre">check_if_file_exists_at_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.count_duplicate_rows_in_file_using_awk"><code class="docutils literal notranslate"><span class="pre">count_duplicate_rows_in_file_using_awk()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.count_empty_rows_in_file_pythonically"><code class="docutils literal notranslate"><span class="pre">count_empty_rows_in_file_pythonically()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.count_empty_rows_in_file_using_awk"><code class="docutils literal notranslate"><span class="pre">count_empty_rows_in_file_using_awk()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.count_total_rows_in_file_pythonically"><code class="docutils literal notranslate"><span class="pre">count_total_rows_in_file_pythonically()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.count_total_rows_in_file_using_sed"><code class="docutils literal notranslate"><span class="pre">count_total_rows_in_file_using_sed()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.delete_existing_file_and_replace_it_with_an_empty_file"><code class="docutils literal notranslate"><span class="pre">delete_existing_file_and_replace_it_with_an_empty_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.remove_empty_rows_in_file_using_sed"><code class="docutils literal notranslate"><span class="pre">remove_empty_rows_in_file_using_sed()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.write_data_to_a_new_empty_file"><code class="docutils literal notranslate"><span class="pre">write_data_to_a_new_empty_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.write_data_to_an_existing_file"><code class="docutils literal notranslate"><span class="pre">write_data_to_an_existing_file()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-files-paths">siege_utilities.files.paths</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.ensure_path_exists"><code class="docutils literal notranslate"><span class="pre">ensure_path_exists()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.unzip_file_to_its_own_directory"><code class="docutils literal notranslate"><span class="pre">unzip_file_to_its_own_directory()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-files-remote">siege_utilities.files.remote</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.download_file"><code class="docutils literal notranslate"><span class="pre">download_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.generate_local_path_from_url"><code class="docutils literal notranslate"><span class="pre">generate_local_path_from_url()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-files-shell">siege_utilities.files.shell</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.run_subprocess"><code class="docutils literal notranslate"><span class="pre">run_subprocess()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-geo-geocoding">siege_utilities.geo.geocoding</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.concatenate_addresses"><code class="docutils literal notranslate"><span class="pre">concatenate_addresses()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.use_nominatim_geocoder"><code class="docutils literal notranslate"><span class="pre">use_nominatim_geocoder()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Testing Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#test-structure">Test Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#running-tests">Running Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#basic-test-execution">Basic Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#coverage-and-reporting">Coverage and Reporting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#parallel-execution">Parallel Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#test-markers">Test Markers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#writing-new-tests">Writing New Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#test-file-structure">Test File Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#test-naming-conventions">Test Naming Conventions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#example-test-patterns">Example Test Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#test-fixtures">Test Fixtures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#test-configuration">Test Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pytest-configuration">Pytest Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#coverage-configuration">Coverage Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#continuous-integration">Continuous Integration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ci-pipeline">CI Pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#debugging-tests">Debugging Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#verbose-output">Verbose Output</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#debug-mode">Debug Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#single-test-execution">Single Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#test-isolation">Test Isolation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#performance-testing">Performance Testing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#benchmark-tests">Benchmark Tests</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#load-testing">Load Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#test-data-management">Test Data Management</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#test-data-generation">Test Data Generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#data-cleanup">Data Cleanup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#test-organization">Test Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#test-independence">Test Independence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#test-coverage">Test Coverage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#performance-considerations">Performance Considerations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#common-patterns">Common Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#configuration-testing">Configuration Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#file-operation-testing">File Operation Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#api-testing">API Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#common-issues">Common Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#getting-help">Getting Help</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Siege Utilities</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Testing Guide</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="testing-guide">
+<h1>Testing Guide<a class="headerlink" href="#testing-guide" title="Link to this heading"></a></h1>
+<p>This guide covers testing the Siege Utilities package, including running tests, writing new tests, and understanding the test architecture.</p>
+<nav class="contents local" id="contents">
+<ul class="simple">
+<li><p><a class="reference internal" href="#overview" id="id1">Overview</a></p></li>
+<li><p><a class="reference internal" href="#test-structure" id="id2">Test Structure</a></p></li>
+<li><p><a class="reference internal" href="#running-tests" id="id3">Running Tests</a></p>
+<ul>
+<li><p><a class="reference internal" href="#basic-test-execution" id="id4">Basic Test Execution</a></p></li>
+<li><p><a class="reference internal" href="#test-runner-script" id="id5">Test Runner Script</a></p></li>
+<li><p><a class="reference internal" href="#coverage-and-reporting" id="id6">Coverage and Reporting</a></p></li>
+<li><p><a class="reference internal" href="#parallel-execution" id="id7">Parallel Execution</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#test-markers" id="id8">Test Markers</a></p></li>
+<li><p><a class="reference internal" href="#writing-new-tests" id="id9">Writing New Tests</a></p>
+<ul>
+<li><p><a class="reference internal" href="#test-file-structure" id="id10">Test File Structure</a></p></li>
+<li><p><a class="reference internal" href="#test-naming-conventions" id="id11">Test Naming Conventions</a></p></li>
+<li><p><a class="reference internal" href="#example-test-patterns" id="id12">Example Test Patterns</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#test-fixtures" id="id13">Test Fixtures</a></p></li>
+<li><p><a class="reference internal" href="#test-configuration" id="id14">Test Configuration</a></p>
+<ul>
+<li><p><a class="reference internal" href="#pytest-configuration" id="id15">Pytest Configuration</a></p></li>
+<li><p><a class="reference internal" href="#coverage-configuration" id="id16">Coverage Configuration</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#continuous-integration" id="id17">Continuous Integration</a></p>
+<ul>
+<li><p><a class="reference internal" href="#ci-pipeline" id="id18">CI Pipeline</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#debugging-tests" id="id19">Debugging Tests</a></p>
+<ul>
+<li><p><a class="reference internal" href="#verbose-output" id="id20">Verbose Output</a></p></li>
+<li><p><a class="reference internal" href="#debug-mode" id="id21">Debug Mode</a></p></li>
+<li><p><a class="reference internal" href="#single-test-execution" id="id22">Single Test Execution</a></p></li>
+<li><p><a class="reference internal" href="#test-isolation" id="id23">Test Isolation</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#performance-testing" id="id24">Performance Testing</a></p>
+<ul>
+<li><p><a class="reference internal" href="#benchmark-tests" id="id25">Benchmark Tests</a></p></li>
+<li><p><a class="reference internal" href="#load-testing" id="id26">Load Testing</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#test-data-management" id="id27">Test Data Management</a></p>
+<ul>
+<li><p><a class="reference internal" href="#test-data-generation" id="id28">Test Data Generation</a></p></li>
+<li><p><a class="reference internal" href="#data-cleanup" id="id29">Data Cleanup</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#best-practices" id="id30">Best Practices</a></p>
+<ul>
+<li><p><a class="reference internal" href="#test-organization" id="id31">Test Organization</a></p></li>
+<li><p><a class="reference internal" href="#test-independence" id="id32">Test Independence</a></p></li>
+<li><p><a class="reference internal" href="#test-coverage" id="id33">Test Coverage</a></p></li>
+<li><p><a class="reference internal" href="#performance-considerations" id="id34">Performance Considerations</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#common-patterns" id="id35">Common Patterns</a></p>
+<ul>
+<li><p><a class="reference internal" href="#configuration-testing" id="id36">Configuration Testing</a></p></li>
+<li><p><a class="reference internal" href="#file-operation-testing" id="id37">File Operation Testing</a></p></li>
+<li><p><a class="reference internal" href="#api-testing" id="id38">API Testing</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#troubleshooting" id="id39">Troubleshooting</a></p>
+<ul>
+<li><p><a class="reference internal" href="#common-issues" id="id40">Common Issues</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#getting-help" id="id41">Getting Help</a></p></li>
+</ul>
+</nav>
+<section id="overview">
+<h2><a class="toc-backref" href="#id1" role="doc-backlink">Overview</a><a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>Siege Utilities includes a comprehensive test suite covering all functionality:</p>
+<ul class="simple">
+<li><p><strong>Unit Tests</strong>: Fast, isolated tests for individual functions</p></li>
+<li><p><strong>Integration Tests</strong>: Tests that verify module interactions</p></li>
+<li><p><strong>Configuration Tests</strong>: Client and connection management tests</p></li>
+<li><p><strong>Performance Tests</strong>: Tests for distributed computing features</p></li>
+</ul>
+</section>
+<section id="test-structure">
+<h2><a class="toc-backref" href="#id2" role="doc-backlink">Test Structure</a><a class="headerlink" href="#test-structure" title="Link to this heading"></a></h2>
+<p>The test suite is organized as follows:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>tests/
+├── conftest.py                           # Shared test fixtures
+├── test_client_and_connection_config.py  # Client &amp; connection tests
+├── test_core_logging.py                  # Logging system tests
+├── test_file_operations.py               # File operation tests
+├── test_geocoding.py                     # Geospatial tests
+├── test_package_discovery.py             # Auto-discovery tests
+├── test_paths.py                         # Path utility tests
+├── test_remote.py                        # Remote file tests
+├── test_shell.py                         # Shell command tests
+├── test_spark_utils.py                   # Spark utility tests
+└── test_string_utils.py                  # String utility tests
+</pre></div>
+</div>
+</section>
+<section id="running-tests">
+<h2><a class="toc-backref" href="#id3" role="doc-backlink">Running Tests</a><a class="headerlink" href="#running-tests" title="Link to this heading"></a></h2>
+<section id="basic-test-execution">
+<h3><a class="toc-backref" href="#id4" role="doc-backlink">Basic Test Execution</a><a class="headerlink" href="#basic-test-execution" title="Link to this heading"></a></h3>
+<p>Run all tests:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pytest
+</pre></div>
+</div>
+<p>Run with verbose output:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pytest<span class="w"> </span>-v
+</pre></div>
+</div>
+<p>Run specific test modules:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pytest<span class="w"> </span>tests/test_client_and_connection_config.py<span class="w"> </span>-v
+pytest<span class="w"> </span>tests/test_core_logging.py<span class="w"> </span>-v
+pytest<span class="w"> </span>tests/test_file_operations.py<span class="w"> </span>-v
+</pre></div>
+</div>
+</section>
+<section id="test-runner-script">
+<h3><a class="toc-backref" href="#id5" role="doc-backlink">Test Runner Script</a><a class="headerlink" href="#test-runner-script" title="Link to this heading"></a></h3>
+<p>Use the interactive test runner:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>run_tests.py
+</pre></div>
+</div>
+<p>Or run specific test types:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>run_tests.py<span class="w"> </span>--coverage<span class="w">    </span><span class="c1"># With coverage reporting</span>
+python<span class="w"> </span>run_tests.py<span class="w"> </span>--fast<span class="w">        </span><span class="c1"># Fast tests only</span>
+python<span class="w"> </span>run_tests.py<span class="w"> </span>--parallel<span class="w">    </span><span class="c1"># Parallel execution</span>
+python<span class="w"> </span>run_tests.py<span class="w"> </span>--debug<span class="w">       </span><span class="c1"># Debug mode</span>
+</pre></div>
+</div>
+</section>
+<section id="coverage-and-reporting">
+<h3><a class="toc-backref" href="#id6" role="doc-backlink">Coverage and Reporting</a><a class="headerlink" href="#coverage-and-reporting" title="Link to this heading"></a></h3>
+<p>Generate coverage reports:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pytest<span class="w"> </span>--cov<span class="o">=</span>siege_utilities<span class="w"> </span>--cov-report<span class="o">=</span>html
+pytest<span class="w"> </span>--cov<span class="o">=</span>siege_utilities<span class="w"> </span>--cov-report<span class="o">=</span>term-missing
+</pre></div>
+</div>
+<p>View coverage in browser:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>open<span class="w"> </span>htmlcov/index.html
+<span class="c1"># or</span>
+xdg-open<span class="w"> </span>htmlcov/index.html<span class="w">  </span><span class="c1"># Linux</span>
+start<span class="w"> </span>htmlcov/index.html<span class="w">      </span><span class="c1"># Windows</span>
+</pre></div>
+</div>
+</section>
+<section id="parallel-execution">
+<h3><a class="toc-backref" href="#id7" role="doc-backlink">Parallel Execution</a><a class="headerlink" href="#parallel-execution" title="Link to this heading"></a></h3>
+<p>Run tests in parallel for faster execution:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pytest<span class="w"> </span>-n<span class="w"> </span>auto<span class="w">  </span><span class="c1"># Auto-detect CPU cores</span>
+pytest<span class="w"> </span>-n<span class="w"> </span><span class="m">4</span><span class="w">     </span><span class="c1"># Use 4 processes</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="test-markers">
+<h2><a class="toc-backref" href="#id8" role="doc-backlink">Test Markers</a><a class="headerlink" href="#test-markers" title="Link to this heading"></a></h2>
+<p>Tests are categorized using pytest markers:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">pytest</span>
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">unit</span>
+<span class="k">def</span> <span class="nf">test_basic_functionality</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fast unit test.&quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">integration</span>
+<span class="k">def</span> <span class="nf">test_module_integration</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Slower integration test.&quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">slow</span>
+<span class="k">def</span> <span class="nf">test_performance</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Slow performance test.&quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">client</span>
+<span class="k">def</span> <span class="nf">test_client_profile</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Client configuration test.&quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">connection</span>
+<span class="k">def</span> <span class="nf">test_connection_management</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Connection management test.&quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+</pre></div>
+</div>
+<p>Run tests by marker:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pytest<span class="w"> </span>-m<span class="w"> </span>unit<span class="w">              </span><span class="c1"># Only unit tests</span>
+pytest<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;not slow&quot;</span><span class="w">        </span><span class="c1"># Exclude slow tests</span>
+pytest<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;client or connection&quot;</span><span class="w">  </span><span class="c1"># Client or connection tests</span>
+</pre></div>
+</div>
+</section>
+<section id="writing-new-tests">
+<h2><a class="toc-backref" href="#id9" role="doc-backlink">Writing New Tests</a><a class="headerlink" href="#writing-new-tests" title="Link to this heading"></a></h2>
+<section id="test-file-structure">
+<h3><a class="toc-backref" href="#id10" role="doc-backlink">Test File Structure</a><a class="headerlink" href="#test-file-structure" title="Link to this heading"></a></h3>
+<p>Create new test files following this pattern:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Tests for new_feature module.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">pytest</span>
+<span class="kn">from</span> <span class="nn">siege_utilities.new_feature</span> <span class="kn">import</span> <span class="n">new_function</span>
+
+<span class="k">class</span> <span class="nc">TestNewFeature</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test the new feature functionality.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">test_new_function_basic_usage</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Test basic functionality.&quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">new_function</span><span class="p">(</span><span class="s2">&quot;test_input&quot;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">result</span> <span class="o">==</span> <span class="s2">&quot;expected_output&quot;</span>
+
+    <span class="k">def</span> <span class="nf">test_new_function_with_invalid_input</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Test error handling.&quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">pytest</span><span class="o">.</span><span class="n">raises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">match</span><span class="o">=</span><span class="s2">&quot;Invalid input&quot;</span><span class="p">):</span>
+            <span class="n">new_function</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_new_function_edge_case</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Test edge case behavior.&quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">new_function</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">result</span> <span class="ow">is</span> <span class="kc">None</span>
+</pre></div>
+</div>
+</section>
+<section id="test-naming-conventions">
+<h3><a class="toc-backref" href="#id11" role="doc-backlink">Test Naming Conventions</a><a class="headerlink" href="#test-naming-conventions" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>Test files</strong>: <cite>test_module_name.py</cite></p></li>
+<li><p><strong>Test classes</strong>: <cite>TestClassName</cite></p></li>
+<li><p><strong>Test methods</strong>: <cite>test_function_name_expected_behavior</cite></p></li>
+<li><p><strong>Test descriptions</strong>: Clear, descriptive docstrings</p></li>
+</ul>
+</section>
+<section id="example-test-patterns">
+<h3><a class="toc-backref" href="#id12" role="doc-backlink">Example Test Patterns</a><a class="headerlink" href="#example-test-patterns" title="Link to this heading"></a></h3>
+<p>Testing with fixtures:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">pytest</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">pathlib</span>
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span>
+<span class="k">def</span> <span class="nf">temp_config_dir</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create temporary configuration directory.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">tmp_dir</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">tmp_dir</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">test_save_configuration</span><span class="p">(</span><span class="n">temp_config_dir</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test saving configuration to temporary directory.&quot;&quot;&quot;</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;value&quot;</span><span class="p">}</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">save_config</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">temp_config_dir</span><span class="p">))</span>
+    <span class="k">assert</span> <span class="n">result</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Testing error conditions:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">test_function_handles_missing_file</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test that function handles missing files gracefully.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">pytest</span><span class="o">.</span><span class="n">raises</span><span class="p">(</span><span class="ne">FileNotFoundError</span><span class="p">):</span>
+        <span class="n">process_file</span><span class="p">(</span><span class="s2">&quot;nonexistent_file.txt&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Testing with mocks:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">unittest.mock</span> <span class="kn">import</span> <span class="n">patch</span><span class="p">,</span> <span class="n">MagicMock</span>
+
+<span class="nd">@patch</span><span class="p">(</span><span class="s1">&#39;requests.get&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">test_api_call_success</span><span class="p">(</span><span class="n">mock_get</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test successful API call.&quot;&quot;&quot;</span>
+    <span class="n">mock_response</span> <span class="o">=</span> <span class="n">MagicMock</span><span class="p">()</span>
+    <span class="n">mock_response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">=</span> <span class="mi">200</span>
+    <span class="n">mock_response</span><span class="o">.</span><span class="n">json</span><span class="o">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="s2">&quot;test&quot;</span><span class="p">}</span>
+    <span class="n">mock_get</span><span class="o">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="n">mock_response</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">make_api_call</span><span class="p">(</span><span class="s2">&quot;http://test.com&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;test&quot;</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="test-fixtures">
+<h2><a class="toc-backref" href="#id13" role="doc-backlink">Test Fixtures</a><a class="headerlink" href="#test-fixtures" title="Link to this heading"></a></h2>
+<p>Shared test fixtures are defined in <cite>tests/conftest.py</cite>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">pytest</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">pathlib</span>
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="n">scope</span><span class="o">=</span><span class="s2">&quot;session&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">sample_data</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sample data for testing.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;numbers&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
+        <span class="s2">&quot;strings&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;hello&quot;</span><span class="p">,</span> <span class="s2">&quot;world&quot;</span><span class="p">],</span>
+        <span class="s2">&quot;nested&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;value&quot;</span><span class="p">}</span>
+    <span class="p">}</span>
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span>
+<span class="k">def</span> <span class="nf">temp_workspace</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Temporary workspace for file operations.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">tmp_dir</span><span class="p">:</span>
+        <span class="n">workspace</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">tmp_dir</span><span class="p">)</span>
+        <span class="c1"># Create some test files</span>
+        <span class="p">(</span><span class="n">workspace</span> <span class="o">/</span> <span class="s2">&quot;test.txt&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="s2">&quot;test content&quot;</span><span class="p">)</span>
+        <span class="p">(</span><span class="n">workspace</span> <span class="o">/</span> <span class="s2">&quot;data.csv&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="s2">&quot;col1,col2</span><span class="se">\n</span><span class="s2">1,2</span><span class="se">\n</span><span class="s2">3,4&quot;</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">workspace</span>
+</pre></div>
+</div>
+<p>Using fixtures in tests:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">test_process_data</span><span class="p">(</span><span class="n">sample_data</span><span class="p">,</span> <span class="n">temp_workspace</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test data processing with fixtures.&quot;&quot;&quot;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">process_data</span><span class="p">(</span><span class="n">sample_data</span><span class="p">,</span> <span class="n">temp_workspace</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">result</span><span class="o">.</span><span class="n">success</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">temp_workspace</span> <span class="o">/</span> <span class="s2">&quot;output.txt&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="test-configuration">
+<h2><a class="toc-backref" href="#id14" role="doc-backlink">Test Configuration</a><a class="headerlink" href="#test-configuration" title="Link to this heading"></a></h2>
+<section id="pytest-configuration">
+<h3><a class="toc-backref" href="#id15" role="doc-backlink">Pytest Configuration</a><a class="headerlink" href="#pytest-configuration" title="Link to this heading"></a></h3>
+<p>The package includes <cite>pytest.ini</cite> with optimized settings:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[tool:pytest]</span>
+<span class="na">testpaths</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">tests</span>
+<span class="na">python_files</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">test_*.py</span>
+<span class="na">python_classes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">Test*</span>
+<span class="na">python_functions</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">test_*</span>
+<span class="na">addopts</span><span class="w"> </span><span class="o">=</span>
+<span class="w">    </span><span class="na">-v</span>
+<span class="w">    </span><span class="na">--tb</span><span class="o">=</span><span class="s">short</span>
+<span class="w">    </span><span class="na">--strict-markers</span>
+<span class="w">    </span><span class="na">--disable-warnings</span>
+<span class="w">    </span><span class="na">--cov</span><span class="o">=</span><span class="s">siege_utilities</span>
+<span class="w">    </span><span class="na">--cov-report</span><span class="o">=</span><span class="s">term-missing</span>
+<span class="w">    </span><span class="na">--cov-report</span><span class="o">=</span><span class="s">html:htmlcov</span>
+<span class="w">    </span><span class="na">--cov-fail-under</span><span class="o">=</span><span class="s">85</span>
+</pre></div>
+</div>
+</section>
+<section id="coverage-configuration">
+<h3><a class="toc-backref" href="#id16" role="doc-backlink">Coverage Configuration</a><a class="headerlink" href="#coverage-configuration" title="Link to this heading"></a></h3>
+<p>Coverage settings in <cite>pytest.ini</cite>:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[coverage:run]</span>
+<span class="na">source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">siege_utilities</span>
+<span class="na">omit</span><span class="w"> </span><span class="o">=</span>
+<span class="w">    </span><span class="na">*/tests/*</span>
+<span class="w">    </span><span class="na">*/test_*</span>
+<span class="w">    </span><span class="na">setup.py</span>
+<span class="w">    </span><span class="na">*/__init__.py</span>
+
+<span class="k">[coverage:report]</span>
+<span class="na">exclude_lines</span><span class="w"> </span><span class="o">=</span>
+<span class="w">    </span><span class="na">pragma</span><span class="o">:</span><span class="w"> </span><span class="s">no cover</span>
+<span class="w">    </span><span class="na">def __repr__</span>
+<span class="w">    </span><span class="na">if self.debug</span><span class="o">:</span>
+<span class="w">    </span><span class="na">raise AssertionError</span>
+<span class="w">    </span><span class="na">raise NotImplementedError</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="continuous-integration">
+<h2><a class="toc-backref" href="#id17" role="doc-backlink">Continuous Integration</a><a class="headerlink" href="#continuous-integration" title="Link to this heading"></a></h2>
+<p>GitHub Actions automatically run tests on:</p>
+<ul class="simple">
+<li><p><strong>Python versions</strong>: 3.8, 3.9, 3.10, 3.11, 3.12</p></li>
+<li><p><strong>Test coverage</strong>: Minimum 85% coverage required</p></li>
+<li><p><strong>Code quality</strong>: Flake8 and black formatting checks</p></li>
+<li><p><strong>Documentation</strong>: Sphinx build verification</p></li>
+</ul>
+<section id="ci-pipeline">
+<h3><a class="toc-backref" href="#id18" role="doc-backlink">CI Pipeline</a><a class="headerlink" href="#ci-pipeline" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Tests</span>
+<span class="nt">on</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">push</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">pull_request</span><span class="p p-Indicator">]</span>
+
+<span class="nt">jobs</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">test</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
+<span class="w">    </span><span class="nt">strategy</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">matrix</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">python-version</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">3.8</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">3.9</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">3.10</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">3.11</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">3.12</span><span class="p p-Indicator">]</span>
+
+<span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v3</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Set up Python ${{ matrix.python-version }}</span>
+<span class="w">      </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/setup-python@v4</span>
+<span class="w">      </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">python-version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ matrix.python-version }}</span>
+
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Install dependencies</span>
+<span class="w">      </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">        </span><span class="no">pip install -r test_requirements.txt</span>
+<span class="w">        </span><span class="no">pip install -e .</span>
+
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Run tests</span>
+<span class="w">      </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">        </span><span class="no">pytest --cov=siege_utilities --cov-report=xml</span>
+
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Upload coverage</span>
+<span class="w">      </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">codecov/codecov-action@v3</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="debugging-tests">
+<h2><a class="toc-backref" href="#id19" role="doc-backlink">Debugging Tests</a><a class="headerlink" href="#debugging-tests" title="Link to this heading"></a></h2>
+<section id="verbose-output">
+<h3><a class="toc-backref" href="#id20" role="doc-backlink">Verbose Output</a><a class="headerlink" href="#verbose-output" title="Link to this heading"></a></h3>
+<p>Get detailed test information:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pytest<span class="w"> </span>-v<span class="w"> </span>-s<span class="w">                    </span><span class="c1"># Verbose with print statements</span>
+pytest<span class="w"> </span>--tb<span class="o">=</span>long<span class="w">               </span><span class="c1"># Full traceback</span>
+pytest<span class="w"> </span>--tb<span class="o">=</span>short<span class="w"> </span>--showlocals<span class="w"> </span><span class="c1"># Show local variables on failure</span>
+</pre></div>
+</div>
+</section>
+<section id="debug-mode">
+<h3><a class="toc-backref" href="#id21" role="doc-backlink">Debug Mode</a><a class="headerlink" href="#debug-mode" title="Link to this heading"></a></h3>
+<p>Run tests with debugger:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pytest<span class="w"> </span>--pdb<span class="w">                   </span><span class="c1"># Drop into debugger on failure</span>
+pytest<span class="w"> </span>--pdbcls<span class="o">=</span>IPython.terminal.debugger:Pdb<span class="w">  </span><span class="c1"># Use IPython debugger</span>
+</pre></div>
+</div>
+</section>
+<section id="single-test-execution">
+<h3><a class="toc-backref" href="#id22" role="doc-backlink">Single Test Execution</a><a class="headerlink" href="#single-test-execution" title="Link to this heading"></a></h3>
+<p>Run specific tests for debugging:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pytest<span class="w"> </span>tests/test_file.py::TestClass::test_method<span class="w"> </span>-v<span class="w"> </span>-s
+pytest<span class="w"> </span>tests/test_file.py::test_function<span class="w"> </span>-v<span class="w"> </span>-s
+</pre></div>
+</div>
+</section>
+<section id="test-isolation">
+<h3><a class="toc-backref" href="#id23" role="doc-backlink">Test Isolation</a><a class="headerlink" href="#test-isolation" title="Link to this heading"></a></h3>
+<p>Ensure tests don’t interfere with each other:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pytest<span class="w"> </span>--maxfail<span class="o">=</span><span class="m">1</span><span class="w">             </span><span class="c1"># Stop on first failure</span>
+pytest<span class="w"> </span>-x<span class="w">                      </span><span class="c1"># Same as above</span>
+pytest<span class="w"> </span>--lf<span class="w">                    </span><span class="c1"># Run only failed tests from last run</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="performance-testing">
+<h2><a class="toc-backref" href="#id24" role="doc-backlink">Performance Testing</a><a class="headerlink" href="#performance-testing" title="Link to this heading"></a></h2>
+<section id="benchmark-tests">
+<h3><a class="toc-backref" href="#id25" role="doc-backlink">Benchmark Tests</a><a class="headerlink" href="#benchmark-tests" title="Link to this heading"></a></h3>
+<p>Measure function performance:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">pytest</span>
+
+<span class="k">def</span> <span class="nf">test_function_performance</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test that function completes within acceptable time.&quot;&quot;&quot;</span>
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">expensive_function</span><span class="p">()</span>
+
+    <span class="n">execution_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span>
+    <span class="k">assert</span> <span class="n">execution_time</span> <span class="o">&lt;</span> <span class="mf">1.0</span>  <span class="c1"># Should complete in under 1 second</span>
+    <span class="k">assert</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+</pre></div>
+</div>
+</section>
+<section id="load-testing">
+<h3><a class="toc-backref" href="#id26" role="doc-backlink">Load Testing</a><a class="headerlink" href="#load-testing" title="Link to this heading"></a></h3>
+<p>Test with large datasets:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">test_large_data_processing</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test processing large datasets.&quot;&quot;&quot;</span>
+    <span class="n">large_dataset</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">10000</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">process_large_dataset</span><span class="p">(</span><span class="n">large_dataset</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="p">)</span> <span class="o">==</span> <span class="mi">10000</span>
+    <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">processed</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">result</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="test-data-management">
+<h2><a class="toc-backref" href="#id27" role="doc-backlink">Test Data Management</a><a class="headerlink" href="#test-data-management" title="Link to this heading"></a></h2>
+<section id="test-data-generation">
+<h3><a class="toc-backref" href="#id28" role="doc-backlink">Test Data Generation</a><a class="headerlink" href="#test-data-generation" title="Link to this heading"></a></h3>
+<p>Generate test data programmatically:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">string</span>
+
+<span class="k">def</span> <span class="nf">generate_test_data</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate random test data.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">i</span><span class="p">,</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">choices</span><span class="p">(</span><span class="n">string</span><span class="o">.</span><span class="n">ascii_letters</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">10</span><span class="p">)),</span>
+            <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+    <span class="p">]</span>
+
+<span class="k">def</span> <span class="nf">test_data_processing</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test with generated data.&quot;&quot;&quot;</span>
+    <span class="n">test_data</span> <span class="o">=</span> <span class="n">generate_test_data</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">process_data</span><span class="p">(</span><span class="n">test_data</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1000</span>
+</pre></div>
+</div>
+</section>
+<section id="data-cleanup">
+<h3><a class="toc-backref" href="#id29" role="doc-backlink">Data Cleanup</a><a class="headerlink" href="#data-cleanup" title="Link to this heading"></a></h3>
+<p>Ensure test data is cleaned up:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">pathlib</span>
+
+<span class="k">def</span> <span class="nf">test_with_cleanup</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test that creates and cleans up test data.&quot;&quot;&quot;</span>
+    <span class="n">temp_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># Test operations</span>
+        <span class="n">test_file</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;test.txt&quot;</span>
+        <span class="n">test_file</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="s2">&quot;test content&quot;</span><span class="p">)</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">process_file</span><span class="p">(</span><span class="n">test_file</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">result</span><span class="o">.</span><span class="n">success</span>
+
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="c1"># Cleanup</span>
+        <span class="kn">import</span> <span class="nn">shutil</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="best-practices">
+<h2><a class="toc-backref" href="#id30" role="doc-backlink">Best Practices</a><a class="headerlink" href="#best-practices" title="Link to this heading"></a></h2>
+<section id="test-organization">
+<h3><a class="toc-backref" href="#id31" role="doc-backlink">Test Organization</a><a class="headerlink" href="#test-organization" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>Group related tests</strong> in test classes</p></li>
+<li><p><strong>Use descriptive test names</strong> that explain the expected behavior</p></li>
+<li><p><strong>Keep tests focused</strong> on a single piece of functionality</p></li>
+<li><p><strong>Use fixtures</strong> for common setup and teardown</p></li>
+<li><p><strong>Test both success and failure cases</strong></p></li>
+</ol>
+</section>
+<section id="test-independence">
+<h3><a class="toc-backref" href="#id32" role="doc-backlink">Test Independence</a><a class="headerlink" href="#test-independence" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>Each test should be independent</strong> and not rely on other tests</p></li>
+<li><p><strong>Use fresh data</strong> for each test</p></li>
+<li><p><strong>Clean up resources</strong> after tests</p></li>
+<li><p><strong>Avoid test ordering dependencies</strong></p></li>
+</ol>
+</section>
+<section id="test-coverage">
+<h3><a class="toc-backref" href="#id33" role="doc-backlink">Test Coverage</a><a class="headerlink" href="#test-coverage" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>Aim for high coverage</strong> (85%+ minimum)</p></li>
+<li><p><strong>Test edge cases</strong> and error conditions</p></li>
+<li><p><strong>Test boundary conditions</strong> (empty lists, None values, etc.)</p></li>
+<li><p><strong>Test integration points</strong> between modules</p></li>
+</ol>
+</section>
+<section id="performance-considerations">
+<h3><a class="toc-backref" href="#id34" role="doc-backlink">Performance Considerations</a><a class="headerlink" href="#performance-considerations" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>Keep unit tests fast</strong> (&lt; 1 second each)</p></li>
+<li><p><strong>Use markers</strong> to categorize slow tests</p></li>
+<li><p><strong>Run slow tests separately</strong> in CI</p></li>
+<li><p><strong>Use parallel execution</strong> for faster feedback</p></li>
+</ol>
+</section>
+</section>
+<section id="common-patterns">
+<h2><a class="toc-backref" href="#id35" role="doc-backlink">Common Patterns</a><a class="headerlink" href="#common-patterns" title="Link to this heading"></a></h2>
+<section id="configuration-testing">
+<h3><a class="toc-backref" href="#id36" role="doc-backlink">Configuration Testing</a><a class="headerlink" href="#configuration-testing" title="Link to this heading"></a></h3>
+<p>Test configuration management:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">test_config_creation</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test configuration creation and validation.&quot;&quot;&quot;</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">create_config</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;test_config&quot;</span><span class="p">,</span>
+        <span class="n">settings</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;value&quot;</span><span class="p">}</span>
+    <span class="p">)</span>
+
+    <span class="k">assert</span> <span class="n">config</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;test_config&quot;</span>
+    <span class="k">assert</span> <span class="n">config</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;key&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;value&quot;</span>
+    <span class="k">assert</span> <span class="n">config</span><span class="o">.</span><span class="n">is_valid</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">test_config_validation</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test configuration validation.&quot;&quot;&quot;</span>
+    <span class="n">invalid_config</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;settings&quot;</span><span class="p">:</span> <span class="p">{}}</span>
+
+    <span class="k">with</span> <span class="n">pytest</span><span class="o">.</span><span class="n">raises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">match</span><span class="o">=</span><span class="s2">&quot;Name cannot be empty&quot;</span><span class="p">):</span>
+        <span class="n">validate_config</span><span class="p">(</span><span class="n">invalid_config</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="file-operation-testing">
+<h3><a class="toc-backref" href="#id37" role="doc-backlink">File Operation Testing</a><a class="headerlink" href="#file-operation-testing" title="Link to this heading"></a></h3>
+<p>Test file operations:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">test_file_processing</span><span class="p">(</span><span class="n">temp_workspace</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test file processing operations.&quot;&quot;&quot;</span>
+    <span class="n">input_file</span> <span class="o">=</span> <span class="n">temp_workspace</span> <span class="o">/</span> <span class="s2">&quot;input.txt&quot;</span>
+    <span class="n">input_file</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="s2">&quot;test content&quot;</span><span class="p">)</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">process_file</span><span class="p">(</span><span class="n">input_file</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="n">result</span><span class="o">.</span><span class="n">success</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">temp_workspace</span> <span class="o">/</span> <span class="s2">&quot;output.txt&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="n">result</span><span class="o">.</span><span class="n">processed_lines</span> <span class="o">==</span> <span class="mi">1</span>
+</pre></div>
+</div>
+</section>
+<section id="api-testing">
+<h3><a class="toc-backref" href="#id38" role="doc-backlink">API Testing</a><a class="headerlink" href="#api-testing" title="Link to this heading"></a></h3>
+<p>Test API interactions:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@patch</span><span class="p">(</span><span class="s1">&#39;requests.post&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">test_api_integration</span><span class="p">(</span><span class="n">mock_post</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test API integration.&quot;&quot;&quot;</span>
+    <span class="n">mock_post</span><span class="o">.</span><span class="n">return_value</span><span class="o">.</span><span class="n">status_code</span> <span class="o">=</span> <span class="mi">200</span>
+    <span class="n">mock_post</span><span class="o">.</span><span class="n">return_value</span><span class="o">.</span><span class="n">json</span><span class="o">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;success&quot;</span><span class="p">}</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">call_api</span><span class="p">(</span><span class="s2">&quot;http://api.test.com&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="s2">&quot;test&quot;</span><span class="p">})</span>
+
+    <span class="k">assert</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;success&quot;</span>
+    <span class="n">mock_post</span><span class="o">.</span><span class="n">assert_called_once</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="troubleshooting">
+<h2><a class="toc-backref" href="#id39" role="doc-backlink">Troubleshooting</a><a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h2>
+<section id="common-issues">
+<h3><a class="toc-backref" href="#id40" role="doc-backlink">Common Issues</a><a class="headerlink" href="#common-issues" title="Link to this heading"></a></h3>
+<dl>
+<dt><strong>Import errors</strong>: Ensure package is installed in development mode</dt><dd><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</pre></div>
+</div>
+</dd>
+<dt><strong>Missing dependencies</strong>: Install test requirements</dt><dd><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>test_requirements.txt
+</pre></div>
+</div>
+</dd>
+<dt><strong>Test discovery issues</strong>: Check test file naming and structure</dt><dd><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pytest<span class="w"> </span>--collect-only
+</pre></div>
+</div>
+</dd>
+<dt><strong>Coverage issues</strong>: Verify coverage configuration</dt><dd><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pytest<span class="w"> </span>--cov<span class="o">=</span>siege_utilities<span class="w"> </span>--cov-report<span class="o">=</span>term
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+</section>
+<section id="getting-help">
+<h2><a class="toc-backref" href="#id41" role="doc-backlink">Getting Help</a><a class="headerlink" href="#getting-help" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Test failures</strong>: Check the test output and traceback</p></li>
+<li><p><strong>Coverage issues</strong>: Review coverage reports in <cite>htmlcov/</cite></p></li>
+<li><p><strong>Performance problems</strong>: Use <cite>pytest –durations=10</cite> to identify slow tests</p></li>
+<li><p><strong>Documentation</strong>: See the test files themselves for examples</p></li>
+</ul>
+<p>Remember: <strong>Finding issues is success</strong> - it means the tests are working! 🔥</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="all_functions.html" class="btn btn-neutral float-left" title="Complete Function Reference" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Dheeraj Chand.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

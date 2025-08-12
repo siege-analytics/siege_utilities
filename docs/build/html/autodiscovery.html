@@ -1,0 +1,294 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enhanced Auto-Discovery System &mdash; Siege Utilities 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=a12e3537"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Complete Function Reference" href="all_functions.html" />
+    <link rel="prev" title="Welcome to Siege Utilities documentation!" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Siege Utilities
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Enhanced Auto-Discovery System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#how-it-works">How It Works</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-five-phase-discovery-process">The Five-Phase Discovery Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#benefits">Benefits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#monitoring-your-package">Monitoring Your Package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#adding-new-functions">Adding New Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="all_functions.html">Complete Function Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-core-logging">siege_utilities.core.logging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-core-string-utils">siege_utilities.core.string_utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-distributed-hdfs-config">siege_utilities.distributed.hdfs_config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-distributed-hdfs-legacy">siege_utilities.distributed.hdfs_legacy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-distributed-hdfs-operations">siege_utilities.distributed.hdfs_operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-distributed-spark-utils">siege_utilities.distributed.spark_utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-files-hashing">siege_utilities.files.hashing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-files-operations">siege_utilities.files.operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-files-paths">siege_utilities.files.paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-files-remote">siege_utilities.files.remote</a></li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-files-shell">siege_utilities.files.shell</a></li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-geo-geocoding">siege_utilities.geo.geocoding</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="testing_guide.html">Testing Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-structure">Test Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#running-tests">Running Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#basic-test-execution">Basic Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#coverage-and-reporting">Coverage and Reporting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#parallel-execution">Parallel Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-markers">Test Markers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#writing-new-tests">Writing New Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-file-structure">Test File Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-naming-conventions">Test Naming Conventions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#example-test-patterns">Example Test Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-fixtures">Test Fixtures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-configuration">Test Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#pytest-configuration">Pytest Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#coverage-configuration">Coverage Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#continuous-integration">Continuous Integration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#ci-pipeline">CI Pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#debugging-tests">Debugging Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#verbose-output">Verbose Output</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#debug-mode">Debug Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#single-test-execution">Single Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-isolation">Test Isolation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#performance-testing">Performance Testing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#benchmark-tests">Benchmark Tests</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#load-testing">Load Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-data-management">Test Data Management</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-data-generation">Test Data Generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#data-cleanup">Data Cleanup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-organization">Test Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-independence">Test Independence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-coverage">Test Coverage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#performance-considerations">Performance Considerations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#common-patterns">Common Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#configuration-testing">Configuration Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#file-operation-testing">File Operation Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#api-testing">API Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#common-issues">Common Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#getting-help">Getting Help</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Siege Utilities</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Enhanced Auto-Discovery System</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="enhanced-auto-discovery-system">
+<h1>Enhanced Auto-Discovery System<a class="headerlink" href="#enhanced-auto-discovery-system" title="Link to this heading"></a></h1>
+<p>The <strong>Enhanced Auto-Discovery System</strong> is Siege Utilities’ signature feature that revolutionizes how Python packages work.</p>
+<section id="how-it-works">
+<h2>How It Works<a class="headerlink" href="#how-it-works" title="Link to this heading"></a></h2>
+<p>Traditional Python packages require explicit imports:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Traditional approach - lots of imports</span>
+<span class="kn">from</span> <span class="nn">package.module1</span> <span class="kn">import</span> <span class="n">function_a</span>
+<span class="kn">from</span> <span class="nn">package.module2</span> <span class="kn">import</span> <span class="n">function_b</span>
+<span class="kn">from</span> <span class="nn">package.core.logging</span> <span class="kn">import</span> <span class="n">log_info</span>
+
+<span class="k">def</span> <span class="nf">my_function</span><span class="p">():</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="s2">&quot;Starting&quot;</span><span class="p">)</span>
+    <span class="n">result_a</span> <span class="o">=</span> <span class="n">function_a</span><span class="p">()</span>
+    <span class="n">result_b</span> <span class="o">=</span> <span class="n">function_b</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>With Siege Utilities, everything just works:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Siege Utilities approach - zero imports needed</span>
+<span class="kn">import</span> <span class="nn">siege_utilities</span>
+
+<span class="k">def</span> <span class="nf">my_function</span><span class="p">():</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="s2">&quot;Starting&quot;</span><span class="p">)</span>      <span class="c1"># Available everywhere</span>
+    <span class="n">result_a</span> <span class="o">=</span> <span class="n">function_a</span><span class="p">()</span>   <span class="c1"># Available everywhere</span>
+    <span class="n">result_b</span> <span class="o">=</span> <span class="n">function_b</span><span class="p">()</span>   <span class="c1"># Available everywhere</span>
+</pre></div>
+</div>
+</section>
+<section id="the-five-phase-discovery-process">
+<h2>The Five-Phase Discovery Process<a class="headerlink" href="#the-five-phase-discovery-process" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p><strong>Phase 1: Bootstrap Logging</strong>
+- Initialize core logging system first
+- Provide fallback logging if imports fail</p></li>
+<li><p><strong>Phase 2: Core Module Import</strong>
+- Import fundamental modules in dependency order
+- Ensure essential functions are always available</p></li>
+<li><p><strong>Phase 3: Auto-Discovery</strong>
+- Scan all .py files and subpackages
+- Dynamically import and register functions</p></li>
+<li><p><strong>Phase 4: Function Injection</strong>
+- Inject all discovered functions into all modules
+- Enable mutual availability across the entire package</p></li>
+<li><p><strong>Phase 5: Diagnostics</strong>
+- Provide comprehensive package health monitoring
+- Report successful imports and any failures</p></li>
+</ol>
+</section>
+<section id="benefits">
+<h2>Benefits<a class="headerlink" href="#benefits" title="Link to this heading"></a></h2>
+<p><strong>For Users:</strong></p>
+<ul class="simple">
+<li><p>🚀 <strong>Zero Configuration</strong>: Just import and everything works</p></li>
+<li><p>🔍 <strong>Discoverability</strong>: All functions visible at top level</p></li>
+<li><p>📝 <strong>Universal Logging</strong>: Available in every function</p></li>
+<li><p>🛡️ <strong>Graceful Degradation</strong>: Optional features fail safely</p></li>
+</ul>
+<p><strong>For Developers:</strong></p>
+<ul class="simple">
+<li><p>🔄 <strong>Auto-Discovery</strong>: New functions automatically available</p></li>
+<li><p>🌐 <strong>Mutual Availability</strong>: No internal imports needed</p></li>
+<li><p>🧪 <strong>Built-in Diagnostics</strong>: Monitor package health</p></li>
+<li><p>📊 <strong>Comprehensive Reporting</strong>: Track all functions and modules</p></li>
+</ul>
+</section>
+<section id="monitoring-your-package">
+<h2>Monitoring Your Package<a class="headerlink" href="#monitoring-your-package" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">siege_utilities</span>
+
+<span class="c1"># Get comprehensive package information</span>
+<span class="n">info</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">get_package_info</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Total functions: </span><span class="si">{</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;total_functions&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded modules: </span><span class="si">{</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;total_modules&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed imports: </span><span class="si">{</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;failed_imports&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># List functions by pattern</span>
+<span class="n">log_functions</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">list_available_functions</span><span class="p">(</span><span class="s2">&quot;log_&quot;</span><span class="p">)</span>
+<span class="n">file_functions</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">list_available_functions</span><span class="p">(</span><span class="s2">&quot;file&quot;</span><span class="p">)</span>
+
+<span class="c1"># Check dependencies</span>
+<span class="n">deps</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">check_dependencies</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;PySpark available: </span><span class="si">{</span><span class="n">deps</span><span class="p">[</span><span class="s1">&#39;pyspark&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="adding-new-functions">
+<h2>Adding New Functions<a class="headerlink" href="#adding-new-functions" title="Link to this heading"></a></h2>
+<p>Simply create a new .py file anywhere in the package:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># siege_utilities/my_new_module.py</span>
+<span class="k">def</span> <span class="nf">my_awesome_function</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;This function will be auto-discovered!&quot;&quot;&quot;</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="s2">&quot;Function called&quot;</span><span class="p">)</span>  <span class="c1"># Logging available automatically</span>
+    <span class="n">file_hash</span> <span class="o">=</span> <span class="n">get_file_hash</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>  <span class="c1"># All functions available</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;processed_</span><span class="si">{</span><span class="n">file_hash</span><span class="si">}</span><span class="s2">&quot;</span>
+</pre></div>
+</div>
+<p>Next import automatically includes your function:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">siege_utilities</span>
+<span class="c1"># my_awesome_function is now available!</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">my_awesome_function</span><span class="p">(</span><span class="s2">&quot;data.txt&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Welcome to Siege Utilities documentation!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="all_functions.html" class="btn btn-neutral float-right" title="Complete Function Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Dheeraj Chand.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,572 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>siege_utilities.geo.geocoding &mdash; Siege Utilities 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=a12e3537"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Siege Utilities
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#core-capabilities">Core Capabilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#core-utilities-16-functions">🔧 <strong>Core Utilities (16 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#file-operations-22-functions">📁 <strong>File Operations (22 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#distributed-computing-503-functions">🚀 <strong>Distributed Computing (503+ functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#geospatial-2-functions">🌍 <strong>Geospatial (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#configuration-management-15-functions">⚙️ <strong>Configuration Management (15 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#analytics-integration-6-functions">📊 <strong>Analytics Integration (6 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#code-hygiene-2-functions">🧹 <strong>Code Hygiene (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#testing-development-2-functions">🧪 <strong>Testing &amp; Development (2 functions)</strong></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#real-world-workflow-examples">Real-World Workflow Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#installation-and-dependencies">Installation and Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#performance-and-scalability">Performance and Scalability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../architecture_diagram.html">Library Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#core-architecture">Core Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#function-distribution">Function Distribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#key-features">Key Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#integration-points">Integration Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#usage-patterns">Usage Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../autodiscovery.html">Enhanced Auto-Discovery System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#how-it-works">How It Works</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#the-five-phase-discovery-process">The Five-Phase Discovery Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#benefits">Benefits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#monitoring-your-package">Monitoring Your Package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#adding-new-functions">Adding New Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../all_functions.html">Complete Function Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-core-logging">siege_utilities.core.logging</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.get_logger"><code class="docutils literal notranslate"><span class="pre">get_logger()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.init_logger"><code class="docutils literal notranslate"><span class="pre">init_logger()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.log_critical"><code class="docutils literal notranslate"><span class="pre">log_critical()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.log_debug"><code class="docutils literal notranslate"><span class="pre">log_debug()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.log_error"><code class="docutils literal notranslate"><span class="pre">log_error()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.log_info"><code class="docutils literal notranslate"><span class="pre">log_info()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.log_warning"><code class="docutils literal notranslate"><span class="pre">log_warning()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-core-string-utils">siege_utilities.core.string_utils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.remove_wrapping_quotes_and_trim"><code class="docutils literal notranslate"><span class="pre">remove_wrapping_quotes_and_trim()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-distributed-hdfs-config">siege_utilities.distributed.hdfs_config</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.create_cluster_config"><code class="docutils literal notranslate"><span class="pre">create_cluster_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.create_geocoding_config"><code class="docutils literal notranslate"><span class="pre">create_geocoding_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.create_hdfs_config"><code class="docutils literal notranslate"><span class="pre">create_hdfs_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.create_local_config"><code class="docutils literal notranslate"><span class="pre">create_local_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.dataclass"><code class="docutils literal notranslate"><span class="pre">dataclass()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-distributed-hdfs-legacy">siege_utilities.distributed.hdfs_legacy</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.check_hdfs_status"><code class="docutils literal notranslate"><span class="pre">check_hdfs_status()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.get_quick_file_signature"><code class="docutils literal notranslate"><span class="pre">get_quick_file_signature()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-distributed-hdfs-operations">siege_utilities.distributed.hdfs_operations</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.create_hdfs_operations"><code class="docutils literal notranslate"><span class="pre">create_hdfs_operations()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.setup_distributed_environment"><code class="docutils literal notranslate"><span class="pre">setup_distributed_environment()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-distributed-spark-utils">siege_utilities.distributed.spark_utils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.atomic_write_with_staging"><code class="docutils literal notranslate"><span class="pre">atomic_write_with_staging()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.backup_full_dataframe"><code class="docutils literal notranslate"><span class="pre">backup_full_dataframe()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.clean_and_reorder_bbox"><code class="docutils literal notranslate"><span class="pre">clean_and_reorder_bbox()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.col"><code class="docutils literal notranslate"><span class="pre">col()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.compute_walkability"><code class="docutils literal notranslate"><span class="pre">compute_walkability()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.create_unique_staging_directory"><code class="docutils literal notranslate"><span class="pre">create_unique_staging_directory()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.ensure_literal"><code class="docutils literal notranslate"><span class="pre">ensure_literal()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.export_prepared_df_as_csv_to_path_using_delimiter"><code class="docutils literal notranslate"><span class="pre">export_prepared_df_as_csv_to_path_using_delimiter()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.export_pyspark_df_to_excel"><code class="docutils literal notranslate"><span class="pre">export_pyspark_df_to_excel()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.expr"><code class="docutils literal notranslate"><span class="pre">expr()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.flatten_json_column_and_join_back_to_df"><code class="docutils literal notranslate"><span class="pre">flatten_json_column_and_join_back_to_df()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.get_row_count"><code class="docutils literal notranslate"><span class="pre">get_row_count()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.mark_valid_geocode_data"><code class="docutils literal notranslate"><span class="pre">mark_valid_geocode_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.move_column_to_front_of_dataframe"><code class="docutils literal notranslate"><span class="pre">move_column_to_front_of_dataframe()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.new_walkability_udf"><code class="docutils literal notranslate"><span class="pre">new_walkability_udf()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.pivot_summary_table_for_bools"><code class="docutils literal notranslate"><span class="pre">pivot_summary_table_for_bools()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.pivot_summary_with_metrics"><code class="docutils literal notranslate"><span class="pre">pivot_summary_with_metrics()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.prepare_dataframe_for_export"><code class="docutils literal notranslate"><span class="pre">prepare_dataframe_for_export()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.prepare_summary_dataframe"><code class="docutils literal notranslate"><span class="pre">prepare_summary_dataframe()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.print_debug_table"><code class="docutils literal notranslate"><span class="pre">print_debug_table()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.read_parquet_to_df"><code class="docutils literal notranslate"><span class="pre">read_parquet_to_df()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.register_temp_table"><code class="docutils literal notranslate"><span class="pre">register_temp_table()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.repartition_and_cache"><code class="docutils literal notranslate"><span class="pre">repartition_and_cache()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.reproject_geom_columns"><code class="docutils literal notranslate"><span class="pre">reproject_geom_columns()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.sanitise_dataframe_column_names"><code class="docutils literal notranslate"><span class="pre">sanitise_dataframe_column_names()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.tabulate_null_vs_not_null"><code class="docutils literal notranslate"><span class="pre">tabulate_null_vs_not_null()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.validate_geocode_data"><code class="docutils literal notranslate"><span class="pre">validate_geocode_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.validate_geometry"><code class="docutils literal notranslate"><span class="pre">validate_geometry()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.write_df_to_parquet"><code class="docutils literal notranslate"><span class="pre">write_df_to_parquet()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-files-hashing">siege_utilities.files.hashing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.calculate_file_hash"><code class="docutils literal notranslate"><span class="pre">calculate_file_hash()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.generate_sha256_hash_for_file"><code class="docutils literal notranslate"><span class="pre">generate_sha256_hash_for_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.get_file_hash"><code class="docutils literal notranslate"><span class="pre">get_file_hash()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.verify_file_integrity"><code class="docutils literal notranslate"><span class="pre">verify_file_integrity()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-files-operations">siege_utilities.files.operations</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.check_for_file_type_in_directory"><code class="docutils literal notranslate"><span class="pre">check_for_file_type_in_directory()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.check_if_file_exists_at_path"><code class="docutils literal notranslate"><span class="pre">check_if_file_exists_at_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.count_duplicate_rows_in_file_using_awk"><code class="docutils literal notranslate"><span class="pre">count_duplicate_rows_in_file_using_awk()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.count_empty_rows_in_file_pythonically"><code class="docutils literal notranslate"><span class="pre">count_empty_rows_in_file_pythonically()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.count_empty_rows_in_file_using_awk"><code class="docutils literal notranslate"><span class="pre">count_empty_rows_in_file_using_awk()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.count_total_rows_in_file_pythonically"><code class="docutils literal notranslate"><span class="pre">count_total_rows_in_file_pythonically()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.count_total_rows_in_file_using_sed"><code class="docutils literal notranslate"><span class="pre">count_total_rows_in_file_using_sed()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.delete_existing_file_and_replace_it_with_an_empty_file"><code class="docutils literal notranslate"><span class="pre">delete_existing_file_and_replace_it_with_an_empty_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.remove_empty_rows_in_file_using_sed"><code class="docutils literal notranslate"><span class="pre">remove_empty_rows_in_file_using_sed()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.write_data_to_a_new_empty_file"><code class="docutils literal notranslate"><span class="pre">write_data_to_a_new_empty_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.write_data_to_an_existing_file"><code class="docutils literal notranslate"><span class="pre">write_data_to_an_existing_file()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-files-paths">siege_utilities.files.paths</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.ensure_path_exists"><code class="docutils literal notranslate"><span class="pre">ensure_path_exists()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.unzip_file_to_its_own_directory"><code class="docutils literal notranslate"><span class="pre">unzip_file_to_its_own_directory()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-files-remote">siege_utilities.files.remote</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.download_file"><code class="docutils literal notranslate"><span class="pre">download_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.generate_local_path_from_url"><code class="docutils literal notranslate"><span class="pre">generate_local_path_from_url()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-files-shell">siege_utilities.files.shell</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.run_subprocess"><code class="docutils literal notranslate"><span class="pre">run_subprocess()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../all_functions.html#siege-utilities-geo-geocoding">siege_utilities.geo.geocoding</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.concatenate_addresses"><code class="docutils literal notranslate"><span class="pre">concatenate_addresses()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../all_functions.html#siege_utilities.use_nominatim_geocoder"><code class="docutils literal notranslate"><span class="pre">use_nominatim_geocoder()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../testing_guide.html">Testing Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-structure">Test Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#running-tests">Running Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#basic-test-execution">Basic Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#coverage-and-reporting">Coverage and Reporting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#parallel-execution">Parallel Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-markers">Test Markers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#writing-new-tests">Writing New Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-file-structure">Test File Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-naming-conventions">Test Naming Conventions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#example-test-patterns">Example Test Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-fixtures">Test Fixtures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-configuration">Test Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#pytest-configuration">Pytest Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#coverage-configuration">Coverage Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#continuous-integration">Continuous Integration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#ci-pipeline">CI Pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#debugging-tests">Debugging Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#verbose-output">Verbose Output</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#debug-mode">Debug Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#single-test-execution">Single Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-isolation">Test Isolation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#performance-testing">Performance Testing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#benchmark-tests">Benchmark Tests</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#load-testing">Load Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-data-management">Test Data Management</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-data-generation">Test Data Generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#data-cleanup">Data Cleanup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-organization">Test Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-independence">Test Independence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-coverage">Test Coverage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#performance-considerations">Performance Considerations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#common-patterns">Common Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#configuration-testing">Configuration Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#file-operation-testing">File Operation Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#api-testing">API Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#common-issues">Common Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#getting-help">Getting Help</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Siege Utilities</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">siege_utilities.geo.geocoding</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for siege_utilities.geo.geocoding</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">geopy.geocoders</span> <span class="kn">import</span> <span class="n">Nominatim</span>
+<span class="kn">from</span> <span class="nn">geopy.exc</span> <span class="kn">import</span> <span class="n">GeocoderTimedOut</span><span class="p">,</span> <span class="n">GeocoderServiceError</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="n">GEOCODER_CONFIG</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;user_agent&#39;</span><span class="p">:</span> <span class="s1">&#39;geocoding_application_v1.0&#39;</span><span class="p">,</span> <span class="s1">&#39;timeout&#39;</span><span class="p">:</span> 
+    <span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;country_codes&#39;</span><span class="p">:</span> <span class="s1">&#39;gb&#39;</span><span class="p">,</span> <span class="s1">&#39;rate_limit_seconds&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>
+
+
+<div class="viewcode-block" id="concatenate_addresses">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.concatenate_addresses">[docs]</a>
+<span class="k">def</span> <span class="nf">concatenate_addresses</span><span class="p">(</span><span class="n">street</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">city</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">state_province_area</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">postal_code</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">country</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Concatenate address components into a single string suitable for geocoding.</span>
+<span class="sd">    Returns a properly formatted address string.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">components</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">street</span><span class="p">:</span>
+        <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">street</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">city</span><span class="p">:</span>
+        <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">city</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">state_province_area</span><span class="p">:</span>
+        <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">state_province_area</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">postal_code</span><span class="p">:</span>
+        <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">postal_code</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">country</span><span class="p">:</span>
+        <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">country</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">components</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="use_nominatim_geocoder">
+<a class="viewcode-back" href="../../../all_functions.html#siege_utilities.use_nominatim_geocoder">[docs]</a>
+<span class="k">def</span> <span class="nf">use_nominatim_geocoder</span><span class="p">(</span><span class="n">query_address</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">country_codes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Geocode an address using Nominatim with proper rate limiting and error handling.</span>
+<span class="sd">    Returns the result as a JSON string for Spark UDF compatibility.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        query_address: The address to geocode</span>
+<span class="sd">        id: An identifier for tracking</span>
+<span class="sd">        country_codes: Optional country code filter (default from settings)</span>
+<span class="sd">        max_retries: Number of retry attempts for transient errors</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        JSON string of geocoding result or None if failed</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">message</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">query_address</span><span class="si">}</span><span class="s1">&#39;</span>
+    <span class="n">log_warning</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">query_address</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s1">&#39;query_address cannot be None, Empty address provided for geocoding&#39;</span>
+            <span class="p">)</span>
+        <span class="n">log_warning</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Geocoding </span><span class="si">{</span><span class="n">query_address</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">country_codes</span><span class="p">:</span>
+        <span class="n">country_codes</span> <span class="o">=</span> <span class="n">GEOCODER_CONFIG</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;country_codes&#39;</span><span class="p">)</span>
+    <span class="n">geocoder</span> <span class="o">=</span> <span class="n">Nominatim</span><span class="p">(</span><span class="n">user_agent</span><span class="o">=</span><span class="n">GEOCODER_CONFIG</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;user_agent&#39;</span><span class="p">),</span>
+        <span class="n">timeout</span><span class="o">=</span><span class="n">GEOCODER_CONFIG</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;timeout&#39;</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">attempt</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_retries</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">GEOCODER_CONFIG</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;rate_limit_seconds&#39;</span><span class="p">))</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">geocoder</span><span class="o">.</span><span class="n">geocode</span><span class="p">(</span><span class="n">query_address</span><span class="p">,</span> <span class="n">country_codes</span><span class="o">=</span>
+                <span class="n">country_codes</span><span class="p">,</span> <span class="n">addressdetails</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exactly_one</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">result</span><span class="p">:</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">raw</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">output</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">id</span>
+                <span class="n">output</span><span class="p">[</span><span class="s1">&#39;nominatim_lat&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">latitude</span>
+                <span class="n">output</span><span class="p">[</span><span class="s1">&#39;nominatim_lng&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">longitude</span>
+                <span class="n">message</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Successfully geocoded: </span><span class="si">{</span><span class="n">query_address</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="n">log_debug</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">message</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;No results found for: </span><span class="si">{</span><span class="n">query_address</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="n">log_warning</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">except</span> <span class="p">(</span><span class="n">GeocoderTimedOut</span><span class="p">,</span> <span class="n">GeocoderServiceError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Geocoding attempt </span><span class="si">{</span><span class="n">attempt</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s1"> failed: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="n">log_warning</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">attempt</span> <span class="o">==</span> <span class="n">max_retries</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">message</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;All geocoding attempts failed for: </span><span class="si">{</span><span class="n">query_address</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="n">log_error</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="n">attempt</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Error geocoding </span><span class="si">{</span><span class="n">query_address</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="n">log_error</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<span class="k">class</span> <span class="nc">NominatimGeoClassifier</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    geo = GeoRankClassifier()</span>
+<span class="sd">    place_rank_udf, importance_udf = geo.register_udfs(spark)</span>
+
+<span class="sd">    df = df.withColumn(&quot;place_rank_label&quot;, place_rank_udf(&quot;nominatim_place_rank&quot;))</span>
+<span class="sd">    df = df.withColumn(&quot;importance_label&quot;, importance_udf(&quot;nominatim_importance&quot;))</span>
+
+<span class="sd">    geo.get_place_ranks_by_label(&quot;Town or village&quot;)  # → [19, 20, 21, 22]</span>
+<span class="sd">    geo.get_importance_threshold_by_label(&quot;City or notable place&quot;)  # → 0.01</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
+<span class="sd">Utility function:   init  .</span>
+
+<span class="sd">Part of Siege Utilities Utilities module.</span>
+<span class="sd">Auto-discovered and available at package level.</span>
+
+<span class="sd">Returns:</span>
+<span class="sd">    Description needed</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
+<span class="sd">    &gt;&gt;&gt; result = siege_utilities.__init__()</span>
+<span class="sd">    &gt;&gt;&gt; print(result)</span>
+
+<span class="sd">Note:</span>
+<span class="sd">    This function is auto-discovered and available without imports</span>
+<span class="sd">    across all siege_utilities modules.</span>
+<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">place_rank_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Continent or ocean&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">)),</span>
+            <span class="s1">&#39;Country&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">)),</span> <span class="s1">&#39;State or region&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> 
+            <span class="mi">11</span><span class="p">)),</span> <span class="s1">&#39;County or district&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="mi">13</span><span class="p">)),</span>
+            <span class="s1">&#39;Municipality or metro&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">13</span><span class="p">,</span> <span class="mi">16</span><span class="p">)),</span>
+            <span class="s1">&#39;City or large town&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">19</span><span class="p">)),</span> <span class="s1">&#39;Town or village&#39;</span><span class="p">:</span>
+            <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">19</span><span class="p">,</span> <span class="mi">23</span><span class="p">)),</span> <span class="s1">&#39;Suburb or locality&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">23</span><span class="p">,</span> <span class="mi">25</span><span class="p">)),</span>
+            <span class="s1">&#39;Neighborhood or area&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">25</span><span class="p">,</span> <span class="mi">27</span><span class="p">)),</span> <span class="s1">&#39;Street&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">27</span><span class="p">],</span>
+            <span class="s1">&#39;Address or building&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">28</span><span class="p">,</span> <span class="mi">31</span><span class="p">))}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">importance_dict</span> <span class="o">=</span> <span class="p">{(</span><span class="mf">0.5</span><span class="p">):</span> <span class="s1">&#39;Global landmark&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.1</span><span class="p">):</span>
+            <span class="s1">&#39;Major city or capital&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.01</span><span class="p">):</span> <span class="s1">&#39;City or notable place&#39;</span><span class="p">,</span> <span class="p">(</span>
+            <span class="mf">0.001</span><span class="p">):</span> <span class="s1">&#39;Small town or feature&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">):</span> <span class="s1">&#39;Minor/local detail&#39;</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">get_place_rank_label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rank</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
+<span class="sd">Utility function: get place rank label.</span>
+
+<span class="sd">Part of Siege Utilities Utilities module.</span>
+<span class="sd">Auto-discovered and available at package level.</span>
+
+<span class="sd">Returns:</span>
+<span class="sd">    Description needed</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
+<span class="sd">    &gt;&gt;&gt; result = siege_utilities.get_place_rank_label()</span>
+<span class="sd">    &gt;&gt;&gt; print(result)</span>
+
+<span class="sd">Note:</span>
+<span class="sd">    This function is auto-discovered and available without imports</span>
+<span class="sd">    across all siege_utilities modules.</span>
+<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+        <span class="k">if</span> <span class="n">rank</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;Unknown&#39;</span>
+        <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">values</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">place_rank_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">rank</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">label</span>
+        <span class="k">return</span> <span class="s1">&#39;Unknown&#39;</span>
+
+    <span class="k">def</span> <span class="nf">get_importance_label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">importance</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
+<span class="sd">Utility function: get importance label.</span>
+
+<span class="sd">Part of Siege Utilities Utilities module.</span>
+<span class="sd">Auto-discovered and available at package level.</span>
+
+<span class="sd">Returns:</span>
+<span class="sd">    Description needed</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
+<span class="sd">    &gt;&gt;&gt; result = siege_utilities.get_importance_label()</span>
+<span class="sd">    &gt;&gt;&gt; print(result)</span>
+
+<span class="sd">Note:</span>
+<span class="sd">    This function is auto-discovered and available without imports</span>
+<span class="sd">    across all siege_utilities modules.</span>
+<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+        <span class="k">if</span> <span class="n">importance</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;Unknown&#39;</span>
+        <span class="k">for</span> <span class="n">threshold</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">importance_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">importance</span> <span class="o">&gt;=</span> <span class="n">threshold</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">importance_dict</span><span class="p">[</span><span class="n">threshold</span><span class="p">]</span>
+        <span class="k">return</span> <span class="s1">&#39;Unknown&#39;</span>
+
+    <span class="k">def</span> <span class="nf">get_place_ranks_by_label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
+<span class="sd">Utility function: get place ranks by label.</span>
+
+<span class="sd">Part of Siege Utilities Utilities module.</span>
+<span class="sd">Auto-discovered and available at package level.</span>
+
+<span class="sd">Returns:</span>
+<span class="sd">    Description needed</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
+<span class="sd">    &gt;&gt;&gt; result = siege_utilities.get_place_ranks_by_label()</span>
+<span class="sd">    &gt;&gt;&gt; print(result)</span>
+
+<span class="sd">Note:</span>
+<span class="sd">    This function is auto-discovered and available without imports</span>
+<span class="sd">    across all siege_utilities modules.</span>
+<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">place_rank_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="p">[])</span>
+
+    <span class="k">def</span> <span class="nf">get_importance_threshold_by_label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
+<span class="sd">Utility function: get importance threshold by label.</span>
+
+<span class="sd">Part of Siege Utilities Utilities module.</span>
+<span class="sd">Auto-discovered and available at package level.</span>
+
+<span class="sd">Returns:</span>
+<span class="sd">    Description needed</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
+<span class="sd">    &gt;&gt;&gt; result = siege_utilities.get_importance_threshold_by_label()</span>
+<span class="sd">    &gt;&gt;&gt; print(result)</span>
+
+<span class="sd">Note:</span>
+<span class="sd">    This function is auto-discovered and available without imports</span>
+<span class="sd">    across all siege_utilities modules.</span>
+<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">importance_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="n">label</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">k</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">to_json</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
+<span class="sd">Utility function: to json.</span>
+
+<span class="sd">Part of Siege Utilities Utilities module.</span>
+<span class="sd">Auto-discovered and available at package level.</span>
+
+<span class="sd">Returns:</span>
+<span class="sd">    Description needed</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
+<span class="sd">    &gt;&gt;&gt; result = siege_utilities.to_json()</span>
+<span class="sd">    &gt;&gt;&gt; print(result)</span>
+
+<span class="sd">Note:</span>
+<span class="sd">    This function is auto-discovered and available without imports</span>
+<span class="sd">    across all siege_utilities modules.</span>
+<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s1">&#39;place_rank_dict&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">place_rank_dict</span><span class="p">,</span>
+            <span class="s1">&#39;importance_dict&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">importance_dict</span><span class="p">},</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">register_udfs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spark</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Register PySpark UDFs and return them.&quot;&quot;&quot;</span>
+        <span class="n">place_rank_udf</span> <span class="o">=</span> <span class="n">udf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_place_rank_label</span><span class="p">,</span> <span class="n">StringType</span><span class="p">())</span>
+        <span class="n">importance_udf</span> <span class="o">=</span> <span class="n">udf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_importance_label</span><span class="p">,</span> <span class="n">StringType</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">place_rank_udf</span><span class="p">,</span> <span class="n">importance_udf</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Dheeraj Chand.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,584 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Getting Started &mdash; Siege Utilities 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=a12e3537"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Library Architecture" href="architecture_diagram.html" />
+    <link rel="prev" title="Welcome to Siege Utilities documentation!" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Siege Utilities
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#core-capabilities">Core Capabilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#core-utilities-16-functions">🔧 <strong>Core Utilities (16 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#file-operations-22-functions">📁 <strong>File Operations (22 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#distributed-computing-503-functions">🚀 <strong>Distributed Computing (503+ functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#geospatial-2-functions">🌍 <strong>Geospatial (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#configuration-management-15-functions">⚙️ <strong>Configuration Management (15 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#analytics-integration-6-functions">📊 <strong>Analytics Integration (6 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#code-hygiene-2-functions">🧹 <strong>Code Hygiene (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#testing-development-2-functions">🧪 <strong>Testing &amp; Development (2 functions)</strong></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#real-world-workflow-examples">Real-World Workflow Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installation-and-dependencies">Installation and Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#performance-and-scalability">Performance and Scalability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="architecture_diagram.html">Library Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#core-architecture">Core Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#function-distribution">Function Distribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#key-features">Key Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#integration-points">Integration Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#usage-patterns">Usage Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="autodiscovery.html">Enhanced Auto-Discovery System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#how-it-works">How It Works</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#the-five-phase-discovery-process">The Five-Phase Discovery Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#benefits">Benefits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#monitoring-your-package">Monitoring Your Package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#adding-new-functions">Adding New Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="all_functions.html">Complete Function Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-core-logging">siege_utilities.core.logging</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.get_logger"><code class="docutils literal notranslate"><span class="pre">get_logger()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.init_logger"><code class="docutils literal notranslate"><span class="pre">init_logger()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.log_critical"><code class="docutils literal notranslate"><span class="pre">log_critical()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.log_debug"><code class="docutils literal notranslate"><span class="pre">log_debug()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.log_error"><code class="docutils literal notranslate"><span class="pre">log_error()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.log_info"><code class="docutils literal notranslate"><span class="pre">log_info()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.log_warning"><code class="docutils literal notranslate"><span class="pre">log_warning()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-core-string-utils">siege_utilities.core.string_utils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.remove_wrapping_quotes_and_trim"><code class="docutils literal notranslate"><span class="pre">remove_wrapping_quotes_and_trim()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-distributed-hdfs-config">siege_utilities.distributed.hdfs_config</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.create_cluster_config"><code class="docutils literal notranslate"><span class="pre">create_cluster_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.create_geocoding_config"><code class="docutils literal notranslate"><span class="pre">create_geocoding_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.create_hdfs_config"><code class="docutils literal notranslate"><span class="pre">create_hdfs_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.create_local_config"><code class="docutils literal notranslate"><span class="pre">create_local_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.dataclass"><code class="docutils literal notranslate"><span class="pre">dataclass()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-distributed-hdfs-legacy">siege_utilities.distributed.hdfs_legacy</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.check_hdfs_status"><code class="docutils literal notranslate"><span class="pre">check_hdfs_status()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.get_quick_file_signature"><code class="docutils literal notranslate"><span class="pre">get_quick_file_signature()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-distributed-hdfs-operations">siege_utilities.distributed.hdfs_operations</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.create_hdfs_operations"><code class="docutils literal notranslate"><span class="pre">create_hdfs_operations()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.setup_distributed_environment"><code class="docutils literal notranslate"><span class="pre">setup_distributed_environment()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-distributed-spark-utils">siege_utilities.distributed.spark_utils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.atomic_write_with_staging"><code class="docutils literal notranslate"><span class="pre">atomic_write_with_staging()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.backup_full_dataframe"><code class="docutils literal notranslate"><span class="pre">backup_full_dataframe()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.clean_and_reorder_bbox"><code class="docutils literal notranslate"><span class="pre">clean_and_reorder_bbox()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.col"><code class="docutils literal notranslate"><span class="pre">col()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.compute_walkability"><code class="docutils literal notranslate"><span class="pre">compute_walkability()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.create_unique_staging_directory"><code class="docutils literal notranslate"><span class="pre">create_unique_staging_directory()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.ensure_literal"><code class="docutils literal notranslate"><span class="pre">ensure_literal()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.export_prepared_df_as_csv_to_path_using_delimiter"><code class="docutils literal notranslate"><span class="pre">export_prepared_df_as_csv_to_path_using_delimiter()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.export_pyspark_df_to_excel"><code class="docutils literal notranslate"><span class="pre">export_pyspark_df_to_excel()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.expr"><code class="docutils literal notranslate"><span class="pre">expr()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.flatten_json_column_and_join_back_to_df"><code class="docutils literal notranslate"><span class="pre">flatten_json_column_and_join_back_to_df()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.get_row_count"><code class="docutils literal notranslate"><span class="pre">get_row_count()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.mark_valid_geocode_data"><code class="docutils literal notranslate"><span class="pre">mark_valid_geocode_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.move_column_to_front_of_dataframe"><code class="docutils literal notranslate"><span class="pre">move_column_to_front_of_dataframe()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.new_walkability_udf"><code class="docutils literal notranslate"><span class="pre">new_walkability_udf()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.pivot_summary_table_for_bools"><code class="docutils literal notranslate"><span class="pre">pivot_summary_table_for_bools()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.pivot_summary_with_metrics"><code class="docutils literal notranslate"><span class="pre">pivot_summary_with_metrics()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.prepare_dataframe_for_export"><code class="docutils literal notranslate"><span class="pre">prepare_dataframe_for_export()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.prepare_summary_dataframe"><code class="docutils literal notranslate"><span class="pre">prepare_summary_dataframe()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.print_debug_table"><code class="docutils literal notranslate"><span class="pre">print_debug_table()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.read_parquet_to_df"><code class="docutils literal notranslate"><span class="pre">read_parquet_to_df()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.register_temp_table"><code class="docutils literal notranslate"><span class="pre">register_temp_table()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.repartition_and_cache"><code class="docutils literal notranslate"><span class="pre">repartition_and_cache()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.reproject_geom_columns"><code class="docutils literal notranslate"><span class="pre">reproject_geom_columns()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.sanitise_dataframe_column_names"><code class="docutils literal notranslate"><span class="pre">sanitise_dataframe_column_names()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.tabulate_null_vs_not_null"><code class="docutils literal notranslate"><span class="pre">tabulate_null_vs_not_null()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.validate_geocode_data"><code class="docutils literal notranslate"><span class="pre">validate_geocode_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.validate_geometry"><code class="docutils literal notranslate"><span class="pre">validate_geometry()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.write_df_to_parquet"><code class="docutils literal notranslate"><span class="pre">write_df_to_parquet()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-files-hashing">siege_utilities.files.hashing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.calculate_file_hash"><code class="docutils literal notranslate"><span class="pre">calculate_file_hash()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.generate_sha256_hash_for_file"><code class="docutils literal notranslate"><span class="pre">generate_sha256_hash_for_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.get_file_hash"><code class="docutils literal notranslate"><span class="pre">get_file_hash()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.verify_file_integrity"><code class="docutils literal notranslate"><span class="pre">verify_file_integrity()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-files-operations">siege_utilities.files.operations</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.check_for_file_type_in_directory"><code class="docutils literal notranslate"><span class="pre">check_for_file_type_in_directory()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.check_if_file_exists_at_path"><code class="docutils literal notranslate"><span class="pre">check_if_file_exists_at_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.count_duplicate_rows_in_file_using_awk"><code class="docutils literal notranslate"><span class="pre">count_duplicate_rows_in_file_using_awk()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.count_empty_rows_in_file_pythonically"><code class="docutils literal notranslate"><span class="pre">count_empty_rows_in_file_pythonically()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.count_empty_rows_in_file_using_awk"><code class="docutils literal notranslate"><span class="pre">count_empty_rows_in_file_using_awk()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.count_total_rows_in_file_pythonically"><code class="docutils literal notranslate"><span class="pre">count_total_rows_in_file_pythonically()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.count_total_rows_in_file_using_sed"><code class="docutils literal notranslate"><span class="pre">count_total_rows_in_file_using_sed()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.delete_existing_file_and_replace_it_with_an_empty_file"><code class="docutils literal notranslate"><span class="pre">delete_existing_file_and_replace_it_with_an_empty_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.remove_empty_rows_in_file_using_sed"><code class="docutils literal notranslate"><span class="pre">remove_empty_rows_in_file_using_sed()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.write_data_to_a_new_empty_file"><code class="docutils literal notranslate"><span class="pre">write_data_to_a_new_empty_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.write_data_to_an_existing_file"><code class="docutils literal notranslate"><span class="pre">write_data_to_an_existing_file()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-files-paths">siege_utilities.files.paths</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.ensure_path_exists"><code class="docutils literal notranslate"><span class="pre">ensure_path_exists()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.unzip_file_to_its_own_directory"><code class="docutils literal notranslate"><span class="pre">unzip_file_to_its_own_directory()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-files-remote">siege_utilities.files.remote</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.download_file"><code class="docutils literal notranslate"><span class="pre">download_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.generate_local_path_from_url"><code class="docutils literal notranslate"><span class="pre">generate_local_path_from_url()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-files-shell">siege_utilities.files.shell</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.run_subprocess"><code class="docutils literal notranslate"><span class="pre">run_subprocess()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="all_functions.html#siege-utilities-geo-geocoding">siege_utilities.geo.geocoding</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.concatenate_addresses"><code class="docutils literal notranslate"><span class="pre">concatenate_addresses()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="all_functions.html#siege_utilities.use_nominatim_geocoder"><code class="docutils literal notranslate"><span class="pre">use_nominatim_geocoder()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="testing_guide.html">Testing Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-structure">Test Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#running-tests">Running Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#basic-test-execution">Basic Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#coverage-and-reporting">Coverage and Reporting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#parallel-execution">Parallel Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-markers">Test Markers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#writing-new-tests">Writing New Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-file-structure">Test File Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-naming-conventions">Test Naming Conventions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#example-test-patterns">Example Test Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-fixtures">Test Fixtures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-configuration">Test Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#pytest-configuration">Pytest Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#coverage-configuration">Coverage Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#continuous-integration">Continuous Integration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#ci-pipeline">CI Pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#debugging-tests">Debugging Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#verbose-output">Verbose Output</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#debug-mode">Debug Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#single-test-execution">Single Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-isolation">Test Isolation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#performance-testing">Performance Testing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#benchmark-tests">Benchmark Tests</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#load-testing">Load Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-data-management">Test Data Management</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-data-generation">Test Data Generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#data-cleanup">Data Cleanup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-organization">Test Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-independence">Test Independence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-coverage">Test Coverage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#performance-considerations">Performance Considerations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#common-patterns">Common Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#configuration-testing">Configuration Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#file-operation-testing">File Operation Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#api-testing">API Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#common-issues">Common Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#getting-help">Getting Help</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Siege Utilities</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Getting Started</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="getting-started">
+<h1>Getting Started<a class="headerlink" href="#getting-started" title="Link to this heading"></a></h1>
+<p>Welcome to Siege Utilities! This comprehensive library provides <strong>568+ functions</strong> across <strong>16 modules</strong> for data engineering, analytics, and distributed computing workflows.</p>
+<section id="quick-start">
+<h2>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Import the entire library - all functions are available!</span>
+<span class="kn">import</span> <span class="nn">siege_utilities</span> <span class="k">as</span> <span class="nn">su</span>
+
+<span class="c1"># Check what&#39;s available</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Total functions: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">su</span><span class="o">.</span><span class="n">get_available_functions</span><span class="p">())</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Package info: </span><span class="si">{</span><span class="n">su</span><span class="o">.</span><span class="n">get_package_info</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="core-capabilities">
+<h2>Core Capabilities<a class="headerlink" href="#core-capabilities" title="Link to this heading"></a></h2>
+<section id="core-utilities-16-functions">
+<h3>🔧 <strong>Core Utilities (16 functions)</strong><a class="headerlink" href="#core-utilities-16-functions" title="Link to this heading"></a></h3>
+<p>Thread-safe logging system and string manipulation:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Initialize logging</span>
+<span class="n">su</span><span class="o">.</span><span class="n">init_logger</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="s1">&#39;INFO&#39;</span><span class="p">)</span>
+
+<span class="c1"># Use logging functions anywhere</span>
+<span class="n">su</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span><span class="s2">&quot;Starting data processing&quot;</span><span class="p">)</span>
+<span class="n">su</span><span class="o">.</span><span class="n">log_warning</span><span class="p">(</span><span class="s2">&quot;Large dataset detected&quot;</span><span class="p">)</span>
+<span class="n">su</span><span class="o">.</span><span class="n">log_error</span><span class="p">(</span><span class="s2">&quot;Processing failed&quot;</span><span class="p">)</span>
+
+<span class="c1"># String utilities</span>
+<span class="n">cleaned</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">remove_wrapping_quotes_and_trim</span><span class="p">(</span><span class="s1">&#39;  &quot;hello world&quot;  &#39;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">cleaned</span><span class="p">)</span>  <span class="c1"># Output: hello world</span>
+</pre></div>
+</div>
+</section>
+<section id="file-operations-22-functions">
+<h3>📁 <strong>File Operations (22 functions)</strong><a class="headerlink" href="#file-operations-22-functions" title="Link to this heading"></a></h3>
+<p>Advanced file handling, hashing, and operations:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># File hashing and integrity</span>
+<span class="n">file_hash</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">calculate_file_hash</span><span class="p">(</span><span class="s1">&#39;data.csv&#39;</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="s1">&#39;sha256&#39;</span><span class="p">)</span>
+<span class="n">is_valid</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">verify_file_integrity</span><span class="p">(</span><span class="s1">&#39;data.csv&#39;</span><span class="p">,</span> <span class="n">expected_hash</span><span class="o">=</span><span class="n">file_hash</span><span class="p">)</span>
+
+<span class="c1"># File analysis</span>
+<span class="n">total_rows</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">count_total_rows_in_file_pythonically</span><span class="p">(</span><span class="s1">&#39;data.csv&#39;</span><span class="p">)</span>
+<span class="n">empty_rows</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">count_empty_rows_in_file_pythonically</span><span class="p">(</span><span class="s1">&#39;data.csv&#39;</span><span class="p">)</span>
+
+<span class="c1"># Path management</span>
+<span class="n">su</span><span class="o">.</span><span class="n">ensure_path_exists</span><span class="p">(</span><span class="s1">&#39;/path/to/new/directory&#39;</span><span class="p">)</span>
+<span class="n">su</span><span class="o">.</span><span class="n">unzip_file_to_its_own_directory</span><span class="p">(</span><span class="s1">&#39;archive.zip&#39;</span><span class="p">)</span>
+
+<span class="c1"># Remote operations</span>
+<span class="n">local_path</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">generate_local_path_from_url</span><span class="p">(</span><span class="s1">&#39;https://example.com/file.csv&#39;</span><span class="p">)</span>
+<span class="n">su</span><span class="o">.</span><span class="n">download_file</span><span class="p">(</span><span class="s1">&#39;https://example.com/file.csv&#39;</span><span class="p">,</span> <span class="s1">&#39;local_file.csv&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="distributed-computing-503-functions">
+<h3>🚀 <strong>Distributed Computing (503+ functions)</strong><a class="headerlink" href="#distributed-computing-503-functions" title="Link to this heading"></a></h3>
+<p><strong>This is where the power lies!</strong> Full Spark ecosystem support:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># All 503+ Spark functions are available!</span>
+<span class="kn">from</span> <span class="nn">siege_utilities.distributed</span> <span class="kn">import</span> <span class="n">spark_utils</span>
+
+<span class="c1"># DataFrame operations</span>
+<span class="n">row_count</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">get_row_count</span><span class="p">(</span><span class="n">spark_df</span><span class="p">)</span>
+<span class="n">su</span><span class="o">.</span><span class="n">repartition_and_cache</span><span class="p">(</span><span class="n">spark_df</span><span class="p">,</span> <span class="n">num_partitions</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+<span class="c1"># Data validation</span>
+<span class="n">su</span><span class="o">.</span><span class="n">validate_geocode_data</span><span class="p">(</span><span class="n">spark_df</span><span class="p">)</span>
+
+<span class="c1"># File operations</span>
+<span class="n">su</span><span class="o">.</span><span class="n">write_df_to_parquet</span><span class="p">(</span><span class="n">spark_df</span><span class="p">,</span> <span class="s1">&#39;output.parquet&#39;</span><span class="p">)</span>
+<span class="n">new_df</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">read_parquet_to_df</span><span class="p">(</span><span class="s1">&#39;input.parquet&#39;</span><span class="p">)</span>
+
+<span class="c1"># Advanced transformations</span>
+<span class="n">flattened_df</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">flatten_json_column_and_join_back_to_df</span><span class="p">(</span>
+    <span class="n">spark_df</span><span class="p">,</span> <span class="s1">&#39;json_column&#39;</span>
+<span class="p">)</span>
+
+<span class="c1"># Performance optimization</span>
+<span class="n">su</span><span class="o">.</span><span class="n">backup_full_dataframe</span><span class="p">(</span><span class="n">spark_df</span><span class="p">,</span> <span class="s1">&#39;backup.parquet&#39;</span><span class="p">)</span>
+<span class="n">su</span><span class="o">.</span><span class="n">atomic_write_with_staging</span><span class="p">(</span><span class="n">spark_df</span><span class="p">,</span> <span class="s1">&#39;final_output.parquet&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="geospatial-2-functions">
+<h3>🌍 <strong>Geospatial (2 functions)</strong><a class="headerlink" href="#geospatial-2-functions" title="Link to this heading"></a></h3>
+<p>Address processing and geocoding:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Address concatenation</span>
+<span class="n">full_address</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">concatenate_addresses</span><span class="p">(</span>
+    <span class="n">street</span><span class="o">=</span><span class="s1">&#39;123 Main St&#39;</span><span class="p">,</span>
+    <span class="n">city</span><span class="o">=</span><span class="s1">&#39;New York&#39;</span><span class="p">,</span>
+    <span class="n">state</span><span class="o">=</span><span class="s1">&#39;NY&#39;</span><span class="p">,</span>
+    <span class="n">zip_code</span><span class="o">=</span><span class="s1">&#39;10001&#39;</span>
+<span class="p">)</span>
+
+<span class="c1"># Geocoding</span>
+<span class="n">coordinates</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">use_nominatim_geocoder</span><span class="p">(</span><span class="n">full_address</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Lat: </span><span class="si">{</span><span class="n">coordinates</span><span class="p">[</span><span class="s1">&#39;lat&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">, Lon: </span><span class="si">{</span><span class="n">coordinates</span><span class="p">[</span><span class="s1">&#39;lon&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="configuration-management-15-functions">
+<h3>⚙️ <strong>Configuration Management (15 functions)</strong><a class="headerlink" href="#configuration-management-15-functions" title="Link to this heading"></a></h3>
+<p>Client profiles, connections, and project management:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Client management</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">create_client_profile</span><span class="p">(</span>
+    <span class="s2">&quot;Acme Corp&quot;</span><span class="p">,</span> <span class="s2">&quot;ACME001&quot;</span><span class="p">,</span>
+    <span class="p">{</span><span class="s2">&quot;primary_contact&quot;</span><span class="p">:</span> <span class="s2">&quot;John Doe&quot;</span><span class="p">,</span> <span class="s2">&quot;email&quot;</span><span class="p">:</span> <span class="s2">&quot;john@acme.com&quot;</span><span class="p">}</span>
+<span class="p">)</span>
+<span class="n">su</span><span class="o">.</span><span class="n">save_client_profile</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+
+<span class="c1"># Connection management</span>
+<span class="n">connection</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">create_connection_profile</span><span class="p">(</span>
+    <span class="s2">&quot;Production DB&quot;</span><span class="p">,</span> <span class="s2">&quot;database&quot;</span><span class="p">,</span>
+    <span class="p">{</span><span class="s2">&quot;connection_string&quot;</span><span class="p">:</span> <span class="s2">&quot;postgresql://user:pass@localhost:5432/db&quot;</span><span class="p">}</span>
+<span class="p">)</span>
+<span class="n">su</span><span class="o">.</span><span class="n">save_connection_profile</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
+
+<span class="c1"># Project association</span>
+<span class="n">su</span><span class="o">.</span><span class="n">associate_client_with_project</span><span class="p">(</span><span class="s2">&quot;ACME001&quot;</span><span class="p">,</span> <span class="s2">&quot;PROJ001&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="analytics-integration-6-functions">
+<h3>📊 <strong>Analytics Integration (6 functions)</strong><a class="headerlink" href="#analytics-integration-6-functions" title="Link to this heading"></a></h3>
+<p>Google Analytics integration with client association:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create GA account profile</span>
+<span class="n">ga_profile</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">create_ga_account_profile</span><span class="p">(</span>
+    <span class="n">client_id</span><span class="o">=</span><span class="s2">&quot;ACME001&quot;</span><span class="p">,</span>
+    <span class="n">ga_property_id</span><span class="o">=</span><span class="s2">&quot;123456789&quot;</span><span class="p">,</span>
+    <span class="n">account_type</span><span class="o">=</span><span class="s2">&quot;ga4&quot;</span>
+<span class="p">)</span>
+<span class="n">su</span><span class="o">.</span><span class="n">save_ga_account_profile</span><span class="p">(</span><span class="n">ga_profile</span><span class="p">)</span>
+
+<span class="c1"># Batch data retrieval</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">batch_retrieve_ga_data</span><span class="p">(</span>
+    <span class="n">client_id</span><span class="o">=</span><span class="s2">&quot;ACME001&quot;</span><span class="p">,</span>
+    <span class="n">start_date</span><span class="o">=</span><span class="s2">&quot;2024-01-01&quot;</span><span class="p">,</span>
+    <span class="n">end_date</span><span class="o">=</span><span class="s2">&quot;2024-01-31&quot;</span><span class="p">,</span>
+    <span class="n">metrics</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;sessions&quot;</span><span class="p">,</span> <span class="s2">&quot;pageviews&quot;</span><span class="p">,</span> <span class="s2">&quot;users&quot;</span><span class="p">],</span>
+    <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;date&quot;</span><span class="p">,</span> <span class="s2">&quot;pagePath&quot;</span><span class="p">],</span>
+    <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;both&quot;</span>  <span class="c1"># Both Pandas and Spark</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Retrieved </span><span class="si">{</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;total_rows&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> rows from </span><span class="si">{</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;accounts_processed&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> accounts&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="code-hygiene-2-functions">
+<h3>🧹 <strong>Code Hygiene (2 functions)</strong><a class="headerlink" href="#code-hygiene-2-functions" title="Link to this heading"></a></h3>
+<p>Documentation and code quality tools:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Generate docstring templates</span>
+<span class="n">template</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">generate_docstring_template</span><span class="p">(</span><span class="s1">&#39;my_function&#39;</span><span class="p">)</span>
+
+<span class="c1"># Analyze function signatures</span>
+<span class="n">analysis</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">analyze_function_signature</span><span class="p">(</span><span class="s1">&#39;my_function&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="testing-development-2-functions">
+<h3>🧪 <strong>Testing &amp; Development (2 functions)</strong><a class="headerlink" href="#testing-development-2-functions" title="Link to this heading"></a></h3>
+<p>Environment setup and diagnostics:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Setup Spark environment</span>
+<span class="n">su</span><span class="o">.</span><span class="n">setup_spark_environment</span><span class="p">()</span>
+
+<span class="c1"># Get system information</span>
+<span class="n">system_info</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">get_system_info</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="real-world-workflow-examples">
+<h2>Real-World Workflow Examples<a class="headerlink" href="#real-world-workflow-examples" title="Link to this heading"></a></h2>
+<p><strong>Data Engineering Pipeline:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">siege_utilities</span> <span class="k">as</span> <span class="nn">su</span>
+
+<span class="c1"># 1. Setup and logging</span>
+<span class="n">su</span><span class="o">.</span><span class="n">init_logger</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="s1">&#39;INFO&#39;</span><span class="p">)</span>
+<span class="n">su</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span><span class="s2">&quot;Starting data engineering pipeline&quot;</span><span class="p">)</span>
+
+<span class="c1"># 2. File operations</span>
+<span class="n">su</span><span class="o">.</span><span class="n">ensure_path_exists</span><span class="p">(</span><span class="s1">&#39;data/raw&#39;</span><span class="p">)</span>
+<span class="n">su</span><span class="o">.</span><span class="n">ensure_path_exists</span><span class="p">(</span><span class="s1">&#39;data/processed&#39;</span><span class="p">)</span>
+
+<span class="c1"># 3. Data ingestion</span>
+<span class="n">su</span><span class="o">.</span><span class="n">download_file</span><span class="p">(</span><span class="s1">&#39;https://api.example.com/data.csv&#39;</span><span class="p">,</span> <span class="s1">&#39;data/raw/input.csv&#39;</span><span class="p">)</span>
+
+<span class="c1"># 4. Data processing with Spark</span>
+<span class="n">spark_df</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">read_parquet_to_df</span><span class="p">(</span><span class="s1">&#39;data/raw/input.csv&#39;</span><span class="p">)</span>
+<span class="n">su</span><span class="o">.</span><span class="n">validate_geocode_data</span><span class="p">(</span><span class="n">spark_df</span><span class="p">)</span>
+
+<span class="c1"># 5. Save processed data</span>
+<span class="n">su</span><span class="o">.</span><span class="n">write_df_to_parquet</span><span class="p">(</span><span class="n">spark_df</span><span class="p">,</span> <span class="s1">&#39;data/processed/output.parquet&#39;</span><span class="p">)</span>
+
+<span class="n">su</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span><span class="s2">&quot;Pipeline completed successfully&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Client Analytics Workflow:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">siege_utilities</span> <span class="k">as</span> <span class="nn">su</span>
+
+<span class="c1"># 1. Client setup</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">create_client_profile</span><span class="p">(</span>
+    <span class="s2">&quot;Tech Startup&quot;</span><span class="p">,</span> <span class="s2">&quot;TECH001&quot;</span><span class="p">,</span>
+    <span class="p">{</span><span class="s2">&quot;primary_contact&quot;</span><span class="p">:</span> <span class="s2">&quot;Jane Smith&quot;</span><span class="p">,</span> <span class="s2">&quot;email&quot;</span><span class="p">:</span> <span class="s2">&quot;jane@techstartup.com&quot;</span><span class="p">}</span>
+<span class="p">)</span>
+<span class="n">su</span><span class="o">.</span><span class="n">save_client_profile</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+
+<span class="c1"># 2. GA account setup</span>
+<span class="n">ga_profile</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">create_ga_account_profile</span><span class="p">(</span>
+    <span class="n">client_id</span><span class="o">=</span><span class="s2">&quot;TECH001&quot;</span><span class="p">,</span>
+    <span class="n">ga_property_id</span><span class="o">=</span><span class="s2">&quot;987654321&quot;</span><span class="p">,</span>
+    <span class="n">account_type</span><span class="o">=</span><span class="s2">&quot;ga4&quot;</span>
+<span class="p">)</span>
+<span class="n">su</span><span class="o">.</span><span class="n">save_ga_account_profile</span><span class="p">(</span><span class="n">ga_profile</span><span class="p">)</span>
+
+<span class="c1"># 3. Data retrieval</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">su</span><span class="o">.</span><span class="n">batch_retrieve_ga_data</span><span class="p">(</span>
+    <span class="n">client_id</span><span class="o">=</span><span class="s2">&quot;TECH001&quot;</span><span class="p">,</span>
+    <span class="n">start_date</span><span class="o">=</span><span class="s2">&quot;2024-01-01&quot;</span><span class="p">,</span>
+    <span class="n">end_date</span><span class="o">=</span><span class="s2">&quot;2024-01-31&quot;</span><span class="p">,</span>
+    <span class="n">metrics</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;sessions&quot;</span><span class="p">,</span> <span class="s2">&quot;pageviews&quot;</span><span class="p">],</span>
+    <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;date&quot;</span><span class="p">,</span> <span class="s2">&quot;pagePath&quot;</span><span class="p">],</span>
+    <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;spark&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># 4. Process with Spark</span>
+<span class="k">if</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;success&#39;</span><span class="p">]:</span>
+    <span class="n">su</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Retrieved </span><span class="si">{</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;total_rows&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> rows of analytics data&quot;</span><span class="p">)</span>
+    <span class="c1"># Continue with Spark processing...</span>
+</pre></div>
+</div>
+</section>
+<section id="installation-and-dependencies">
+<h2>Installation and Dependencies<a class="headerlink" href="#installation-and-dependencies" title="Link to this heading"></a></h2>
+<p><strong>Core Dependencies:</strong>
+- Python 3.8+
+- pandas
+- pathlib
+- requests</p>
+<p><strong>Optional Dependencies:</strong>
+- <strong>PySpark</strong>: For distributed computing (503+ functions)
+- <strong>Google Analytics</strong>: For analytics integration
+- <strong>Geospatial</strong>: For location-based analytics</p>
+<p><strong>Installation:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Basic installation</span>
+pip<span class="w"> </span>install<span class="w"> </span>siege_utilities
+
+<span class="c1"># With all dependencies</span>
+pip<span class="w"> </span>install<span class="w"> </span>siege_utilities<span class="o">[</span>full<span class="o">]</span>
+
+<span class="c1"># With specific components</span>
+pip<span class="w"> </span>install<span class="w"> </span>siege_utilities<span class="o">[</span>spark<span class="o">]</span><span class="w">      </span><span class="c1"># PySpark support</span>
+pip<span class="w"> </span>install<span class="w"> </span>siege_utilities<span class="o">[</span>analytics<span class="o">]</span><span class="w">  </span><span class="c1"># Google Analytics support</span>
+</pre></div>
+</div>
+</section>
+<section id="performance-and-scalability">
+<h2>Performance and Scalability<a class="headerlink" href="#performance-and-scalability" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Local Development</strong>: All functions work locally for development and testing</p></li>
+<li><p><strong>Distributed Processing</strong>: 503+ Spark functions for big data workflows</p></li>
+<li><p><strong>Memory Efficient</strong>: Optimized for large datasets and production environments</p></li>
+<li><p><strong>Scalable</strong>: From single-machine to cluster deployments</p></li>
+</ul>
+</section>
+<section id="next-steps">
+<h2>Next Steps<a class="headerlink" href="#next-steps" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p><strong>Explore Functions</strong>: Use <cite>su.get_available_functions()</cite> to see all 568+ functions</p></li>
+<li><p><strong>Check Package Info</strong>: Use <cite>su.get_package_info()</cite> for detailed module information</p></li>
+<li><p><strong>Run Tests</strong>: Use the testing framework to verify functionality</p></li>
+<li><p><strong>Build Workflows</strong>: Combine functions to create your data engineering pipelines</p></li>
+</ol>
+<p>The library is designed to be <strong>mutually available</strong> - every function can access every other function, creating a powerful and flexible development environment for data engineering and analytics workflows.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Welcome to Siege Utilities documentation!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="architecture_diagram.html" class="btn btn-neutral float-right" title="Library Architecture" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Dheeraj Chand.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
