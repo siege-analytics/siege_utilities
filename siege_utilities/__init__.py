@@ -90,6 +90,12 @@ from .hygiene.generate_docstrings import generate_docstring_template, analyze_fu
 # Import development utilities
 from .development.architecture import generate_architecture_diagram, analyze_package_structure
 
+# Import git utilities
+from .git.branch_analyzer import analyze_branch_status, generate_branch_report
+from .git.git_operations import create_feature_branch, switch_branch, merge_branch
+from .git.git_status import get_repository_status, get_branch_info
+from .git.git_workflow import start_feature_workflow, validate_branch_naming
+
 # Import analytics utilities
 from .analytics.google_analytics import (
     GoogleAnalyticsConnector, create_ga_account_profile, save_ga_account_profile,

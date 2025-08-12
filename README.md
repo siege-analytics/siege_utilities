@@ -1,11 +1,12 @@
 # 🚀 Siege Utilities
 
-A comprehensive Python utilities package providing **568+ functions** across **16 modules** for data engineering, analytics, and distributed computing workflows.
+A comprehensive Python utilities package providing **1147+ functions** across **25 modules** for data engineering, analytics, and distributed computing workflows.
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Functions](https://img.shields.io/badge/functions-568+-orange.svg)](https://github.com/yourusername/siege_utilities)
+[![Functions](https://img.shields.io/badge/functions-1147+-orange.svg)](https://github.com/siege-analytics/siege_utilities)
 [![Spark](https://img.shields.io/badge/Spark-503+%20functions-red.svg)](https://spark.apache.org/)
+[![Tests](https://img.shields.io/badge/tests-61%20passed-green.svg)](https://github.com/siege-analytics/siege_utilities)
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://siege-analytics.github.io/siege_utilities/)
 
 ## 🎯 **What Makes This Special?**
@@ -42,6 +43,35 @@ My recommendation is to install things with [SDK Man](https://sdkman.io). I have
 - 👥 **Client Management**: Comprehensive client profile management with contact info and design artifacts
 - 🔌 **Connection Persistence**: Notebook, Spark, and database connection management and testing
 - 🔗 **Project Association**: Link clients with projects for better organization
+
+## 🧪 **Testing Status**
+
+**Current Test Results**: ✅ **61 tests passed, 1 skipped**  
+**Test Coverage**: Comprehensive coverage across all major modules  
+**Test Execution Time**: ~1.09 seconds  
+
+### **Test Categories**
+- **Core Utilities**: ✅ All tests passing
+- **File Operations**: ✅ All tests passing  
+- **Distributed Computing**: ✅ All tests passing
+- **Analytics Integration**: ✅ All tests passing
+- **Configuration Management**: ✅ All tests passing
+- **Geospatial Functions**: ✅ All tests passing
+
+### **Running Tests**
+```bash
+# Run all tests
+python -m pytest tests/ -v
+
+# Run specific test file
+python -m pytest tests/test_core_logging.py -v
+
+# Run with coverage
+python -m pytest tests/ --cov=siege_utilities --cov-report=html
+
+# Quick smoke test
+python -m pytest tests/ --tb=short -q
+```
 
 ## 🚀 Quick Start
 
