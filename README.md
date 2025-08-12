@@ -23,6 +23,9 @@ My recommendation is to install things with [SDK Man](https://sdkman.io). I have
 - 🛡️ **Graceful Dependencies**: Optional features (PySpark, geospatial) fail gracefully
 - 📊 **Built-in Diagnostics**: Monitor package health and function availability
 - ⚡ **Zero Configuration**: Just `import siege_utilities` and everything works
+- 👥 **Client Management**: Comprehensive client profile management with contact info and design artifacts
+- 🔌 **Connection Persistence**: Notebook, Spark, and database connection management and testing
+- 🔗 **Project Association**: Link clients with projects for better organization
 
 ## 🚀 Quick Start
 
@@ -80,6 +83,12 @@ print(f"Failed imports: {len(info['failed_imports'])}")
 
 ### Hygiene (`siege_utilities.hygiene`)
 - **Generate Docstrings**: Add docstrings to functions according to a template
+
+### Configuration Management (`siege_utilities.config`)
+- **Client Profiles**: Contact information, design artifacts, preferences, and project associations
+- **Connection Profiles**: Notebook, Spark, database, and API connection management
+- **Project Management**: Project setup, directory structures, and configuration
+- **Database Configuration**: Connection strings, JDBC support, and connection testing
 
 ## 🌟 Unique Auto-Discovery System
 
@@ -199,6 +208,69 @@ def process_data_files(input_dir, output_dir):
             # ... your processing logic here
 
     siege_utilities.log_info("Processing complete!")
+```
+
+### Client and Connection Management
+
+```python
+import siege_utilities
+
+def setup_client_project():
+    """Complete client and project setup using siege utilities."""
+    
+    # Create client profile with contact info and design artifacts
+    contact_info = {
+        "primary_contact": "Jane Smith",
+        "email": "jane.smith@acmecorp.com",
+        "phone": "+1-555-0123",
+        "address": "123 Business Ave, Tech City, TC 12345"
+    }
+    
+    client = siege_utilities.create_client_profile(
+        "Acme Corporation",
+        "ACME001",
+        contact_info,
+        industry="Technology",
+        logo_path="/assets/logos/acme_logo.png",
+        brand_colors=["#0066CC", "#FF6600"],
+        data_format="parquet",
+        report_style="executive"
+    )
+    
+    # Create project configuration
+    project = siege_utilities.create_project_config(
+        "Acme Data Analytics Platform",
+        "ACME001",
+        description="Comprehensive analytics platform for Acme Corporation"
+    )
+    
+    # Setup project directories
+    siege_utilities.setup_project_directories(project)
+    
+    # Associate client with project
+    siege_utilities.associate_client_with_project("ACME001", "ACME001")
+    
+    # Create and test connections
+    notebook_conn = siege_utilities.create_connection_profile(
+        "Acme Jupyter Lab",
+        "notebook",
+        {"url": "http://localhost:8888", "token": "abc123"}
+    )
+    
+    spark_conn = siege_utilities.create_connection_profile(
+        "Acme Spark Cluster",
+        "spark",
+        {"master_url": "spark://spark-master:7077"}
+    )
+    
+    # Test connections
+    notebook_result = siege_utilities.test_connection(notebook_conn['connection_id'])
+    spark_result = siege_utilities.test_connection(spark_conn['connection_id'])
+    
+    if notebook_result['success'] and spark_result['success']:
+        siege_utilities.log_info("All connections successful!")
+    else:
+        siege_utilities.log_warning("Some connections failed")
 ```
 
 ### Distributed Computing Workflow
@@ -406,6 +478,138 @@ View reports:
 5. **Check Dependencies**: Some tests require optional packages
 
 **Remember**: Finding issues is **success** - it means the tests are working! 🔥
+
+## 🧪 Testing and Development
+
+### Running Tests
+
+The package includes comprehensive tests for all functionality:
+
+```bash
+# Run all tests
+pytest
+
+# Run specific test modules
+pytest tests/test_client_and_connection_config.py -v
+pytest tests/test_core_logging.py -v
+pytest tests/test_file_operations.py -v
+
+# Run tests with coverage
+pytest --cov=siege_utilities --cov-report=html
+
+# Run tests in parallel
+pytest -n auto
+
+# Run tests and stop on first failure
+pytest -x
+```
+
+### Test Structure
+
+```
+tests/
+├── conftest.py                           # Shared test fixtures
+├── test_client_and_connection_config.py  # Client & connection tests
+├── test_core_logging.py                  # Logging system tests
+├── test_file_operations.py               # File operation tests
+├── test_geocoding.py                     # Geospatial tests
+├── test_package_discovery.py             # Auto-discovery tests
+├── test_paths.py                         # Path utility tests
+├── test_remote.py                        # Remote file tests
+├── test_shell.py                         # Shell command tests
+├── test_spark_utils.py                   # Spark utility tests
+└── test_string_utils.py                  # String utility tests
+```
+
+### Adding New Tests
+
+To add tests for new functionality:
+
+1. **Create test file**: `tests/test_new_feature.py`
+2. **Follow naming convention**: Test classes should be named `TestFeatureName`
+3. **Use descriptive test names**: `test_function_name_expected_behavior`
+4. **Include edge cases**: Test error conditions and boundary cases
+5. **Use fixtures**: Leverage `conftest.py` for shared test data
+
+Example test structure:
+
+```python
+import pytest
+from siege_utilities.new_feature import new_function
+
+class TestNewFeature:
+    """Test the new feature functionality."""
+    
+    def test_new_function_basic_usage(self):
+        """Test basic functionality of new_function."""
+        result = new_function("test_input")
+        assert result == "expected_output"
+    
+    def test_new_function_with_invalid_input(self):
+        """Test that new_function handles invalid input gracefully."""
+        with pytest.raises(ValueError, match="Invalid input"):
+            new_function("")
+    
+    def test_new_function_edge_case(self):
+        """Test edge case behavior."""
+        result = new_function(None)
+        assert result is None
+```
+
+### Test Dependencies
+
+Tests use these key dependencies:
+
+- **pytest**: Main testing framework
+- **pytest-cov**: Coverage reporting
+- **pytest-xdist**: Parallel test execution
+- **unittest.mock**: Mocking external dependencies
+
+Install test dependencies:
+
+```bash
+pip install -r test_requirements.txt
+```
+
+### Continuous Integration
+
+The package includes GitHub Actions for automated testing:
+
+- **Python versions**: 3.8, 3.9, 3.10, 3.11, 3.12
+- **Test coverage**: Minimum 90% coverage required
+- **Code quality**: Flake8 and black formatting checks
+- **Documentation**: Sphinx build verification
+
+### Running Tests Locally
+
+```bash
+# Setup development environment
+git clone https://github.com/siege-analytics/siege_utilities.git
+cd siege_utilities
+pip install -e ".[dev]"
+
+# Run tests
+pytest
+
+# Run with specific Python version
+python3.9 -m pytest
+
+# Run tests and generate coverage report
+pytest --cov=siege_utilities --cov-report=term-missing
+```
+
+### Debugging Tests
+
+```bash
+# Run single test with verbose output
+pytest tests/test_client_and_connection_config.py::TestClientConfiguration::test_create_client_profile_basic -v -s
+
+# Run tests with debugger
+pytest --pdb
+
+# Run tests and show local variables on failure
+pytest --tb=short --showlocals
+```
 
 ## 🏗️ Development
 

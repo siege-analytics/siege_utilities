@@ -1,77 +1,30 @@
-Siege Utilities Documentation
-=============================
+Welcome to Siege Utilities documentation!
+========================================
 
-.. image:: https://img.shields.io/pypi/v/siege-utilities.svg
-   :target: https://pypi.org/project/siege-utilities/
-   :alt: PyPI version
-
-.. image:: https://img.shields.io/badge/docs-GitHub%20Pages-blue
-   :target: https://siege-analytics.github.io/siege_utilities/
-   :alt: Documentation
-
-**Enhanced Auto-Discovery Python Utilities Package**
-
-🚀 **Revolutionary Feature**: All 500+ functions automatically discovered and mutually available without imports!
-
-Quick Start
------------
-
-.. code-block:: python
-
-   import siege_utilities
-
-   # Instant access to ALL functions
-   info = siege_utilities.get_package_info()
-   print(f"Functions available: {info['total_functions']}")
-
-   # File operations
-   hash_val = siege_utilities.get_file_hash("myfile.txt")
-   siege_utilities.ensure_path_exists("data/processed")
-
-   # Logging (available everywhere)
-   siege_utilities.log_info("Processing started")
-
-   # Distributed computing (if PySpark available)
-   try:
-       config = siege_utilities.create_hdfs_config("/data")
-       spark, data_path = siege_utilities.setup_distributed_environment()
-   except NameError:
-       siege_utilities.log_warning("Distributed features not available")
-
-Installation
-------------
-
-.. code-block:: bash
-
-   # Basic installation
-   pip install siege-utilities
-
-   # With optional features
-   pip install siege-utilities[distributed,geo,dev]
+Siege Utilities is a comprehensive Python utilities package with **enhanced auto-discovery** that automatically imports and makes all functions mutually available across modules.
 
 .. toctree::
    :maxdepth: 2
-   :caption: User Guide
+   :caption: Contents:
 
-   installation
-   quickstart
-   auto_discovery_system
-   examples
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Complete API Reference
-
+   getting_started
+   autodiscovery
    all_functions
+   testing_guide
    api/index
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Modules
+.. note::
 
-   api/siege_utilities
+   **New in v1.0**: Client and Connection Configuration Management
+   
+   - 👥 **Client Profiles**: Manage client information, contact details, and design artifacts
+   - 🔌 **Connection Persistence**: Notebook, Spark, and database connection management
+   - 🔗 **Project Association**: Link clients with projects for better organization
+   - 🧪 **Comprehensive Testing**: Full test suite with coverage reporting
 
-Indices and Tables
+   See :doc:`testing_guide` for complete testing information.
+
+Indices and tables
 ==================
 
 * :ref:`genindex`
