@@ -52,7 +52,10 @@ Recipes are step-by-step guides that show you how to accomplish specific tasks u
 - [Architecture Analysis](development/architecture_analysis.md)
 
 ### 📊 Reporting & Analytics
-- [Comprehensive Reporting System](reporting/comprehensive_reporting.md) - Analyze package structure and generate diagrams
+- [Comprehensive Reporting System](reporting/comprehensive_reporting.md) - Complete guide to creating professional PDF and PowerPoint reports
+- [Bivariate Choropleth Maps](./reporting/bivariate_choropleth_maps.md) - Advanced geographic visualization for reports
+- [Advanced Geographic Reporting](./reporting/advanced_geographic_reporting.md) - Multi-faceted geographic analysis with multiple visualization types
+- [External Data Integration](./reporting/external_data_integration.md) - Integrating multiple data sources for comprehensive geographic reporting
 
 ## How to Use Recipes
 
