@@ -49,7 +49,10 @@ Recipes are step-by-step guides that show you how to accomplish specific tasks u
 - [Remote Server Management](system_admin/remote_management.md) - Manage remote servers
 
 ### 🛠️ Development Tools
-- [Architecture Analysis](development/architecture_analysis.md) - Analyze package structure and generate diagrams
+- [Architecture Analysis](development/architecture_analysis.md)
+
+### 📊 Reporting & Analytics
+- [Comprehensive Reporting System](reporting/comprehensive_reporting.md) - Analyze package structure and generate diagrams
 
 ## How to Use Recipes
 

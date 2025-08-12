@@ -106,6 +106,12 @@ from .analytics.facebook_business import (
     load_facebook_account_profile, list_facebook_accounts_for_client, batch_retrieve_facebook_data
 )
 
+# Import reporting utilities
+from .reporting import (
+    BaseReportTemplate, ReportGenerator, ChartGenerator, 
+    ClientBrandingManager, AnalyticsReportGenerator, PowerPointGenerator
+)
+
 # Import testing utilities
 from .testing.environment import setup_spark_environment, get_system_info
 
