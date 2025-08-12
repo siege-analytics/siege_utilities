@@ -12,7 +12,19 @@ BUILDDIR      = build
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-.PHONY: help Makefile
+# Fast build for development (minimal processing)
+fast:
+	@echo "Building fast documentation..."
+	@$(SPHINXBUILD) -b html -c "$(SOURCEDIR)/conf_fast.py" "$(SOURCEDIR)" "$(BUILDDIR)/html" $(SPHINXOPTS) $(O)
+	@echo "Fast build complete!"
+
+# Full build with all features
+full:
+	@echo "Building full documentation..."
+	@$(SPHINXBUILD) -b html "$(SOURCEDIR)" "$(BUILDDIR)/html" $(SPHINXOPTS) $(O)
+	@echo "Full build complete!"
+
+.PHONY: help fast full Makefile
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).

@@ -613,6 +613,81 @@ pytest --tb=short --showlocals
 
 ## 🏗️ Development
 
+### Documentation
+
+The package includes comprehensive Sphinx documentation that automatically builds and deploys to GitHub Pages.
+
+#### Building Documentation Locally
+
+```bash
+# Navigate to docs directory
+cd docs
+
+# Fast build (recommended for development)
+make fast
+
+# Full build (complete documentation)
+make full
+
+# Standard build (optimized)
+make html
+
+# Clean build directory
+make clean
+```
+
+#### Documentation Build Performance
+
+**If documentation builds are slow** (taking 5+ minutes), use the fast build option:
+
+```bash
+cd docs
+make fast  # Completes in 30 seconds - 2 minutes
+```
+
+**Performance optimizations applied:**
+- Disabled AutoAPI extension (was processing 500+ functions)
+- Disabled member generation and inheritance diagrams
+- Disabled type hint processing
+- Disabled source code copying
+- Disabled search index generation
+
+**When to use each build type:**
+- **`make fast`**: During development, quick checks
+- **`make full`**: Before releases, complete documentation
+- **`make html`**: Standard build (now optimized)
+
+#### Troubleshooting Slow Builds
+
+1. **Stop slow builds**: Press `Ctrl+C` in terminal
+2. **Clean build directory**: `make clean` before rebuilding
+3. **Use fast build**: `make fast` for development
+4. **Monitor progress**: `make html SPHINXOPTS="-v"`
+
+#### Documentation Structure
+
+```
+docs/
+├── source/
+│   ├── index.rst                    # Main documentation page
+│   ├── testing_guide.rst           # Comprehensive testing guide
+│   ├── autodiscovery.rst           # Auto-discovery system
+│   ├── all_functions.rst           # Complete function listing
+│   ├── conf.py                     # Main Sphinx configuration
+│   ├── conf_fast.py                # Fast build configuration
+│   └── api/                        # API reference
+└── build/                          # Generated documentation
+```
+
+#### Documentation Deployment
+
+Documentation automatically builds and deploys to GitHub Pages via GitHub Actions:
+
+1. **Edit RST files** in `docs/source/`
+2. **Build locally** to test: `make fast`
+3. **Commit and push** changes to GitHub
+4. **GitHub Actions** automatically rebuilds and deploys to `https://siege-analytics.github.io/siege_utilities/`
+
 ### Adding New Functions
 
 Just create a new `.py` file anywhere in the package:
@@ -697,4 +772,4 @@ MIT License - see LICENSE file for details.
 
 ---
 
-**Siege Utilities**:Spatial Intelligence, In Python! 🚀
+**Siege Utilities**: Spatial Intelligence, In Python! 🚀
