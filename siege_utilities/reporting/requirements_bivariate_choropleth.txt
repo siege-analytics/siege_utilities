@@ -1,0 +1,33 @@
+# Requirements for Bivariate Choropleth Maps in siege_utilities
+# These packages are needed in addition to the core siege_utilities dependencies
+
+# Core geographic data processing
+geopandas>=0.12.0
+shapely>=1.8.0
+
+# Interactive web-based mapping
+folium>=0.14.0
+
+# Advanced plotting and visualization
+matplotlib>=3.5.0
+seaborn>=0.11.0
+
+# Data manipulation and analysis
+pandas>=1.4.0
+numpy>=1.21.0
+
+# Optional: For additional geographic projections
+pyproj>=3.3.0
+
+# Optional: For better performance with large datasets
+rtree>=1.0.0
+
+# Optional: For additional map tiles and styling
+branca>=0.5.0
+
+# Optional: For statistical classification methods
+scipy>=1.8.0
+scikit-learn>=1.1.0
+
+# Installation command:
+# pip install -r requirements_bivariate_choropleth.txt
