@@ -328,7 +328,7 @@ def update_connection_profile(
         return False
 
 
-def test_connection(
+def verify_connection_profile(
     connection_id: str,
     config_directory: str = "config"
 ) -> Dict[str, Any]:
@@ -343,7 +343,7 @@ def test_connection(
         Dictionary with test results
         
     Example:
-        >>> result = siege_utilities.test_connection("uuid-here")
+        >>> result = siege_utilities.test_connection_profile("uuid-here")
         >>> if result['success']:
         ...     print("Connection successful!")
     """

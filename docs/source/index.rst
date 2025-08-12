@@ -5,11 +5,48 @@ Siege Utilities is a comprehensive Python utilities package with **enhanced auto
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Getting Started:
 
    getting_started
+   architecture_diagram
    autodiscovery
-   all_functions
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Core Utilities:
+
+   core_utilities
+   string_utilities
+   logging_utilities
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Distributed Computing:
+
+   distributed_computing
+   hdfs_operations
+   spark_utilities
+
+.. toctree::
+   :maxdepth: 2
+   :caption: File Operations:
+
+   file_operations
+   file_hashing
+   remote_operations
+   shell_operations
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Geographic & Analytics:
+
+   geocoding
+   analytics
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Development & Testing:
+
    testing_guide
    api/index
 

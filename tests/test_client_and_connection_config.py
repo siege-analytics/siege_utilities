@@ -18,7 +18,7 @@ from siege_utilities.config.clients import (
 from siege_utilities.config.connections import (
     create_connection_profile, save_connection_profile, load_connection_profile,
     find_connection_by_name, list_connection_profiles, update_connection_profile,
-    test_connection, get_connection_status, cleanup_old_connections
+    verify_connection_profile, get_connection_status, cleanup_old_connections
 )
 
 
@@ -177,7 +177,10 @@ class TestClientConfiguration:
         assert len(validation['issues']) == 0
         
         # Invalid profile (missing email)
-        invalid_profile = create_client_profile("Test Client", "TEST001", {"primary_contact": "Test User"})
+        # Create a valid profile first, then modify it to be invalid
+        valid_contact = {"primary_contact": "Test User", "email": "test@example.com"}
+        invalid_profile = create_client_profile("Test Client", "TEST001", valid_contact)
+        # Now remove the email to make it invalid
         invalid_profile['contact_info'].pop('email')
         
         validation = validate_client_profile(invalid_profile)
@@ -320,7 +323,7 @@ class TestConnectionConfiguration:
         save_connection_profile(profile, str(config_dir))
         
         # Test connection
-        result = test_connection(profile['connection_id'], str(config_dir))
+        result = verify_connection_profile(profile['connection_id'], str(config_dir))
         assert result['success'] is True
         assert result['connection_type'] == "notebook"
         assert result['response_time_ms'] is not None
@@ -340,7 +343,7 @@ class TestConnectionConfiguration:
         save_connection_profile(profile, str(config_dir))
         
         # Test connection
-        result = test_connection(profile['connection_id'], str(config_dir))
+        result = verify_connection_profile(profile['connection_id'], str(config_dir))
         assert result['success'] is True
         assert result['connection_type'] == "spark"
         assert result['spark_version'] == "3.2.0"
@@ -368,14 +371,34 @@ class TestConnectionConfiguration:
         connection_params = {"url": "http://old.com"}
         profile = create_connection_profile("Old Connection", "notebook", connection_params)
         
-        # Set old dates
+        save_connection_profile(profile, str(config_dir))
+        
+        # Now set old dates after saving (to override the current timestamp)
         from datetime import datetime, timedelta
         old_date = (datetime.now() - timedelta(days=100)).isoformat()
-        profile['metadata']['created_date'] = old_date
-        profile['metadata']['last_used'] = old_date
-        profile['metadata']['connection_count'] = 0
         
-        save_connection_profile(profile, str(config_dir))
+        # Load the profile back and modify it
+        loaded_profile = load_connection_profile(profile['connection_id'], str(config_dir))
+        loaded_profile['metadata']['created_date'] = old_date
+        loaded_profile['metadata']['last_used'] = old_date
+        loaded_profile['metadata']['connection_count'] = 0  # Must be 0 for cleanup
+        loaded_profile['metadata']['last_connected'] = old_date
+        
+        # Save the modified profile
+        save_connection_profile(loaded_profile, str(config_dir))
+        
+        # Now directly modify the file to set old dates (bypassing save_connection_profile)
+        config_file = pathlib.Path(config_dir) / "connections" / f"connection_{profile['connection_id']}.json"
+        with open(config_file, 'r') as f:
+            file_content = json.load(f)
+        
+        # Set old dates directly in the file
+        file_content['metadata']['created_date'] = old_date
+        file_content['metadata']['last_used'] = old_date
+        file_content['metadata']['connection_count'] = 0
+        
+        with open(config_file, 'w') as f:
+            json.dump(file_content, f, indent=2)
         
         # Cleanup connections older than 30 days
         removed_count = cleanup_old_connections(30, str(config_dir))

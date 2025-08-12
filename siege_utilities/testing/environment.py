@@ -9,6 +9,15 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+# Import logging functions from main package
+try:
+    from siege_utilities import log_info, log_warning, log_error
+except ImportError:
+    # Fallback if main package not available yet
+    def log_info(message): print(f"INFO: {message}")
+    def log_warning(message): print(f"WARNING: {message}")
+    def log_error(message): print(f"ERROR: {message}")
+
 
 def ensure_env_vars(required_vars: List[str]) -> Dict[str, Optional[str]]:
     """

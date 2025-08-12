@@ -4,6 +4,14 @@ import logging
 import tqdm
 logger = logging.getLogger(__name__)
 
+# Import logging functions from main package
+try:
+    from siege_utilities import log_info, log_error
+except ImportError:
+    # Fallback if main package not available yet
+    def log_info(message): print(f"INFO: {message}")
+    def log_error(message): print(f"ERROR: {message}")
+
 
 def download_file(url, local_filename):
     """
@@ -45,24 +53,24 @@ def download_file(url, local_filename):
 
 def generate_local_path_from_url(url: str, directory_path: pathlib.Path,
     as_string: bool=True):
-    """""\"
-Perform file operations: generate local path from url.
+    """
+    Perform file operations: generate local path from url.
 
-Part of Siege Utilities File Operations module.
-Auto-discovered and available at package level.
+    Part of Siege Utilities File Operations module.
+    Auto-discovered and available at package level.
 
-Returns:
-    Description needed
+    Returns:
+        Description needed
 
-Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.generate_local_path_from_url()
-    >>> print(result)
+    Example:
+        >>> import siege_utilities
+        >>> result = siege_utilities.generate_local_path_from_url()
+        >>> print(result)
 
-Note:
-    This function is auto-discovered and available without imports
-    across all siege_utilities modules.
-""\""""
+    Note:
+        This function is auto-discovered and available without imports
+        across all siege_utilities modules.
+    """
     try:
         remote_file_name = url.split('/')[-1]
         directory_path = pathlib.Path(directory_path)
@@ -71,9 +79,9 @@ Note:
             new_path = str(new_path)
         message = (
             f'Successfully generated path {new_path}, as_string={as_string}')
-        log_info(message=message)
+        log_info(message)
         return new_path
     except Exception as e:
         message = f'Exception while generating local path: {e}'
-        log_error(message=message)
+        log_error(message)
         return False

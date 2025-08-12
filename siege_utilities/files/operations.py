@@ -3,6 +3,14 @@ import subprocess
 import logging
 logger = logging.getLogger(__name__)
 
+# Import logging functions from main package
+try:
+    from siege_utilities import log_info, log_error
+except ImportError:
+    # Fallback if main package not available yet
+    def log_info(message): print(f"INFO: {message}")
+    def log_error(message): print(f"ERROR: {message}")
+
 
 def rmtree(f: pathlib.Path):
     """""\"

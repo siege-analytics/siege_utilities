@@ -1,0 +1,61 @@
+name: Sync Recipes to Wiki
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'docs/recipes/**'
+      - 'scripts/sync_to_wiki.py'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  sync-wiki:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout main repository
+      uses: actions/checkout@v4
+      with:
+        path: main-repo
+        
+    - name: Checkout wiki repository
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ github.repository }}.wiki
+        path: wiki-repo
+        
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        cd main-repo
+        pip install -r requirements.txt || true
+        
+    - name: Sync recipes to wiki
+      run: |
+        cd main-repo
+        python scripts/sync_to_wiki.py --wiki-path ../wiki-repo --commit-message "Auto-sync recipes from main repo"
+        
+    - name: Push changes to wiki
+      run: |
+        cd wiki-repo
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git push origin main
+        
+    - name: Create summary
+      run: |
+        echo "## 📚 Recipe Sync Complete" >> $GITHUB_STEP_SUMMARY
+        echo "Successfully synced recipe documentation to the wiki repository." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**What was synced:**" >> $GITHUB_STEP_SUMMARY
+        echo "- All markdown files from \`docs/recipes/\`" >> $GITHUB_STEP_SUMMARY
+        echo "- Updated wiki index and navigation" >> $GITHUB_STEP_SUMMARY
+        echo "- Committed and pushed changes automatically" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Next steps:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Check the [wiki](https://github.com/${{ github.repository }}/wiki) for updated recipes" >> $GITHUB_STEP_SUMMARY
+        echo "- Recipes are now available for community use and contribution" >> $GITHUB_STEP_SUMMARY

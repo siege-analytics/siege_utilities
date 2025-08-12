@@ -26,8 +26,7 @@ from .files.operations import check_if_file_exists_at_path
 from .config.databases import (
     create_database_config, save_database_config, load_database_config,
     get_spark_database_options, test_database_connection, list_database_configs,
-    get_sqlalchemy_connection_string, create_sqlalchemy_engine,
-    get_pandas_connection, execute_sql_query, create_spark_session_with_databases
+    create_spark_session_with_databases
 )
 
 from .config.projects import (
@@ -50,30 +49,64 @@ from .config.clients import (
 from .config.connections import (
     create_connection_profile, save_connection_profile, load_connection_profile,
     find_connection_by_name, list_connection_profiles, update_connection_profile,
-    test_connection, get_connection_status, cleanup_old_connections
+    verify_connection_profile, get_connection_status, cleanup_old_connections
 )
 
 # Import distributed utilities
-from .distributed.spark_utils import (
-    get_dataframe_row_count, repartition_and_cache_dataframe,
-    register_dataframe_as_temp_table, repartition_dataframe,
-    write_dataframe_to_parquet, read_parquet_to_dataframe,
-    infer_json_schema, flatten_json_dataframe, explode_array_columns,
-    export_dataframe_to_multiple_formats, validate_geometry_columns,
-    backup_dataframe, atomic_write_dataframe
-)
+from .distributed.spark_utils import *
+from .distributed.hdfs_config import *
+from .distributed.hdfs_operations import *
+from .distributed.hdfs_legacy import *
 
 # Import file utilities
-from .files.hashing import calculate_file_hash
-from .files.paths import get_file_extension, get_file_size, get_file_info
-from .files.remote import download_file, upload_file, list_remote_files
-from .files.shell import run_command, run_command_with_output
+from .files.hashing import (
+    calculate_file_hash, generate_sha256_hash_for_file, 
+    get_file_hash, get_quick_file_signature, verify_file_integrity
+)
+from .files.paths import ensure_path_exists, unzip_file_to_its_own_directory
+from .files.operations import (
+    check_if_file_exists_at_path, delete_existing_file_and_replace_it_with_an_empty_file,
+    count_total_rows_in_file_pythonically, count_empty_rows_in_file_pythonically,
+    count_duplicate_rows_in_file_using_awk, count_total_rows_in_file_using_sed,
+    count_empty_rows_in_file_using_awk, remove_empty_rows_in_file_using_sed,
+    write_data_to_a_new_empty_file, write_data_to_an_existing_file,
+    check_for_file_type_in_directory
+)
+
+# Import remote and shell utilities
+from .files.remote import (
+    generate_local_path_from_url, download_file
+)
+from .files.shell import (
+    run_subprocess
+)
 
 # Import geo utilities
-from .geo.geocoding import geocode_address, reverse_geocode, validate_coordinates
+from .geo.geocoding import concatenate_addresses, use_nominatim_geocoder
 
 # Import hygiene utilities
-from .hygiene.generate_docstrings import generate_docstring_for_function
+from .hygiene.generate_docstrings import generate_docstring_template, analyze_function_signature
+
+# Import development utilities
+from .development.architecture import generate_architecture_diagram, analyze_package_structure
+
+# Import analytics utilities
+from .analytics.google_analytics import (
+    GoogleAnalyticsConnector, create_ga_account_profile, save_ga_account_profile,
+    load_ga_account_profile, list_ga_accounts_for_client, batch_retrieve_ga_data
+)
+from .analytics.facebook_business import (
+    FacebookBusinessConnector, create_facebook_account_profile, save_facebook_account_profile,
+    load_facebook_account_profile, list_facebook_accounts_for_client, batch_retrieve_facebook_data
+)
+
+# Import testing utilities
+from .testing.environment import setup_spark_environment, get_system_info
+
+# Package version and metadata
+__version__ = "1.0.0"
+__author__ = "Siege Analytics"
+__description__ = "Comprehensive utilities for data engineering, analytics, and distributed computing"
 
 # Package discovery and dependency checking
 def get_package_info() -> Dict[str, Any]:
@@ -92,13 +125,15 @@ def get_package_info() -> Dict[str, Any]:
         'available_functions': [],
         'available_modules': [],
         'failed_imports': {},
+        'subpackages': ['core', 'files', 'distributed', 'geo', 'config', 'hygiene', 'testing'],
         'categories': {
             'core': [],
             'files': [],
             'distributed': [],
             'geo': [],
             'config': [],
-            'hygiene': []
+            'hygiene': [],
+            'testing': []
         }
     }
     
@@ -112,27 +147,31 @@ def get_package_info() -> Dict[str, Any]:
     # File functions
     file_functions = [
         'check_if_file_exists_at_path', 'calculate_file_hash',
-        'get_file_extension', 'get_file_size', 'get_file_info',
-        'download_file', 'upload_file', 'list_remote_files',
-        'run_command', 'run_command_with_output'
+        'ensure_path_exists', 'unzip_file_to_its_own_directory',
+        'generate_sha256_hash_for_file', 'get_file_hash', 'get_quick_file_signature',
+        'verify_file_integrity', 'delete_existing_file_and_replace_it_with_an_empty_file',
+        'count_total_rows_in_file_pythonically', 'count_empty_rows_in_file_pythonically',
+        'count_duplicate_rows_in_file_using_awk', 'count_total_rows_in_file_using_sed',
+        'count_empty_rows_in_file_using_awk', 'remove_empty_rows_in_file_using_sed',
+        'write_data_to_a_new_empty_file', 'write_data_to_an_existing_file',
+        'check_for_file_type_in_directory', 'generate_local_path_from_url',
+        'download_file', 'run_subprocess'
     ]
     
     # Distributed functions
     distributed_functions = [
-        'get_dataframe_row_count', 'repartition_and_cache_dataframe',
-        'register_dataframe_as_temp_table', 'repartition_dataframe',
-        'write_dataframe_to_parquet', 'read_parquet_to_dataframe',
-        'infer_json_schema', 'flatten_json_dataframe', 'explode_array_columns',
-        'export_dataframe_to_multiple_formats', 'validate_geometry_columns',
-        'backup_dataframe', 'atomic_write_dataframe'
+        'get_row_count', 'repartition_and_cache',
+        'register_temp_table', 'move_column_to_front_of_dataframe',
+        'write_df_to_parquet', 'read_parquet_to_df',
+        'flatten_json_column_and_join_back_to_df', 'validate_geocode_data',
+        'backup_full_dataframe', 'atomic_write_with_staging'
     ]
     
     # Config functions
     config_functions = [
         'create_database_config', 'save_database_config', 'load_database_config',
         'get_spark_database_options', 'test_database_connection', 'list_database_configs',
-        'get_sqlalchemy_connection_string', 'create_sqlalchemy_engine',
-        'get_pandas_connection', 'execute_sql_query', 'create_spark_session_with_databases',
+        'create_spark_session_with_databases',
         'create_project_config', 'save_project_config', 'load_project_config',
         'setup_project_directories', 'get_project_path', 'list_projects', 'update_project_config',
         'create_directory_structure', 'create_standard_project_structure',
@@ -143,17 +182,22 @@ def get_package_info() -> Dict[str, Any]:
         'associate_client_with_project', 'get_client_project_associations', 'validate_client_profile',
         'create_connection_profile', 'save_connection_profile', 'load_connection_profile',
         'find_connection_by_name', 'list_connection_profiles', 'update_connection_profile',
-        'test_connection', 'get_connection_status', 'cleanup_old_connections'
+        'verify_connection_profile', 'get_connection_status', 'cleanup_old_connections'
     ]
     
     # Geo functions
     geo_functions = [
-        'geocode_address', 'reverse_geocode', 'validate_coordinates'
+        'concatenate_addresses', 'use_nominatim_geocoder'
     ]
     
     # Hygiene functions
     hygiene_functions = [
-        'generate_docstring_for_function'
+        'generate_docstring_template', 'analyze_function_signature'
+    ]
+    
+    # Testing functions
+    testing_functions = [
+        'setup_spark_environment', 'get_system_info'
     ]
     
     # Check availability of all functions
@@ -163,7 +207,8 @@ def get_package_info() -> Dict[str, Any]:
         'distributed': distributed_functions,
         'config': config_functions,
         'geo': geo_functions,
-        'hygiene': hygiene_functions
+        'hygiene': hygiene_functions,
+        'testing': testing_functions
     }
     
     for category, functions in all_functions.items():
