@@ -42,6 +42,7 @@ Siege Utilities is a comprehensive Python utilities package with **enhanced auto
 
    geocoding
    analytics
+   mapping_and_reporting
 
 .. toctree::
    :maxdepth: 2
