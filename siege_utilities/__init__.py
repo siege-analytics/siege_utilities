@@ -84,6 +84,22 @@ from .files.shell import (
 # Import geo utilities
 from .geo.geocoding import concatenate_addresses, use_nominatim_geocoder
 
+# Import spatial utilities
+from .spatial import (
+    CensusDataSource, GovernmentDataSource, OpenStreetMapDataSource,
+    census_source, government_source, osm_source,
+    get_census_data, get_census_boundaries, download_osm_data,
+    SpatialDataTransformer, PostGISConnector, DuckDBConnector,
+    spatial_transformer, convert_spatial_format, transform_spatial_crs,
+    simplify_spatial_geometries, buffer_spatial_geometries
+)
+
+# Import user configuration
+from .config.user_config import (
+    UserConfigManager, UserProfile, user_config,
+    get_user_config, get_download_directory
+)
+
 # Import hygiene utilities
 from .hygiene.generate_docstrings import generate_docstring_template, analyze_function_signature
 
@@ -137,12 +153,13 @@ def get_package_info() -> Dict[str, Any]:
         'available_functions': [],
         'available_modules': [],
         'failed_imports': {},
-        'subpackages': ['core', 'files', 'distributed', 'geo', 'config', 'hygiene', 'testing'],
+        'subpackages': ['core', 'files', 'distributed', 'geo', 'spatial', 'config', 'hygiene', 'testing'],
         'categories': {
             'core': [],
             'files': [],
             'distributed': [],
             'geo': [],
+            'spatial': [],
             'config': [],
             'hygiene': [],
             'testing': []
@@ -202,6 +219,13 @@ def get_package_info() -> Dict[str, Any]:
         'concatenate_addresses', 'use_nominatim_geocoder'
     ]
     
+    # Spatial functions
+    spatial_functions = [
+        'get_census_data', 'get_census_boundaries', 'download_osm_data',
+        'convert_spatial_format', 'transform_spatial_crs',
+        'simplify_spatial_geometries', 'buffer_spatial_geometries'
+    ]
+    
     # Hygiene functions
     hygiene_functions = [
         'generate_docstring_template', 'analyze_function_signature'
@@ -219,6 +243,7 @@ def get_package_info() -> Dict[str, Any]:
         'distributed': distributed_functions,
         'config': config_functions,
         'geo': geo_functions,
+        'spatial': spatial_functions,
         'hygiene': hygiene_functions,
         'testing': testing_functions
     }
@@ -235,7 +260,8 @@ def get_package_info() -> Dict[str, Any]:
         'core.logging', 'core.string_utils',
         'files.operations', 'files.hashing', 'files.paths', 'files.remote', 'files.shell',
         'distributed.spark_utils', 'distributed.hdfs_config', 'distributed.hdfs_operations',
-        'geo.geocoding', 'config.databases', 'config.projects', 'config.directories',
+        'geo.geocoding', 'spatial.data_sources', 'spatial.data_transformation',
+        'config.databases', 'config.projects', 'config.directories', 'config.user_config',
         'hygiene.generate_docstrings'
     ]
     package_info['total_modules'] = len(package_info['available_modules'])
@@ -263,7 +289,11 @@ def check_dependencies() -> Dict[str, bool]:
         'requests': False,
         'geopy': False,
         'shapely': False,
-        'folium': False
+        'folium': False,
+        'geopandas': False,
+        'duckdb': False,
+        'fiona': False,
+        'pyproj': False
     }
     
     # Check each dependency
@@ -336,6 +366,30 @@ def check_dependencies() -> Dict[str, bool]:
     try:
         import folium
         dependencies['folium'] = True
+    except ImportError:
+        pass
+    
+    try:
+        import geopandas
+        dependencies['geopandas'] = True
+    except ImportError:
+        pass
+    
+    try:
+        import duckdb
+        dependencies['duckdb'] = True
+    except ImportError:
+        pass
+    
+    try:
+        import fiona
+        dependencies['fiona'] = True
+    except ImportError:
+        pass
+    
+    try:
+        import pyproj
+        dependencies['pyproj'] = True
     except ImportError:
         pass
     
