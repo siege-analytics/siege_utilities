@@ -97,6 +97,18 @@ siege_utilities.log_info("Package loaded successfully!")
 - **[Contributing Guidelines](Contributing)** - How to contribute to the project
 - **[Performance Optimization](Performance-Optimization)** - Tips for optimal usage
 
+### **📖 Examples & Recipes**
+- **[Examples](Examples/)** - Code examples and demonstrations
+  - **[Client Management](Examples/Client-Management)** - Profile creation and branding
+  - **[File Operations](Examples/File-Operations)** - File handling examples
+  - **[Spatial Analysis](Examples/Spatial-Analysis)** - Geographic data examples
+  - **[Report Generation](Examples/Report-Generation)** - Report creation examples
+- **[Recipes](Recipes/)** - Step-by-step practical guides
+  - **[Analytics Integration](Recipes/Analytics-Integration)** - Multi-platform data collection
+  - **[Batch Processing](Recipes/Batch-Processing)** - Efficient multi-file operations
+  - **[Data Validation](Recipes/Data-Validation)** - Data quality assurance
+  - **[Automation Guide](Recipes/Automation-Guide)** - Workflow automation
+
 ## 🌟 **Key Features**
 
 - 🔄 **Auto-Discovery**: Automatically finds and imports all functions from new modules

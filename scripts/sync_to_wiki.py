@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Sync Siege Utilities Recipes to GitHub Wiki
+Sync Siege Utilities Wiki Recipes to GitHub Wiki
 
-This script helps synchronize recipe documentation from the docs/recipes/
+This script helps synchronize wiki recipe documentation from the wiki_recipes/
 directory to a GitHub wiki repository for easier maintenance and sharing.
 
 Usage:
@@ -45,23 +45,19 @@ def clone_wiki_repo(wiki_url, target_path):
     result = run_command(f"git clone {wiki_url} {target_path}")
     return result.returncode == 0
 
-def sync_recipes_to_wiki(recipes_source, wiki_path):
-    """Sync recipe files to the wiki repository"""
-    print(f"Syncing recipes from {recipes_source} to {wiki_path}")
+def sync_wiki_recipes_to_wiki(wiki_recipes_source, wiki_path):
+    """Sync wiki recipe files to the wiki repository"""
+    print(f"Syncing wiki recipes from {wiki_recipes_source} to {wiki_path}")
     
-    # Create recipes directory in wiki if it doesn't exist
-    wiki_recipes_dir = os.path.join(wiki_path, "recipes")
-    os.makedirs(wiki_recipes_dir, exist_ok=True)
-    
-    # Copy all recipe files
+    # Copy all wiki recipe files
     copied_files = []
-    for root, dirs, files in os.walk(recipes_source):
-        # Calculate relative path from recipes source
-        rel_path = os.path.relpath(root, recipes_source)
+    for root, dirs, files in os.walk(wiki_recipes_source):
+        # Calculate relative path from wiki_recipes source
+        rel_path = os.path.relpath(root, wiki_recipes_source)
         if rel_path == '.':
-            wiki_target_dir = wiki_recipes_dir
+            wiki_target_dir = wiki_path
         else:
-            wiki_target_dir = os.path.join(wiki_recipes_dir, rel_path)
+            wiki_target_dir = os.path.join(wiki_path, rel_path)
         
         # Create target directory
         os.makedirs(wiki_target_dir, exist_ok=True)
@@ -75,15 +71,6 @@ def sync_recipes_to_wiki(recipes_source, wiki_path):
                 shutil.copy2(source_file, target_file)
                 copied_files.append(target_file)
                 print(f"  Copied: {file}")
-    
-    # Copy README to wiki root
-    readme_source = os.path.join(recipes_source, "README.md")
-    readme_target = os.path.join(wiki_path, "Recipes.md")
-    
-    if os.path.exists(readme_source):
-        shutil.copy2(readme_source, readme_target)
-        copied_files.append(readme_target)
-        print(f"  Copied: README.md -> Recipes.md")
     
     return copied_files
 
@@ -219,18 +206,18 @@ def main():
     
     # Get recipes source path
     script_dir = Path(__file__).parent
-    recipes_source = script_dir.parent / "docs" / "recipes"
+    wiki_recipes_source = script_dir.parent / "wiki_recipes"
     
-    if not recipes_source.exists():
-        print(f"Error: Recipes source directory {recipes_source} does not exist")
+    if not wiki_recipes_source.exists():
+        print(f"Error: Wiki recipes source directory {wiki_recipes_source} does not exist")
         sys.exit(1)
     
     try:
         # Sync recipes
-        copied_files = sync_recipes_to_wiki(recipes_source, wiki_path)
+        copied_files = sync_wiki_recipes_to_wiki(wiki_recipes_source, wiki_path)
         
         if not copied_files:
-            print("No recipe files found to sync")
+            print("No wiki recipe files found to sync")
             return
         
         # Update wiki index
