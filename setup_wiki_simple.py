@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-GitHub Wiki Setup Script for Siege Utilities
+Simple GitHub Wiki Setup Script for Siege Utilities
 
 This script sets up a professional GitHub wiki with Siege branding,
 comprehensive documentation, and proper structure.
 
 Usage:
-    python setup_wiki.py
+    python setup_wiki_simple.py
 """
 
 import os
@@ -97,7 +97,7 @@ def create_additional_wiki_pages(wiki_dir):
     """Create additional wiki pages for completeness."""
     
     # Create Integration & APIs page
-    integration_content = r"""# 🔌 Integration & APIs
+    integration_content = """# 🔌 Integration & APIs
 
 <div align="center">
 
@@ -192,7 +192,7 @@ fb_data = fb_connector.batch_retrieve_facebook_data(
         f.write(integration_content)
     
     # Create Recipes & Examples page
-    recipes_content = r"""# 📖 Recipes & Examples
+    recipes_content = """# 📖 Recipes & Examples
 
 <div align="center">
 
@@ -397,7 +397,7 @@ while True:
         f.write(recipes_content)
     
     # Create Architecture & Development page
-    architecture_content = r"""# 🏗️ Architecture & Development
+    architecture_content = """# 🏗️ Architecture & Development
 
 <div align="center">
 
@@ -594,7 +594,7 @@ def profile_function(func, *args, **kwargs):
     stats.sort_stats('cumulative')
     stats.print_stats(10)
     
-    print(f"Execution time: {end_time - start_time:.4f} seconds")
+    print("Execution time: " + str(end_time - start_time) + " seconds")
     return result
 ```
 

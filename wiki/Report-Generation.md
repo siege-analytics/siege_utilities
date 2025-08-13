@@ -340,7 +340,7 @@ def generate_daily_report():
     report_content = create_report_content(data_sources)
     
     # Generate and save
-    report_gen.generate_pdf_report(report_content, f"daily_report_{time.strftime('%Y%m%d')}.pdf")
+    report_gen.generate_pdf_report(report_content, f"daily_report_{{time.strftime('%Y%m%d')}}.pdf")
 
 # Schedule daily generation
 schedule.every().day.at("09:00").do(generate_daily_report)
