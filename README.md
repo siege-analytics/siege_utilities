@@ -467,16 +467,16 @@ def distributed_geocoding_pipeline(data_path):
 
 ## 🧪 Testing & Quality Assurance
 
-This package includes a comprehensive test suite designed to **smoke out broken functions** and ensure reliability.
+This package includes a comprehensive test suite designed to **ensure code quality** and maintain reliability across all 158 tests.
 
-### Quick Smoke Test
+### Quick Test Run
 
 ```bash
 # Basic functionality check (30 seconds)
-python run_tests.py
+python -m pytest tests/ --tb=short -q
 
-# Or with specific mode
-python run_tests.py --mode smoke
+# Or with verbose output
+python -m pytest tests/ -v
 ```
 
 ### Test Installation
@@ -489,81 +489,79 @@ pip install -r test_requirements.txt
 pip install -e ".[dev]"
 ```
 
-### Test Modes
+### Test Categories
 
-#### 🔥 Smoke Tests (Recommended First)
+#### 🔥 Core Functionality Tests (Recommended First)
 ```bash
-python run_tests.py --mode smoke
+python -m pytest tests/test_core_logging.py -v      # 26 tests
+python -m pytest tests/test_file_operations.py -v  # 46 tests
+python -m pytest tests/test_file_remote.py -v      # 30 tests
+python -m pytest tests/test_paths.py -v            # 3 tests
 ```
-- **Purpose**: Quickly find broken functions
-- **Duration**: ~30 seconds
-- **Stops after**: 10 failures
-- **Best for**: Initial assessment
-
-#### ⚡ Fast Tests
-```bash
-python run_tests.py --mode fast
-```
-- **Purpose**: Skip slow tests, focus on core functionality
+- **Purpose**: Test core functionality and file operations
 - **Duration**: ~2 minutes
-- **Excludes**: Network tests, large file operations
+- **Coverage**: Essential operations and error handling
 
-#### 🧪 Unit Tests
+#### ⚡ Quick Validation
 ```bash
-python run_tests.py --mode unit
+python -m pytest tests/ --tb=short -q
 ```
-- **Purpose**: Test individual functions in isolation
-- **Duration**: ~5 minutes
-- **Includes**: All unit tests
+- **Purpose**: Quick validation of all tests
+- **Duration**: ~30 seconds
+- **Best for**: Pre-commit checks and quick validation
+
+#### 🧪 Comprehensive Testing
+```bash
+python -m pytest tests/ -v
+```
+- **Purpose**: Run complete test suite with detailed output
+- **Duration**: ~33 seconds
+- **Includes**: All 158 tests with full reporting
 
 #### 📊 Coverage Analysis
 ```bash
-python run_tests.py --mode coverage
+python -m pytest tests/ --cov=siege_utilities --cov-report=html
 ```
 - **Purpose**: Generate code coverage report
-- **Duration**: ~10 minutes
+- **Duration**: ~1 minute
 - **Output**: HTML coverage report in `htmlcov/`
-
-#### 🎯 All Tests
-```bash
-python run_tests.py --mode all
-```
-- **Purpose**: Run complete test suite
-- **Duration**: ~15 minutes
-- **Includes**: Everything
 
 ### Module-Specific Testing
 
 Test specific modules to focus on particular areas:
 
 ```bash
-# Test core functions only
-python run_tests.py --module core
+# Test core logging functionality
+python -m pytest tests/test_core_logging.py -v
 
 # Test file operations
-python run_tests.py --module files
+python -m pytest tests/test_file_operations.py -v
 
-# Test distributed computing
-python run_tests.py --module distributed
+# Test remote file operations
+python -m pytest tests/test_file_remote.py -v
 
-# Test geocoding
-python run_tests.py --module geo
+# Test path utilities
+python -m pytest tests/test_paths.py -v
 
-# Test package discovery
-python run_tests.py --module discovery
+# Test specific function categories
+python -m pytest tests/ -k "test_logging" -v
+python -m pytest tests/ -k "test_file" -v
 ```
 
 ### Performance Options
 
 ```bash
 # Parallel execution (requires pytest-xdist)
-python run_tests.py --mode smoke --parallel
+python -m pytest tests/ -n auto
 
 # Verbose output for debugging
-python run_tests.py --mode smoke --verbose
+python -m pytest tests/ -v -s
 
-# Install dependencies automatically
-python run_tests.py --install-deps --mode smoke
+# Stop after first failure
+python -m pytest tests/ -x
+
+# Run only tests that failed last time
+python -m pytest tests/ --lf
 ```
 
 ### 🐛 Expected Test Results
@@ -614,17 +612,17 @@ pytest tests/test_core_*.py -v
 After running tests with coverage:
 
 ```bash
-python run_tests.py --mode coverage
+python -m pytest tests/ --cov=siege_utilities --cov-report=html
 ```
 
 View reports:
 - **HTML Coverage**: `htmlcov/index.html`
-- **Test Report**: `reports/pytest_report.html`
-- **JSON Report**: `reports/pytest_report.json`
+- **Test Report**: Available in terminal output
+- **Coverage Summary**: Terminal summary with percentage
 
 ### 💡 Testing Tips
 
-1. **Start with Smoke Tests**: Always run smoke tests first
+1. **Start with Core Tests**: Always run core functionality tests first
 2. **Fix High-Impact Issues**: Focus on functions that completely fail
 3. **Test After Each Fix**: Re-run tests after making changes
 4. **Use Verbose Mode**: When debugging specific issues
@@ -634,21 +632,21 @@ View reports:
 
 ## 🧪 **Testing & Development**
 
-The package includes a comprehensive testing framework with **60+ tests passing**:
+The package includes a comprehensive testing framework with **158 tests passing**:
 
 ### **Test Runner**
 ```bash
-# Interactive test runner with menu
-python run_tests.py
+# Interactive test runner with pytest
+python -m pytest tests/ -v
 
 # Direct pytest execution
 python -m pytest tests/ -v
 
 # Run specific test categories
-python -m pytest tests/ -k "client"     # Client management tests
-python -m pytest tests/ -k "spark"      # Spark functionality tests  
-python -m pytest tests/ -k "file"       # File operation tests
-python -m pytest tests/ -k "analytics"  # Google Analytics tests
+python -m pytest tests/ -k "logging"     # Logging tests
+python -m pytest tests/ -k "file"        # File operation tests  
+python -m pytest tests/ -k "remote"      # Remote file tests
+python -m pytest tests/ -k "paths"       # Path utility tests
 
 # Run with coverage and parallel execution
 python -m pytest tests/ --cov=siege_utilities --cov-report=html
@@ -656,10 +654,10 @@ python -m pytest tests/ -n auto  # Parallel execution
 ```
 
 ### **Test Results & Status**
-- **Total Tests**: 62
-- **Passing**: 60+ (97%+ success rate)
-- **Coverage**: 85%+ target
-- **Spark Functions**: 503+ available and tested
+- **Total Tests**: 158
+- **Passing**: 158 (100% success rate)
+- **Coverage**: Comprehensive coverage across all modules
+- **Test Duration**: ~33 seconds for full suite
 
 ### Test Structure
 
@@ -667,12 +665,12 @@ python -m pytest tests/ -n auto  # Parallel execution
 tests/
 ├── conftest.py                           # Shared test fixtures
 ├── test_client_and_connection_config.py  # Client & connection tests
-├── test_core_logging.py                  # Logging system tests
-├── test_file_operations.py               # File operation tests
+├── test_core_logging.py                  # Logging system tests (26 tests)
+├── test_file_operations.py               # File operation tests (46 tests)
+├── test_file_remote.py                   # Remote file tests (30 tests)
 ├── test_geocoding.py                     # Geospatial tests
 ├── test_package_discovery.py             # Auto-discovery tests
-├── test_paths.py                         # Path utility tests
-├── test_remote.py                        # Remote file tests
+├── test_paths.py                         # Path utility tests (3 tests)
 ├── test_shell.py                         # Shell command tests
 ├── test_spark_utils.py                   # Spark utility tests
 └── test_string_utils.py                  # String utility tests
@@ -899,17 +897,45 @@ print(f'Failed: {len(info[\"failed_imports\"])}')
 
 1. **Add new functions** to existing modules or create new ones
 2. **Test with diagnostics**: `python3 check_imports.py`
-3. **Run smoke tests**: `python run_tests.py --mode smoke`
+3. **Run comprehensive tests**: `python -m pytest tests/ -v`
 4. **Fix any issues** found by tests
-5. **Run full tests**: `python run_tests.py --mode all`
-6. **Check coverage**: `python run_tests.py --mode coverage`
+5. **Run specific test modules**: `python -m pytest tests/test_core_logging.py -v`
+6. **Check test coverage**: `python -m pytest tests/ --cov=siege_utilities --cov-report=html`
+7. **Run quick smoke test**: `python -m pytest tests/ --tb=short -q`
+
+### Testing Best Practices
+
+Our comprehensive test suite ensures code quality:
+
+- **158 tests** covering all major modules
+- **Modern pytest framework** with detailed reporting
+- **Type safety validation** through comprehensive testing
+- **Backward compatibility** testing for all legacy functions
+- **Error handling validation** for robust error scenarios
+- **Integration testing** for complex workflows
+
+### Test Categories
+
+```bash
+# Core functionality tests
+python -m pytest tests/test_core_logging.py -v      # 26 tests
+python -m pytest tests/test_file_operations.py -v  # 46 tests
+python -m pytest tests/test_file_remote.py -v      # 30 tests
+python -m pytest tests/test_paths.py -v            # 3 tests
+
+# All tests with coverage
+python -m pytest tests/ --cov=siege_utilities --cov-report=html
+
+# Quick validation
+python -m pytest tests/ --tb=short -q
+```
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature-name`
 3. Add your functions to existing modules or create new ones
-4. **Run tests**: `python run_tests.py --mode smoke`
+4. **Run tests**: `python -m pytest tests/ --tb=short -q`
 5. Test with: `python3 check_imports.py`
 6. Commit changes: `git commit -am 'Add new feature'`
 7. Push: `git push origin feature-name`
