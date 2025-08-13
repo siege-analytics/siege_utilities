@@ -1,6 +1,7 @@
 """
-Spatial data transformation and database integration for siege_utilities.
-Provides functions to transform spatial data formats and integrate with PostGIS and DuckDB.
+Spatial data transformation and database integration for siege_utilities geo module.
+Provides format conversion, CRS transformation, and database operations.
+Uses existing library functions for consistency and user configuration for preferences.
 """
 
 import logging
@@ -22,6 +23,10 @@ import fiona
 import pyproj
 from pyproj import CRS, Transformer
 
+# Import existing library functions and user configuration
+from ..files.paths import ensure_path_exists
+from ..config.user_config import get_user_config, get_download_directory
+
 log = logging.getLogger(__name__)
 
 class SpatialDataTransformer:
@@ -33,6 +38,9 @@ class SpatialDataTransformer:
             'input': ['shp', 'geojson', 'gpkg', 'kml', 'gml', 'wkt', 'wkb'],
             'output': ['shp', 'geojson', 'gpkg', 'kml', 'gml', 'wkt', 'wkb', 'postgis', 'duckdb']
         }
+        
+        # Get user configuration
+        self.user_config = get_user_config()
     
     def convert_format(self, 
                       input_data: Union[str, Path, gpd.GeoDataFrame],
@@ -87,10 +95,15 @@ class SpatialDataTransformer:
                                format_type: str,
                                output_path: Optional[str],
                                **kwargs) -> str:
-        """Convert to file-based format."""
+        """Convert to file-based format using user's download directory."""
         if not output_path:
-            # Generate output path
-            output_path = f"converted_data.{format_type}"
+            # Use user's default download directory
+            download_dir = get_download_directory()
+            ensure_path_exists(download_dir)
+            output_path = download_dir / f"converted_data.{format_type}"
+        else:
+            output_path = Path(output_path)
+            ensure_path_exists(output_path.parent)
         
         try:
             if format_type == 'shp':
@@ -105,7 +118,7 @@ class SpatialDataTransformer:
                 gdf.to_file(output_path, driver='GML', **kwargs)
             
             log.info(f"Successfully converted to {format_type}: {output_path}")
-            return output_path
+            return str(output_path)
             
         except Exception as e:
             log.error(f"Failed to convert to {format_type}: {e}")
@@ -132,7 +145,7 @@ class SpatialDataTransformer:
         try:
             # Convert to WKB
             wkb_df = gdf.copy()
-            wkb_df['geometry_wkb'] = wkb_df.geometry.apply(lambda geom: geom.wkb)
+            wkb_df['geometry_wkt'] = wkt_df.geometry.apply(lambda geom: geom.wkb)
             
             # Drop geometry column
             wkb_df = wkb_df.drop(columns=['geometry'])
@@ -146,13 +159,13 @@ class SpatialDataTransformer:
     def _convert_to_postgis(self, gdf: gpd.GeoDataFrame, **kwargs) -> bool:
         """Convert to PostGIS format and upload to database."""
         try:
-            # Get database connection parameters
-            connection_string = kwargs.get('connection_string')
+            # Get database connection parameters from user config
+            connection_string = kwargs.get('connection_string') or self.user_config.get_database_connection('postgresql')
             table_name = kwargs.get('table_name', 'spatial_data')
             schema = kwargs.get('schema', 'public')
             
             if not connection_string:
-                raise ValueError("PostGIS connection string required")
+                raise ValueError("PostGIS connection string required. Set in user config or pass as parameter.")
             
             # Create SQLAlchemy engine
             engine = create_engine(connection_string)
@@ -176,8 +189,8 @@ class SpatialDataTransformer:
     def _convert_to_duckdb(self, gdf: gpd.GeoDataFrame, **kwargs) -> bool:
         """Convert to DuckDB format and save to database."""
         try:
-            # Get database parameters
-            db_path = kwargs.get('db_path', ':memory:')
+            # Get database parameters from user config or kwargs
+            db_path = kwargs.get('db_path') or self.user_config.get_database_connection('duckdb') or ':memory:'
             table_name = kwargs.get('table_name', 'spatial_data')
             
             # Connect to DuckDB
@@ -288,19 +301,26 @@ class SpatialDataTransformer:
 class PostGISConnector:
     """Handles PostGIS database connections and operations."""
     
-    def __init__(self, connection_string: str):
+    def __init__(self, connection_string: Optional[str] = None):
         """
         Initialize PostGIS connector.
         
         Args:
-            connection_string: PostgreSQL connection string
+            connection_string: PostgreSQL connection string (optional, uses user config if not provided)
         """
-        self.connection_string = connection_string
+        self.user_config = get_user_config()
+        self.connection_string = connection_string or self.user_config.get_database_connection('postgresql')
         self.engine = None
+        
+        if not self.connection_string:
+            log.warning("No PostGIS connection string configured. Use set_database_connection() to configure.")
     
     def connect(self):
         """Establish database connection."""
         try:
+            if not self.connection_string:
+                raise ValueError("No connection string configured")
+            
             self.engine = create_engine(self.connection_string)
             log.info("Successfully connected to PostGIS")
             return True
@@ -416,14 +436,15 @@ class PostGISConnector:
 class DuckDBConnector:
     """Handles DuckDB database connections and operations."""
     
-    def __init__(self, db_path: str = ':memory:'):
+    def __init__(self, db_path: Optional[str] = None):
         """
         Initialize DuckDB connector.
         
         Args:
-            db_path: Path to DuckDB database file
+            db_path: Path to DuckDB database file (optional, uses user config if not provided)
         """
-        self.db_path = db_path
+        self.user_config = get_user_config()
+        self.db_path = db_path or self.user_config.get_database_connection('duckdb') or ':memory:'
         self.connection = None
     
     def connect(self):

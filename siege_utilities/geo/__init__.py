@@ -88,4 +88,15 @@ for filename in os.listdir(package_dir):
         new_names = import_module_with_fallbacks(module_name, full_module_name)
         __all__.extend(new_names)
 
+# Add spatial functions to __all__ for backward compatibility
+__all__.extend([
+    'get_census_data',
+    'get_census_boundaries', 
+    'download_osm_data',
+    'convert_spatial_format',
+    'transform_spatial_crs',
+    'simplify_spatial_geometries',
+    'buffer_spatial_geometries'
+])
+
 log_info(f"{__name__}: Imported {len(__all__)} functions")

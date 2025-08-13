@@ -1,4 +1,6 @@
-# Spatial data utilities requirements for siege_utilities
+# Geo module requirements for siege_utilities
+# Includes both geocoding and spatial data functionality
+
 # Core spatial libraries
 geopandas>=0.12.0
 shapely>=1.8.0
@@ -19,6 +21,9 @@ requests>=2.28.0
 
 # YAML configuration
 pyyaml>=6.0
+
+# Geocoding (existing functionality)
+geopy>=2.3.0
 
 # Optional: Additional spatial libraries
 # folium>=0.12.0  # For interactive maps

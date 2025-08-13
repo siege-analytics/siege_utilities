@@ -24,15 +24,15 @@ from siege_utilities import (
     # User configuration
     get_user_config, get_download_directory,
     
-    # Spatial data sources
-    get_census_data, get_census_boundaries, download_osm_data,
-    
-    # Spatial transformations
-    convert_spatial_format, transform_spatial_crs,
-    simplify_spatial_geometries, buffer_spatial_geometries,
-    
     # Page templates and chart types
     get_template_manager, get_chart_registry
+)
+
+# Import spatial functions from geo module
+from siege_utilities.geo import (
+    get_census_data, get_census_boundaries, download_osm_data,
+    convert_spatial_format, transform_spatial_crs,
+    simplify_spatial_geometries, buffer_spatial_geometries
 )
 
 # Configure logging

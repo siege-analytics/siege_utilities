@@ -1,21 +1,25 @@
 """
-Spatial data sources and download functions for siege_utilities.
-Provides access to Census, government, and other spatial data sources.
+Spatial data sources and utilities for siege_utilities geo module.
+Consolidates spatial data access, transformations, and database integration.
+Uses existing library functions for file operations and consistency.
 """
 
 import logging
-import requests
 import pandas as pd
 import geopandas as gpd
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
 import json
-import zipfile
 import tempfile
 import os
 from urllib.parse import urljoin, urlparse
 import time
 from datetime import datetime, timedelta
+
+# Import existing library functions
+from ..files.remote import download_file, generate_local_path_from_url
+from ..files.paths import unzip_file_to_its_own_directory, ensure_path_exists
+from ..config.user_config import get_user_config, get_download_directory
 
 log = logging.getLogger(__name__)
 
@@ -34,10 +38,9 @@ class SpatialDataSource:
         self.name = name
         self.base_url = base_url
         self.api_key = api_key
-        self.session = requests.Session()
         
-        if api_key:
-            self.session.headers.update({'Authorization': f'Bearer {api_key}'})
+        # Get user configuration for API keys and preferences
+        self.user_config = get_user_config()
     
     def download_data(self, **kwargs) -> Optional[gpd.GeoDataFrame]:
         """
@@ -52,7 +55,7 @@ class SpatialDataSource:
         raise NotImplementedError("Subclasses must implement download_data")
 
 class CensusDataSource(SpatialDataSource):
-    """Census Bureau spatial data source."""
+    """Census Bureau spatial data source using existing library functions."""
     
     def __init__(self, api_key: Optional[str] = None):
         """
@@ -64,7 +67,7 @@ class CensusDataSource(SpatialDataSource):
         super().__init__(
             name="Census Bureau",
             base_url="https://api.census.gov/data",
-            api_key=api_key
+            api_key=api_key or self.user_config.get_api_key('census')
         )
         
         # Census geographic levels
@@ -137,7 +140,7 @@ class CensusDataSource(SpatialDataSource):
                 log.error(f"Unsupported geographic level: {geographic_level}")
                 return None
             
-            # Download and process
+            # Download and process using existing library functions
             return self._download_and_process_tiger(url, geographic_level)
             
         except Exception as e:
@@ -145,38 +148,51 @@ class CensusDataSource(SpatialDataSource):
             return None
     
     def _download_and_process_tiger(self, url: str, geographic_level: str) -> Optional[gpd.GeoDataFrame]:
-        """Download and process TIGER/Line shapefile."""
+        """Download and process TIGER/Line shapefile using existing library functions."""
         try:
-            # Download zip file
-            response = self.session.get(url)
-            response.raise_for_status()
+            # Get user's download directory
+            download_dir = get_download_directory()
+            ensure_path_exists(download_dir)
             
-            # Create temporary directory
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_path = Path(temp_dir)
-                zip_path = temp_path / "data.zip"
-                
-                # Save zip file
-                with open(zip_path, 'wb') as f:
-                    f.write(response.content)
-                
-                # Extract zip file
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                    zip_ref.extractall(temp_path)
-                
-                # Find shapefile
-                shp_files = list(temp_path.glob("*.shp"))
-                if not shp_files:
-                    log.error("No shapefile found in downloaded data")
-                    return None
-                
-                # Read shapefile
-                gdf = gpd.read_file(shp_files[0])
-                
-                # Standardize column names
-                gdf = self._standardize_census_columns(gdf, geographic_level)
-                
-                return gdf
+            # Generate local path using existing function
+            zip_filename = generate_local_path_from_url(url, download_dir)
+            if not zip_filename:
+                log.error("Failed to generate local path for download")
+                return None
+            
+            # Download file using existing function
+            download_success = download_file(url, zip_filename)
+            if not download_success:
+                log.error("Failed to download TIGER/Line data")
+                return None
+            
+            # Unzip using existing function
+            unzip_dir = unzip_file_to_its_own_directory(Path(zip_filename))
+            if not unzip_dir:
+                log.error("Failed to unzip TIGER/Line data")
+                return None
+            
+            # Find shapefile
+            shp_files = list(Path(unzip_dir).glob("*.shp"))
+            if not shp_files:
+                log.error("No shapefile found in downloaded data")
+                return None
+            
+            # Read shapefile
+            gdf = gpd.read_file(shp_files[0])
+            
+            # Standardize column names
+            gdf = self._standardize_census_columns(gdf, geographic_level)
+            
+            # Clean up temporary files
+            try:
+                os.remove(zip_filename)
+                import shutil
+                shutil.rmtree(unzip_dir)
+            except Exception as cleanup_error:
+                log.warning(f"Failed to cleanup temporary files: {cleanup_error}")
+            
+            return gdf
                 
         except Exception as e:
             log.error(f"Failed to process TIGER/Line data: {e}")
@@ -255,7 +271,8 @@ class CensusDataSource(SpatialDataSource):
                 params['in'] = f'state:{state_fips}&county:{county_fips}'
             
             # Make request
-            response = self.session.get(url, params=params)
+            import requests
+            response = requests.get(url, params=params)
             response.raise_for_status()
             
             # Parse response
@@ -309,7 +326,7 @@ class CensusDataSource(SpatialDataSource):
         return df
 
 class GovernmentDataSource(SpatialDataSource):
-    """Government spatial data sources."""
+    """Government spatial data sources using existing library functions."""
     
     def __init__(self):
         """Initialize government data source."""
@@ -326,35 +343,9 @@ class GovernmentDataSource(SpatialDataSource):
             'epa': 'https://www.epa.gov/environmental-geospatial-data'
         }
     
-    def search_datasets(self, 
-                       query: str,
-                       source: str = 'data_gov',
-                       category: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
-        Search for government datasets.
-        
-        Args:
-            query: Search query
-            source: Data source to search
-            category: Category filter
-            
-        Returns:
-            List of dataset information
-        """
-        try:
-            # This is a simplified search - in practice, you'd use the actual APIs
-            log.info(f"Searching {source} for: {query}")
-            
-            # Placeholder for actual search implementation
-            return []
-            
-        except Exception as e:
-            log.error(f"Failed to search datasets: {e}")
-            return []
-    
     def download_dataset(self, dataset_url: str) -> Optional[gpd.GeoDataFrame]:
         """
-        Download a government dataset.
+        Download a government dataset using existing library functions.
         
         Args:
             dataset_url: URL to the dataset
@@ -363,13 +354,17 @@ class GovernmentDataSource(SpatialDataSource):
             GeoDataFrame with spatial data
         """
         try:
+            # Get user's download directory
+            download_dir = get_download_directory()
+            ensure_path_exists(download_dir)
+            
             # Download dataset based on URL type
             if dataset_url.endswith('.zip'):
-                return self._download_zip_dataset(dataset_url)
+                return self._download_zip_dataset(dataset_url, download_dir)
             elif dataset_url.endswith('.shp'):
-                return self._download_shapefile(dataset_url)
+                return self._download_shapefile(dataset_url, download_dir)
             elif dataset_url.endswith('.geojson'):
-                return self._download_geojson(dataset_url)
+                return self._download_geojson(dataset_url, download_dir)
             else:
                 log.warning(f"Unsupported file format: {dataset_url}")
                 return None
@@ -378,50 +373,110 @@ class GovernmentDataSource(SpatialDataSource):
             log.error(f"Failed to download dataset: {e}")
             return None
     
-    def _download_zip_dataset(self, url: str) -> Optional[gpd.GeoDataFrame]:
-        """Download and extract zip dataset."""
+    def _download_zip_dataset(self, url: str, download_dir: Path) -> Optional[gpd.GeoDataFrame]:
+        """Download and extract zip dataset using existing library functions."""
         try:
-            response = self.session.get(url)
-            response.raise_for_status()
+            # Generate local path
+            zip_filename = generate_local_path_from_url(url, download_dir)
+            if not zip_filename:
+                log.error("Failed to generate local path for download")
+                return None
             
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_path = Path(temp_dir)
-                zip_path = temp_path / "dataset.zip"
-                
-                with open(zip_path, 'wb') as f:
-                    f.write(response.content)
-                
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                    zip_ref.extractall(temp_path)
-                
-                # Find spatial files
-                shp_files = list(temp_path.glob("*.shp"))
-                geojson_files = list(temp_path.glob("*.geojson"))
-                
-                if shp_files:
-                    return gpd.read_file(shp_files[0])
-                elif geojson_files:
-                    return gpd.read_file(geojson_files[0])
-                else:
-                    log.error("No spatial files found in zip")
-                    return None
+            # Download file
+            download_success = download_file(url, zip_filename)
+            if not download_success:
+                log.error("Failed to download dataset")
+                return None
+            
+            # Unzip using existing function
+            unzip_dir = unzip_file_to_its_own_directory(Path(zip_filename))
+            if not unzip_dir:
+                log.error("Failed to unzip dataset")
+                return None
+            
+            # Find spatial files
+            shp_files = list(Path(unzip_dir).glob("*.shp"))
+            geojson_files = list(Path(unzip_dir).glob("*.geojson"))
+            
+            result = None
+            if shp_files:
+                result = gpd.read_file(shp_files[0])
+            elif geojson_files:
+                result = gpd.read_file(geojson_files[0])
+            else:
+                log.error("No spatial files found in zip")
+                return None
+            
+            # Clean up temporary files
+            try:
+                os.remove(zip_filename)
+                import shutil
+                shutil.rmtree(unzip_dir)
+            except Exception as cleanup_error:
+                log.warning(f"Failed to cleanup temporary files: {cleanup_error}")
+            
+            return result
                     
         except Exception as e:
             log.error(f"Failed to download zip dataset: {e}")
             return None
     
-    def _download_shapefile(self, url: str) -> Optional[gpd.GeoDataFrame]:
-        """Download shapefile directly."""
+    def _download_shapefile(self, url: str, download_dir: Path) -> Optional[gpd.GeoDataFrame]:
+        """Download shapefile directly using existing library functions."""
         try:
-            return gpd.read_file(url)
+            # Generate local path
+            filename = generate_local_path_from_url(url, download_dir)
+            if not filename:
+                log.error("Failed to generate local path for download")
+                return None
+            
+            # Download file
+            download_success = download_file(url, filename)
+            if not download_success:
+                log.error("Failed to download shapefile")
+                return None
+            
+            # Read and return
+            result = gpd.read_file(filename)
+            
+            # Clean up
+            try:
+                os.remove(filename)
+            except Exception as cleanup_error:
+                log.warning(f"Failed to cleanup temporary file: {cleanup_error}")
+            
+            return result
+            
         except Exception as e:
             log.error(f"Failed to download shapefile: {e}")
             return None
     
-    def _download_geojson(self, url: str) -> Optional[gpd.GeoDataFrame]:
-        """Download GeoJSON directly."""
+    def _download_geojson(self, url: str, download_dir: Path) -> Optional[gpd.GeoDataFrame]:
+        """Download GeoJSON directly using existing library functions."""
         try:
-            return gpd.read_file(url)
+            # Generate local path
+            filename = generate_local_path_from_url(url, download_dir)
+            if not filename:
+                log.error("Failed to generate local path for download")
+                return None
+            
+            # Download file
+            download_success = download_file(url, filename)
+            if not download_success:
+                log.error("Failed to download GeoJSON")
+                return None
+            
+            # Read and return
+            result = gpd.read_file(filename)
+            
+            # Clean up
+            try:
+                os.remove(filename)
+            except Exception as cleanup_error:
+                log.warning(f"Failed to cleanup temporary file: {cleanup_error}")
+            
+            return result
+            
         except Exception as e:
             log.error(f"Failed to download GeoJSON: {e}")
             return None
@@ -458,7 +513,8 @@ class OpenStreetMapDataSource(SpatialDataSource):
                 full_query = f"[out:json][timeout:25];{query};out geom;"
             
             # Make request
-            response = self.session.post(
+            import requests
+            response = requests.post(
                 f"{self.base_url}/interpreter",
                 data={'data': full_query}
             )

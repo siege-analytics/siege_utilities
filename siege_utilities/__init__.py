@@ -84,15 +84,8 @@ from .files.shell import (
 # Import geo utilities
 from .geo.geocoding import concatenate_addresses, use_nominatim_geocoder
 
-# Import spatial utilities
-from .spatial import (
-    CensusDataSource, GovernmentDataSource, OpenStreetMapDataSource,
-    census_source, government_source, osm_source,
-    get_census_data, get_census_boundaries, download_osm_data,
-    SpatialDataTransformer, PostGISConnector, DuckDBConnector,
-    spatial_transformer, convert_spatial_format, transform_spatial_crs,
-    simplify_spatial_geometries, buffer_spatial_geometries
-)
+# Spatial utilities are now consolidated in the geo module
+# All spatial functions are available through the geo module
 
 # Import user configuration
 from .config.user_config import (
@@ -153,13 +146,12 @@ def get_package_info() -> Dict[str, Any]:
         'available_functions': [],
         'available_modules': [],
         'failed_imports': {},
-        'subpackages': ['core', 'files', 'distributed', 'geo', 'spatial', 'config', 'hygiene', 'testing'],
+        'subpackages': ['core', 'files', 'distributed', 'geo', 'config', 'hygiene', 'testing'],
         'categories': {
             'core': [],
             'files': [],
             'distributed': [],
             'geo': [],
-            'spatial': [],
             'config': [],
             'hygiene': [],
             'testing': []
@@ -219,7 +211,7 @@ def get_package_info() -> Dict[str, Any]:
         'concatenate_addresses', 'use_nominatim_geocoder'
     ]
     
-    # Spatial functions
+    # Spatial functions (now part of geo module)
     spatial_functions = [
         'get_census_data', 'get_census_boundaries', 'download_osm_data',
         'convert_spatial_format', 'transform_spatial_crs',
@@ -242,8 +234,7 @@ def get_package_info() -> Dict[str, Any]:
         'files': file_functions,
         'distributed': distributed_functions,
         'config': config_functions,
-        'geo': geo_functions,
-        'spatial': spatial_functions,
+        'geo': geo_functions + spatial_functions,  # Include spatial functions in geo category
         'hygiene': hygiene_functions,
         'testing': testing_functions
     }
@@ -260,7 +251,7 @@ def get_package_info() -> Dict[str, Any]:
         'core.logging', 'core.string_utils',
         'files.operations', 'files.hashing', 'files.paths', 'files.remote', 'files.shell',
         'distributed.spark_utils', 'distributed.hdfs_config', 'distributed.hdfs_operations',
-        'geo.geocoding', 'spatial.data_sources', 'spatial.data_transformation',
+        'geo.geocoding', 'geo.spatial_data', 'geo.spatial_transformations',
         'config.databases', 'config.projects', 'config.directories', 'config.user_config',
         'hygiene.generate_docstrings'
     ]
