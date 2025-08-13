@@ -1,7 +1,6 @@
 """
-Spatial data sources and utilities for siege_utilities geo module.
-Consolidates spatial data access, transformations, and database integration.
-Uses existing library functions for file operations and consistency.
+Modern spatial data sources for siege_utilities.
+Provides clean, type-safe access to Census, Government, and OpenStreetMap data.
 """
 
 import logging
@@ -18,10 +17,15 @@ from datetime import datetime, timedelta
 
 # Import existing library functions
 from ..files.remote import download_file, generate_local_path_from_url
-from ..files.paths import unzip_file_to_its_own_directory, ensure_path_exists
+from ..files.paths import unzip_file_to_directory, ensure_path_exists
 from ..config.user_config import get_user_config, get_download_directory
 
+# Get logger for this module
 log = logging.getLogger(__name__)
+
+# Type aliases
+FilePath = Union[str, Path]
+GeoDataFrame = gpd.GeoDataFrame
 
 class SpatialDataSource:
     """Base class for spatial data sources."""
@@ -40,9 +44,13 @@ class SpatialDataSource:
         self.api_key = api_key
         
         # Get user configuration for API keys and preferences
-        self.user_config = get_user_config()
+        try:
+            self.user_config = get_user_config()
+        except Exception as e:
+            log.warning(f"Failed to load user config: {e}")
+            self.user_config = None
     
-    def download_data(self, **kwargs) -> Optional[gpd.GeoDataFrame]:
+    def download_data(self, **kwargs) -> Optional[GeoDataFrame]:
         """
         Download spatial data from the source.
         
@@ -67,10 +75,10 @@ class CensusDataSource(SpatialDataSource):
         super().__init__(
             name="Census Bureau",
             base_url="https://api.census.gov/data",
-            api_key=api_key or self.user_config.get_api_key('census')
+            api_key=api_key
         )
         
-        # Census geographic levels
+        # Census geographic levels with FIPS codes
         self.geographic_levels = {
             'nation': '010',
             'state': '040',
@@ -82,74 +90,97 @@ class CensusDataSource(SpatialDataSource):
             'zcta': '860'
         }
         
-        # Available years
+        # Available years for TIGER/Line files
         self.available_years = list(range(2010, datetime.now().year + 1))
+        
+        # TIGER/Line file structure
+        self.tiger_file_structure = {
+            'nation': 'ADDRFEAT/tl_{year}_us_addrfeat.zip',
+            'state': 'STATE/tl_{year}_us_state.zip',
+            'county': 'COUNTY/tl_{year}_us_county.zip',
+            'tract': 'TRACT/tl_{year}_{state_fips}_tract.zip',
+            'block_group': 'BG/tl_{year}_{state_fips}_bg.zip',
+            'block': 'TABBLOCK/tl_{year}_{state_fips}_tabblock.zip',
+            'place': 'PLACE/tl_{year}_us_place.zip',
+            'zcta': 'ZCTA5/tl_{year}_us_zcta510.zip'
+        }
     
     def get_geographic_boundaries(self, 
                                 year: int = 2020,
                                 geographic_level: str = 'county',
                                 state_fips: Optional[str] = None,
-                                county_fips: Optional[str] = None) -> Optional[gpd.GeoDataFrame]:
+                                county_fips: Optional[str] = None) -> Optional[GeoDataFrame]:
         """
         Download geographic boundaries from Census TIGER/Line files.
         
         Args:
             year: Census year (2010-2023)
             geographic_level: Geographic level (nation, state, county, tract, etc.)
-            state_fips: State FIPS code for filtering
+            state_fips: State FIPS code for filtering (required for tract/block levels)
             county_fips: County FIPS code for filtering
             
         Returns:
-            GeoDataFrame with boundaries
+            GeoDataFrame with boundaries or None if failed
+            
+        Raises:
+            ValueError: If invalid parameters are provided
         """
         try:
-            # Validate year
-            if year not in self.available_years:
-                log.error(f"Year {year} not available. Available years: {self.available_years}")
-                return None
-            
-            # Validate geographic level
-            if geographic_level not in self.geographic_levels:
-                log.error(f"Invalid geographic level: {geographic_level}")
-                return None
+            # Validate parameters
+            self._validate_census_parameters(year, geographic_level, state_fips)
             
             # Construct TIGER/Line URL
-            tiger_url = f"https://www2.census.gov/geo/tiger/TIGER{year}"
-            
-            if geographic_level == 'nation':
-                url = f"{tiger_url}/ADDRFEAT/tl_{year}_us_addrfeat.zip"
-            elif geographic_level == 'state':
-                url = f"{tiger_url}/STATE/tl_{year}_us_state.zip"
-            elif geographic_level == 'county':
-                url = f"{tiger_url}/COUNTY/tl_{year}_us_county.zip"
-            elif geographic_level == 'tract':
-                if not state_fips:
-                    log.error("State FIPS required for tract-level data")
-                    return None
-                url = f"{tiger_url}/TRACT/tl_{year}_{state_fips}_tract.zip"
-            elif geographic_level == 'block_group':
-                if not state_fips:
-                    log.error("State FIPS required for block group-level data")
-                    return None
-                url = f"{tiger_url}/BG/tl_{year}_{state_fips}_bg.zip"
-            elif geographic_level == 'place':
-                url = f"{tiger_url}/PLACE/tl_{year}_us_place.zip"
-            elif geographic_level == 'zcta':
-                url = f"{tiger_url}/ZCTA5/tl_{year}_us_zcta510.zip"
-            else:
-                log.error(f"Unsupported geographic level: {geographic_level}")
+            url = self._construct_tiger_url(year, geographic_level, state_fips)
+            if not url:
                 return None
             
             # Download and process using existing library functions
             return self._download_and_process_tiger(url, geographic_level)
             
+        except ValueError as e:
+            log.error(f"Invalid parameters: {e}")
+            return None
         except Exception as e:
             log.error(f"Failed to download Census boundaries: {e}")
             return None
     
-    def _download_and_process_tiger(self, url: str, geographic_level: str) -> Optional[gpd.GeoDataFrame]:
+    def _validate_census_parameters(self, year: int, geographic_level: str, 
+                                  state_fips: Optional[str]) -> None:
+        """Validate Census API parameters."""
+        if year not in self.available_years:
+            raise ValueError(f"Year {year} not available. Available years: {self.available_years}")
+        
+        if geographic_level not in self.geographic_levels:
+            raise ValueError(f"Invalid geographic level: {geographic_level}")
+        
+        # Check if state FIPS is required
+        if geographic_level in ['tract', 'block_group', 'block'] and not state_fips:
+            raise ValueError(f"State FIPS required for {geographic_level}-level data")
+    
+    def _construct_tiger_url(self, year: int, geographic_level: str, 
+                            state_fips: Optional[str]) -> Optional[str]:
+        """Construct TIGER/Line download URL."""
+        try:
+            base_url = f"https://www2.census.gov/geo/tiger/TIGER{year}"
+            
+            if geographic_level in ['tract', 'block_group', 'block']:
+                # These levels require state FIPS
+                template = self.tiger_file_structure[geographic_level]
+                return f"{base_url}/{template.format(year=year, state_fips=state_fips)}"
+            else:
+                # Nation, state, county, place, zcta levels
+                template = self.tiger_file_structure[geographic_level]
+                return f"{base_url}/{template.format(year=year)}"
+                
+        except KeyError:
+            log.error(f"Unsupported geographic level: {geographic_level}")
+            return None
+    
+    def _download_and_process_tiger(self, url: str, geographic_level: str) -> Optional[GeoDataFrame]:
         """Download and process TIGER/Line shapefile using existing library functions."""
         try:
+            log.info(f"Downloading TIGER/Line data from: {url}")
+            
             # Get user's download directory
             download_dir = get_download_directory()
             ensure_path_exists(download_dir)
@@ -167,7 +198,7 @@ class CensusDataSource(SpatialDataSource):
                 return None
             
             # Unzip using existing function
-            unzip_dir = unzip_file_to_its_own_directory(Path(zip_filename))
+            unzip_dir = unzip_file_to_directory(Path(zip_filename))
             if not unzip_dir:
                 log.error("Failed to unzip TIGER/Line data")
                 return None
@@ -179,431 +210,291 @@ class CensusDataSource(SpatialDataSource):
                 return None
             
             # Read shapefile
+            log.info(f"Reading shapefile: {shp_files[0]}")
             gdf = gpd.read_file(shp_files[0])
             
             # Standardize column names
             gdf = self._standardize_census_columns(gdf, geographic_level)
             
             # Clean up temporary files
-            try:
-                os.remove(zip_filename)
-                import shutil
-                shutil.rmtree(unzip_dir)
-            except Exception as cleanup_error:
-                log.warning(f"Failed to cleanup temporary files: {cleanup_error}")
+            self._cleanup_temp_files(zip_filename, unzip_dir)
             
+            log.info(f"Successfully processed {len(gdf)} features from {geographic_level} data")
             return gdf
                 
         except Exception as e:
             log.error(f"Failed to process TIGER/Line data: {e}")
             return None
     
-    def _standardize_census_columns(self, gdf: gpd.GeoDataFrame, geographic_level: str) -> gpd.GeoDataFrame:
-        """Standardize Census column names."""
-        # Common column mappings
-        column_mappings = {
-            'GEOID': 'geoid',
-            'NAME': 'name',
-            'ALAND': 'land_area',
-            'AWATER': 'water_area',
-            'STATEFP': 'state_fips',
-            'COUNTYFP': 'county_fips',
-            'TRACTCE': 'tract_code',
-            'BLKGRPCE': 'block_group_code',
-            'PLACEFP': 'place_fips',
-            'ZCTA5CE10': 'zcta_code'
-        }
-        
-        # Rename columns
-        for old_name, new_name in column_mappings.items():
-            if old_name in gdf.columns:
-                gdf = gdf.rename(columns={old_name: new_name})
-        
-        # Add metadata
-        gdf.attrs['source'] = 'Census Bureau TIGER/Line'
-        gdf.attrs['geographic_level'] = geographic_level
-        gdf.attrs['download_date'] = datetime.now().isoformat()
-        
-        return gdf
-    
-    def get_census_data(self, 
-                        year: int = 2020,
-                        dataset: str = 'acs/acs5',
-                        variables: List[str] = None,
-                        geographic_level: str = 'county',
-                        state_fips: Optional[str] = None,
-                        county_fips: Optional[str] = None) -> Optional[pd.DataFrame]:
-        """
-        Download Census demographic data.
-        
-        Args:
-            year: Census year
-            dataset: Dataset name (e.g., 'acs/acs5', 'dec/pl')
-            variables: List of variable codes to download
-            geographic_level: Geographic level
-            state_fips: State FIPS code
-            county_fips: County FIPS code
-            
-        Returns:
-            DataFrame with Census data
-        """
+    def _standardize_census_columns(self, gdf: GeoDataFrame, geographic_level: str) -> GeoDataFrame:
+        """Standardize column names for consistency across geographic levels."""
         try:
-            if not self.api_key:
-                log.warning("No API key provided. Census API has rate limits without key.")
+            # Create a copy to avoid modifying the original
+            standardized = gdf.copy()
             
-            # Default variables if none specified
-            if not variables:
-                variables = ['B01003_001E']  # Total population
-            
-            # Construct API URL
-            url = f"{self.base_url}/{year}/{dataset}"
-            
-            # Geographic parameters
-            params = {
-                'get': ','.join(variables),
-                'for': geographic_level,
-                'key': self.api_key
+            # Common column mappings
+            column_mappings = {
+                'GEOID': 'geoid',
+                'NAME': 'name',
+                'ALAND': 'aland',
+                'AWATER': 'awater',
+                'INTPTLAT': 'latitude',
+                'INTPTLON': 'longitude'
             }
             
-            if state_fips:
-                params['in'] = f'state:{state_fips}'
-            if county_fips:
-                params['in'] = f'state:{state_fips}&county:{county_fips}'
+            # Apply mappings
+            for old_name, new_name in column_mappings.items():
+                if old_name in standardized.columns:
+                    standardized = standardized.rename(columns={old_name: new_name})
             
-            # Make request
-            import requests
-            response = requests.get(url, params=params)
-            response.raise_for_status()
+            # Add metadata
+            standardized.attrs['source'] = 'Census Bureau TIGER/Line'
+            standardized.attrs['geographic_level'] = geographic_level
+            standardized.attrs['processed_at'] = datetime.now().isoformat()
             
-            # Parse response
-            data = response.json()
-            if not data:
-                log.error("No data returned from Census API")
-                return None
-            
-            # Convert to DataFrame
-            df = pd.DataFrame(data[1:], columns=data[0])
-            
-            # Standardize column names
-            df = self._standardize_census_data_columns(df, variables)
-            
-            return df
+            return standardized
             
         except Exception as e:
-            log.error(f"Failed to download Census data: {e}")
-            return None
+            log.warning(f"Failed to standardize columns: {e}")
+            return gdf
     
-    def _standardize_census_data_columns(self, df: pd.DataFrame, variables: List[str]) -> pd.DataFrame:
-        """Standardize Census data column names."""
-        # Variable name mappings
-        variable_names = {
-            'B01003_001E': 'total_population',
-            'B19013_001E': 'median_household_income',
-            'B25077_001E': 'median_home_value',
-            'B08303_001E': 'commute_time',
-            'B15003_001E': 'educational_attainment'
-        }
-        
-        # Rename variable columns
-        for var in variables:
-            if var in df.columns and var in variable_names:
-                df = df.rename(columns={var: variable_names[var]})
-        
-        # Standardize geographic columns
-        geographic_mappings = {
-            'state': 'state_fips',
-            'county': 'county_fips',
-            'tract': 'tract_code',
-            'block group': 'block_group_code',
-            'place': 'place_fips',
-            'zcta': 'zcta_code'
-        }
-        
-        for old_name, new_name in geographic_mappings.items():
-            if old_name in df.columns:
-                df = df.rename(columns={old_name: new_name})
-        
-        return df
+    def _cleanup_temp_files(self, zip_filename: str, unzip_dir: Path) -> None:
+        """Clean up temporary downloaded and extracted files."""
+        try:
+            # Remove zip file
+            if os.path.exists(zip_filename):
+                os.remove(zip_filename)
+                log.debug(f"Removed temporary zip file: {zip_filename}")
+            
+            # Remove extracted directory
+            if unzip_dir.exists():
+                import shutil
+                shutil.rmtree(unzip_dir)
+                log.debug(f"Removed temporary directory: {unzip_dir}")
+                
+        except Exception as e:
+            log.warning(f"Failed to cleanup temporary files: {e}")
 
 class GovernmentDataSource(SpatialDataSource):
-    """Government spatial data sources using existing library functions."""
+    """Government data portal spatial data source."""
     
-    def __init__(self):
-        """Initialize government data source."""
-        super().__init__(
-            name="Government Sources",
-            base_url="https://data.gov"
-        )
-        
-        # Government data catalogs
-        self.data_catalogs = {
-            'data_gov': 'https://catalog.data.gov/dataset',
-            'usgs': 'https://www.usgs.gov/programs/national-geospatial-program/national-map',
-            'noaa': 'https://www.ngdc.noaa.gov/',
-            'epa': 'https://www.epa.gov/environmental-geospatial-data'
-        }
-    
-    def download_dataset(self, dataset_url: str) -> Optional[gpd.GeoDataFrame]:
+    def __init__(self, portal_url: str, api_key: Optional[str] = None):
         """
-        Download a government dataset using existing library functions.
+        Initialize government data source.
         
         Args:
-            dataset_url: URL to the dataset
+            portal_url: Base URL for the government data portal
+            api_key: API key if required
+        """
+        super().__init__(
+            name="Government Data Portal",
+            base_url=portal_url,
+            api_key=api_key
+        )
+    
+    def download_dataset(self, dataset_id: str, format_type: str = 'geojson') -> Optional[GeoDataFrame]:
+        """
+        Download a dataset from the government data portal.
+        
+        Args:
+            dataset_id: Unique identifier for the dataset
+            format_type: Preferred format (geojson, shapefile, kml)
             
         Returns:
-            GeoDataFrame with spatial data
+            GeoDataFrame with spatial data or None if failed
         """
+        try:
+            # Construct download URL
+            download_url = f"{self.base_url}/api/3/action/package_show?id={dataset_id}"
+            
+            # Get dataset metadata
+            metadata = self._get_dataset_metadata(download_url)
+            if not metadata:
+                return None
+            
+            # Find best format
+            resource_url = self._find_best_format(metadata, format_type)
+            if not resource_url:
+                return None
+            
+            # Download and process
+            return self._download_and_process_dataset(resource_url, format_type)
+            
+        except Exception as e:
+            log.error(f"Failed to download dataset {dataset_id}: {e}")
+            return None
+    
+    def _get_dataset_metadata(self, url: str) -> Optional[Dict[str, Any]]:
+        """Get dataset metadata from the portal."""
+        try:
+            import requests
+            
+            response = requests.get(url, timeout=30)
+            if response.ok:
+                data = response.json()
+                return data.get('result', {})
+            else:
+                log.error(f"Failed to get metadata: HTTP {response.status_code}")
+                return None
+                
+        except Exception as e:
+            log.error(f"Error getting dataset metadata: {e}")
+            return None
+    
+    def _find_best_format(self, metadata: Dict[str, Any], preferred_format: str) -> Optional[str]:
+        """Find the best available format for download."""
+        try:
+            resources = metadata.get('resources', [])
+            
+            # Look for preferred format first
+            for resource in resources:
+                if resource.get('format', '').lower() == preferred_format.lower():
+                    return resource.get('url')
+            
+            # Fall back to any available format
+            for resource in resources:
+                if resource.get('url'):
+                    return resource.get('url')
+            
+            return None
+            
+        except Exception as e:
+            log.error(f"Error finding format: {e}")
+            return None
+    
+    def _download_and_process_dataset(self, url: str, format_type: str) -> Optional[GeoDataFrame]:
+        """Download and process the dataset."""
         try:
             # Get user's download directory
             download_dir = get_download_directory()
             ensure_path_exists(download_dir)
             
-            # Download dataset based on URL type
-            if dataset_url.endswith('.zip'):
-                return self._download_zip_dataset(dataset_url, download_dir)
-            elif dataset_url.endswith('.shp'):
-                return self._download_shapefile(dataset_url, download_dir)
-            elif dataset_url.endswith('.geojson'):
-                return self._download_geojson(dataset_url, download_dir)
-            else:
-                log.warning(f"Unsupported file format: {dataset_url}")
-                return None
-                
-        except Exception as e:
-            log.error(f"Failed to download dataset: {e}")
-            return None
-    
-    def _download_zip_dataset(self, url: str, download_dir: Path) -> Optional[gpd.GeoDataFrame]:
-        """Download and extract zip dataset using existing library functions."""
-        try:
             # Generate local path
-            zip_filename = generate_local_path_from_url(url, download_dir)
-            if not zip_filename:
-                log.error("Failed to generate local path for download")
+            local_filename = generate_local_path_from_url(url, download_dir)
+            if not local_filename:
                 return None
             
             # Download file
-            download_success = download_file(url, zip_filename)
+            download_success = download_file(url, local_filename)
             if not download_success:
-                log.error("Failed to download dataset")
                 return None
             
-            # Unzip using existing function
-            unzip_dir = unzip_file_to_its_own_directory(Path(zip_filename))
-            if not unzip_dir:
-                log.error("Failed to unzip dataset")
-                return None
-            
-            # Find spatial files
-            shp_files = list(Path(unzip_dir).glob("*.shp"))
-            geojson_files = list(Path(unzip_dir).glob("*.geojson"))
-            
-            result = None
-            if shp_files:
-                result = gpd.read_file(shp_files[0])
-            elif geojson_files:
-                result = gpd.read_file(geojson_files[0])
+            # Process based on format
+            if format_type.lower() == 'geojson':
+                gdf = gpd.read_file(local_filename)
+            elif format_type.lower() == 'shapefile':
+                # Handle zip files
+                if str(local_filename).endswith('.zip'):
+                    unzip_dir = unzip_file_to_directory(Path(local_filename))
+                    if unzip_dir:
+                        shp_files = list(unzip_dir.glob("*.shp"))
+                        if shp_files:
+                            gdf = gpd.read_file(shp_files[0])
+                        else:
+                            log.error("No shapefile found in zip")
+                            return None
+                    else:
+                        return None
+                else:
+                    gdf = gpd.read_file(local_filename)
             else:
-                log.error("No spatial files found in zip")
+                log.error(f"Unsupported format: {format_type}")
                 return None
-            
-            # Clean up temporary files
-            try:
-                os.remove(zip_filename)
-                import shutil
-                shutil.rmtree(unzip_dir)
-            except Exception as cleanup_error:
-                log.warning(f"Failed to cleanup temporary files: {cleanup_error}")
-            
-            return result
-                    
-        except Exception as e:
-            log.error(f"Failed to download zip dataset: {e}")
-            return None
-    
-    def _download_shapefile(self, url: str, download_dir: Path) -> Optional[gpd.GeoDataFrame]:
-        """Download shapefile directly using existing library functions."""
-        try:
-            # Generate local path
-            filename = generate_local_path_from_url(url, download_dir)
-            if not filename:
-                log.error("Failed to generate local path for download")
-                return None
-            
-            # Download file
-            download_success = download_file(url, filename)
-            if not download_success:
-                log.error("Failed to download shapefile")
-                return None
-            
-            # Read and return
-            result = gpd.read_file(filename)
             
             # Clean up
             try:
-                os.remove(filename)
-            except Exception as cleanup_error:
-                log.warning(f"Failed to cleanup temporary file: {cleanup_error}")
+                os.remove(local_filename)
+            except Exception:
+                pass
             
-            return result
-            
-        except Exception as e:
-            log.error(f"Failed to download shapefile: {e}")
-            return None
-    
-    def _download_geojson(self, url: str, download_dir: Path) -> Optional[gpd.GeoDataFrame]:
-        """Download GeoJSON directly using existing library functions."""
-        try:
-            # Generate local path
-            filename = generate_local_path_from_url(url, download_dir)
-            if not filename:
-                log.error("Failed to generate local path for download")
-                return None
-            
-            # Download file
-            download_success = download_file(url, filename)
-            if not download_success:
-                log.error("Failed to download GeoJSON")
-                return None
-            
-            # Read and return
-            result = gpd.read_file(filename)
-            
-            # Clean up
-            try:
-                os.remove(filename)
-            except Exception as cleanup_error:
-                log.warning(f"Failed to cleanup temporary file: {cleanup_error}")
-            
-            return result
+            return gdf
             
         except Exception as e:
-            log.error(f"Failed to download GeoJSON: {e}")
+            log.error(f"Failed to process dataset: {e}")
             return None
 
 class OpenStreetMapDataSource(SpatialDataSource):
-    """OpenStreetMap data source."""
+    """OpenStreetMap data source using Overpass API."""
     
     def __init__(self):
         """Initialize OpenStreetMap data source."""
         super().__init__(
             name="OpenStreetMap",
-            base_url="https://overpass-api.de/api"
+            base_url="https://overpass-api.de/api/interpreter"
         )
     
-    def download_osm_data(self, 
-                          query: str,
-                          bbox: Optional[List[float]] = None) -> Optional[gpd.GeoDataFrame]:
+    def download_osm_data(self, query: str, bbox: Optional[List[float]] = None) -> Optional[GeoDataFrame]:
         """
-        Download data from OpenStreetMap using Overpass API.
+        Download data from OpenStreetMap using Overpass QL.
         
         Args:
-            query: Overpass QL query
-            bbox: Bounding box [min_lon, min_lat, max_lon, max_lat]
+            query: Overpass QL query string
+            bbox: Bounding box [min_lat, min_lon, max_lat, max_lon]
             
         Returns:
-            GeoDataFrame with OSM data
+            GeoDataFrame with OSM data or None if failed
         """
         try:
             # Construct Overpass query
             if bbox:
-                bbox_str = f"({bbox[1]},{bbox[0]},{bbox[3]},{bbox[2]})"
-                full_query = f"[out:json][timeout:25];{query}{bbox_str};out geom;"
+                bbox_str = f"[bbox:{bbox[1]},{bbox[0]},{bbox[3]},{bbox[2]}]"
+                full_query = f"{query}{bbox_str};out geom;"
             else:
-                full_query = f"[out:json][timeout:25];{query};out geom;"
+                full_query = f"{query};out geom;"
             
             # Make request
             import requests
-            response = requests.post(
-                f"{self.base_url}/interpreter",
-                data={'data': full_query}
+            
+            response = requests.get(
+                self.base_url,
+                params={'data': full_query},
+                timeout=60
             )
-            response.raise_for_status()
+            
+            if not response.ok:
+                log.error(f"Overpass API error: HTTP {response.status_code}")
+                return None
             
             # Parse response
-            data = response.json()
+            gdf = gpd.read_file(response.content, driver='GeoJSON')
             
-            # Convert to GeoDataFrame
-            return self._osm_to_geodataframe(data)
+            log.info(f"Downloaded {len(gdf)} features from OpenStreetMap")
+            return gdf
             
         except Exception as e:
             log.error(f"Failed to download OSM data: {e}")
             return None
-    
-    def _osm_to_geodataframe(self, osm_data: Dict[str, Any]) -> Optional[gpd.GeoDataFrame]:
-        """Convert OSM data to GeoDataFrame."""
-        try:
-            features = []
-            
-            for element in osm_data.get('elements', []):
-                if element['type'] == 'way' and 'geometry' in element:
-                    # Create polygon/linestring from way
-                    coords = [(point['lon'], point['lat']) for point in element['geometry']]
-                    
-                    from shapely.geometry import LineString, Polygon
-                    
-                    if len(coords) > 3 and coords[0] == coords[-1]:
-                        # Closed way - create polygon
-                        geom = Polygon(coords)
-                    else:
-                        # Open way - create linestring
-                        geom = LineString(coords)
-                    
-                    feature = {
-                        'geometry': geom,
-                        'id': element['id'],
-                        'type': element['type'],
-                        'tags': element.get('tags', {})
-                    }
-                    features.append(feature)
-            
-            if not features:
-                log.warning("No features found in OSM data")
-                return None
-            
-            # Create GeoDataFrame
-            gdf = gpd.GeoDataFrame(features)
-            gdf.set_crs(epsg=4326, inplace=True)
-            
-            return gdf
-            
-        except Exception as e:
-            log.error(f"Failed to convert OSM data: {e}")
-            return None
 
-# Global instances
+# Convenience functions for backward compatibility
+def get_census_data(api_key: Optional[str] = None) -> CensusDataSource:
+    """Get Census data source instance."""
+    return CensusDataSource(api_key)
+
+def get_census_boundaries(year: int = 2020, geographic_level: str = 'county',
+                         state_fips: Optional[str] = None) -> Optional[GeoDataFrame]:
+    """Convenience function to get Census boundaries."""
+    source = CensusDataSource()
+    return source.get_geographic_boundaries(year, geographic_level, state_fips)
+
+def download_osm_data(query: str, bbox: Optional[List[float]] = None) -> Optional[GeoDataFrame]:
+    """Convenience function to download OSM data."""
+    source = OpenStreetMapDataSource()
+    return source.download_osm_data(query, bbox)
+
+# Global instances for easy access
 census_source = CensusDataSource()
-government_source = GovernmentDataSource()
+government_source = GovernmentDataSource("https://data.gov")
 osm_source = OpenStreetMapDataSource()
 
-def get_census_data(year: int = 2020,
-                   dataset: str = 'acs/acs5',
-                   variables: List[str] = None,
-                   geographic_level: str = 'county',
-                   state_fips: Optional[str] = None,
-                   county_fips: Optional[str] = None) -> Optional[pd.DataFrame]:
-    """Get Census data."""
-    return census_source.get_census_data(
-        year=year,
-        dataset=dataset,
-        variables=variables,
-        geographic_level=geographic_level,
-        state_fips=state_fips,
-        county_fips=county_fips
-    )
-
-def get_census_boundaries(year: int = 2020,
-                         geographic_level: str = 'county',
-                         state_fips: Optional[str] = None,
-                         county_fips: Optional[str] = None) -> Optional[gpd.GeoDataFrame]:
-    """Get Census geographic boundaries."""
-    return census_source.get_geographic_boundaries(
-        year=year,
-        geographic_level=geographic_level,
-        state_fips=state_fips,
-        county_fips=county_fips
-    )
-
-def download_osm_data(query: str, bbox: Optional[List[float]] = None) -> Optional[gpd.GeoDataFrame]:
-    """Download OpenStreetMap data."""
-    return osm_source.download_osm_data(query=query, bbox=bbox)
+__all__ = [
+    'SpatialDataSource',
+    'CensusDataSource', 
+    'GovernmentDataSource',
+    'OpenStreetMapDataSource',
+    'get_census_data',
+    'get_census_boundaries',
+    'download_osm_data',
+    'census_source',
+    'government_source',
+    'osm_source'
+]

@@ -63,19 +63,17 @@ from .files.hashing import (
     calculate_file_hash, generate_sha256_hash_for_file, 
     get_file_hash, get_quick_file_signature, verify_file_integrity
 )
-from .files.paths import ensure_path_exists, unzip_file_to_its_own_directory
+from .files.paths import ensure_path_exists, unzip_file_to_directory
 from .files.operations import (
-    check_if_file_exists_at_path, delete_existing_file_and_replace_it_with_an_empty_file,
-    count_total_rows_in_file_pythonically, count_empty_rows_in_file_pythonically,
-    count_duplicate_rows_in_file_using_awk, count_total_rows_in_file_using_sed,
-    count_empty_rows_in_file_using_awk, remove_empty_rows_in_file_using_sed,
-    write_data_to_a_new_empty_file, write_data_to_an_existing_file,
-    check_for_file_type_in_directory
+    file_exists, touch_file, count_lines,
+    copy_file, move_file, get_file_size, list_directory,
+    run_command, remove_tree
 )
 
 # Import remote and shell utilities
 from .files.remote import (
-    generate_local_path_from_url, download_file
+    generate_local_path_from_url, download_file, download_file_with_retry,
+    get_file_info, is_downloadable
 )
 from .files.shell import (
     run_subprocess

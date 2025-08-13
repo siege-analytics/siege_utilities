@@ -30,7 +30,7 @@ class TestPathOperations:
 
     def test_unzip_file_to_its_own_directory_basic(self, sample_zip_file):
         """Test basic unzipping functionality."""
-        result = siege_utilities.unzip_file_to_its_own_directory(sample_zip_file)
+        result = siege_utilities.unzip_file_to_directory(sample_zip_file)
 
         assert result is not False
         assert result.exists()
@@ -49,5 +49,5 @@ class TestPathOperations:
         invalid_file = temp_directory / "not_a_zip.txt"
         invalid_file.write_text("This is not a zip file")
 
-        result = siege_utilities.unzip_file_to_its_own_directory(invalid_file)
-        assert result == False
+        result = siege_utilities.unzip_file_to_directory(invalid_file)
+        assert result is None

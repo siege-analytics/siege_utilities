@@ -9,6 +9,13 @@ from typing import Dict, List, Any, Optional, Union
 from datetime import datetime
 import pandas as pd
 
+# Try to import PIL Image, fall back to Any if not available
+try:
+    from PIL import Image
+    ImageType = Image.Image
+except ImportError:
+    ImageType = Any
+
 from .base_template import BaseReportTemplate
 from .chart_generator import ChartGenerator
 from .client_branding import ClientBrandingManager
@@ -43,7 +50,7 @@ class ReportGenerator:
         
         self.chart_generator = ChartGenerator(self.branding_config)
 
-    def create_analytics_report(self, title: str, charts: List[Image], 
+    def create_analytics_report(self, title: str, charts: List[ImageType], 
                                data_summary: str = "", insights: List[str] = None,
                                recommendations: List[str] = None, 
                                executive_summary: str = None,
@@ -319,7 +326,7 @@ class ReportGenerator:
         return self.add_section(report_content, 'text', title, text_section, level)
 
     def add_chart_section(self, report_content: Dict[str, Any], title: str,
-                          charts: List[Image], description: str = "",
+                          charts: List[ImageType], description: str = "",
                           level: int = 1, layout: str = "vertical") -> Dict[str, Any]:
         """
         Add a chart section to the report.
@@ -349,7 +356,7 @@ class ReportGenerator:
         return self.add_section(report_content, 'charts', title, chart_section, level)
 
     def add_map_section(self, report_content: Dict[str, Any], title: str,
-                        maps: List[Image], map_type: str = "choropleth",
+                        maps: List[ImageType], map_type: str = "choropleth",
                         description: str = "", level: int = 1) -> Dict[str, Any]:
         """
         Add a map section to the report.
