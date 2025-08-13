@@ -214,6 +214,335 @@ class PowerPointGenerator:
             log.error(f"Error creating custom PowerPoint presentation: {e}")
             raise
 
+    def create_comprehensive_presentation(self, title: str, author: str = None,
+                                        client: str = None, presentation_type: str = "analysis",
+                                        sections: List[Dict] = None,
+                                        slide_layouts: Dict[str, str] = None,
+                                        include_toc: bool = True,
+                                        include_agenda: bool = True) -> Dict[str, Any]:
+        """
+        Create a comprehensive PowerPoint presentation with full slide structure.
+        
+        Args:
+            title: Presentation title
+            author: Presentation author
+            client: Client name
+            presentation_type: Type of presentation
+            sections: List of presentation sections
+            slide_layouts: Custom slide layouts for different section types
+            include_toc: Include table of contents slide
+            include_agenda: Include agenda slide
+            
+        Returns:
+            Dictionary containing complete presentation structure
+        """
+        sections = sections or []
+        slide_layouts = slide_layouts or {}
+        
+        presentation_structure = {
+            'title': title,
+            'type': 'comprehensive_presentation',
+            'metadata': {
+                'author': author or 'Siege Analytics',
+                'client': client,
+                'presentation_type': presentation_type,
+                'created_date': datetime.now().isoformat(),
+                'version': '1.0'
+            },
+            'slide_structure': {
+                'include_toc': include_toc,
+                'include_agenda': include_agenda,
+                'slide_layouts': slide_layouts
+            },
+            'sections': [
+                {
+                    'type': 'title_slide',
+                    'title': title,
+                    'subtitle': f"{presentation_type.title()} Presentation",
+                    'author': author or 'Siege Analytics',
+                    'client': client,
+                    'date': datetime.now().strftime('%B %d, %Y'),
+                    'level': 0
+                }
+            ]
+        }
+        
+        # Add table of contents if requested
+        if include_toc:
+            presentation_structure['sections'].append({
+                'type': 'table_of_contents',
+                'title': 'Table of Contents',
+                'content': self._generate_toc_content(sections),
+                'level': 0
+            })
+        
+        # Add agenda if requested
+        if include_agenda:
+            presentation_structure['sections'].append({
+                'type': 'agenda',
+                'title': 'Agenda',
+                'content': self._generate_agenda_content(sections),
+                'level': 0
+            })
+        
+        # Add main sections
+        for section in sections:
+            section['level'] = section.get('level', 1)
+            presentation_structure['sections'].append(section)
+        
+        return presentation_structure
+
+    def add_slide_section(self, presentation_content: Dict[str, Any], section_type: str,
+                          title: str, content: Any, level: int = 1,
+                          slide_layout: str = "default",
+                          notes: str = None) -> Dict[str, Any]:
+        """
+        Add a new slide section to an existing presentation.
+        
+        Args:
+            presentation_content: Existing presentation content
+            section_type: Type of slide section
+            title: Slide title
+            content: Slide content
+            level: Section level (0=main, 1=section, 2=subsection)
+            slide_layout: Custom slide layout
+            notes: Speaker notes for the slide
+            
+        Returns:
+            Updated presentation content
+        """
+        new_section = {
+            'type': section_type,
+            'title': title,
+            'content': content,
+            'level': level,
+            'slide_layout': slide_layout,
+            'notes': notes
+        }
+        
+        if 'sections' not in presentation_content:
+            presentation_content['sections'] = []
+        
+        presentation_content['sections'].append(new_section)
+        return presentation_content
+
+    def add_text_slide(self, presentation_content: Dict[str, Any], title: str,
+                        text_content: str, level: int = 1,
+                        text_style: str = "body", bullet_points: bool = True) -> Dict[str, Any]:
+        """
+        Add a text slide to the presentation.
+        
+        Args:
+            presentation_content: Existing presentation content
+            title: Slide title
+            text_content: Text content
+            level: Section level
+            text_style: Text styling
+            bullet_points: Use bullet points for text
+            
+        Returns:
+            Updated presentation content
+        """
+        text_section = {
+            'type': 'text_slide',
+            'title': title,
+            'content': {
+                'text': text_content,
+                'style': text_style,
+                'bullet_points': bullet_points
+            },
+            'level': level
+        }
+        
+        return self.add_slide_section(presentation_content, 'text_slide', title, text_section, level)
+
+    def add_chart_slide(self, presentation_content: Dict[str, Any], title: str,
+                        charts: List[Any], description: str = "",
+                        level: int = 1, layout: str = "single_chart") -> Dict[str, Any]:
+        """
+        Add a chart slide to the presentation.
+        
+        Args:
+            presentation_content: Existing presentation content
+            title: Slide title
+            charts: List of chart images
+            description: Slide description
+            level: Section level
+            layout: Chart layout ('single_chart', 'two_charts', 'grid')
+            
+        Returns:
+            Updated presentation content
+        """
+        chart_section = {
+            'type': 'chart_slide',
+            'title': title,
+            'content': {
+                'charts': charts,
+                'description': description,
+                'layout': layout
+            },
+            'level': level
+        }
+        
+        return self.add_slide_section(presentation_content, 'chart_slide', title, chart_section, level)
+
+    def add_map_slide(self, presentation_content: Dict[str, Any], title: str,
+                      maps: List[Any], map_type: str = "choropleth",
+                      description: str = "", level: int = 1) -> Dict[str, Any]:
+        """
+        Add a map slide to the presentation.
+        
+        Args:
+            presentation_content: Existing presentation content
+            title: Slide title
+            maps: List of map images
+            map_type: Type of maps
+            description: Slide description
+            level: Section level
+            
+        Returns:
+            Updated presentation content
+        """
+        map_section = {
+            'type': 'map_slide',
+            'title': title,
+            'content': {
+                'maps': maps,
+                'map_type': map_type,
+                'description': description
+            },
+            'level': level
+        }
+        
+        return self.add_slide_section(presentation_content, 'map_slide', title, map_section, level)
+
+    def add_table_slide(self, presentation_content: Dict[str, Any], title: str,
+                        table_data: Union[List[List], pd.DataFrame],
+                        headers: List[str] = None, level: int = 1,
+                        table_style: str = "default") -> Dict[str, Any]:
+        """
+        Add a table slide to the presentation.
+        
+        Args:
+            presentation_content: Existing presentation content
+            title: Slide title
+            table_data: Table data (list of lists or DataFrame)
+            headers: Column headers
+            level: Section level
+            table_style: Table styling
+            
+        Returns:
+            Updated presentation content
+        """
+        # Convert DataFrame to list format if needed
+        if hasattr(table_data, 'to_dict'):
+            if headers is None:
+                headers = table_data.columns.tolist()
+            table_data = [headers] + table_data.values.tolist()
+        elif headers and table_data:
+            table_data = [headers] + table_data
+        
+        table_section = {
+            'type': 'table_slide',
+            'title': title,
+            'content': {
+                'data': table_data,
+                'headers': headers,
+                'style': table_style
+            },
+            'level': level
+        }
+        
+        return self.add_slide_section(presentation_content, 'table_slide', title, table_section, level)
+
+    def add_comparison_slide(self, presentation_content: Dict[str, Any], title: str,
+                            comparison_data: Dict[str, Any], level: int = 1) -> Dict[str, Any]:
+        """
+        Add a comparison slide to the presentation.
+        
+        Args:
+            presentation_content: Existing presentation content
+            title: Slide title
+            comparison_data: Data for comparison (before/after, options, etc.)
+            level: Section level
+            
+        Returns:
+            Updated presentation content
+        """
+        comparison_section = {
+            'type': 'comparison_slide',
+            'title': title,
+            'content': comparison_data,
+            'level': level
+        }
+        
+        return self.add_slide_section(presentation_content, 'comparison_slide', title, comparison_section, level)
+
+    def add_summary_slide(self, presentation_content: Dict[str, Any], title: str,
+                          key_points: List[str], level: int = 1) -> Dict[str, Any]:
+        """
+        Add a summary slide to the presentation.
+        
+        Args:
+            presentation_content: Existing presentation content
+            title: Slide title
+            key_points: List of key points to summarize
+            level: Section level
+            
+        Returns:
+            Updated presentation content
+        """
+        summary_section = {
+            'type': 'summary_slide',
+            'title': title,
+            'content': {
+                'key_points': key_points
+            },
+            'level': level
+        }
+        
+        return self.add_slide_section(presentation_content, 'summary_slide', title, summary_section, level)
+
+    def generate_powerpoint_presentation(self, presentation_content: Dict[str, Any],
+                                       output_path: str) -> bool:
+        """
+        Generate a comprehensive PowerPoint presentation.
+        
+        Args:
+            presentation_content: Presentation content structure
+            output_path: Output PowerPoint file path
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Create presentation
+            prs = Presentation()
+            
+            # Apply template if specified
+            template_path = presentation_content.get('template_path')
+            if template_path and Path(template_path).exists():
+                prs = Presentation(template_path)
+            
+            # Process each section
+            for section in presentation_content.get('sections', []):
+                slide = self._create_slide_from_section(section, prs)
+                if slide:
+                    # Add speaker notes if provided
+                    if section.get('notes'):
+                        notes_slide = slide.notes_slide
+                        notes_slide.notes_text_frame.text = section['notes']
+            
+            # Save presentation
+            prs.save(output_path)
+            
+            log.info(f"PowerPoint presentation generated successfully: {output_path}")
+            return True
+            
+        except Exception as e:
+            log.error(f"Error generating PowerPoint presentation: {e}")
+            return False
+
     def _add_title_slide(self, prs: Presentation, title: str):
         """Add a title slide to the presentation."""
         slide_layout = prs.slide_layouts[self.slide_layouts['title']]
@@ -719,3 +1048,300 @@ class PowerPointGenerator:
             
             # Apply formatting
             self._format_content_slide(slide)
+
+    def _create_slide_from_section(self, section: Dict[str, Any], prs: Presentation) -> Any:
+        """
+        Create a PowerPoint slide from a section definition.
+        
+        Args:
+            section: Section dictionary
+            prs: PowerPoint presentation object
+            
+        Returns:
+            Created slide object
+        """
+        section_type = section.get('type', 'text_slide')
+        
+        try:
+            if section_type == 'title_slide':
+                return self._create_title_slide(section, prs)
+            elif section_type == 'table_of_contents':
+                return self._create_toc_slide(section, prs)
+            elif section_type == 'agenda':
+                return self._create_agenda_slide(section, prs)
+            elif section_type == 'text_slide':
+                return self._create_text_slide(section, prs)
+            elif section_type == 'chart_slide':
+                return self._create_chart_slide(section, prs)
+            elif section_type == 'map_slide':
+                return self._create_map_slide(section, prs)
+            elif section_type == 'table_slide':
+                return self._create_table_slide(section, prs)
+            elif section_type == 'comparison_slide':
+                return self._create_comparison_slide(section, prs)
+            elif section_type == 'summary_slide':
+                return self._create_summary_slide(section, prs)
+            else:
+                # Default to text slide
+                return self._create_text_slide(section, prs)
+                
+        except Exception as e:
+            log.error(f"Error creating slide for section {section_type}: {e}")
+            return None
+
+    def _create_title_slide(self, section: Dict[str, Any], prs: Presentation) -> Any:
+        """Create a title slide."""
+        slide_layout = prs.slide_layouts[0]  # Title slide layout
+        slide = prs.slides.add_slide(slide_layout)
+        
+        # Set title
+        title = slide.shapes.title
+        title.text = section.get('title', '')
+        
+        # Set subtitle
+        subtitle = slide.placeholders[1]
+        subtitle.text = section.get('subtitle', '')
+        
+        # Add additional information
+        if 'author' in section or 'client' in section or 'date' in section:
+            # Add text box for additional info
+            left = Inches(1)
+            top = Inches(6)
+            width = Inches(8)
+            height = Inches(2)
+            
+            txBox = slide.shapes.add_textbox(left, top, width, height)
+            tf = txBox.text_frame
+            
+            if 'author' in section:
+                p = tf.add_paragraph()
+                p.text = f"Author: {section['author']}"
+                p.font.size = Pt(14)
+            
+            if 'client' in section:
+                p = tf.add_paragraph()
+                p.text = f"Client: {section['client']}"
+                p.font.size = Pt(14)
+            
+            if 'date' in section:
+                p = tf.add_paragraph()
+                p.text = f"Date: {section['date']}"
+                p.font.size = Pt(14)
+        
+        return slide
+
+    def _create_toc_slide(self, section: Dict[str, Any], prs: Presentation) -> Any:
+        """Create a table of contents slide."""
+        slide_layout = prs.slide_layouts[1]  # Title and content layout
+        slide = prs.slides.add_slide(slide_layout)
+        
+        # Set title
+        title = slide.shapes.title
+        title.text = section.get('title', 'Table of Contents')
+        
+        # Add content
+        content = slide.placeholders[1]
+        tf = content.text_frame
+        
+        # Add TOC items
+        toc_content = section.get('content', [])
+        for item in toc_content:
+            p = tf.add_paragraph()
+            p.text = item
+            p.font.size = Pt(18)
+            p.level = 0
+        
+        return slide
+
+    def _create_agenda_slide(self, section: Dict[str, Any], prs: Presentation) -> Any:
+        """Create an agenda slide."""
+        slide_layout = prs.slide_layouts[1]  # Title and content layout
+        slide = prs.slides.add_slide(slide_layout)
+        
+        # Set title
+        title = slide.shapes.title
+        title.text = section.get('title', 'Agenda')
+        
+        # Add content
+        content = slide.placeholders[1]
+        tf = content.text_frame
+        
+        # Add agenda items
+        agenda_content = section.get('content', [])
+        for item in agenda_content:
+            p = tf.add_paragraph()
+            p.text = item
+            p.font.size = Pt(18)
+            p.level = 0
+        
+        return slide
+
+    def _create_text_slide(self, section: Dict[str, Any], prs: Presentation) -> Any:
+        """Create a text slide."""
+        slide_layout = prs.slide_layouts[1]  # Title and content layout
+        slide = prs.slides.add_slide(slide_layout)
+        
+        # Set title
+        title = slide.shapes.title
+        title.text = section.get('title', '')
+        
+        # Add content
+        content = slide.placeholders[1]
+        tf = content.text_frame
+        
+        text_content = section.get('content', {}).get('text', '')
+        use_bullets = section.get('content', {}).get('bullet_points', True)
+        
+        if use_bullets and '\n' in text_content:
+            # Split into bullet points
+            lines = text_content.split('\n')
+            for i, line in enumerate(lines):
+                if line.strip():
+                    p = tf.add_paragraph()
+                    p.text = line.strip()
+                    p.font.size = Pt(18)
+                    p.level = 0
+        else:
+            # Single paragraph
+            p = tf.add_paragraph()
+            p.text = text_content
+            p.font.size = Pt(18)
+        
+        return slide
+
+    def _create_chart_slide(self, section: Dict[str, Any], prs: Presentation) -> Any:
+        """Create a chart slide."""
+        slide_layout = prs.slide_layouts[1]  # Title and content layout
+        slide = prs.slides.add_slide(slide_layout)
+        
+        # Set title
+        title = slide.shapes.title
+        title.text = section.get('title', '')
+        
+        # Add charts
+        charts = section.get('content', {}).get('charts', [])
+        layout = section.get('content', {}).get('layout', 'single_chart')
+        
+        if layout == 'single_chart' and charts:
+            # Single chart
+            chart = charts[0]
+            self._add_chart_to_slide(chart, slide, Inches(1), Inches(2), Inches(8), Inches(5))
+        elif layout == 'two_charts' and len(charts) >= 2:
+            # Two charts side by side
+            self._add_chart_to_slide(charts[0], slide, Inches(0.5), Inches(2), Inches(4), Inches(4))
+            self._add_chart_to_slide(charts[1], slide, Inches(5.5), Inches(2), Inches(4), Inches(4))
+        elif layout == 'grid' and len(charts) >= 4:
+            # 2x2 grid
+            positions = [
+                (Inches(0.5), Inches(2), Inches(3.5), Inches(2.5)),
+                (Inches(4.5), Inches(2), Inches(3.5), Inches(2.5)),
+                (Inches(0.5), Inches(4.8), Inches(3.5), Inches(2.5)),
+                (Inches(4.5), Inches(4.8), Inches(3.5), Inches(2.5))
+            ]
+            for i, chart in enumerate(charts[:4]):
+                left, top, width, height = positions[i]
+                self._add_chart_to_slide(chart, slide, left, top, width, height)
+        
+        return slide
+
+    def _create_map_slide(self, section: Dict[str, Any], prs: Presentation) -> Any:
+        """Create a map slide."""
+        # Similar to chart slide but optimized for maps
+        return self._create_chart_slide(section, prs)
+
+    def _create_table_slide(self, section: Dict[str, Any], prs: Presentation) -> Any:
+        """Create a table slide."""
+        slide_layout = prs.slide_layouts[1]  # Title and content layout
+        slide = prs.slides.add_slide(slide_layout)
+        
+        # Set title
+        title = slide.shapes.title
+        title.text = section.get('title', '')
+        
+        # Add table
+        table_data = section.get('content', {}).get('data', [])
+        if table_data:
+            rows = len(table_data)
+            cols = len(table_data[0]) if table_data else 1
+            
+            left = Inches(1)
+            top = Inches(2)
+            width = Inches(8)
+            height = Inches(4)
+            
+            table = slide.shapes.add_table(rows, cols, left, top, width, height).table
+            
+            # Populate table
+            for i, row in enumerate(table_data):
+                for j, cell_value in enumerate(row):
+                    table.cell(i, j).text = str(cell_value)
+        
+        return slide
+
+    def _create_comparison_slide(self, section: Dict[str, Any], prs: Presentation) -> Any:
+        """Create a comparison slide."""
+        slide_layout = prs.slide_layouts[1]  # Title and content layout
+        slide = prs.slides.add_slide(slide_layout)
+        
+        # Set title
+        title = slide.shapes.title
+        title.text = section.get('title', '')
+        
+        # Add comparison content
+        comparison_data = section.get('content', {})
+        
+        # Create two-column layout
+        left = Inches(0.5)
+        top = Inches(2)
+        width = Inches(4)
+        height = Inches(4)
+        
+        # Left column
+        left_box = slide.shapes.add_textbox(left, top, width, height)
+        left_tf = left_box.text_frame
+        left_tf.text = comparison_data.get('left_title', 'Before')
+        
+        # Right column
+        right_box = slide.shapes.add_textbox(Inches(5.5), top, width, height)
+        right_tf = right_box.text_frame
+        right_tf.text = comparison_data.get('right_title', 'After')
+        
+        return slide
+
+    def _create_summary_slide(self, section: Dict[str, Any], prs: Presentation) -> Any:
+        """Create a summary slide."""
+        slide_layout = prs.slide_layouts[1]  # Title and content layout
+        slide = prs.slides.add_slide(slide_layout)
+        
+        # Set title
+        title = slide.shapes.title
+        title.text = section.get('title', 'Summary')
+        
+        # Add key points
+        content = slide.placeholders[1]
+        tf = content.text_frame
+        
+        key_points = section.get('content', {}).get('key_points', [])
+        for point in key_points:
+            p = tf.add_paragraph()
+            p.text = f"• {point}"
+            p.font.size = Pt(18)
+            p.level = 0
+        
+        return slide
+
+    def _generate_toc_content(self, sections: List[Dict]) -> List[str]:
+        """Generate table of contents content from sections."""
+        toc_items = []
+        for section in sections:
+            if section.get('type') not in ['title_slide', 'table_of_contents', 'agenda']:
+                toc_items.append(section.get('title', 'Untitled'))
+        return toc_items
+
+    def _generate_agenda_content(self, sections: List[Dict]) -> List[str]:
+        """Generate agenda content from sections."""
+        agenda_items = []
+        for section in sections:
+            if section.get('type') not in ['title_slide', 'table_of_contents', 'agenda']:
+                agenda_items.append(section.get('title', 'Untitled'))
+        return agenda_items

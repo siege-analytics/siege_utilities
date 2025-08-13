@@ -686,6 +686,458 @@ class ChartGenerator:
             log.error(f"Error creating advanced choropleth: {e}")
             return self._create_placeholder_chart(width, height, f"Advanced Choropleth Error: {str(e)}")
 
+    def create_marker_map(self, data: Union[pd.DataFrame, Dict[str, Any]],
+                          latitude_column: str, longitude_column: str,
+                          value_column: str = None, label_column: str = None,
+                          title: str = "", width: float = 10.0, height: float = 8.0,
+                          map_style: str = "open-street-map", zoom_level: int = 10) -> Image:
+        """
+        Create a map with markers showing point locations.
+        
+        Args:
+            data: DataFrame or dictionary with data
+            latitude_column: Column name for latitude values
+            longitude_column: Column name for longitude values
+            value_column: Column name for marker size/color values
+            label_column: Column name for marker labels
+            title: Map title
+            width: Map width in inches
+            height: Map height in inches
+            map_style: Map tile style ('open-street-map', 'cartodb-positron', 'stamen-terrain')
+            zoom_level: Initial zoom level for the map
+            
+        Returns:
+            ReportLab Image object
+        """
+        if not FOLIUM_AVAILABLE:
+            return self._create_placeholder_chart(width, height, "Folium not available")
+        
+        try:
+            # Convert data to DataFrame if needed
+            if isinstance(data, dict):
+                df = pd.DataFrame(data)
+            else:
+                df = data.copy()
+            
+            # Calculate center point for map
+            center_lat = df[latitude_column].mean()
+            center_lon = df[longitude_column].mean()
+            
+            # Create base map
+            m = folium.Map(
+                location=[center_lat, center_lon],
+                zoom_start=zoom_level,
+                tiles=map_style
+            )
+            
+            # Add markers
+            for idx, row in df.iterrows():
+                lat = row[latitude_column]
+                lon = row[longitude_column]
+                
+                # Create popup content
+                popup_content = []
+                if label_column and label_column in row:
+                    popup_content.append(f"<b>{row[label_column]}</b>")
+                if value_column and value_column in row:
+                    popup_content.append(f"Value: {row[value_column]:,.2f}")
+                popup_content.append(f"Lat: {lat:.4f}, Lon: {lon:.4f}")
+                
+                popup_html = "<br>".join(popup_content)
+                
+                # Determine marker size based on value
+                if value_column and value_column in row:
+                    # Normalize values to marker sizes (10-50 pixels)
+                    value = row[value_column]
+                    marker_size = max(10, min(50, int(10 + (value / df[value_column].max()) * 40)))
+                else:
+                    marker_size = 15
+                
+                # Add marker
+                folium.CircleMarker(
+                    location=[lat, lon],
+                    radius=marker_size,
+                    popup=folium.Popup(popup_html, max_width=300),
+                    color='red',
+                    fill=True,
+                    fillColor='red',
+                    fillOpacity=0.7,
+                    weight=2
+                ).add_to(m)
+            
+            # Add title
+            if title:
+                folium.TileLayer(
+                    tiles='',
+                    name=title,
+                    overlay=True,
+                    control=False
+                ).add_to(m)
+            
+            # Add layer control
+            folium.LayerControl().add_to(m)
+            
+            # Save map to temporary file
+            temp_map_path = Path.home() / ".siege_utilities" / "temp_marker_map.html"
+            temp_map_path.parent.mkdir(parents=True, exist_ok=True)
+            m.save(str(temp_map_path))
+            
+            return self._create_placeholder_chart(width, height, "Marker Map - HTML file saved")
+            
+        except Exception as e:
+            log.error(f"Error creating marker map: {e}")
+            return self._create_placeholder_chart(width, height, f"Marker Map Error: {str(e)}")
+
+    def create_3d_map(self, data: Union[pd.DataFrame, Dict[str, Any]],
+                      latitude_column: str, longitude_column: str, elevation_column: str,
+                      title: str = "", width: float = 12.0, height: float = 10.0,
+                      view_angle: int = 45, elevation_scale: float = 1.0) -> Image:
+        """
+        Create a 3D map visualization showing elevation or height data.
+        
+        Args:
+            data: DataFrame or dictionary with data
+            latitude_column: Column name for latitude values
+            longitude_column: Column name for longitude values
+            elevation_column: Column name for elevation/height values
+            title: Map title
+            width: Map width in inches
+            height: Map height in inches
+            view_angle: 3D viewing angle in degrees
+            elevation_scale: Scale factor for elevation values
+            
+        Returns:
+            ReportLab Image object
+        """
+        if not MATPLOTLIB_AVAILABLE:
+            return self._create_placeholder_chart(width, height, "Matplotlib not available")
+        
+        try:
+            # Convert data to DataFrame if needed
+            if isinstance(data, dict):
+                df = pd.DataFrame(data)
+            else:
+                df = data.copy()
+            
+            # Create 3D figure
+            fig = plt.figure(figsize=(width, height), dpi=self.default_dpi)
+            ax = fig.add_subplot(111, projection='3d')
+            
+            # Extract coordinates and elevation
+            x = df[longitude_column].values
+            y = df[latitude_column].values
+            z = df[elevation_column].values * elevation_scale
+            
+            # Create 3D surface plot
+            if len(df) > 100:  # For large datasets, use triangulation
+                from scipy.spatial import Delaunay
+                points = np.column_stack([x, y])
+                tri = Delaunay(points)
+                
+                ax.plot_trisurf(x, y, z, triangles=tri.simplices, cmap='terrain', alpha=0.8)
+            else:
+                # For smaller datasets, use scatter plot
+                scatter = ax.scatter(x, y, z, c=z, cmap='terrain', s=50, alpha=0.8)
+                plt.colorbar(scatter, ax=ax, shrink=0.5, aspect=5)
+            
+            # Customize 3D plot
+            ax.set_xlabel('Longitude')
+            ax.set_ylabel('Latitude')
+            ax.set_zlabel('Elevation')
+            ax.set_title(title or "3D Map Visualization")
+            
+            # Set viewing angle
+            ax.view_init(elev=view_angle, azim=45)
+            
+            # Add grid
+            ax.grid(True, alpha=0.3)
+            
+            plt.tight_layout()
+            
+            # Convert to ReportLab Image
+            return self._matplotlib_to_reportlab_image(fig, width, height)
+            
+        except Exception as e:
+            log.error(f"Error creating 3D map: {e}")
+            return self._create_placeholder_chart(width, height, f"3D Map Error: {str(e)}")
+
+    def create_heatmap_map(self, data: Union[pd.DataFrame, Dict[str, Any]],
+                           latitude_column: str, longitude_column: str, value_column: str,
+                           title: str = "", width: float = 10.0, height: float = 8.0,
+                           grid_size: int = 50, blur_radius: float = 0.5) -> Image:
+        """
+        Create a heatmap overlay on a geographic map.
+        
+        Args:
+            data: DataFrame or dictionary with data
+            latitude_column: Column name for latitude values
+            longitude_column: Column name for longitude values
+            value_column: Column name for intensity values
+            title: Map title
+            width: Map width in inches
+            height: Map height in inches
+            grid_size: Number of grid cells for heatmap
+            blur_radius: Blur radius for smoothing
+            
+        Returns:
+            ReportLab Image object
+        """
+        if not FOLIUM_AVAILABLE:
+            return self._create_placeholder_chart(width, height, "Folium not available")
+        
+        try:
+            # Convert data to DataFrame if needed
+            if isinstance(data, dict):
+                df = pd.DataFrame(data)
+            else:
+                df = data.copy()
+            
+            # Calculate center point for map
+            center_lat = df[latitude_column].mean()
+            center_lon = df[longitude_column].mean()
+            
+            # Create base map
+            m = folium.Map(
+                location=[center_lat, center_lon],
+                zoom_start=10,
+                tiles='cartodbpositron'
+            )
+            
+            # Prepare data for heatmap
+            heat_data = []
+            for idx, row in df.iterrows():
+                heat_data.append([row[latitude_column], row[longitude_column], row[value_column]])
+            
+            # Add heatmap layer
+            folium.plugins.HeatMap(
+                heat_data,
+                radius=20,
+                blur=blur_radius,
+                max_zoom=13,
+                gradient={0.2: 'blue', 0.4: 'lime', 0.6: 'orange', 1: 'red'}
+            ).add_to(m)
+            
+            # Add title
+            if title:
+                folium.TileLayer(
+                    tiles='',
+                    name=title,
+                    overlay=True,
+                    control=False
+                ).add_to(m)
+            
+            # Save map to temporary file
+            temp_map_path = Path.home() / ".siege_utilities" / "temp_heatmap.html"
+            temp_map_path.parent.mkdir(parents=True, exist_ok=True)
+            m.save(str(temp_map_path))
+            
+            return self._create_placeholder_chart(width, height, "Heatmap - HTML file saved")
+            
+        except Exception as e:
+            log.error(f"Error creating heatmap: {e}")
+            return self._create_placeholder_chart(width, height, f"Heatmap Error: {str(e)}")
+
+    def create_cluster_map(self, data: Union[pd.DataFrame, Dict[str, Any]],
+                           latitude_column: str, longitude_column: str,
+                           cluster_column: str = None, label_column: str = None,
+                           title: str = "", width: float = 10.0, height: float = 8.0,
+                           max_cluster_radius: int = 80) -> Image:
+        """
+        Create a map with clustered markers for better visualization of dense data.
+        
+        Args:
+            data: DataFrame or dictionary with data
+            latitude_column: Column name for latitude values
+            longitude_column: Column name for longitude values
+            cluster_column: Column name for clustering values
+            label_column: Column name for marker labels
+            title: Map title
+            width: Map width in inches
+            height: Map height in inches
+            max_cluster_radius: Maximum radius for clustering
+            
+        Returns:
+            ReportLab Image object
+        """
+        if not FOLIUM_AVAILABLE:
+            return self._create_placeholder_chart(width, height, "Folium not available")
+        
+        try:
+            # Convert data to DataFrame if needed
+            if isinstance(data, dict):
+                df = pd.DataFrame(data)
+            else:
+                df = data.copy()
+            
+            # Calculate center point for map
+            center_lat = df[latitude_column].mean()
+            center_lon = df[longitude_column].mean()
+            
+            # Create base map
+            m = folium.Map(
+                location=[center_lat, center_lon],
+                zoom_start=10,
+                tiles='cartodbpositron'
+            )
+            
+            # Create marker cluster
+            marker_cluster = folium.plugins.MarkerCluster(
+                name="Data Points",
+                overlay=True,
+                control=True,
+                options={'maxClusterRadius': max_cluster_radius}
+            )
+            
+            # Add individual markers
+            for idx, row in df.iterrows():
+                lat = row[latitude_column]
+                lon = row[longitude_column]
+                
+                # Create popup content
+                popup_content = []
+                if label_column and label_column in row:
+                    popup_content.append(f"<b>{row[label_column]}</b>")
+                if cluster_column and cluster_column in row:
+                    popup_content.append(f"Cluster: {row[cluster_column]}")
+                popup_content.append(f"Lat: {lat:.4f}, Lon: {lon:.4f}")
+                
+                popup_html = "<br>".join(popup_content)
+                
+                # Add marker to cluster
+                folium.Marker(
+                    location=[lat, lon],
+                    popup=folium.Popup(popup_html, max_width=300),
+                    icon=folium.Icon(color='red', icon='info-sign')
+                ).add_to(marker_cluster)
+            
+            # Add cluster to map
+            marker_cluster.add_to(m)
+            
+            # Add title
+            if title:
+                folium.TileLayer(
+                    tiles='',
+                    name=title,
+                    overlay=True,
+                    control=False
+                ).add_to(m)
+            
+            # Add layer control
+            folium.LayerControl().add_to(m)
+            
+            # Save map to temporary file
+            temp_map_path = Path.home() / ".siege_utilities" / "temp_cluster_map.html"
+            temp_map_path.parent.mkdir(parents=True, exist_ok=True)
+            m.save(str(temp_map_path))
+            
+            return self._create_placeholder_chart(width, height, "Cluster Map - HTML file saved")
+            
+        except Exception as e:
+            log.error(f"Error creating cluster map: {e}")
+            return self._create_placeholder_chart(width, height, f"Cluster Map Error: {str(e)}")
+
+    def create_flow_map(self, data: Union[pd.DataFrame, Dict[str, Any]],
+                        origin_lat_column: str, origin_lon_column: str,
+                        dest_lat_column: str, dest_lon_column: str,
+                        flow_value_column: str = None, title: str = "",
+                        width: float = 12.0, height: float = 10.0) -> Image:
+        """
+        Create a flow map showing movement or connections between locations.
+        
+        Args:
+            data: DataFrame or dictionary with data
+            origin_lat_column: Column name for origin latitude
+            origin_lon_column: Column name for origin longitude
+            dest_lat_column: Column name for destination latitude
+            dest_lon_column: Column name for destination longitude
+            flow_value_column: Column name for flow intensity values
+            title: Map title
+            width: Map width in inches
+            height: Map height in inches
+            
+        Returns:
+            ReportLab Image object
+        """
+        if not FOLIUM_AVAILABLE:
+            return self._create_placeholder_chart(width, height, "Folium not available")
+        
+        try:
+            # Convert data to DataFrame if needed
+            if isinstance(data, dict):
+                df = pd.DataFrame(data)
+            else:
+                df = data.copy()
+            
+            # Calculate center point for map
+            all_lats = df[origin_lat_column].tolist() + df[dest_lat_column].tolist()
+            all_lons = df[origin_lon_column].tolist() + df[dest_lon_column].tolist()
+            center_lat = sum(all_lats) / len(all_lats)
+            center_lon = sum(all_lons) / len(all_lons)
+            
+            # Create base map
+            m = folium.Map(
+                location=[center_lat, center_lon],
+                zoom_start=8,
+                tiles='cartodbpositron'
+            )
+            
+            # Add flow lines
+            for idx, row in df.iterrows():
+                origin = [row[origin_lat_column], row[origin_lon_column]]
+                destination = [row[dest_lat_column], row[dest_lon_column]]
+                
+                # Determine line weight based on flow value
+                if flow_value_column and flow_value_column in row:
+                    weight = max(1, min(10, int(row[flow_value_column] / df[flow_value_column].max() * 10)))
+                else:
+                    weight = 3
+                
+                # Create flow line
+                folium.PolyLine(
+                    locations=[origin, destination],
+                    weight=weight,
+                    color='red',
+                    opacity=0.7,
+                    popup=f"Flow: {row.get(flow_value_column, 'N/A') if flow_value_column else 'N/A'}"
+                ).add_to(m)
+                
+                # Add origin and destination markers
+                folium.CircleMarker(
+                    location=origin,
+                    radius=5,
+                    color='blue',
+                    fill=True,
+                    popup="Origin"
+                ).add_to(m)
+                
+                folium.CircleMarker(
+                    location=destination,
+                    radius=5,
+                    color='green',
+                    fill=True,
+                    popup="Destination"
+                ).add_to(m)
+            
+            # Add title
+            if title:
+                folium.TileLayer(
+                    tiles='',
+                    name=title,
+                    overlay=True,
+                    control=False
+                ).add_to(m)
+            
+            # Save map to temporary file
+            temp_map_path = Path.home() / ".siege_utilities" / "temp_flow_map.html"
+            temp_map_path.parent.mkdir(parents=True, exist_ok=True)
+            m.save(str(temp_map_path))
+            
+            return self._create_placeholder_chart(width, height, "Flow Map - HTML file saved")
+            
+        except Exception as e:
+            log.error(f"Error creating flow map: {e}")
+            return self._create_placeholder_chart(width, height, f"Flow Map Error: {str(e)}")
+
     def create_bivariate_choropleth(self, data: Union[pd.DataFrame, Dict[str, Any]],
                                   location_column: str, value_column1: str, value_column2: str,
                                   title: str = "", width: float = 8.0, height: float = 6.0) -> Image:
