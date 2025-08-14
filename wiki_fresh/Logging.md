@@ -1,612 +1,990 @@
 # Logging Recipe
 
 ## Overview
-This recipe demonstrates how to use the logging utilities in `siege_utilities` for comprehensive application logging, debugging, monitoring, and audit trails.
+This recipe demonstrates how to implement comprehensive application logging, debugging, monitoring, and audit trails using `siege_utilities`, supporting both Apache Spark and Pandas engines for seamless scalability from single applications to distributed systems.
 
 ## Prerequisites
 - Python 3.7+
 - `siege_utilities` library installed
+- Apache Spark (optional, for distributed logging)
 - Basic understanding of logging concepts
-- Required dependencies: `colorama` (optional, for colored output)
 
 ## Installation
 ```bash
 pip install siege_utilities
-pip install colorama  # Optional, for colored console output
+pip install pyspark pandas numpy  # Core dependencies
 ```
 
-## Basic Logging Setup
+## Multi-Engine Logging Architecture
 
-### 1. Simple Logger Initialization
-
-```python
-from siege_utilities.core.logging import Logger
-
-# Create a basic logger
-logger = Logger("my_application")
-logger.info("Application started")
-logger.warning("This is a warning message")
-logger.error("An error occurred")
-logger.debug("Debug information")
-```
-
-### 2. Logger with Configuration
+### 1. Engine-Agnostic Logging Manager
 
 ```python
-# Create logger with custom configuration
-logger = Logger(
-    name="data_processor",
-    level="INFO",
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    output_file="logs/app.log"
-)
+from siege_utilities.core.logging import Logger, LoggingContext, PerformanceLogger
+from siege_utilities.distributed.spark_utils import SparkUtils
+from siege_utilities.core.logging import LogLevel
 
-# Log different levels
-logger.info("Data processing started")
-logger.debug("Processing row 1 of 1000")
-logger.warning("Missing data in row 45")
-logger.error("Failed to process file: data.csv")
-```
-
-### 3. Multiple Output Destinations
-
-```python
-# Create logger with multiple outputs
-logger = Logger(
-    name="web_service",
-    level="DEBUG",
-    console_output=True,
-    file_output=True,
-    output_file="logs/web_service.log",
-    max_file_size="10MB",
-    backup_count=5
-)
-
-# Log to both console and file
-logger.info("Web service started on port 8080")
-logger.debug("Received request: GET /api/users")
-```
-
-## Advanced Logging Features
-
-### 1. Structured Logging
-
-```python
-# Log structured data
-user_data = {
-    "user_id": 12345,
-    "action": "login",
-    "ip_address": "192.168.1.100",
-    "timestamp": "2024-01-15T10:30:00Z"
-}
-
-logger.info("User action", extra=user_data)
-
-# Log with context
-logger.info("Database query executed", extra={
-    "query": "SELECT * FROM users WHERE id = %s",
-    "parameters": [12345],
-    "execution_time": 0.045,
-    "rows_returned": 1
-})
-```
-
-### 2. Logging with Exception Handling
-
-```python
-try:
-    # Some operation that might fail
-    result = 10 / 0
-except Exception as e:
-    logger.error("Division by zero error", exc_info=True)
-    logger.error(f"Error details: {str(e)}", extra={
-        "operation": "division",
-        "operands": [10, 0],
-        "error_type": type(e).__name__
-    })
-```
-
-### 3. Conditional Logging
-
-```python
-# Log only when certain conditions are met
-if logger.isEnabledFor("DEBUG"):
-    logger.debug("Expensive debug operation", extra={
-        "memory_usage": get_memory_usage(),
-        "cpu_usage": get_cpu_usage()
-    })
-
-# Log based on application state
-if is_production_environment():
-    logger.setLevel("WARNING")  # Reduce log verbosity in production
-else:
-    logger.setLevel("DEBUG")    # Full logging in development
-```
-
-## Logging Configuration
-
-### 1. Configuration from File
-
-```python
-# Load configuration from YAML file
-logger = Logger.from_config("config/logging_config.yaml")
-
-# Example logging_config.yaml:
-# name: application_logger
-# level: INFO
-# format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-# console_output: true
-# file_output: true
-# output_file: logs/app.log
-# max_file_size: 10MB
-# backup_count: 5
-# date_format: "%Y-%m-%d %H:%M:%S"
-```
-
-### 2. Environment-Based Configuration
-
-```python
-import os
-
-# Configure logging based on environment
-env = os.getenv("ENVIRONMENT", "development")
-
-if env == "production":
-    logger = Logger(
-        name="production_app",
-        level="WARNING",
-        console_output=False,
-        file_output=True,
-        output_file="logs/production.log"
-    )
-elif env == "staging":
-    logger = Logger(
-        name="staging_app",
-        level="INFO",
-        console_output=True,
-        file_output=True,
-        output_file="logs/staging.log"
-    )
-else:  # development
-    logger = Logger(
-        name="dev_app",
-        level="DEBUG",
-        console_output=True,
-        file_output=False
-    )
-```
-
-### 3. Custom Formatters
-
-```python
-# Create custom log format
-custom_format = Logger.create_custom_format(
-    include_timestamp=True,
-    include_level=True,
-    include_name=True,
-    include_module=True,
-    include_function=True,
-    include_line_number=True,
-    timestamp_format="%Y-%m-%d %H:%M:%S"
-)
-
-logger = Logger(
-    name="custom_logger",
-    format=custom_format,
-    console_output=True
-)
-
-# Output: 2024-01-15 10:30:00 - INFO - custom_logger - main.py:process_data:25 - Processing started
-logger.info("Processing started")
-```
-
-## Logging Categories and Context
-
-### 1. Category-Based Logging
-
-```python
-# Create loggers for different categories
-database_logger = Logger("database", category="database")
-api_logger = Logger("api", category="api")
-security_logger = Logger("security", category="security")
-
-# Log with category context
-database_logger.info("Database connection established")
-api_logger.info("API endpoint called: /api/users")
-security_logger.warning("Failed login attempt", extra={
-    "ip_address": "192.168.1.100",
-    "username": "admin"
-})
-```
-
-### 2. Context Managers for Logging
-
-```python
-from siege_utilities.core.logging import LoggingContext
-
-# Use context manager for operation logging
-with LoggingContext(logger, "database_operation"):
-    logger.info("Starting database transaction")
+class MultiEngineLoggingManager:
+    """Logging manager that works with both Spark and Pandas engines"""
     
-    try:
-        # Database operations
-        cursor.execute("SELECT * FROM users")
-        logger.info("Query executed successfully")
+    def __init__(self, default_engine="auto", spark_config=None, log_config=None):
+        self.default_engine = default_engine
+        self.log_config = log_config or {}
+        self.logger = Logger("multi_engine_logging_manager")
         
-    except Exception as e:
-        logger.error("Database operation failed", exc_info=True)
-        raise
-    finally:
-        logger.info("Database transaction completed")
-
-# Output will include context information
+        # Initialize Spark if needed
+        if default_engine in ["spark", "auto"]:
+            self.spark_utils = SparkUtils(spark_config)
+            self.spark_available = True
+        else:
+            self.spark_utils = None
+            self.spark_available = False
+        
+        # Initialize logging components
+        self._setup_logging_components()
+    
+    def _setup_logging_components(self):
+        """Setup logging components based on configuration"""
+        
+        # Create main logger
+        self.main_logger = Logger(
+            name=self.log_config.get("logger_name", "multi_engine_app"),
+            level=self.log_config.get("log_level", LogLevel.INFO),
+            output_format=self.log_config.get("output_format", "json")
+        )
+        
+        # Create performance logger
+        self.performance_logger = PerformanceLogger(
+            name=self.log_config.get("performance_logger_name", "performance_monitor"),
+            metrics_storage=self.log_config.get("metrics_storage", "memory")
+        )
+        
+        # Create logging context manager
+        self.context_manager = LoggingContext(
+            default_context=self.log_config.get("default_context", "application")
+        )
+    
+    def get_optimal_engine(self, data_size_mb=None, operation_complexity="medium"):
+        """Automatically select the best engine for logging operations"""
+        
+        if data_size_mb is None:
+            return "auto"
+        
+        # Engine selection logic based on data size and operation complexity
+        if data_size_mb < 10 and operation_complexity == "simple":
+            return "pandas"
+        elif data_size_mb < 100 and operation_complexity == "medium":
+            return "pandas"
+        elif data_size_mb >= 100 or operation_complexity == "complex":
+            return "spark" if self.spark_available else "pandas"
+        else:
+            return "auto"
+    
+    def log_operation(self, operation_name, data, operation_config, engine=None, **kwargs):
+        """Log operation with optimal engine selection"""
+        
+        # Estimate data size for engine selection
+        data_size_mb = self._estimate_data_size(data)
+        
+        # Select optimal engine
+        if engine is None:
+            engine = self.get_optimal_engine(data_size_mb, operation_config.get("complexity", "medium"))
+        
+        self.main_logger.info(f"Starting {operation_name} with {engine} engine (data size: {data_size_mb:.2f}MB)")
+        
+        # Start performance monitoring
+        with self.performance_logger.measure_operation(operation_name):
+            try:
+                # Execute operation with selected engine
+                if engine == "spark" and self.spark_available:
+                    result = self._execute_with_spark(data, operation_config, **kwargs)
+                else:
+                    result = self._execute_with_pandas(data, operation_config, **kwargs)
+                
+                # Log successful completion
+                self.main_logger.info(f"Successfully completed {operation_name} with {engine} engine")
+                
+                # Log performance metrics
+                operation_metrics = self.performance_logger.get_operation_metrics(operation_name)
+                self.main_logger.info(f"Operation metrics: {operation_metrics}")
+                
+                return result
+                
+            except Exception as e:
+                # Log error with context
+                self.main_logger.error(f"Error in {operation_name} with {engine} engine: {str(e)}")
+                
+                # Log additional context
+                with self.context_manager.context(f"error_{operation_name}"):
+                    self.main_logger.error(f"Data size: {data_size_mb:.2f}MB")
+                    self.main_logger.error(f"Operation config: {operation_config}")
+                    self.main_logger.error(f"Engine used: {engine}")
+                
+                raise
+    
+    def _execute_with_spark(self, data, operation_config, **kwargs):
+        """Execute operation using Spark for large datasets"""
+        
+        # Log Spark-specific information
+        self.main_logger.info("Using Spark engine for execution")
+        
+        # Get Spark session info
+        if hasattr(self.spark_utils, 'get_spark_session'):
+            spark_session = self.spark_utils.get_spark_session()
+            self.main_logger.info(f"Spark session: {spark_session.sparkContext.applicationId}")
+        
+        # Execute operation based on configuration
+        operation_type = operation_config.get("type")
+        
+        if operation_type == "data_processing":
+            return self._process_data_with_spark(data, operation_config, **kwargs)
+        elif operation_type == "aggregation":
+            return self._aggregate_data_with_spark(data, operation_config, **kwargs)
+        elif operation_type == "transformation":
+            return self._transform_data_with_spark(data, operation_config, **kwargs)
+        else:
+            # Default processing
+            return data
+    
+    def _execute_with_pandas(self, data, operation_config, **kwargs):
+        """Execute operation using Pandas for smaller datasets"""
+        
+        # Log Pandas-specific information
+        self.main_logger.info("Using Pandas engine for execution")
+        
+        # Execute operation based on configuration
+        operation_type = operation_config.get("type")
+        
+        if operation_type == "data_processing":
+            return self._process_data_with_pandas(data, operation_config, **kwargs)
+        elif operation_type == "aggregation":
+            return self._aggregate_data_with_pandas(data, operation_config, **kwargs)
+        elif operation_type == "transformation":
+            return self._transform_data_with_pandas(data, operation_config, **kwargs)
+        else:
+            # Default processing
+            return data
+    
+    def _process_data_with_spark(self, data, operation_config, **kwargs):
+        """Process data using Spark"""
+        
+        # Apply filters
+        if "filters" in operation_config:
+            for filter_condition in operation_config["filters"]:
+                data = data.filter(filter_condition)
+                self.main_logger.debug(f"Applied filter: {filter_condition}")
+        
+        # Apply transformations
+        if "transformations" in operation_config:
+            for transform in operation_config["transformations"]:
+                column = transform.get("column")
+                operation = transform.get("operation")
+                
+                if operation == "cast":
+                    new_type = transform.get("new_type")
+                    data = data.withColumn(column, col(column).cast(new_type))
+                    self.main_logger.debug(f"Casted column {column} to {new_type}")
+        
+        return data
+    
+    def _process_data_with_pandas(self, data, operation_config, **kwargs):
+        """Process data using Pandas"""
+        
+        # Apply filters
+        if "filters" in operation_config:
+            for filter_condition in operation_config["filters"]:
+                data = data.query(filter_condition)
+                self.main_logger.debug(f"Applied filter: {filter_condition}")
+        
+        # Apply transformations
+        if "transformations" in operation_config:
+            for transform in operation_config["transformations"]:
+                column = transform.get("column")
+                operation = transform.get("operation")
+                
+                if operation == "cast":
+                    new_type = transform.get("new_type")
+                    data[column] = data[column].astype(new_type)
+                    self.main_logger.debug(f"Casted column {column} to {new_type}")
+        
+        return data
+    
+    def _aggregate_data_with_spark(self, data, operation_config, **kwargs):
+        """Aggregate data using Spark"""
+        
+        group_columns = operation_config.get("group_columns", [])
+        aggregations = operation_config.get("aggregations", [])
+        
+        if group_columns and aggregations:
+            data = data.groupBy(group_columns).agg(*aggregations)
+            self.main_logger.debug(f"Aggregated data by {group_columns}")
+        
+        return data
+    
+    def _aggregate_data_with_pandas(self, data, operation_config, **kwargs):
+        """Aggregate data using Pandas"""
+        
+        group_columns = operation_config.get("group_columns", [])
+        aggregations = operation_config.get("aggregations", {})
+        
+        if group_columns and aggregations:
+            data = data.groupby(group_columns).agg(aggregations)
+            self.main_logger.debug(f"Aggregated data by {group_columns}")
+        
+        return data
+    
+    def _transform_data_with_spark(self, data, operation_config, **kwargs):
+        """Transform data using Spark"""
+        
+        # Apply column transformations
+        if "column_transformations" in operation_config:
+            for transform in operation_config["column_transformations"]:
+                column = transform.get("column")
+                operation = transform.get("operation")
+                
+                if operation == "rename":
+                    new_name = transform.get("new_name")
+                    data = data.withColumnRenamed(column, new_name)
+                    self.main_logger.debug(f"Renamed column {column} to {new_name}")
+        
+        return data
+    
+    def _transform_data_with_pandas(self, data, operation_config, **kwargs):
+        """Transform data using Pandas"""
+        
+        # Apply column transformations
+        if "column_transformations" in operation_config:
+            for transform in operation_config["column_transformations"]:
+                column = transform.get("column")
+                operation = transform.get("operation")
+                
+                if operation == "rename":
+                    new_name = transform.get("new_name")
+                    data = data.rename(columns={column: new_name})
+                    self.main_logger.debug(f"Renamed column {column} to {new_name}")
+        
+        return data
+    
+    def _estimate_data_size(self, data):
+        """Estimate data size in MB"""
+        
+        if hasattr(data, 'toPandas'):  # Spark DataFrame
+            # Sample data to estimate size
+            sample = data.limit(1000).toPandas()
+            sample_size_mb = sample.memory_usage(deep=True).sum() / (1024 * 1024)
+            # Estimate total size based on sample
+            total_rows = data.count()
+            estimated_size_mb = (sample_size_mb / 1000) * total_rows
+            return estimated_size_mb
+        else:  # Pandas DataFrame
+            return data.memory_usage(deep=True).sum() / (1024 * 1024)
 ```
 
-### 3. Request-Specific Logging
+### 2. Multi-Engine Distributed Logging
 
 ```python
-# Create request-scoped logger
-request_logger = Logger("request_handler", request_id="req_12345")
-
-# Log request details
-request_logger.info("Request received", extra={
-    "method": "POST",
-    "path": "/api/users",
-    "client_ip": "192.168.1.100",
-    "user_agent": "Mozilla/5.0..."
-})
-
-# Process request
-try:
-    # Handle request
-    request_logger.info("Request processed successfully")
-except Exception as e:
-    request_logger.error("Request processing failed", exc_info=True)
+class MultiEngineDistributedLogger:
+    """Distributed logging that works across multiple engines and nodes"""
+    
+    def __init__(self, logging_manager):
+        self.logging_manager = logging_manager
+        self.logger = Logger("distributed_logger")
+        self.node_id = self._get_node_identifier()
+    
+    def _get_node_identifier(self):
+        """Get unique identifier for current node"""
+        
+        import socket
+        import os
+        
+        hostname = socket.gethostname()
+        process_id = os.getpid()
+        return f"{hostname}_{process_id}"
+    
+    def log_distributed_operation(self, operation_name, data, operation_config, engine=None, **kwargs):
+        """Log distributed operation with node tracking"""
+        
+        # Add node information to context
+        with self.logging_manager.context_manager.context(f"distributed_{operation_name}"):
+            self.logging_manager.main_logger.info(f"Node {self.node_id} starting {operation_name}")
+            
+            # Log operation with engine selection
+            result = self.logging_manager.log_operation(
+                operation_name, data, operation_config, engine, **kwargs
+            )
+            
+            self.logging_manager.main_logger.info(f"Node {self.node_id} completed {operation_name}")
+            
+            return result
+    
+    def log_cluster_metrics(self, cluster_info):
+        """Log cluster-wide metrics and health information"""
+        
+        with self.logging_manager.context_manager.context("cluster_monitoring"):
+            self.logging_manager.main_logger.info(f"Cluster metrics from node {self.node_id}")
+            
+            # Log cluster information
+            for metric_name, metric_value in cluster_info.items():
+                self.logging_manager.main_logger.info(f"Cluster metric - {metric_name}: {metric_value}")
+            
+            # Log performance metrics
+            cluster_performance = self.logging_manager.performance_logger.get_cluster_metrics()
+            self.logging_manager.main_logger.info(f"Cluster performance: {cluster_performance}")
+    
+    def log_data_distribution(self, data, distribution_config):
+        """Log information about data distribution across cluster"""
+        
+        with self.logging_manager.context_manager.context("data_distribution"):
+            self.logging_manager.main_logger.info(f"Data distribution analysis on node {self.node_id}")
+            
+            if hasattr(data, 'toPandas'):  # Spark DataFrame
+                # Get partition information
+                num_partitions = data.rdd.getNumPartitions()
+                partition_sizes = data.rdd.mapPartitions(lambda x: [len(list(x))]).collect()
+                
+                self.logging_manager.main_logger.info(f"Number of partitions: {num_partitions}")
+                self.logging_manager.main_logger.info(f"Partition sizes: {partition_sizes}")
+                
+                # Log data skew information
+                avg_partition_size = sum(partition_sizes) / len(partition_sizes)
+                max_partition_size = max(partition_sizes)
+                skew_ratio = max_partition_size / avg_partition_size if avg_partition_size > 0 else 0
+                
+                self.logging_manager.main_logger.info(f"Data skew ratio: {skew_ratio:.2f}")
+                
+                if skew_ratio > 2.0:
+                    self.logging_manager.main_logger.warning(f"High data skew detected: {skew_ratio:.2f}")
+            
+            else:  # Pandas DataFrame
+                # For single-node Pandas, log basic information
+                self.logging_manager.main_logger.info(f"Single-node Pandas DataFrame with {len(data)} rows")
+    
+    def log_engine_performance_comparison(self, data, operations, engines=["pandas", "spark"]):
+        """Log performance comparison between different engines"""
+        
+        with self.logging_manager.context_manager.context("engine_performance"):
+            self.logging_manager.main_logger.info(f"Performance comparison on node {self.node_id}")
+            
+            performance_results = {}
+            
+            for engine in engines:
+                if engine == "spark" and not self.logging_manager.spark_available:
+                    continue
+                
+                try:
+                    # Measure performance for each engine
+                    with self.logging_manager.performance_logger.measure_operation(f"performance_test_{engine}"):
+                        if engine == "spark":
+                            result = self._execute_with_spark(data, operations)
+                        else:
+                            result = self._execute_with_pandas(data, operations)
+                    
+                    # Get performance metrics
+                    metrics = self.logging_manager.performance_logger.get_operation_metrics(f"performance_test_{engine}")
+                    performance_results[engine] = metrics
+                    
+                    self.logging_manager.main_logger.info(f"{engine} engine performance: {metrics}")
+                    
+                except Exception as e:
+                    self.logging_manager.main_logger.error(f"Error testing {engine} engine: {str(e)}")
+                    performance_results[engine] = {"error": str(e)}
+            
+            # Log performance comparison summary
+            self.logging_manager.main_logger.info(f"Performance comparison summary: {performance_results}")
+            
+            return performance_results
 ```
 
-## Performance and Monitoring
-
-### 1. Performance Logging
+### 3. Multi-Engine Logging Context Management
 
 ```python
-import time
-from siege_utilities.core.logging import PerformanceLogger
-
-# Create performance logger
-perf_logger = PerformanceLogger("data_processing")
-
-# Log operation performance
-with perf_logger.timer("database_query"):
-    # Database operation
-    time.sleep(0.1)  # Simulate database query
-
-# Log memory usage
-memory_usage = perf_logger.get_memory_usage()
-perf_logger.info("Memory usage", extra={"memory_mb": memory_usage})
-
-# Log custom metrics
-perf_logger.log_metric("records_processed", 1000)
-perf_logger.log_metric("processing_time_ms", 150)
+class MultiEngineLoggingContext:
+    """Context manager for multi-engine logging operations"""
+    
+    def __init__(self, logging_manager):
+        self.logging_manager = logging_manager
+        self.logger = Logger("logging_context")
+        self.active_contexts = []
+    
+    def __enter__(self):
+        """Enter logging context"""
+        
+        # Create context stack
+        context_info = {
+            "timestamp": time.time(),
+            "context_id": str(uuid.uuid4()),
+            "engine": self.logging_manager.default_engine
+        }
+        
+        self.active_contexts.append(context_info)
+        
+        # Log context entry
+        self.logging_manager.main_logger.debug(f"Entered logging context: {context_info}")
+        
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit logging context"""
+        
+        if self.active_contexts:
+            context_info = self.active_contexts.pop()
+            
+            # Log context exit
+            duration = time.time() - context_info["timestamp"]
+            self.logging_manager.main_logger.debug(f"Exited logging context after {duration:.2f}s")
+            
+            # Log any exceptions
+            if exc_type is not None:
+                self.logging_manager.main_logger.error(f"Exception in context: {exc_type.__name__}: {exc_val}")
+    
+    def log_with_context(self, message, level=LogLevel.INFO, **context_data):
+        """Log message with current context information"""
+        
+        # Get current context
+        current_context = self.active_contexts[-1] if self.active_contexts else {}
+        
+        # Merge context data
+        full_context = {**current_context, **context_data}
+        
+        # Log with context
+        if level == LogLevel.DEBUG:
+            self.logging_manager.main_logger.debug(f"[{full_context}] {message}")
+        elif level == LogLevel.INFO:
+            self.logging_manager.main_logger.info(f"[{full_context}] {message}")
+        elif level == LogLevel.WARNING:
+            self.logging_manager.main_logger.warning(f"[{full_context}] {message}")
+        elif level == LogLevel.ERROR:
+            self.logging_manager.main_logger.error(f"[{full_context}] {message}")
+    
+    def set_engine_context(self, engine):
+        """Set engine context for current operation"""
+        
+        if self.active_contexts:
+            self.active_contexts[-1]["engine"] = engine
+            self.logging_manager.main_logger.debug(f"Set engine context to: {engine}")
+    
+    def add_custom_context(self, key, value):
+        """Add custom context information"""
+        
+        if self.active_contexts:
+            self.active_contexts[-1][key] = value
+            self.logging_manager.main_logger.debug(f"Added context: {key} = {value}")
 ```
 
-### 2. Log Aggregation and Analysis
+### 4. Multi-Engine Performance Monitoring
 
 ```python
-# Configure log aggregation
-logger = Logger(
-    name="aggregated_logger",
-    aggregation_enabled=True,
-    aggregation_interval=60,  # seconds
-    aggregation_batch_size=100
-)
-
-# Log messages (will be batched and aggregated)
-for i in range(1000):
-    logger.info(f"Processing item {i}")
-
-# Aggregated logs will show:
-# "INFO: Processing item X (repeated 1000 times in 60s)"
-```
-
-### 3. Log Rotation and Management
-
-```python
-# Configure log rotation
-logger = Logger(
-    name="rotating_logger",
-    file_output=True,
-    output_file="logs/app.log",
-    max_file_size="100MB",
-    backup_count=10,
-    rotation_when="midnight",
-    rotation_interval=1
-)
-
-# Logs will be rotated daily and keep 10 backup files
-logger.info("Application started")
+class MultiEnginePerformanceMonitor:
+    """Monitor performance across different engines"""
+    
+    def __init__(self, logging_manager):
+        self.logging_manager = logging_manager
+        self.logger = Logger("performance_monitor")
+        self.performance_history = {}
+    
+    def monitor_engine_performance(self, operation_name, data, operation_config, engines=None):
+        """Monitor performance across different engines"""
+        
+        if engines is None:
+            engines = ["pandas"]
+            if self.logging_manager.spark_available:
+                engines.append("spark")
+        
+        performance_results = {}
+        
+        for engine in engines:
+            try:
+                # Measure performance for each engine
+                with self.logging_manager.performance_logger.measure_operation(f"{operation_name}_{engine}"):
+                    if engine == "spark":
+                        result = self.logging_manager._execute_with_spark(data, operation_config)
+                    else:
+                        result = self.logging_manager._execute_with_pandas(data, operation_config)
+                
+                # Get performance metrics
+                metrics = self.logging_manager.performance_logger.get_operation_metrics(f"{operation_name}_{engine}")
+                performance_results[engine] = {
+                    "metrics": metrics,
+                    "result_size": self._get_result_size(result, engine),
+                    "success": True
+                }
+                
+                # Log performance information
+                self.logging_manager.main_logger.info(f"{engine} engine performance for {operation_name}: {metrics}")
+                
+            except Exception as e:
+                performance_results[engine] = {
+                    "error": str(e),
+                    "success": False
+                }
+                
+                self.logging_manager.main_logger.error(f"Error with {engine} engine for {operation_name}: {str(e)}")
+        
+        # Store performance history
+        self.performance_history[operation_name] = {
+            "timestamp": time.time(),
+            "results": performance_results
+        }
+        
+        return performance_results
+    
+    def get_performance_trends(self, operation_name, time_window_hours=24):
+        """Get performance trends for specific operation"""
+        
+        current_time = time.time()
+        cutoff_time = current_time - (time_window_hours * 3600)
+        
+        # Filter performance history within time window
+        recent_history = {
+            timestamp: data for timestamp, data in self.performance_history.items()
+            if timestamp >= cutoff_time and operation_name in data
+        }
+        
+        if not recent_history:
+            return {}
+        
+        # Calculate trends for each engine
+        trends = {}
+        
+        for engine in ["pandas", "spark"]:
+            engine_metrics = []
+            timestamps = []
+            
+            for timestamp, data in recent_history.items():
+                if operation_name in data and engine in data[operation_name]["results"]:
+                    result = data[operation_name]["results"][engine]
+                    if result.get("success") and "metrics" in result:
+                        # Extract execution time
+                        execution_time = result["metrics"].get("execution_time", 0)
+                        engine_metrics.append(execution_time)
+                        timestamps.append(timestamp)
+            
+            if len(engine_metrics) > 1:
+                # Calculate trend
+                trend_slope = self._calculate_trend_slope(timestamps, engine_metrics)
+                trends[engine] = {
+                    "trend_slope": trend_slope,
+                    "trend_direction": "improving" if trend_slope < 0 else "degrading" if trend_slope > 0 else "stable",
+                    "data_points": len(engine_metrics),
+                    "average_performance": sum(engine_metrics) / len(engine_metrics)
+                }
+        
+        return trends
+    
+    def _get_result_size(self, result, engine):
+        """Get size of operation result"""
+        
+        if hasattr(result, 'toPandas'):  # Spark DataFrame
+            return result.count()
+        else:  # Pandas DataFrame
+            return len(result)
+    
+    def _calculate_trend_slope(self, timestamps, values):
+        """Calculate trend slope using simple linear regression"""
+        
+        if len(timestamps) < 2:
+            return 0
+        
+        # Normalize timestamps to hours from first timestamp
+        first_timestamp = min(timestamps)
+        normalized_timestamps = [(t - first_timestamp) / 3600 for t in timestamps]
+        
+        # Calculate slope using least squares
+        n = len(normalized_timestamps)
+        sum_x = sum(normalized_timestamps)
+        sum_y = sum(values)
+        sum_xy = sum(x * y for x, y in zip(normalized_timestamps, values))
+        sum_x2 = sum(x * x for x in normalized_timestamps)
+        
+        if n * sum_x2 - sum_x * sum_x == 0:
+            return 0
+        
+        slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x * sum_x)
+        return slope
+    
+    def generate_performance_report(self, operation_name=None):
+        """Generate comprehensive performance report"""
+        
+        if operation_name:
+            # Generate report for specific operation
+            return self._generate_operation_report(operation_name)
+        else:
+            # Generate overall performance report
+            return self._generate_overall_report()
+    
+    def _generate_operation_report(self, operation_name):
+        """Generate performance report for specific operation"""
+        
+        if operation_name not in self.performance_history:
+            return {"error": f"No performance data for operation: {operation_name}"}
+        
+        operation_data = self.performance_history[operation_name]
+        results = operation_data["results"]
+        
+        report = {
+            "operation_name": operation_name,
+            "timestamp": operation_data["timestamp"],
+            "engines_tested": list(results.keys()),
+            "performance_summary": {}
+        }
+        
+        for engine, result in results.items():
+            if result.get("success"):
+                report["performance_summary"][engine] = {
+                    "execution_time": result["metrics"].get("execution_time", "N/A"),
+                    "memory_usage": result["metrics"].get("memory_usage", "N/A"),
+                    "result_size": result["result_size"]
+                }
+            else:
+                report["performance_summary"][engine] = {
+                    "error": result.get("error", "Unknown error")
+                }
+        
+        return report
+    
+    def _generate_overall_report(self):
+        """Generate overall performance report"""
+        
+        if not self.performance_history:
+            return {"error": "No performance data available"}
+        
+        report = {
+            "total_operations": len(self.performance_history),
+            "operations": list(self.performance_history.keys()),
+            "overall_summary": {}
+        }
+        
+        # Calculate overall statistics
+        engine_stats = {}
+        
+        for operation_name, operation_data in self.performance_history.items():
+            for engine, result in operation_data["results"].items():
+                if engine not in engine_stats:
+                    engine_stats[engine] = {
+                        "total_operations": 0,
+                        "successful_operations": 0,
+                        "failed_operations": 0,
+                        "total_execution_time": 0,
+                        "total_result_size": 0
+                    }
+                
+                engine_stats[engine]["total_operations"] += 1
+                
+                if result.get("success"):
+                    engine_stats[engine]["successful_operations"] += 1
+                    engine_stats[engine]["total_execution_time"] += result["metrics"].get("execution_time", 0)
+                    engine_stats[engine]["total_result_size"] += result["result_size"]
+                else:
+                    engine_stats[engine]["failed_operations"] += 1
+        
+        # Calculate averages
+        for engine, stats in engine_stats.items():
+            if stats["successful_operations"] > 0:
+                stats["average_execution_time"] = stats["total_execution_time"] / stats["successful_operations"]
+                stats["average_result_size"] = stats["total_result_size"] / stats["successful_operations"]
+                stats["success_rate"] = stats["successful_operations"] / stats["total_operations"]
+            else:
+                stats["average_execution_time"] = 0
+                stats["average_result_size"] = 0
+                stats["success_rate"] = 0
+        
+        report["overall_summary"] = engine_stats
+        
+        return report
 ```
 
 ## Integration Examples
 
-### 1. With Web Applications
+### 1. Multi-Engine Logging Pipeline
 
 ```python
-from flask import Flask, request
-from siege_utilities.core.logging import Logger
+def create_multi_engine_logging_pipeline():
+    """Create a complete multi-engine logging pipeline"""
+    
+    # Initialize logging manager
+    logging_config = {
+        "logger_name": "multi_engine_pipeline",
+        "log_level": LogLevel.INFO,
+        "output_format": "json",
+        "performance_logger_name": "pipeline_monitor",
+        "metrics_storage": "file"
+    }
+    
+    logging_manager = MultiEngineLoggingManager(default_engine="auto", log_config=logging_config)
+    
+    # Create specialized loggers
+    distributed_logger = MultiEngineDistributedLogger(logging_manager)
+    performance_monitor = MultiEnginePerformanceMonitor(logging_manager)
+    
+    # Define sample data
+    sample_data = create_sample_data()
+    
+    # Define operation configurations
+    operations = {
+        "data_cleaning": {
+            "type": "data_processing",
+            "complexity": "medium",
+            "filters": ["value > 0", "status == 'active'"],
+            "transformations": [
+                {"column": "value", "operation": "cast", "new_type": "double"},
+                {"column": "name", "operation": "cast", "new_type": "string"}
+            ]
+        },
+        "data_aggregation": {
+            "type": "aggregation",
+            "complexity": "simple",
+            "group_columns": ["category"],
+            "aggregations": ["count", "sum", "avg"]
+        },
+        "data_transformation": {
+            "type": "transformation",
+            "complexity": "medium",
+            "column_transformations": [
+                {"column": "old_name", "operation": "rename", "new_name": "new_name"}
+            ]
+        }
+    }
+    
+    # Execute operations with logging
+    results = {}
+    
+    for operation_name, operation_config in operations.items():
+        try:
+            # Log operation with automatic engine selection
+            result = logging_manager.log_operation(
+                operation_name, sample_data, operation_config
+            )
+            
+            results[operation_name] = {
+                "status": "success",
+                "result": result
+            }
+            
+        except Exception as e:
+            results[operation_name] = {
+                "status": "failed",
+                "error": str(e)
+            }
+    
+    # Monitor performance across engines
+    performance_results = performance_monitor.monitor_engine_performance(
+        "comprehensive_test", sample_data, operations["data_cleaning"]
+    )
+    
+    # Generate performance report
+    performance_report = performance_monitor.generate_performance_report()
+    
+    return results, performance_results, performance_report
 
-app = Flask(__name__)
-logger = Logger("web_app")
-
-@app.before_request
-def log_request():
-    logger.info("Request received", extra={
-        "method": request.method,
-        "path": request.path,
-        "ip": request.remote_addr,
-        "user_agent": request.headers.get('User-Agent')
+def create_sample_data():
+    """Create sample data for testing"""
+    
+    import pandas as pd
+    import numpy as np
+    
+    # Create sample DataFrame
+    np.random.seed(42)
+    n_rows = 10000
+    
+    data = pd.DataFrame({
+        "id": range(1, n_rows + 1),
+        "name": [f"Item_{i}" for i in range(1, n_rows + 1)],
+        "value": np.random.uniform(0, 1000, n_rows),
+        "category": np.random.choice(["A", "B", "C"], n_rows),
+        "status": np.random.choice(["active", "inactive"], n_rows),
+        "timestamp": pd.date_range("2023-01-01", periods=n_rows, freq="H")
     })
+    
+    return data
 
-@app.after_request
-def log_response(response):
-    logger.info("Response sent", extra={
-        "status_code": response.status_code,
-        "content_length": len(response.get_data())
-    })
-    return response
-
-@app.route('/api/users')
-def get_users():
-    logger.info("Fetching users from database")
-    try:
-        # Database operation
-        users = fetch_users_from_db()
-        logger.info(f"Retrieved {len(users)} users")
-        return {"users": users}
-    except Exception as e:
-        logger.error("Failed to fetch users", exc_info=True)
-        return {"error": "Internal server error"}, 500
+# Run the pipeline
+logging_pipeline_results = create_multi_engine_logging_pipeline()
 ```
 
-### 2. With Data Processing Pipelines
+### 2. Real-time Logging Dashboard
 
 ```python
-from siege_utilities.core.logging import Logger
-
-class DataProcessor:
-    def __init__(self):
-        self.logger = Logger("data_processor")
+def create_logging_dashboard():
+    """Create a dashboard to monitor logging and performance in real-time"""
     
-    def process_file(self, file_path):
-        self.logger.info(f"Starting to process file: {file_path}")
+    import dash
+    from dash import dcc, html
+    from dash.dependencies import Input, Output
+    import plotly.graph_objs as go
+    
+    app = dash.Dash(__name__)
+    
+    app.layout = html.Div([
+        html.H1("Multi-Engine Logging Dashboard"),
         
-        try:
-            # Read file
-            with open(file_path, 'r') as f:
-                data = f.read()
+        html.Div([
+            html.Div([
+                html.Label("Log Level:"),
+                dcc.Dropdown(
+                    id="log-level-filter",
+                    options=[
+                        {"label": "All Levels", "value": "all"},
+                        {"label": "Debug", "value": "debug"},
+                        {"label": "Info", "value": "info"},
+                        {"label": "Warning", "value": "warning"},
+                        {"label": "Error", "value": "error"}
+                    ],
+                    value="all",
+                    style={"width": "150px"}
+                )
+            ], style={"width": "200px", "margin": "20px"}),
             
-            self.logger.info(f"File read successfully, size: {len(data)} bytes")
+            html.Div([
+                html.Label("Engine:"),
+                dcc.Dropdown(
+                    id="engine-filter",
+                    options=[
+                        {"label": "All Engines", "value": "all"},
+                        {"label": "Pandas", "value": "pandas"},
+                        {"label": "Spark", "value": "spark"},
+                        {"label": "Auto", "value": "auto"}
+                    ],
+                    value="all",
+                    style={"width": "150px"}
+                )
+            ], style={"width": "200px", "margin": "20px"}),
             
-            # Process data
-            processed_data = self.transform_data(data)
-            self.logger.info(f"Data transformed, {len(processed_data)} records")
-            
-            # Save results
-            self.save_results(processed_data)
-            self.logger.info("Results saved successfully")
-            
-        except FileNotFoundError:
-            self.logger.error(f"File not found: {file_path}")
-            raise
-        except Exception as e:
-            self.logger.error(f"Processing failed: {str(e)}", exc_info=True)
-            raise
-    
-    def transform_data(self, data):
-        self.logger.debug("Transforming data")
-        # Data transformation logic
-        return data.split('\n')
-    
-    def save_results(self, data):
-        self.logger.debug(f"Saving {len(data)} records")
-        # Save logic
-        pass
-
-# Use the processor
-processor = DataProcessor()
-processor.process_file("data/input.csv")
-```
-
-### 3. With Background Jobs
-
-```python
-from siege_utilities.core.logging import Logger
-import schedule
-import time
-
-class BackgroundJob:
-    def __init__(self):
-        self.logger = Logger("background_job")
-    
-    def run_daily_cleanup(self):
-        self.logger.info("Starting daily cleanup job")
+            html.Div([
+                html.Label("Update Frequency (seconds):"),
+                dcc.Slider(
+                    id="update-frequency",
+                    min=5,
+                    max=60,
+                    step=5,
+                    value=30,
+                    marks={i: str(i) for i in [5, 15, 30, 45, 60]},
+                    tooltip={"placement": "bottom", "always_visible": True}
+                )
+            ], style={"width": "300px", "margin": "20px"})
+        ], style={"display": "flex", "justifyContent": "center", "marginBottom": "20px"}),
         
-        try:
-            # Cleanup operations
-            self.cleanup_old_logs()
-            self.cleanup_temp_files()
-            self.cleanup_database()
-            
-            self.logger.info("Daily cleanup completed successfully")
-            
-        except Exception as e:
-            self.logger.error("Daily cleanup failed", exc_info=True)
-            # Send alert or notification
-    
-    def cleanup_old_logs(self):
-        self.logger.debug("Cleaning up old log files")
-        # Cleanup logic
-    
-    def cleanup_temp_files(self):
-        self.logger.debug("Cleaning up temporary files")
-        # Cleanup logic
-    
-    def cleanup_database(self):
-        self.logger.debug("Cleaning up database")
-        # Cleanup logic
-
-# Schedule the job
-job = BackgroundJob()
-schedule.every().day.at("02:00").do(job.run_daily_cleanup)
-
-# Run scheduler
-while True:
-    schedule.run_pending()
-    time.sleep(60)
-```
-
-## Error Handling and Recovery
-
-### 1. Logging Error Recovery
-
-```python
-from siege_utilities.core.logging import Logger
-
-class ResilientLogger:
-    def __init__(self):
-        self.logger = Logger("resilient_app")
-        self.fallback_logger = self.create_fallback_logger()
-    
-    def create_fallback_logger(self):
-        # Create a simple fallback logger
-        return Logger("fallback", console_output=True)
-    
-    def safe_log(self, level, message, **kwargs):
-        try:
-            getattr(self.logger, level)(message, **kwargs)
-        except Exception as e:
-            # Fallback to console logging
-            self.fallback_logger.error(f"Primary logging failed: {e}")
-            getattr(self.fallback_logger, level)(message, **kwargs)
-    
-    def info(self, message, **kwargs):
-        self.safe_log("info", message, **kwargs)
-    
-    def error(self, message, **kwargs):
-        self.safe_log("error", message, **kwargs)
-
-# Use resilient logger
-resilient_logger = ResilientLogger()
-resilient_logger.info("This will use primary logger")
-```
-
-### 2. Logging Circuit Breaker
-
-```python
-class LoggingCircuitBreaker:
-    def __init__(self, failure_threshold=5, timeout=60):
-        self.failure_threshold = failure_threshold
-        self.timeout = timeout
-        self.failure_count = 0
-        self.last_failure_time = None
-        self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
-    
-    def can_log(self):
-        if self.state == "OPEN":
-            if time.time() - self.last_failure_time > self.timeout:
-                self.state = "HALF_OPEN"
-                return True
-            return False
-        return True
-    
-    def log_success(self):
-        self.failure_count = 0
-        self.state = "CLOSED"
-    
-    def log_failure(self):
-        self.failure_count += 1
-        self.last_failure_time = time.time()
+        html.Div([
+            dcc.Graph(id="log-volume-chart"),
+            dcc.Graph(id="engine-performance-chart"),
+            dcc.Graph(id="error-rate-chart")
+        ]),
         
-        if self.failure_count >= self.failure_threshold:
-            self.state = "OPEN"
+        dcc.Interval(id="update-interval", interval=30*1000)  # Update every 30 seconds
+    ])
+    
+    @app.callback(
+        [Output("log-volume-chart", "figure"),
+         Output("engine-performance-chart", "figure"),
+         Output("error-rate-chart", "figure")],
+        [Input("update-interval", "n_intervals"),
+         Input("log-level-filter", "value"),
+         Input("engine-filter", "value"),
+         Input("update-frequency", "value")]
+    )
+    def update_charts(n, log_level, engine, frequency):
+        # Get logging data (this would come from your actual logging system)
+        # For demonstration, we'll create sample data
+        
+        # Log volume chart
+        time_points = list(range(24))  # Last 24 hours
+        log_volumes = [np.random.randint(100, 1000) for _ in time_points]
+        
+        log_fig = go.Figure(data=[
+            go.Scatter(x=time_points, y=log_volumes, mode="lines+markers", name="Log Volume")
+        ])
+        log_fig.update_layout(title="Log Volume Over Time", xaxis_title="Hours Ago", yaxis_title="Number of Logs")
+        
+        # Engine performance chart
+        engines = ["pandas", "spark", "auto"]
+        avg_execution_times = [2.1, 8.5, 4.2]  # seconds
+        
+        perf_fig = go.Figure(data=[
+            go.Bar(x=engines, y=avg_execution_times, name="Average Execution Time")
+        ])
+        perf_fig.update_layout(title="Engine Performance Comparison", yaxis_title="Time (seconds)")
+        
+        # Error rate chart
+        error_rates = [2.1, 1.8, 3.2, 2.9, 2.5, 2.8, 2.3]  # percentage
+        
+        error_fig = go.Figure(data=[
+            go.Scatter(x=list(range(7)), y=error_rates, mode="lines+markers", name="Error Rate")
+        ])
+        error_fig.update_layout(title="Error Rate Trend", xaxis_title="Days Ago", yaxis_title="Error Rate (%)")
+        
+        return log_fig, perf_fig, error_fig
+    
+    return app
 
-# Use circuit breaker with logger
-circuit_breaker = LoggingCircuitBreaker()
-logger = Logger("circuit_breaker_app")
-
-def safe_log(level, message, **kwargs):
-    if circuit_breaker.can_log():
-        try:
-            getattr(logger, level)(message, **kwargs)
-            circuit_breaker.log_success()
-        except Exception as e:
-            circuit_breaker.log_failure()
-            print(f"Logging failed: {e}")  # Fallback
-    else:
-        print(f"Logging circuit breaker open: {message}")  # Fallback
+# Start the dashboard
+logging_dashboard = create_logging_dashboard()
+logging_dashboard.run_server(debug=True, port=8054)
 ```
 
 ## Best Practices
 
-### 1. Log Level Guidelines
-- **DEBUG**: Detailed information for debugging
-- **INFO**: General information about program execution
-- **WARNING**: Something unexpected happened but the program can continue
-- **ERROR**: A serious problem occurred
-- **CRITICAL**: A critical error that may prevent the program from running
+### 1. Engine Selection
+- Use **Pandas** for data < 10MB and simple operations
+- Use **Spark** for data > 100MB and complex operations
+- Use **Auto-detection** for unknown data sizes and dynamic workloads
+- Consider **operation complexity** when selecting engine
 
-### 2. Log Message Structure
-- Use clear, descriptive messages
-- Include relevant context and metadata
-- Use consistent formatting and terminology
-- Avoid logging sensitive information
+### 2. Performance Optimization
+- **Cache frequently accessed data** in Spark
+- **Use appropriate logging levels** for different environments
+- **Implement structured logging** for better analysis
+- **Monitor performance trends** and adjust engine selection
 
-### 3. Performance Considerations
-- Use appropriate log levels for production
-- Implement log rotation and cleanup
-- Consider asynchronous logging for high-volume applications
-- Monitor log file sizes and disk usage
+### 3. Logging Quality
+- **Use consistent log formats** across all engines
+- **Implement comprehensive error handling** and logging
+- **Add context information** to all log entries
+- **Monitor log volume** and performance impact
 
-### 4. Security and Privacy
-- Never log passwords, API keys, or sensitive data
-- Sanitize user input before logging
-- Use appropriate access controls for log files
-- Consider log encryption for sensitive environments
+### 4. Error Handling
+- **Implement fallback mechanisms** when engines fail
+- **Provide meaningful error messages** for debugging
+- **Log engine selection decisions** for transparency
+- **Retry failed operations** with different engines when possible
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Log Files Not Created**
+1. **Engine Compatibility Issues**
    ```python
-   # Check directory permissions
-   import os
-   log_dir = "logs"
-   if not os.path.exists(log_dir):
-       os.makedirs(log_dir, exist_ok=True)
+   # Check engine availability
+   if logging_manager.spark_available:
+       print("Spark is available for distributed logging")
+   else:
+       print("Using Pandas only")
    ```
 
-2. **Performance Issues with High-Volume Logging**
+2. **Performance Issues with Large Data**
    ```python
-   # Use async logging
-   logger = Logger("async_logger", async_logging=True)
+   # Use Spark for very large datasets
+   if data_size_mb > 1000:
+       engine = "spark"
+   else:
+       engine = "pandas"
    ```
 
-3. **Disk Space Issues**
+3. **Log Volume Issues**
    ```python
-   # Implement log rotation and cleanup
-   logger = Logger("rotating_logger", 
-                  max_file_size="10MB", 
-                  backup_count=5)
+   # Adjust log level based on environment
+   if environment == "production":
+       log_level = LogLevel.WARNING
+   else:
+       log_level = LogLevel.DEBUG
    ```
 
 ## Conclusion
 
-The logging utilities in `siege_utilities` provide comprehensive tools for application logging and monitoring. By following this recipe, you can:
+The multi-engine logging capabilities in `siege_utilities` provide:
 
-- Implement robust logging across your applications
-- Configure logging based on environment and requirements
-- Use structured logging for better analysis and debugging
-- Implement performance monitoring and metrics
-- Handle logging failures gracefully with fallback mechanisms
+- **Seamless scalability** from single applications to distributed systems
+- **Automatic engine selection** based on data characteristics
+- **Unified logging interfaces** that work with both Spark and Pandas
+- **Comprehensive performance monitoring** across all engines
+- **Distributed logging** for cluster-wide visibility
 
-Remember to always use appropriate log levels, implement proper log rotation, and follow security best practices when logging sensitive information.
+By following this recipe, you can build robust, scalable logging systems that automatically adapt to your data sizes and processing requirements while providing comprehensive visibility into your operations.

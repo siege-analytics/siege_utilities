@@ -7,12 +7,914 @@ This recipe demonstrates how to use the 3D mapping utilities in `siege_utilities
 - Python 3.7+
 - `siege_utilities` library installed
 - Basic understanding of 3D graphics and spatial data
-- Required dependencies: `plotly`, `numpy`, `pandas`, `geopandas`, `pyproj`, `rasterio`
+- Required dependencies: `plotly`, `numpy`, `pandas`, `geopandas`, `pyproj`, `rasterio`, `pydeck`
 
 ## Installation
 ```bash
 pip install siege_utilities
-pip install plotly numpy pandas geopandas pyproj rasterio
+pip install plotly numpy pandas geopandas pyproj rasterio pydeck
+```
+
+## Multi-Engine Support: Spark and Pandas
+
+### Overview
+All 3D mapping operations in `siege_utilities` support both Apache Spark and Pandas, allowing you to work with data at any scale - from small datasets to massive distributed datasets.
+
+### 1. Engine-Agnostic Data Loading
+
+```python
+from siege_utilities.distributed.spark_utils import SparkUtils
+from siege_utilities.geo.spatial_data import SpatialDataProcessor
+from siege_utilities.reporting.chart_generator import ChartGenerator
+
+class MultiEngine3DMapper:
+    """3D Mapper that works with both Spark and Pandas"""
+    
+    def __init__(self, engine="auto"):
+        self.engine = engine
+        self.spark_utils = SparkUtils() if engine in ["spark", "auto"] else None
+        self.spatial_processor = SpatialDataProcessor()
+        self.chart_generator = ChartGenerator()
+    
+    def load_spatial_data(self, data_source, engine=None):
+        """Load spatial data using specified engine"""
+        engine = engine or self.engine
+        
+        if engine == "spark":
+            return self._load_with_spark(data_source)
+        elif engine == "pandas":
+            return self._load_with_pandas(data_source)
+        else:  # auto-detect
+            return self._auto_detect_and_load(data_source)
+    
+    def _load_with_spark(self, data_source):
+        """Load data using Spark for large datasets"""
+        if isinstance(data_source, str):
+            # Load from file
+            if data_source.endswith('.parquet'):
+                df = self.spark_utils.read_parquet(data_source)
+            elif data_source.endswith('.csv'):
+                df = self.spark_utils.read_csv(data_source)
+            elif data_source.endswith('.geojson'):
+                df = self.spark_utils.read_geojson(data_source)
+            else:
+                df = self.spark_utils.read_file(data_source)
+        else:
+            df = data_source
+        
+        return df
+    
+    def _load_with_pandas(self, data_source):
+        """Load data using Pandas for smaller datasets"""
+        import pandas as pd
+        import geopandas as gpd
+        
+        if isinstance(data_source, str):
+            if data_source.endswith('.geojson'):
+                return gpd.read_file(data_source)
+            elif data_source.endswith('.parquet'):
+                return pd.read_parquet(data_source)
+            elif data_source.endswith('.csv'):
+                return pd.read_csv(data_source)
+            else:
+                return pd.read_file(data_source)
+        else:
+            return data_source
+    
+    def _auto_detect_and_load(self, data_source):
+        """Auto-detect best engine based on data size and source"""
+        try:
+            # Try pandas first for small data
+            return self._load_with_pandas(data_source)
+        except Exception:
+            # Fall back to Spark for large data
+            return self._load_with_spark(data_source)
+```
+
+### 2. Engine-Agnostic 3D Terrain Generation
+
+```python
+def create_3d_terrain_multi_engine(center_lat, center_lon, radius_km=50, engine="auto"):
+    """Create 3D terrain map using any engine"""
+    
+    mapper = MultiEngine3DMapper(engine=engine)
+    
+    # Generate terrain data
+    if engine == "spark":
+        terrain_data = mapper.spark_utils.generate_terrain_data_spark(
+            center_lat=center_lat,
+            center_lon=center_lon,
+            radius_km=radius_km,
+            resolution_m=100
+        )
+        # Convert Spark DataFrame to Pandas for visualization
+        terrain_pandas = terrain_data.toPandas()
+    else:
+        terrain_data = mapper.spatial_processor.generate_terrain_data(
+            center_lat=center_lat,
+            center_lon=center_lon,
+            radius_km=radius_km,
+            resolution_m=100
+        )
+        terrain_pandas = terrain_data
+    
+    # Create 3D visualization (same for both engines)
+    return create_beautiful_3d_terrain_map_from_data(terrain_pandas, center_lat, center_lon)
+
+def create_beautiful_3d_terrain_map_from_data(terrain_data, center_lat, center_lon):
+    """Create 3D terrain map from processed data"""
+    
+    import pydeck as pdk
+    import geopandas as gpd
+    
+    # Convert to GeoDataFrame
+    gdf = gpd.GeoDataFrame(
+        terrain_data,
+        geometry=gpd.points_from_xy(
+            terrain_data['longitude'], 
+            terrain_data['latitude']
+        ),
+        crs="EPSG:4326"
+    )
+    
+    # Create 3D terrain layer
+    terrain_layer = pdk.Layer(
+        "TerrainLayer",
+        data=gdf,
+        get_position=["longitude", "latitude"],
+        get_elevation="elevation",
+        elevation_scale=0.1,
+        texture="https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.png",
+        wireframe=True,
+        mesh=True
+    )
+    
+    # Create view state
+    view_state = pdk.ViewState(
+        longitude=center_lon,
+        latitude=center_lat,
+        zoom=10,
+        pitch=45,
+        bearing=0
+    )
+    
+    # Create the deck
+    deck = pdk.Deck(
+        layers=[terrain_layer],
+        initial_view_state=view_state,
+        map_style="mapbox://styles/mapbox/satellite-v9"
+    )
+    
+    return deck
+
+# Use with different engines
+nyc_terrain_pandas = create_3d_terrain_multi_engine(40.7589, -73.9851, 30, "pandas")
+nyc_terrain_spark = create_3d_terrain_multi_engine(40.7589, -73.9851, 30, "spark")
+```
+
+### 3. Large-Scale 3D Building Mapping with Spark
+
+```python
+def create_3d_building_map_spark(building_data_source, center_lat, center_lon, engine="spark"):
+    """Create 3D building map using Spark for large datasets"""
+    
+    mapper = MultiEngine3DMapper(engine=engine)
+    
+    # Load building data
+    if engine == "spark":
+        buildings_df = mapper._load_with_spark(building_data_source)
+        
+        # Process with Spark for large datasets
+        processed_buildings = mapper.spark_utils.process_building_data_spark(
+            buildings_df,
+            include_textures=True,
+            cache_data=True
+        )
+        
+        # Sample data for visualization (can't visualize millions of buildings)
+        sampled_buildings = processed_buildings.sample(fraction=0.01, seed=42)
+        buildings_pandas = sampled_buildings.toPandas()
+        
+    else:
+        buildings_df = mapper._load_with_pandas(building_data_source)
+        buildings_pandas = mapper.spatial_processor.process_building_data(
+            buildings_df,
+            include_textures=True
+        )
+    
+    # Create 3D visualization
+    return create_3d_building_map_from_data(buildings_pandas, center_lat, center_lon)
+
+def create_3d_building_map_from_data(building_data, center_lat, center_lon):
+    """Create 3D building map from processed data"""
+    
+    import pydeck as pdk
+    import geopandas as gpd
+    
+    # Convert to GeoDataFrame
+    buildings_gdf = gpd.GeoDataFrame(
+        building_data,
+        geometry=gpd.points_from_xy(
+            building_data['longitude'], 
+            building_data['latitude']
+        ),
+        crs="EPSG:4326"
+    )
+    
+    # Create 3D building layer
+    building_layer = pdk.Layer(
+        "ColumnLayer",
+        data=buildings_gdf,
+        get_position=["longitude", "latitude"],
+        get_elevation="height",
+        get_fill_color="[255, 140, 0, 180]",
+        get_line_color="[0, 0, 0, 255]",
+        radius=50,
+        elevation_scale=1,
+        pickable=True,
+        auto_highlight=True,
+        extruded=True
+    )
+    
+    # Create view state
+    view_state = pdk.ViewState(
+        longitude=center_lon,
+        latitude=center_lat,
+        zoom=12,
+        pitch=60,
+        bearing=0
+    )
+    
+    # Create the deck
+    deck = pdk.Deck(
+        layers=[building_layer],
+        initial_view_state=view_state,
+        map_style="mapbox://styles/mapbox/light-v10"
+    )
+    
+    return deck
+
+# Example: Create 3D building map for large city dataset
+nyc_buildings_spark = create_3d_building_map_spark(
+    "data/nyc_buildings_large.parquet",
+    40.7589, -73.9851,
+    engine="spark"
+)
+```
+
+### 4. Distributed 3D Choropleth Generation
+
+```python
+def create_3d_choropleth_multi_engine(geojson_source, value_column, engine="auto"):
+    """Create 3D choropleth map using any engine"""
+    
+    mapper = MultiEngine3DMapper(engine=engine)
+    
+    # Load and process data
+    if engine == "spark":
+        # Load with Spark
+        gdf_spark = mapper._load_with_spark(geojson_source)
+        
+        # Process large geospatial data with Spark
+        processed_data = mapper.spark_utils.process_geojson_spark(
+            gdf_spark,
+            value_column=value_column,
+            normalize_values=True
+        )
+        
+        # Convert to Pandas for visualization
+        gdf = processed_data.toPandas()
+        
+    else:
+        # Load with Pandas/GeoPandas
+        gdf = mapper._load_with_pandas(geojson_source)
+        
+        # Process with Pandas
+        gdf = mapper.spatial_processor.process_geojson_for_3d(
+            gdf,
+            value_column=value_column,
+            normalize_values=True
+        )
+    
+    # Create 3D visualization
+    return create_3d_choropleth_from_data(gdf, value_column)
+
+def create_3d_choropleth_from_data(gdf, value_column):
+    """Create 3D choropleth from processed GeoDataFrame"""
+    
+    import pydeck as pdk
+    
+    # Ensure normalized values exist
+    if 'normalized_value' not in gdf.columns:
+        gdf['normalized_value'] = (gdf[value_column] - gdf[value_column].min()) / \
+                                  (gdf[value_column].max() - gdf[value_column].min())
+    
+    # Create 3D polygon layer
+    polygon_layer = pdk.Layer(
+        "PolygonLayer",
+        data=gdf,
+        get_polygon="geometry",
+        get_fill_color="[255 * normalized_value, 100, 255 * (1 - normalized_value), 200]",
+        get_line_color="[0, 0, 0, 255]",
+        get_elevation="normalized_value * 1000",
+        elevation_scale=1,
+        extruded=True,
+        pickable=True,
+        auto_highlight=True,
+        opacity=0.8
+    )
+    
+    # Create view state
+    center_lon = gdf.geometry.centroid.x.mean()
+    center_lat = gdf.geometry.centroid.y.mean()
+    
+    view_state = pdk.ViewState(
+        longitude=center_lon,
+        latitude=center_lat,
+        zoom=8,
+        pitch=45,
+        bearing=0
+    )
+    
+    # Create the deck
+    deck = pdk.Deck(
+        layers=[polygon_layer],
+        initial_view_state=view_state,
+        map_style="mapbox://styles/mapbox/light-v10"
+    )
+    
+    return deck
+
+# Create 3D choropleth with different engines
+population_3d_pandas = create_3d_choropleth_multi_engine(
+    "data/population_density.geojson",
+    "population_density",
+    engine="pandas"
+)
+
+population_3d_spark = create_3d_choropleth_multi_engine(
+    "data/population_density_large.parquet",
+    "population_density",
+    engine="spark"
+)
+```
+
+### 5. Real-time 3D Mapping with Multi-Engine Support
+
+```python
+def create_real_time_3d_dashboard_multi_engine(engine="auto"):
+    """Create real-time 3D dashboard supporting both engines"""
+    
+    import dash
+    from dash import dcc, html
+    from dash.dependencies import Input, Output
+    
+    app = dash.Dash(__name__)
+    
+    app.layout = html.Div([
+        html.H1("Real-time 3D Spatial Dashboard (Multi-Engine)", 
+                style={"textAlign": "center", "color": "#2c3e50"}),
+        
+        html.Div([
+            html.Div([
+                html.Label("Data Engine:"),
+                dcc.Dropdown(
+                    id="data-engine",
+                    options=[
+                        {"label": "Auto-Detect", "value": "auto"},
+                        {"label": "Pandas", "value": "pandas"},
+                        {"label": "Spark", "value": "spark"}
+                    ],
+                    value="auto",
+                    style={"width": "150px"}
+                )
+            ], style={"width": "200px", "margin": "20px"}),
+            
+            html.Div([
+                html.Label("Visualization Type:"),
+                dcc.Dropdown(
+                    id="viz-type",
+                    options=[
+                        {"label": "3D Terrain", "value": "terrain"},
+                        {"label": "3D Buildings", "value": "buildings"},
+                        {"label": "3D Choropleth", "value": "choropleth"}
+                    ],
+                    value="terrain",
+                    style={"width": "200px"}
+                )
+            ], style={"width": "200px", "margin": "20px"}),
+            
+            html.Div([
+                html.Label("Update Frequency (seconds):"),
+                dcc.Slider(
+                    id="update-frequency",
+                    min=1,
+                    max=30,
+                    step=1,
+                    value=5,
+                    marks={i: str(i) for i in [1, 5, 10, 15, 30]},
+                    tooltip={"placement": "bottom", "always_visible": True}
+                )
+            ], style={"width": "300px", "margin": "20px"})
+        ], style={"display": "flex", "justifyContent": "center", "marginBottom": "20px"}),
+        
+        html.Div(id="3d-map-container", style={"height": "800px"}),
+        
+        dcc.Interval(
+            id="interval-component",
+            interval=5*1000,
+            n_intervals=0
+        )
+    ])
+    
+    @app.callback(
+        Output("3d-map-container", "children"),
+        [Input("interval-component", "n_intervals"),
+         Input("update-frequency", "value"),
+         Input("viz-type", "value"),
+         Input("data-engine", "value")]
+    )
+    def update_3d_map(n, frequency, viz_type, data_engine):
+        # Get real-time data using specified engine
+        mapper = MultiEngine3DMapper(engine=data_engine)
+        real_time_data = mapper.spatial_processor.get_real_time_spatial_data()
+        
+        # Create appropriate 3D visualization
+        if viz_type == "terrain":
+            deck = create_3d_terrain_multi_engine(
+                real_time_data['center_lat'],
+                real_time_data['center_lon'],
+                engine=data_engine
+            )
+        elif viz_type == "buildings":
+            deck = create_3d_building_map_spark(
+                real_time_data['buildings'],
+                real_time_data['center_lat'],
+                real_time_data['center_lon'],
+                engine=data_engine
+            )
+        else:  # choropleth
+            deck = create_3d_choropleth_multi_engine(
+                real_time_data['geojson'],
+                real_time_data['value_column'],
+                engine=data_engine
+            )
+        
+        # Convert to HTML for Dash
+        map_html = deck.to_html(as_string=True)
+        
+        return html.Iframe(
+            srcDoc=map_html,
+            style={"width": "100%", "height": "100%", "border": "none"}
+        )
+    
+    return app
+
+# Start the multi-engine dashboard
+multi_engine_dashboard = create_real_time_3d_dashboard_multi_engine()
+multi_engine_dashboard.run_server(debug=True, port=8050)
+```
+
+### 6. Performance Comparison and Best Practices
+
+```python
+def benchmark_3d_mapping_performance(data_source, engine_options=["pandas", "spark"]):
+    """Benchmark 3D mapping performance across different engines"""
+    
+    import time
+    import pandas as pd
+    
+    results = {}
+    
+    for engine in engine_options:
+        print(f"Testing {engine} engine...")
+        
+        # Time data loading
+        start_time = time.time()
+        mapper = MultiEngine3DMapper(engine=engine)
+        data = mapper.load_spatial_data(data_source, engine=engine)
+        load_time = time.time() - start_time
+        
+        # Time data processing
+        start_time = time.time()
+        if engine == "spark":
+            processed_data = mapper.spark_utils.process_spatial_data_spark(data)
+            # Force computation
+            processed_data.count()
+        else:
+            processed_data = mapper.spatial_processor.process_spatial_data(data)
+        process_time = time.time() - start_time
+        
+        # Time visualization generation
+        start_time = time.time()
+        if engine == "spark":
+            # Convert to Pandas for visualization
+            viz_data = processed_data.sample(fraction=0.1, seed=42).toPandas()
+        else:
+            viz_data = processed_data
+        
+        # Create 3D map
+        create_3d_terrain_map_from_data(viz_data, 40.7589, -73.9851)
+        viz_time = time.time() - start_time
+        
+        results[engine] = {
+            "load_time": load_time,
+            "process_time": process_time,
+            "viz_time": viz_time,
+            "total_time": load_time + process_time + viz_time,
+            "data_size": len(viz_data) if hasattr(viz_data, '__len__') else "N/A"
+        }
+    
+    # Create comparison DataFrame
+    comparison_df = pd.DataFrame(results).T
+    print("\nPerformance Comparison:")
+    print(comparison_df)
+    
+    return comparison_df
+
+# Run performance benchmark
+performance_results = benchmark_3d_mapping_performance("data/large_spatial_dataset.parquet")
+```
+
+### 7. Engine Selection Guidelines
+
+```python
+def select_optimal_engine(data_source, data_size_mb=None, complexity="medium"):
+    """Select optimal engine based on data characteristics"""
+    
+    if data_size_mb is None:
+        # Try to estimate size
+        try:
+            import os
+            data_size_mb = os.path.getsize(data_source) / (1024 * 1024)
+        except:
+            data_size_mb = 100  # Default assumption
+    
+    # Engine selection logic
+    if data_size_mb < 100 and complexity == "simple":
+        return "pandas"
+    elif data_size_mb < 500 and complexity == "medium":
+        return "pandas"
+    elif data_size_mb >= 500 or complexity == "complex":
+        return "spark"
+    else:
+        return "auto"
+
+# Example usage
+optimal_engine = select_optimal_engine(
+    "data/nyc_spatial_data.parquet",
+    data_size_mb=250,
+    complexity="medium"
+)
+print(f"Recommended engine: {optimal_engine}")
+
+# Use the recommended engine
+nyc_3d_map = create_3d_terrain_multi_engine(
+    40.7589, -73.9851, 30, 
+    engine=optimal_engine
+)
+```
+
+## Modern 3D Mapping with PyDeck (Recommended)
+
+### 1. Beautiful 3D Terrain Maps with PyDeck
+
+```python
+import pydeck as pdk
+import pandas as pd
+import geopandas as gpd
+from siege_utilities.geo.spatial_data import SpatialDataProcessor
+from siege_utilities.reporting.chart_generator import ChartGenerator
+
+def create_beautiful_3d_terrain_map(center_lat, center_lon, radius_km=50):
+    """Create a beautiful 3D terrain map similar to the Medium article"""
+    
+    # Initialize spatial processor
+    spatial_processor = SpatialDataProcessor()
+    
+    # Generate terrain data around the center point
+    terrain_data = spatial_processor.generate_terrain_data(
+        center_lat=center_lat,
+        center_lon=center_lon,
+        radius_km=radius_km,
+        resolution_m=100
+    )
+    
+    # Convert to GeoDataFrame for better handling
+    gdf = gpd.GeoDataFrame(
+        terrain_data,
+        geometry=gpd.points_from_xy(
+            terrain_data['longitude'], 
+            terrain_data['latitude']
+        ),
+        crs="EPSG:4326"
+    )
+    
+    # Create the 3D terrain layer
+    terrain_layer = pdk.Layer(
+        "TerrainLayer",
+        data=gdf,
+        get_position=["longitude", "latitude"],
+        get_elevation="elevation",
+        elevation_scale=0.1,  # Scale factor for elevation
+        texture="https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.png",
+        wireframe=True,
+        mesh=True,
+        light_settings={
+            "ambient_strength": 0.4,
+            "directional_strength": 0.6,
+            "directional_color": [255, 255, 255],
+            "directional_position": [-1.5, 1, 1],
+            "directional_shadow": True
+        }
+    )
+    
+    # Create the view state
+    view_state = pdk.ViewState(
+        longitude=center_lon,
+        latitude=center_lat,
+        zoom=10,
+        pitch=45,
+        bearing=0
+    )
+    
+    # Create the deck
+    deck = pdk.Deck(
+        layers=[terrain_layer],
+        initial_view_state=view_state,
+        map_style="mapbox://styles/mapbox/satellite-v9",
+        tooltip={
+            "html": "<b>Elevation:</b> {elevation}m<br><b>Location:</b> {latitude:.4f}, {longitude:.4f}",
+            "style": {
+                "backgroundColor": "steelblue",
+                "color": "white",
+                "padding": "10px",
+                "borderRadius": "5px"
+            }
+        }
+    )
+    
+    return deck
+
+# Create beautiful 3D terrain map for NYC
+nyc_3d_terrain = create_beautiful_3d_terrain_map(40.7589, -73.9851, 30)
+nyc_3d_terrain.to_html("nyc_3d_terrain.html")
+```
+
+### 2. Enhanced 3D Building Visualization
+
+```python
+def create_3d_building_map(building_data, center_lat, center_lon):
+    """Create a stunning 3D building map with realistic rendering"""
+    
+    # Process building data for 3D visualization
+    buildings_gdf = gpd.GeoDataFrame(
+        building_data,
+        geometry=gpd.points_from_xy(
+            building_data['longitude'], 
+            building_data['latitude']
+        ),
+        crs="EPSG:4326"
+    )
+    
+    # Create 3D building layer
+    building_layer = pdk.Layer(
+        "ColumnLayer",
+        data=buildings_gdf,
+        get_position=["longitude", "latitude"],
+        get_elevation="height",
+        get_fill_color="[255, 140, 0, 180]",  # Orange with transparency
+        get_line_color="[0, 0, 0, 255]",      # Black borders
+        radius=50,  # Building footprint
+        elevation_scale=1,
+        pickable=True,
+        auto_highlight=True,
+        extruded=True
+    )
+    
+    # Create height-based color layer
+    height_color_layer = pdk.Layer(
+        "ColumnLayer",
+        data=buildings_gdf,
+        get_position=["longitude", "latitude"],
+        get_elevation="height",
+        get_fill_color="[height * 2, 100, 255 - height, 200]",
+        get_line_color="[0, 0, 0, 255]",
+        radius=50,
+        elevation_scale=1,
+        extruded=True,
+        opacity=0.8
+    )
+    
+    # Create view state
+    view_state = pdk.ViewState(
+        longitude=center_lon,
+        latitude=center_lat,
+        zoom=12,
+        pitch=60,
+        bearing=0
+    )
+    
+    # Create the deck
+    deck = pdk.Deck(
+        layers=[building_layer, height_color_layer],
+        initial_view_state=view_state,
+        map_style="mapbox://styles/mapbox/light-v10",
+        tooltip={
+            "html": """
+            <div style="background: white; padding: 10px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin: 0 0 10px 0; color: #333;">{building_name}</h3>
+                <p style="margin: 5px 0;"><b>Height:</b> {height}m</p>
+                <p style="margin: 5px 0;"><b>Type:</b> {building_type}</p>
+                <p style="margin: 5px 0;"><b>Area:</b> {area}m²</p>
+            </div>
+            """,
+            "style": {"backgroundColor": "transparent", "border": "none"}
+        }
+    )
+    
+    return deck
+
+# Example building data
+nyc_buildings = [
+    {"longitude": -73.9851, "latitude": 40.7589, "height": 443, "area": 1000, "building_type": "skyscraper", "building_name": "One Times Square"},
+    {"longitude": -73.9857, "latitude": 40.7484, "height": 381, "area": 800, "building_type": "office", "building_name": "Empire State Building"},
+    {"longitude": -73.9934, "latitude": 40.7505, "height": 262, "area": 600, "building_type": "residential", "building_name": "Madison Square Garden"}
+]
+
+nyc_3d_buildings = create_3d_building_map(nyc_buildings, 40.7589, -73.9851)
+nyc_3d_buildings.to_html("nyc_3d_buildings.html")
+```
+
+### 3. Advanced 3D Choropleth with PyDeck
+
+```python
+def create_3d_choropleth_map(geojson_data, value_column, title="3D Choropleth Map"):
+    """Create a beautiful 3D choropleth map with extruded polygons"""
+    
+    # Load GeoJSON data
+    gdf = gpd.read_file(geojson_data)
+    
+    # Normalize values for better visualization
+    gdf['normalized_value'] = (gdf[value_column] - gdf[value_column].min()) / \
+                              (gdf[value_column].max() - gdf[value_column].min())
+    
+    # Create 3D polygon layer
+    polygon_layer = pdk.Layer(
+        "PolygonLayer",
+        data=gdf,
+        get_polygon="geometry",
+        get_fill_color="[255 * normalized_value, 100, 255 * (1 - normalized_value), 200]",
+        get_line_color="[0, 0, 0, 255]",
+        get_elevation="normalized_value * 1000",  # Extrude based on value
+        elevation_scale=1,
+        extruded=True,
+        pickable=True,
+        auto_highlight=True,
+        opacity=0.8
+    )
+    
+    # Create view state
+    center_lon = gdf.geometry.centroid.x.mean()
+    center_lat = gdf.geometry.centroid.y.mean()
+    
+    view_state = pdk.ViewState(
+        longitude=center_lon,
+        latitude=center_lat,
+        zoom=8,
+        pitch=45,
+        bearing=0
+    )
+    
+    # Create the deck
+    deck = pdk.Deck(
+        layers=[polygon_layer],
+        initial_view_state=view_state,
+        map_style="mapbox://styles/mapbox/light-v10",
+        tooltip={
+            "html": f"""
+            <div style="background: white; padding: 10px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin: 0 0 10px 0; color: #333;">{{name}}</h3>
+                <p style="margin: 5px 0;"><b>{value_column}:</b> {{value}}</p>
+                <p style="margin: 5px 0;"><b>Normalized:</b> {{normalized_value:.3f}}</p>
+            </div>
+            """,
+            "style": {"backgroundColor": "transparent", "border": "none"}
+        }
+    )
+    
+    return deck
+
+# Create 3D population density map
+population_3d_map = create_3d_choropleth_map(
+    "data/population_density.geojson",
+    "population_density",
+    "3D Population Density Map"
+)
+population_3d_map.to_html("population_3d_choropleth.html")
+```
+
+### 4. Real-time 3D Data Visualization
+
+```python
+import dash
+from dash import dcc, html
+from dash.dependencies import Input, Output
+import json
+
+def create_real_time_3d_dashboard():
+    """Create a real-time 3D dashboard with PyDeck"""
+    
+    app = dash.Dash(__name__)
+    
+    app.layout = html.Div([
+        html.H1("Real-time 3D Spatial Dashboard", 
+                style={"textAlign": "center", "color": "#2c3e50"}),
+        
+        html.Div([
+            html.Div([
+                html.Label("Update Frequency (seconds):"),
+                dcc.Slider(
+                    id="update-frequency",
+                    min=1,
+                    max=30,
+                    step=1,
+                    value=5,
+                    marks={i: str(i) for i in [1, 5, 10, 15, 30]},
+                    tooltip={"placement": "bottom", "always_visible": True}
+                )
+            ], style={"width": "300px", "margin": "20px"}),
+            
+            html.Div([
+                html.Label("Visualization Type:"),
+                dcc.Dropdown(
+                    id="viz-type",
+                    options=[
+                        {"label": "3D Terrain", "value": "terrain"},
+                        {"label": "3D Buildings", "value": "buildings"},
+                        {"label": "3D Choropleth", "value": "choropleth"}
+                    ],
+                    value="terrain",
+                    style={"width": "200px"}
+                )
+            ], style={"width": "300px", "margin": "20px"})
+        ], style={"display": "flex", "justifyContent": "center", "marginBottom": "20px"}),
+        
+        html.Div(id="3d-map-container", style={"height": "800px"}),
+        
+        dcc.Interval(
+            id="interval-component",
+            interval=5*1000,
+            n_intervals=0
+        )
+    ])
+    
+    @app.callback(
+        Output("3d-map-container", "children"),
+        [Input("interval-component", "n_intervals"),
+         Input("update-frequency", "value"),
+         Input("viz-type", "value")]
+    )
+    def update_3d_map(n, frequency, viz_type):
+        # Update interval based on frequency
+        if n > 0:
+            dash.callback_context.triggered[0]['prop_id'].split('.')[0] == 'update-frequency'
+        
+        # Get real-time data
+        spatial_processor = SpatialDataProcessor()
+        real_time_data = spatial_processor.get_real_time_spatial_data()
+        
+        # Create appropriate 3D visualization
+        if viz_type == "terrain":
+            deck = create_beautiful_3d_terrain_map(
+                real_time_data['center_lat'],
+                real_time_data['center_lon']
+            )
+        elif viz_type == "buildings":
+            deck = create_3d_building_map(
+                real_time_data['buildings'],
+                real_time_data['center_lat'],
+                real_time_data['center_lon']
+            )
+        else:  # choropleth
+            deck = create_3d_choropleth_map(
+                real_time_data['geojson'],
+                real_time_data['value_column']
+            )
+        
+        # Convert to HTML for Dash
+        map_html = deck.to_html(as_string=True)
+        
+        return html.Iframe(
+            srcDoc=map_html,
+            style={"width": "100%", "height": "100%", "border": "none"}
+        )
+    
+    return app
+
+# Start the real-time dashboard
+real_time_dashboard = create_real_time_3d_dashboard()
+real_time_dashboard.run_server(debug=True, port=8050)
 ```
 
 ## Basic 3D Mapping Setup

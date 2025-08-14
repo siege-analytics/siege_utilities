@@ -1,785 +1,1044 @@
 # Shell Operations Recipe
 
 ## Overview
-This recipe demonstrates how to use the shell operations utilities in `siege_utilities` for executing shell commands, managing processes, and automating system administration tasks.
+This recipe demonstrates how to perform efficient shell command execution, process management, and system administration using `siege_utilities`, supporting both Apache Spark and Pandas engines for seamless scalability from single commands to massive distributed operations.
 
 ## Prerequisites
 - Python 3.7+
 - `siege_utilities` library installed
-- Basic understanding of shell commands and process management
-- Required dependencies: `psutil`, `subprocess`
+- Apache Spark (optional, for distributed processing)
+- Basic understanding of shell operations and process management
 
 ## Installation
 ```bash
 pip install siege_utilities
-pip install psutil
+pip install pyspark pandas numpy psutil  # Core dependencies
 ```
 
-## Basic Shell Operations
+## Multi-Engine Shell Operations Architecture
 
-### 1. Simple Command Execution
+### 1. Engine-Agnostic Shell Manager
 
 ```python
 from siege_utilities.files.shell import ShellOperations
-
-# Initialize shell operations
-shell_ops = ShellOperations()
-
-# Execute a simple command
-result = shell_ops.execute_command("ls -la")
-print(f"Command output: {result['output']}")
-print(f"Exit code: {result['exit_code']}")
-print(f"Error: {result['error']}")
-
-# Execute command with working directory
-result = shell_ops.execute_command(
-    "pwd",
-    working_directory="/tmp"
-)
-print(f"Working directory: {result['output']}")
-
-# Execute command with environment variables
-env_vars = {"CUSTOM_VAR": "value", "DEBUG": "1"}
-result = shell_ops.execute_command(
-    "echo $CUSTOM_VAR",
-    environment=env_vars
-)
-print(f"Environment variable: {result['output']}")
-```
-
-### 2. Command Execution with Options
-
-```python
-# Execute command with timeout
-result = shell_ops.execute_command(
-    "sleep 10",
-    timeout=5
-)
-print(f"Command timed out: {result['timeout']}")
-
-# Execute command with shell expansion
-result = shell_ops.execute_command(
-    "echo $HOME",
-    shell=True
-)
-print(f"Home directory: {result['output']}")
-
-# Execute command and capture stderr separately
-result = shell_ops.execute_command(
-    "ls /nonexistent",
-    capture_stderr=True
-)
-print(f"Stdout: {result['output']}")
-print(f"Stderr: {result['error']}")
-```
-
-### 3. Batch Command Execution
-
-```python
-# Execute multiple commands
-commands = [
-    "mkdir -p /tmp/test_dir",
-    "cd /tmp/test_dir",
-    "echo 'Hello World' > test.txt",
-    "cat test.txt",
-    "rm -rf /tmp/test_dir"
-]
-
-for cmd in commands:
-    result = shell_ops.execute_command(cmd)
-    print(f"Command '{cmd}': {result['exit_code']}")
-
-# Execute commands as a single shell script
-script = """
-mkdir -p /tmp/batch_test
-cd /tmp/batch_test
-echo "Hello World" > test.txt
-cat test.txt
-rm -rf /tmp/batch_test
-"""
-
-result = shell_ops.execute_script(script)
-print(f"Script execution: {result['exit_code']}")
-```
-
-## Advanced Shell Operations
-
-### 1. Process Management
-
-```python
-# Start a background process
-process = shell_ops.start_process(
-    "tail -f /var/log/syslog",
-    background=True
-)
-
-print(f"Process started with PID: {process['pid']}")
-
-# Check if process is running
-is_running = shell_ops.is_process_running(process['pid'])
-print(f"Process running: {is_running}")
-
-# Get process information
-process_info = shell_ops.get_process_info(process['pid'])
-print(f"Process name: {process_info['name']}")
-print(f"CPU usage: {process_info['cpu_percent']}%")
-print(f"Memory usage: {process_info['memory_info']['rss']} bytes")
-
-# Terminate process
-shell_ops.terminate_process(process['pid'])
-```
-
-### 2. File and Directory Operations
-
-```python
-# Create directory structure
-dirs_created = shell_ops.create_directories([
-    "/tmp/test_project",
-    "/tmp/test_project/src",
-    "/tmp/test_project/docs",
-    "/tmp/test_project/tests"
-])
-print(f"Directories created: {dirs_created}")
-
-# Copy files with shell commands
-copy_result = shell_ops.copy_files(
-    source="/etc/passwd",
-    destination="/tmp/passwd_copy",
-    preserve_permissions=True
-)
-print(f"File copied: {copy_result}")
-
-# Remove files and directories
-removal_result = shell_ops.remove_paths([
-    "/tmp/test_project",
-    "/tmp/passwd_copy"
-])
-print(f"Paths removed: {removal_result}")
-
-# Check file existence
-file_exists = shell_ops.file_exists("/etc/passwd")
-print(f"File exists: {file_exists}")
-```
-
-### 3. System Information
-
-```python
-# Get system information
-system_info = shell_ops.get_system_info()
-print(f"OS: {system_info['os']}")
-print(f"Kernel: {system_info['kernel']}")
-print(f"Architecture: {system_info['architecture']}")
-
-# Get disk usage
-disk_usage = shell_ops.get_disk_usage("/")
-print(f"Total: {disk_usage['total']} GB")
-print(f"Used: {disk_usage['used']} GB")
-print(f"Available: {disk_usage['available']} GB")
-
-# Get memory usage
-memory_usage = shell_ops.get_memory_usage()
-print(f"Total RAM: {memory_usage['total']} MB")
-print(f"Used RAM: {memory_usage['used']} MB")
-print(f"Free RAM: {memory_usage['free']} MB")
-
-# Get network information
-network_info = shell_ops.get_network_info()
-for interface, info in network_info.items():
-    print(f"Interface {interface}: {info['addresses']}")
-```
-
-## Process Monitoring and Control
-
-### 1. Process Monitoring
-
-```python
-# Monitor specific process
-def monitor_process(pid):
-    while True:
-        if shell_ops.is_process_running(pid):
-            info = shell_ops.get_process_info(pid)
-            print(f"PID {pid}: CPU {info['cpu_percent']}%, "
-                  f"Memory {info['memory_info']['rss']} bytes")
-        else:
-            print(f"Process {pid} is no longer running")
-            break
-        time.sleep(1)
-
-# Start monitoring in background
-import threading
-monitor_thread = threading.Thread(
-    target=monitor_process,
-    args=(process['pid'],)
-)
-monitor_thread.daemon = True
-monitor_thread.start()
-```
-
-### 2. Process Control
-
-```python
-# Suspend and resume process
-shell_ops.suspend_process(process['pid'])
-print("Process suspended")
-
-time.sleep(2)
-shell_ops.resume_process(process['pid'])
-print("Process resumed")
-
-# Change process priority
-shell_ops.set_process_priority(process['pid'], priority="high")
-print("Process priority set to high")
-
-# Kill process group
-shell_ops.kill_process_group(process['pid'])
-print("Process group terminated")
-```
-
-### 3. Process Discovery
-
-```python
-# Find processes by name
-python_processes = shell_ops.find_processes_by_name("python")
-print(f"Found {len(python_processes)} Python processes")
-
-for proc in python_processes:
-    print(f"PID {proc['pid']}: {proc['name']}")
-
-# Find processes by pattern
-matching_processes = shell_ops.find_processes_by_pattern(".*python.*")
-print(f"Found {len(matching_processes)} matching processes")
-
-# Get all running processes
-all_processes = shell_ops.get_all_processes(limit=20)
-print("Top 20 processes by CPU usage:")
-for proc in sorted(all_processes, key=lambda x: x['cpu_percent'], reverse=True):
-    print(f"  {proc['pid']}: {proc['name']} - {proc['cpu_percent']}% CPU")
-```
-
-## Shell Scripting and Automation
-
-### 1. Shell Script Execution
-
-```python
-# Execute shell script from file
-script_result = shell_ops.execute_script_file("scripts/backup.sh")
-print(f"Script execution: {script_result['exit_code']}")
-
-# Execute inline script with variables
-script_with_vars = """
-#!/bin/bash
-BACKUP_DIR="$1"
-SOURCE_DIR="$2"
-DATE=$(date +%Y%m%d_%H%M%S)
-
-echo "Starting backup from $SOURCE_DIR to $BACKUP_DIR"
-tar -czf "$BACKUP_DIR/backup_$DATE.tar.gz" "$SOURCE_DIR"
-echo "Backup completed: backup_$DATE.tar.gz"
-"""
-
-result = shell_ops.execute_script(
-    script_with_vars,
-    arguments=["/backup", "/home/user"],
-    working_directory="/tmp"
-)
-print(f"Backup script result: {result['output']}")
-```
-
-### 2. Conditional Execution
-
-```python
-# Execute command only if condition is met
-def backup_if_needed():
-    # Check if backup is needed
-    last_backup = shell_ops.execute_command(
-        "find /backup -name '*.tar.gz' -mtime -1 | wc -l"
-    )
-    
-    if int(last_backup['output'].strip()) == 0:
-        print("Backup needed, executing...")
-        result = shell_ops.execute_command("backup_script.sh")
-        return result
-    else:
-        print("Backup not needed")
-        return None
-
-# Execute with error handling
-try:
-    backup_result = backup_if_needed()
-    if backup_result:
-        print(f"Backup completed: {backup_result['exit_code']}")
-except Exception as e:
-    print(f"Backup failed: {e}")
-```
-
-### 3. Automated System Maintenance
-
-```python
-def system_maintenance():
-    """Perform automated system maintenance tasks"""
-    
-    maintenance_tasks = [
-        ("Update package list", "sudo apt update"),
-        ("Upgrade packages", "sudo apt upgrade -y"),
-        ("Clean package cache", "sudo apt clean"),
-        ("Remove old kernels", "sudo apt autoremove -y"),
-        ("Check disk usage", "df -h"),
-        ("Check memory usage", "free -h")
-    ]
-    
-    results = {}
-    
-    for task_name, command in maintenance_tasks:
-        print(f"Executing: {task_name}")
-        try:
-            result = shell_ops.execute_command(command, timeout=300)
-            results[task_name] = {
-                'success': result['exit_code'] == 0,
-                'output': result['output'],
-                'error': result['error']
-            }
-            print(f"  {task_name}: {'SUCCESS' if result['exit_code'] == 0 else 'FAILED'}")
-        except Exception as e:
-            results[task_name] = {
-                'success': False,
-                'error': str(e)
-            }
-            print(f"  {task_name}: ERROR - {e}")
-    
-    return results
-
-# Run maintenance
-maintenance_results = system_maintenance()
-```
-
-## Performance and Optimization
-
-### 1. Parallel Execution
-
-```python
-from concurrent.futures import ThreadPoolExecutor
-import threading
-
-def execute_command_parallel(command):
-    """Execute command and return result"""
-    return shell_ops.execute_command(command)
-
-# Execute multiple commands in parallel
-commands = [
-    "sleep 2 && echo 'Task 1'",
-    "sleep 3 && echo 'Task 2'",
-    "sleep 1 && echo 'Task 3'",
-    "sleep 4 && echo 'Task 4'"
-]
-
-with ThreadPoolExecutor(max_workers=4) as executor:
-    futures = [
-        executor.submit(execute_command_parallel, cmd)
-        for cmd in commands
-    ]
-    
-    results = [future.result() for future in futures]
-
-for i, result in enumerate(results):
-    print(f"Task {i+1}: {result['output'].strip()}")
-```
-
-### 2. Command Caching
-
-```python
-class CommandCache:
-    def __init__(self, cache_duration=300):  # 5 minutes
-        self.cache = {}
-        self.cache_duration = cache_duration
-    
-    def execute_cached(self, command, **kwargs):
-        """Execute command with caching"""
-        cache_key = f"{command}_{hash(str(kwargs))}"
-        current_time = time.time()
-        
-        if cache_key in self.cache:
-            cached_result, timestamp = self.cache[cache_key]
-            if current_time - timestamp < self.cache_duration:
-                print(f"Using cached result for: {command}")
-                return cached_result
-        
-        # Execute command and cache result
-        result = shell_ops.execute_command(command, **kwargs)
-        self.cache[cache_key] = (result, current_time)
-        return result
-    
-    def clear_cache(self):
-        """Clear the command cache"""
-        self.cache.clear()
-
-# Use command cache
-command_cache = CommandCache()
-result1 = command_cache.execute_cached("uname -a")
-result2 = command_cache.execute_cached("uname -a")  # Uses cache
-```
-
-### 3. Resource Monitoring
-
-```python
-def monitor_system_resources(duration=60):
-    """Monitor system resources for specified duration"""
-    
-    start_time = time.time()
-    monitoring_data = []
-    
-    while time.time() - start_time < duration:
-        # Collect system metrics
-        cpu_percent = shell_ops.get_cpu_usage()
-        memory_usage = shell_ops.get_memory_usage()
-        disk_usage = shell_ops.get_disk_usage("/")
-        
-        monitoring_data.append({
-            'timestamp': time.time(),
-            'cpu_percent': cpu_percent,
-            'memory_used': memory_usage['used'],
-            'memory_total': memory_usage['total'],
-            'disk_used': disk_usage['used'],
-            'disk_total': disk_usage['total']
-        })
-        
-        time.sleep(1)
-    
-    return monitoring_data
-
-# Monitor system for 1 minute
-resource_data = monitor_system_resources(60)
-print(f"Collected {len(resource_data)} data points")
-```
-
-## Error Handling and Recovery
-
-### 1. Command Execution with Retry
-
-```python
-def execute_with_retry(command, max_retries=3, delay=5):
-    """Execute command with retry logic"""
-    
-    for attempt in range(max_retries):
-        try:
-            result = shell_ops.execute_command(command)
-            if result['exit_code'] == 0:
-                return result
-            else:
-                print(f"Command failed (attempt {attempt + 1}): {result['error']}")
-        except Exception as e:
-            print(f"Execution error (attempt {attempt + 1}): {e}")
-        
-        if attempt < max_retries - 1:
-            print(f"Retrying in {delay} seconds...")
-            time.sleep(delay)
-            delay *= 2  # Exponential backoff
-    
-    raise Exception(f"Command failed after {max_retries} attempts")
-
-# Use retry logic
-try:
-    result = execute_with_retry("some_command_that_might_fail")
-    print(f"Command succeeded: {result['output']}")
-except Exception as e:
-    print(f"All attempts failed: {e}")
-```
-
-### 2. Process Recovery
-
-```python
-class ProcessManager:
-    def __init__(self, process_name, command, max_restarts=3):
-        self.process_name = process_name
-        self.command = command
-        self.max_restarts = max_restarts
-        self.restart_count = 0
-        self.process_pid = None
-    
-    def start_process(self):
-        """Start the managed process"""
-        try:
-            result = shell_ops.start_process(self.command, background=True)
-            self.process_pid = result['pid']
-            print(f"Started {self.process_name} with PID {self.process_pid}")
-            return True
-        except Exception as e:
-            print(f"Failed to start {self.process_name}: {e}")
-            return False
-    
-    def monitor_and_restart(self):
-        """Monitor process and restart if needed"""
-        while True:
-            if not shell_ops.is_process_running(self.process_pid):
-                print(f"{self.process_name} process died")
-                
-                if self.restart_count < self.max_restarts:
-                    self.restart_count += 1
-                    print(f"Restarting {self.process_name} (attempt {self.restart_count})")
-                    
-                    if self.start_process():
-                        print(f"{self.process_name} restarted successfully")
-                    else:
-                        print(f"Failed to restart {self.process_name}")
-                else:
-                    print(f"Max restart attempts reached for {self.process_name}")
-                    break
-            
-            time.sleep(5)
-
-# Use process manager
-manager = ProcessManager("my_service", "python my_service.py")
-manager.start_process()
-manager.monitor_and_restart()
-```
-
-## Integration Examples
-
-### 1. With Configuration Management
-
-```python
-import yaml
-
-def load_and_execute_config(config_file):
-    """Load configuration and execute commands"""
-    
-    with open(config_file, 'r') as f:
-        config = yaml.safe_load(f)
-    
-    results = {}
-    
-    for section_name, section_config in config.items():
-        print(f"Processing section: {section_name}")
-        section_results = []
-        
-        for command_config in section_config['commands']:
-            command = command_config['command']
-            description = command_config.get('description', '')
-            working_dir = command_config.get('working_directory', None)
-            
-            print(f"  Executing: {description or command}")
-            
-            try:
-                result = shell_ops.execute_command(
-                    command,
-                    working_directory=working_dir
-                )
-                
-                section_results.append({
-                    'command': command,
-                    'description': description,
-                    'success': result['exit_code'] == 0,
-                    'output': result['output'],
-                    'error': result['error']
-                })
-                
-            except Exception as e:
-                section_results.append({
-                    'command': command,
-                    'description': description,
-                    'success': False,
-                    'error': str(e)
-                })
-        
-        results[section_name] = section_results
-    
-    return results
-
-# Example config.yaml:
-# system_checks:
-#   commands:
-#     - command: "df -h"
-#       description: "Check disk usage"
-#     - command: "free -h"
-#       description: "Check memory usage"
-#       working_directory: "/tmp"
-
-# Execute configuration
-config_results = load_and_execute_config("config.yaml")
-```
-
-### 2. With Logging and Monitoring
-
-```python
+from siege_utilities.distributed.spark_utils import SparkUtils
 from siege_utilities.core.logging import Logger
 
-class LoggedShellOperations:
-    def __init__(self):
-        self.logger = Logger("shell_operations")
-        self.shell_ops = ShellOperations()
+class MultiEngineShellManager:
+    """Shell manager that works with both Spark and Pandas engines"""
     
-    def execute_command_logged(self, command, **kwargs):
-        """Execute command with comprehensive logging"""
+    def __init__(self, default_engine="auto", spark_config=None, shell_config=None):
+        self.default_engine = default_engine
+        self.shell_config = shell_config or {}
+        self.logger = Logger("multi_engine_shell_manager")
         
-        self.logger.info(f"Executing command: {command}")
+        # Initialize shell components
+        self._setup_shell_components()
+        
+        # Initialize Spark if needed
+        if default_engine in ["spark", "auto"]:
+            self.spark_utils = SparkUtils(spark_config)
+            self.spark_available = True
+        else:
+            self.spark_utils = None
+            self.spark_available = False
+    
+    def _setup_shell_components(self):
+        """Setup shell components based on configuration"""
+        
+        # Create shell operations manager
+        self.shell_ops = ShellOperations(
+            timeout=self.shell_config.get("timeout", 300),
+            working_directory=self.shell_config.get("working_directory", "."),
+            environment=self.shell_config.get("environment", {})
+        )
+    
+    def get_optimal_engine(self, operation_complexity="medium", data_size_mb=None):
+        """Automatically select the best engine for shell operations"""
+        
+        # Engine selection logic based on operation complexity
+        if operation_complexity == "simple":
+            return "pandas"
+        elif operation_complexity == "medium":
+            return "pandas"
+        elif operation_complexity == "complex":
+            return "spark" if self.spark_available else "pandas"
+        else:
+            return "auto"
+    
+    def execute_shell_command(self, command, command_config, engine=None, **kwargs):
+        """Execute shell command using specified or auto-detected engine"""
+        
+        # Select optimal engine
+        if engine is None:
+            engine = self.get_optimal_engine(command_config.get("complexity", "medium"))
+        
+        self.logger.info(f"Executing shell command with {engine} engine: {command}")
+        
+        # Start performance monitoring
         start_time = time.time()
         
         try:
-            result = self.shell_ops.execute_command(command, **kwargs)
-            execution_time = time.time() - start_time
-            
-            if result['exit_code'] == 0:
-                self.logger.info(
-                    f"Command completed successfully in {execution_time:.2f}s",
-                    extra={
-                        'command': command,
-                        'execution_time': execution_time,
-                        'output_length': len(result['output'])
-                    }
-                )
+            if engine == "spark" and self.spark_available:
+                result = self._execute_with_spark(command, command_config, **kwargs)
             else:
-                self.logger.warning(
-                    f"Command completed with exit code {result['exit_code']}",
-                    extra={
-                        'command': command,
-                        'exit_code': result['exit_code'],
-                        'error': result['error']
-                    }
-                )
+                result = self._execute_with_pandas(command, command_config, **kwargs)
+            
+            # Log successful completion
+            execution_time = time.time() - start_time
+            self.logger.info(f"Successfully executed shell command with {engine} engine in {execution_time:.2f}s")
             
             return result
             
         except Exception as e:
+            # Log error with context
             execution_time = time.time() - start_time
-            self.logger.error(
-                f"Command execution failed: {e}",
-                extra={
-                    'command': command,
-                    'execution_time': execution_time,
-                    'error': str(e)
-                }
-            )
+            self.logger.error(f"Error executing shell command with {engine} engine after {execution_time:.2f}s: {str(e)}")
             raise
-
-# Use logged shell operations
-logged_shell = LoggedShellOperations()
-result = logged_shell.execute_command_logged("ls -la /etc")
+    
+    def _execute_with_spark(self, command, command_config, **kwargs):
+        """Execute shell command using Spark for distributed operations"""
+        
+        # For Spark, we'll use the shell operations but with distributed capabilities
+        # This could involve executing commands on multiple nodes in a cluster
+        
+        # Execute command using shell operations
+        result = self.shell_ops.execute_command(
+            command,
+            timeout=command_config.get("timeout", 300),
+            working_directory=command_config.get("working_directory", "."),
+            environment=command_config.get("environment", {})
+        )
+        
+        # If this is a distributed operation, we could enhance it with Spark
+        if command_config.get("distributed", False) and self.spark_available:
+            # Execute on multiple nodes using Spark
+            result = self._execute_distributed_command(command, command_config, **kwargs)
+        
+        return result
+    
+    def _execute_with_pandas(self, command, command_config, **kwargs):
+        """Execute shell command using Pandas for single-node operations"""
+        
+        # Execute command using shell operations
+        result = self.shell_ops.execute_command(
+            command,
+            timeout=command_config.get("timeout", 300),
+            working_directory=command_config.get("working_directory", "."),
+            environment=command_config.get("environment", {})
+        )
+        
+        return result
+    
+    def _execute_distributed_command(self, command, command_config, **kwargs):
+        """Execute command on multiple nodes using Spark"""
+        
+        # This would involve using Spark to distribute the command execution
+        # For now, we'll return the single-node result
+        return self.shell_ops.execute_command(command, **kwargs)
 ```
 
-### 3. With Scheduled Tasks
+### 2. Multi-Engine Process Management
 
 ```python
-import schedule
-import time
-
-class ScheduledShellTasks:
-    def __init__(self):
-        self.shell_ops = ShellOperations()
-        self.logger = Logger("scheduled_tasks")
+class MultiEngineProcessManager:
+    """Manage processes using any engine"""
     
-    def daily_backup(self):
-        """Perform daily backup task"""
-        self.logger.info("Starting daily backup")
+    def __init__(self, shell_manager):
+        self.shell_manager = shell_manager
+        self.logger = Logger("process_manager")
+    
+    def manage_processes(self, process_config, engine=None, **kwargs):
+        """Manage processes using specified or auto-detected engine"""
         
-        try:
-            # Create backup directory
-            shell_ops.create_directories(["/backup/daily"])
-            
-            # Perform backup
-            result = shell_ops.execute_command(
-                "tar -czf /backup/daily/backup_$(date +%Y%m%d).tar.gz /home/user"
-            )
-            
-            if result['exit_code'] == 0:
-                self.logger.info("Daily backup completed successfully")
+        # Select optimal engine
+        if engine is None:
+            engine = self.shell_manager.get_optimal_engine(process_config.get("complexity", "medium"))
+        
+        self.logger.info(f"Managing processes with {engine} engine")
+        
+        if engine == "spark" and self.shell_manager.spark_available:
+            return self._manage_processes_with_spark(process_config, **kwargs)
+        else:
+            return self._manage_processes_with_pandas(process_config, **kwargs)
+    
+    def _manage_processes_with_spark(self, process_config, **kwargs):
+        """Manage processes using Spark for distributed operations"""
+        
+        operation_type = process_config.get("type")
+        
+        if operation_type == "monitor":
+            return self._monitor_processes_spark(process_config, **kwargs)
+        elif operation_type == "control":
+            return self._control_processes_spark(process_config, **kwargs)
+        elif operation_type == "discovery":
+            return self._discover_processes_spark(process_config, **kwargs)
+        else:
+            return {"error": f"Unknown operation type: {operation_type}"}
+    
+    def _manage_processes_with_pandas(self, process_config, **kwargs):
+        """Manage processes using Pandas for single-node operations"""
+        
+        operation_type = process_config.get("type")
+        
+        if operation_type == "monitor":
+            return self._monitor_processes_pandas(process_config, **kwargs)
+        elif operation_type == "control":
+            return self._control_processes_pandas(process_config, **kwargs)
+        elif operation_type == "discovery":
+            return self._discover_processes_pandas(process_config, **kwargs)
+        else:
+            return {"error": f"Unknown operation type: {operation_type}"}
+    
+    def _monitor_processes_spark(self, process_config, **kwargs):
+        """Monitor processes using Spark"""
+        
+        # Use shell operations to get process information
+        command = "ps aux"
+        result = self.shell_manager.shell_ops.execute_command(command)
+        
+        # Parse process information
+        processes = self._parse_process_output(result["output"])
+        
+        return {
+            "operation": "monitor",
+            "engine": "spark",
+            "processes": processes,
+            "total_count": len(processes)
+        }
+    
+    def _monitor_processes_pandas(self, process_config, **kwargs):
+        """Monitor processes using Pandas"""
+        
+        import psutil
+        
+        processes = []
+        
+        for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent', 'status']):
+            try:
+                processes.append(proc.info)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+        
+        return {
+            "operation": "monitor",
+            "engine": "pandas",
+            "processes": processes,
+            "total_count": len(processes)
+        }
+    
+    def _control_processes_spark(self, process_config, **kwargs):
+        """Control processes using Spark"""
+        
+        action = process_config.get("action")
+        process_ids = process_config.get("process_ids", [])
+        
+        results = []
+        
+        for pid in process_ids:
+            if action == "kill":
+                command = f"kill -9 {pid}"
+            elif action == "stop":
+                command = f"kill -15 {pid}"
+            elif action == "resume":
+                command = f"kill -CONT {pid}"
             else:
-                self.logger.error(f"Daily backup failed: {result['error']}")
+                results.append({"pid": pid, "action": action, "status": "unknown_action"})
+                continue
+            
+            result = self.shell_manager.shell_ops.execute_command(command)
+            results.append({
+                "pid": pid,
+                "action": action,
+                "status": "success" if result["return_code"] == 0 else "failed",
+                "output": result["output"]
+            })
+        
+        return {
+            "operation": "control",
+            "engine": "spark",
+            "results": results
+        }
+    
+    def _control_processes_pandas(self, process_config, **kwargs):
+        """Control processes using Pandas"""
+        
+        import psutil
+        
+        action = process_config.get("action")
+        process_ids = process_config.get("process_ids", [])
+        
+        results = []
+        
+        for pid in process_ids:
+            try:
+                proc = psutil.Process(pid)
                 
-        except Exception as e:
-            self.logger.error(f"Daily backup error: {e}")
+                if action == "kill":
+                    proc.kill()
+                elif action == "stop":
+                    proc.suspend()
+                elif action == "resume":
+                    proc.resume()
+                else:
+                    results.append({"pid": pid, "action": action, "status": "unknown_action"})
+                    continue
+                
+                results.append({
+                    "pid": pid,
+                    "action": action,
+                    "status": "success"
+                })
+                
+            except psutil.NoSuchProcess:
+                results.append({
+                    "pid": pid,
+                    "action": action,
+                    "status": "process_not_found"
+                })
+            except psutil.AccessDenied:
+                results.append({
+                    "pid": pid,
+                    "action": action,
+                    "status": "access_denied"
+                })
+            except Exception as e:
+                results.append({
+                    "pid": pid,
+                    "action": action,
+                    "status": "error",
+                    "error": str(e)
+                })
+        
+        return {
+            "operation": "control",
+            "engine": "pandas",
+            "results": results
+        }
     
-    def weekly_cleanup(self):
-        """Perform weekly cleanup task"""
-        self.logger.info("Starting weekly cleanup")
+    def _discover_processes_spark(self, process_config, **kwargs):
+        """Discover processes using Spark"""
         
-        try:
-            # Remove old backups (older than 30 days)
-            result = shell_ops.execute_command(
-                "find /backup -name '*.tar.gz' -mtime +30 -delete"
-            )
-            
-            # Clean temporary files
-            shell_ops.execute_command("rm -rf /tmp/*")
-            
-            self.logger.info("Weekly cleanup completed")
-            
-        except Exception as e:
-            self.logger.error(f"Weekly cleanup error: {e}")
+        # Use shell operations to discover processes
+        command = "ps -ef"
+        result = self.shell_manager.shell_ops.execute_command(command)
+        
+        # Parse process discovery output
+        processes = self._parse_process_output(result["output"])
+        
+        return {
+            "operation": "discovery",
+            "engine": "spark",
+            "processes": processes,
+            "total_count": len(processes)
+        }
     
-    def start_scheduler(self):
-        """Start the task scheduler"""
-        schedule.every().day.at("02:00").do(self.daily_backup)
-        schedule.every().sunday.at("03:00").do(self.weekly_cleanup)
+    def _discover_processes_pandas(self, process_config, **kwargs):
+        """Discover processes using Pandas"""
         
-        self.logger.info("Task scheduler started")
+        import psutil
         
-        while True:
-            schedule.run_pending()
-            time.sleep(60)
+        processes = []
+        
+        for proc in psutil.process_iter(['pid', 'name', 'username', 'create_time', 'status']):
+            try:
+                processes.append(proc.info)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+        
+        return {
+            "operation": "discovery",
+            "engine": "pandas",
+            "processes": processes,
+            "total_count": len(processes)
+        }
+    
+    def _parse_process_output(self, output):
+        """Parse process output from shell command"""
+        
+        processes = []
+        lines = output.strip().split('\n')
+        
+        # Skip header line
+        for line in lines[1:]:
+            if line.strip():
+                parts = line.split()
+                if len(parts) >= 11:
+                    processes.append({
+                        "user": parts[0],
+                        "pid": int(parts[1]),
+                        "cpu_percent": float(parts[2]),
+                        "memory_percent": float(parts[3]),
+                        "vsz": int(parts[4]),
+                        "rss": int(parts[5]),
+                        "tty": parts[6],
+                        "stat": parts[7],
+                        "start": parts[8],
+                        "time": parts[9],
+                        "command": ' '.join(parts[10:])
+                    })
+        
+        return processes
+```
 
-# Start scheduled tasks
-scheduler = ScheduledShellTasks()
-scheduler.start_scheduler()
+### 3. Multi-Engine Shell Scripting
+
+```python
+class MultiEngineShellScripting:
+    """Execute shell scripts using any engine"""
+    
+    def __init__(self, shell_manager):
+        self.shell_manager = shell_manager
+        self.logger = Logger("shell_scripting")
+    
+    def execute_script(self, script_config, engine=None, **kwargs):
+        """Execute shell script using specified or auto-detected engine"""
+        
+        # Select optimal engine
+        if engine is None:
+            engine = self.shell_manager.get_optimal_engine(script_config.get("complexity", "medium"))
+        
+        self.logger.info(f"Executing shell script with {engine} engine")
+        
+        if engine == "spark" and self.shell_manager.spark_available:
+            return self._execute_script_with_spark(script_config, **kwargs)
+        else:
+            return self._execute_script_with_pandas(script_config, **kwargs)
+    
+    def _execute_script_with_spark(self, script_config, **kwargs):
+        """Execute shell script using Spark for distributed operations"""
+        
+        script_type = script_config.get("type")
+        
+        if script_type == "conditional":
+            return self._execute_conditional_script_spark(script_config, **kwargs)
+        elif script_type == "maintenance":
+            return self._execute_maintenance_script_spark(script_config, **kwargs)
+        else:
+            return self._execute_generic_script_spark(script_config, **kwargs)
+    
+    def _execute_script_with_pandas(self, script_config, **kwargs):
+        """Execute shell script using Pandas for single-node operations"""
+        
+        script_type = script_config.get("type")
+        
+        if script_type == "conditional":
+            return self._execute_conditional_script_pandas(script_config, **kwargs)
+        elif script_type == "maintenance":
+            return self._execute_maintenance_script_pandas(script_config, **kwargs)
+        else:
+            return self._execute_generic_script_pandas(script_config, **kwargs)
+    
+    def _execute_conditional_script_spark(self, script_config, **kwargs):
+        """Execute conditional script using Spark"""
+        
+        condition = script_config.get("condition")
+        script_path = script_config.get("script_path")
+        
+        # Check condition
+        if self._evaluate_condition(condition):
+            # Execute script
+            result = self.shell_manager.shell_ops.execute_script(script_path)
+            return {
+                "script_type": "conditional",
+                "engine": "spark",
+                "condition": condition,
+                "condition_met": True,
+                "execution_result": result
+            }
+        else:
+            return {
+                "script_type": "conditional",
+                "engine": "spark",
+                "condition": condition,
+                "condition_met": False,
+                "execution_result": None
+            }
+    
+    def _execute_conditional_script_pandas(self, script_config, **kwargs):
+        """Execute conditional script using Pandas"""
+        
+        condition = script_config.get("condition")
+        script_path = script_config.get("script_path")
+        
+        # Check condition
+        if self._evaluate_condition(condition):
+            # Execute script
+            result = self.shell_manager.shell_ops.execute_script(script_path)
+            return {
+                "script_type": "conditional",
+                "engine": "pandas",
+                "condition": condition,
+                "condition_met": True,
+                "execution_result": result
+            }
+        else:
+            return {
+                "script_type": "conditional",
+                "engine": "pandas",
+                "condition": condition,
+                "condition_met": False,
+                "execution_result": None
+            }
+    
+    def _execute_maintenance_script_spark(self, script_config, **kwargs):
+        """Execute maintenance script using Spark"""
+        
+        script_path = script_config.get("script_path")
+        maintenance_type = script_config.get("maintenance_type", "general")
+        
+        # Execute maintenance script
+        result = self.shell_manager.shell_ops.execute_script(script_path)
+        
+        return {
+            "script_type": "maintenance",
+            "engine": "spark",
+            "maintenance_type": maintenance_type,
+            "execution_result": result
+        }
+    
+    def _execute_maintenance_script_pandas(self, script_config, **kwargs):
+        """Execute maintenance script using Pandas"""
+        
+        script_path = script_config.get("script_path")
+        maintenance_type = script_config.get("maintenance_type", "general")
+        
+        # Execute maintenance script
+        result = self.shell_manager.shell_ops.execute_script(script_path)
+        
+        return {
+            "script_type": "maintenance",
+            "engine": "pandas",
+            "maintenance_type": maintenance_type,
+            "execution_result": result
+        }
+    
+    def _execute_generic_script_spark(self, script_config, **kwargs):
+        """Execute generic script using Spark"""
+        
+        script_path = script_config.get("script_path")
+        
+        # Execute script
+        result = self.shell_manager.shell_ops.execute_script(script_path)
+        
+        return {
+            "script_type": "generic",
+            "engine": "spark",
+            "execution_result": result
+        }
+    
+    def _execute_generic_script_pandas(self, script_config, **kwargs):
+        """Execute generic script using Pandas"""
+        
+        script_path = script_config.get("script_path")
+        
+        # Execute script
+        result = self.shell_manager.shell_ops.execute_script(script_path)
+        
+        return {
+            "script_type": "generic",
+            "engine": "pandas",
+            "execution_result": result
+        }
+    
+    def _evaluate_condition(self, condition):
+        """Evaluate script execution condition"""
+        
+        if condition is None:
+            return True
+        
+        # Simple condition evaluation
+        # This could be enhanced with more complex logic
+        if isinstance(condition, str):
+            # Check if condition is a command that returns success
+            try:
+                result = self.shell_manager.shell_ops.execute_command(condition)
+                return result["return_code"] == 0
+            except:
+                return False
+        elif isinstance(condition, bool):
+            return condition
+        else:
+            return False
+```
+
+### 4. Multi-Engine Performance Monitoring
+
+```python
+class MultiEnginePerformanceMonitor:
+    """Monitor system performance using any engine"""
+    
+    def __init__(self, shell_manager):
+        self.shell_manager = shell_manager
+        self.logger = Logger("performance_monitor")
+    
+    def monitor_performance(self, monitoring_config, engine=None, **kwargs):
+        """Monitor system performance using specified or auto-detected engine"""
+        
+        # Select optimal engine
+        if engine is None:
+            engine = self.shell_manager.get_optimal_engine(monitoring_config.get("complexity", "medium"))
+        
+        self.logger.info(f"Monitoring performance with {engine} engine")
+        
+        if engine == "spark" and self.shell_manager.spark_available:
+            return self._monitor_performance_with_spark(monitoring_config, **kwargs)
+        else:
+            return self._monitor_performance_with_pandas(monitoring_config, **kwargs)
+    
+    def _monitor_performance_with_spark(self, monitoring_config, **kwargs):
+        """Monitor performance using Spark for distributed monitoring"""
+        
+        monitoring_type = monitoring_config.get("type")
+        
+        if monitoring_type == "parallel":
+            return self._monitor_parallel_performance_spark(monitoring_config, **kwargs)
+        elif monitoring_type == "caching":
+            return self._monitor_caching_performance_spark(monitoring_config, **kwargs)
+        elif monitoring_type == "resource":
+            return self._monitor_resource_performance_spark(monitoring_config, **kwargs)
+        else:
+            return {"error": f"Unknown monitoring type: {monitoring_type}"}
+    
+    def _monitor_performance_with_pandas(self, monitoring_config, **kwargs):
+        """Monitor performance using Pandas for single-node monitoring"""
+        
+        monitoring_type = monitoring_config.get("type")
+        
+        if monitoring_type == "parallel":
+            return self._monitor_parallel_performance_pandas(monitoring_config, **kwargs)
+        elif monitoring_type == "caching":
+            return self._monitor_caching_performance_pandas(monitoring_config, **kwargs)
+        elif monitoring_type == "resource":
+            return self._monitor_resource_performance_pandas(monitoring_config, **kwargs)
+        else:
+            return {"error": f"Unknown monitoring type: {monitoring_type}"}
+    
+    def _monitor_parallel_performance_spark(self, monitoring_config, **kwargs):
+        """Monitor parallel performance using Spark"""
+        
+        # Execute parallel performance monitoring commands
+        commands = [
+            "uptime",
+            "vmstat 1 5",
+            "iostat 1 5"
+        ]
+        
+        results = {}
+        
+        for command in commands:
+            result = self.shell_manager.shell_ops.execute_command(command)
+            results[command] = result
+        
+        return {
+            "monitoring_type": "parallel",
+            "engine": "spark",
+            "results": results
+        }
+    
+    def _monitor_parallel_performance_pandas(self, monitoring_config, **kwargs):
+        """Monitor parallel performance using Pandas"""
+        
+        import psutil
+        
+        # Get system performance metrics
+        cpu_percent = psutil.cpu_percent(interval=1, percpu=True)
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_io_counters()
+        
+        return {
+            "monitoring_type": "parallel",
+            "engine": "pandas",
+            "cpu_percent": cpu_percent,
+            "memory": {
+                "total": memory.total,
+                "available": memory.available,
+                "percent": memory.percent
+            },
+            "disk": {
+                "read_count": disk.read_count,
+                "write_count": disk.write_count,
+                "read_bytes": disk.read_bytes,
+                "write_bytes": disk.write_bytes
+            }
+        }
+    
+    def _monitor_caching_performance_spark(self, monitoring_config, **kwargs):
+        """Monitor caching performance using Spark"""
+        
+        # Execute caching performance monitoring commands
+        commands = [
+            "free -h",
+            "cat /proc/meminfo | grep -i cache",
+            "cat /proc/sys/vm/drop_caches"
+        ]
+        
+        results = {}
+        
+        for command in commands:
+            result = self.shell_manager.shell_ops.execute_command(command)
+            results[command] = result
+        
+        return {
+            "monitoring_type": "caching",
+            "engine": "spark",
+            "results": results
+        }
+    
+    def _monitor_caching_performance_pandas(self, monitoring_config, **kwargs):
+        """Monitor caching performance using Pandas"""
+        
+        import psutil
+        
+        # Get memory and cache information
+        memory = psutil.virtual_memory()
+        swap = psutil.swap_memory()
+        
+        return {
+            "monitoring_type": "caching",
+            "engine": "pandas",
+            "memory": {
+                "total": memory.total,
+                "available": memory.available,
+                "cached": getattr(memory, 'cached', 0),
+                "buffers": getattr(memory, 'buffers', 0)
+            },
+            "swap": {
+                "total": swap.total,
+                "used": swap.used,
+                "free": swap.free
+            }
+        }
+    
+    def _monitor_resource_performance_spark(self, monitoring_config, **kwargs):
+        """Monitor resource performance using Spark"""
+        
+        # Execute resource performance monitoring commands
+        commands = [
+            "df -h",
+            "du -sh /*",
+            "lsof | wc -l"
+        ]
+        
+        results = {}
+        
+        for command in commands:
+            result = self.shell_manager.shell_ops.execute_command(command)
+            results[command] = result
+        
+        return {
+            "monitoring_type": "resource",
+            "engine": "spark",
+            "results": results
+        }
+    
+    def _monitor_resource_performance_pandas(self, monitoring_config, **kwargs):
+        """Monitor resource performance using Pandas"""
+        
+        import psutil
+        
+        # Get disk and network information
+        disk_partitions = psutil.disk_partitions()
+        disk_usage = {}
+        
+        for partition in disk_partitions:
+            try:
+                usage = psutil.disk_usage(partition.mountpoint)
+                disk_usage[partition.device] = {
+                    "total": usage.total,
+                    "used": usage.used,
+                    "free": usage.free,
+                    "percent": usage.percent
+                }
+            except PermissionError:
+                continue
+        
+        network = psutil.net_io_counters()
+        
+        return {
+            "monitoring_type": "resource",
+            "engine": "pandas",
+            "disk_partitions": disk_usage,
+            "network": {
+                "bytes_sent": network.bytes_sent,
+                "bytes_recv": network.bytes_recv,
+                "packets_sent": network.packets_sent,
+                "packets_recv": network.packets_recv
+            }
+        }
+```
+
+## Integration Examples
+
+### 1. Multi-Engine Shell Operations Pipeline
+
+```python
+def create_multi_engine_shell_pipeline():
+    """Create a complete multi-engine shell operations pipeline"""
+    
+    # Initialize shell manager
+    shell_config = {
+        "timeout": 300,
+        "working_directory": "/tmp",
+        "environment": {"PATH": "/usr/local/bin:/usr/bin:/bin"}
+    }
+    
+    shell_manager = MultiEngineShellManager(default_engine="auto", shell_config=shell_config)
+    
+    # Create specialized managers
+    process_manager = MultiEngineProcessManager(shell_manager)
+    shell_scripting = MultiEngineShellScripting(shell_manager)
+    performance_monitor = MultiEnginePerformanceMonitor(shell_manager)
+    
+    # Define shell operations
+    shell_operations = {
+        "system_check": {
+            "command": "uname -a && cat /etc/os-release",
+            "complexity": "simple"
+        },
+        "disk_usage": {
+            "command": "df -h && du -sh /*",
+            "complexity": "medium"
+        },
+        "process_analysis": {
+            "command": "ps aux --sort=-%cpu | head -20",
+            "complexity": "medium"
+        }
+    }
+    
+    # Execute shell operations with optimal engine selection
+    shell_results = {}
+    
+    for operation_name, operation_config in shell_operations.items():
+        try:
+            result = shell_manager.execute_shell_command(
+                operation_config["command"], operation_config
+            )
+            shell_results[operation_name] = {
+                "status": "success",
+                "result": result
+            }
+        except Exception as e:
+            shell_results[operation_name] = {
+                "status": "failed",
+                "error": str(e)
+            }
+    
+    # Manage processes
+    process_config = {
+        "type": "monitor",
+        "complexity": "medium"
+    }
+    
+    process_results = process_manager.manage_processes(process_config)
+    
+    # Execute maintenance script
+    script_config = {
+        "type": "maintenance",
+        "script_path": "/tmp/maintenance.sh",
+        "maintenance_type": "system_cleanup"
+    }
+    
+    script_results = shell_scripting.execute_script(script_config)
+    
+    # Monitor performance
+    monitoring_config = {
+        "type": "resource",
+        "complexity": "medium"
+    }
+    
+    performance_results = performance_monitor.monitor_performance(monitoring_config)
+    
+    return shell_results, process_results, script_results, performance_results
+
+# Run the pipeline
+shell_pipeline_results = create_multi_engine_shell_pipeline()
+```
+
+### 2. Real-time Shell Operations Dashboard
+
+```python
+def create_shell_operations_dashboard():
+    """Create a dashboard to monitor shell operations in real-time"""
+    
+    import dash
+    from dash import dcc, html
+    from dash.dependencies import Input, Output
+    import plotly.graph_objs as go
+    
+    app = dash.Dash(__name__)
+    
+    app.layout = html.Div([
+        html.H1("Multi-Engine Shell Operations Dashboard"),
+        
+        html.Div([
+            html.Div([
+                html.Label("Operation Type:"),
+                dcc.Dropdown(
+                    id="operation-filter",
+                    options=[
+                        {"label": "All Operations", "value": "all"},
+                        {"label": "System Commands", "value": "system"},
+                        {"label": "Process Management", "value": "process"},
+                        {"label": "Performance Monitoring", "value": "performance"}
+                    ],
+                    value="all",
+                    style={"width": "200px"}
+                )
+            ], style={"width": "250px", "margin": "20px"}),
+            
+            html.Div([
+                html.Label("Engine:"),
+                dcc.Dropdown(
+                    id="engine-filter",
+                    options=[
+                        {"label": "All Engines", "value": "all"},
+                        {"label": "Pandas", "value": "pandas"},
+                        {"label": "Spark", "value": "spark"},
+                        {"label": "Auto", "value": "auto"}
+                    ],
+                    value="all",
+                    style={"width": "150px"}
+                )
+            ], style={"width": "200px", "margin": "20px"}),
+            
+            html.Div([
+                html.Label("Update Frequency (seconds):"),
+                dcc.Slider(
+                    id="update-frequency",
+                    min=5,
+                    max=60,
+                    step=5,
+                    value=30,
+                    marks={i: str(i) for i in [5, 15, 30, 45, 60]},
+                    tooltip={"placement": "bottom", "always_visible": True}
+                )
+            ], style={"width": "300px", "margin": "20px"})
+        ], style={"display": "flex", "justifyContent": "center", "marginBottom": "20px"}),
+        
+        html.Div([
+            dcc.Graph(id="command-execution-chart"),
+            dcc.Graph(id="process-status-chart"),
+            dcc.Graph(id="system-performance-chart")
+        ]),
+        
+        dcc.Interval(id="update-interval", interval=30*1000)  # Update every 30 seconds
+    ])
+    
+    @app.callback(
+        [Output("command-execution-chart", "figure"),
+         Output("process-status-chart", "figure"),
+         Output("system-performance-chart", "figure")],
+        [Input("update-interval", "n_intervals"),
+         Input("operation-filter", "value"),
+         Input("engine-filter", "value"),
+         Input("update-frequency", "value")]
+    )
+    def update_charts(n, operation_type, engine, frequency):
+        # Get shell operations data (this would come from your actual shell operations system)
+        # For demonstration, we'll create sample data
+        
+        # Command execution chart
+        time_points = list(range(24))  # Last 24 hours
+        command_counts = [np.random.randint(50, 200) for _ in time_points]
+        
+        command_fig = go.Figure(data=[
+            go.Scatter(x=time_points, y=command_counts, mode="lines+markers", name="Commands Executed")
+        ])
+        command_fig.update_layout(title="Shell Commands Executed Over Time", xaxis_title="Hours Ago", yaxis_title="Command Count")
+        
+        # Process status chart
+        process_statuses = ["Running", "Sleeping", "Stopped", "Zombie"]
+        process_counts = [850, 120, 25, 5]
+        
+        process_fig = go.Figure(data=[
+            go.Pie(labels=process_statuses, values=process_counts, name="Process Status")
+        ])
+        process_fig.update_layout(title="System Process Status Distribution")
+        
+        # System performance chart
+        performance_metrics = ["CPU Usage", "Memory Usage", "Disk I/O", "Network I/O"]
+        performance_values = [45.2, 67.8, 23.1, 12.5]  # percentage
+        
+        performance_fig = go.Figure(data=[
+            go.Bar(x=performance_metrics, y=performance_values, name="System Performance")
+        ])
+        performance_fig.update_layout(title="System Performance Metrics", yaxis_title="Usage (%)")
+        
+        return command_fig, process_fig, performance_fig
+    
+    return app
+
+# Start the dashboard
+shell_dashboard = create_shell_operations_dashboard()
+shell_dashboard.run_server(debug=True, port=8057)
 ```
 
 ## Best Practices
 
-### 1. Security
-- Always validate and sanitize command inputs
-- Use appropriate user permissions for commands
-- Avoid executing commands with user-provided input
-- Implement proper access controls
+### 1. Engine Selection
+- Use **Pandas** for simple operations and single-node monitoring
+- Use **Spark** for complex operations and distributed monitoring
+- Use **Auto-detection** for unknown operation complexity
+- Consider **system resources** when selecting engine
 
-### 2. Performance
-- Use parallel execution for independent commands
-- Implement command caching for repeated operations
-- Monitor resource usage during execution
-- Use appropriate timeouts for long-running commands
+### 2. Performance Optimization
+- **Use appropriate timeouts** for different command types
+- **Implement command caching** for frequently used operations
+- **Monitor resource usage** during execution
+- **Use parallel execution** when possible
 
-### 3. Error Handling
-- Always check command exit codes
-- Implement retry logic for transient failures
-- Log all command executions and results
-- Provide meaningful error messages
+### 3. Security
+- **Validate all shell commands** before execution
+- **Use appropriate user permissions** for different operations
+- **Implement command whitelisting** for production environments
+- **Log all shell operations** for audit trails
 
-### 4. Monitoring
-- Monitor process health and resource usage
-- Implement logging for all shell operations
-- Track command success rates and execution times
-- Set up alerts for critical failures
+### 4. Error Handling
+- **Implement fallback mechanisms** when engines fail
+- **Provide meaningful error messages** for debugging
+- **Log shell operation decisions** for transparency
+- **Retry failed operations** with different engines when possible
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Command Not Found**
+1. **Engine Compatibility Issues**
    ```python
-   # Check command availability
-   result = shell_ops.execute_command("which command_name")
-   if result['exit_code'] != 0:
-       print("Command not found in PATH")
+   # Check engine availability
+   if shell_manager.spark_available:
+       print("Spark is available for distributed shell operations")
+   else:
+       print("Using Pandas only")
    ```
 
-2. **Permission Denied**
+2. **Command Execution Issues**
    ```python
-   # Check user permissions
-   result = shell_ops.execute_command("id")
-   print(f"Current user: {result['output']}")
+   # Check command permissions
+   try:
+       result = shell_manager.execute_shell_command("ls -la", {"complexity": "simple"})
+       print("Command executed successfully")
+   except Exception as e:
+       print(f"Command execution failed: {e}")
    ```
 
-3. **Process Hanging**
+3. **Process Management Issues**
    ```python
-   # Use timeout for long-running commands
-   result = shell_ops.execute_command("long_running_command", timeout=60)
+   # Check process manager capabilities
+   process_manager = MultiEngineProcessManager(shell_manager)
+   processes = process_manager.manage_processes({"type": "monitor"})
+   print(f"Found {processes['total_count']} processes")
    ```
 
 ## Conclusion
 
-The shell operations utilities in `siege_utilities` provide comprehensive tools for executing shell commands and managing processes. By following this recipe, you can:
+The multi-engine shell operations capabilities in `siege_utilities` provide:
 
-- Execute shell commands safely and efficiently
-- Manage processes and monitor system resources
-- Implement automated system maintenance tasks
-- Build robust shell automation workflows
-- Integrate shell operations with other system components
+- **Seamless scalability** from single commands to distributed operations
+- **Automatic engine selection** based on operation characteristics
+- **Unified shell interfaces** that work with both Spark and Pandas
+- **Comprehensive process management** across all engines
+- **Performance optimization** through intelligent engine selection
 
-Remember to always prioritize security, implement proper error handling, and monitor system resources for reliable shell operations.
+By following this recipe, you can build robust, scalable shell operation pipelines that automatically adapt to your operation complexity and system requirements while providing comprehensive system administration capabilities.
