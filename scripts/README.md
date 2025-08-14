@@ -1,166 +1,310 @@
-# Scripts Directory
+# Documentation Automation Scripts
 
-This directory contains utility scripts for managing and maintaining the Siege Utilities project.
+This directory contains automation scripts for streamlining the documentation generation, wiki updates, and deployment workflow for the Siege Utilities library.
 
-## Available Scripts
+## 🚀 Quick Start
 
-### `sync_to_wiki.py` - Recipe Wiki Synchronization
+### Using the Shell Wrapper (Recommended)
 
-Automatically syncs recipe documentation from `docs/recipes/` to a GitHub wiki repository.
-
-#### Usage
-
-**Option 1: Sync to existing local wiki repository**
 ```bash
-python scripts/sync_to_wiki.py --wiki-path /path/to/local/wiki/repo
+# Generate documentation and update wikis
+./scripts/auto_docs.sh docs
+
+# Full deployment workflow
+./scripts/auto_docs.sh deploy
+
+# Run tests only
+./scripts/auto_docs.sh test
+
+# Update wikis only
+./scripts/auto_docs.sh wiki
+
+# Update branch status only
+./scripts/auto_docs.sh status
+
+# Show help
+./scripts/auto_docs.sh help
 ```
 
-**Option 2: Clone and sync to wiki repository**
+### Using Python Directly
+
 ```bash
-python scripts/sync_to_wiki.py --wiki-url https://github.com/username/repo.wiki.git
+# Basic usage
+python scripts/automate_docs_and_deploy.py
+
+# Dry run (no actual changes)
+python scripts/automate_docs_and_deploy.py --dry-run
+
+# Skip tests
+python scripts/automate_docs_and_deploy.py --skip-tests
+
+# Force execution
+python scripts/automate_docs_and_deploy.py --force
 ```
 
-**Option 3: Custom commit message**
+## 📋 What the Automation Does
+
+The automation script performs the following workflow:
+
+1. **Pre-flight Checks** 🔍
+   - Verifies git repository status
+   - Checks for uncommitted changes
+   - Validates remote access
+
+2. **Quality Checks** 🧪
+   - Runs the full test suite with coverage
+   - Performs code linting (flake8)
+   - Runs type checking (mypy)
+
+3. **Documentation Generation** 📚
+   - Generates Sphinx documentation
+   - Creates API documentation using pydoc
+   - Copies recipe documentation
+
+4. **Wiki Updates** 📝
+   - Updates README files with timestamps
+   - Generates changelogs from git history
+   - Synchronizes across wiki repositories
+
+5. **Branch Status Updates** 🌿
+   - Updates branch status using library commands
+   - Generates status reports
+   - Analyzes branch health
+
+6. **Git Operations** 🔧
+   - Stages all changes
+   - Creates commits with timestamps
+   - Pushes to remote repository
+
+7. **Post-deployment Tasks** 🎉
+   - Generates deployment reports
+   - Updates deployment status
+   - Cleans up temporary files
+
+## ⚙️ Configuration
+
+The automation is configured via `automation_config.yaml`. Key configuration sections:
+
+### Documentation Settings
+```yaml
+documentation:
+  source_dirs: [siege_utilities, examples, scripts]
+  output_dir: docs/build
+  formats: [html, pdf]
+  exclude_patterns: [__pycache__, *.pyc, tests]
+```
+
+### Wiki Repository Settings
+```yaml
+wiki_repos:
+  wiki_fresh: wiki_fresh
+  wiki_recipes: wiki_recipes
+  wiki_debug: wiki_debug
+```
+
+### Quality Check Settings
+```yaml
+quality_checks:
+  run_tests: true
+  run_linting: true
+  run_type_checking: true
+  test_coverage_threshold: 80
+```
+
+### Git Settings
+```yaml
+git:
+  main_branch: main
+  docs_branch: docs-update
+  commit_message_template: "Automated docs update: {timestamp}"
+  push_remote: origin
+```
+
+## 🔧 Customization
+
+### Adding New Wiki Repositories
+
+1. Add the repository to `automation_config.yaml`:
+```yaml
+wiki_repos:
+  new_wiki: path/to/new_wiki
+```
+
+2. The script will automatically detect and update the new repository.
+
+### Customizing Documentation Generation
+
+Modify the `_generate_documentation()` method in the Python script to add new documentation types or modify existing ones.
+
+### Adding New Quality Checks
+
+Extend the `_run_quality_checks()` method to include additional validation steps like:
+- Security scanning
+- Dependency vulnerability checks
+- Performance benchmarking
+
+## 📊 Reports and Outputs
+
+The automation generates several types of reports:
+
+### Documentation Output
+- **Sphinx HTML**: `docs/build/html/`
+- **API Documentation**: `docs/build/api/`
+- **Recipe Documentation**: `docs/build/recipes/`
+
+### Status Reports
+- **Branch Status**: `reports/branch_status/`
+- **Deployment Reports**: `reports/deployments/`
+- **Deployment Status**: `reports/deployment_status.json`
+
+### Wiki Updates
+- **README files**: Updated with timestamps
+- **CHANGELOG.md**: Generated from git history
+- **Index files**: Updated navigation
+
+## 🚨 Error Handling
+
+The automation includes robust error handling:
+
+- **Pre-flight validation** prevents common issues
+- **Rollback mechanisms** for failed deployments
+- **Detailed logging** for troubleshooting
+- **Cleanup procedures** on failure
+
+### Common Issues and Solutions
+
+#### Tests Fail
 ```bash
-python scripts/sync_to_wiki.py --wiki-path /path/to/wiki --commit-message "Add new analytics recipes"
+# Run tests separately to debug
+./scripts/auto_docs.sh test
+
+# Skip tests temporarily
+./scripts/auto_docs.sh deploy --skip-tests
 ```
 
-**Option 4: Commit only (don't push)**
+#### Linting Issues
 ```bash
-python scripts/sync_to_wiki.py --wiki-path /path/to/wiki --no-push
+# Run with force to override warnings
+./scripts/auto_docs.sh deploy --force
 ```
 
-#### What it does
-
-1. **Copies recipes**: Syncs all markdown files from `docs/recipes/` to the wiki
-2. **Updates navigation**: Creates/updates wiki index and navigation
-3. **Maintains structure**: Preserves directory structure in the wiki
-4. **Git integration**: Automatically commits and pushes changes
-5. **Cleanup**: Removes temporary files if cloning from URL
-
-#### Prerequisites
-
-- Git installed and configured
-- Access to the wiki repository
-- Python 3.8+ with standard library modules
-
-### `generate_docstrings.py` - Documentation Generation
-
-Generates docstrings for functions that don't have them.
-
-#### Usage
+#### Git Issues
 ```bash
-python scripts/generate_docstrings.py
+# Check git status
+git status
+
+# Reset if needed
+git reset --hard HEAD
 ```
 
-## GitHub Actions Integration
+## 🔒 Security Features
 
-The `.github/workflows/sync-wiki.yml` workflow automatically syncs recipes to the wiki whenever:
+The automation includes several security measures:
 
-- Changes are pushed to the `main` branch in `docs/recipes/`
-- The sync script is modified
-- The workflow is manually triggered
+- **Path validation** prevents directory traversal attacks
+- **File extension filtering** limits file types
+- **Pattern blocking** prevents dangerous operations
+- **Sandboxed execution** isolates the automation
 
-### Setting up automatic sync
+## 📈 Performance Optimization
 
-1. **Enable GitHub Actions** in your repository settings
-2. **Create the wiki repository** if it doesn't exist:
-   - Go to your repository
-   - Click "Wiki" tab
-   - Create the first page (this creates the wiki repo)
-3. **The workflow will run automatically** on recipe changes
+### Parallel Processing
+- Configurable worker count for parallel operations
+- Memory usage monitoring and limits
+- Timeout controls for long-running operations
 
-### Manual sync workflow
+### Caching
+- SVG marker caching for map generation
+- Documentation build caching
+- Git status caching
 
-If you prefer manual control:
+## 🧪 Testing the Automation
 
-1. **Clone the wiki repository**:
-   ```bash
-   git clone https://github.com/username/repo.wiki.git
-   cd repo.wiki
-   ```
-
-2. **Run the sync script**:
-   ```bash
-   python ../scripts/sync_to_wiki.py --wiki-path .
-   ```
-
-3. **Push changes**:
-   ```bash
-   git push origin main
-   ```
-
-## Recipe Management Workflow
-
-### Adding new recipes
-
-1. **Create recipe file** in `docs/recipes/` with appropriate category
-2. **Follow the recipe template** (see `docs/recipes/README.md`)
-3. **Test the recipe** to ensure it works correctly
-4. **Commit and push** to main repository
-5. **Wiki sync happens automatically** via GitHub Actions
-
-### Updating existing recipes
-
-1. **Edit recipe file** in `docs/recipes/`
-2. **Commit and push** changes
-3. **Wiki is automatically updated** via GitHub Actions
-
-### Recipe structure
-
-```
-docs/recipes/
-├── README.md                    # Main recipes index
-├── getting_started/            # Beginner recipes
-│   ├── basic_setup.md
-│   └── first_steps.md
-├── file_operations/            # File handling recipes
-│   ├── batch_processing.md
-│   └── integrity_checking.md
-├── distributed_computing/      # Spark/HDFS recipes
-│   ├── spark_processing.md
-│   └── hdfs_operations.md
-└── analytics/                  # Analytics platform recipes
-    └── multi_platform_collection.md
+### Dry Run Mode
+```bash
+# Test without making changes
+./scripts/auto_docs.sh deploy --dry-run
 ```
 
-## Troubleshooting
+### Individual Components
+```bash
+# Test specific components
+./scripts/auto_docs.sh docs --dry-run
+./scripts/auto_docs.sh wiki --dry-run
+./scripts/auto_docs.sh status --dry-run
+```
 
-### Common issues
+## 🔄 Integration with CI/CD
 
-1. **Wiki sync fails**: Check that the wiki repository exists and is accessible
-2. **Permission denied**: Ensure the GitHub Action has write access to the wiki
-3. **Merge conflicts**: Resolve conflicts in the wiki repository manually
-4. **Script errors**: Check Python version and dependencies
+The automation can be integrated into CI/CD pipelines:
 
-### Manual recovery
+```yaml
+# GitHub Actions example
+- name: Run Documentation Automation
+  run: |
+    python scripts/automate_docs_and_deploy.py --skip-tests
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
 
-If automatic sync fails:
+## 📝 Contributing to Automation
 
-1. **Clone wiki repository manually**
-2. **Run sync script locally**
-3. **Resolve any conflicts**
-4. **Push changes manually**
+### Adding New Features
 
-### Getting help
+1. **Extend the main class**: Add new methods to `DocumentationAutomation`
+2. **Update configuration**: Add new settings to `automation_config.yaml`
+3. **Add tests**: Create tests for new functionality
+4. **Update documentation**: Document new features here
 
-- Check the [GitHub Actions logs](../../actions) for detailed error information
-- Review the [recipe documentation](../docs/recipes/README.md)
-- Open an issue in the main repository
+### Code Style
 
-## Contributing
+- Follow PEP 8 guidelines
+- Include comprehensive docstrings
+- Add type hints where possible
+- Include error handling for all operations
 
-To add new scripts:
+## 🆘 Troubleshooting
 
-1. **Create script file** in this directory
-2. **Add usage documentation** in this README
-3. **Include error handling** and logging
-4. **Test thoroughly** before committing
-5. **Update this README** with usage instructions
+### Debug Mode
+```bash
+# Enable verbose logging
+export LOG_LEVEL=DEBUG
+./scripts/auto_docs.sh deploy
+```
 
-## Security Notes
+### Manual Steps
+If automation fails, you can run steps manually:
 
-- **Never commit sensitive information** (API keys, passwords, etc.)
-- **Use environment variables** for configuration
-- **Validate inputs** to prevent injection attacks
-- **Limit script permissions** to minimum required access
+1. **Generate docs**: `python -m sphinx.cmd.build -b html docs/source docs/build/html`
+2. **Update wikis**: Copy files manually to wiki directories
+3. **Git operations**: Use standard git commands
+4. **Status update**: Run library commands directly
+
+### Getting Help
+
+- Check the logs in `reports/` directory
+- Review the deployment report for details
+- Check git status and recent commits
+- Verify configuration file syntax
+
+## 📚 Related Documentation
+
+- [Main README](../README.md) - Project overview
+- [Testing Guide](../wiki_fresh/Testing-Guide.md) - Testing strategies
+- [Getting Started](../wiki_fresh/Getting-Started.md) - Basic setup
+- [API Documentation](../docs/build/html/index.html) - Generated API docs
+
+## 🎯 Roadmap
+
+Future enhancements planned:
+
+- [ ] **Multi-language support** for international documentation
+- [ ] **Automated translation** using AI services
+- [ ] **Advanced reporting** with charts and metrics
+- [ ] **Slack/Teams integration** for notifications
+- [ ] **Docker containerization** for consistent environments
+- [ ] **Cloud deployment** to AWS/GCP/Azure
+
+---
+
+*This automation system is designed to make documentation maintenance effortless and consistent. For questions or issues, please refer to the troubleshooting section or create an issue in the project repository.*

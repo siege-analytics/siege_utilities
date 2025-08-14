@@ -1,0 +1,192 @@
+# Automation Configuration for Siege Utilities Documentation and Deployment
+# This file configures the automated workflow for documentation generation,
+# wiki updates, branch status management, and deployment.
+
+documentation:
+  # Source directories to scan for documentation
+  source_dirs:
+    - siege_utilities
+    - examples
+    - scripts
+  
+  # Output directory for generated documentation
+  output_dir: docs/build
+  
+  # Documentation formats to generate
+  formats:
+    - html
+    - pdf
+  
+  # Patterns to exclude from documentation generation
+  exclude_patterns:
+    - __pycache__
+    - "*.pyc"
+    - tests
+    - .git
+    - node_modules
+    - "*.egg-info"
+  
+  # Sphinx configuration
+  sphinx:
+    theme: sphinx_rtd_theme
+    extensions:
+      - sphinx.ext.autodoc
+      - sphinx.ext.viewcode
+      - sphinx.ext.napoleon
+      - sphinx.ext.intersphinx
+    intersphinx_mapping:
+      python: "https://docs.python.org/3/"
+      pandas: "https://pandas.pydata.org/docs/"
+      pyspark: "https://spark.apache.org/docs/latest/api/python/"
+
+wiki_repos:
+  # Wiki repositories to update
+  wiki_fresh: wiki_fresh
+  wiki_recipes: wiki_recipes
+  wiki_debug: wiki_debug
+  
+  # Wiki update settings
+  update_settings:
+    auto_generate_readme: true
+    auto_generate_changelog: true
+    include_timestamps: true
+    max_changelog_entries: 20
+
+quality_checks:
+  # Run tests before deployment
+  run_tests: true
+  
+  # Run code linting
+  run_linting: true
+  
+  # Run type checking with mypy
+  run_type_checking: true
+  
+  # Test coverage threshold (percentage)
+  test_coverage_threshold: 80
+  
+  # Linting configuration
+  linting:
+    max_line_length: 100
+    ignore_errors:
+      - E501  # Line too long
+      - W503  # Line break before binary operator
+  
+  # Type checking configuration
+  type_checking:
+    strict_mode: false
+    ignore_missing_imports: true
+    exclude_patterns:
+      - tests/
+      - examples/
+
+git:
+  # Main development branch
+  main_branch: main
+  
+  # Branch for documentation updates
+  docs_branch: docs-update
+  
+  # Commit message template
+  commit_message_template: "Automated docs update: {timestamp}"
+  
+  # Remote to push to
+  push_remote: origin
+  
+  # Git configuration
+  config:
+    user_name: "Siege Utilities Bot"
+    user_email: "bot@siege-utilities.com"
+  
+  # Branch protection rules
+  protection:
+    require_tests_pass: true
+    require_reviews: false
+    allow_force_push: false
+
+deployment:
+  # Deployment environment
+  environment: production
+  
+  # Backup settings
+  backup:
+    enabled: true
+    backup_dir: backups
+    max_backups: 10
+  
+  # Rollback settings
+  rollback:
+    enabled: true
+    max_rollback_commits: 5
+  
+  # Notification settings
+  notifications:
+    enabled: false
+    slack_webhook: ""
+    email_recipients: []
+
+reports:
+  # Directory for generated reports
+  output_dir: reports
+  
+  # Report formats
+  formats:
+    - markdown
+    - json
+    - html
+  
+  # Report retention
+  retention:
+    max_reports: 50
+    cleanup_old_reports: true
+
+# Performance settings
+performance:
+  # Parallel processing
+  max_workers: 4
+  
+  # Timeout settings
+  timeouts:
+    test_execution: 300  # 5 minutes
+    documentation_generation: 600  # 10 minutes
+    git_operations: 120  # 2 minutes
+  
+  # Memory limits
+  memory:
+    max_memory_mb: 2048
+    gc_threshold: 100
+
+# Error handling
+error_handling:
+  # Maximum retry attempts
+  max_retries: 3
+  
+  # Retry delay in seconds
+  retry_delay: 5
+  
+  # Continue on non-critical errors
+  continue_on_warnings: true
+  
+  # Log level for errors
+  log_level: ERROR
+
+# Security settings
+security:
+  # Validate file paths
+  validate_paths: true
+  
+  # Allow only specific file extensions
+  allowed_extensions:
+    - .md
+    - .rst
+    - .py
+    - .yaml
+    - .yml
+    - .json
+  
+  # Block dangerous patterns
+  blocked_patterns:
+    - ".."
+    - "~"
+    - "/etc"
+    - "/var"
