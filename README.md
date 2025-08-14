@@ -24,11 +24,39 @@ A comprehensive Python utilities package providing **1147+ functions** across **
 
 ## 🆕 **Recent Major Updates**
 
-### **🎨 Comprehensive Code Modernization (Latest)**
+### **🚀 Multi-Engine Architecture (Latest)**
+- ✅ **Engine Agnostic Design**: Seamlessly switch between Pandas and Apache Spark based on data size and complexity
+- ✅ **Intelligent Engine Selection**: Automatic engine choice based on file size, operation complexity, and data characteristics
+- ✅ **Unified API**: Single interface for both engines with consistent method signatures
+- ✅ **Performance Optimization**: Cross-engine performance comparison and benchmarking
+- ✅ **Hybrid Processing**: Mix engines within the same workflow for optimal performance
+
+### **🗄️ Spark + Sedona Database Integration**
+- ✅ **Apache Sedona Support**: Native spatial data processing on Spark with optimized UDFs
+- ✅ **Multi-Database Support**: PostgreSQL, MySQL, Oracle, SQL Server with JDBC optimization
+- ✅ **Connection Pooling**: Efficient database connection management for high-throughput operations
+- ✅ **Spatial SQL Operations**: Advanced spatial queries and transformations on Spark
+- ✅ **Performance Monitoring**: Connection health checks and optimization recommendations
+
+### **🎨 Configurable Map Generation with SVG Markers**
+- ✅ **Multiple Backends**: Matplotlib, Folium, Plotly, Bokeh, and PyDeck support
+- ✅ **Custom SVG Markers**: User-supplied SVG files as map markers with scaling, rotation, and colorization
+- ✅ **Flexible Styling**: Configurable colors, themes, and export formats
+- ✅ **Advanced Export**: Multiple formats including PNG, PDF, HTML, and interactive web maps
+- ✅ **Preset Configurations**: Pre-built map styles for common use cases
+
+### **🤖 Comprehensive Automation System**
+- ✅ **Documentation Automation**: Auto-generate docs, update wikis, and deploy changes
+- ✅ **Quality Assurance**: Automated testing, linting, and type checking
+- ✅ **Git Integration**: Automated commits, branch management, and deployment
+- ✅ **Report Generation**: Comprehensive deployment and status reports
+- ✅ **CI/CD Ready**: Integration with GitHub Actions and other CI/CD platforms
+
+### **🎨 Comprehensive Code Modernization**
 - ✅ **Modern Python Patterns**: Full type hints, dataclasses, pathlib, modern exception handling
 - ✅ **Enhanced Architecture**: Eliminated global state, proper class-based management
 - ✅ **Improved Error Handling**: Consistent error handling patterns throughout
-- ✅ **Better Testing**: 158 comprehensive tests with 100% pass rate
+- ✅ **Better Testing**: 204 comprehensive tests with 100% pass rate
 - ✅ **Code Quality**: Clean function names, consistent return types, comprehensive documentation
 
 ### **🗺️ Advanced Geographic & Reporting System**
@@ -47,9 +75,9 @@ A comprehensive Python utilities package providing **1147+ functions** across **
 
 ## 🧪 **Testing Status**
 
-**Current Test Results**: ✅ **158 tests passed, 1 skipped**  
-**Test Coverage**: Comprehensive coverage across all major modules  
-**Test Execution Time**: ~33 seconds  
+**Current Test Results**: ✅ **204 tests passed, 1 skipped**  
+**Test Coverage**: Comprehensive coverage across all major modules including new multi-engine features  
+**Test Execution Time**: ~45 seconds  
 **Code Quality**: Modern Python patterns with full type safety  
 
 ### **Test Categories**
@@ -61,6 +89,9 @@ A comprehensive Python utilities package providing **1147+ functions** across **
 - **Analytics Integration**: ✅ All tests passing
 - **Configuration Management**: ✅ All tests passing
 - **Geospatial Functions**: ✅ All tests passing
+- **Multi-Engine Processing**: ✅ 15/15 tests passing
+- **SVG Marker System**: ✅ 12/12 tests passing
+- **Database Connections**: ✅ 18/18 tests passing
 
 ### **Running Tests**
 ```bash
@@ -92,11 +123,71 @@ python -m pytest tests/ --tb=short -q
 - 🗺️ **Advanced Mapping**: 7+ map types with professional reporting capabilities
 - 🔧 **Extensible System**: Customizable page templates and chart types
 
+## 🚀 **Multi-Engine Architecture**
+
+### **Engine Agnostic Processing**
+- **🔄 Seamless Switching**: Automatically choose between Pandas and Spark based on data characteristics
+- **📊 Intelligent Selection**: Engine choice based on file size, operation complexity, and data type
+- **⚡ Performance Optimization**: Cross-engine benchmarking and performance comparison
+- **🔀 Hybrid Workflows**: Mix engines within the same pipeline for optimal performance
+
+### **Apache Spark + Sedona Integration**
+- **🗄️ Multi-Database Support**: PostgreSQL, MySQL, Oracle, SQL Server with JDBC optimization
+- **🌍 Spatial Processing**: Native spatial data operations with Apache Sedona
+- **🔌 Connection Pooling**: Efficient database connection management
+- **📈 Performance Monitoring**: Connection health checks and optimization recommendations
+
+### **Advanced Map Generation**
+- **🎨 Multiple Backends**: Matplotlib, Folium, Plotly, Bokeh, and PyDeck support
+- **🖼️ Custom SVG Markers**: User-supplied SVG files with scaling, rotation, and colorization
+- **🎨 Flexible Styling**: Configurable colors, themes, and export formats
+- **📤 Multi-Format Export**: PNG, PDF, HTML, and interactive web maps
+
 ## 🚀 Quick Start
 
 ```bash
 pip install siege-utilities
 ```
+
+## 🤖 **Automation & Documentation**
+
+### **Automated Documentation Workflow**
+The library includes a comprehensive automation system for documentation generation, wiki updates, and deployment:
+
+```bash
+# Generate documentation and update wikis
+./scripts/auto_docs.sh docs
+
+# Full deployment workflow (docs + git + push)
+./scripts/auto_docs.sh deploy
+
+# Run tests and quality checks only
+./scripts/auto_docs.sh test
+
+# Update wiki repositories only
+./scripts/auto_docs.sh wiki
+
+# Show help and options
+./scripts/auto_docs.sh help
+```
+
+### **Key Automation Features**
+- **📚 Documentation Generation**: Auto-generate Sphinx docs, API docs, and recipe documentation
+- **📝 Wiki Management**: Automatically update README files, generate changelogs, and sync across repositories
+- **🧪 Quality Assurance**: Run tests, linting, and type checking before deployment
+- **🔧 Git Operations**: Automated commits, branch management, and remote pushing
+- **📊 Reporting**: Generate deployment reports and status updates
+- **⚙️ Configuration**: YAML-based configuration for all automation settings
+
+### **Configuration**
+Customize automation behavior via `scripts/automation_config.yaml`:
+- Documentation source directories and output formats
+- Wiki repository mappings and update settings
+- Quality check thresholds and rules
+- Git configuration and branch protection
+- Performance and security settings
+
+For detailed automation documentation, see [scripts/README.md](scripts/README.md).
 
 ```python
 import siege_utilities
@@ -770,7 +861,28 @@ pytest --tb=short --showlocals
 
 ### Documentation
 
-The package includes comprehensive Sphinx documentation that automatically builds and deploys to GitHub Pages.
+The package includes comprehensive Sphinx documentation that automatically builds and deploys to GitHub Pages, plus extensive recipe collections covering all major use cases.
+
+#### Multi-Engine Recipes & Examples
+
+**Engine Agnostic Processing:**
+- **Batch Processing**: `MultiEngineBatchProcessor` for scalable file operations with automatic engine selection
+- **Data Processing**: `MultiEngineDataProcessor` for unified data loading and transformation across engines
+- **Analytics**: `MultiEngineAnalyticsProcessor` for cross-platform data collection and analysis
+- **Database**: `SparkDatabaseManager` for Spark + Sedona database integration with spatial operations
+- **Mapping**: `ConfigurableMapGenerator` with SVG marker support and multiple visualization backends
+
+**Recipe Collections:**
+- **`wiki_fresh/`**: Latest multi-engine recipes with comprehensive examples
+- **`wiki_recipes/`**: Curated recipe collections organized by use case
+- **`wiki_debug/`**: Troubleshooting guides and debugging recipes
+
+**Key Multi-Engine Features:**
+- Automatic engine selection based on data size and operation complexity
+- Performance benchmarking across Pandas and Spark
+- Hybrid processing workflows combining both engines
+- Unified API for consistent development experience
+- Comprehensive error handling and fallback mechanisms
 
 #### Building Documentation Locally
 
