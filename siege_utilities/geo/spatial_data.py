@@ -14,6 +14,13 @@ import os
 from urllib.parse import urljoin, urlparse
 import time
 from datetime import datetime, timedelta
+import requests
+from bs4 import BeautifulSoup
+import re
+import warnings
+
+# Suppress SSL warnings when using verify=False
+warnings.filterwarnings('ignore', message='Unverified HTTPS request')
 
 # Import existing library functions
 from ..files.remote import download_file, generate_local_path_from_url
@@ -26,6 +33,356 @@ log = logging.getLogger(__name__)
 # Type aliases
 FilePath = Union[str, Path]
 GeoDataFrame = gpd.GeoDataFrame
+
+
+class CensusDirectoryDiscovery:
+    """Discovers available Census TIGER/Line data dynamically."""
+    
+    def __init__(self):
+        self.base_url = "https://www2.census.gov/geo/tiger"
+        self.cache = {}
+        self.cache_timeout = 3600  # 1 hour
+        
+    def get_available_years(self, force_refresh: bool = False) -> List[int]:
+        """Get list of available Census years."""
+        cache_key = "available_years"
+        
+        if not force_refresh and cache_key in self.cache:
+            cache_time, data = self.cache[cache_key]
+            if time.time() - cache_time < self.cache_timeout:
+                return data
+        
+        try:
+            # Try with SSL verification first
+            response = requests.get(self.base_url, timeout=10)
+            response.raise_for_status()
+            
+            # Parse HTML to find TIGER and GENZ year directories
+            soup = BeautifulSoup(response.content, 'html.parser')
+            # Handle both TIGER and GENZ patterns, plus other variations
+            year_patterns = [
+                re.compile(r'TIGER(\d{4})'),
+                re.compile(r'GENZ(\d{4})'),
+                re.compile(r'TGRGDB(\d{2})'),  # TGRGDB13, TGRGDB14, etc.
+                re.compile(r'TGRGPKG(\d{2})')  # TGRGPKG24, TGRGPKG25, etc.
+            ]
+            
+            years = []
+            for link in soup.find_all('a'):
+                href = link.get('href', '')
+                
+                # Try each pattern
+                for pattern in year_patterns:
+                    match = pattern.search(href)
+                    if match:
+                        if 'TGRGDB' in href or 'TGRGPKG' in href:
+                            # Convert 2-digit years to 4-digit (assume 20xx)
+                            year = 2000 + int(match.group(1))
+                        else:
+                            year = int(match.group(1))
+                        
+                        if 1990 <= year <= datetime.now().year + 1:
+                            years.append(year)
+                        break
+            
+            # Remove duplicates and sort
+            years = sorted(list(set(years)))
+            self.cache[cache_key] = (time.time(), years)
+            return years
+            
+        except requests.exceptions.SSLError:
+            log.warning("SSL verification failed, trying without verification...")
+            try:
+                # Fallback: try without SSL verification
+                response = requests.get(self.base_url, timeout=10, verify=False)
+                response.raise_for_status()
+                
+                # Parse HTML to find TIGER and GENZ year directories
+                soup = BeautifulSoup(response.content, 'html.parser')
+                year_patterns = [
+                    re.compile(r'TIGER(\d{4})'),
+                    re.compile(r'GENZ(\d{4})'),
+                    re.compile(r'TGRGDB(\d{2})'),
+                    re.compile(r'TGRGPKG(\d{2})')
+                ]
+                
+                years = []
+                for link in soup.find_all('a'):
+                    href = link.get('href', '')
+                    
+                    for pattern in year_patterns:
+                        match = pattern.search(href)
+                        if match:
+                            if 'TGRGDB' in href or 'TGRGPKG' in href:
+                                year = 2000 + int(match.group(1))
+                            else:
+                                year = int(match.group(1))
+                            
+                            if 1990 <= year <= datetime.now().year + 1:
+                                years.append(year)
+                            break
+                
+                years = sorted(list(set(years)))
+                self.cache[cache_key] = (time.time(), years)
+                return years
+                
+            except Exception as e:
+                log.error(f"Failed to discover available years (with SSL bypass): {e}")
+                # Fallback to known years
+                return list(range(2010, datetime.now().year + 1))
+                
+        except Exception as e:
+            log.error(f"Failed to discover available years: {e}")
+            # Fallback to known years
+            return list(range(2010, datetime.now().year + 1))
+    
+    def get_year_directory_contents(self, year: int, force_refresh: bool = False) -> List[str]:
+        """Get contents of a specific TIGER year directory."""
+        cache_key = f"year_{year}_contents"
+        
+        if not force_refresh and cache_key in self.cache:
+            cache_time, data = self.cache[cache_key]
+            if time.time() - cache_time < self.cache_timeout:
+                return data
+        
+        try:
+            year_url = f"{self.base_url}/TIGER{year}/"
+            response = requests.get(year_url, timeout=10)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            directories = []
+            
+            for link in soup.find_all('a'):
+                href = link.get('href', '')
+                if href.endswith('/') and href != '../':
+                    directories.append(href.rstrip('/'))
+            
+            self.cache[cache_key] = (time.time(), directories)
+            return directories
+            
+        except requests.exceptions.SSLError:
+            log.warning(f"SSL verification failed for year {year}, trying without verification...")
+            try:
+                # Fallback: try without SSL verification
+                year_url = f"{self.base_url}/TIGER{year}/"
+                response = requests.get(year_url, timeout=10, verify=False)
+                response.raise_for_status()
+                
+                soup = BeautifulSoup(response.content, 'html.parser')
+                directories = []
+                
+                for link in soup.find_all('a'):
+                    href = link.get('href', '')
+                    if href.endswith('/') and href != '../':
+                        directories.append(href.rstrip('/'))
+                
+                self.cache[cache_key] = (time.time(), directories)
+                return directories
+                
+            except Exception as e:
+                log.error(f"Failed to get contents for year {year} (with SSL bypass): {e}")
+                return []
+                
+        except Exception as e:
+            log.error(f"Failed to get contents for year {year}: {e}")
+            return []
+    
+    def discover_boundary_types(self, year: int) -> Dict[str, str]:
+        """Discover what boundary types are available for a given year."""
+        directories = self.get_year_directory_contents(year)
+        
+        # Comprehensive mapping of directory names to boundary types
+        # This handles variations in naming conventions across different years
+        boundary_mapping = {
+            # Core geographic boundaries
+            'STATE': 'state',
+            'COUNTY': 'county', 
+            'TRACT': 'tract',
+            'BG': 'block_group',
+            'TABBLOCK': 'block',
+            'TABBLOCK20': 'tabblock20',  # 2020+ naming
+            'TABBLOCK10': 'tabblock10',  # 2010 naming
+            'PLACE': 'place',
+            'ZCTA5': 'zcta',
+            'ZCTA': 'zcta',  # Alternative naming
+            
+            # Legislative boundaries
+            'SLDU': 'sldu',  # State Legislative District Upper
+            'SLDL': 'sldl',  # State Legislative District Lower
+            'CD': 'cd',      # Congressional District
+            'CD108': 'cd108', # 108th Congress
+            'CD109': 'cd109', # 109th Congress
+            'CD110': 'cd110', # 110th Congress
+            'CD111': 'cd111', # 111th Congress
+            'CD112': 'cd112', # 112th Congress
+            'CD113': 'cd113', # 113th Congress
+            'CD114': 'cd114', # 114th Congress
+            'CD115': 'cd115', # 115th Congress
+            'CD116': 'cd116', # 116th Congress
+            'CD117': 'cd117', # 117th Congress
+            'CD118': 'cd118', # 118th Congress
+            'CD119': 'cd119', # 119th Congress
+            
+            # Special purpose boundaries
+            'CBSA': 'cbsa',  # Core Based Statistical Area
+            'CSA': 'csa',    # Combined Statistical Area
+            'METDIV': 'metdiv',  # Metropolitan Division
+            'MICRO': 'micro',    # Micropolitan Statistical Area
+            'NECTA': 'necta',    # New England City and Town Area
+            'NECTADIV': 'nectadiv',  # NECTA Division
+            'CNECTA': 'cnecta',  # Combined NECTA
+            
+            # Tribal boundaries
+            'AIANNH': 'aiannh',  # American Indian/Alaska Native/Native Hawaiian Areas
+            'AITSCE': 'aitsce',  # American Indian Tribal Subdivisions
+            'TTRACT': 'ttract',  # Tribal Census Tracts
+            'TBG': 'tbg',        # Tribal Block Groups
+            
+            # School districts
+            'ELSD': 'elsd',  # Elementary School District
+            'SCSD': 'scsd',  # Secondary School District
+            'UNSD': 'unsd',  # Unified School District
+            
+            # Transportation and infrastructure
+            'ADDRFEAT': 'address_features',
+            'LINEARWATER': 'linear_water',
+            'AREAWATER': 'area_water',
+            'ROADS': 'roads',
+            'RAILS': 'rails',
+            'EDGES': 'edges',
+            
+            # Special areas
+            'ANRC': 'anrc',  # Alaska Native Regional Corporation
+            'CONCITY': 'concity',  # Consolidated City
+            'SUBMCD': 'submcd',    # Subminor Civil Division
+            'COUSUB': 'cousub',    # County Subdivision
+            
+            # Voting districts
+            'VTD': 'vtd',    # Voting District
+            'VTD20': 'vtd20', # 2020 Voting District
+            
+            # Urban areas
+            'UAC': 'uac',    # Urban Area
+            'UAC20': 'uac20', # 2020 Urban Area
+        }
+        
+        available_types = {}
+        for directory in directories:
+            if directory in boundary_mapping:
+                available_types[boundary_mapping[directory]] = directory
+            # Also check for variations and aliases
+            elif directory.replace('_', '').replace('-', '') in boundary_mapping:
+                clean_dir = directory.replace('_', '').replace('-', '')
+                available_types[boundary_mapping[clean_dir]] = directory
+        
+        return available_types
+    
+    def construct_download_url(self, year: int, boundary_type: str, state_fips: Optional[str] = None, 
+                              congress_number: Optional[int] = None) -> Optional[str]:
+        """Construct download URL based on discovered directory structure."""
+        try:
+            # Get available boundary types for this year
+            available_types = self.discover_boundary_types(year)
+            
+            if boundary_type not in available_types:
+                log.warning(f"Boundary type '{boundary_type}' not available for year {year}")
+                return None
+            
+            directory = available_types[boundary_type]
+            base_url = f"{self.base_url}/TIGER{year}/{directory}"
+            
+            # Construct filename based on boundary type and parameters
+            if boundary_type in ['state', 'county']:
+                filename = f"tl_{year}_us_{boundary_type}.zip"
+            elif boundary_type.startswith('cd') and len(boundary_type) > 2:
+                # Handle specific congress numbers (cd108, cd109, etc.)
+                congress_num = boundary_type[2:]
+                filename = f"tl_{year}_us_cd{congress_num}.zip"
+            elif boundary_type == 'cd' and congress_number:
+                filename = f"tl_{year}_us_cd{congress_number}.zip"
+            elif boundary_type in ['tabblock20', 'tabblock10']:
+                if not state_fips:
+                    log.error(f"State FIPS required for {boundary_type}")
+                    return None
+                filename = f"tl_{year}_{state_fips}_{boundary_type}.zip"
+            elif boundary_type in ['sldu', 'sldl']:
+                if not state_fips:
+                    log.error(f"State FIPS required for {boundary_type}")
+                    return None
+                filename = f"tl_{year}_{state_fips}_{boundary_type}.zip"
+            elif boundary_type in ['tract', 'block_group', 'block']:
+                if not state_fips:
+                    log.error(f"State FIPS required for {boundary_type}")
+                    return None
+                filename = f"tl_{year}_{state_fips}_{boundary_type}.zip"
+            elif boundary_type in ['cbsa', 'csa', 'metdiv', 'micro', 'necta', 'nectadiv', 'cnecta']:
+                # Metropolitan and statistical areas are national
+                filename = f"tl_{year}_us_{boundary_type}.zip"
+            elif boundary_type in ['aiannh', 'aitsce', 'ttract', 'tbg']:
+                # Tribal boundaries are national
+                filename = f"tl_{year}_us_{boundary_type}.zip"
+            elif boundary_type in ['elsd', 'scsd', 'unsd']:
+                # School districts are national
+                filename = f"tl_{year}_us_{boundary_type}.zip"
+            elif boundary_type in ['uac', 'uac20']:
+                # Urban areas are national
+                filename = f"tl_{year}_us_{boundary_type}.zip"
+            elif boundary_type in ['vtd', 'vtd20']:
+                # Voting districts are national
+                filename = f"tl_{year}_us_{boundary_type}.zip"
+            elif boundary_type in ['place', 'zcta', 'anrc', 'concity', 'submcd', 'cousub']:
+                # These can be either national or state-specific
+                if state_fips:
+                    filename = f"tl_{year}_{state_fips}_{boundary_type}.zip"
+                else:
+                    filename = f"tl_{year}_us_{boundary_type}.zip"
+            else:
+                # Generic pattern for other types
+                if state_fips:
+                    filename = f"tl_{year}_{state_fips}_{boundary_type}.zip"
+                else:
+                    filename = f"tl_{year}_us_{boundary_type}.zip"
+            
+            return f"{base_url}/{filename}"
+            
+        except Exception as e:
+            log.error(f"Failed to construct URL for {boundary_type} in year {year}: {e}")
+            return None
+    
+    def validate_download_url(self, url: str) -> bool:
+        """Check if a download URL is actually accessible."""
+        try:
+            response = requests.head(url, timeout=10)
+            return response.status_code == 200
+        except requests.exceptions.SSLError:
+            log.debug(f"SSL verification failed for {url}, trying without verification...")
+            try:
+                response = requests.head(url, timeout=10, verify=False)
+                return response.status_code == 200
+            except Exception as e:
+                log.debug(f"URL validation failed for {url} (with SSL bypass): {e}")
+                return False
+        except Exception as e:
+            log.debug(f"URL validation failed for {url}: {e}")
+            return False
+    
+    def get_optimal_year(self, requested_year: int, boundary_type: str) -> int:
+        """Find the best available year for a requested boundary type."""
+        available_years = self.get_available_years()
+        
+        if requested_year in available_years:
+            return requested_year
+        
+        # Find closest available year
+        available_years.sort()
+        closest_year = min(available_years, key=lambda y: abs(y - requested_year))
+        
+        log.info(f"Requested year {requested_year} not available for {boundary_type}. "
+                f"Using closest available year: {closest_year}")
+        
+        return closest_year
+
 
 class SpatialDataSource:
     """Base class for spatial data sources."""
@@ -48,91 +405,74 @@ class SpatialDataSource:
             self.user_config = get_user_config()
         except Exception as e:
             log.warning(f"Failed to load user config: {e}")
-            self.user_config = None
+            self.user_config = {}
     
     def download_data(self, **kwargs) -> Optional[GeoDataFrame]:
-        """
-        Download spatial data from the source.
-        
-        Args:
-            **kwargs: Source-specific parameters
-            
-        Returns:
-            GeoDataFrame with spatial data or None if failed
-        """
+        """Download data from the source."""
         raise NotImplementedError("Subclasses must implement download_data")
 
+
 class CensusDataSource(SpatialDataSource):
-    """Census Bureau spatial data source using existing library functions."""
+    """Enhanced Census data source with dynamic discovery."""
     
     def __init__(self, api_key: Optional[str] = None):
-        """
-        Initialize Census data source.
+        super().__init__("Census Bureau", "https://www2.census.gov/geo/tiger", api_key)
         
-        Args:
-            api_key: Census API key (optional but recommended)
-        """
-        super().__init__(
-            name="Census Bureau",
-            base_url="https://api.census.gov/data",
-            api_key=api_key
-        )
+        # Initialize discovery service
+        self.discovery = CensusDirectoryDiscovery()
         
-        # Census geographic levels with FIPS codes
-        self.geographic_levels = {
-            'nation': '010',
-            'state': '040',
-            'county': '050',
-            'tract': '140',
-            'block_group': '150',
-            'block': '750',
-            'place': '160',
-            'zcta': '860'
-        }
+        # Get available years dynamically
+        self.available_years = self.discovery.get_available_years()
         
-        # Available years for TIGER/Line files
-        self.available_years = list(range(2010, datetime.now().year + 1))
+        # Geographic levels that require state FIPS
+        self.state_required_levels = ['tract', 'block_group', 'block', 'tabblock20', 'sldu', 'sldl']
         
-        # TIGER/Line file structure
-        self.tiger_file_structure = {
-            'nation': 'ADDRFEAT/tl_{year}_us_addrfeat.zip',
-            'state': 'STATE/tl_{year}_us_state.zip',
-            'county': 'COUNTY/tl_{year}_us_county.zip',
-            'tract': 'TRACT/tl_{year}_{state_fips}_tract.zip',
-            'block_group': 'BG/tl_{year}_{state_fips}_bg.zip',
-            'block': 'TABBLOCK/tl_{year}_{state_fips}_tabblock.zip',
-            'place': 'PLACE/tl_{year}_us_place.zip',
-            'zcta': 'ZCTA5/tl_{year}_us_zcta510.zip'
-        }
+        # Geographic levels that don't require state FIPS
+        self.national_levels = ['nation', 'state', 'county', 'place', 'zcta', 'cd']
+        
+        log.info(f"Initialized Census data source with {len(self.available_years)} available years")
     
     def get_geographic_boundaries(self, 
                                 year: int = 2020,
                                 geographic_level: str = 'county',
                                 state_fips: Optional[str] = None,
-                                county_fips: Optional[str] = None) -> Optional[GeoDataFrame]:
+                                county_fips: Optional[str] = None,
+                                congress_number: Optional[int] = None) -> Optional[GeoDataFrame]:
         """
-        Download geographic boundaries from Census TIGER/Line files.
+        Download geographic boundaries from Census TIGER/Line files with dynamic discovery.
         
         Args:
-            year: Census year (2010-2023)
-            geographic_level: Geographic level (nation, state, county, tract, etc.)
-            state_fips: State FIPS code for filtering (required for tract/block levels)
+            year: Census year (will find closest available if not available)
+            geographic_level: Geographic level (state, county, tract, etc.)
+            state_fips: State FIPS code for filtering (required for some levels)
             county_fips: County FIPS code for filtering
+            congress_number: Congress number for congressional districts
             
         Returns:
             GeoDataFrame with boundaries or None if failed
-            
-        Raises:
-            ValueError: If invalid parameters are provided
         """
         try:
             # Validate parameters
             self._validate_census_parameters(year, geographic_level, state_fips)
             
-            # Construct TIGER/Line URL
-            url = self._construct_tiger_url(year, geographic_level, state_fips)
+            # Find optimal year (closest available to requested)
+            optimal_year = self.discovery.get_optimal_year(year, geographic_level)
+            
+            # Construct URL using discovery service
+            url = self.discovery.construct_download_url(
+                optimal_year, geographic_level, state_fips, congress_number
+            )
+            
             if not url:
+                log.error(f"Failed to construct URL for {geographic_level} in year {optimal_year}")
                 return None
+            
+            # Validate URL before attempting download
+            if not self.discovery.validate_download_url(url):
+                log.error(f"Download URL not accessible: {url}")
+                return None
+            
+            log.info(f"Downloading {geographic_level} boundaries for year {optimal_year}")
             
             # Download and process using existing library functions
             return self._download_and_process_tiger(url, geographic_level)
@@ -144,37 +484,146 @@ class CensusDataSource(SpatialDataSource):
             log.error(f"Failed to download Census boundaries: {e}")
             return None
     
+    def get_available_boundary_types(self, year: int) -> Dict[str, str]:
+        """Get available boundary types for a specific year."""
+        return self.discovery.discover_boundary_types(year)
+    
+    def refresh_discovery_cache(self):
+        """Refresh the discovery cache to get latest available data."""
+        self.discovery.cache.clear()
+        self.available_years = self.discovery.get_available_years(force_refresh=True)
+        log.info("Discovery cache refreshed")
+    
+    def get_available_state_fips(self) -> Dict[str, str]:
+        """Get mapping of state FIPS codes to state names."""
+        return {
+            '01': 'Alabama', '02': 'Alaska', '04': 'Arizona', '05': 'Arkansas',
+            '06': 'California', '08': 'Colorado', '09': 'Connecticut', '10': 'Delaware',
+            '11': 'District of Columbia', '12': 'Florida', '13': 'Georgia', '15': 'Hawaii',
+            '16': 'Idaho', '17': 'Illinois', '18': 'Indiana', '19': 'Iowa',
+            '20': 'Kansas', '21': 'Kentucky', '22': 'Louisiana', '23': 'Maine',
+            '24': 'Maryland', '25': 'Massachusetts', '26': 'Michigan', '27': 'Minnesota',
+            '28': 'Mississippi', '29': 'Missouri', '30': 'Montana', '31': 'Nebraska',
+            '32': 'Nevada', '33': 'New Hampshire', '34': 'New Jersey', '35': 'New Mexico',
+            '36': 'New York', '37': 'North Carolina', '38': 'North Dakota', '39': 'Ohio',
+            '40': 'Oklahoma', '41': 'Oregon', '42': 'Pennsylvania', '44': 'Rhode Island',
+            '45': 'South Carolina', '46': 'South Dakota', '47': 'Tennessee', '48': 'Texas',
+            '49': 'Utah', '50': 'Vermont', '51': 'Virginia', '53': 'Washington',
+            '54': 'West Virginia', '55': 'Wisconsin', '56': 'Wyoming',
+            '60': 'American Samoa', '66': 'Guam', '69': 'Northern Mariana Islands',
+            '72': 'Puerto Rico', '74': 'U.S. Minor Outlying Islands', '78': 'U.S. Virgin Islands'
+        }
+    
+    def get_state_abbreviations(self) -> Dict[str, str]:
+        """Get mapping of state FIPS codes to state abbreviations."""
+        return {
+            '01': 'AL', '02': 'AK', '04': 'AZ', '05': 'AR',
+            '06': 'CA', '08': 'CO', '09': 'CT', '10': 'DE',
+            '11': 'DC', '12': 'FL', '13': 'GA', '15': 'HI',
+            '16': 'ID', '17': 'IL', '18': 'IN', '19': 'IA',
+            '20': 'KS', '21': 'KY', '22': 'LA', '23': 'ME',
+            '24': 'MD', '25': 'MA', '26': 'MI', '27': 'MN',
+            '28': 'MS', '29': 'MO', '30': 'MT', '31': 'NE',
+            '32': 'NV', '33': 'NH', '34': 'NJ', '35': 'NM',
+            '36': 'NY', '37': 'NC', '38': 'ND', '39': 'OH',
+            '40': 'OK', '41': 'OR', '42': 'PA', '44': 'RI',
+            '45': 'SC', '46': 'SD', '47': 'TN', '48': 'TX',
+            '49': 'UT', '50': 'VT', '51': 'VA', '53': 'WA',
+            '54': 'WV', '55': 'WI', '56': 'WY',
+            '60': 'AS', '66': 'GU', '69': 'MP',
+            '72': 'PR', '74': 'UM', '78': 'VI'
+        }
+    
+    def get_comprehensive_state_info(self) -> Dict[str, Dict[str, str]]:
+        """Get comprehensive state information including FIPS, name, and abbreviation."""
+        fips_to_name = self.get_available_state_fips()
+        fips_to_abbr = self.get_state_abbreviations()
+        
+        comprehensive = {}
+        for fips, name in fips_to_name.items():
+            comprehensive[fips] = {
+                'name': name,
+                'abbreviation': fips_to_abbr.get(fips, ''),
+                'fips': fips
+            }
+        
+        return comprehensive
+    
+    def get_state_by_abbreviation(self, abbreviation: str) -> Optional[Dict[str, str]]:
+        """Get state information by abbreviation."""
+        if not abbreviation or len(abbreviation) != 2:
+            return None
+        
+        fips_to_abbr = self.get_state_abbreviations()
+        fips_to_name = self.get_available_state_fips()
+        
+        # Find FIPS code by abbreviation
+        for fips, abbr in fips_to_abbr.items():
+            if abbr.upper() == abbreviation.upper():
+                return {
+                    'fips': fips,
+                    'name': fips_to_name[fips],
+                    'abbreviation': abbr
+                }
+        
+        return None
+    
+    def get_state_by_name(self, name: str) -> Optional[Dict[str, str]]:
+        """Get state information by name (case-insensitive partial match)."""
+        if not name:
+            return None
+        
+        fips_to_name = self.get_available_state_fips()
+        fips_to_abbr = self.get_state_abbreviations()
+        
+        # Find FIPS code by name (case-insensitive partial match)
+        for fips, state_name in fips_to_name.items():
+            if name.lower() in state_name.lower():
+                return {
+                    'fips': fips,
+                    'name': state_name,
+                    'abbreviation': fips_to_abbr.get(fips, '')
+                }
+        
+        return None
+    
+    def validate_state_fips(self, state_fips: str) -> bool:
+        """Validate if a state FIPS code is valid."""
+        valid_fips = self.get_available_state_fips()
+        return state_fips in valid_fips
+    
+    def get_state_name(self, state_fips: str) -> Optional[str]:
+        """Get state name from FIPS code."""
+        valid_fips = self.get_available_state_fips()
+        return valid_fips.get(state_fips)
+    
+    def get_state_abbreviation(self, state_fips: str) -> Optional[str]:
+        """Get state abbreviation from FIPS code."""
+        valid_abbr = self.get_state_abbreviations()
+        return valid_abbr.get(state_fips)
+    
     def _validate_census_parameters(self, year: int, geographic_level: str, 
                                   state_fips: Optional[str]) -> None:
         """Validate Census API parameters."""
-        if year not in self.available_years:
-            raise ValueError(f"Year {year} not available. Available years: {self.available_years}")
+        if year < 1990 or year > datetime.now().year + 1:
+            raise ValueError(f"Year {year} is outside valid range (1990-{datetime.now().year + 1})")
         
-        if geographic_level not in self.geographic_levels:
-            raise ValueError(f"Invalid geographic level: {geographic_level}")
-        
-        # Check if state FIPS is required
-        if geographic_level in ['tract', 'block_group', 'block'] and not state_fips:
+        if geographic_level in self.state_required_levels and not state_fips:
             raise ValueError(f"State FIPS required for {geographic_level}-level data")
+        
+        if state_fips and not self.validate_state_fips(state_fips):
+            raise ValueError(f"Invalid state FIPS code: {state_fips}. Use get_available_state_fips() to see valid codes.")
+        
+        # Validate geographic level exists in our known types
+        valid_levels = set(self.discovery.discover_boundary_types(year).keys())
+        if geographic_level not in valid_levels:
+            available = list(valid_levels)[:10]  # Show first 10
+            raise ValueError(f"Invalid geographic level: {geographic_level}. Available for year {year}: {available}...")
     
     def _construct_tiger_url(self, year: int, geographic_level: str, 
                             state_fips: Optional[str]) -> Optional[str]:
-        """Construct TIGER/Line download URL."""
-        try:
-            base_url = f"https://www2.census.gov/geo/tiger/TIGER{year}"
-            
-            if geographic_level in ['tract', 'block_group', 'block']:
-                # These levels require state FIPS
-                template = self.tiger_file_structure[geographic_level]
-                return f"{base_url}/{template.format(year=year, state_fips=state_fips)}"
-            else:
-                # Nation, state, county, place, zcta levels
-                template = self.tiger_file_structure[geographic_level]
-                return f"{base_url}/{template.format(year=year)}"
-                
-        except KeyError:
-            log.error(f"Unsupported geographic level: {geographic_level}")
-            return None
+        """Construct TIGER/Line download URL using discovery service."""
+        return self.discovery.construct_download_url(year, geographic_level, state_fips)
     
     def _download_and_process_tiger(self, url: str, geographic_level: str) -> Optional[GeoDataFrame]:
         """Download and process TIGER/Line shapefile using existing library functions."""
@@ -203,77 +652,63 @@ class CensusDataSource(SpatialDataSource):
                 log.error("Failed to unzip TIGER/Line data")
                 return None
             
-            # Find shapefile
-            shp_files = list(Path(unzip_dir).glob("*.shp"))
-            if not shp_files:
+            # Find the shapefile
+            shapefile_path = None
+            for file_path in unzip_dir.rglob("*.shp"):
+                shapefile_path = file_path
+                break
+            
+            if not shapefile_path:
                 log.error("No shapefile found in downloaded data")
                 return None
             
-            # Read shapefile
-            log.info(f"Reading shapefile: {shp_files[0]}")
-            gdf = gpd.read_file(shp_files[0])
+            # Read with GeoPandas
+            gdf = gpd.read_file(shapefile_path)
             
-            # Standardize column names
+            # Standardize columns
             gdf = self._standardize_census_columns(gdf, geographic_level)
             
-            # Clean up temporary files
+            # Cleanup temporary files
             self._cleanup_temp_files(zip_filename, unzip_dir)
             
-            log.info(f"Successfully processed {len(gdf)} features from {geographic_level} data")
+            log.info(f"Successfully processed {geographic_level} boundaries: {len(gdf)} features")
             return gdf
-                
+            
         except Exception as e:
-            log.error(f"Failed to process TIGER/Line data: {e}")
+            log.error(f"Failed to download and process TIGER/Line data: {e}")
+            # Cleanup on failure
+            try:
+                self._cleanup_temp_files(zip_filename, unzip_dir)
+            except:
+                pass
             return None
     
     def _standardize_census_columns(self, gdf: GeoDataFrame, geographic_level: str) -> GeoDataFrame:
-        """Standardize column names for consistency across geographic levels."""
-        try:
-            # Create a copy to avoid modifying the original
-            standardized = gdf.copy()
-            
-            # Common column mappings
-            column_mappings = {
-                'GEOID': 'geoid',
-                'NAME': 'name',
-                'ALAND': 'aland',
-                'AWATER': 'awater',
-                'INTPTLAT': 'latitude',
-                'INTPTLON': 'longitude'
-            }
-            
-            # Apply mappings
-            for old_name, new_name in column_mappings.items():
-                if old_name in standardized.columns:
-                    standardized = standardized.rename(columns={old_name: new_name})
-            
-            # Add metadata
-            standardized.attrs['source'] = 'Census Bureau TIGER/Line'
-            standardized.attrs['geographic_level'] = geographic_level
-            standardized.attrs['processed_at'] = datetime.now().isoformat()
-            
-            return standardized
-            
-        except Exception as e:
-            log.warning(f"Failed to standardize columns: {e}")
-            return gdf
+        """Standardize Census column names and types."""
+        # Convert column names to lowercase
+        gdf.columns = [col.lower() for col in gdf.columns]
+        
+        # Ensure geometry column is properly named
+        if 'geometry' not in gdf.columns and gdf.geometry.name:
+            gdf = gdf.rename(columns={gdf.geometry.name: 'geometry'})
+        
+        # Add metadata columns
+        gdf['census_year'] = gdf.get('year', None)
+        gdf['geographic_level'] = geographic_level
+        
+        return gdf
     
     def _cleanup_temp_files(self, zip_filename: str, unzip_dir: Path) -> None:
-        """Clean up temporary downloaded and extracted files."""
+        """Clean up temporary files after processing."""
         try:
-            # Remove zip file
             if os.path.exists(zip_filename):
                 os.remove(zip_filename)
-                log.debug(f"Removed temporary zip file: {zip_filename}")
-            
-            # Remove extracted directory
             if unzip_dir.exists():
                 import shutil
                 shutil.rmtree(unzip_dir)
-                log.debug(f"Removed temporary directory: {unzip_dir}")
-                
         except Exception as e:
             log.warning(f"Failed to cleanup temporary files: {e}")
+
 
 class GovernmentDataSource(SpatialDataSource):
     """Government data portal spatial data source."""
@@ -491,6 +926,7 @@ __all__ = [
     'CensusDataSource', 
     'GovernmentDataSource',
     'OpenStreetMapDataSource',
+    'CensusDirectoryDiscovery',
     'get_census_data',
     'get_census_boundaries',
     'download_osm_data',

@@ -1,0 +1,26 @@
+# Enhanced Census utilities - Essential dependencies
+# These are the core requirements for the dynamic Census discovery system
+
+# HTTP requests and HTML parsing (REQUIRED for Census discovery)
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# Core geospatial stack (REQUIRED for spatial data processing)
+geopandas>=0.12.0
+shapely>=1.8.0
+pyproj>=3.3.0
+fiona>=1.8.0
+
+# Data processing (REQUIRED)
+pandas>=1.5.0
+numpy>=1.21.0
+
+# Configuration (REQUIRED)
+pyyaml>=6.0
+
+# Note: DuckDB is NOT required for the enhanced Census utilities.
+# The system works with the standard geospatial stack (GeoPandas, 
+# Shapely, PyProj, Fiona) which is more than sufficient for most
+# spatial data operations. DuckDB is only needed if you want to use
+# the optional spatial_transformations module for DuckDB format conversion.

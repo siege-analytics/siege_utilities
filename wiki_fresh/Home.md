@@ -1,110 +1,185 @@
-# Siege Utilities Wiki
+# Siege Utilities - Comprehensive Geospatial & Data Processing Toolkit
 
-## Welcome to Siege Utilities
+Welcome to **Siege Utilities**, a powerful Python library designed to solve complex geospatial, data processing, and analytics challenges. Built with modern Python practices and comprehensive error handling, this toolkit provides robust solutions for real-world data problems.
 
-Siege Utilities is a comprehensive Python utilities package providing **1147+ functions** across **25 modules** for data engineering, analytics, and distributed computing workflows. Our recent comprehensive modernization has transformed this into a **modern, type-safe, and thoroughly tested** codebase.
+## 🚀 What's New
 
-## What's New in 2024
+### Enhanced Census Utilities (Latest)
+Our **revolutionary Census utilities** now provide **dynamic discovery** and **intelligent data access** to U.S. Census Bureau TIGER/Line shapefiles. Unlike traditional approaches that rely on hardcoded URLs, this system automatically discovers available data and constructs the correct download URLs based on the actual directory structure.
 
-### Comprehensive Code Modernization
-- **Modern Python Patterns**: Full type hints, dataclasses, pathlib, modern exception handling
-- **Enhanced Architecture**: Eliminated global state, proper class-based management
-- **Improved Error Handling**: Consistent error handling patterns throughout
-- **Better Testing**: 158 comprehensive tests with 100% pass rate
-- **Code Quality**: Clean function names, consistent return types, comprehensive documentation
+**Key Features:**
+- **🔍 Dynamic Discovery**: Automatically finds available Census years and boundary types
+- **🌐 Intelligent URL Construction**: Builds correct URLs based on discovered directory structures  
+- **📊 Comprehensive Coverage**: Supports all major Census boundary types (state, county, tract, block groups, etc.)
+- **✅ Built-in Validation**: Robust parameter validation with helpful error messages
+- **💾 Smart Caching**: Intelligent caching with configurable timeouts
+- **🔄 Fallback Mechanisms**: Graceful fallbacks when requested data isn't available
 
-### Advanced Geographic & Reporting System
-- **Bivariate Choropleth Maps**: Two-variable geographic visualization
-- **Comprehensive Reporting**: PDF and PowerPoint generation with client branding
-- **Advanced Mapping**: Multiple map types and classification methods
+**[📖 View Enhanced Census Utilities Recipe](Enhanced-Census-Utilities.md)**
+
+## 🌟 Core Features
+
+### **🌍 Geospatial Excellence**
 - **Spatial Data Integration**: Census, government, and OpenStreetMap data sources
+- **Advanced Geocoding**: Multi-service geocoding with fallback mechanisms
+- **Spatial Transformations**: Coordinate system conversions and geometric operations
+- **Interactive Mapping**: Choropleth maps, bivariate visualizations, and custom markers
 
-### Enhanced Client Management
-- **Professional Branding**: Client-specific colors, fonts, and logos
-- **Contact Management**: Comprehensive client profile management
-- **Connection Profiles**: Database and service connection management
-- **Branding Integration**: Automatic application to reports and presentations
+### **📁 File & Data Management**
+- **Intelligent File Operations**: Hashing, validation, and format conversion
+- **Remote Data Access**: Secure FTP, SFTP, and HTTP operations
+- **Path Management**: Cross-platform path handling and validation
+- **Shell Integration**: Safe command execution and process management
 
-## Current Status
+### **⚡ Distributed Computing**
+- **Apache Spark Integration**: Optimized data processing workflows
+- **HDFS Operations**: Seamless Hadoop Distributed File System integration
+- **Multi-Engine Support**: Flexible backend selection for different workloads
+- **Performance Optimization**: Intelligent caching and resource management
 
-**Tests**: 158/158 Passing ✅  
-**Execution Time**: 33 seconds  
-**Coverage**: Comprehensive across all modules
+### **📊 Analytics & Reporting**
+- **Data Analysis Tools**: Statistical functions and data quality assessment
+- **Report Generation**: Automated PDF and PowerPoint creation
+- **Chart Generation**: Dynamic visualization with customizable templates
+- **Client Branding**: Professional presentation with custom styling
 
-## Examples & Recipes
+### **🔧 Development & Testing**
+- **Code Quality Tools**: Automated documentation and code analysis
+- **Testing Framework**: Comprehensive test suites and validation
+- **Architecture Analysis**: Dependency mapping and code modernization
+- **Git Integration**: Workflow automation and repository management
 
-### Examples
-- **[Client Management](Examples/Client-Management)** - Profile creation and branding
+## 🚀 Quick Start
 
-### Recipes
-- **[Analytics Integration](Analytics-Integration)** - Multi-platform data collection
-- **[Architecture Analysis](Architecture-Analysis)** - Package structure and analysis tools
-- **[Basic Setup](Basic-Setup)** - Installation and configuration
-- **[Batch Processing](Batch-Processing)** - Efficient multi-file operations
-- **[Bivariate Choropleth Maps](Bivariate-Choropleth-Maps)** - Two-variable geographic visualization
-- **[Comprehensive Reporting](Comprehensive-Reporting)** - PDF & PowerPoint generation
-- **[Spark Processing](Spark-Processing)** - Distributed computing with 500+ functions
+### Installation
+```bash
+pip install siege-utilities
+```
 
-## Key Features
+### Enhanced Census Data Access
+```python
+from siege_utilities.geo.spatial_data import CensusDataSource
 
-- **Auto-Discovery**: Automatically finds and imports all functions from new modules
-- **Mutual Availability**: All 500+ functions accessible from any module without imports
-- **Universal Logging**: Comprehensive logging system available everywhere
-- **Graceful Dependencies**: Optional features (PySpark, geospatial) fail gracefully
-- **Built-in Diagnostics**: Monitor package health and function availability
-- **Zero Configuration**: Just `import siege_utilities` and everything works
-- **Client Management**: Comprehensive client profile management with contact info and design artifacts
+# Initialize with automatic discovery
+census = CensusDataSource()
 
-## Library Architecture
+# Get available years automatically
+print(f"Available years: {census.available_years}")
 
-### Core Modules (156 functions)
-- **Logging**: Advanced logging with file rotation and multiple handlers
-- **String Utilities**: Text processing and manipulation functions
+# Download boundaries with intelligent fallbacks
+counties = census.get_geographic_boundaries(2020, 'county')
+tracts = census.get_geographic_boundaries(2020, 'tract', state_fips='06')
+```
 
-### File Operations (234 functions)
-- **File Management**: Create, copy, move, delete, and analyze files
-- **Path Operations**: Path manipulation and validation
-- **Remote Operations**: Download, upload, and remote file management
-- **Shell Integration**: Command execution and process management
+### Traditional Geocoding
+```python
+from siege_utilities.geo import geocode_address
 
-### Distributed Computing (89 functions)
-- **Spark Utilities**: 500+ enhanced PySpark functions
-- **HDFS Operations**: Hadoop Distributed File System management
-- **Cluster Management**: Distributed computing coordination
+# Multi-service geocoding with fallbacks
+result = geocode_address("1600 Pennsylvania Ave NW, Washington, DC")
+print(f"Coordinates: {result.latitude}, {result.longitude}")
+```
 
-### Geographic & Spatial (67 functions)
-- **Geocoding**: Address to coordinate conversion
-- **Spatial Data**: Census, government, and OpenStreetMap integration
-- **Data Transformation**: Format conversion and database integration
+### File Operations
+```python
+from siege_utilities.files import hash_file, validate_file
 
-### Analytics & Reporting (45 functions)
-- **Google Analytics**: Data collection and analysis
-- **Facebook Business**: Marketing API integration
-- **Report Generation**: PDF and PowerPoint creation
-- **Chart Generation**: Data visualization and charts
+# Secure file validation
+file_hash = hash_file("data.csv", algorithm="sha256")
+is_valid = validate_file("data.csv", expected_hash=file_hash)
+```
 
-### Configuration & Management (23 functions)
-- **Client Profiles**: Contact information and branding
-- **Connection Profiles**: Database and service connections
-- **User Configuration**: Personal preferences and API keys
+## 📚 Documentation & Recipes
 
-## Getting Started
+### **Getting Started**
+- **[Basic Setup](Getting-Started.md)** - Installation and initial configuration
+- **[Enhanced Census Utilities](Enhanced-Census-Utilities.md)** - Dynamic Census data discovery ⭐
+- **[Geocoding](Geocoding.md)** - Address geocoding and spatial operations
+- **[File Operations](File-Operations.md)** - File management and validation
 
-1. **[Basic Setup](Basic-Setup)** - Install and configure Siege Utilities
-2. **[Getting Started Guide](Getting-Started)** - Learn basic usage patterns
-3. **[Testing Guide](Testing-Guide)** - Verify your installation
-4. **[Client Management](Examples/Client-Management)** - Set up your first client profile
+### **Advanced Features**
+- **[Comprehensive Reporting](Comprehensive-Reporting.md)** - Automated report generation
+- **[Bivariate Choropleth Maps](Bivariate-Choropleth-Maps.md)** - Advanced spatial visualization
+- **[Spark Processing](Spark-Processing.md)** - Distributed data processing
+- **[Batch Processing](Batch-Processing.md)** - Large-scale data workflows
 
-## Contributing
+### **Development & Testing**
+- **[Testing Guide](Testing-Guide.md)** - Comprehensive testing strategies
+- **[Code Modernization](Code-Modernization.md)** - Legacy code improvement
+- **[Architecture Analysis](Architecture-Analysis.md)** - System design and optimization
+
+## 🔧 Configuration
+
+### User Configuration
+```yaml
+# ~/.siege_utilities/config.yaml
+download_directory: "~/siege_data"
+api_keys:
+  census: "your_census_key_here"
+  geocoding: "your_geocoding_key_here"
+```
+
+### Project Configuration
+```python
+from siege_utilities.config import get_project_config
+
+config = get_project_config("AP001")
+print(f"Project data directory: {config.data_directory}")
+```
+
+## 🌟 Why Siege Utilities?
+
+### **🎯 Problem-Solving Focus**
+- Built to solve real-world data challenges
+- Comprehensive error handling and validation
+- Intelligent fallbacks and recovery mechanisms
+
+### **🚀 Modern Python Practices**
+- Type hints and comprehensive documentation
+- Async support where beneficial
+- Cross-platform compatibility
+
+### **🔒 Enterprise Ready**
+- Secure credential management
+- Audit logging and monitoring
+- Scalable architecture for production use
+
+### **📈 Performance Optimized**
+- Intelligent caching and resource management
+- Parallel processing capabilities
+- Memory-efficient operations
+
+## 🤝 Contributing
 
 We welcome contributions! Please see our contributing guidelines and code of conduct.
 
-## Support
+### **Development Setup**
+```bash
+git clone https://github.com/your-org/siege_utilities.git
+cd siege_utilities
+pip install -e ".[dev]"
+pytest
+```
 
-- **Documentation**: This wiki and our comprehensive guides
-- **Issues**: Report bugs and request features on GitHub
-- **Community**: Join our discussions and share your use cases
+### **Documentation**
+```bash
+cd docs
+make html
+```
 
-## License
+## 📄 License
 
-Siege Utilities is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+- **Documentation**: Comprehensive guides and examples
+- **Issues**: GitHub issue tracker for bugs and feature requests
+- **Discussions**: Community support and best practices
+- **Wiki**: Additional recipes and use cases
+
+---
+
+**Built with ❤️ for the data science and geospatial communities**
+
+*Transform your data challenges into opportunities with Siege Utilities*

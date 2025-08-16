@@ -17,5 +17,6 @@ Submodules
    :maxdepth: 1
 
    /api/siege_utilities/geo/geocoding/index
+   /api/siege_utilities/geo/spatial_data
 
 
