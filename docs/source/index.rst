@@ -40,7 +40,7 @@ Siege Utilities is a comprehensive Python utilities package with **enhanced auto
    :maxdepth: 2
    :caption: Geographic & Analytics:
 
-   geocoding
+   geo
    analytics
    mapping_and_reporting
 

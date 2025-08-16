@@ -1,347 +1,259 @@
-Enhanced Census Utilities
-==========================
+Enhanced Census Utilities and Spatial Data
+==========================================
 
-The enhanced Census utilities provide dynamic discovery and intelligent data access to U.S. Census Bureau TIGER/Line shapefiles. Unlike traditional approaches that rely on hardcoded URLs, this system automatically discovers available data and constructs the correct download URLs based on the actual directory structure.
+.. automodule:: siege_utilities.geo.spatial_data
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
-Key Features
------------
+Census Directory Discovery
+-------------------------
 
-- **Dynamic Discovery**: Automatically discovers available Census years and boundary types
-- **Intelligent URL Construction**: Builds correct URLs based on discovered directory structures
-- **Comprehensive Boundary Support**: Supports all major Census boundary types
-- **State FIPS Validation**: Built-in validation for state FIPS codes
-- **Caching**: Intelligent caching with configurable timeouts
-- **Fallback Mechanisms**: Graceful fallbacks when requested data isn't available
-- **Parameter Validation**: Robust validation with helpful error messages
-
-CensusDirectoryDiscovery
-------------------------
-
-The core discovery service that automatically finds available Census data.
+The ``CensusDirectoryDiscovery`` class provides dynamic discovery of available Census TIGER/Line data.
 
 .. autoclass:: siege_utilities.geo.spatial_data.CensusDirectoryDiscovery
    :members:
    :undoc-members:
-   :show-inheritance:
 
-Methods
-~~~~~~~
+Census Data Source
+------------------
 
-.. automethod:: get_available_years
-.. automethod:: get_year_directory_contents
-.. automethod:: discover_boundary_types
-.. automethod:: construct_download_url
-.. automethod:: validate_download_url
-.. automethod:: get_optimal_year
-
-CensusDataSource
-----------------
-
-Enhanced data source that provides intelligent access to Census boundaries.
+The ``CensusDataSource`` class provides a high-level interface for accessing Census geographic data.
 
 .. autoclass:: siege_utilities.geo.spatial_data.CensusDataSource
    :members:
    :undoc-members:
-   :show-inheritance:
 
-Methods
-~~~~~~~
+State Information Methods
+~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automethod:: get_geographic_boundaries
-.. automethod:: get_available_boundary_types
-.. automethod:: refresh_discovery_cache
-.. automethod:: get_available_state_fips
-.. automethod:: validate_state_fips
-.. automethod:: get_state_name
+The Census data source provides comprehensive state information including FIPS codes, names, and abbreviations:
 
-Supported Boundary Types
------------------------
+.. code-block:: python
 
-The system supports a comprehensive range of Census boundary types:
+    from siege_utilities.geo.spatial_data import CensusDataSource
+    
+    census = CensusDataSource()
+    
+    # Get all available state FIPS codes
+    fips_codes = census.get_available_state_fips()
+    
+    # Get state abbreviations
+    abbreviations = census.get_state_abbreviations()
+    
+    # Get comprehensive state information
+    state_info = census.get_comprehensive_state_info()
+    
+    # Look up state by abbreviation
+    ca_info = census.get_state_by_abbreviation('CA')
+    
+    # Look up state by name (partial match)
+    texas_info = census.get_state_by_name('Texas')
+    
+    # Get state abbreviation from FIPS
+    abbr = census.get_state_abbreviation('06')  # Returns 'CA'
 
-Core Geographic Boundaries
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Spatial Data Source
+-------------------
 
-- **state**: State boundaries
-- **county**: County boundaries
-- **tract**: Census tracts
-- **block_group**: Census block groups
-- **block**: Census blocks (tabblock20, tabblock10)
-- **place**: Census designated places
-- **zcta**: ZIP Code Tabulation Areas
+Base class for spatial data sources.
 
-Legislative Boundaries
-~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: siege_utilities.geo.spatial_data.SpatialDataSource
+   :members:
+   :undoc-members:
 
-- **cd**: Congressional districts
-- **cd108-cd119**: Specific Congress sessions
-- **sldu**: State Legislative District Upper
-- **sldl**: State Legislative District Lower
+Government Data Source
+----------------------
 
-Special Purpose Boundaries
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Data source for government open data.
 
-- **cbsa**: Core Based Statistical Areas
-- **csa**: Combined Statistical Areas
-- **metdiv**: Metropolitan Divisions
-- **micro**: Micropolitan Statistical Areas
-- **necta**: New England City and Town Areas
-- **nectadiv**: NECTA Divisions
-- **cnecta**: Combined NECTAs
+.. autoclass:: siege_utilities.geo.spatial_data.GovernmentDataSource
+   :members:
+   :undoc-members:
 
-Tribal Boundaries
-~~~~~~~~~~~~~~~~~
+OpenStreetMap Data Source
+-------------------------
 
-- **aiannh**: American Indian/Alaska Native/Native Hawaiian Areas
-- **aitsce**: American Indian Tribal Subdivisions
-- **ttract**: Tribal Census Tracts
-- **tbg**: Tribal Block Groups
+Data source for OpenStreetMap data using the Overpass API.
 
-School Districts
-~~~~~~~~~~~~~~~~
+.. autoclass:: siege_utilities.geo.spatial_data.OpenStreetMapDataSource
+   :members:
+   :undoc-members:
 
-- **elsd**: Elementary School Districts
-- **scsd**: Secondary School Districts
-- **unsd**: Unified School Districts
+Convenience Functions
+--------------------
 
-Transportation & Infrastructure
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: siege_utilities.geo.spatial_data.get_census_data
 
-- **roads**: Road networks
-- **rails**: Railroad networks
-- **edges**: Boundary edges
-- **linear_water**: Linear water features
-- **area_water**: Area water features
-- **address_features**: Address features
+.. autofunction:: siege_utilities.geo.spatial_data.get_census_boundaries
 
-Special Areas
-~~~~~~~~~~~~~
+.. autofunction:: siege_utilities.geo.spatial_data.download_osm_data
 
-- **anrc**: Alaska Native Regional Corporations
-- **concity**: Consolidated Cities
-- **submcd**: Subminor Civil Divisions
-- **cousub**: County Subdivisions
-- **vtd**: Voting Districts
-- **uac**: Urban Areas
+Global Instances
+----------------
+
+.. data:: census_source
+   :annotation: CensusDataSource
+
+   Global instance of the Census data source.
+
+.. data:: government_source
+   :annotation: GovernmentDataSource
+
+   Global instance of the government data source.
+
+.. data:: osm_source
+   :annotation: OpenStreetMapDataSource
+
+   Global instance of the OpenStreetMap data source.
 
 Usage Examples
 --------------
 
-Basic Usage
-~~~~~~~~~~~
+Basic Census Data Access
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-    from siege_utilities.geo.spatial_data import CensusDataSource
-    
-    # Initialize the data source
-    census = CensusDataSource()
+    from siege_utilities.geo.spatial_data import census_source
     
     # Get available years
-    years = census.discovery.get_available_years()
-    print(f"Available years: {years}")
+    years = census_source.discovery.get_available_years()
+    print(f"Available Census years: {years}")
     
     # Get available boundary types for 2020
-    boundary_types = census.get_available_boundary_types(2020)
-    print(f"Available boundary types: {boundary_types}")
-
-Downloading Boundaries
-~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: python
-
-    # Download national county boundaries
-    counties = census.get_geographic_boundaries(2020, 'county')
+    boundary_types = census_source.get_available_boundary_types(2020)
+    print(f"Available boundary types: {list(boundary_types.keys())}")
     
-    # Download state-specific tract boundaries
-    california_tracts = census.get_geographic_boundaries(
-        2020, 'tract', state_fips='06'
+    # Download county boundaries for California
+    ca_counties = census_source.get_geographic_boundaries(
+        year=2020,
+        geographic_level='county',
+        state_fips='06'
     )
     
-    # Download congressional districts
-    congress_118 = census.get_geographic_boundaries(
-        2020, 'cd118'
-    )
+    if ca_counties is not None:
+        print(f"Downloaded {len(ca_counties)} California counties")
 
-State FIPS Management
-~~~~~~~~~~~~~~~~~~~~~
+State Information Lookup
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-    # Get all available state FIPS codes
-    state_fips = census.get_available_state_fips()
+    from siege_utilities.geo.spatial_data import census_source
     
-    # Validate a FIPS code
-    if census.validate_state_fips('06'):
-        state_name = census.get_state_name('06')
-        print(f"California: {state_name}")
+    # Get comprehensive state information
+    all_states = census_source.get_comprehensive_state_info()
     
-    # Find state by name
-    for fips, name in state_fips.items():
-        if 'California' in name:
-            print(f"California FIPS: {fips}")
-
-Advanced Discovery
-~~~~~~~~~~~~~~~~~
-
-.. code-block:: python
-
-    # Force refresh of discovery cache
-    census.refresh_discovery_cache()
+    # Find states by various criteria
+    ca_by_fips = all_states['06']
+    print(f"FIPS 06: {ca_by_fips['name']} ({ca_by_fips['abbreviation']})")
     
-    # Get optimal year when requested year isn't available
-    optimal_year = census.discovery.get_optimal_year(2018, 'county')
-    print(f"Optimal year for 2018: {optimal_year}")
+    # Look up by abbreviation
+    tx_info = census_source.get_state_by_abbreviation('TX')
+    print(f"TX: {tx_info['name']} (FIPS: {tx_info['fips']})")
     
-    # Validate a download URL before attempting download
-    url = census.discovery.construct_download_url(2020, 'county')
-    if census.discovery.validate_download_url(url):
-        print(f"URL is valid: {url}")
+    # Look up by name (partial match)
+    ny_info = census_source.get_state_by_name('New York')
+    print(f"New York: {ny_info['abbreviation']} (FIPS: {ny_info['fips']})")
 
-Error Handling
---------------
-
-The system provides comprehensive error handling and validation:
-
-.. code-block:: python
-
-    try:
-        # This will fail - tract level requires state FIPS
-        tracts = census.get_geographic_boundaries(2020, 'tract')
-    except ValueError as e:
-        print(f"Validation error: {e}")
-        # Output: "State FIPS required for tract-level data"
-    
-    try:
-        # This will fail - invalid state FIPS
-        tracts = census.get_geographic_boundaries(2020, 'tract', state_fips='99')
-    except ValueError as e:
-        print(f"Validation error: {e}")
-        # Output: "Invalid state FIPS code: 99. Use get_available_state_fips() to see valid codes."
-    
-    try:
-        # This will fail - invalid geographic level
-        data = census.get_geographic_boundaries(2020, 'invalid_type')
-    except ValueError as e:
-        print(f"Validation error: {e}")
-        # Output: "Invalid geographic level: invalid_type. Available for year 2020: ['state', 'county']..."
-
-Configuration
-------------
-
-The system automatically uses user configuration for:
-
-- Download directories
-- API keys (when applicable)
-- Cache timeouts
-- Network timeouts
-
-Cache Management
-----------------
-
-The discovery system uses intelligent caching to minimize network requests:
-
-- **Default timeout**: 1 hour (3600 seconds)
-- **Configurable**: Can be adjusted per instance
-- **Automatic refresh**: Available via `refresh_discovery_cache()`
-- **Force refresh**: Available via `force_refresh` parameter
-
-Performance Considerations
--------------------------
-
-- **Lazy loading**: Discovery only happens when needed
-- **Caching**: Results are cached to avoid repeated requests
-- **Batch operations**: Multiple operations can share discovery results
-- **Network optimization**: Minimal HTTP requests with intelligent caching
-
-Troubleshooting
----------------
-
-Common Issues
-~~~~~~~~~~~~~
-
-1. **Network timeouts**: Increase timeout values for slow connections
-2. **Cache issues**: Use `refresh_discovery_cache()` to clear stale data
-3. **Invalid parameters**: Check error messages for specific validation failures
-4. **Missing data**: Verify year and boundary type availability
-
-Debug Mode
-~~~~~~~~~~
-
-Enable debug logging to see detailed discovery operations:
-
-.. code-block:: python
-
-    import logging
-    logging.basicConfig(level=logging.DEBUG)
-    
-    # Now you'll see detailed discovery logs
-    census = CensusDataSource()
-
-Integration with Existing Code
------------------------------
-
-The enhanced utilities maintain backward compatibility:
-
-.. code-block:: python
-
-    # Old way still works
-    from siege_utilities.geo import get_census_boundaries
-    
-    counties = get_census_boundaries(2020, 'county')
-    
-    # New enhanced way
-    from siege_utilities.geo.spatial_data import CensusDataSource
-    
-    census = CensusDataSource()
-    counties = census.get_geographic_boundaries(2020, 'county')
-
-Migration Guide
---------------
-
-From Basic Usage
+Dynamic Discovery
 ~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-    # Before (basic)
-    from siege_utilities.geo import get_census_boundaries
+    from siege_utilities.geo.spatial_data import CensusDirectoryDiscovery
     
-    # After (enhanced)
+    discovery = CensusDirectoryDiscovery()
+    
+    # Discover available years
+    years = discovery.get_available_years()
+    print(f"Available years: {years}")
+    
+    # Discover boundary types for a specific year
+    boundary_types = discovery.discover_boundary_types(2020)
+    print(f"2020 boundary types: {list(boundary_types.keys())}")
+    
+    # Construct download URL
+    url = discovery.construct_download_url(
+        year=2020,
+        geographic_level='county',
+        state_fips='06'
+    )
+    print(f"Download URL: {url}")
+    
+    # Validate URL
+    is_valid = discovery.validate_download_url(url)
+    print(f"URL valid: {is_valid}")
+
+Error Handling
+~~~~~~~~~~~~~
+
+.. code-block:: python
+
     from siege_utilities.geo.spatial_data import CensusDataSource
+    
     census = CensusDataSource()
     
-    # Same function call, but with enhanced features
-    data = census.get_geographic_boundaries(2020, 'county')
+    try:
+        # This will raise an error - missing state FIPS for tract-level data
+        boundaries = census.get_geographic_boundaries(
+            year=2020,
+            geographic_level='tract'
+        )
+    except ValueError as e:
+        print(f"Validation error: {e}")
+    
+    try:
+        # This will raise an error - invalid year
+        boundaries = census.get_geographic_boundaries(
+            year=1800,
+            geographic_level='county'
+        )
+    except ValueError as e:
+        print(f"Validation error: {e}")
 
-From Manual URL Construction
+Performance Optimization
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    from siege_utilities.geo.spatial_data import CensusDataSource
+    
+    census = CensusDataSource()
+    
+    # Refresh discovery cache to get latest data
+    census.refresh_discovery_cache()
+    
+    # The discovery system automatically caches results
+    # Subsequent calls to the same year/boundary type are fast
+    for year in [2010, 2020]:
+        boundary_types = census.get_available_boundary_types(year)
+        print(f"{year}: {len(boundary_types)} boundary types available")
+
+Integration with Other Tools
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-    # Before (manual)
-    url = f"https://www2.census.gov/geo/tiger/TIGER2020/COUNTY/tl_2020_us_county.zip"
+    import geopandas as gpd
+    import pandas as pd
+    from siege_utilities.geo.spatial_data import census_source
     
-    # After (automatic)
-    url = census.discovery.construct_download_url(2020, 'county')
-    # Automatically handles different years, validates availability, etc.
-
-Best Practices
---------------
-
-1. **Use discovery**: Let the system find available data rather than hardcoding URLs
-2. **Validate parameters**: Always validate state FIPS codes before use
-3. **Handle errors gracefully**: Use try-catch blocks for robust error handling
-4. **Cache management**: Refresh cache periodically for long-running applications
-5. **Parameter validation**: Use the built-in validation methods
-
-Future Enhancements
--------------------
-
-Planned improvements include:
-
-- **Batch downloads**: Download multiple boundary types simultaneously
-- **Progress tracking**: Real-time download progress indicators
-- **Format conversion**: Automatic conversion between different spatial formats
-- **Metadata extraction**: Enhanced metadata and attribute information
-- **Quality indicators**: Data quality and completeness metrics
+    # Download data
+    counties = census_source.get_geographic_boundaries(
+        year=2020,
+        geographic_level='county'
+    )
+    
+    if counties is not None:
+        # Convert to pandas DataFrame for analysis
+        df = pd.DataFrame(counties.drop(columns='geometry'))
+        
+        # Basic statistics
+        print(f"Total counties: {len(df)}")
+        print(f"States represented: {df['STATEFP'].nunique()}")
+        
+        # Export to various formats
+        counties.to_file('counties_2020.geojson', driver='GeoJSON')
+        df.to_csv('counties_2020.csv', index=False)

@@ -1,102 +1,117 @@
 """
-Geo package initialization with enhanced auto-discovery.
-This package contains functions to help with geospatial problems.
+Geographic utilities for spatial data analysis, Census data access, and mapping.
+
+This package provides comprehensive tools for working with geographic data,
+including enhanced Census utilities, intelligent data selection, and spatial analysis.
 """
 
-import os
-import importlib
-import inspect
-import sys
+from .spatial_data import (
+    CensusDirectoryDiscovery,
+    CensusDataSource,
+    SpatialDataSource,
+    GovernmentDataSource,
+    OpenStreetMapDataSource
+)
 
-# List to track exposed names
-__all__ = []
+from .census_dataset_mapper import (
+    CensusDatasetMapper,
+    SurveyType,
+    GeographyLevel,
+    DataReliability,
+    CensusDataset,
+    DatasetRelationship,
+    get_census_dataset_mapper,
+    get_best_dataset_for_analysis,
+    compare_census_datasets
+)
 
-# Get the directory of this package
-package_dir = os.path.dirname(__file__)
+from .census_data_selector import (
+    CensusDataSelector,
+    get_census_data_selector,
+    select_census_datasets,
+    get_analysis_approach
+)
 
-# Get parent package logging functions
-def _get_logging_functions():
-    """Get logging functions from parent package."""
-    try:
-        parent_module = sys.modules.get(__name__.split('.')[0])
-        if parent_module:
-            return {
-                'log_info': getattr(parent_module, 'log_info', None),
-                'log_error': getattr(parent_module, 'log_error', None),
-                'log_debug': getattr(parent_module, 'log_debug', None),
-                'log_warning': getattr(parent_module, 'log_warning', None)
-            }
-    except:
-        pass
+from .spatial_transformations import (
+    SpatialTransformer,
+    DUCKDB_AVAILABLE
+)
 
-    # Fallback functions that accept any arguments
-    def make_fallback(level):
-        def fallback(*args, **kwargs):
-            message = args[0] if args else kwargs.get('message', 'No message')
-            print(f"{level}: {message}")
-        return fallback
+from .geocoding import (
+    Geocoder,
+    get_geocoder
+)
 
+__all__ = [
+    # Core spatial data classes
+    'CensusDirectoryDiscovery',
+    'CensusDataSource', 
+    'SpatialDataSource',
+    'GovernmentDataSource',
+    'OpenStreetMapDataSource',
+    
+    # Census dataset mapping and intelligence
+    'CensusDatasetMapper',
+    'SurveyType',
+    'GeographyLevel', 
+    'DataReliability',
+    'CensusDataset',
+    'DatasetRelationship',
+    'get_census_dataset_mapper',
+    'get_best_dataset_for_analysis',
+    'compare_census_datasets',
+    
+    # Intelligent data selection
+    'CensusDataSelector',
+    'get_census_data_selector',
+    'select_census_datasets',
+    'get_analysis_approach',
+    
+    # Spatial transformations
+    'SpatialTransformer',
+    'DUCKDB_AVAILABLE',
+    
+    # Geocoding
+    'Geocoder',
+    'get_geocoder'
+]
+
+# Package metadata
+__version__ = "2.0.0"
+__author__ = "Siege Analytics"
+__description__ = "Enhanced geographic utilities with intelligent Census data selection"
+
+# Convenience function for quick access to Census intelligence
+def get_census_intelligence():
+    """
+    Get a comprehensive Census intelligence system.
+    
+    Returns:
+        tuple: (CensusDatasetMapper, CensusDataSelector) for full Census data intelligence
+    """
+    from .census_dataset_mapper import get_census_dataset_mapper
+    from .census_data_selector import get_census_data_selector
+    
+    return get_census_dataset_mapper(), get_census_data_selector()
+
+# Quick access to common Census data selection
+def quick_census_selection(analysis_type: str, geography_level: str):
+    """
+    Quick access to Census data selection recommendations.
+    
+    Args:
+        analysis_type: Type of analysis (e.g., "demographics", "housing", "business")
+        geography_level: Required geography level (e.g., "tract", "county", "state")
+    
+    Returns:
+        dict: Dataset recommendations and analysis approach
+    """
+    from .census_data_selector import select_census_datasets, get_analysis_approach
+    
+    recommendations = select_census_datasets(analysis_type, geography_level)
+    approach = get_analysis_approach(analysis_type, geography_level)
+    
     return {
-        'log_info': make_fallback('INFO'),
-        'log_error': make_fallback('ERROR'),
-        'log_debug': make_fallback('DEBUG'),
-        'log_warning': make_fallback('WARNING')
+        "recommendations": recommendations,
+        "analysis_approach": approach
     }
-
-# Get logging functions
-_log_funcs = _get_logging_functions()
-log_info = _log_funcs['log_info']
-log_error = _log_funcs['log_error']
-
-def import_module_with_fallbacks(module_name: str, full_module_name: str):
-    """Import a module with proper error handling and logging."""
-    imported_names = []
-
-    try:
-        log_info(f"Importing {module_name} from {full_module_name}")
-        module = importlib.import_module(full_module_name)
-
-        # Expose all public functions from the module
-        for name, obj in inspect.getmembers(module):
-            if inspect.isfunction(obj) and not name.startswith("_"):
-                globals()[name] = obj
-                imported_names.append(name)
-
-                # Also inject logging functions into the function's module
-                func_module = sys.modules.get(obj.__module__)
-                if func_module:
-                    for log_name, log_func in _log_funcs.items():
-                        if not hasattr(func_module, log_name):
-                            setattr(func_module, log_name, log_func)
-
-        log_info(f"Successfully imported {len(imported_names)} functions from {module_name}")
-        return imported_names
-
-    except ImportError as e:
-        log_error(f"Could not import {module_name}: {e}")
-        return []
-    except Exception as e:
-        log_error(f"Unexpected error importing {module_name}: {e}")
-        return []
-
-# Import all modules in this package
-for filename in os.listdir(package_dir):
-    if filename.endswith(".py") and filename != "__init__.py":
-        module_name = filename[:-3]  # Remove .py
-        full_module_name = f"{__name__}.{module_name}"
-
-        new_names = import_module_with_fallbacks(module_name, full_module_name)
-        __all__.extend(new_names)
-
-# Add spatial functions to __all__ for backward compatibility
-__all__.extend([
-    'get_census_data',
-    'get_census_boundaries', 
-    'download_osm_data',
-    'convert_spatial_format',
-    'transform_spatial_crs',
-    'simplify_spatial_geometries',
-    'buffer_spatial_geometries'
-])
-
-log_info(f"{__name__}: Imported {len(__all__)} functions")
