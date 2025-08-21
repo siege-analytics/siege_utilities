@@ -38,8 +38,9 @@ GeoDataFrame = gpd.GeoDataFrame
 class CensusDirectoryDiscovery:
     """Discovers available Census TIGER/Line data dynamically."""
     
-    def __init__(self):
+    def __init__(self, timeout: int = 30):
         self.base_url = "https://www2.census.gov/geo/tiger"
+        self.timeout = timeout
         self.cache = {}
         self.cache_timeout = 3600  # 1 hour
         
@@ -53,8 +54,8 @@ class CensusDirectoryDiscovery:
                 return data
         
         try:
-            # Try with SSL verification first
-            response = requests.get(self.base_url, timeout=10)
+            # Try with SSL verification first (increased timeout)
+            response = requests.get(self.base_url, timeout=30)
             response.raise_for_status()
             
             # Parse HTML to find TIGER and GENZ year directories
@@ -93,8 +94,8 @@ class CensusDirectoryDiscovery:
         except requests.exceptions.SSLError:
             log.warning("SSL verification failed, trying without verification...")
             try:
-                # Fallback: try without SSL verification
-                response = requests.get(self.base_url, timeout=10, verify=False)
+                # Fallback: try without SSL verification (increased timeout)
+                response = requests.get(self.base_url, timeout=30, verify=False)
                 response.raise_for_status()
                 
                 # Parse HTML to find TIGER and GENZ year directories
@@ -128,11 +129,13 @@ class CensusDirectoryDiscovery:
                 
             except Exception as e:
                 log.error(f"Failed to discover available years (with SSL bypass): {e}")
+                log.info("Using fallback years (2010-present)")
                 # Fallback to known years
                 return list(range(2010, datetime.now().year + 1))
                 
         except Exception as e:
             log.error(f"Failed to discover available years: {e}")
+            log.info("Using fallback years (2010-present)")
             # Fallback to known years
             return list(range(2010, datetime.now().year + 1))
     
@@ -147,7 +150,7 @@ class CensusDirectoryDiscovery:
         
         try:
             year_url = f"{self.base_url}/TIGER{year}/"
-            response = requests.get(year_url, timeout=10)
+            response = requests.get(year_url, timeout=30)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.content, 'html.parser')
@@ -166,7 +169,7 @@ class CensusDirectoryDiscovery:
             try:
                 # Fallback: try without SSL verification
                 year_url = f"{self.base_url}/TIGER{year}/"
-                response = requests.get(year_url, timeout=10, verify=False)
+                response = requests.get(year_url, timeout=30, verify=False)
                 response.raise_for_status()
                 
                 soup = BeautifulSoup(response.content, 'html.parser')
@@ -353,12 +356,12 @@ class CensusDirectoryDiscovery:
     def validate_download_url(self, url: str) -> bool:
         """Check if a download URL is actually accessible."""
         try:
-            response = requests.head(url, timeout=10)
+            response = requests.head(url, timeout=30)
             return response.status_code == 200
         except requests.exceptions.SSLError:
             log.debug(f"SSL verification failed for {url}, trying without verification...")
             try:
-                response = requests.head(url, timeout=10, verify=False)
+                response = requests.head(url, timeout=30, verify=False)
                 return response.status_code == 200
             except Exception as e:
                 log.debug(f"URL validation failed for {url} (with SSL bypass): {e}")
@@ -415,11 +418,11 @@ class SpatialDataSource:
 class CensusDataSource(SpatialDataSource):
     """Enhanced Census data source with dynamic discovery."""
     
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, timeout: int = 30):
         super().__init__("Census Bureau", "https://www2.census.gov/geo/tiger", api_key)
         
-        # Initialize discovery service
-        self.discovery = CensusDirectoryDiscovery()
+        # Initialize discovery service with configurable timeout
+        self.discovery = CensusDirectoryDiscovery(timeout=timeout)
         
         # Get available years dynamically
         self.available_years = self.discovery.get_available_years()
@@ -640,8 +643,21 @@ class CensusDataSource(SpatialDataSource):
                 log.error("Failed to generate local path for download")
                 return None
             
-            # Download file using existing function
-            download_success = download_file(url, zip_filename)
+            # Download file using existing function with SSL fallback
+            try:
+                download_success = download_file(url, zip_filename)
+            except Exception as ssl_error:
+                if "SSL" in str(ssl_error) or "certificate" in str(ssl_error).lower():
+                    log.warning(f"SSL verification failed, retrying without verification: {ssl_error}")
+                    # Retry without SSL verification using the download_file function
+                    download_success = download_file(url, zip_filename, verify_ssl=False)
+                    if download_success:
+                        log.info("Successfully downloaded without SSL verification")
+                    else:
+                        log.error("Download failed even without SSL verification")
+                else:
+                    download_success = False
+            
             if not download_success:
                 log.error("Failed to download TIGER/Line data")
                 return None
@@ -917,7 +933,7 @@ def download_osm_data(query: str, bbox: Optional[List[float]] = None) -> Optiona
     return source.download_osm_data(query, bbox)
 
 # Global instances for easy access
-census_source = CensusDataSource()
+census_source = CensusDataSource(timeout=45)  # Longer timeout for better reliability
 government_source = GovernmentDataSource("https://data.gov")
 osm_source = OpenStreetMapDataSource()
 

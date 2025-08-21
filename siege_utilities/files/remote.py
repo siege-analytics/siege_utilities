@@ -80,6 +80,47 @@ def download_file(url: str, local_filename: FilePath,
             log.info(f'Successfully downloaded {url} to {local_path}')
             return str(local_path)
             
+    except requests.exceptions.SSLError as e:
+        log.warning(f'SSL verification failed for {url}, retrying without verification: {e}')
+        # Retry without SSL verification
+        try:
+            with requests.get(url, stream=True, allow_redirects=True, 
+                           timeout=timeout, verify=False) as response:
+                
+                if not response.ok:
+                    log.error(f'Download failed without SSL: HTTP {response.status_code} - {response.reason}')
+                    return False
+                
+                # Get total size for progress bar
+                total_size = int(response.headers.get('content-length', 0))
+                
+                if total_size > 0:
+                    log.info(f'Download started without SSL, file size: {total_size} bytes')
+                else:
+                    log.info('Download started without SSL, file size unknown')
+                
+                # Download with progress bar
+                with open(local_path, 'wb') as file:
+                    with tqdm.tqdm(
+                        total=total_size,
+                        unit='B',
+                        unit_scale=True,
+                        desc=f"{local_path.name} (no SSL)",
+                        ascii=True
+                    ) as progress_bar:
+                        
+                        for chunk in response.iter_content(chunk_size=chunk_size):
+                            if chunk:
+                                file.write(chunk)
+                                progress_bar.update(len(chunk))
+                
+                log.info(f'Successfully downloaded {url} to {local_path} without SSL verification')
+                return str(local_path)
+                
+        except Exception as retry_error:
+            log.error(f'Download failed even without SSL verification: {retry_error}')
+            return False
+            
     except requests.exceptions.Timeout:
         log.error(f'Download timed out for {url}')
         return False
