@@ -18,6 +18,8 @@ A comprehensive Python utilities package providing **1147+ functions** across **
 
 **🚀 NEW: Census Data Intelligence System**: Makes complex Census data human-comprehensible with intelligent dataset selection and relationship mapping.
 
+**📊 NEW: Built-in Sample Datasets**: Realistic synthetic data for testing, learning, and development without external dependencies.
+
 **Production Ready**: Built for complex data engineering workflows with robust error handling and logging.
 
 **Modern Python Codebase**: Fully modernized with type hints, modern patterns, and comprehensive testing.
@@ -47,6 +49,38 @@ recommendations = select_census_datasets(
 primary_dataset = recommendations["primary_recommendation"]["dataset"]
 print(f"Use {primary_dataset} for your analysis")
 ```
+
+## 📊 **Built-in Sample Datasets**
+
+### **Realistic Data for Testing and Development**
+- ✅ **Census-based Samples**: Real boundaries with synthetic population data
+- ✅ **Synthetic Generation**: Customizable demographics, businesses, and housing
+- ✅ **Privacy Safe**: No real personal information, perfect for development
+- ✅ **Multiple Scales**: Tract, county, and metropolitan area samples
+
+**Sample Data Usage**:
+```python
+from siege_utilities.data import load_sample_data, generate_synthetic_population
+
+# Load pre-built samples
+tract_data = load_sample_data("census_tract_sample", population_size=1000)
+county_data = load_sample_data("census_county_sample", tract_count=5)
+
+# Generate custom synthetic data
+population = generate_synthetic_population(
+    demographics={"Hispanic or Latino": 0.35, "White alone, not Hispanic or Latino": 0.30, "Asian alone, not Hispanic or Latino": 0.25, "Black or African American alone, not Hispanic or Latino": 0.10},
+    size=500,
+    include_names=True,
+    include_income=True
+)
+
+# Perfect for testing functions without external dependencies
+from siege_utilities import get_row_count, sanitise_dataframe_column_names
+print(f"Population count: {get_row_count(population)}")
+clean_df = sanitise_dataframe_column_names(population)
+```
+
+
 
 ## 🧪 **Testing Status**
 
@@ -98,6 +132,7 @@ python -m pytest tests/ --tb=short -q
 - 🗺️ **Advanced Mapping**: 7+ map types with professional reporting capabilities
 - 🔧 **Extensible System**: Customizable page templates and chart types
 - 🧠 **NEW: Census Intelligence**: Intelligent Census data selection and relationship mapping
+- 📊 **NEW: Sample Datasets**: Built-in synthetic data for testing and development
 
 ## 🚀 **Census Data Intelligence System**
 
@@ -235,6 +270,11 @@ The library is organized into major functional areas:
 - **Client Management**: Client profile creation and project association
 - **Connection Management**: Database, notebook, and Spark connection persistence
 - **Project Management**: Project configuration and directory management
+
+### 📊 **Sample Data & Testing**
+- **Built-in Datasets**: Census-based samples with synthetic population data
+- **Synthetic Generation**: Customizable demographics, businesses, and housing
+- **Development Tools**: Realistic data for testing without external dependencies
 
 ### 📊 **Analytics Integration**
 - **Google Analytics**: GA4/UA data retrieval and client association

@@ -14,7 +14,10 @@ fiona>=1.8.0
 
 # Data processing (REQUIRED)
 pandas>=1.5.0
-numpy>=1.21.0
+numpy>=1.23.5,<2.3.0
+
+# Synthetic data generation (REQUIRED for sample datasets)
+Faker>=19.0.0
 
 # Configuration (REQUIRED)
 pyyaml>=6.0

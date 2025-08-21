@@ -103,6 +103,14 @@ from .git.git_operations import create_feature_branch, switch_branch, merge_bran
 from .git.git_status import get_repository_status, get_branch_info
 from .git.git_workflow import start_feature_workflow, validate_branch_naming
 
+# Import sample data utilities
+from .data.sample_data import (
+    load_sample_data, list_available_datasets, get_dataset_info,
+    get_census_boundaries, get_census_data, join_boundaries_and_data, create_sample_dataset,
+    generate_synthetic_population, generate_synthetic_businesses, generate_synthetic_housing,
+    SAMPLE_DATASETS, CENSUS_SAMPLES, SYNTHETIC_SAMPLES
+)
+
 # Import analytics utilities
 from .analytics.google_analytics import (
     GoogleAnalyticsConnector, create_ga_account_profile, save_ga_account_profile,
@@ -144,7 +152,7 @@ def get_package_info() -> Dict[str, Any]:
         'available_functions': [],
         'available_modules': [],
         'failed_imports': {},
-        'subpackages': ['core', 'files', 'distributed', 'geo', 'config', 'hygiene', 'testing'],
+        'subpackages': ['core', 'files', 'distributed', 'geo', 'config', 'hygiene', 'testing', 'data'],
         'categories': {
             'core': [],
             'files': [],
@@ -152,7 +160,8 @@ def get_package_info() -> Dict[str, Any]:
             'geo': [],
             'config': [],
             'hygiene': [],
-            'testing': []
+            'testing': [],
+            'data': []
         }
     }
     
@@ -226,6 +235,13 @@ def get_package_info() -> Dict[str, Any]:
         'setup_spark_environment', 'get_system_info'
     ]
     
+    # Data functions
+    data_functions = [
+        'load_sample_data', 'list_available_datasets', 'get_dataset_info',
+        'get_census_boundaries', 'get_census_data', 'join_boundaries_and_data', 'create_sample_dataset',
+        'generate_synthetic_population', 'generate_synthetic_businesses', 'generate_synthetic_housing'
+    ]
+    
     # Check availability of all functions
     all_functions = {
         'core': core_functions,
@@ -234,7 +250,8 @@ def get_package_info() -> Dict[str, Any]:
         'config': config_functions,
         'geo': geo_functions + spatial_functions,  # Include spatial functions in geo category
         'hygiene': hygiene_functions,
-        'testing': testing_functions
+        'testing': testing_functions,
+        'data': data_functions
     }
     
     for category, functions in all_functions.items():
@@ -251,7 +268,7 @@ def get_package_info() -> Dict[str, Any]:
         'distributed.spark_utils', 'distributed.hdfs_config', 'distributed.hdfs_operations',
         'geo.geocoding', 'geo.spatial_data', 'geo.spatial_transformations',
         'config.databases', 'config.projects', 'config.directories', 'config.user_config',
-        'hygiene.generate_docstrings'
+        'hygiene.generate_docstrings', 'data.sample_data'
     ]
     package_info['total_modules'] = len(package_info['available_modules'])
     
@@ -282,7 +299,8 @@ def check_dependencies() -> Dict[str, bool]:
         'geopandas': False,
         'duckdb': False,
         'fiona': False,
-        'pyproj': False
+        'pyproj': False,
+        'faker': False
     }
     
     # Check each dependency
@@ -382,7 +400,15 @@ def check_dependencies() -> Dict[str, bool]:
     except ImportError:
         pass
     
-    available_count = sum(dependencies.values())
+    try:
+        import faker
+        dependencies['faker'] = True
+    except ImportError:
+        pass
+    
+    # Use builtins.sum to avoid conflict with PySpark's sum function
+    import builtins
+    available_count = builtins.sum(dependencies.values())
     total_count = len(dependencies)
     log_info(f"Dependency check complete: {available_count}/{total_count} available")
     
