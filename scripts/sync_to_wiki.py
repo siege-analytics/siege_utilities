@@ -2,7 +2,7 @@
 """
 Sync Siege Utilities Wiki Recipes to GitHub Wiki
 
-This script helps synchronize wiki recipe documentation from the wiki_recipes/
+This script helps synchronize wiki documentation from the wiki/
 directory to a GitHub wiki repository for easier maintenance and sharing.
 
 Usage:
@@ -45,15 +45,15 @@ def clone_wiki_repo(wiki_url, target_path):
     result = run_command(f"git clone {wiki_url} {target_path}")
     return result.returncode == 0
 
-def sync_wiki_recipes_to_wiki(wiki_recipes_source, wiki_path):
-    """Sync wiki recipe files to the wiki repository"""
-    print(f"Syncing wiki recipes from {wiki_recipes_source} to {wiki_path}")
+def sync_wiki_to_wiki(wiki_source, wiki_path):
+    """Sync wiki files to the wiki repository"""
+    print(f"Syncing wiki content from {wiki_source} to {wiki_path}")
     
-    # Copy all wiki recipe files
+    # Copy all wiki files
     copied_files = []
-    for root, dirs, files in os.walk(wiki_recipes_source):
-        # Calculate relative path from wiki_recipes source
-        rel_path = os.path.relpath(root, wiki_recipes_source)
+    for root, dirs, files in os.walk(wiki_source):
+        # Calculate relative path from wiki source
+        rel_path = os.path.relpath(root, wiki_source)
         if rel_path == '.':
             wiki_target_dir = wiki_path
         else:
@@ -204,17 +204,17 @@ def main():
         print("Error: Must specify either --wiki-path or --wiki-url")
         sys.exit(1)
     
-    # Get recipes source path
+    # Get wiki source path
     script_dir = Path(__file__).parent
-    wiki_recipes_source = script_dir.parent / "wiki_recipes"
+    wiki_source = script_dir.parent / "wiki"
     
-    if not wiki_recipes_source.exists():
-        print(f"Error: Wiki recipes source directory {wiki_recipes_source} does not exist")
+    if not wiki_source.exists():
+        print(f"Error: Wiki source directory {wiki_source} does not exist")
         sys.exit(1)
     
     try:
-        # Sync recipes
-        copied_files = sync_wiki_recipes_to_wiki(wiki_recipes_source, wiki_path)
+        # Sync wiki content
+        copied_files = sync_wiki_to_wiki(wiki_source, wiki_path)
         
         if not copied_files:
             print("No wiki recipe files found to sync")

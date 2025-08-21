@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Automated Wiki Update System
-Keeps the GitHub Wiki synchronized with local wiki_fresh directory
+Keeps the GitHub Wiki synchronized with local wiki directory
 """
 
 import os
@@ -26,7 +26,7 @@ class WikiUpdater:
     """Automated system to keep GitHub Wiki synchronized with local documentation"""
     
     def __init__(self, wiki_dir: str = "siege_utilities.wiki", 
-                 source_dir: str = "wiki_fresh"):
+                 source_dir: str = "wiki"):
         self.wiki_dir = Path(wiki_dir)
         self.source_dir = Path(source_dir)
         self.config_file = Path("wiki_sync_config.json")

@@ -40,10 +40,13 @@ documentation:
       pyspark: "https://spark.apache.org/docs/latest/api/python/"
 
 wiki_repos:
-  # Wiki repositories to update
-  wiki_fresh: wiki_fresh
-  wiki_recipes: wiki_recipes
-  wiki_debug: wiki_debug
+  # Main wiki repository to update
+  wiki: wiki
+  
+  # Archived wiki versions
+  archived_wikis:
+    - archive/wiki_versions/wiki_check
+    - archive/wiki_versions/wiki_recipes
   
   # Wiki update settings
   update_settings:

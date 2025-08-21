@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'wiki_fresh/**'
+      - 'wiki/**'
       - 'scripts/update_wiki.py'
       - '.github/workflows/update_wiki.yml'
   workflow_dispatch:

@@ -33,13 +33,14 @@ from .census_data_selector import (
 )
 
 from .spatial_transformations import (
-    SpatialTransformer,
+    SpatialDataTransformer,
     DUCKDB_AVAILABLE
 )
 
 from .geocoding import (
-    Geocoder,
-    get_geocoder
+    concatenate_addresses,
+    use_nominatim_geocoder,
+    NominatimGeoClassifier
 )
 
 __all__ = [
@@ -68,12 +69,13 @@ __all__ = [
     'get_analysis_approach',
     
     # Spatial transformations
-    'SpatialTransformer',
+    'SpatialDataTransformer',
     'DUCKDB_AVAILABLE',
     
     # Geocoding
-    'Geocoder',
-    'get_geocoder'
+    'concatenate_addresses',
+    'use_nominatim_geocoder',
+    'NominatimGeoClassifier'
 ]
 
 # Package metadata
