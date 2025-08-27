@@ -281,77 +281,169 @@ class CensusDirectoryDiscovery:
         
         return available_types
     
+    def get_year_specific_url_patterns(self, year: int) -> Dict[str, Any]:
+        """Get year-specific URL patterns and directory structures."""
+        patterns = {
+            # Base patterns that work across most years
+            'base_url': f"{self.base_url}/TIGER{year}",
+            'filename_patterns': {
+                # National files (no state FIPS needed)
+                'national': 'tl_{year}_us_{boundary_type}.zip',
+                # State-specific files (state FIPS required)
+                'state': 'tl_{year}_{state_fips}_{boundary_type}.zip',
+                # Congressional districts with number
+                'congress': 'tl_{year}_us_cd{congress_num}.zip'
+            },
+            'directory_mappings': {}
+        }
+        
+        # Year-specific adjustments
+        if year >= 2020:
+            # 2020 and later have some different patterns
+            patterns['directory_mappings'].update({
+                'tabblock': 'TABBLOCK20',
+                'vtd': 'VTD20',
+                'uac': 'UAC20'
+            })
+        elif year >= 2010:
+            patterns['directory_mappings'].update({
+                'tabblock': 'TABBLOCK10',
+                'vtd': 'VTD10',
+                'uac': 'UAC10'
+            })
+        
+        return patterns
+    
     def construct_download_url(self, year: int, boundary_type: str, state_fips: Optional[str] = None, 
                               congress_number: Optional[int] = None) -> Optional[str]:
-        """Construct download URL based on discovered directory structure."""
+        """Construct download URL using FIPS validation and year-specific patterns."""
         try:
+            # Validate state_fips using our unified FIPS data structure
+            if state_fips:
+                fips_data = self.get_unified_fips_data()
+                if state_fips not in fips_data:
+                    log.error(f"Invalid state FIPS code: {state_fips}. Valid codes: {list(fips_data.keys())[:10]}...")
+                    return None
+                
+                state_info = fips_data[state_fips]
+                log.info(f"Constructing URL for {state_info['name']} ({state_info['abbreviation']})")
+            
+            # Get year-specific patterns
+            patterns = self.get_year_specific_url_patterns(year)
+            
             # Get available boundary types for this year
             available_types = self.discover_boundary_types(year)
             
             if boundary_type not in available_types:
                 log.warning(f"Boundary type '{boundary_type}' not available for year {year}")
+                log.info(f"Available types for {year}: {list(available_types.keys())[:10]}...")
                 return None
             
             directory = available_types[boundary_type]
-            base_url = f"{self.base_url}/TIGER{year}/{directory}"
+            base_url = f"{patterns['base_url']}/{directory}"
             
-            # Construct filename based on boundary type and parameters
-            if boundary_type in ['state', 'county']:
-                filename = f"tl_{year}_us_{boundary_type}.zip"
-            elif boundary_type.startswith('cd') and len(boundary_type) > 2:
-                # Handle specific congress numbers (cd108, cd109, etc.)
-                congress_num = boundary_type[2:]
-                filename = f"tl_{year}_us_cd{congress_num}.zip"
-            elif boundary_type == 'cd' and congress_number:
-                filename = f"tl_{year}_us_cd{congress_number}.zip"
-            elif boundary_type in ['tabblock20', 'tabblock10']:
-                if not state_fips:
-                    log.error(f"State FIPS required for {boundary_type}")
-                    return None
-                filename = f"tl_{year}_{state_fips}_{boundary_type}.zip"
-            elif boundary_type in ['sldu', 'sldl']:
-                if not state_fips:
-                    log.error(f"State FIPS required for {boundary_type}")
-                    return None
-                filename = f"tl_{year}_{state_fips}_{boundary_type}.zip"
-            elif boundary_type in ['tract', 'block_group', 'block']:
-                if not state_fips:
-                    log.error(f"State FIPS required for {boundary_type}")
-                    return None
-                filename = f"tl_{year}_{state_fips}_{boundary_type}.zip"
-            elif boundary_type in ['cbsa', 'csa', 'metdiv', 'micro', 'necta', 'nectadiv', 'cnecta']:
-                # Metropolitan and statistical areas are national
-                filename = f"tl_{year}_us_{boundary_type}.zip"
-            elif boundary_type in ['aiannh', 'aitsce', 'ttract', 'tbg']:
-                # Tribal boundaries are national
-                filename = f"tl_{year}_us_{boundary_type}.zip"
-            elif boundary_type in ['elsd', 'scsd', 'unsd']:
-                # School districts are national
-                filename = f"tl_{year}_us_{boundary_type}.zip"
-            elif boundary_type in ['uac', 'uac20']:
-                # Urban areas are national
-                filename = f"tl_{year}_us_{boundary_type}.zip"
-            elif boundary_type in ['vtd', 'vtd20']:
-                # Voting districts are national
-                filename = f"tl_{year}_us_{boundary_type}.zip"
-            elif boundary_type in ['place', 'zcta', 'anrc', 'concity', 'submcd', 'cousub']:
-                # These can be either national or state-specific
-                if state_fips:
-                    filename = f"tl_{year}_{state_fips}_{boundary_type}.zip"
-                else:
-                    filename = f"tl_{year}_us_{boundary_type}.zip"
-            else:
-                # Generic pattern for other types
-                if state_fips:
-                    filename = f"tl_{year}_{state_fips}_{boundary_type}.zip"
-                else:
-                    filename = f"tl_{year}_us_{boundary_type}.zip"
+            # Determine which filename pattern to use
+            filename = self._construct_filename_with_fips_validation(
+                year, boundary_type, state_fips, congress_number, patterns
+            )
             
-            return f"{base_url}/{filename}"
+            if not filename:
+                return None
+            
+            final_url = f"{base_url}/{filename}"
+            log.info(f"Constructed URL: {final_url}")
+            
+            return final_url
             
         except Exception as e:
             log.error(f"Failed to construct URL for {boundary_type} in year {year}: {e}")
             return None
+    
+    def _construct_filename_with_fips_validation(self, year: int, boundary_type: str, 
+                                               state_fips: Optional[str], congress_number: Optional[int],
+                                               patterns: Dict[str, Any]) -> Optional[str]:
+        """Construct filename using FIPS validation and boundary type rules."""
+        
+        # Define which boundary types require state FIPS
+        state_required_types = {
+            'tabblock', 'tabblock10', 'tabblock20', 'tract', 'bg', 'block',
+            'sldu', 'sldl', 'vtd', 'vtd10', 'vtd20', 'cousub', 'submcd'
+        }
+        
+        # Define national-only types (never use state FIPS)
+        national_only_types = {
+            'state', 'county', 'cbsa', 'csa', 'metdiv', 'micro', 'necta', 
+            'nectadiv', 'cnecta', 'aiannh', 'aitsce', 'ttract', 'tbg',
+            'elsd', 'scsd', 'unsd', 'uac', 'uac10', 'uac20'
+        }
+        
+        # Define flexible types (can be national or state-specific)
+        flexible_types = {'place', 'zcta', 'anrc', 'concity'}
+        
+        # Handle congressional districts specially
+        if boundary_type.startswith('cd'):
+            if len(boundary_type) > 2:
+                # Specific congress number in boundary type (cd118, cd119, etc.)
+                congress_num = boundary_type[2:]
+                return patterns['filename_patterns']['congress'].format(
+                    year=year, congress_num=congress_num
+                )
+            elif congress_number:
+                # Congress number provided separately
+                return patterns['filename_patterns']['congress'].format(
+                    year=year, congress_num=congress_number
+                )
+            else:
+                log.error("Congressional district boundary type requires congress number")
+                return None
+        
+        # Handle state-required types
+        elif boundary_type in state_required_types:
+            if not state_fips:
+                fips_data = self.get_unified_fips_data()
+                log.error(f"State FIPS required for {boundary_type}. Available FIPS codes:")
+                for fips, info in list(fips_data.items())[:10]:
+                    log.error(f"  {fips}: {info['name']} ({info['abbreviation']})")
+                return None
+            
+            return patterns['filename_patterns']['state'].format(
+                year=year, state_fips=state_fips, boundary_type=boundary_type
+            )
+        
+        # Handle national-only types
+        elif boundary_type in national_only_types:
+            return patterns['filename_patterns']['national'].format(
+                year=year, boundary_type=boundary_type
+            )
+        
+        # Handle flexible types
+        elif boundary_type in flexible_types:
+            if state_fips:
+                # User provided state FIPS, use state-specific version
+                fips_data = self.get_unified_fips_data()
+                state_info = fips_data[state_fips]
+                log.info(f"Using state-specific {boundary_type} for {state_info['name']}")
+                return patterns['filename_patterns']['state'].format(
+                    year=year, state_fips=state_fips, boundary_type=boundary_type
+                )
+            else:
+                # No state FIPS provided, use national version
+                log.info(f"Using national {boundary_type} file")
+                return patterns['filename_patterns']['national'].format(
+                    year=year, boundary_type=boundary_type
+                )
+        
+        # Default pattern for unknown types
+        else:
+            log.warning(f"Unknown boundary type: {boundary_type}, using default pattern")
+            if state_fips:
+                return patterns['filename_patterns']['state'].format(
+                    year=year, state_fips=state_fips, boundary_type=boundary_type
+                )
+            else:
+                return patterns['filename_patterns']['national'].format(
+                    year=year, boundary_type=boundary_type
+                )
     
     def validate_download_url(self, url: str) -> bool:
         """Check if a download URL is actually accessible."""
@@ -455,6 +547,20 @@ class CensusDataSource(SpatialDataSource):
             GeoDataFrame with boundaries or None if failed
         """
         try:
+            # Normalize state identifier to FIPS code
+            state_fips = None
+            if state:
+                state_fips = self.discovery.normalize_state_identifier(state)
+                if not state_fips:
+                    fips_data = self.discovery.get_unified_fips_data()
+                    log.error(f"Invalid state identifier: '{state}'")
+                    log.info("Valid examples: FIPS ('06'), abbreviation ('CA'), or name ('California')")
+                    log.info(f"Available states: {list(fips_data.keys())[:10]}...")
+                    return None
+                
+                state_info = fips_data[state_fips]
+                log.info(f"Normalized '{state}' to FIPS {state_fips}: {state_info['name']} ({state_info['abbreviation']})")
+            
             # Validate parameters
             self._validate_census_parameters(year, geographic_level, state_fips)
             
@@ -499,43 +605,101 @@ class CensusDataSource(SpatialDataSource):
     
     def get_available_state_fips(self) -> Dict[str, str]:
         """Get mapping of state FIPS codes to state names."""
+        # Extract from unified FIPS data structure
+        return {fips: info['name'] for fips, info in self.get_unified_fips_data().items()}
+    
+    def get_unified_fips_data(self) -> Dict[str, Dict[str, str]]:
+        """Get unified FIPS data structure with FIPS, full name, and 2-letter abbreviation."""
         return {
-            '01': 'Alabama', '02': 'Alaska', '04': 'Arizona', '05': 'Arkansas',
-            '06': 'California', '08': 'Colorado', '09': 'Connecticut', '10': 'Delaware',
-            '11': 'District of Columbia', '12': 'Florida', '13': 'Georgia', '15': 'Hawaii',
-            '16': 'Idaho', '17': 'Illinois', '18': 'Indiana', '19': 'Iowa',
-            '20': 'Kansas', '21': 'Kentucky', '22': 'Louisiana', '23': 'Maine',
-            '24': 'Maryland', '25': 'Massachusetts', '26': 'Michigan', '27': 'Minnesota',
-            '28': 'Mississippi', '29': 'Missouri', '30': 'Montana', '31': 'Nebraska',
-            '32': 'Nevada', '33': 'New Hampshire', '34': 'New Jersey', '35': 'New Mexico',
-            '36': 'New York', '37': 'North Carolina', '38': 'North Dakota', '39': 'Ohio',
-            '40': 'Oklahoma', '41': 'Oregon', '42': 'Pennsylvania', '44': 'Rhode Island',
-            '45': 'South Carolina', '46': 'South Dakota', '47': 'Tennessee', '48': 'Texas',
-            '49': 'Utah', '50': 'Vermont', '51': 'Virginia', '53': 'Washington',
-            '54': 'West Virginia', '55': 'Wisconsin', '56': 'Wyoming',
-            '60': 'American Samoa', '66': 'Guam', '69': 'Northern Mariana Islands',
-            '72': 'Puerto Rico', '74': 'U.S. Minor Outlying Islands', '78': 'U.S. Virgin Islands'
+            '01': {'fips': '01', 'name': 'Alabama', 'abbreviation': 'AL'},
+            '02': {'fips': '02', 'name': 'Alaska', 'abbreviation': 'AK'},
+            '04': {'fips': '04', 'name': 'Arizona', 'abbreviation': 'AZ'},
+            '05': {'fips': '05', 'name': 'Arkansas', 'abbreviation': 'AR'},
+            '06': {'fips': '06', 'name': 'California', 'abbreviation': 'CA'},
+            '08': {'fips': '08', 'name': 'Colorado', 'abbreviation': 'CO'},
+            '09': {'fips': '09', 'name': 'Connecticut', 'abbreviation': 'CT'},
+            '10': {'fips': '10', 'name': 'Delaware', 'abbreviation': 'DE'},
+            '11': {'fips': '11', 'name': 'District of Columbia', 'abbreviation': 'DC'},
+            '12': {'fips': '12', 'name': 'Florida', 'abbreviation': 'FL'},
+            '13': {'fips': '13', 'name': 'Georgia', 'abbreviation': 'GA'},
+            '15': {'fips': '15', 'name': 'Hawaii', 'abbreviation': 'HI'},
+            '16': {'fips': '16', 'name': 'Idaho', 'abbreviation': 'ID'},
+            '17': {'fips': '17', 'name': 'Illinois', 'abbreviation': 'IL'},
+            '18': {'fips': '18', 'name': 'Indiana', 'abbreviation': 'IN'},
+            '19': {'fips': '19', 'name': 'Iowa', 'abbreviation': 'IA'},
+            '20': {'fips': '20', 'name': 'Kansas', 'abbreviation': 'KS'},
+            '21': {'fips': '21', 'name': 'Kentucky', 'abbreviation': 'KY'},
+            '22': {'fips': '22', 'name': 'Louisiana', 'abbreviation': 'LA'},
+            '23': {'fips': '23', 'name': 'Maine', 'abbreviation': 'ME'},
+            '24': {'fips': '24', 'name': 'Maryland', 'abbreviation': 'MD'},
+            '25': {'fips': '25', 'name': 'Massachusetts', 'abbreviation': 'MA'},
+            '26': {'fips': '26', 'name': 'Michigan', 'abbreviation': 'MI'},
+            '27': {'fips': '27', 'name': 'Minnesota', 'abbreviation': 'MN'},
+            '28': {'fips': '28', 'name': 'Mississippi', 'abbreviation': 'MS'},
+            '29': {'fips': '29', 'name': 'Missouri', 'abbreviation': 'MO'},
+            '30': {'fips': '30', 'name': 'Montana', 'abbreviation': 'MT'},
+            '31': {'fips': '31', 'name': 'Nebraska', 'abbreviation': 'NE'},
+            '32': {'fips': '32', 'name': 'Nevada', 'abbreviation': 'NV'},
+            '33': {'fips': '33', 'name': 'New Hampshire', 'abbreviation': 'NH'},
+            '34': {'fips': '34', 'name': 'New Jersey', 'abbreviation': 'NJ'},
+            '35': {'fips': '35', 'name': 'New Mexico', 'abbreviation': 'NM'},
+            '36': {'fips': '36', 'name': 'New York', 'abbreviation': 'NY'},
+            '37': {'fips': '37', 'name': 'North Carolina', 'abbreviation': 'NC'},
+            '38': {'fips': '38', 'name': 'North Dakota', 'abbreviation': 'ND'},
+            '39': {'fips': '39', 'name': 'Ohio', 'abbreviation': 'OH'},
+            '40': {'fips': '40', 'name': 'Oklahoma', 'abbreviation': 'OK'},
+            '41': {'fips': '41', 'name': 'Oregon', 'abbreviation': 'OR'},
+            '42': {'fips': '42', 'name': 'Pennsylvania', 'abbreviation': 'PA'},
+            '44': {'fips': '44', 'name': 'Rhode Island', 'abbreviation': 'RI'},
+            '45': {'fips': '45', 'name': 'South Carolina', 'abbreviation': 'SC'},
+            '46': {'fips': '46', 'name': 'South Dakota', 'abbreviation': 'SD'},
+            '47': {'fips': '47', 'name': 'Tennessee', 'abbreviation': 'TN'},
+            '48': {'fips': '48', 'name': 'Texas', 'abbreviation': 'TX'},
+            '49': {'fips': '49', 'name': 'Utah', 'abbreviation': 'UT'},
+            '50': {'fips': '50', 'name': 'Vermont', 'abbreviation': 'VT'},
+            '51': {'fips': '51', 'name': 'Virginia', 'abbreviation': 'VA'},
+            '53': {'fips': '53', 'name': 'Washington', 'abbreviation': 'WA'},
+            '54': {'fips': '54', 'name': 'West Virginia', 'abbreviation': 'WV'},
+            '55': {'fips': '55', 'name': 'Wisconsin', 'abbreviation': 'WI'},
+            '56': {'fips': '56', 'name': 'Wyoming', 'abbreviation': 'WY'},
+            '60': {'fips': '60', 'name': 'American Samoa', 'abbreviation': 'AS'},
+            '66': {'fips': '66', 'name': 'Guam', 'abbreviation': 'GU'},
+            '69': {'fips': '69', 'name': 'Northern Mariana Islands', 'abbreviation': 'MP'},
+            '72': {'fips': '72', 'name': 'Puerto Rico', 'abbreviation': 'PR'},
+            '74': {'fips': '74', 'name': 'U.S. Minor Outlying Islands', 'abbreviation': 'UM'},
+            '78': {'fips': '78', 'name': 'U.S. Virgin Islands', 'abbreviation': 'VI'}
         }
     
     def get_state_abbreviations(self) -> Dict[str, str]:
         """Get mapping of state FIPS codes to state abbreviations."""
-        return {
-            '01': 'AL', '02': 'AK', '04': 'AZ', '05': 'AR',
-            '06': 'CA', '08': 'CO', '09': 'CT', '10': 'DE',
-            '11': 'DC', '12': 'FL', '13': 'GA', '15': 'HI',
-            '16': 'ID', '17': 'IL', '18': 'IN', '19': 'IA',
-            '20': 'KS', '21': 'KY', '22': 'LA', '23': 'ME',
-            '24': 'MD', '25': 'MA', '26': 'MI', '27': 'MN',
-            '28': 'MS', '29': 'MO', '30': 'MT', '31': 'NE',
-            '32': 'NV', '33': 'NH', '34': 'NJ', '35': 'NM',
-            '36': 'NY', '37': 'NC', '38': 'ND', '39': 'OH',
-            '40': 'OK', '41': 'OR', '42': 'PA', '44': 'RI',
-            '45': 'SC', '46': 'SD', '47': 'TN', '48': 'TX',
-            '49': 'UT', '50': 'VT', '51': 'VA', '53': 'WA',
-            '54': 'WV', '55': 'WI', '56': 'WY',
-            '60': 'AS', '66': 'GU', '69': 'MP',
-            '72': 'PR', '74': 'UM', '78': 'VI'
-        }
+        # Extract from unified FIPS data structure
+        return {fips: info['abbreviation'] for fips, info in self.get_unified_fips_data().items()}
+    
+    def normalize_state_identifier(self, state_input) -> Optional[str]:
+        """Convert any state identifier (FIPS, abbreviation, name) to FIPS code."""
+        if not state_input:
+            return None
+            
+        state_str = str(state_input).strip()
+        fips_data = self.get_unified_fips_data()
+        
+        # Check if it's already a valid FIPS code
+        if state_str.zfill(2) in fips_data:
+            return state_str.zfill(2)
+        
+        # Check if it's a state abbreviation (case-insensitive)
+        for fips, info in fips_data.items():
+            if info['abbreviation'].upper() == state_str.upper():
+                return fips
+        
+        # Check if it's a state name (case-insensitive, partial match)
+        for fips, info in fips_data.items():
+            if state_str.lower() in info['name'].lower():
+                return fips
+        
+        # Not found
+        log.warning(f"Could not normalize state identifier: '{state_input}'")
+        return None
     
     def get_comprehensive_state_info(self) -> Dict[str, Dict[str, str]]:
         """Get comprehensive state information including FIPS, name, and abbreviation."""

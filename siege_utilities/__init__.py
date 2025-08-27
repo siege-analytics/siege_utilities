@@ -97,16 +97,92 @@ from .files.shell import (
     run_subprocess
 )
 
-# Import geo utilities - all made optional due to pandas dependency chain
+# Import comprehensive Census functionality (the missing sophisticated functions!)
 try:
     from .geo import get_census_intelligence, quick_census_selection
     from .geo.geocoding import concatenate_addresses, use_nominatim_geocoder
+    
+    # Census Data Selection Intelligence
+    from .geo.census_data_selector import (
+        get_census_data_selector, select_census_datasets, get_analysis_approach,
+        select_datasets_for_analysis, get_dataset_compatibility_matrix, suggest_analysis_approach
+    )
+    
+    # Census Dataset Mapping & Recommendations
+    from .geo.census_dataset_mapper import (
+        get_census_dataset_mapper, get_best_dataset_for_analysis, compare_census_datasets,
+        get_dataset_info, list_datasets_by_type, list_datasets_by_geography,
+        get_best_dataset_for_use_case, get_dataset_relationships, compare_datasets,
+        get_data_selection_guide, export_dataset_catalog
+    )
+    
+    # Spatial Data & Boundary Downloads
+    from .geo.spatial_data import (
+        get_census_data, get_census_boundaries, download_osm_data,
+        get_available_years, get_year_directory_contents, discover_boundary_types,
+        construct_download_url, validate_download_url, get_optimal_year,
+        download_data, get_geographic_boundaries, get_available_boundary_types,
+        refresh_discovery_cache, get_available_state_fips, get_state_abbreviations,
+        get_comprehensive_state_info, get_state_by_abbreviation, get_state_by_name,
+        validate_state_fips, get_state_name, get_state_abbreviation, download_dataset,
+        get_unified_fips_data, normalize_state_identifier
+    )
+    
 except ImportError as e:
     logger.warning(f"Could not import geo utilities: {e}")
+    
+    # Basic geo functions
     get_census_intelligence = _create_dependency_wrapper('get_census_intelligence', ['pandas', 'geopandas'])
     quick_census_selection = _create_dependency_wrapper('quick_census_selection', ['pandas', 'geopandas'])
     concatenate_addresses = _create_dependency_wrapper('concatenate_addresses', ['geopy'])
     use_nominatim_geocoder = _create_dependency_wrapper('use_nominatim_geocoder', ['geopy'])
+    
+    # Census Data Selection Intelligence
+    get_census_data_selector = _create_dependency_wrapper('get_census_data_selector', ['pandas', 'geopandas'])
+    select_census_datasets = _create_dependency_wrapper('select_census_datasets', ['pandas', 'geopandas'])
+    get_analysis_approach = _create_dependency_wrapper('get_analysis_approach', ['pandas', 'geopandas'])
+    select_datasets_for_analysis = _create_dependency_wrapper('select_datasets_for_analysis', ['pandas', 'geopandas'])
+    get_dataset_compatibility_matrix = _create_dependency_wrapper('get_dataset_compatibility_matrix', ['pandas', 'geopandas'])
+    suggest_analysis_approach = _create_dependency_wrapper('suggest_analysis_approach', ['pandas', 'geopandas'])
+    
+    # Census Dataset Mapping & Recommendations
+    get_census_dataset_mapper = _create_dependency_wrapper('get_census_dataset_mapper', ['pandas', 'geopandas'])
+    get_best_dataset_for_analysis = _create_dependency_wrapper('get_best_dataset_for_analysis', ['pandas', 'geopandas'])
+    compare_census_datasets = _create_dependency_wrapper('compare_census_datasets', ['pandas', 'geopandas'])
+    get_dataset_info = _create_dependency_wrapper('get_dataset_info', ['pandas', 'geopandas'])
+    list_datasets_by_type = _create_dependency_wrapper('list_datasets_by_type', ['pandas', 'geopandas'])
+    list_datasets_by_geography = _create_dependency_wrapper('list_datasets_by_geography', ['pandas', 'geopandas'])
+    get_best_dataset_for_use_case = _create_dependency_wrapper('get_best_dataset_for_use_case', ['pandas', 'geopandas'])
+    get_dataset_relationships = _create_dependency_wrapper('get_dataset_relationships', ['pandas', 'geopandas'])
+    compare_datasets = _create_dependency_wrapper('compare_datasets', ['pandas', 'geopandas'])
+    get_data_selection_guide = _create_dependency_wrapper('get_data_selection_guide', ['pandas', 'geopandas'])
+    export_dataset_catalog = _create_dependency_wrapper('export_dataset_catalog', ['pandas', 'geopandas'])
+    
+    # Spatial Data & Boundary Downloads
+    get_census_data = _create_dependency_wrapper('get_census_data', ['pandas', 'geopandas'])
+    get_census_boundaries = _create_dependency_wrapper('get_census_boundaries', ['pandas', 'geopandas'])
+    download_osm_data = _create_dependency_wrapper('download_osm_data', ['pandas', 'geopandas', 'osmnx'])
+    get_available_years = _create_dependency_wrapper('get_available_years', ['pandas', 'requests'])
+    get_year_directory_contents = _create_dependency_wrapper('get_year_directory_contents', ['pandas', 'requests'])
+    discover_boundary_types = _create_dependency_wrapper('discover_boundary_types', ['pandas', 'requests'])
+    construct_download_url = _create_dependency_wrapper('construct_download_url', ['pandas'])
+    validate_download_url = _create_dependency_wrapper('validate_download_url', ['requests'])
+    get_optimal_year = _create_dependency_wrapper('get_optimal_year', ['pandas'])
+    download_data = _create_dependency_wrapper('download_data', ['pandas', 'geopandas', 'requests'])
+    get_geographic_boundaries = _create_dependency_wrapper('get_geographic_boundaries', ['pandas', 'geopandas'])
+    get_available_boundary_types = _create_dependency_wrapper('get_available_boundary_types', ['pandas', 'requests'])
+    refresh_discovery_cache = _create_dependency_wrapper('refresh_discovery_cache', ['pandas', 'requests'])
+    get_available_state_fips = _create_dependency_wrapper('get_available_state_fips', ['pandas'])
+    get_state_abbreviations = _create_dependency_wrapper('get_state_abbreviations', ['pandas'])
+    get_comprehensive_state_info = _create_dependency_wrapper('get_comprehensive_state_info', ['pandas'])
+    get_state_by_abbreviation = _create_dependency_wrapper('get_state_by_abbreviation', ['pandas'])
+    get_state_by_name = _create_dependency_wrapper('get_state_by_name', ['pandas'])
+    validate_state_fips = _create_dependency_wrapper('validate_state_fips', ['pandas'])
+    get_state_name = _create_dependency_wrapper('get_state_name', ['pandas'])
+    get_state_abbreviation = _create_dependency_wrapper('get_state_abbreviation', ['pandas'])
+    download_dataset = _create_dependency_wrapper('download_dataset', ['pandas', 'geopandas', 'requests'])
+    get_unified_fips_data = _create_dependency_wrapper('get_unified_fips_data', ['pandas'])
+    normalize_state_identifier = _create_dependency_wrapper('normalize_state_identifier', ['pandas'])
 
 # Spatial utilities are now consolidated in the geo module  
 # All spatial functions are available through the geo module
@@ -346,9 +422,29 @@ def get_package_info() -> Dict[str, Any]:
         'verify_connection_profile': 'config', 'get_connection_status': 'config', 'cleanup_old_connections': 'config',
         'get_user_config': 'config', 'get_download_directory': 'config',
         
-        # Geo functions
+        # Geo/Census functions (comprehensive!)
         'concatenate_addresses': 'geo', 'use_nominatim_geocoder': 'geo',
-        'get_census_boundaries': 'geo', 'get_census_data': 'geo',
+        'get_census_intelligence': 'geo', 'quick_census_selection': 'geo',
+        
+        # Census Data Selection Intelligence
+        'get_census_data_selector': 'geo', 'select_census_datasets': 'geo', 'get_analysis_approach': 'geo',
+        'select_datasets_for_analysis': 'geo', 'get_dataset_compatibility_matrix': 'geo', 'suggest_analysis_approach': 'geo',
+        
+        # Census Dataset Mapping & Recommendations
+        'get_census_dataset_mapper': 'geo', 'get_best_dataset_for_analysis': 'geo', 'compare_census_datasets': 'geo',
+        'get_dataset_info': 'geo', 'list_datasets_by_type': 'geo', 'list_datasets_by_geography': 'geo',
+        'get_best_dataset_for_use_case': 'geo', 'get_dataset_relationships': 'geo', 'compare_datasets': 'geo',
+        'get_data_selection_guide': 'geo', 'export_dataset_catalog': 'geo',
+        
+        # Spatial Data & Boundary Downloads
+        'get_census_data': 'geo', 'get_census_boundaries': 'geo', 'download_osm_data': 'geo',
+        'get_available_years': 'geo', 'get_year_directory_contents': 'geo', 'discover_boundary_types': 'geo',
+        'construct_download_url': 'geo', 'validate_download_url': 'geo', 'get_optimal_year': 'geo',
+        'download_data': 'geo', 'get_geographic_boundaries': 'geo', 'get_available_boundary_types': 'geo',
+        'refresh_discovery_cache': 'geo', 'get_available_state_fips': 'geo', 'get_state_abbreviations': 'geo',
+        'get_comprehensive_state_info': 'geo', 'get_state_by_abbreviation': 'geo', 'get_state_by_name': 'geo',
+        'validate_state_fips': 'geo', 'get_state_name': 'geo', 'get_state_abbreviation': 'geo', 'download_dataset': 'geo',
+        'get_unified_fips_data': 'geo', 'normalize_state_identifier': 'geo',
         
         # Hygiene functions
         'generate_docstring_template': 'hygiene', 'analyze_function_signature': 'hygiene',
