@@ -518,30 +518,27 @@ class ChartGenerator:
             # Merge data with geodata
             merged = gdf.merge(df, left_on=location_column, right_on=location_column, how='left')
             
-            # Create bivariate color scheme
-            colors = self._create_bivariate_color_scheme(color_scheme)
+            # Create proper bivariate classification and coloring
+            color_matrix = self._create_bivariate_color_matrix(color_scheme)
+            merged_with_colors = self._apply_bivariate_colors(merged, value_column1, value_column2, color_matrix)
             
             # Create figure and axes
             fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
             
-            # Create bivariate choropleth
-            merged.plot(
-                column=value_column1,  # Primary variable
-                cmap=colors,
+            # Create true bivariate choropleth
+            merged_with_colors.plot(
+                color=merged_with_colors['bivariate_color'],
                 linewidth=0.5,
                 edgecolor='black',
-                ax=ax,
-                legend=True,
-                legend_kwds={'label': f'{value_column1} vs {value_column2}',
-                            'orientation': 'vertical'}
+                ax=ax
             )
             
             # Add title and remove axes
             ax.set_title(title or f"Bivariate Choropleth: {value_column1} vs {value_column2}")
             ax.axis('off')
             
-            # Add bivariate legend
-            self._add_bivariate_legend(ax, value_column1, value_column2, colors)
+            # Add proper bivariate legend
+            self._add_bivariate_legend(ax, value_column1, value_column2, color_matrix)
             
             plt.tight_layout()
             
@@ -552,55 +549,103 @@ class ChartGenerator:
             log.error(f"Error creating bivariate choropleth with matplotlib: {e}")
             return self._create_placeholder_chart(width, height, f"Bivariate Choropleth Error: {str(e)}")
 
-    def _create_bivariate_color_scheme(self, scheme: str = "default") -> str:
+    def _create_bivariate_color_matrix(self, scheme: str = "default") -> np.ndarray:
         """
-        Create a bivariate color scheme for choropleth maps.
+        Create a proper 2D bivariate color matrix for choropleth maps.
         
         Args:
-            scheme: Color scheme type
+            scheme: Color scheme type ('default', 'blue_red', 'green_orange')
             
         Returns:
-            Color scheme name or custom colormap
+            3x3 numpy array of hex colors for bivariate classification
         """
-        if scheme == "default":
-            # Use a built-in colormap that works well for bivariate data
-            return "RdYlBu_r"
-        elif scheme == "diverging":
-            return "RdBu_r"
-        elif scheme == "custom":
-            # Create a custom bivariate colormap
-            from matplotlib.colors import LinearSegmentedColormap
+        if scheme == "blue_red":
+            # Blue-Red bivariate scheme (classic)
+            return np.array([
+                ['#e8e8e8', '#e4acac', '#c85a5a'],  # Low var1: gray to red
+                ['#b8d6be', '#90b4a6', '#627f8c'],  # Med var1: green-gray to blue-gray  
+                ['#7fc97f', '#5aae61', '#2d8a49']   # High var1: green spectrum
+            ])
+        elif scheme == "green_orange":
+            # Green-Orange bivariate scheme
+            return np.array([
+                ['#f7f7f7', '#fdd49e', '#fc8d59'],  # Low var1
+                ['#d9f0a3', '#addd8e', '#78c679'],  # Med var1
+                ['#41b6c4', '#225ea8', '#253494']   # High var1  
+            ])
+        else:  # default
+            # Default purple-blue bivariate scheme (Teuling et al.)
+            return np.array([
+                ['#e8e8e8', '#c1a5cc', '#9972af'],  # Low var1: gray to purple
+                ['#b8d6be', '#909eb1', '#6771a5'],  # Med var1: light blue-gray
+                ['#7fc97f', '#5db08a', '#3a9c95']   # High var1: green to teal
+            ])
+    
+    def _apply_bivariate_colors(self, gdf, var1_col: str, var2_col: str, color_matrix: np.ndarray):
+        """
+        Apply bivariate colors to geodataframe based on quantile classification.
+        
+        Args:
+            gdf: GeoDataFrame with data
+            var1_col: First variable column name
+            var2_col: Second variable column name  
+            color_matrix: 3x3 color matrix from _create_bivariate_color_matrix
             
-            # Define custom colors for bivariate visualization
-            colors = ['#e8e8e8', '#e4acac', '#c85a5a', '#9c2929', '#67001f',
-                     '#b8d6be', '#90b4a6', '#627f8c', '#3b738a', '#1a4f63',
-                     '#7fc97f', '#5aae61', '#2d8a49', '#0d5a1e', '#00441b',
-                     '#4d9221', '#7fbc41', '#a8dd35', '#c2e699', '#e6f5d0']
-            
-            return LinearSegmentedColormap.from_list('custom_bivariate', colors)
-        else:
-            return "viridis"
+        Returns:
+            GeoDataFrame with bivariate_color column added
+        """
+        gdf = gdf.copy()
+        
+        # Remove NaN values for classification
+        valid_mask = gdf[var1_col].notna() & gdf[var2_col].notna()
+        
+        if not valid_mask.any():
+            gdf['bivariate_color'] = '#cccccc'  # Gray for no data
+            return gdf
+        
+        # Classify variables into 3 quantile-based bins each
+        var1_bins = pd.qcut(gdf.loc[valid_mask, var1_col], 3, labels=[0, 1, 2], duplicates='drop')
+        var2_bins = pd.qcut(gdf.loc[valid_mask, var2_col], 3, labels=[0, 1, 2], duplicates='drop')
+        
+        # Initialize color column
+        gdf['bivariate_color'] = '#cccccc'  # Default gray for NaN/invalid
+        
+        # Assign colors based on bivariate classification
+        for i, (idx, row) in enumerate(gdf[valid_mask].iterrows()):
+            try:
+                bin1 = int(var1_bins.iloc[i]) if pd.notna(var1_bins.iloc[i]) else 1
+                bin2 = int(var2_bins.iloc[i]) if pd.notna(var2_bins.iloc[i]) else 1
+                color = color_matrix[bin2, bin1]  # Note: row=var2, col=var1
+                gdf.loc[idx, 'bivariate_color'] = color
+            except (ValueError, IndexError):
+                gdf.loc[idx, 'bivariate_color'] = '#cccccc'
+        
+        return gdf
 
-    def _add_bivariate_legend(self, ax, var1: str, var2: str, colors):
+    def _add_bivariate_legend(self, ax, var1: str, var2: str, color_matrix: np.ndarray):
         """
-        Add a bivariate legend to the map.
+        Add a proper 3x3 bivariate legend grid to the map.
         
         Args:
             ax: Matplotlib axes
-            var1: First variable name
-            var2: Second variable name
-            colors: Color scheme
+            var1: First variable name (horizontal axis)
+            var2: Second variable name (vertical axis)
+            color_matrix: 3x3 color matrix
         """
         try:
-            # Create a simple bivariate legend
-            legend_elements = [
-                plt.Rectangle((0, 0), 1, 1, facecolor='lightgray', edgecolor='black', label=f'{var1} (Low)'),
-                plt.Rectangle((0, 0), 1, 1, facecolor='darkred', edgecolor='black', label=f'{var1} (High)'),
-                plt.Rectangle((0, 0), 1, 1, facecolor='lightblue', edgecolor='black', label=f'{var2} (Low)'),
-                plt.Rectangle((0, 0), 1, 1, facecolor='darkblue', edgecolor='black', label=f'{var2} (High)')
-            ]
+            # Create inset axes for the bivariate legend
+            from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+            legend_ax = inset_axes(ax, width='20%', height='20%', loc='upper right')
             
-            ax.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(1.15, 1))
+            # Display the 3x3 color matrix as legend
+            legend_ax.imshow(color_matrix, aspect='equal')
+            legend_ax.set_xticks([0, 1, 2])
+            legend_ax.set_yticks([0, 1, 2])
+            legend_ax.set_xticklabels(['Low', 'Med', 'High'], fontsize=8)
+            legend_ax.set_yticklabels(['High', 'Med', 'Low'], fontsize=8)
+            legend_ax.set_xlabel(var1, fontsize=9, fontweight='bold')
+            legend_ax.set_ylabel(var2, fontsize=9, fontweight='bold')
+            legend_ax.tick_params(length=0, labelsize=8)
             
         except Exception as e:
             log.warning(f"Could not add bivariate legend: {e}")
