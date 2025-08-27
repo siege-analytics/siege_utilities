@@ -13,6 +13,19 @@ import inspect
 
 logger = logging.getLogger(__name__)
 
+# Helper function for graceful dependency failures
+def _create_dependency_wrapper(func_name: str, required_deps: list):
+    """Create a wrapper that gives helpful error messages for missing dependencies."""
+    def wrapper(*args, **kwargs):
+        deps_str = ', '.join(required_deps)
+        raise ImportError(
+            f"Function '{func_name}' requires additional dependencies: {deps_str}\n"
+            f"Install with: pip install {' '.join(required_deps)}"
+        )
+    wrapper.__name__ = func_name
+    wrapper.__doc__ = f"Function requires dependencies: {', '.join(required_deps)}"
+    return wrapper
+
 # Import core logging functions for package-level access
 from .core.logging import (
     log_info, log_warning, log_error, log_debug, log_critical,
@@ -90,10 +103,10 @@ try:
     from .geo.geocoding import concatenate_addresses, use_nominatim_geocoder
 except ImportError as e:
     logger.warning(f"Could not import geo utilities: {e}")
-    get_census_intelligence = None
-    quick_census_selection = None
-    concatenate_addresses = None
-    use_nominatim_geocoder = None
+    get_census_intelligence = _create_dependency_wrapper('get_census_intelligence', ['pandas', 'geopandas'])
+    quick_census_selection = _create_dependency_wrapper('quick_census_selection', ['pandas', 'geopandas'])
+    concatenate_addresses = _create_dependency_wrapper('concatenate_addresses', ['geopy'])
+    use_nominatim_geocoder = _create_dependency_wrapper('use_nominatim_geocoder', ['geopy'])
 
 # Spatial utilities are now consolidated in the geo module  
 # All spatial functions are available through the geo module
@@ -136,16 +149,17 @@ try:
     )
 except ImportError as e:
     logger.warning(f"Could not import sample data utilities: {e}")
-    load_sample_data = None
-    list_available_datasets = None
-    get_dataset_info = None
-    get_census_boundaries = None
-    get_census_data = None
-    join_boundaries_and_data = None
-    create_sample_dataset = None
-    generate_synthetic_population = None
-    generate_synthetic_businesses = None
-    generate_synthetic_housing = None
+    # Create helpful wrapper functions instead of None
+    load_sample_data = _create_dependency_wrapper('load_sample_data', ['pandas'])
+    list_available_datasets = _create_dependency_wrapper('list_available_datasets', ['pandas'])
+    get_dataset_info = _create_dependency_wrapper('get_dataset_info', ['pandas'])
+    get_census_boundaries = _create_dependency_wrapper('get_census_boundaries', ['pandas', 'geopandas'])
+    get_census_data = _create_dependency_wrapper('get_census_data', ['pandas'])
+    join_boundaries_and_data = _create_dependency_wrapper('join_boundaries_and_data', ['pandas', 'geopandas'])
+    create_sample_dataset = _create_dependency_wrapper('create_sample_dataset', ['pandas'])
+    generate_synthetic_population = _create_dependency_wrapper('generate_synthetic_population', ['pandas', 'faker'])
+    generate_synthetic_businesses = _create_dependency_wrapper('generate_synthetic_businesses', ['pandas', 'faker'])
+    generate_synthetic_housing = _create_dependency_wrapper('generate_synthetic_housing', ['pandas', 'faker'])
     SAMPLE_DATASETS = {}
     CENSUS_SAMPLES = {}
     SYNTHETIC_SAMPLES = {}
@@ -158,12 +172,46 @@ try:
     )
 except ImportError as e:
     logger.warning(f"Could not import Google Analytics utilities: {e}")
-    GoogleAnalyticsConnector = None
-    create_ga_account_profile = None
-    save_ga_account_profile = None
-    load_ga_account_profile = None
-    list_ga_accounts_for_client = None
-    batch_retrieve_ga_data = None
+    GoogleAnalyticsConnector = _create_dependency_wrapper('GoogleAnalyticsConnector', ['pandas', 'google-analytics-data'])
+    create_ga_account_profile = _create_dependency_wrapper('create_ga_account_profile', ['pandas', 'google-analytics-data'])
+    save_ga_account_profile = _create_dependency_wrapper('save_ga_account_profile', ['pandas', 'google-analytics-data'])
+    load_ga_account_profile = _create_dependency_wrapper('load_ga_account_profile', ['pandas', 'google-analytics-data'])
+    list_ga_accounts_for_client = _create_dependency_wrapper('list_ga_accounts_for_client', ['pandas', 'google-analytics-data'])
+    batch_retrieve_ga_data = _create_dependency_wrapper('batch_retrieve_ga_data', ['pandas', 'google-analytics-data'])
+
+# Import additional analytics utilities
+try:
+    from .analytics.datadotworld_connector import (
+        get_datadotworld_connector, search_datadotworld_datasets, load_datadotworld_dataset,
+        query_datadotworld_dataset, search_datasets, list_datasets, get_dataset_metadata,
+        download_dataset, upload_dataset, create_dataset
+    )
+    from .analytics.snowflake_connector import (
+        get_snowflake_connector, upload_to_snowflake, download_from_snowflake,
+        execute_snowflake_query, connect, disconnect, list_tables, get_table_schema
+    )
+except ImportError as e:
+    logger.warning(f"Could not import additional analytics utilities: {e}")
+    # Data.world functions
+    get_datadotworld_connector = _create_dependency_wrapper('get_datadotworld_connector', ['pandas', 'datadotworld'])
+    search_datadotworld_datasets = _create_dependency_wrapper('search_datadotworld_datasets', ['pandas', 'datadotworld'])
+    load_datadotworld_dataset = _create_dependency_wrapper('load_datadotworld_dataset', ['pandas', 'datadotworld'])
+    query_datadotworld_dataset = _create_dependency_wrapper('query_datadotworld_dataset', ['pandas', 'datadotworld'])
+    search_datasets = _create_dependency_wrapper('search_datasets', ['pandas', 'datadotworld'])
+    list_datasets = _create_dependency_wrapper('list_datasets', ['pandas', 'datadotworld'])
+    get_dataset_metadata = _create_dependency_wrapper('get_dataset_metadata', ['pandas', 'datadotworld'])
+    download_dataset = _create_dependency_wrapper('download_dataset', ['pandas', 'datadotworld'])
+    upload_dataset = _create_dependency_wrapper('upload_dataset', ['pandas', 'datadotworld'])
+    create_dataset = _create_dependency_wrapper('create_dataset', ['pandas', 'datadotworld'])
+    # Snowflake functions
+    get_snowflake_connector = _create_dependency_wrapper('get_snowflake_connector', ['pandas', 'snowflake-connector-python'])
+    upload_to_snowflake = _create_dependency_wrapper('upload_to_snowflake', ['pandas', 'snowflake-connector-python'])
+    download_from_snowflake = _create_dependency_wrapper('download_from_snowflake', ['pandas', 'snowflake-connector-python'])
+    execute_snowflake_query = _create_dependency_wrapper('execute_snowflake_query', ['pandas', 'snowflake-connector-python'])
+    connect = _create_dependency_wrapper('connect', ['snowflake-connector-python'])
+    disconnect = _create_dependency_wrapper('disconnect', ['snowflake-connector-python'])
+    list_tables = _create_dependency_wrapper('list_tables', ['pandas', 'snowflake-connector-python'])
+    get_table_schema = _create_dependency_wrapper('get_table_schema', ['pandas', 'snowflake-connector-python'])
 
 try:
     from .analytics.facebook_business import (
@@ -172,12 +220,12 @@ try:
     )
 except ImportError as e:
     logger.warning(f"Could not import Facebook Business utilities: {e}")
-    FacebookBusinessConnector = None
-    create_facebook_account_profile = None
-    save_facebook_account_profile = None
-    load_facebook_account_profile = None
-    list_facebook_accounts_for_client = None
-    batch_retrieve_facebook_data = None
+    FacebookBusinessConnector = _create_dependency_wrapper('FacebookBusinessConnector', ['pandas', 'facebook-business'])
+    create_facebook_account_profile = _create_dependency_wrapper('create_facebook_account_profile', ['pandas', 'facebook-business'])
+    save_facebook_account_profile = _create_dependency_wrapper('save_facebook_account_profile', ['pandas', 'facebook-business'])
+    load_facebook_account_profile = _create_dependency_wrapper('load_facebook_account_profile', ['pandas', 'facebook-business'])
+    list_facebook_accounts_for_client = _create_dependency_wrapper('list_facebook_accounts_for_client', ['pandas', 'facebook-business'])
+    batch_retrieve_facebook_data = _create_dependency_wrapper('batch_retrieve_facebook_data', ['pandas', 'facebook-business'])
 
 # Import reporting utilities - made optional due to dependencies
 try:
@@ -187,12 +235,35 @@ try:
     )
 except ImportError as e:
     logger.warning(f"Could not import reporting utilities: {e}")
-    BaseReportTemplate = None
-    ReportGenerator = None
-    ChartGenerator = None
-    ClientBrandingManager = None
-    AnalyticsReportGenerator = None
-    PowerPointGenerator = None
+    BaseReportTemplate = _create_dependency_wrapper('BaseReportTemplate', ['requests', 'jinja2'])
+    ReportGenerator = _create_dependency_wrapper('ReportGenerator', ['requests', 'jinja2'])
+    ChartGenerator = _create_dependency_wrapper('ChartGenerator', ['pandas', 'matplotlib', 'seaborn'])
+    ClientBrandingManager = _create_dependency_wrapper('ClientBrandingManager', ['requests', 'pillow'])
+    AnalyticsReportGenerator = _create_dependency_wrapper('AnalyticsReportGenerator', ['pandas', 'matplotlib'])
+    PowerPointGenerator = _create_dependency_wrapper('PowerPointGenerator', ['python-pptx', 'pandas'])
+
+# Import chart generation functions specifically (high value!)
+try:
+    from .reporting.chart_generator import (
+        create_bar_chart, create_line_chart, create_pie_chart, create_scatter_plot,
+        create_heatmap, create_choropleth_map, create_bivariate_choropleth,
+        create_marker_map, create_flow_map, create_dashboard,
+        create_dataframe_summary_charts, generate_chart_from_dataframe
+    )
+except ImportError as e:
+    logger.warning(f"Could not import chart generation functions: {e}")
+    create_bar_chart = _create_dependency_wrapper('create_bar_chart', ['matplotlib', 'seaborn', 'pandas'])
+    create_line_chart = _create_dependency_wrapper('create_line_chart', ['matplotlib', 'seaborn', 'pandas'])
+    create_pie_chart = _create_dependency_wrapper('create_pie_chart', ['matplotlib', 'seaborn', 'pandas'])
+    create_scatter_plot = _create_dependency_wrapper('create_scatter_plot', ['matplotlib', 'seaborn', 'pandas'])
+    create_heatmap = _create_dependency_wrapper('create_heatmap', ['matplotlib', 'seaborn', 'pandas'])
+    create_choropleth_map = _create_dependency_wrapper('create_choropleth_map', ['folium', 'geopandas', 'pandas'])
+    create_bivariate_choropleth = _create_dependency_wrapper('create_bivariate_choropleth', ['matplotlib', 'geopandas', 'pandas'])
+    create_marker_map = _create_dependency_wrapper('create_marker_map', ['folium', 'pandas'])
+    create_flow_map = _create_dependency_wrapper('create_flow_map', ['folium', 'pandas'])
+    create_dashboard = _create_dependency_wrapper('create_dashboard', ['matplotlib', 'seaborn', 'pandas'])
+    create_dataframe_summary_charts = _create_dependency_wrapper('create_dataframe_summary_charts', ['matplotlib', 'seaborn', 'pandas'])
+    generate_chart_from_dataframe = _create_dependency_wrapper('generate_chart_from_dataframe', ['matplotlib', 'seaborn', 'pandas'])
 
 # Import testing utilities
 from .testing.environment import setup_spark_environment, get_system_info
@@ -304,10 +375,24 @@ def get_package_info() -> Dict[str, Any]:
         'load_ga_account_profile': 'analytics', 'list_ga_accounts_for_client': 'analytics', 'batch_retrieve_ga_data': 'analytics',
         'create_facebook_account_profile': 'analytics', 'save_facebook_account_profile': 'analytics',
         'load_facebook_account_profile': 'analytics', 'list_facebook_accounts_for_client': 'analytics', 'batch_retrieve_facebook_data': 'analytics',
+        # Data.world functions
+        'get_datadotworld_connector': 'analytics', 'search_datadotworld_datasets': 'analytics',
+        'load_datadotworld_dataset': 'analytics', 'query_datadotworld_dataset': 'analytics',
+        'search_datasets': 'analytics', 'list_datasets': 'analytics', 'get_dataset_metadata': 'analytics',
+        'download_dataset': 'analytics', 'upload_dataset': 'analytics', 'create_dataset': 'analytics',
+        # Snowflake functions
+        'get_snowflake_connector': 'analytics', 'upload_to_snowflake': 'analytics',
+        'download_from_snowflake': 'analytics', 'execute_snowflake_query': 'analytics',
+        'connect': 'analytics', 'disconnect': 'analytics', 'list_tables': 'analytics', 'get_table_schema': 'analytics',
         
         # Reporting functions  
         'BaseReportTemplate': 'reporting', 'ReportGenerator': 'reporting', 'ChartGenerator': 'reporting',
-        'ClientBrandingManager': 'reporting', 'AnalyticsReportGenerator': 'reporting', 'PowerPointGenerator': 'reporting'
+        'ClientBrandingManager': 'reporting', 'AnalyticsReportGenerator': 'reporting', 'PowerPointGenerator': 'reporting',
+        # Chart generation functions (high value!)
+        'create_bar_chart': 'reporting', 'create_line_chart': 'reporting', 'create_pie_chart': 'reporting',
+        'create_scatter_plot': 'reporting', 'create_heatmap': 'reporting', 'create_choropleth_map': 'reporting',
+        'create_bivariate_choropleth': 'reporting', 'create_marker_map': 'reporting', 'create_flow_map': 'reporting',
+        'create_dashboard': 'reporting', 'create_dataframe_summary_charts': 'reporting', 'generate_chart_from_dataframe': 'reporting'
     }
     
     # Dynamically discover what's actually available
