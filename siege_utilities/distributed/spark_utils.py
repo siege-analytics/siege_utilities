@@ -1,9 +1,13 @@
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Tuple, TYPE_CHECKING
 import os
 import pathlib
 import json
 import time
 import logging
+
+if TYPE_CHECKING:
+    from pyspark.sql import DataFrame, SparkSession
+
 try:
     from pyspark.sql import DataFrame, SparkSession
     from pyspark.sql.types import *
@@ -11,10 +15,12 @@ try:
     PYSPARK_AVAILABLE = True
 except ImportError:
     PYSPARK_AVAILABLE = False
+    DataFrame = None
+    SparkSession = None
 
 logger = logging.getLogger(__name__)
 
-def sanitise_dataframe_column_names(df: DataFrame) ->Optional[DataFrame]:
+def sanitise_dataframe_column_names(df: "DataFrame") ->Optional["DataFrame"]:
     """
     Cleans dataframe column names by converting them to lowercase and replacing
     slashes/spaces with underscores.
@@ -23,7 +29,7 @@ def sanitise_dataframe_column_names(df: DataFrame) ->Optional[DataFrame]:
         df (DataFrame): Input Spark DataFrame.
 
     Returns:
-        Optional[DataFrame]: Sanitised DataFrame or None if an error occurred.
+        Optional["DataFrame"]: Sanitised DataFrame or None if an error occurred.
     """
     try:
         message = f'Sanitising column names for dataframe {df}'
@@ -43,7 +49,7 @@ def sanitise_dataframe_column_names(df: DataFrame) ->Optional[DataFrame]:
         return None
 
 
-def tabulate_null_vs_not_null(df: DataFrame, column_name: str) ->Optional[
+def tabulate_null_vs_not_null(df: "DataFrame", column_name: str) ->Optional[
     DataFrame]:
     """
     Returns a dataframe showing the count of null and non-null values for a given column.
@@ -53,7 +59,7 @@ def tabulate_null_vs_not_null(df: DataFrame, column_name: str) ->Optional[
         column_name (str): Name of the column to analyze.
 
     Returns:
-        Optional[DataFrame]: Resulting DataFrame with null vs non-null counts.
+        Optional["DataFrame"]: Resulting DataFrame with null vs non-null counts.
     """
     try:
         NULL_COLUMNS_NAME = f'{column_name}_null_count'
@@ -71,7 +77,7 @@ def tabulate_null_vs_not_null(df: DataFrame, column_name: str) ->Optional[
         return None
 
 
-def get_row_count(df: DataFrame) ->Optional[int]:
+def get_row_count(df: "DataFrame") ->Optional[int]:
     """
     Returns the count of rows in the dataframe.
 
@@ -90,7 +96,7 @@ def get_row_count(df: DataFrame) ->Optional[int]:
         return None
 
 
-def repartition_and_cache(df: DataFrame, partitions: int=100) ->Optional[
+def repartition_and_cache(df: "DataFrame", partitions: int=100) ->Optional[
     DataFrame]:
     """
     Repartitions and caches a dataframe.
@@ -100,7 +106,7 @@ def repartition_and_cache(df: DataFrame, partitions: int=100) ->Optional[
         partitions (int, optional): Number of partitions. Default is 100.
 
     Returns:
-        Optional[DataFrame]: Repartitioned and cached DataFrame or None if an error occurred.
+        Optional["DataFrame"]: Repartitioned and cached DataFrame or None if an error occurred.
     """
     try:
         df = df.repartition(partitions).cache()
@@ -112,7 +118,7 @@ def repartition_and_cache(df: DataFrame, partitions: int=100) ->Optional[
         return None
 
 
-def register_temp_table(df: DataFrame, table_name: str) ->bool:
+def register_temp_table(df: "DataFrame", table_name: str) ->bool:
     """
     Registers a temporary view from a dataframe.
 
@@ -132,8 +138,8 @@ def register_temp_table(df: DataFrame, table_name: str) ->bool:
         return False
 
 
-def move_column_to_front_of_dataframe(df: DataFrame, column_name: str
-    ) ->Optional[DataFrame]:
+def move_column_to_front_of_dataframe(df: "DataFrame", column_name: str
+    ) ->Optional["DataFrame"]:
     """""\"
 Utility function: move column to front of dataframe.
 
@@ -165,7 +171,7 @@ Note:
         return None
 
 
-def write_df_to_parquet(df: DataFrame, path: str, mode: str='overwrite'
+def write_df_to_parquet(df: "DataFrame", path: str, mode: str='overwrite'
     ) ->bool:
     """
     Writes a DataFrame to a Parquet file.
@@ -187,7 +193,7 @@ def write_df_to_parquet(df: DataFrame, path: str, mode: str='overwrite'
         return False
 
 
-def read_parquet_to_df(spark: SparkSession, path: str) ->Optional[DataFrame]:
+def read_parquet_to_df(spark: "SparkSession", path: str) ->Optional["DataFrame"]:
     """
     Reads a Parquet file into a Spark DataFrame.
 
@@ -196,7 +202,7 @@ def read_parquet_to_df(spark: SparkSession, path: str) ->Optional[DataFrame]:
         path (str): Path to the Parquet file.
 
     Returns:
-        Optional[DataFrame]: Loaded DataFrame or None if an error occurred.
+        Optional["DataFrame"]: Loaded DataFrame or None if an error occurred.
     """
     try:
         df = spark.read.parquet(path)
@@ -207,7 +213,7 @@ def read_parquet_to_df(spark: SparkSession, path: str) ->Optional[DataFrame]:
         return None
 
 
-def flatten_json_column_and_join_back_to_df(df: DataFrame, json_column: str,
+def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
     prefix: str='json_column_', logger: Optional[any]=None, drop_original:
     bool=True, explode_arrays: bool=False, flatten_level: str='shallow',
     verbose: bool=False, sample_size: int=5, show_samples: bool=True
@@ -414,7 +420,7 @@ Note:
                 f'parsed_json.{field}'))
     else:
 
-        def flatten_struct(df: DataFrame, struct_col: str, prefix: str,
+        def flatten_struct(df: "DataFrame", struct_col: str, prefix: str,
             flatten_level: str) ->DataFrame:
             """Recursively flattens all struct and array fields in a column."""
             try:
@@ -555,10 +561,7 @@ def ensure_literal(value):
     return lit(value)
 
 
-from pyspark.sql.functions import expr, col
-from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
-from pyspark.sql.functions import expr
+
 
 
 def reproject_geom_columns(df, geom_columns, source_srid, target_srid):
@@ -836,7 +839,7 @@ def pivot_summary_with_metrics(df, group_col, pivot_col, spark):
     return final_df.select(*out_cols)
 
 
-def export_prepared_df_as_csv_to_path_using_delimiter(df: DataFrame,
+def export_prepared_df_as_csv_to_path_using_delimiter(df: "DataFrame",
     write_path: pathlib.Path, delimiter: str=',') ->bool:
     """
     Exports DataFrame **with necessary transformations** to ensure Spark compatibility.
@@ -873,8 +876,6 @@ def print_debug_table(spark_df, title):
     print('\n')
 
 
-from pyspark.sql.types import MapType, StringType
-import pyspark.sql.functions as F
 walkability_config = {'Trivial': {'max': 100, 'label': 'Trivial (<100m)'},
     'Tolerable': {'min': 100, 'max': 250, 'label': 'Tolerable (100-250m)'},
     'Moderate': {'min': 250, 'max': 400, 'label': 'Moderate (250-400m)'},
@@ -923,9 +924,8 @@ Note:
             'label']}
 
 
-new_walkability_udf = F.udf(compute_walkability, MapType(StringType(),
-    StringType()))
-from pyspark.sql.functions import expr
+# UDF creation moved to function level to avoid module-level PySpark dependency
+# new_walkability_udf = F.udf(compute_walkability, MapType(StringType(), StringType()))
 
 
 def validate_geometry(df, geom_col, step_name):
@@ -972,7 +972,7 @@ Note:
     log_info(f'{step_name}: Full DataFrame successfully backed up.')
 
 
-def atomic_write_with_staging(df: DataFrame, final_destination: str,
+def atomic_write_with_staging(df: "DataFrame", final_destination: str,
     staging_directory: str, file_format: str='csv', delimiter: str=',',
     header: bool=True, mode: str='overwrite') ->bool:
     """

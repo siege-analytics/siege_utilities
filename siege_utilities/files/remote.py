@@ -4,18 +4,56 @@ Provides clean, type-safe file download utilities.
 """
 
 import pathlib
-import requests
 import logging
 from pathlib import Path
 from typing import Union, Optional
+
+try:
+    import requests
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    REQUESTS_AVAILABLE = False
+    requests = None
 from urllib.parse import urlparse
-import tqdm
+
+try:
+    import tqdm
+    TQDM_AVAILABLE = True
+except ImportError:
+    TQDM_AVAILABLE = False
+    tqdm = None
 
 # Get logger for this module
 log = logging.getLogger(__name__)
 
 # Type aliases
 FilePath = Union[str, Path]
+
+def _check_requests_dependency():
+    """Check if requests is available and raise informative error if not."""
+    if not REQUESTS_AVAILABLE:
+        raise ImportError(
+            "requests library is required for remote file operations. "
+            "Install with: pip install requests"
+        )
+
+class _DummyProgressBar:
+    """Dummy progress bar when tqdm is not available."""
+    def __init__(self, *args, **kwargs):
+        pass
+    def __enter__(self):
+        return self
+    def __exit__(self, *args):
+        pass
+    def update(self, n=1):
+        pass
+
+def _get_progress_bar(*args, **kwargs):
+    """Get progress bar, using tqdm if available, dummy otherwise."""
+    if TQDM_AVAILABLE:
+        return _get_progress_bar(*args, **kwargs)
+    else:
+        return _DummyProgressBar(*args, **kwargs)
 
 def download_file(url: str, local_filename: FilePath, 
                  chunk_size: int = 8192,
@@ -39,6 +77,8 @@ def download_file(url: str, local_filename: FilePath,
         >>> if result:
         ...     print(f"Downloaded to {result}")
     """
+    _check_requests_dependency()
+    
     try:
         log.info(f'Downloading {url} to {local_filename}')
         
@@ -64,7 +104,7 @@ def download_file(url: str, local_filename: FilePath,
             
             # Download with progress bar
             with open(local_path, 'wb') as file:
-                with tqdm.tqdm(
+                with _get_progress_bar(
                     total=total_size,
                     unit='B',
                     unit_scale=True,
@@ -101,7 +141,7 @@ def download_file(url: str, local_filename: FilePath,
                 
                 # Download with progress bar
                 with open(local_path, 'wb') as file:
-                    with tqdm.tqdm(
+                    with _get_progress_bar(
                         total=total_size,
                         unit='B',
                         unit_scale=True,

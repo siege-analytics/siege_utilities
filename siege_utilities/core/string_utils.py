@@ -1,7 +1,5 @@
 import logging
 
-from django.db.models.fields import return_None
-
 logger = logging.getLogger(__name__)
 
 

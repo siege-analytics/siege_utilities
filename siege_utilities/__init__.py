@@ -79,11 +79,18 @@ from .files.shell import (
     run_subprocess
 )
 
-# Import geo utilities
-from .geo.geocoding import concatenate_addresses, use_nominatim_geocoder
 
-# Spatial utilities are now consolidated in the geo module
+
+# Spatial utilities are now consolidated in the geo module  
 # All spatial functions are available through the geo module
+
+# Import geo utilities - made optional due to pandas dependency
+try:
+    from .geo.geocoding import concatenate_addresses, use_nominatim_geocoder
+except ImportError as e:
+    logger.warning(f"Could not import geo utilities: {e}")
+    concatenate_addresses = None
+    use_nominatim_geocoder = None
 
 # Import user configuration
 from .config.user_config import (
@@ -103,29 +110,73 @@ from .git.git_operations import create_feature_branch, switch_branch, merge_bran
 from .git.git_status import get_repository_status, get_branch_info
 from .git.git_workflow import start_feature_workflow, validate_branch_naming
 
-# Import sample data utilities
-from .data.sample_data import (
-    load_sample_data, list_available_datasets, get_dataset_info,
-    get_census_boundaries, get_census_data, join_boundaries_and_data, create_sample_dataset,
-    generate_synthetic_population, generate_synthetic_businesses, generate_synthetic_housing,
-    SAMPLE_DATASETS, CENSUS_SAMPLES, SYNTHETIC_SAMPLES
-)
+# Import sample data utilities - made optional due to pandas dependency
+try:
+    from .data.sample_data import (
+        load_sample_data, list_available_datasets, get_dataset_info,
+        get_census_boundaries, get_census_data, join_boundaries_and_data, create_sample_dataset,
+        generate_synthetic_population, generate_synthetic_businesses, generate_synthetic_housing,
+        SAMPLE_DATASETS, CENSUS_SAMPLES, SYNTHETIC_SAMPLES
+    )
+except ImportError as e:
+    logger.warning(f"Could not import sample data utilities: {e}")
+    load_sample_data = None
+    list_available_datasets = None
+    get_dataset_info = None
+    get_census_boundaries = None
+    get_census_data = None
+    join_boundaries_and_data = None
+    create_sample_dataset = None
+    generate_synthetic_population = None
+    generate_synthetic_businesses = None
+    generate_synthetic_housing = None
+    SAMPLE_DATASETS = {}
+    CENSUS_SAMPLES = {}
+    SYNTHETIC_SAMPLES = {}
 
-# Import analytics utilities
-from .analytics.google_analytics import (
-    GoogleAnalyticsConnector, create_ga_account_profile, save_ga_account_profile,
-    load_ga_account_profile, list_ga_accounts_for_client, batch_retrieve_ga_data
-)
-from .analytics.facebook_business import (
-    FacebookBusinessConnector, create_facebook_account_profile, save_facebook_account_profile,
-    load_facebook_account_profile, list_facebook_accounts_for_client, batch_retrieve_facebook_data
-)
+# Import analytics utilities - made optional due to pandas dependency
+try:
+    from .analytics.google_analytics import (
+        GoogleAnalyticsConnector, create_ga_account_profile, save_ga_account_profile,
+        load_ga_account_profile, list_ga_accounts_for_client, batch_retrieve_ga_data
+    )
+except ImportError as e:
+    logger.warning(f"Could not import Google Analytics utilities: {e}")
+    GoogleAnalyticsConnector = None
+    create_ga_account_profile = None
+    save_ga_account_profile = None
+    load_ga_account_profile = None
+    list_ga_accounts_for_client = None
+    batch_retrieve_ga_data = None
 
-# Import reporting utilities
-from .reporting import (
-    BaseReportTemplate, ReportGenerator, ChartGenerator, 
-    ClientBrandingManager, AnalyticsReportGenerator, PowerPointGenerator
-)
+try:
+    from .analytics.facebook_business import (
+        FacebookBusinessConnector, create_facebook_account_profile, save_facebook_account_profile,
+        load_facebook_account_profile, list_facebook_accounts_for_client, batch_retrieve_facebook_data
+    )
+except ImportError as e:
+    logger.warning(f"Could not import Facebook Business utilities: {e}")
+    FacebookBusinessConnector = None
+    create_facebook_account_profile = None
+    save_facebook_account_profile = None
+    load_facebook_account_profile = None
+    list_facebook_accounts_for_client = None
+    batch_retrieve_facebook_data = None
+
+# Import reporting utilities - made optional due to dependencies
+try:
+    from .reporting import (
+        BaseReportTemplate, ReportGenerator, ChartGenerator, 
+        ClientBrandingManager, AnalyticsReportGenerator, PowerPointGenerator
+    )
+except ImportError as e:
+    logger.warning(f"Could not import reporting utilities: {e}")
+    BaseReportTemplate = None
+    ReportGenerator = None
+    ChartGenerator = None
+    ClientBrandingManager = None
+    AnalyticsReportGenerator = None
+    PowerPointGenerator = None
 
 # Import testing utilities
 from .testing.environment import setup_spark_environment, get_system_info
