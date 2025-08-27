@@ -9,6 +9,7 @@ import logging
 from typing import Dict, Any, Optional
 import importlib
 import sys
+import inspect
 
 logger = logging.getLogger(__name__)
 
@@ -63,11 +64,15 @@ from .files.hashing import (
     calculate_file_hash, generate_sha256_hash_for_file, 
     get_file_hash, get_quick_file_signature, verify_file_integrity
 )
-from .files.paths import ensure_path_exists, unzip_file_to_directory
+from .files.paths import (
+    ensure_path_exists, unzip_file_to_directory, get_file_extension,
+    get_file_name_without_extension, is_hidden_file, normalize_path,
+    get_relative_path, create_backup_path, find_files_by_pattern
+)
 from .files.operations import (
-    file_exists, touch_file, count_lines,
-    copy_file, move_file, get_file_size, list_directory,
-    run_command, remove_tree
+    file_exists, touch_file, count_lines, copy_file, move_file, 
+    get_file_size, list_directory, run_command, remove_tree,
+    delete_existing_file_and_replace_it_with_an_empty_file
 )
 
 # Import remote and shell utilities
@@ -79,18 +84,19 @@ from .files.shell import (
     run_subprocess
 )
 
-
-
-# Spatial utilities are now consolidated in the geo module  
-# All spatial functions are available through the geo module
-
-# Import geo utilities - made optional due to pandas dependency
+# Import geo utilities - all made optional due to pandas dependency chain
 try:
+    from .geo import get_census_intelligence, quick_census_selection
     from .geo.geocoding import concatenate_addresses, use_nominatim_geocoder
 except ImportError as e:
     logger.warning(f"Could not import geo utilities: {e}")
+    get_census_intelligence = None
+    quick_census_selection = None
     concatenate_addresses = None
     use_nominatim_geocoder = None
+
+# Spatial utilities are now consolidated in the geo module  
+# All spatial functions are available through the geo module
 
 # Import user configuration
 from .config.user_config import (
@@ -98,15 +104,25 @@ from .config.user_config import (
     get_user_config, get_download_directory
 )
 
-# Import hygiene utilities
-from .hygiene.generate_docstrings import generate_docstring_template, analyze_function_signature
+# Import hygiene utilities (expanded)
+from .hygiene.generate_docstrings import (
+    generate_docstring_template, analyze_function_signature, categorize_function,
+    process_python_file, find_python_files
+)
 
-# Import development utilities
-from .development.architecture import generate_architecture_diagram, analyze_package_structure
+# Import development utilities (actual functions only)
+from .development.architecture import (
+    generate_architecture_diagram, analyze_package_structure, analyze_module,
+    analyze_function, analyze_class
+)
 
-# Import git utilities
+# Import git utilities (actual functions only)
 from .git.branch_analyzer import analyze_branch_status, generate_branch_report
-from .git.git_operations import create_feature_branch, switch_branch, merge_branch
+from .git.git_operations import (
+    create_feature_branch, switch_branch, merge_branch, rebase_branch,
+    stash_changes, apply_stash, clean_working_directory, reset_to_commit,
+    cherry_pick_commit, create_tag, push_branch, pull_branch
+)
 from .git.git_status import get_repository_status, get_branch_info
 from .git.git_workflow import start_feature_workflow, validate_branch_naming
 
@@ -186,24 +202,24 @@ __version__ = "1.0.0"
 __author__ = "Siege Analytics"
 __description__ = "Comprehensive utilities for data engineering, analytics, and distributed computing"
 
-# Package discovery and dependency checking
+# Package discovery and dependency checking - NOW WITH DYNAMIC DISCOVERY!
 def get_package_info() -> Dict[str, Any]:
     """
     Get comprehensive information about the siege_utilities package.
+    Uses DYNAMIC discovery to report only actually available functions (no more lies!).
     
     Returns:
         Dictionary containing package information, available functions, and module status
     """
+    current_module = sys.modules[__name__]
+    
     package_info = {
         'package_name': 'siege_utilities',
         'version': '1.0.0',
         'description': 'Comprehensive utilities for data engineering, analytics, and distributed computing',
         'total_functions': 0,
-        'total_modules': 0,
         'available_functions': [],
-        'available_modules': [],
-        'failed_imports': {},
-        'subpackages': ['core', 'files', 'distributed', 'geo', 'config', 'hygiene', 'testing', 'data'],
+        'unavailable_functions': [],
         'categories': {
             'core': [],
             'files': [],
@@ -212,118 +228,114 @@ def get_package_info() -> Dict[str, Any]:
             'config': [],
             'hygiene': [],
             'testing': [],
-            'data': []
+            'data': [],
+            'analytics': [],
+            'reporting': [],
+            'git': [],
+            'development': []
         }
     }
     
-    # Core functions
-    core_functions = [
-        'log_info', 'log_warning', 'log_error', 'log_debug', 'log_critical',
-        'init_logger', 'get_logger', 'configure_shared_logging',
-        'remove_wrapping_quotes_and_trim'
-    ]
-    
-    # File functions
-    file_functions = [
-        'check_if_file_exists_at_path', 'calculate_file_hash',
-        'ensure_path_exists', 'unzip_file_to_its_own_directory',
-        'generate_sha256_hash_for_file', 'get_file_hash', 'get_quick_file_signature',
-        'verify_file_integrity', 'delete_existing_file_and_replace_it_with_an_empty_file',
-        'count_total_rows_in_file_pythonically', 'count_empty_rows_in_file_pythonically',
-        'count_duplicate_rows_in_file_using_awk', 'count_total_rows_in_file_using_sed',
-        'count_empty_rows_in_file_using_awk', 'remove_empty_rows_in_file_using_sed',
-        'write_data_to_a_new_empty_file', 'write_data_to_an_existing_file',
-        'check_for_file_type_in_directory', 'generate_local_path_from_url',
-        'download_file', 'run_subprocess'
-    ]
-    
-    # Distributed functions
-    distributed_functions = [
-        'get_row_count', 'repartition_and_cache',
-        'register_temp_table', 'move_column_to_front_of_dataframe',
-        'write_df_to_parquet', 'read_parquet_to_df',
-        'flatten_json_column_and_join_back_to_df', 'validate_geocode_data',
-        'backup_full_dataframe', 'atomic_write_with_staging'
-    ]
-    
-    # Config functions
-    config_functions = [
-        'create_database_config', 'save_database_config', 'load_database_config',
-        'get_spark_database_options', 'test_database_connection', 'list_database_configs',
-        'create_spark_session_with_databases',
-        'create_project_config', 'save_project_config', 'load_project_config',
-        'setup_project_directories', 'get_project_path', 'list_projects', 'update_project_config',
-        'create_directory_structure', 'create_standard_project_structure',
-        'save_directory_config', 'load_directory_config', 'ensure_directories_exist',
-        'get_directory_info', 'clean_empty_directories', 'list_directory_configs',
-        'create_client_profile', 'save_client_profile', 'load_client_profile',
-        'update_client_profile', 'list_client_profiles', 'search_client_profiles',
-        'associate_client_with_project', 'get_client_project_associations', 'validate_client_profile',
-        'create_connection_profile', 'save_connection_profile', 'load_connection_profile',
-        'find_connection_by_name', 'list_connection_profiles', 'update_connection_profile',
-        'verify_connection_profile', 'get_connection_status', 'cleanup_old_connections'
-    ]
-    
-    # Geo functions
-    geo_functions = [
-        'concatenate_addresses', 'use_nominatim_geocoder'
-    ]
-    
-    # Spatial functions (now part of geo module)
-    spatial_functions = [
-        'get_census_data', 'get_census_boundaries', 'download_osm_data',
-        'convert_spatial_format', 'transform_spatial_crs',
-        'simplify_spatial_geometries', 'buffer_spatial_geometries'
-    ]
-    
-    # Hygiene functions
-    hygiene_functions = [
-        'generate_docstring_template', 'analyze_function_signature'
-    ]
-    
-    # Testing functions
-    testing_functions = [
-        'setup_spark_environment', 'get_system_info'
-    ]
-    
-    # Data functions
-    data_functions = [
-        'load_sample_data', 'list_available_datasets', 'get_dataset_info',
-        'get_census_boundaries', 'get_census_data', 'join_boundaries_and_data', 'create_sample_dataset',
-        'generate_synthetic_population', 'generate_synthetic_businesses', 'generate_synthetic_housing'
-    ]
-    
-    # Check availability of all functions
-    all_functions = {
-        'core': core_functions,
-        'files': file_functions,
-        'distributed': distributed_functions,
-        'config': config_functions,
-        'geo': geo_functions + spatial_functions,  # Include spatial functions in geo category
-        'hygiene': hygiene_functions,
-        'testing': testing_functions,
-        'data': data_functions
+    # Function name to category mapping (for organization)
+    function_categories = {
+        # Core functions
+        'log_info': 'core', 'log_warning': 'core', 'log_error': 'core', 'log_debug': 'core', 'log_critical': 'core',
+        'init_logger': 'core', 'get_logger': 'core', 'configure_shared_logging': 'core',
+        'remove_wrapping_quotes_and_trim': 'core',
+        
+        # File functions
+        'check_if_file_exists_at_path': 'files', 'calculate_file_hash': 'files', 'ensure_path_exists': 'files',
+        'generate_sha256_hash_for_file': 'files', 'get_file_hash': 'files', 'get_quick_file_signature': 'files',
+        'verify_file_integrity': 'files', 'unzip_file_to_directory': 'files',
+        'file_exists': 'files', 'touch_file': 'files', 'count_lines': 'files',
+        'copy_file': 'files', 'move_file': 'files', 'get_file_size': 'files', 'list_directory': 'files',
+        'run_command': 'files', 'remove_tree': 'files',
+        'generate_local_path_from_url': 'files', 'download_file': 'files', 'download_file_with_retry': 'files',
+        'get_file_info': 'files', 'is_downloadable': 'files', 'run_subprocess': 'files',
+        
+        # Distributed functions  
+        'get_row_count': 'distributed', 'repartition_and_cache': 'distributed',
+        'register_temp_table': 'distributed', 'move_column_to_front_of_dataframe': 'distributed',
+        'write_df_to_parquet': 'distributed', 'read_parquet_to_df': 'distributed',
+        
+        # Config functions
+        'create_database_config': 'config', 'save_database_config': 'config', 'load_database_config': 'config',
+        'get_spark_database_options': 'config', 'test_database_connection': 'config', 'list_database_configs': 'config',
+        'create_spark_session_with_databases': 'config',
+        'create_project_config': 'config', 'save_project_config': 'config', 'load_project_config': 'config',
+        'setup_project_directories': 'config', 'get_project_path': 'config', 'list_projects': 'config', 'update_project_config': 'config',
+        'create_directory_structure': 'config', 'create_standard_project_structure': 'config',
+        'save_directory_config': 'config', 'load_directory_config': 'config', 'ensure_directories_exist': 'config',
+        'get_directory_info': 'config', 'clean_empty_directories': 'config', 'list_directory_configs': 'config',
+        'create_client_profile': 'config', 'save_client_profile': 'config', 'load_client_profile': 'config',
+        'update_client_profile': 'config', 'list_client_profiles': 'config', 'search_client_profiles': 'config',
+        'associate_client_with_project': 'config', 'get_client_project_associations': 'config', 'validate_client_profile': 'config',
+        'create_connection_profile': 'config', 'save_connection_profile': 'config', 'load_connection_profile': 'config',
+        'find_connection_by_name': 'config', 'list_connection_profiles': 'config', 'update_connection_profile': 'config',
+        'verify_connection_profile': 'config', 'get_connection_status': 'config', 'cleanup_old_connections': 'config',
+        'get_user_config': 'config', 'get_download_directory': 'config',
+        
+        # Geo functions
+        'concatenate_addresses': 'geo', 'use_nominatim_geocoder': 'geo',
+        'get_census_boundaries': 'geo', 'get_census_data': 'geo',
+        
+        # Hygiene functions
+        'generate_docstring_template': 'hygiene', 'analyze_function_signature': 'hygiene',
+        
+        # Development functions
+        'generate_architecture_diagram': 'development', 'analyze_package_structure': 'development',
+        
+        # Git functions
+        'analyze_branch_status': 'git', 'generate_branch_report': 'git',
+        'create_feature_branch': 'git', 'switch_branch': 'git', 'merge_branch': 'git',
+        'get_repository_status': 'git', 'get_branch_info': 'git',
+        'start_feature_workflow': 'git', 'validate_branch_naming': 'git',
+        
+        # Testing functions
+        'setup_spark_environment': 'testing', 'get_system_info': 'testing',
+        
+        # Data functions
+        'load_sample_data': 'data', 'list_available_datasets': 'data', 'get_dataset_info': 'data',
+        'join_boundaries_and_data': 'data', 'create_sample_dataset': 'data',
+        'generate_synthetic_population': 'data', 'generate_synthetic_businesses': 'data', 'generate_synthetic_housing': 'data',
+        
+        # Analytics functions
+        'create_ga_account_profile': 'analytics', 'save_ga_account_profile': 'analytics',
+        'load_ga_account_profile': 'analytics', 'list_ga_accounts_for_client': 'analytics', 'batch_retrieve_ga_data': 'analytics',
+        'create_facebook_account_profile': 'analytics', 'save_facebook_account_profile': 'analytics',
+        'load_facebook_account_profile': 'analytics', 'list_facebook_accounts_for_client': 'analytics', 'batch_retrieve_facebook_data': 'analytics',
+        
+        # Reporting functions  
+        'BaseReportTemplate': 'reporting', 'ReportGenerator': 'reporting', 'ChartGenerator': 'reporting',
+        'ClientBrandingManager': 'reporting', 'AnalyticsReportGenerator': 'reporting', 'PowerPointGenerator': 'reporting'
     }
     
-    for category, functions in all_functions.items():
-        for func_name in functions:
-            if hasattr(sys.modules[__name__], func_name):
-                package_info['categories'][category].append(func_name)
-                package_info['available_functions'].append(func_name)
+    # Dynamically discover what's actually available
+    for name in dir(current_module):
+        if not name.startswith('_') and name not in ['sys', 'json', 'pathlib', 'logging', 'importlib', 'inspect']:
+            obj = getattr(current_module, name)
+            
+            # Check if this is a known function (in our category mapping)
+            if name in function_categories:
+                if obj is None:
+                    package_info['unavailable_functions'].append(name)
+                elif callable(obj) or inspect.isclass(obj):
+                    package_info['available_functions'].append(name)
+                    category = function_categories[name]
+                    package_info['categories'][category].append(name)
+                    package_info['total_functions'] += 1
+            # Also include other callable objects not in our mapping
+            elif callable(obj) or inspect.isclass(obj):
+                package_info['available_functions'].append(name)
                 package_info['total_functions'] += 1
     
-    # Count modules
-    package_info['available_modules'] = [
-        'core.logging', 'core.string_utils',
-        'files.operations', 'files.hashing', 'files.paths', 'files.remote', 'files.shell',
-        'distributed.spark_utils', 'distributed.hdfs_config', 'distributed.hdfs_operations',
-        'geo.geocoding', 'geo.spatial_data', 'geo.spatial_transformations',
-        'config.databases', 'config.projects', 'config.directories', 'config.user_config',
-        'hygiene.generate_docstrings', 'data.sample_data'
-    ]
-    package_info['total_modules'] = len(package_info['available_modules'])
+    # Sort for consistent output
+    package_info['available_functions'].sort()
+    package_info['unavailable_functions'].sort()
+    for category in package_info['categories']:
+        package_info['categories'][category].sort()
     
-    log_info(f"Package info generated: {package_info['total_functions']} functions, {package_info['total_modules']} modules")
+    log_info(f"Package info generated: {package_info['total_functions']} available functions, {len(package_info['unavailable_functions'])} unavailable")
     return package_info
 
 
@@ -351,111 +363,16 @@ def check_dependencies() -> Dict[str, bool]:
         'duckdb': False,
         'fiona': False,
         'pyproj': False,
-        'faker': False
+        'faker': False,
+        'tqdm': False
     }
     
-    # Check each dependency
-    try:
-        import pandas
-        dependencies['pandas'] = True
-    except ImportError:
-        pass
-    
-    try:
-        import numpy
-        dependencies['numpy'] = True
-    except ImportError:
-        pass
-    
-    try:
-        import pyspark
-        dependencies['pyspark'] = True
-    except ImportError:
-        pass
-    
-    try:
-        import sqlalchemy
-        dependencies['sqlalchemy'] = True
-    except ImportError:
-        pass
-    
-    try:
-        import psycopg2
-        dependencies['psycopg2'] = True
-    except ImportError:
-        pass
-    
-    try:
-        import pymysql
-        dependencies['pymysql'] = True
-    except ImportError:
-        pass
-    
-    try:
-        import cx_oracle
-        dependencies['cx_oracle'] = True
-    except ImportError:
-        pass
-    
-    try:
-        import pyodbc
-        dependencies['pyodbc'] = True
-    except ImportError:
-        pass
-    
-    try:
-        import requests
-        dependencies['requests'] = True
-    except ImportError:
-        pass
-    
-    try:
-        import geopy
-        dependencies['geopy'] = True
-    except ImportError:
-        pass
-    
-    try:
-        import shapely
-        dependencies['shapely'] = True
-    except ImportError:
-        pass
-    
-    try:
-        import folium
-        dependencies['folium'] = True
-    except ImportError:
-        pass
-    
-    try:
-        import geopandas
-        dependencies['geopandas'] = True
-    except ImportError:
-        pass
-    
-    try:
-        import duckdb
-        dependencies['duckdb'] = True
-    except ImportError:
-        pass
-    
-    try:
-        import fiona
-        dependencies['fiona'] = True
-    except ImportError:
-        pass
-    
-    try:
-        import pyproj
-        dependencies['pyproj'] = True
-    except ImportError:
-        pass
-    
-    try:
-        import faker
-        dependencies['faker'] = True
-    except ImportError:
-        pass
+    for dep_name in dependencies.keys():
+        try:
+            importlib.import_module(dep_name)
+            dependencies[dep_name] = True
+        except ImportError:
+            pass
     
     # Use builtins.sum to avoid conflict with PySpark's sum function
     import builtins
