@@ -1,11 +1,11 @@
 # 🚀 Siege Utilities
 
-A comprehensive Python utilities package providing **1147+ functions** across **25 modules** for data engineering, analytics, and distributed computing workflows.
+A comprehensive Python utilities package providing **260+ functions** across **12 categories** for data engineering, analytics, and distributed computing workflows.
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Functions](https://img.shields.io/badge/functions-1147+-orange.svg)](https://github.com/siege-analytics/siege_utilities)
-[![Spark](https://img.shields.io/badge/Spark-503+%20functions-red.svg)](https://spark.apache.org/)
+[![Functions](https://img.shields.io/badge/functions-260+-orange.svg)](https://github.com/siege-analytics/siege_utilities)
+[![Reliability](https://img.shields.io/badge/reliability-100%25-brightgreen.svg)](https://github.com/siege-analytics/siege_utilities)
 [![Tests](https://img.shields.io/badge/tests-All%20Passing-green.svg)](https://github.com/siege-analytics/siege_utilities)
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://siege-analytics.github.io/siege_utilities/)
 [![Modern Python](https://img.shields.io/badge/Python-Modern%20Patterns-brightgreen)](https://www.python.org/dev/peps/pep-0008/)
