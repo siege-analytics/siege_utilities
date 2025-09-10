@@ -1,8 +1,0 @@
-archive
-docs
-examples
-projects
-scripts
-siege_utilities
-tests
-wiki
