@@ -34,6 +34,9 @@ try:
     SPARK_AVAILABLE = True
 except ImportError:
     SPARK_AVAILABLE = False
+    # Create dummy types for type hints when Spark is not available
+    SparkDataFrame = Any
+    SparkSession = Any
 
 # Import logging functions from main package
 try:

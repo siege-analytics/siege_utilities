@@ -257,6 +257,68 @@ cd siege_utilities
 pip install -e ".[distributed,geo,dev]"
 ```
 
+## 🚀 **Modern Package Management with UV**
+
+Siege Utilities now supports modern Python package management with **UV** for faster, more reliable dependency management:
+
+### **UV Installation (Recommended)**
+
+```bash
+# Install UV (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create a new UV project
+uv init my-siege-project
+cd my-siege-project
+
+# Add siege_utilities with all dependencies
+uv add --editable ../siege_utilities
+
+# Or install with specific extras
+uv add --extra geo ../siege_utilities
+uv add --extra distributed ../siege_utilities
+uv add --extra all ../siege_utilities
+```
+
+### **Package Format Generation**
+
+The library includes powerful functions for generating modern package configuration files:
+
+```python
+from siege_utilities.development.architecture import (
+    generate_requirements_txt,
+    generate_pyproject_toml,
+    generate_poetry_toml,
+    generate_uv_toml
+)
+
+# Generate requirements.txt from setup.py
+generate_requirements_txt("setup.py", "requirements.txt")
+
+# Generate UV/Setuptools compatible pyproject.toml
+generate_pyproject_toml("setup.py", "pyproject.toml")
+
+# Generate Poetry compatible pyproject.toml
+generate_poetry_toml("setup.py", "pyproject_poetry.toml")
+
+# Generate UV compatible pyproject.toml (same as standard)
+generate_uv_toml("setup.py", "pyproject.toml")
+```
+
+### **Comprehensive Dependencies**
+
+The library now includes comprehensive dependency management with organized extras:
+
+- **`[geo]`**: Geospatial libraries (geopandas, shapely, folium, etc.)
+- **`[distributed]`**: Big data processing (pyspark)
+- **`[analytics]`**: Data science (scipy, scikit-learn, sqlalchemy)
+- **`[reporting]`**: Visualization (matplotlib, seaborn, plotly)
+- **`[streamlit]`**: Interactive apps (streamlit, altair, bokeh)
+- **`[export]`**: Data export (openpyxl, xlsxwriter)
+- **`[performance]`**: Performance tools (duckdb, psutil)
+- **`[dev]`**: Development tools (pytest, black, flake8)
+- **`[all]`**: Everything included
+
 ## 🏗️ **Library Architecture**
 
 The library is organized into major functional areas:
@@ -296,6 +358,14 @@ The library is organized into major functional areas:
 - **Google Analytics**: GA4/UA data retrieval and client association
 - **Data Export**: Pandas and Spark DataFrame export capabilities
 - **Batch Processing**: Multi-account data retrieval and processing
+
+### 🛠️ **Development & Package Management**
+- **Package Format Generation**: Convert setup.py to modern package formats
+- **Requirements Management**: Generate requirements.txt from setup.py
+- **UV Integration**: Full support for UV package manager
+- **Poetry Support**: Generate Poetry-compatible pyproject.toml
+- **Architecture Analysis**: Package structure analysis and documentation
+- **Function Discovery**: Dynamic function discovery and reporting
 
 ### 🗺️ **Reporting & Visualization**
 - **Chart Generation**: 7+ map types including choropleth, marker, 3D, heatmap, cluster, and flow maps

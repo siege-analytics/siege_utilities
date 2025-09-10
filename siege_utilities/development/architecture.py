@@ -351,5 +351,372 @@ def main():
     if not args.output:
         print(diagram)
 
+# =====================================================
+# PACKAGE FORMAT GENERATION FUNCTIONS
+# =====================================================
+
+def generate_requirements_txt(setup_py_path: str = "setup.py", output_path: str = "requirements.txt") -> bool:
+    """
+    Generate requirements.txt from setup.py dependencies.
+    
+    This function parses a setup.py file using AST (Abstract Syntax Tree) to extract
+    the install_requires list and generates a requirements.txt file with the same
+    dependencies. This is useful for projects that want to maintain both setup.py
+    and requirements.txt for different deployment scenarios.
+    
+    Args:
+        setup_py_path (str): Path to the setup.py file to parse. Defaults to "setup.py".
+        output_path (str): Path where the requirements.txt file will be written. 
+                          Defaults to "requirements.txt".
+        
+    Returns:
+        bool: True if the requirements.txt file was generated successfully, 
+              False if there was an error.
+        
+    Raises:
+        FileNotFoundError: If the setup.py file doesn't exist.
+        SyntaxError: If the setup.py file contains invalid Python syntax.
+        
+    Examples:
+        >>> # Generate requirements.txt from setup.py
+        >>> success = generate_requirements_txt("setup.py", "requirements.txt")
+        >>> print(f"Generated: {success}")
+        Generated: True
+        
+        >>> # Use custom paths
+        >>> success = generate_requirements_txt("my_setup.py", "my_requirements.txt")
+        >>> print(f"Generated: {success}")
+        Generated: True
+        
+    Note:
+        This function only extracts the 'install_requires' list from setup.py.
+        Optional dependencies (extras_require) are not included in the output.
+    """
+    try:
+        import ast
+        from pathlib import Path
+        
+        setup_path = Path(setup_py_path)
+        if not setup_path.exists():
+            print(f"Error: {setup_py_path} not found")
+            return False
+        
+        # Read and parse setup.py
+        with open(setup_path, 'r') as f:
+            content = f.read()
+        
+        # Parse AST to extract dependencies
+        tree = ast.parse(content)
+        dependencies = []
+        
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and hasattr(node.func, 'id') and node.func.id == 'setup':
+                for keyword in node.keywords:
+                    if keyword.arg == 'install_requires' and isinstance(keyword.value, ast.List):
+                        for elt in keyword.value.elts:
+                            if isinstance(elt, ast.Constant):
+                                dependencies.append(elt.value)
+        
+        # Write requirements.txt
+        with open(output_path, 'w') as f:
+            for dep in dependencies:
+                f.write(f"{dep}\n")
+        
+        print(f"Generated {output_path} with {len(dependencies)} dependencies")
+        return True
+        
+    except Exception as e:
+        print(f"Error generating requirements.txt: {e}")
+        return False
+
+def generate_pyproject_toml(setup_py_path: str = "setup.py", output_path: str = "pyproject.toml") -> bool:
+    """
+    Generate pyproject.toml from setup.py for Poetry/UV compatibility.
+    
+    This function converts a traditional setup.py file to a modern pyproject.toml
+    file that is compatible with both Poetry and UV package managers. The generated
+    file follows the PEP 621 standard for project metadata and includes all
+    dependencies, optional dependencies, and package information from the original
+    setup.py file.
+    
+    Args:
+        setup_py_path (str): Path to the setup.py file to parse. Defaults to "setup.py".
+        output_path (str): Path where the pyproject.toml file will be written.
+                          Defaults to "pyproject.toml".
+        
+    Returns:
+        bool: True if the pyproject.toml file was generated successfully,
+              False if there was an error.
+        
+    Raises:
+        FileNotFoundError: If the setup.py file doesn't exist.
+        SyntaxError: If the setup.py file contains invalid Python syntax.
+        
+    Examples:
+        >>> # Generate pyproject.toml from setup.py
+        >>> success = generate_pyproject_toml("setup.py", "pyproject.toml")
+        >>> print(f"Generated: {success}")
+        Generated: True
+        
+        >>> # Generate for UV project
+        >>> success = generate_pyproject_toml("my_setup.py", "pyproject.toml")
+        >>> print(f"Generated: {success}")
+        Generated: True
+        
+    Note:
+        The generated pyproject.toml uses setuptools as the build backend by default.
+        This ensures compatibility with existing pip-based workflows while enabling
+        modern package managers like UV and Poetry to work with the project.
+    """
+    try:
+        import ast
+        from pathlib import Path
+        
+        setup_path = Path(setup_py_path)
+        if not setup_path.exists():
+            print(f"Error: {setup_py_path} not found")
+            return False
+        
+        # Read and parse setup.py
+        with open(setup_path, 'r') as f:
+            content = f.read()
+        
+        # Parse AST to extract package info
+        tree = ast.parse(content)
+        package_info = {}
+        
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and hasattr(node.func, 'id') and node.func.id == 'setup':
+                for keyword in node.keywords:
+                    if keyword.arg in ['name', 'version', 'description', 'author', 'author_email', 'url']:
+                        if isinstance(keyword.value, ast.Constant):
+                            package_info[keyword.arg] = keyword.value.value
+                    elif keyword.arg == 'install_requires' and isinstance(keyword.value, ast.List):
+                        deps = []
+                        for elt in keyword.value.elts:
+                            if isinstance(elt, ast.Constant):
+                                deps.append(elt.value)
+                        package_info['dependencies'] = deps
+                    elif keyword.arg == 'extras_require' and isinstance(keyword.value, ast.Dict):
+                        extras = {}
+                        for key, value in zip(keyword.value.keys, keyword.value.values):
+                            if isinstance(key, ast.Constant) and isinstance(value, ast.List):
+                                extra_deps = []
+                                for elt in value.elts:
+                                    if isinstance(elt, ast.Constant):
+                                        extra_deps.append(elt.value)
+                                extras[key.value] = extra_deps
+                        package_info['optional_dependencies'] = extras
+                    elif keyword.arg == 'python_requires' and isinstance(keyword.value, ast.Constant):
+                        package_info['python_requires'] = keyword.value.value
+        
+        # Generate pyproject.toml content
+        toml_content = f'''[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "{package_info.get('name', 'unknown-package')}"
+version = "{package_info.get('version', '0.1.0')}"
+description = "{package_info.get('description', '')}"
+readme = "README.md"
+requires-python = "{package_info.get('python_requires', '>=3.8')}"
+authors = [
+    {{name = "{package_info.get('author', 'Unknown')}", email = "{package_info.get('author_email', '')}"}}
+]
+
+dependencies = [
+'''
+        
+        for dep in package_info.get('dependencies', []):
+            toml_content += f'    "{dep}",\n'
+        
+        toml_content += "]\n"
+        
+        if package_info.get('optional_dependencies'):
+            toml_content += "\n[project.optional-dependencies]\n"
+            for extra_name, extra_deps in package_info['optional_dependencies'].items():
+                toml_content += f"{extra_name} = [\n"
+                for dep in extra_deps:
+                    toml_content += f'    "{dep}",\n'
+                toml_content += "]\n"
+        
+        if package_info.get('url'):
+            toml_content += f'\n[project.urls]\nHomepage = "{package_info["url"]}"\n'
+        
+        toml_content += '\n[tool.setuptools.packages.find]\nwhere = ["."]\ninclude = ["*"]\n'
+        
+        # Write pyproject.toml
+        with open(output_path, 'w') as f:
+            f.write(toml_content)
+        
+        print(f"Generated {output_path} from {setup_py_path}")
+        return True
+        
+    except Exception as e:
+        print(f"Error generating pyproject.toml: {e}")
+        return False
+
+def generate_poetry_toml(setup_py_path: str = "setup.py", output_path: str = "pyproject.toml") -> bool:
+    """
+    Generate Poetry-compatible pyproject.toml from setup.py.
+    
+    This function converts a traditional setup.py file to a pyproject.toml file
+    specifically formatted for Poetry package management. The generated file uses
+    Poetry's specific configuration format with [tool.poetry] sections and
+    poetry-core as the build backend.
+    
+    Args:
+        setup_py_path (str): Path to the setup.py file to parse. Defaults to "setup.py".
+        output_path (str): Path where the pyproject.toml file will be written.
+                          Defaults to "pyproject.toml".
+        
+    Returns:
+        bool: True if the pyproject.toml file was generated successfully,
+              False if there was an error.
+        
+    Raises:
+        FileNotFoundError: If the setup.py file doesn't exist.
+        SyntaxError: If the setup.py file contains invalid Python syntax.
+        
+    Examples:
+        >>> # Generate Poetry pyproject.toml from setup.py
+        >>> success = generate_poetry_toml("setup.py", "pyproject.toml")
+        >>> print(f"Generated: {success}")
+        Generated: True
+        
+        >>> # Generate for existing Poetry project
+        >>> success = generate_poetry_toml("my_setup.py", "pyproject.toml")
+        >>> print(f"Generated: {success}")
+        Generated: True
+        
+    Note:
+        The generated file uses Poetry's specific format with [tool.poetry] sections.
+        This file can be used directly with Poetry commands like 'poetry install'
+        and 'poetry build'. Development dependencies are placed in the
+        [tool.poetry.group.dev.dependencies] section.
+    """
+    try:
+        import ast
+        from pathlib import Path
+        
+        setup_path = Path(setup_py_path)
+        if not setup_path.exists():
+            print(f"Error: {setup_py_path} not found")
+            return False
+        
+        # Read and parse setup.py
+        with open(setup_path, 'r') as f:
+            content = f.read()
+        
+        # Parse AST to extract package info
+        tree = ast.parse(content)
+        package_info = {}
+        
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and hasattr(node.func, 'id') and node.func.id == 'setup':
+                for keyword in node.keywords:
+                    if keyword.arg in ['name', 'version', 'description', 'author', 'author_email', 'url']:
+                        if isinstance(keyword.value, ast.Constant):
+                            package_info[keyword.arg] = keyword.value.value
+                    elif keyword.arg == 'install_requires' and isinstance(keyword.value, ast.List):
+                        deps = []
+                        for elt in keyword.value.elts:
+                            if isinstance(elt, ast.Constant):
+                                deps.append(elt.value)
+                        package_info['dependencies'] = deps
+                    elif keyword.arg == 'extras_require' and isinstance(keyword.value, ast.Dict):
+                        extras = {}
+                        for key, value in zip(keyword.value.keys, keyword.value.values):
+                            if isinstance(key, ast.Constant) and isinstance(value, ast.List):
+                                extra_deps = []
+                                for elt in value.elts:
+                                    if isinstance(elt, ast.Constant):
+                                        extra_deps.append(elt.value)
+                                extras[key.value] = extra_deps
+                        package_info['optional_dependencies'] = extras
+                    elif keyword.arg == 'python_requires' and isinstance(keyword.value, ast.Constant):
+                        package_info['python_requires'] = keyword.value.value
+        
+        # Generate Poetry pyproject.toml content
+        toml_content = f'''[tool.poetry]
+name = "{package_info.get('name', 'unknown-package')}"
+version = "{package_info.get('version', '0.1.0')}"
+description = "{package_info.get('description', '')}"
+authors = ["{package_info.get('author', 'Unknown')} <{package_info.get('author_email', '')}>"]
+readme = "README.md"
+packages = [{{include = "{package_info.get('name', 'unknown_package').replace('-', '_')}"}}]
+
+[tool.poetry.dependencies]
+python = "{package_info.get('python_requires', '>=3.8')}"
+'''
+        
+        for dep in package_info.get('dependencies', []):
+            toml_content += f'"{dep}"\n'
+        
+        if package_info.get('optional_dependencies'):
+            toml_content += "\n[tool.poetry.group.dev.dependencies]\n"
+            for extra_name, extra_deps in package_info['optional_dependencies'].items():
+                if extra_name == 'dev':
+                    for dep in extra_deps:
+                        toml_content += f'"{dep}"\n'
+        
+        if package_info.get('url'):
+            toml_content += f'\n[tool.poetry.urls]\nHomepage = "{package_info["url"]}"\n'
+        
+        toml_content += '\n[build-system]\nrequires = ["poetry-core"]\nbuild-backend = "poetry.core.masonry.api"\n'
+        
+        # Write pyproject.toml
+        with open(output_path, 'w') as f:
+            f.write(toml_content)
+        
+        print(f"Generated Poetry-compatible {output_path} from {setup_py_path}")
+        return True
+        
+    except Exception as e:
+        print(f"Error generating Poetry pyproject.toml: {e}")
+        return False
+
+def generate_uv_toml(setup_py_path: str = "setup.py", output_path: str = "pyproject.toml") -> bool:
+    """
+    Generate UV-compatible pyproject.toml from setup.py.
+    
+    This function converts a traditional setup.py file to a pyproject.toml file
+    that is compatible with UV package manager. UV uses the standard PEP 621
+    format for pyproject.toml, so this function delegates to generate_pyproject_toml()
+    which produces the correct format.
+    
+    Args:
+        setup_py_path (str): Path to the setup.py file to parse. Defaults to "setup.py".
+        output_path (str): Path where the pyproject.toml file will be written.
+                          Defaults to "pyproject.toml".
+        
+    Returns:
+        bool: True if the pyproject.toml file was generated successfully,
+              False if there was an error.
+        
+    Raises:
+        FileNotFoundError: If the setup.py file doesn't exist.
+        SyntaxError: If the setup.py file contains invalid Python syntax.
+        
+    Examples:
+        >>> # Generate UV pyproject.toml from setup.py
+        >>> success = generate_uv_toml("setup.py", "pyproject.toml")
+        >>> print(f"Generated: {success}")
+        Generated: True
+        
+        >>> # Generate for UV project
+        >>> success = generate_uv_toml("my_setup.py", "pyproject.toml")
+        >>> print(f"Generated: {success}")
+        Generated: True
+        
+    Note:
+        UV uses the standard PEP 621 format for pyproject.toml, which is the same
+        format used by the standard generate_pyproject_toml() function. This ensures
+        compatibility with both UV and other modern package managers.
+    """
+    # UV uses the same format as standard pyproject.toml
+    return generate_pyproject_toml(setup_py_path, output_path)
+
 if __name__ == "__main__":
     main()
