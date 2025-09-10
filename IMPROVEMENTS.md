@@ -12,19 +12,30 @@ This document tracks planned improvements, feature requests, and enhancement ide
 #### **Description:**
 Add comprehensive NCES (National Center for Education Statistics) urbanicity support similar to existing Census data integration.
 
+**Data Source**: [NCES Education Demographic and Geographic Estimates (EDGE) - Locale Boundaries](https://nces.ed.gov/programs/edge/Geographic/LocaleBoundaries)
+
+The NCES EDGE program provides locale classifications that describe geographic areas as City, Suburban, Town, or Rural, with three subtypes each based on population size and proximity to populated areas. This data complements existing Census capabilities by providing education-focused geographic classifications.
+
 #### **Proposed Features:**
-- **NCES Urbanicity File Downloads**: Functions to download NCES urbanicity classification files
-- **Urbanicity Calculation Functions**: Implement NCES formulae to calculate urbanicity classifications for input geographies
+- **NCES Urbanicity File Downloads**: Functions to download NCES locale boundary files by year and state
+- **Urbanicity Classification Functions**: Implement NCES locale framework for geographic classification
 - **Integration with Existing Geo Module**: Seamless integration with current geospatial capabilities
+- **Multi-Format Support**: Support for the 4 main locale types (City, Suburban, Town, Rural) and 12 subtypes
 
 #### **Suggested Implementation:**
 ```python
 # New functions to add to siege_utilities.geo module
-def download_nces_urbanicity_files(year=None, output_dir=None)
-def calculate_urbanicity_classification(geography, method='nces_standard')
-def get_urbanicity_for_geography(geography_id, geography_type='school_district')
-def map_urbanicity_to_census_geographies(urbanicity_data, target_geography='tract')
+def download_nces_locale_boundaries(year=2024, state=None, output_dir=None)
+def get_nces_locale_classification(geometry, year=2024)
+def classify_geography_by_nces_locale(geography_gdf, year=2024)
+def map_nces_locales_to_census_geographies(locale_data, target_geography='tract')
 ```
+
+#### **NCES Locale Types:**
+- **City**: Large (11), Midsize (12), Small (13)
+- **Suburban**: Large (21), Midsize (22), Small (23) 
+- **Town**: Fringe (31), Distant (32), Remote (33)
+- **Rural**: Fringe (41), Distant (42), Remote (43)
 
 #### **Benefits:**
 - **Education Research**: Support for education policy and research analysis
