@@ -27,6 +27,26 @@ from ..files.remote import download_file, generate_local_path_from_url
 from ..files.paths import unzip_file_to_directory, ensure_path_exists
 from ..config.user_config import get_user_config, get_download_directory
 
+# Import centralized constants
+from ..config import (
+    CENSUS_BASE_URL,
+    CENSUS_TIMEOUT,
+    CENSUS_CACHE_TIMEOUT,
+    CENSUS_RETRY_ATTEMPTS,
+    DEFAULT_CENSUS_YEAR,
+    AVAILABLE_CENSUS_YEARS,
+    STATE_FIPS_CODES,
+    FIPS_TO_STATE,
+    STATE_NAMES,
+    GEOGRAPHIC_LEVELS,
+    TIGER_FILE_PATTERNS,
+    normalize_state_identifier,
+    get_tiger_url,
+    validate_geographic_level,
+    get_fips_info,
+    get_service_timeout
+)
+
 # Get logger for this module
 log = logging.getLogger(__name__)
 
@@ -38,11 +58,11 @@ GeoDataFrame = gpd.GeoDataFrame
 class CensusDirectoryDiscovery:
     """Discovers available Census TIGER/Line data dynamically."""
     
-    def __init__(self, timeout: int = 30):
-        self.base_url = "https://www2.census.gov/geo/tiger"
-        self.timeout = timeout
+    def __init__(self, timeout: Optional[int] = None):
+        self.base_url = CENSUS_BASE_URL
+        self.timeout = timeout or get_service_timeout('census_api')
         self.cache = {}
-        self.cache_timeout = 3600  # 1 hour
+        self.cache_timeout = CENSUS_CACHE_TIMEOUT
         
     def get_available_years(self, force_refresh: bool = False) -> List[int]:
         """Get list of available Census years."""
@@ -54,8 +74,8 @@ class CensusDirectoryDiscovery:
                 return data
         
         try:
-            # Try with SSL verification first (increased timeout)
-            response = requests.get(self.base_url, timeout=30)
+            # Try with SSL verification first
+            response = requests.get(self.base_url, timeout=self.timeout)
             response.raise_for_status()
             
             # Parse HTML to find TIGER and GENZ year directories
@@ -94,8 +114,8 @@ class CensusDirectoryDiscovery:
         except requests.exceptions.SSLError:
             log.warning("SSL verification failed, trying without verification...")
             try:
-                # Fallback: try without SSL verification (increased timeout)
-                response = requests.get(self.base_url, timeout=30, verify=False)
+                # Fallback: try without SSL verification
+                response = requests.get(self.base_url, timeout=self.timeout, verify=False)
                 response.raise_for_status()
                 
                 # Parse HTML to find TIGER and GENZ year directories
@@ -150,7 +170,7 @@ class CensusDirectoryDiscovery:
         
         try:
             year_url = f"{self.base_url}/TIGER{year}/"
-            response = requests.get(year_url, timeout=30)
+            response = requests.get(year_url, timeout=self.timeout)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.content, 'html.parser')
@@ -169,7 +189,7 @@ class CensusDirectoryDiscovery:
             try:
                 # Fallback: try without SSL verification
                 year_url = f"{self.base_url}/TIGER{year}/"
-                response = requests.get(year_url, timeout=30, verify=False)
+                response = requests.get(year_url, timeout=self.timeout, verify=False)
                 response.raise_for_status()
                 
                 soup = BeautifulSoup(response.content, 'html.parser')
@@ -318,14 +338,13 @@ class CensusDirectoryDiscovery:
                               congress_number: Optional[int] = None) -> Optional[str]:
         """Construct download URL using FIPS validation and year-specific patterns."""
         try:
-            # Validate state_fips using our unified FIPS data structure
+            # Validate state_fips using centralized FIPS data
             if state_fips:
-                fips_data = self.get_unified_fips_data()
-                if state_fips not in fips_data:
-                    log.error(f"Invalid state FIPS code: {state_fips}. Valid codes: {list(fips_data.keys())[:10]}...")
+                if state_fips not in FIPS_TO_STATE:
+                    log.error(f"Invalid state FIPS code: {state_fips}. Valid codes: {list(FIPS_TO_STATE.keys())[:10]}...")
                     return None
                 
-                state_info = fips_data[state_fips]
+                state_info = get_fips_info(state_fips)
                 log.info(f"Constructing URL for {state_info['name']} ({state_info['abbreviation']})")
             
             # Get year-specific patterns
@@ -400,10 +419,10 @@ class CensusDirectoryDiscovery:
         # Handle state-required types
         elif boundary_type in state_required_types:
             if not state_fips:
-                fips_data = self.get_unified_fips_data()
                 log.error(f"State FIPS required for {boundary_type}. Available FIPS codes:")
-                for fips, info in list(fips_data.items())[:10]:
-                    log.error(f"  {fips}: {info['name']} ({info['abbreviation']})")
+                for fips, state_abbrev in list(FIPS_TO_STATE.items())[:10]:
+                    state_name = STATE_NAMES[state_abbrev]
+                    log.error(f"  {fips}: {state_name} ({state_abbrev})")
                 return None
             
             return patterns['filename_patterns']['state'].format(
@@ -420,8 +439,7 @@ class CensusDirectoryDiscovery:
         elif boundary_type in flexible_types:
             if state_fips:
                 # User provided state FIPS, use state-specific version
-                fips_data = self.get_unified_fips_data()
-                state_info = fips_data[state_fips]
+                state_info = get_fips_info(state_fips)
                 log.info(f"Using state-specific {boundary_type} for {state_info['name']}")
                 return patterns['filename_patterns']['state'].format(
                     year=year, state_fips=state_fips, boundary_type=boundary_type
@@ -448,12 +466,12 @@ class CensusDirectoryDiscovery:
     def validate_download_url(self, url: str) -> bool:
         """Check if a download URL is actually accessible."""
         try:
-            response = requests.head(url, timeout=30)
+            response = requests.head(url, timeout=self.timeout)
             return response.status_code == 200
         except requests.exceptions.SSLError:
             log.debug(f"SSL verification failed for {url}, trying without verification...")
             try:
-                response = requests.head(url, timeout=30, verify=False)
+                response = requests.head(url, timeout=self.timeout, verify=False)
                 return response.status_code == 200
             except Exception as e:
                 log.debug(f"URL validation failed for {url} (with SSL bypass): {e}")
@@ -510,11 +528,12 @@ class SpatialDataSource:
 class CensusDataSource(SpatialDataSource):
     """Enhanced Census data source with dynamic discovery."""
     
-    def __init__(self, api_key: Optional[str] = None, timeout: int = 30):
-        super().__init__("Census Bureau", "https://www2.census.gov/geo/tiger", api_key)
+    def __init__(self, api_key: Optional[str] = None, timeout: Optional[int] = None):
+        super().__init__("Census Bureau", CENSUS_BASE_URL, api_key)
         
         # Initialize discovery service with configurable timeout
-        self.discovery = CensusDirectoryDiscovery(timeout=timeout)
+        census_timeout = timeout or get_service_timeout('census_api')
+        self.discovery = CensusDirectoryDiscovery(timeout=census_timeout)
         
         # Get available years dynamically
         self.available_years = self.discovery.get_available_years()
@@ -528,7 +547,7 @@ class CensusDataSource(SpatialDataSource):
         log.info(f"Initialized Census data source with {len(self.available_years)} available years")
     
     def get_geographic_boundaries(self, 
-                                year: int = 2020,
+                                year: int = DEFAULT_CENSUS_YEAR,
                                 geographic_level: str = 'county',
                                 state_fips: Optional[str] = None,
                                 county_fips: Optional[str] = None,
@@ -547,19 +566,20 @@ class CensusDataSource(SpatialDataSource):
             GeoDataFrame with boundaries or None if failed
         """
         try:
-            # Normalize state identifier to FIPS code
-            state_fips = None
-            if state:
-                state_fips = self.discovery.normalize_state_identifier(state)
-                if not state_fips:
-                    fips_data = self.discovery.get_unified_fips_data()
-                    log.error(f"Invalid state identifier: '{state}'")
+            # Normalize state identifier to FIPS code using centralized function
+            normalized_fips = None
+            if state_fips:
+                try:
+                    normalized_fips = normalize_state_identifier(state_fips)
+                except ValueError as e:
+                    log.error(f"Invalid state identifier: '{state_fips}' - {e}")
                     log.info("Valid examples: FIPS ('06'), abbreviation ('CA'), or name ('California')")
-                    log.info(f"Available states: {list(fips_data.keys())[:10]}...")
                     return None
                 
-                state_info = fips_data[state_fips]
-                log.info(f"Normalized '{state}' to FIPS {state_fips}: {state_info['name']} ({state_info['abbreviation']})")
+                # Get FIPS info for logging normalized state info using centralized function
+                state_info = get_fips_info(normalized_fips)
+                log.info(f"Normalized '{state_fips}' to FIPS {normalized_fips}: {state_info['name']} ({state_info['abbreviation']})")
+                state_fips = normalized_fips
             
             # Validate parameters
             self._validate_census_parameters(year, geographic_level, state_fips)
@@ -605,101 +625,23 @@ class CensusDataSource(SpatialDataSource):
     
     def get_available_state_fips(self) -> Dict[str, str]:
         """Get mapping of state FIPS codes to state names."""
-        # Extract from unified FIPS data structure
-        return {fips: info['name'] for fips, info in self.get_unified_fips_data().items()}
+        # Use centralized FIPS data
+        return {fips: STATE_NAMES[abbrev] for fips, abbrev in FIPS_TO_STATE.items()}
     
-    def get_unified_fips_data(self) -> Dict[str, Dict[str, str]]:
-        """Get unified FIPS data structure with FIPS, full name, and 2-letter abbreviation."""
-        return {
-            '01': {'fips': '01', 'name': 'Alabama', 'abbreviation': 'AL'},
-            '02': {'fips': '02', 'name': 'Alaska', 'abbreviation': 'AK'},
-            '04': {'fips': '04', 'name': 'Arizona', 'abbreviation': 'AZ'},
-            '05': {'fips': '05', 'name': 'Arkansas', 'abbreviation': 'AR'},
-            '06': {'fips': '06', 'name': 'California', 'abbreviation': 'CA'},
-            '08': {'fips': '08', 'name': 'Colorado', 'abbreviation': 'CO'},
-            '09': {'fips': '09', 'name': 'Connecticut', 'abbreviation': 'CT'},
-            '10': {'fips': '10', 'name': 'Delaware', 'abbreviation': 'DE'},
-            '11': {'fips': '11', 'name': 'District of Columbia', 'abbreviation': 'DC'},
-            '12': {'fips': '12', 'name': 'Florida', 'abbreviation': 'FL'},
-            '13': {'fips': '13', 'name': 'Georgia', 'abbreviation': 'GA'},
-            '15': {'fips': '15', 'name': 'Hawaii', 'abbreviation': 'HI'},
-            '16': {'fips': '16', 'name': 'Idaho', 'abbreviation': 'ID'},
-            '17': {'fips': '17', 'name': 'Illinois', 'abbreviation': 'IL'},
-            '18': {'fips': '18', 'name': 'Indiana', 'abbreviation': 'IN'},
-            '19': {'fips': '19', 'name': 'Iowa', 'abbreviation': 'IA'},
-            '20': {'fips': '20', 'name': 'Kansas', 'abbreviation': 'KS'},
-            '21': {'fips': '21', 'name': 'Kentucky', 'abbreviation': 'KY'},
-            '22': {'fips': '22', 'name': 'Louisiana', 'abbreviation': 'LA'},
-            '23': {'fips': '23', 'name': 'Maine', 'abbreviation': 'ME'},
-            '24': {'fips': '24', 'name': 'Maryland', 'abbreviation': 'MD'},
-            '25': {'fips': '25', 'name': 'Massachusetts', 'abbreviation': 'MA'},
-            '26': {'fips': '26', 'name': 'Michigan', 'abbreviation': 'MI'},
-            '27': {'fips': '27', 'name': 'Minnesota', 'abbreviation': 'MN'},
-            '28': {'fips': '28', 'name': 'Mississippi', 'abbreviation': 'MS'},
-            '29': {'fips': '29', 'name': 'Missouri', 'abbreviation': 'MO'},
-            '30': {'fips': '30', 'name': 'Montana', 'abbreviation': 'MT'},
-            '31': {'fips': '31', 'name': 'Nebraska', 'abbreviation': 'NE'},
-            '32': {'fips': '32', 'name': 'Nevada', 'abbreviation': 'NV'},
-            '33': {'fips': '33', 'name': 'New Hampshire', 'abbreviation': 'NH'},
-            '34': {'fips': '34', 'name': 'New Jersey', 'abbreviation': 'NJ'},
-            '35': {'fips': '35', 'name': 'New Mexico', 'abbreviation': 'NM'},
-            '36': {'fips': '36', 'name': 'New York', 'abbreviation': 'NY'},
-            '37': {'fips': '37', 'name': 'North Carolina', 'abbreviation': 'NC'},
-            '38': {'fips': '38', 'name': 'North Dakota', 'abbreviation': 'ND'},
-            '39': {'fips': '39', 'name': 'Ohio', 'abbreviation': 'OH'},
-            '40': {'fips': '40', 'name': 'Oklahoma', 'abbreviation': 'OK'},
-            '41': {'fips': '41', 'name': 'Oregon', 'abbreviation': 'OR'},
-            '42': {'fips': '42', 'name': 'Pennsylvania', 'abbreviation': 'PA'},
-            '44': {'fips': '44', 'name': 'Rhode Island', 'abbreviation': 'RI'},
-            '45': {'fips': '45', 'name': 'South Carolina', 'abbreviation': 'SC'},
-            '46': {'fips': '46', 'name': 'South Dakota', 'abbreviation': 'SD'},
-            '47': {'fips': '47', 'name': 'Tennessee', 'abbreviation': 'TN'},
-            '48': {'fips': '48', 'name': 'Texas', 'abbreviation': 'TX'},
-            '49': {'fips': '49', 'name': 'Utah', 'abbreviation': 'UT'},
-            '50': {'fips': '50', 'name': 'Vermont', 'abbreviation': 'VT'},
-            '51': {'fips': '51', 'name': 'Virginia', 'abbreviation': 'VA'},
-            '53': {'fips': '53', 'name': 'Washington', 'abbreviation': 'WA'},
-            '54': {'fips': '54', 'name': 'West Virginia', 'abbreviation': 'WV'},
-            '55': {'fips': '55', 'name': 'Wisconsin', 'abbreviation': 'WI'},
-            '56': {'fips': '56', 'name': 'Wyoming', 'abbreviation': 'WY'},
-            '60': {'fips': '60', 'name': 'American Samoa', 'abbreviation': 'AS'},
-            '66': {'fips': '66', 'name': 'Guam', 'abbreviation': 'GU'},
-            '69': {'fips': '69', 'name': 'Northern Mariana Islands', 'abbreviation': 'MP'},
-            '72': {'fips': '72', 'name': 'Puerto Rico', 'abbreviation': 'PR'},
-            '74': {'fips': '74', 'name': 'U.S. Minor Outlying Islands', 'abbreviation': 'UM'},
-            '78': {'fips': '78', 'name': 'U.S. Virgin Islands', 'abbreviation': 'VI'}
-        }
+    # DEPRECATED: Old FIPS data method removed - use centralized constants instead
     
     def get_state_abbreviations(self) -> Dict[str, str]:
         """Get mapping of state FIPS codes to state abbreviations."""
-        # Extract from unified FIPS data structure
-        return {fips: info['abbreviation'] for fips, info in self.get_unified_fips_data().items()}
+        # Use centralized FIPS data
+        return FIPS_TO_STATE.copy()
     
     def normalize_state_identifier(self, state_input) -> Optional[str]:
         """Convert any state identifier (FIPS, abbreviation, name) to FIPS code."""
-        if not state_input:
+        # DEPRECATED: Use centralized normalize_state_identifier function instead
+        try:
+            return normalize_state_identifier(state_input)
+        except ValueError:
             return None
-            
-        state_str = str(state_input).strip()
-        fips_data = self.get_unified_fips_data()
-        
-        # Check if it's already a valid FIPS code
-        if state_str.zfill(2) in fips_data:
-            return state_str.zfill(2)
-        
-        # Check if it's a state abbreviation (case-insensitive)
-        for fips, info in fips_data.items():
-            if info['abbreviation'].upper() == state_str.upper():
-                return fips
-        
-        # Check if it's a state name (case-insensitive, partial match)
-        for fips, info in fips_data.items():
-            if state_str.lower() in info['name'].lower():
-                return fips
-        
-        # Not found
-        log.warning(f"Could not normalize state identifier: '{state_input}'")
-        return None
     
     def get_comprehensive_state_info(self) -> Dict[str, Dict[str, str]]:
         """Get comprehensive state information including FIPS, name, and abbreviation."""
@@ -944,7 +886,7 @@ class GovernmentDataSource(SpatialDataSource):
         try:
             import requests
             
-            response = requests.get(url, timeout=30)
+            response = requests.get(url, timeout=get_service_timeout('census_download'))
             if response.ok:
                 data = response.json()
                 return data.get('result', {})
@@ -1063,7 +1005,7 @@ class OpenStreetMapDataSource(SpatialDataSource):
             response = requests.get(
                 self.base_url,
                 params={'data': full_query},
-                timeout=60
+                timeout=get_service_timeout('census_download')
             )
             
             if not response.ok:
@@ -1085,7 +1027,7 @@ def get_census_data(api_key: Optional[str] = None) -> CensusDataSource:
     """Get Census data source instance."""
     return CensusDataSource(api_key)
 
-def get_census_boundaries(year: int = 2020, geographic_level: str = 'county',
+def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str = 'county',
                          state_fips: Optional[str] = None) -> Optional[GeoDataFrame]:
     """Convenience function to get Census boundaries."""
     source = CensusDataSource()
@@ -1097,7 +1039,7 @@ def download_osm_data(query: str, bbox: Optional[List[float]] = None) -> Optiona
     return source.download_osm_data(query, bbox)
 
 # Global instances for easy access
-census_source = CensusDataSource(timeout=45)  # Longer timeout for better reliability
+census_source = CensusDataSource()  # Uses centralized Census timeout settings
 government_source = GovernmentDataSource("https://data.gov")
 osm_source = OpenStreetMapDataSource()
 

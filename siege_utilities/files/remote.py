@@ -5,6 +5,8 @@ Provides clean, type-safe file download utilities.
 
 import pathlib
 import logging
+import os
+import platform
 from pathlib import Path
 from typing import Union, Optional
 
@@ -29,6 +31,22 @@ log = logging.getLogger(__name__)
 # Type aliases
 FilePath = Union[str, Path]
 
+def _get_ssl_verify_path():
+    """Get the appropriate SSL certificate verification path for the current platform."""
+    # macOS system CA bundle path (works better than certifi for some sites)
+    if platform.system() == 'Darwin' and os.path.exists('/etc/ssl/cert.pem'):
+        return '/etc/ssl/cert.pem'
+    
+    # Try certifi bundle if available
+    try:
+        import certifi
+        return certifi.where()
+    except ImportError:
+        pass
+    
+    # Default to True (use system default)
+    return True
+
 def _check_requests_dependency():
     """Check if requests is available and raise informative error if not."""
     if not REQUESTS_AVAILABLE:
@@ -51,7 +69,7 @@ class _DummyProgressBar:
 def _get_progress_bar(*args, **kwargs):
     """Get progress bar, using tqdm if available, dummy otherwise."""
     if TQDM_AVAILABLE:
-        return _get_progress_bar(*args, **kwargs)
+        return tqdm.tqdm(*args, **kwargs)
     else:
         return _DummyProgressBar(*args, **kwargs)
 
@@ -86,9 +104,10 @@ def download_file(url: str, local_filename: FilePath,
         local_path = Path(local_filename)
         local_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Make the request with streaming
+        # Make the request with streaming, using smart SSL verification
+        ssl_verify = _get_ssl_verify_path() if verify_ssl else False
         with requests.get(url, stream=True, allow_redirects=True, 
-                         timeout=timeout, verify=verify_ssl) as response:
+                         timeout=timeout, verify=ssl_verify) as response:
             
             if not response.ok:
                 log.error(f'Download failed: HTTP {response.status_code} - {response.reason}')
