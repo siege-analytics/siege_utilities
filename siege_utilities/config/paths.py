@@ -5,7 +5,7 @@ Centralized path management following the Zsh configuration pattern.
 
 import os
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 # =============================================================================
 # ENVIRONMENT-BASED PATH CONFIGURATION
