@@ -246,6 +246,16 @@ from .connections import (
     get_connection_status,
 )
 
+# Import credential management functions
+from .credential_manager import (
+    CredentialManager,
+    get_credential,
+    store_credential,
+    store_ga_credentials_from_file,
+    get_ga_credentials,
+    credential_status,
+)
+
 # Export all for easy importing
 __all__ = [
     # Library metadata
@@ -326,4 +336,8 @@ __all__ = [
     'create_database_config', 'save_database_config',
     'load_database_config', 'list_database_configs', 'test_database_connection',
     'cleanup_old_connections', 'get_connection_status',
+    
+    # Credential management functions
+    'CredentialManager', 'get_credential', 'store_credential',
+    'store_ga_credentials_from_file', 'get_ga_credentials', 'credential_status',
 ]
