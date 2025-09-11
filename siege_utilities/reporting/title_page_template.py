@@ -280,3 +280,4 @@ def create_title_page(canvas_obj: canvas.Canvas,
         client_name=client_name,
         additional_info=additional_info
     )
+

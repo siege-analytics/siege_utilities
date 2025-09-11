@@ -332,3 +332,4 @@ def generate_sections_from_report_structure(report_structure: Dict[str, Any]) ->
             sections.append(section_entry)
     
     return sections
+

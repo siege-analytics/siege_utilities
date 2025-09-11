@@ -2017,6 +2017,22 @@ wheels = [
 ]
 
 [[package]]
+name = "google-analytics-admin"
+version = "0.25.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "google-api-core", extra = ["grpc"] },
+    { name = "google-auth" },
+    { name = "proto-plus" },
+    { name = "protobuf", version = "5.29.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "protobuf", version = "6.32.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e7/8f/fe546380680c3a905a4edec573fb0d701555025da3530c863d0d864ce917/google_analytics_admin-0.25.0.tar.gz", hash = "sha256:c4d95336bb404f39c4c72f288d2ea1eb141ca74aaa7076ec82af5a9c2cc11ba1", size = 609466, upload-time = "2025-09-02T15:39:55.911Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bf/54/db60f156e35acd7c834e7c0fa2aa984c465c992c944f7c837e296b8da8ce/google_analytics_admin-0.25.0-py3-none-any.whl", hash = "sha256:0594745ac20fd7c56007bbc2cddd4cce417bb466ebf683ad575d361c6687c1c0", size = 391444, upload-time = "2025-09-02T15:39:10.779Z" },
+]
+
+[[package]]
 name = "google-analytics-data"
 version = "0.18.19"
 source = { registry = "https://pypi.org/simple" }
@@ -5611,6 +5627,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pypdf2"
+version = "3.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions", version = "4.13.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "typing-extensions", version = "4.15.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9f/bb/18dc3062d37db6c491392007dfd1a7f524bb95886eb956569ac38a23a784/PyPDF2-3.0.1.tar.gz", hash = "sha256:a74408f69ba6271f71b9352ef4ed03dc53a31aa404d29b5d31f53bfecfee1440", size = 227419, upload-time = "2022-12-31T10:36:13.13Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8e/5e/c86a5643653825d3c913719e788e41386bee415c2b87b4f955432f2de6b2/pypdf2-3.0.1-py3-none-any.whl", hash = "sha256:d16e4205cfee272fbdc0568b68d82be796540b1537508cef59388f839c191928", size = 232572, upload-time = "2022-12-31T10:36:10.327Z" },
+]
+
+[[package]]
 name = "pyproj"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -7349,6 +7378,7 @@ dependencies = [
     { name = "geopandas", version = "0.13.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "geopandas", version = "1.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
     { name = "geopandas", version = "1.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "google-analytics-admin" },
     { name = "google-analytics-data" },
     { name = "google-api-python-client" },
     { name = "google-auth" },
@@ -7485,10 +7515,15 @@ reporting = [
     { name = "branca" },
     { name = "folium", version = "0.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "folium", version = "0.20.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
+    { name = "fonttools", version = "4.57.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "fonttools", version = "4.59.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "matplotlib", version = "3.7.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "matplotlib", version = "3.9.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
     { name = "matplotlib", version = "3.10.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pillow", version = "10.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "pillow", version = "11.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "plotly" },
+    { name = "pypdf2" },
     { name = "seaborn" },
 ]
 streamlit = [
@@ -7523,11 +7558,13 @@ requires-dist = [
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=3.8.0" },
     { name = "folium", marker = "extra == 'all'", specifier = ">=0.14.0" },
     { name = "folium", marker = "extra == 'reporting'", specifier = ">=0.14.0" },
+    { name = "fonttools", marker = "extra == 'reporting'", specifier = ">=4.40.0" },
     { name = "geopandas", specifier = ">=0.13.2" },
     { name = "geopandas", marker = "extra == 'all'", specifier = ">=0.12.0" },
     { name = "geopandas", marker = "extra == 'geo'", specifier = ">=0.12.0" },
     { name = "geopy", marker = "extra == 'all'", specifier = ">=2.3.0" },
     { name = "geopy", marker = "extra == 'geo'", specifier = ">=2.3.0" },
+    { name = "google-analytics-admin", specifier = ">=0.25.0" },
     { name = "google-analytics-data", specifier = ">=0.18.19" },
     { name = "google-api-python-client", specifier = ">=2.181.0" },
     { name = "google-auth", specifier = ">=2.40.3" },
@@ -7547,6 +7584,7 @@ requires-dist = [
     { name = "openpyxl", marker = "extra == 'all'", specifier = ">=3.1.0" },
     { name = "openpyxl", marker = "extra == 'export'", specifier = ">=3.1.0" },
     { name = "pandas", specifier = ">=1.5.0" },
+    { name = "pillow", marker = "extra == 'reporting'", specifier = ">=10.0.0" },
     { name = "plotly", specifier = ">=6.3.0" },
     { name = "plotly", marker = "extra == 'all'", specifier = ">=5.17.0" },
     { name = "plotly", marker = "extra == 'reporting'", specifier = ">=5.17.0" },
@@ -7556,6 +7594,7 @@ requires-dist = [
     { name = "psycopg2-binary", marker = "extra == 'analytics'", specifier = ">=2.9.0" },
     { name = "pydeck", marker = "extra == 'all'", specifier = ">=0.8.0" },
     { name = "pydeck", marker = "extra == 'streamlit'", specifier = ">=0.8.0" },
+    { name = "pypdf2", marker = "extra == 'reporting'", specifier = ">=3.0.1" },
     { name = "pyproj", marker = "extra == 'all'", specifier = ">=3.3.0" },
     { name = "pyproj", marker = "extra == 'geo'", specifier = ">=3.3.0" },
     { name = "pyspark", marker = "extra == 'all'", specifier = ">=3.3.0" },
@@ -7589,7 +7628,7 @@ requires-dist = [
     { name = "xlsxwriter", marker = "extra == 'all'", specifier = ">=3.1.0" },
     { name = "xlsxwriter", marker = "extra == 'export'", specifier = ">=3.1.0" },
 ]
-provides-extras = ["distributed", "geo", "reporting", "analytics", "streamlit", "export", "performance", "dev", "all"]
+provides-extras = ["distributed", "geo", "reporting", "analytics", "streamlit", "export", "performance", "credentials", "dev", "all"]
 
 [[package]]
 name = "six"

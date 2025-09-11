@@ -396,3 +396,4 @@ def create_content_page(canvas_obj: canvas.Canvas,
             template.add_spacing(section.get('points', 20))
     
     template.finish_page()
+
