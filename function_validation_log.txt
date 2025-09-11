@@ -978,3 +978,4 @@
 2025-09-11 02:07:24,022 - INFO - test_string
 2025-09-11 02:07:24,022 - WARNING - test_string
 2025-09-11 02:07:24,022 - ERROR - test_string
+2025-09-11 02:09:24,755 - WARNING - Connection profile not found: test_string/connections/connection_test_string.json

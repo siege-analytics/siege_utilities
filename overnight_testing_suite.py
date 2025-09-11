@@ -269,6 +269,39 @@ class FunctionTester:
         if 'data' in function_name.lower() and 'type' in param_name.lower():
             return "default"
         
+        # NCES data type functions
+        if 'nces' in function_name.lower() and 'type' in param_name.lower():
+            return "school_locations"  # Valid NCES data type
+        
+        # NCES year functions
+        if 'nces' in function_name.lower() and 'year' in param_name.lower():
+            return 2023  # Valid NCES year
+        
+        # TIGER URL specific parameters (must come before general checks)
+        if function_name == 'get_tiger_url':
+            if param_name == 'year':
+                return 2023
+            elif param_name == 'state_fips':
+                return "06"
+            elif param_name == 'geographic_level':
+                return "county"
+        
+        # Geographic level functions
+        if 'geographic' in function_name.lower() or 'tiger' in function_name.lower():
+            return "county"  # Valid geographic level
+        
+        # Census year functions
+        if 'census' in function_name.lower() and 'year' in param_name.lower():
+            return 2023  # Valid census year
+        
+        # State FIPS functions
+        if 'state' in param_name.lower() and 'fips' in param_name.lower():
+            return "06"  # California FIPS code
+        
+        # Urbanicity functions (need population numbers)
+        if 'urbanicity' in function_name.lower() or 'urban' in function_name.lower():
+            return 50000  # Population number
+        
         # String functions
         if 'string' in function_name.lower() or param_name.lower() in ['text', 'message', 'name']:
             return "test_string"
