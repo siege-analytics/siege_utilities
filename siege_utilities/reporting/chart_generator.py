@@ -1874,3 +1874,32 @@ def create_pie_chart(data: Union['pd.DataFrame', Dict[str, Any]],
     return generator.create_pie_chart(
         data, label_column, value_column, title, width, height, **kwargs
     )
+
+def create_heatmap(data: Union['pd.DataFrame', Dict[str, Any]],
+                  x_column: str = None, 
+                  y_column: str = None, 
+                  value_column: str = None,
+                  title: str = "", 
+                  width: float = 8.0, 
+                  height: float = 6.0,
+                  **kwargs) -> Optional['Image']:
+    """
+    Standalone function to create a heatmap.
+    
+    Args:
+        data: DataFrame or dictionary with data
+        x_column: Column name for X-axis
+        y_column: Column name for Y-axis
+        value_column: Column name for values
+        title: Chart title
+        width: Chart width in inches
+        height: Chart height in inches
+        **kwargs: Additional arguments to pass to create_heatmap
+    
+    Returns:
+        PIL Image object or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_heatmap(
+        data, x_column, y_column, value_column, title, width, height, **kwargs
+    )

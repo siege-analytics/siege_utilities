@@ -5,7 +5,7 @@ Comprehensive PDF and PowerPoint report generation with client branding.
 
 from .base_template import BaseReportTemplate
 from .report_generator import ReportGenerator
-from .chart_generator import ChartGenerator, create_bar_chart, create_line_chart, create_scatter_plot, create_pie_chart
+from .chart_generator import ChartGenerator, create_bar_chart, create_line_chart, create_scatter_plot, create_pie_chart, create_heatmap
 from .client_branding import ClientBrandingManager
 from .analytics_reports import AnalyticsReportGenerator
 from .powerpoint_generator import PowerPointGenerator
@@ -32,6 +32,7 @@ __all__ = [
     'create_line_chart',
     'create_scatter_plot',
     'create_pie_chart',
+    'create_heatmap',
     
     # Branding and Customization
     'ClientBrandingManager',

@@ -597,6 +597,26 @@ if __name__ == "__main__":
     print(recommendations)
     
     # Example: Get analysis approach
+def suggest_analysis_approach(analysis_type: str,
+                             geography_level: Union[str, GeographyLevel],
+                             time_constraints: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Standalone function to suggest analysis approach.
+    
+    Args:
+        analysis_type: Type of analysis needed
+        geography_level: Required geography level
+        time_constraints: Time constraints ("quick", "standard", "comprehensive")
+    
+    Returns:
+        Dictionary with analysis approach recommendations
+    """
+    selector = get_census_data_selector()
+    return selector.suggest_analysis_approach(
+        analysis_type, geography_level, time_constraints
+    )
+
+if __name__ == "__main__":
     approach = get_analysis_approach(
         analysis_type="housing",
         geography_level="county",

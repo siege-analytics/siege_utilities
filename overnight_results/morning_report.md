@@ -1,6 +1,6 @@
 # 🌅 Morning Testing Report
 
-**Generated**: 2025-09-11 02:41:03
+**Generated**: 2025-09-11 10:52:54
 
 ## 📊 Summary
 
@@ -14,26 +14,32 @@
 - ✅ **step_by_step_choropleth_test_notebook**
 - ✅ **function_discovery_guide_test_notebook**
 - ❌ **census_bivariate_choropleth_recipe_test_notebook**
-  - Error: [siege_utilities] 2025-09-11 02:40:55,014 WARNING: Failed to load user config: could not determine a constructor for the tag 'tag:yaml.org,2002:python/tuple'
-  in "/Users/dheerajchand/.siege_utilities...
+  - Error: Traceback (most recent call last):
+  File "/Users/dheerajchand/Desktop/in_process/code/siege_utilities_verify/overnight_results/census_bivariate_choropleth_recipe_test.py", line 102, in <module>
+    b...
 
 ## 📚 Recipe Test Results
 
 - ❌ **Demographic-Analysis-Pipeline_test_recipe**
-  - Error: [siege_utilities] 2025-09-11 02:40:56,751 WARNING: Failed to load user config: could not determine a constructor for the tag 'tag:yaml.org,2002:python/tuple'
-  in "/Users/dheerajchand/.siege_utilities...
+  - Error: Traceback (most recent call last):
+  File "/Users/dheerajchand/Desktop/in_process/code/siege_utilities_verify/overnight_results/Demographic-Analysis-Pipeline_test.py", line 38, in <module>
+    data_di...
 - ❌ **Business-Intelligence-Site-Selection_test_recipe**
-  - Error: [siege_utilities] 2025-09-11 02:40:58,497 WARNING: Failed to load user config: could not determine a constructor for the tag 'tag:yaml.org,2002:python/tuple'
-  in "/Users/dheerajchand/.siege_utilities...
+  - Error: Traceback (most recent call last):
+  File "/Users/dheerajchand/Desktop/in_process/code/siege_utilities_verify/overnight_results/Business-Intelligence-Site-Selection_test.py", line 86, in <module>
+    ...
 - ❌ **Census-Data-Intelligence-Guide_test_recipe**
   - Error:   File "/Users/dheerajchand/Desktop/in_process/code/siege_utilities_verify/overnight_results/Census-Data-Intelligence-Guide_test.py", line 160
     from siege_utilities.geo.census_data_selector import ...
 - ❌ **Real-Estate-Market-Intelligence_test_recipe**
-  - Error: [siege_utilities] 2025-09-11 02:41:00,353 WARNING: Failed to load user config: could not determine a constructor for the tag 'tag:yaml.org,2002:python/tuple'
-  in "/Users/dheerajchand/.siege_utilities...
+  - Error: Traceback (most recent call last):
+  File "/Users/dheerajchand/Desktop/in_process/code/siege_utilities_verify/overnight_results/Real-Estate-Market-Intelligence_test.py", line 53, in <module>
+    data_...
 - ❌ **Advanced-Census-Workflows_test_recipe**
-  - Error: [siege_utilities] 2025-09-11 02:41:02,050 WARNING: Failed to load user config: could not determine a constructor for the tag 'tag:yaml.org,2002:python/tuple'
-  in "/Users/dheerajchand/.siege_utilities...
+  - Error: 
+tl_2020_us_county.zip:   0%|          | 0.00/80.6M [00:00<?, ?B/s]
+tl_2020_us_county.zip:   1%|          | 549k/80.6M [00:00<00:15, 5.24MB/s]
+tl_2020_us_county.zip:   1%|1         | 1.20M/80.6M [00:0...
 
 ## 🔬 Function Test Results
 

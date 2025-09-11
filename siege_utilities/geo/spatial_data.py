@@ -1028,10 +1028,34 @@ def get_census_data(api_key: Optional[str] = None) -> CensusDataSource:
     return CensusDataSource(api_key)
 
 def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str = 'county',
-                         state_fips: Optional[str] = None) -> Optional[GeoDataFrame]:
-    """Convenience function to get Census boundaries."""
+                         state_fips: Optional[str] = None, state_identifier: Optional[str] = None) -> Optional[GeoDataFrame]:
+    """
+    Convenience function to get Census boundaries.
+    
+    Args:
+        year: Census year
+        geographic_level: Geographic level (county, tract, etc.)
+        state_fips: State FIPS code (deprecated, use state_identifier instead)
+        state_identifier: State identifier (FIPS code, abbreviation, or name)
+    
+    Returns:
+        GeoDataFrame with Census boundaries
+    """
     source = CensusDataSource()
-    return source.get_geographic_boundaries(year, geographic_level, state_fips)
+    
+    # Handle both parameter names for backward compatibility
+    state_param = state_identifier or state_fips
+    
+    # If state_identifier is provided, normalize it to FIPS
+    if state_param:
+        try:
+            normalized_fips = normalize_state_identifier(state_param)
+            return source.get_geographic_boundaries(year, geographic_level, normalized_fips)
+        except ValueError as e:
+            log.error(f"Invalid state identifier: '{state_param}' - {e}")
+            return None
+    else:
+        return source.get_geographic_boundaries(year, geographic_level, None)
 
 def download_osm_data(query: str, bbox: Optional[List[float]] = None) -> Optional[GeoDataFrame]:
     """Convenience function to download OSM data."""

@@ -31,7 +31,8 @@ from .census_data_selector import (
     select_census_datasets,
     select_datasets_for_analysis,
     get_dataset_compatibility_matrix,
-    get_analysis_approach
+    get_analysis_approach,
+    suggest_analysis_approach
 )
 
 from .spatial_transformations import (
@@ -71,6 +72,7 @@ __all__ = [
     'select_datasets_for_analysis',
     'get_dataset_compatibility_matrix',
     'get_analysis_approach',
+    'suggest_analysis_approach',
     
     # Spatial transformations
     'SpatialDataTransformer',

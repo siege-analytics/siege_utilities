@@ -10,6 +10,8 @@ This module provides comprehensive file operations including:
 All functions are available at the top level for mutual availability across modules.
 """
 
+from pathlib import Path
+
 # Import all functions from submodules for mutual availability
 from .paths import (
     ensure_path_exists,
@@ -53,8 +55,26 @@ from .hashing import (
     test_hash_functions,
 )
 
-# Convenience alias for common function
-get_download_directory = generate_local_path_from_url
+# Convenience function for getting download directory
+def get_download_directory() -> Path:
+    """
+    Get the default download directory for siege_utilities.
+    
+    Returns:
+        Path to the download directory
+    """
+    from pathlib import Path
+    import os
+    
+    # Try to get from environment variable first
+    download_dir = os.environ.get('SIEGE_DOWNLOAD_DIR', None)
+    if download_dir:
+        return Path(download_dir)
+    
+    # Default to Downloads/siege_utilities
+    downloads_dir = Path.home() / "Downloads" / "siege_utilities"
+    ensure_path_exists(downloads_dir)
+    return downloads_dir
 
 # Export all functions for mutual availability
 __all__ = [

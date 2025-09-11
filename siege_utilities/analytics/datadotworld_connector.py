@@ -543,6 +543,23 @@ def search_datasets(query: str,
     with get_datadotworld_connector(config_file) as dw:
         return dw.search_datasets(query, **kwargs)
 
+def list_datasets(limit: int = 50,
+                 config_file: Optional[Union[str, Path]] = None,
+                 **kwargs) -> Optional[List[Dict[str, Any]]]:
+    """
+    Standalone function to list available datasets.
+    
+    Args:
+        limit: Maximum number of results to return
+        config_file: Optional configuration file path
+        **kwargs: Additional arguments to pass to search_datasets
+    
+    Returns:
+        List of dataset information dictionaries
+    """
+    with get_datadotworld_connector(config_file) as dw:
+        return dw.search_datasets("*", limit=limit, **kwargs)
+
 
 # Global instance for easy access
 datadotworld_connector = None
