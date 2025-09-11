@@ -29,6 +29,7 @@ from .census_data_selector import (
     CensusDataSelector,
     get_census_data_selector,
     select_census_datasets,
+    select_datasets_for_analysis,
     get_analysis_approach
 )
 
@@ -66,6 +67,7 @@ __all__ = [
     'CensusDataSelector',
     'get_census_data_selector',
     'select_census_datasets',
+    'select_datasets_for_analysis',
     'get_analysis_approach',
     
     # Spatial transformations

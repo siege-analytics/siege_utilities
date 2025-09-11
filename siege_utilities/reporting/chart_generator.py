@@ -1761,3 +1761,116 @@ class ChartGenerator:
         except Exception as e:
             log.error(f"Error creating custom chart: {e}")
             return self._create_placeholder_chart(width, height, "Custom Chart Error")
+
+
+# Standalone function wrappers for functional access
+def create_bar_chart(data: Union['pd.DataFrame', Dict[str, Any]], 
+                    x_column: Optional[str] = None,
+                    y_column: Optional[str] = None,
+                    title: str = "",
+                    width: int = 800,
+                    height: int = 600,
+                    **kwargs) -> Optional[Dict[str, Any]]:
+    """
+    Standalone function to create a bar chart.
+    
+    Args:
+        data: DataFrame or data dictionary
+        x_column: Column name for x-axis
+        y_column: Column name for y-axis  
+        title: Chart title
+        width: Chart width in pixels
+        height: Chart height in pixels
+        **kwargs: Additional chart parameters
+    
+    Returns:
+        Chart configuration dictionary or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_bar_chart(
+        data, x_column, y_column, title, width, height, **kwargs
+    )
+
+
+def create_line_chart(data: Union['pd.DataFrame', Dict[str, Any]], 
+                     x_column: Optional[str] = None,
+                     y_column: Optional[str] = None,
+                     title: str = "",
+                     width: int = 800,
+                     height: int = 600,
+                     **kwargs) -> Optional[Dict[str, Any]]:
+    """
+    Standalone function to create a line chart.
+    
+    Args:
+        data: DataFrame or data dictionary
+        x_column: Column name for x-axis
+        y_column: Column name for y-axis  
+        title: Chart title
+        width: Chart width in pixels
+        height: Chart height in pixels
+        **kwargs: Additional chart parameters
+    
+    Returns:
+        Chart configuration dictionary or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_line_chart(
+        data, x_column, y_column, title, width, height, **kwargs
+    )
+
+
+def create_scatter_plot(data: Union['pd.DataFrame', Dict[str, Any]], 
+                       x_column: Optional[str] = None,
+                       y_column: Optional[str] = None,
+                       title: str = "",
+                       width: int = 800,
+                       height: int = 600,
+                       **kwargs) -> Optional[Dict[str, Any]]:
+    """
+    Standalone function to create a scatter plot.
+    
+    Args:
+        data: DataFrame or data dictionary
+        x_column: Column name for x-axis
+        y_column: Column name for y-axis  
+        title: Chart title
+        width: Chart width in pixels
+        height: Chart height in pixels
+        **kwargs: Additional chart parameters
+    
+    Returns:
+        Chart configuration dictionary or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_scatter_plot(
+        data, x_column, y_column, title, width, height, **kwargs
+    )
+
+
+def create_pie_chart(data: Union['pd.DataFrame', Dict[str, Any]], 
+                    label_column: Optional[str] = None,
+                    value_column: Optional[str] = None,
+                    title: str = "",
+                    width: int = 800,
+                    height: int = 600,
+                    **kwargs) -> Optional[Dict[str, Any]]:
+    """
+    Standalone function to create a pie chart.
+    
+    Args:
+        data: DataFrame or data dictionary
+        label_column: Column name for labels
+        value_column: Column name for values
+        title: Chart title
+        width: Chart width in pixels
+        height: Chart height in pixels
+        **kwargs: Additional chart parameters
+    
+    Returns:
+        Chart configuration dictionary or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_pie_chart(
+        data, label_column, value_column, title, width, height, **kwargs
+    )

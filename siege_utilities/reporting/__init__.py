@@ -5,7 +5,7 @@ Comprehensive PDF and PowerPoint report generation with client branding.
 
 from .base_template import BaseReportTemplate
 from .report_generator import ReportGenerator
-from .chart_generator import ChartGenerator
+from .chart_generator import ChartGenerator, create_bar_chart, create_line_chart, create_scatter_plot
 from .client_branding import ClientBrandingManager
 from .analytics_reports import AnalyticsReportGenerator
 from .powerpoint_generator import PowerPointGenerator
@@ -26,6 +26,11 @@ __all__ = [
     # Report Generation
     'ReportGenerator',
     'ChartGenerator',
+    
+    # Chart Functions
+    'create_bar_chart',
+    'create_line_chart',
+    'create_scatter_plot',
     
     # Branding and Customization
     'ClientBrandingManager',

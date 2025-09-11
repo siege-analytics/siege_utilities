@@ -40,6 +40,7 @@ from .snowflake_connector import (
 from .datadotworld_connector import (
     DataDotWorldConnector,
     get_datadotworld_connector,
+    search_datasets,
     search_datadotworld_datasets,
     load_datadotworld_dataset,
     query_datadotworld_dataset,
@@ -74,6 +75,7 @@ __all__ = [
     # Data.world
     'DataDotWorldConnector',
     'get_datadotworld_connector',
+    'search_datasets',
     'search_datadotworld_datasets',
     'load_datadotworld_dataset',
     'query_datadotworld_dataset',

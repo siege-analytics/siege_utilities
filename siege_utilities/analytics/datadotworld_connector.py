@@ -526,12 +526,31 @@ def query_datadotworld_dataset(dataset_id: str,
         return dw.query_dataset(dataset_id, query, **kwargs)
 
 
+def search_datasets(query: str,
+                   config_file: Optional[Union[str, Path]] = None,
+                   **kwargs) -> Optional[List[Dict[str, Any]]]:
+    """
+    Standalone function to search for datasets.
+    
+    Args:
+        query: Search query string
+        config_file: Path to configuration file (optional)
+        **kwargs: Additional search parameters
+    
+    Returns:
+        List of matching datasets or None if error
+    """
+    with get_datadotworld_connector(config_file) as dw:
+        return dw.search_datasets(query, **kwargs)
+
+
 # Global instance for easy access
 datadotworld_connector = None
 
 __all__ = [
     'DataDotWorldConnector',
     'get_datadotworld_connector',
+    'search_datasets',
     'search_datadotworld_datasets',
     'load_datadotworld_dataset',
     'query_datadotworld_dataset',

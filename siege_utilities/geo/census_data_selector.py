@@ -532,6 +532,40 @@ def select_census_datasets(analysis_type: str,
         analysis_type, geography_level, time_period, variables
     )
 
+def select_datasets_for_analysis(analysis_type: str,
+                                geography_level: str,
+                                time_period: Optional[str] = None,
+                                variables: Optional[List[str]] = None) -> Dict[str, Any]:
+    """
+    Standalone function to select datasets for analysis.
+    
+    Args:
+        analysis_type: Type of analysis (e.g., "demographics", "housing", "business")
+        geography_level: Required geography level (e.g., "tract", "county", "state")
+        time_period: Time period preference (e.g., "latest", "comprehensive")
+        variables: List of required variables
+    
+    Returns:
+        Dataset recommendations and rationale
+    """
+    selector = get_census_data_selector()
+    return selector.select_datasets_for_analysis(
+        analysis_type, geography_level, time_period, variables
+    )
+
+def get_dataset_compatibility_matrix(analysis_types: Optional[List[str]] = None) -> 'pd.DataFrame':
+    """
+    Standalone function to get dataset compatibility matrix.
+    
+    Args:
+        analysis_types: List of analysis types to include (optional)
+    
+    Returns:
+        DataFrame with compatibility scores
+    """
+    selector = get_census_data_selector()
+    return selector.get_dataset_compatibility_matrix(analysis_types)
+
 def get_analysis_approach(analysis_type: str,
                          geography_level: str,
                          time_constraints: Optional[str] = None) -> Dict[str, Any]:
