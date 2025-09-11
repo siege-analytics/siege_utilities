@@ -41,13 +41,13 @@ pip install plotly dash folium seaborn scikit-learn
 ```python
 from siege_utilities.geo.spatial_data import census_source
 from siege_utilities.analytics import search_datadotworld_datasets
-from siege_utilities.core.logging import setup_logging
+from siege_utilities.core.logging import init_logger
 import pandas as pd
 import geopandas as gpd
 import numpy as np
 
 # Setup logging
-setup_logging(level='INFO')
+init_logger('real_estate_analysis', level='INFO')
 
 # Define target markets (major metropolitan areas)
 target_metros = {

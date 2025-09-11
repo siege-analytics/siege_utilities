@@ -42,14 +42,14 @@ pip install networkx community python-louvain
 ```python
 from siege_utilities.geo.spatial_data import census_source
 from siege_utilities.analytics import search_datadotworld_datasets
-from siege_utilities.core.logging import setup_logging
+from siege_utilities.core.logging import init_logger
 import pandas as pd
 import geopandas as gpd
 import numpy as np
 from datetime import datetime
 
 # Setup logging
-setup_logging(level='INFO')
+init_logger('business_intelligence', level='INFO')
 
 # Define target markets and business types
 target_markets = {

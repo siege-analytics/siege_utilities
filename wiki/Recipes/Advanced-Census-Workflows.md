@@ -24,12 +24,12 @@ pip install siege-utilities[geo,analytics,reporting]
 ```python
 from siege_utilities.geo.spatial_data import census_source
 from siege_utilities.files import ensure_path_exists, get_download_directory
-from siege_utilities.core.logging import setup_logging
+from siege_utilities.core.logging import init_logger
 import geopandas as gpd
 import pandas as pd
 
 # Setup logging
-setup_logging(level='INFO')
+init_logger('census_workflow', level='INFO')
 
 # Get available data
 years = census_source.discovery.get_available_years()
