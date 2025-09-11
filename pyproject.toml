@@ -20,6 +20,17 @@ dependencies = [
     "pyyaml>=6.0",
     "beautifulsoup4>=4.12.0",
     "lxml>=4.9.0",
+    "geopandas>=0.13.2",
+    "faker>=35.2.2",
+    "google-auth>=2.40.3",
+    "google-auth-oauthlib>=1.2.2",
+    "google-auth-httplib2>=0.2.0",
+    "google-api-python-client>=2.181.0",
+    "google-analytics-data>=0.18.19",
+    "reportlab>=4.4.3",
+    "matplotlib>=3.7.5",
+    "seaborn>=0.13.2",
+    "plotly>=6.3.0",
 ]
 
 [project.optional-dependencies]

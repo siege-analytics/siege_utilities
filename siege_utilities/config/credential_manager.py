@@ -454,7 +454,7 @@ class CredentialManager:
             # Create comprehensive 1Password item
             cmd = [
                 'op', 'item', 'create',
-                '--category=api-credential',
+                '--category=API Credential',
                 f'--title={item_title}',
                 f'--vault={vault}',
                 f'client_id={creds["client_id"]}',
