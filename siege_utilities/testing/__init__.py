@@ -7,6 +7,7 @@ import os
 import importlib
 import inspect
 import sys
+from typing import List
 
 # List to track exposed names
 __all__ = []
@@ -48,7 +49,7 @@ _log_funcs = _get_logging_functions()
 log_info = _log_funcs['log_info']
 log_error = _log_funcs['log_error']
 
-def import_module_with_fallbacks(module_name: str, full_module_name: str):
+def import_module_with_fallbacks(module_name: str, full_module_name: str) -> List[str]:
     """Import a module with proper error handling and logging."""
     imported_names = []
 

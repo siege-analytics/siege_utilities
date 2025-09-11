@@ -1,15 +1,17 @@
-from typing import Optional, Union, Tuple, TYPE_CHECKING
+from typing import Optional, Union, Tuple, Dict, TYPE_CHECKING
 import os
 import pathlib
+from pathlib import Path
 import json
 import time
 import logging
+import uuid
 
 if TYPE_CHECKING:
-    from pyspark.sql import DataFrame, SparkSession
+    from pyspark.sql import DataFrame, SparkSession, Column
 
 try:
-    from pyspark.sql import DataFrame, SparkSession
+    from pyspark.sql import DataFrame, SparkSession, Column
     from pyspark.sql.types import *
     from pyspark.sql.functions import *
     PYSPARK_AVAILABLE = True
@@ -17,6 +19,7 @@ except ImportError:
     PYSPARK_AVAILABLE = False
     DataFrame = None
     SparkSession = None
+    Column = None
 
 logger = logging.getLogger(__name__)
 
@@ -545,7 +548,7 @@ def clean_and_reorder_bbox(df, bbox_col):
     return df
 
 
-def ensure_literal(value):
+def ensure_literal(value) -> Column:
     """
     Convert any value to a Spark literal (Column) unless it is already a Spark Column.
 
@@ -883,7 +886,7 @@ walkability_config = {'Trivial': {'max': 100, 'label': 'Trivial (<100m)'},
     }, 'Outside': {'min': 500, 'label': 'Outside (>500m)'}}
 
 
-def compute_walkability(distance):
+def compute_walkability(distance) -> Optional[Dict[str, str]]:
     """""\"
 Utility function: compute walkability.
 
@@ -1034,7 +1037,7 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
             log_error(f'Error cleaning up staging directory: {cleanup_error}')
 
 
-def create_unique_staging_directory(base_path, operation_name='operation'):
+def create_unique_staging_directory(base_path, operation_name: str = 'operation') -> str:
     """
     Creates a unique staging directory for atomic operations.
     """
