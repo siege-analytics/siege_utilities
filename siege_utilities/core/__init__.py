@@ -7,6 +7,7 @@ import os
 import importlib
 import inspect
 import sys
+from typing import List
 
 # List to track exposed names
 __all__ = []
@@ -14,7 +15,7 @@ __all__ = []
 # Get the directory of this package
 package_dir = os.path.dirname(__file__)
 
-def import_module_with_fallbacks(module_name: str, full_module_name: str):
+def import_module_with_fallbacks(module_name: str, full_module_name: str) -> List[str]:
     """Import a module with proper error handling."""
     imported_names = []
 

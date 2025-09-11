@@ -6,7 +6,7 @@ Provides structured logging with proper configuration management.
 import logging
 import logging.handlers
 from pathlib import Path
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any, Union, Generator
 from dataclasses import dataclass, field
 from contextlib import contextmanager
 import sys
@@ -295,7 +295,7 @@ def log_critical(message: str, logger_name: Optional[LoggerName] = None) -> None
 
 # Context manager for temporary logging configuration
 @contextmanager
-def temporary_logging_config(config: LoggingConfig):
+def temporary_logging_config(config: LoggingConfig) -> Generator[None, None, None]:
     """Temporarily change logging configuration."""
     original_config = _logger_manager._shared_config
     try:

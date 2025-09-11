@@ -173,7 +173,7 @@ class FunctionTester:
                 return result
                 
             # Skip functions that might prompt for user input
-            if any(pattern in func_name.lower() for pattern in ['credential', 'auth', 'oauth', 'service_account', '1password', 'prompt']):
+            if any(pattern in function_name.lower() for pattern in ['credential', 'auth', 'oauth', 'service_account', '1password', 'prompt']):
                 result['error'] = "Skipped - might prompt for user input"
                 return result
                 
@@ -188,35 +188,40 @@ class FunctionTester:
                         result['data_types_tested'] = ['no_params']
                     
                     elif len(params) == 1:
-                        # Single parameter - try common types
-                        test_values = [
-                            "test_string",
-                            42,
-                            [1, 2, 3],
-                            {"key": "value"},
-                            None
-                        ]
+                        # Single parameter - try smart defaults based on function name
+                        test_val = self._get_smart_test_value(function_name, params[0])
                         
-                        for test_val in test_values:
-                            try:
-                                func(test_val)
-                                result['success'] = True
-                                result['tested_with_data'] = True
-                                result['data_types_tested'].append(type(test_val).__name__)
-                                break
-                            except Exception:
-                                continue
+                        try:
+                            func(test_val)
+                            result['success'] = True
+                            result['tested_with_data'] = True
+                            result['data_types_tested'].append(type(test_val).__name__)
+                        except Exception as e:
+                            # Fallback to common types
+                            test_values = ["test_string", 42, [1, 2, 3], {"key": "value"}]
+                            
+                            for fallback_val in test_values:
+                                try:
+                                    func(fallback_val)
+                                    result['success'] = True
+                                    result['tested_with_data'] = True
+                                    result['data_types_tested'].append(type(fallback_val).__name__)
+                                    break
+                                except Exception:
+                                    continue
+                            else:
+                                result['error'] = f"Failed with all test values: {e}"
                                 
                     else:
-                        # Multiple parameters - try with None values
+                        # Multiple parameters - try with smart defaults
                         try:
-                            args = [None] * len(params)
+                            args = [self._get_smart_test_value(function_name, param) for param in params]
                             func(*args)
                             result['success'] = True
                             result['tested_with_data'] = True
-                            result['data_types_tested'] = ['none_values']
+                            result['data_types_tested'] = ['smart_defaults']
                         except Exception as e:
-                            result['error'] = f"Failed with None values: {e}"
+                            result['error'] = f"Failed with smart defaults: {e}"
                         
             except TimeoutError as e:
                 result['error'] = f"Execution timed out: {e}"
@@ -230,6 +235,42 @@ class FunctionTester:
             
         result['execution_time'] = time.time() - start_time
         return result
+    
+    def _get_smart_test_value(self, function_name: str, param_name: str):
+        """Get smart test values based on function name and parameter name."""
+        from pathlib import Path
+        import tempfile
+        
+        # Path-related functions
+        if 'path' in function_name.lower() or 'path' in param_name.lower():
+            return Path('/tmp/test_path')
+        
+        # Directory functions
+        if 'directory' in function_name.lower() or 'dir' in function_name.lower():
+            return Path('/tmp/test_dir')
+        
+        # String functions
+        if 'string' in function_name.lower() or param_name.lower() in ['text', 'message', 'name']:
+            return "test_string"
+        
+        # Number functions
+        if 'number' in function_name.lower() or param_name.lower() in ['count', 'limit', 'size']:
+            return 42
+        
+        # Boolean functions
+        if 'bool' in function_name.lower() or param_name.lower() in ['enabled', 'active', 'force']:
+            return True
+        
+        # List functions
+        if 'list' in function_name.lower() or param_name.lower() in ['items', 'values', 'data']:
+            return [1, 2, 3]
+        
+        # Dict functions
+        if 'dict' in function_name.lower() or param_name.lower() in ['config', 'options', 'params']:
+            return {"key": "value"}
+        
+        # Default fallback
+        return "test_string"
     
     def analyze_module_structure(self, module_path: str) -> Dict[str, Any]:
         """Analyze the structure and health of a module."""

@@ -267,7 +267,7 @@ def get_relative_to_home(path: Path) -> str:
 # INITIALIZATION
 # =============================================================================
 
-def initialize_siege_directories():
+def initialize_siege_directories() -> List[Path]:
     """Initialize all standard Siege utilities directories."""
     directories_to_create = [
         SIEGE_CACHE_DIR,

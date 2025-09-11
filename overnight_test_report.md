@@ -1,12 +1,12 @@
-# Overnight Testing Report - 2025-09-11 01:57:54
+# Overnight Testing Report - 2025-09-11 02:01:29
 
 ## Summary
 
 - **Total Functions**: 749
 - **Tested Functions**: 650
-- **Successful Tests**: 0
-- **Failed Tests**: 610
-- **Skipped Tests**: 40
+- **Successful Tests**: 96
+- **Failed Tests**: 508
+- **Skipped Tests**: 46
 
 ## Module Summary
 
@@ -62,9 +62,9 @@
 
 ## Recommendations
 
-### Fix 610 broken functions (Priority: high)
+### Fix 508 broken functions (Priority: high)
 - **Category**: broken_functions
-- **Description**: Functions that failed testing: siege_utilities.config.classify_urbanicity, siege_utilities.config.create_database_config, siege_utilities.config.credential_status, siege_utilities.config.ensure_directory_exists, siege_utilities.config.get_cache_path, siege_utilities.config.get_chart_dimensions, siege_utilities.config.get_credential, siege_utilities.config.get_data_path, siege_utilities.config.get_download_directory, siege_utilities.config.get_file_path
+- **Description**: Functions that failed testing: siege_utilities.config.classify_urbanicity, siege_utilities.config.create_database_config, siege_utilities.config.ensure_directory_exists, siege_utilities.config.get_nces_download_url, siege_utilities.config.get_relative_to_home, siege_utilities.config.get_tiger_url, siege_utilities.config.setup_standard_directories, siege_utilities.core.dataclass, siege_utilities.core.field, siege_utilities.data.generate_synthetic_businesses
 - **Action**: Review and fix import/execution issues
 
 ### Add type hints to 42 functions (Priority: medium)
@@ -243,7 +243,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: '>=' not supported between instances of 'NoneType' and 'int'
 
 ### siege_utilities.config.cleanup_old_connections
 - **Status**: skipped
@@ -261,7 +261,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 8
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: create_database_config() takes 7 positional arguments but 8 were given
 
 ### siege_utilities.config.create_temporary_service_account_file
 - **Status**: skipped
@@ -273,13 +273,13 @@
 - **Execution Error**: Skipped - requires external dependencies
 
 ### siege_utilities.config.credential_status
-- **Status**: failed
+- **Status**: skipped
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Skipped - might prompt for user input
 
 ### siege_utilities.config.ensure_directory_exists
 - **Status**: failed
@@ -288,25 +288,22 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.get_cache_path
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.get_chart_dimensions
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.get_connection_status
 - **Status**: skipped
@@ -318,40 +315,37 @@
 - **Execution Error**: Skipped - requires external dependencies
 
 ### siege_utilities.config.get_credential
-- **Status**: failed
+- **Status**: skipped
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Skipped - might prompt for user input
 
 ### siege_utilities.config.get_data_path
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.get_download_directory
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.get_file_path
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.get_file_type
 - **Status**: skipped
@@ -363,58 +357,55 @@
 - **Execution Error**: Skipped - requires external dependencies
 
 ### siege_utilities.config.get_fips_info
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.get_ga_credentials
-- **Status**: failed
+- **Status**: skipped
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Skipped - might prompt for user input
 
 ### siege_utilities.config.get_ga_service_account_credentials
-- **Status**: failed
+- **Status**: skipped
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Skipped - might prompt for user input
 
 ### siege_utilities.config.get_google_service_account_from_1password
-- **Status**: failed
+- **Status**: skipped
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Skipped - might prompt for user input
 
 ### siege_utilities.config.get_locale_category
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.get_locale_subcategory
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.get_nces_download_url
 - **Status**: failed
@@ -423,25 +414,23 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: Unsupported NCES data type: None
 
 ### siege_utilities.config.get_output_path
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.get_project_path
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.get_relative_to_home
 - **Status**: failed
@@ -450,25 +439,22 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.get_service_row_limit
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.get_service_timeout
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.get_tiger_url
 - **Status**: failed
@@ -477,43 +463,39 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: Unsupported geographic level: None
 
 ### siege_utilities.config.get_timeout
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.get_urbanicity_info
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.get_user_config
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.initialize_siege_directories
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.list_database_configs
 - **Status**: skipped
@@ -534,13 +516,12 @@
 - **Execution Error**: Skipped - requires external dependencies
 
 ### siege_utilities.config.normalize_state_identifier
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.save_database_config
 - **Status**: skipped
@@ -558,16 +539,15 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.store_credential
-- **Status**: failed
+- **Status**: skipped
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 5
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Skipped - might prompt for user input
 
 ### siege_utilities.config.store_ga_credentials_from_file
 - **Status**: skipped
@@ -597,40 +577,36 @@
 - **Execution Error**: Skipped - requires external dependencies
 
 ### siege_utilities.config.validate_geographic_level
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.config.validate_locale_code
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.core.cleanup_all_loggers
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.core.cleanup_logger
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.core.configure_shared_logging
 - **Status**: skipped
@@ -642,13 +618,12 @@
 - **Execution Error**: Skipped - requires external dependencies
 
 ### siege_utilities.core.contextmanager
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.core.dataclass
 - **Status**: failed
@@ -657,7 +632,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 11
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: dataclass() takes from 0 to 1 positional arguments but 11 were given
 
 ### siege_utilities.core.field
 - **Status**: failed
@@ -666,97 +641,87 @@
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 8
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: field() takes 0 positional arguments but 8 were given
 
 ### siege_utilities.core.get_logger
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.core.import_module_with_fallbacks
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.core.init_logger
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 7
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.core.log_critical
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.core.log_debug
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.core.log_error
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.core.log_info
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.core.log_warning
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.core.remove_wrapping_quotes_and_trim
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.core.set_default_logger_name
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.core.temporary_logging_config
 - **Status**: skipped
@@ -768,13 +733,12 @@
 - **Execution Error**: Skipped - requires external dependencies
 
 ### siege_utilities.data.create_sample_dataset
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 5
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.data.generate_synthetic_businesses
 - **Status**: failed
@@ -783,7 +747,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: unsupported operand type(s) for *: 'NoneType' and 'float'
 
 ### siege_utilities.data.generate_synthetic_housing
 - **Status**: failed
@@ -792,7 +756,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: unsupported operand type(s) for *: 'NoneType' and 'float'
 
 ### siege_utilities.data.generate_synthetic_population
 - **Status**: failed
@@ -801,52 +765,47 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 8
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: unsupported operand type(s) for *: 'NoneType' and 'float'
 
 ### siege_utilities.data.get_census_boundaries
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.data.get_census_data
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 5
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.data.get_dataset_info
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.data.join_boundaries_and_data
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.data.list_available_datasets
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.data.load_sample_data
 - **Status**: failed
@@ -855,7 +814,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: load_sample_data() takes 1 positional argument but 2 were given
 
 ### siege_utilities.distributed.abs
 - **Status**: failed
@@ -864,7 +823,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.acos
 - **Status**: failed
@@ -873,7 +831,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.acosh
 - **Status**: failed
@@ -882,7 +839,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.add_months
 - **Status**: failed
@@ -891,7 +847,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.aes_decrypt
 - **Status**: failed
@@ -900,7 +856,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 5
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.aes_encrypt
 - **Status**: failed
@@ -909,7 +865,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 6
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.aggregate
 - **Status**: failed
@@ -918,7 +874,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.any_value
 - **Status**: failed
@@ -927,7 +883,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.approx_count_distinct
 - **Status**: failed
@@ -936,7 +892,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.approx_percentile
 - **Status**: failed
@@ -945,7 +901,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.array
 - **Status**: failed
@@ -954,7 +910,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.array_agg
 - **Status**: failed
@@ -963,7 +918,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.array_append
 - **Status**: failed
@@ -972,7 +926,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.array_compact
 - **Status**: failed
@@ -981,7 +935,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.array_contains
 - **Status**: failed
@@ -990,7 +943,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.array_distinct
 - **Status**: failed
@@ -999,7 +952,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.array_except
 - **Status**: failed
@@ -1008,7 +960,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.array_insert
 - **Status**: failed
@@ -1017,7 +969,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.array_intersect
 - **Status**: failed
@@ -1026,7 +978,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.array_join
 - **Status**: failed
@@ -1035,7 +987,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.array_max
 - **Status**: failed
@@ -1044,7 +996,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.array_min
 - **Status**: failed
@@ -1053,7 +1004,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.array_position
 - **Status**: failed
@@ -1062,7 +1012,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.array_prepend
 - **Status**: failed
@@ -1071,7 +1021,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.array_remove
 - **Status**: failed
@@ -1080,7 +1030,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.array_repeat
 - **Status**: failed
@@ -1089,7 +1039,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.array_size
 - **Status**: failed
@@ -1098,7 +1048,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.array_sort
 - **Status**: failed
@@ -1107,7 +1056,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.array_union
 - **Status**: failed
@@ -1116,7 +1065,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.arrays_overlap
 - **Status**: failed
@@ -1125,7 +1074,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.arrays_zip
 - **Status**: failed
@@ -1134,7 +1083,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.asc
 - **Status**: failed
@@ -1143,7 +1091,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.asc_nulls_first
 - **Status**: failed
@@ -1152,7 +1099,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.asc_nulls_last
 - **Status**: failed
@@ -1161,7 +1107,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.ascii
 - **Status**: failed
@@ -1170,7 +1115,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.asin
 - **Status**: failed
@@ -1179,7 +1123,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.asinh
 - **Status**: failed
@@ -1188,7 +1131,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.assert_true
 - **Status**: failed
@@ -1197,7 +1139,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.atan
 - **Status**: failed
@@ -1206,7 +1148,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.atan2
 - **Status**: failed
@@ -1215,7 +1156,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.atanh
 - **Status**: failed
@@ -1224,16 +1165,14 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.atomic_write_with_staging
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 7
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.avg
 - **Status**: failed
@@ -1242,7 +1181,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.backup_full_dataframe
 - **Status**: failed
@@ -1251,7 +1189,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: name 'DEBUG_SUBDIRECTORY' is not defined
 
 ### siege_utilities.distributed.base64
 - **Status**: failed
@@ -1260,7 +1198,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.bin
 - **Status**: failed
@@ -1269,7 +1206,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.bit_and
 - **Status**: failed
@@ -1278,7 +1214,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.bit_count
 - **Status**: failed
@@ -1287,7 +1222,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.bit_get
 - **Status**: failed
@@ -1296,7 +1230,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.bit_length
 - **Status**: failed
@@ -1305,7 +1239,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.bit_or
 - **Status**: failed
@@ -1314,7 +1247,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.bit_xor
 - **Status**: failed
@@ -1323,7 +1255,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.bitmap_bit_position
 - **Status**: failed
@@ -1332,7 +1263,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.bitmap_bucket_number
 - **Status**: failed
@@ -1341,7 +1271,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.bitmap_construct_agg
 - **Status**: failed
@@ -1350,7 +1279,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.bitmap_count
 - **Status**: failed
@@ -1359,7 +1287,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.bitmap_or_agg
 - **Status**: failed
@@ -1368,7 +1295,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.bitwise_not
 - **Status**: failed
@@ -1377,7 +1303,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.bool_and
 - **Status**: failed
@@ -1386,7 +1311,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.bool_or
 - **Status**: failed
@@ -1395,7 +1319,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.broadcast
 - **Status**: failed
@@ -1404,7 +1327,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.bround
 - **Status**: failed
@@ -1413,7 +1335,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.btrim
 - **Status**: failed
@@ -1422,7 +1344,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.bucket
 - **Status**: failed
@@ -1431,7 +1353,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_INT] Argument `numBuckets` should be a Column or int, got NoneType.
 
 ### siege_utilities.distributed.call_function
 - **Status**: failed
@@ -1440,7 +1362,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.call_udf
 - **Status**: failed
@@ -1449,7 +1371,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.cardinality
 - **Status**: failed
@@ -1458,7 +1380,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.cbrt
 - **Status**: failed
@@ -1467,7 +1388,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.ceil
 - **Status**: failed
@@ -1476,7 +1396,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.ceiling
 - **Status**: failed
@@ -1485,7 +1405,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.char
 - **Status**: failed
@@ -1494,7 +1414,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.char_length
 - **Status**: failed
@@ -1503,7 +1422,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.character_length
 - **Status**: failed
@@ -1512,16 +1430,14 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.check_hdfs_status
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.clean_and_reorder_bbox
 - **Status**: failed
@@ -1530,7 +1446,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 'NoneType' object has no attribute 'withColumn'
 
 ### siege_utilities.distributed.coalesce
 - **Status**: failed
@@ -1539,7 +1455,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.col
 - **Status**: failed
@@ -1548,7 +1463,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.collate
 - **Status**: failed
@@ -1557,7 +1471,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.collation
 - **Status**: failed
@@ -1566,7 +1480,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.collect_list
 - **Status**: failed
@@ -1575,7 +1488,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.collect_set
 - **Status**: failed
@@ -1584,7 +1496,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.column
 - **Status**: failed
@@ -1593,16 +1504,14 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.compute_walkability
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.concat
 - **Status**: failed
@@ -1611,7 +1520,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.concat_ws
 - **Status**: failed
@@ -1620,7 +1528,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.contains
 - **Status**: failed
@@ -1629,7 +1537,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.conv
 - **Status**: failed
@@ -1638,7 +1546,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.convert_timezone
 - **Status**: failed
@@ -1647,7 +1555,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.corr
 - **Status**: failed
@@ -1656,7 +1564,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.cos
 - **Status**: failed
@@ -1665,7 +1573,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.cosh
 - **Status**: failed
@@ -1674,7 +1581,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.cot
 - **Status**: failed
@@ -1683,7 +1589,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.count
 - **Status**: failed
@@ -1692,7 +1597,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.count_distinct
 - **Status**: failed
@@ -1701,7 +1605,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.count_if
 - **Status**: failed
@@ -1710,7 +1614,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.count_min_sketch
 - **Status**: failed
@@ -1719,7 +1622,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.covar_pop
 - **Status**: failed
@@ -1728,7 +1631,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.covar_samp
 - **Status**: failed
@@ -1737,7 +1640,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.crc32
 - **Status**: failed
@@ -1746,7 +1649,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.create_cluster_config
 - **Status**: failed
@@ -1755,7 +1657,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: create_cluster_config() takes 1 positional argument but 2 were given
 
 ### siege_utilities.distributed.create_geocoding_config
 - **Status**: failed
@@ -1764,7 +1666,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: create_geocoding_config() takes 1 positional argument but 2 were given
 
 ### siege_utilities.distributed.create_hdfs_config
 - **Status**: failed
@@ -1773,7 +1675,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.create_hdfs_operations
 - **Status**: skipped
@@ -1791,7 +1692,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: create_local_config() takes 1 positional argument but 2 were given
 
 ### siege_utilities.distributed.create_map
 - **Status**: failed
@@ -1800,7 +1701,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.create_unique_staging_directory
 - **Status**: failed
@@ -1809,7 +1709,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: name 'Path' is not defined
 
 ### siege_utilities.distributed.csc
 - **Status**: failed
@@ -1818,7 +1718,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.cume_dist
 - **Status**: failed
@@ -1827,7 +1726,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.curdate
 - **Status**: failed
@@ -1836,7 +1735,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.current_catalog
 - **Status**: failed
@@ -1845,7 +1744,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.current_database
 - **Status**: failed
@@ -1854,7 +1753,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.current_date
 - **Status**: failed
@@ -1863,7 +1762,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.current_schema
 - **Status**: failed
@@ -1872,7 +1771,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.current_timestamp
 - **Status**: failed
@@ -1881,7 +1780,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.current_timezone
 - **Status**: failed
@@ -1890,7 +1789,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.current_user
 - **Status**: failed
@@ -1899,7 +1798,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.dataclass
 - **Status**: failed
@@ -1908,7 +1807,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 11
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: dataclass() takes from 0 to 1 positional arguments but 11 were given
 
 ### siege_utilities.distributed.date_add
 - **Status**: failed
@@ -1917,7 +1816,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.date_diff
 - **Status**: failed
@@ -1926,7 +1825,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.date_format
 - **Status**: failed
@@ -1935,7 +1834,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.date_from_unix_date
 - **Status**: failed
@@ -1944,7 +1843,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.date_part
 - **Status**: failed
@@ -1953,7 +1851,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.date_sub
 - **Status**: failed
@@ -1962,7 +1860,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.date_trunc
 - **Status**: failed
@@ -1971,7 +1869,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.dateadd
 - **Status**: failed
@@ -1980,7 +1878,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.datediff
 - **Status**: failed
@@ -1989,7 +1887,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.datepart
 - **Status**: failed
@@ -1998,7 +1896,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.day
 - **Status**: failed
@@ -2007,7 +1905,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.dayname
 - **Status**: failed
@@ -2016,7 +1913,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.dayofmonth
 - **Status**: failed
@@ -2025,7 +1921,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.dayofweek
 - **Status**: failed
@@ -2034,7 +1929,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.dayofyear
 - **Status**: failed
@@ -2043,7 +1937,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.days
 - **Status**: failed
@@ -2052,7 +1945,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.decode
 - **Status**: failed
@@ -2061,7 +1953,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.degrees
 - **Status**: failed
@@ -2070,7 +1962,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.dense_rank
 - **Status**: failed
@@ -2079,7 +1970,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.desc
 - **Status**: failed
@@ -2088,7 +1979,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.desc_nulls_first
 - **Status**: failed
@@ -2097,7 +1987,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.desc_nulls_last
 - **Status**: failed
@@ -2106,7 +1995,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.e
 - **Status**: failed
@@ -2115,7 +2003,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.element_at
 - **Status**: failed
@@ -2124,7 +2012,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.elt
 - **Status**: failed
@@ -2133,7 +2021,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.encode
 - **Status**: failed
@@ -2142,7 +2029,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.endswith
 - **Status**: failed
@@ -2151,7 +2038,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.ensure_literal
 - **Status**: failed
@@ -2160,7 +2047,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.equal_null
 - **Status**: failed
@@ -2169,7 +2055,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.every
 - **Status**: failed
@@ -2178,7 +2064,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.exists
 - **Status**: failed
@@ -2187,7 +2072,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.exp
 - **Status**: failed
@@ -2196,7 +2081,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.explode
 - **Status**: failed
@@ -2205,7 +2089,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.explode_outer
 - **Status**: failed
@@ -2214,7 +2097,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.expm1
 - **Status**: failed
@@ -2223,7 +2105,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.export_prepared_df_as_csv_to_path_using_delimiter
 - **Status**: failed
@@ -2232,16 +2113,15 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 'NoneType' object has no attribute 'stem'
 
 ### siege_utilities.distributed.export_pyspark_df_to_excel
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.expr
 - **Status**: failed
@@ -2250,7 +2130,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.extract
 - **Status**: failed
@@ -2259,7 +2138,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.factorial
 - **Status**: failed
@@ -2268,7 +2147,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.filter
 - **Status**: failed
@@ -2277,7 +2155,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.find_in_set
 - **Status**: failed
@@ -2286,7 +2164,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.first
 - **Status**: failed
@@ -2295,7 +2173,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.first_value
 - **Status**: failed
@@ -2304,7 +2182,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.flatten
 - **Status**: failed
@@ -2313,7 +2191,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.flatten_json_column_and_join_back_to_df
 - **Status**: failed
@@ -2322,7 +2199,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 10
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 'NoneType' object has no attribute 'filter'
 
 ### siege_utilities.distributed.floor
 - **Status**: failed
@@ -2331,7 +2208,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.forall
 - **Status**: failed
@@ -2340,7 +2217,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.format_number
 - **Status**: failed
@@ -2349,7 +2226,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.format_string
 - **Status**: failed
@@ -2358,7 +2235,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.from_csv
 - **Status**: failed
@@ -2367,7 +2244,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `schema` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.from_json
 - **Status**: failed
@@ -2376,7 +2253,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.from_unixtime
 - **Status**: failed
@@ -2385,7 +2262,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.from_utc_timestamp
 - **Status**: failed
@@ -2394,7 +2271,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.from_xml
 - **Status**: failed
@@ -2403,7 +2280,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR_OR_STRUCT] Argument `schema` should be a StructType, Column or str, got NoneType.
 
 ### siege_utilities.distributed.get
 - **Status**: failed
@@ -2412,7 +2289,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.get_json_object
 - **Status**: failed
@@ -2421,7 +2298,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.get_quick_file_signature
 - **Status**: skipped
@@ -2433,13 +2310,12 @@
 - **Execution Error**: Skipped - requires external dependencies
 
 ### siege_utilities.distributed.get_row_count
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.getbit
 - **Status**: failed
@@ -2448,7 +2324,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.greatest
 - **Status**: failed
@@ -2457,7 +2333,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.grouping
 - **Status**: failed
@@ -2466,7 +2341,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.grouping_id
 - **Status**: failed
@@ -2475,7 +2349,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.hash
 - **Status**: failed
@@ -2484,7 +2357,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.hex
 - **Status**: failed
@@ -2493,7 +2365,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.histogram_numeric
 - **Status**: failed
@@ -2502,7 +2373,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.hll_sketch_agg
 - **Status**: skipped
@@ -2520,7 +2391,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.hll_union
 - **Status**: skipped
@@ -2547,7 +2417,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.hours
 - **Status**: failed
@@ -2556,7 +2425,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.hypot
 - **Status**: failed
@@ -2565,7 +2433,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.ifnull
 - **Status**: failed
@@ -2574,7 +2442,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.ilike
 - **Status**: failed
@@ -2583,16 +2451,15 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.import_module_with_fallbacks
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.initcap
 - **Status**: failed
@@ -2601,7 +2468,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.inline
 - **Status**: failed
@@ -2610,7 +2476,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.inline_outer
 - **Status**: failed
@@ -2619,7 +2484,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.input_file_block_length
 - **Status**: failed
@@ -2628,7 +2492,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.input_file_block_start
 - **Status**: failed
@@ -2637,7 +2501,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.input_file_name
 - **Status**: failed
@@ -2646,7 +2510,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.instr
 - **Status**: failed
@@ -2655,7 +2519,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.is_valid_utf8
 - **Status**: failed
@@ -2664,7 +2528,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.is_variant_null
 - **Status**: failed
@@ -2673,7 +2536,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.isnan
 - **Status**: failed
@@ -2682,7 +2544,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.isnotnull
 - **Status**: failed
@@ -2691,7 +2552,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.isnull
 - **Status**: failed
@@ -2700,7 +2560,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.java_method
 - **Status**: failed
@@ -2709,7 +2568,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.json_array_length
 - **Status**: failed
@@ -2718,7 +2576,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.json_object_keys
 - **Status**: failed
@@ -2727,7 +2584,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.json_tuple
 - **Status**: failed
@@ -2736,7 +2592,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.kurtosis
 - **Status**: failed
@@ -2745,7 +2601,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.lag
 - **Status**: failed
@@ -2754,7 +2609,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.last
 - **Status**: failed
@@ -2763,7 +2618,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.last_day
 - **Status**: failed
@@ -2772,7 +2627,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.last_value
 - **Status**: failed
@@ -2781,7 +2635,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.lcase
 - **Status**: failed
@@ -2790,7 +2644,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.lead
 - **Status**: failed
@@ -2799,7 +2652,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.least
 - **Status**: failed
@@ -2808,7 +2661,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.left
 - **Status**: failed
@@ -2817,7 +2669,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.length
 - **Status**: failed
@@ -2826,7 +2678,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.levenshtein
 - **Status**: failed
@@ -2835,7 +2686,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.like
 - **Status**: failed
@@ -2844,7 +2695,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.listagg
 - **Status**: failed
@@ -2853,7 +2704,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.listagg_distinct
 - **Status**: failed
@@ -2862,7 +2713,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.lit
 - **Status**: failed
@@ -2871,7 +2722,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.ln
 - **Status**: failed
@@ -2880,7 +2730,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.localtimestamp
 - **Status**: failed
@@ -2889,7 +2738,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.locate
 - **Status**: failed
@@ -2898,7 +2747,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.log
 - **Status**: failed
@@ -2907,7 +2756,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.log10
 - **Status**: failed
@@ -2916,7 +2765,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.log1p
 - **Status**: failed
@@ -2925,7 +2773,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.log2
 - **Status**: failed
@@ -2934,25 +2781,22 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.log_error
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.log_info
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.lower
 - **Status**: failed
@@ -2961,7 +2805,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.lpad
 - **Status**: failed
@@ -2970,7 +2813,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.ltrim
 - **Status**: failed
@@ -2979,7 +2822,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.make_date
 - **Status**: failed
@@ -2988,7 +2831,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.make_dt_interval
 - **Status**: failed
@@ -2997,7 +2840,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.make_interval
 - **Status**: failed
@@ -3006,7 +2849,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 7
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.make_timestamp
 - **Status**: failed
@@ -3015,7 +2858,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 7
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.make_timestamp_ltz
 - **Status**: failed
@@ -3024,7 +2867,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 7
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.make_timestamp_ntz
 - **Status**: failed
@@ -3033,7 +2876,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 6
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.make_valid_utf8
 - **Status**: failed
@@ -3042,7 +2885,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.make_ym_interval
 - **Status**: failed
@@ -3051,7 +2893,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.map_concat
 - **Status**: failed
@@ -3060,7 +2902,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.map_contains_key
 - **Status**: failed
@@ -3069,7 +2910,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.map_entries
 - **Status**: failed
@@ -3078,7 +2919,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.map_filter
 - **Status**: failed
@@ -3087,7 +2927,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.map_from_arrays
 - **Status**: failed
@@ -3096,7 +2936,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.map_from_entries
 - **Status**: failed
@@ -3105,7 +2945,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.map_keys
 - **Status**: failed
@@ -3114,7 +2953,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.map_values
 - **Status**: failed
@@ -3123,7 +2961,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.map_zip_with
 - **Status**: failed
@@ -3132,7 +2969,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.mark_valid_geocode_data
 - **Status**: failed
@@ -3141,7 +2978,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 'NoneType' object has no attribute 'columns'
 
 ### siege_utilities.distributed.mask
 - **Status**: failed
@@ -3150,7 +2987,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 5
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.max
 - **Status**: failed
@@ -3159,7 +2996,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.max_by
 - **Status**: failed
@@ -3168,7 +3004,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.md5
 - **Status**: failed
@@ -3177,7 +3013,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.mean
 - **Status**: failed
@@ -3186,7 +3021,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.median
 - **Status**: failed
@@ -3195,7 +3029,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.min
 - **Status**: failed
@@ -3204,7 +3037,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.min_by
 - **Status**: failed
@@ -3213,7 +3045,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.minute
 - **Status**: failed
@@ -3222,7 +3054,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.mode
 - **Status**: failed
@@ -3231,7 +3062,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.monotonically_increasing_id
 - **Status**: failed
@@ -3240,7 +3071,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.month
 - **Status**: failed
@@ -3249,7 +3080,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.monthname
 - **Status**: failed
@@ -3258,7 +3088,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.months
 - **Status**: failed
@@ -3267,7 +3096,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.months_between
 - **Status**: failed
@@ -3276,16 +3104,15 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.move_column_to_front_of_dataframe
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.named_struct
 - **Status**: failed
@@ -3294,7 +3121,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.nanvl
 - **Status**: failed
@@ -3303,7 +3129,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.negate
 - **Status**: failed
@@ -3312,7 +3138,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.negative
 - **Status**: failed
@@ -3321,7 +3146,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.next_day
 - **Status**: failed
@@ -3330,7 +3154,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.now
 - **Status**: failed
@@ -3339,7 +3163,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.nth_value
 - **Status**: failed
@@ -3348,7 +3172,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.ntile
 - **Status**: failed
@@ -3357,7 +3181,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.nullif
 - **Status**: failed
@@ -3366,7 +3189,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.nullifzero
 - **Status**: failed
@@ -3375,7 +3198,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.nvl
 - **Status**: failed
@@ -3384,7 +3206,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.nvl2
 - **Status**: failed
@@ -3393,7 +3215,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.octet_length
 - **Status**: failed
@@ -3402,7 +3224,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.overlay
 - **Status**: failed
@@ -3411,7 +3232,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_INT_OR_STR] Argument `pos` should be a Column, int or str, got NoneType.
 
 ### siege_utilities.distributed.pandas_udf
 - **Status**: failed
@@ -3420,7 +3241,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [PACKAGE_NOT_INSTALLED] PyArrow >= 11.0.0 must be installed; however, it was not found.
 
 ### siege_utilities.distributed.parse_json
 - **Status**: failed
@@ -3429,7 +3250,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.parse_url
 - **Status**: skipped
@@ -3447,7 +3267,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.percentile
 - **Status**: failed
@@ -3456,7 +3276,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.percentile_approx
 - **Status**: failed
@@ -3465,7 +3285,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.pi
 - **Status**: failed
@@ -3474,7 +3294,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.pivot_summary_table_for_bools
 - **Status**: failed
@@ -3483,7 +3303,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 'NoneType' object has no attribute 'count'
 
 ### siege_utilities.distributed.pivot_summary_with_metrics
 - **Status**: failed
@@ -3492,7 +3312,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 'NoneType' object has no attribute 'groupBy'
 
 ### siege_utilities.distributed.pmod
 - **Status**: failed
@@ -3501,7 +3321,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.posexplode
 - **Status**: failed
@@ -3510,7 +3330,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.posexplode_outer
 - **Status**: failed
@@ -3519,7 +3338,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.position
 - **Status**: failed
@@ -3528,7 +3346,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.positive
 - **Status**: failed
@@ -3537,7 +3355,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.pow
 - **Status**: failed
@@ -3546,7 +3363,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.power
 - **Status**: failed
@@ -3555,7 +3372,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.prepare_dataframe_for_export
 - **Status**: failed
@@ -3564,7 +3381,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 'NoneType' object has no attribute 'columns'
 
 ### siege_utilities.distributed.prepare_summary_dataframe
 - **Status**: failed
@@ -3573,7 +3390,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 'NoneType' object is not iterable
 
 ### siege_utilities.distributed.print_debug_table
 - **Status**: failed
@@ -3582,7 +3399,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 'NoneType' object has no attribute 'toPandas'
 
 ### siege_utilities.distributed.printf
 - **Status**: failed
@@ -3591,7 +3408,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.product
 - **Status**: failed
@@ -3600,7 +3417,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.quarter
 - **Status**: failed
@@ -3609,7 +3425,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.radians
 - **Status**: failed
@@ -3618,7 +3433,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.raise_error
 - **Status**: failed
@@ -3627,7 +3441,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.rand
 - **Status**: failed
@@ -3636,7 +3449,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.randn
 - **Status**: failed
@@ -3645,7 +3457,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.randstr
 - **Status**: failed
@@ -3654,7 +3465,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.rank
 - **Status**: failed
@@ -3663,16 +3474,15 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.read_parquet_to_df
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.reduce
 - **Status**: failed
@@ -3681,7 +3491,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.reflect
 - **Status**: failed
@@ -3690,7 +3500,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.regexp
 - **Status**: failed
@@ -3699,7 +3508,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.regexp_count
 - **Status**: failed
@@ -3708,7 +3517,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.regexp_extract
 - **Status**: failed
@@ -3717,7 +3526,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.regexp_extract_all
 - **Status**: failed
@@ -3726,7 +3535,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.regexp_instr
 - **Status**: failed
@@ -3735,7 +3544,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.regexp_like
 - **Status**: failed
@@ -3744,7 +3553,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.regexp_replace
 - **Status**: failed
@@ -3753,7 +3562,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.regexp_substr
 - **Status**: failed
@@ -3762,16 +3571,15 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.register_temp_table
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.regr_avgx
 - **Status**: failed
@@ -3780,7 +3588,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.regr_avgy
 - **Status**: failed
@@ -3789,7 +3597,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.regr_count
 - **Status**: failed
@@ -3798,7 +3606,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.regr_intercept
 - **Status**: failed
@@ -3807,7 +3615,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.regr_r2
 - **Status**: failed
@@ -3816,7 +3624,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.regr_slope
 - **Status**: failed
@@ -3825,7 +3633,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.regr_sxx
 - **Status**: failed
@@ -3834,7 +3642,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.regr_sxy
 - **Status**: failed
@@ -3843,7 +3651,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.regr_syy
 - **Status**: failed
@@ -3852,16 +3660,15 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.repartition_and_cache
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.repeat
 - **Status**: failed
@@ -3870,7 +3677,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.replace
 - **Status**: failed
@@ -3879,7 +3686,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.reproject_geom_columns
 - **Status**: failed
@@ -3888,7 +3695,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 'NoneType' object has no attribute 'split'
 
 ### siege_utilities.distributed.reverse
 - **Status**: failed
@@ -3897,7 +3704,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.right
 - **Status**: failed
@@ -3906,7 +3712,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.rint
 - **Status**: failed
@@ -3915,7 +3721,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.rlike
 - **Status**: failed
@@ -3924,7 +3729,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.round
 - **Status**: failed
@@ -3933,7 +3738,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.row_number
 - **Status**: failed
@@ -3942,7 +3747,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.rpad
 - **Status**: failed
@@ -3951,7 +3756,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.rtrim
 - **Status**: failed
@@ -3960,16 +3765,15 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.sanitise_dataframe_column_names
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.schema_of_csv
 - **Status**: failed
@@ -3978,7 +3782,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `csv` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.schema_of_json
 - **Status**: failed
@@ -3987,7 +3791,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `json` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.schema_of_variant
 - **Status**: failed
@@ -3996,7 +3800,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.schema_of_variant_agg
 - **Status**: failed
@@ -4005,7 +3808,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.schema_of_xml
 - **Status**: failed
@@ -4014,7 +3816,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `xml` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.sec
 - **Status**: failed
@@ -4023,7 +3825,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.second
 - **Status**: failed
@@ -4032,7 +3833,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.sentences
 - **Status**: failed
@@ -4041,7 +3841,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.sequence
 - **Status**: failed
@@ -4050,7 +3850,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.session_user
 - **Status**: failed
@@ -4059,7 +3859,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.session_window
 - **Status**: failed
@@ -4068,7 +3868,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.setup_distributed_environment
 - **Status**: skipped
@@ -4086,7 +3886,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.sha1
 - **Status**: failed
@@ -4095,7 +3894,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.sha2
 - **Status**: failed
@@ -4104,7 +3902,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [VALUE_NOT_ALLOWED] Value for `numBits` has to be amongst the following values: [0, 224, 256, 384, 512].
 
 ### siege_utilities.distributed.shiftleft
 - **Status**: failed
@@ -4113,7 +3911,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.shiftright
 - **Status**: failed
@@ -4122,7 +3920,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.shiftrightunsigned
 - **Status**: failed
@@ -4131,7 +3929,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.shuffle
 - **Status**: failed
@@ -4140,7 +3938,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.sign
 - **Status**: failed
@@ -4149,7 +3947,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.signum
 - **Status**: failed
@@ -4158,7 +3955,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.sin
 - **Status**: failed
@@ -4167,7 +3963,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.sinh
 - **Status**: failed
@@ -4176,7 +3971,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.size
 - **Status**: failed
@@ -4185,7 +3979,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.skewness
 - **Status**: failed
@@ -4194,7 +3987,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.slice
 - **Status**: failed
@@ -4203,7 +3995,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.some
 - **Status**: failed
@@ -4212,7 +4004,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.sort_array
 - **Status**: failed
@@ -4221,7 +4012,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.soundex
 - **Status**: failed
@@ -4230,7 +4021,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.spark_partition_id
 - **Status**: failed
@@ -4239,7 +4029,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.split
 - **Status**: failed
@@ -4248,7 +4038,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.split_part
 - **Status**: failed
@@ -4257,7 +4047,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.sqrt
 - **Status**: failed
@@ -4266,7 +4056,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.stack
 - **Status**: failed
@@ -4275,7 +4064,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.startswith
 - **Status**: failed
@@ -4284,7 +4072,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.std
 - **Status**: failed
@@ -4293,7 +4081,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.stddev
 - **Status**: failed
@@ -4302,7 +4089,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.stddev_pop
 - **Status**: failed
@@ -4311,7 +4097,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.stddev_samp
 - **Status**: failed
@@ -4320,7 +4105,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.str_to_map
 - **Status**: failed
@@ -4329,7 +4113,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.string_agg
 - **Status**: failed
@@ -4338,7 +4122,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.string_agg_distinct
 - **Status**: failed
@@ -4347,7 +4131,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.struct
 - **Status**: failed
@@ -4356,7 +4140,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.substr
 - **Status**: failed
@@ -4365,7 +4148,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.substring
 - **Status**: failed
@@ -4374,7 +4157,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.substring_index
 - **Status**: failed
@@ -4383,7 +4166,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.sum
 - **Status**: failed
@@ -4392,7 +4175,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.sum_distinct
 - **Status**: failed
@@ -4401,16 +4183,14 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.tabulate_null_vs_not_null
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.tan
 - **Status**: failed
@@ -4419,7 +4199,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.tanh
 - **Status**: failed
@@ -4428,7 +4207,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.timestamp_add
 - **Status**: failed
@@ -4437,7 +4215,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.timestamp_diff
 - **Status**: failed
@@ -4446,7 +4224,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.timestamp_micros
 - **Status**: failed
@@ -4455,7 +4233,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.timestamp_millis
 - **Status**: failed
@@ -4464,7 +4241,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.timestamp_seconds
 - **Status**: failed
@@ -4473,7 +4249,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.to_binary
 - **Status**: failed
@@ -4482,7 +4257,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.to_char
 - **Status**: failed
@@ -4491,7 +4266,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.to_csv
 - **Status**: failed
@@ -4500,7 +4275,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.to_date
 - **Status**: failed
@@ -4509,7 +4284,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.to_json
 - **Status**: failed
@@ -4518,7 +4293,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.to_number
 - **Status**: failed
@@ -4527,7 +4302,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.to_timestamp
 - **Status**: failed
@@ -4536,7 +4311,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.to_timestamp_ltz
 - **Status**: failed
@@ -4545,7 +4320,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.to_timestamp_ntz
 - **Status**: failed
@@ -4554,7 +4329,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.to_unix_timestamp
 - **Status**: failed
@@ -4563,7 +4338,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.to_utc_timestamp
 - **Status**: failed
@@ -4572,7 +4347,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.to_varchar
 - **Status**: failed
@@ -4581,7 +4356,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.to_variant_object
 - **Status**: failed
@@ -4590,7 +4365,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.to_xml
 - **Status**: failed
@@ -4599,7 +4373,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.transform
 - **Status**: failed
@@ -4608,7 +4382,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.transform_keys
 - **Status**: failed
@@ -4617,7 +4391,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.transform_values
 - **Status**: failed
@@ -4626,7 +4400,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.distributed.translate
 - **Status**: failed
@@ -4635,7 +4409,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.trim
 - **Status**: failed
@@ -4644,7 +4418,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.trunc
 - **Status**: failed
@@ -4653,7 +4427,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.try_add
 - **Status**: failed
@@ -4662,7 +4436,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.try_aes_decrypt
 - **Status**: failed
@@ -4671,7 +4445,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 5
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.try_avg
 - **Status**: failed
@@ -4680,7 +4454,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.try_divide
 - **Status**: failed
@@ -4689,7 +4462,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.try_element_at
 - **Status**: failed
@@ -4698,7 +4471,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.try_make_interval
 - **Status**: failed
@@ -4707,7 +4480,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 7
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.try_make_timestamp
 - **Status**: failed
@@ -4716,7 +4489,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 7
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.try_make_timestamp_ltz
 - **Status**: failed
@@ -4725,7 +4498,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 7
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.try_make_timestamp_ntz
 - **Status**: failed
@@ -4734,7 +4507,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 6
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.try_mod
 - **Status**: failed
@@ -4743,7 +4516,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.try_multiply
 - **Status**: failed
@@ -4752,7 +4525,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.try_parse_json
 - **Status**: failed
@@ -4761,7 +4534,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.try_parse_url
 - **Status**: skipped
@@ -4779,7 +4551,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.try_subtract
 - **Status**: failed
@@ -4788,7 +4559,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.try_sum
 - **Status**: failed
@@ -4797,7 +4568,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.try_to_binary
 - **Status**: failed
@@ -4806,7 +4576,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.try_to_number
 - **Status**: failed
@@ -4815,7 +4585,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.try_to_timestamp
 - **Status**: failed
@@ -4824,7 +4594,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.try_url_decode
 - **Status**: failed
@@ -4833,7 +4603,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.try_validate_utf8
 - **Status**: failed
@@ -4842,7 +4611,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.try_variant_get
 - **Status**: failed
@@ -4851,7 +4619,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.typeof
 - **Status**: failed
@@ -4860,7 +4628,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.ucase
 - **Status**: failed
@@ -4869,7 +4636,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.udf
 - **Status**: failed
@@ -4878,7 +4644,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: udf() takes from 0 to 2 positional arguments but 3 were given
 
 ### siege_utilities.distributed.udtf
 - **Status**: failed
@@ -4887,7 +4653,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: udtf() takes from 0 to 1 positional arguments but 3 were given
 
 ### siege_utilities.distributed.unbase64
 - **Status**: failed
@@ -4896,7 +4662,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.unhex
 - **Status**: failed
@@ -4905,7 +4670,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.uniform
 - **Status**: failed
@@ -4914,7 +4678,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.unix_date
 - **Status**: failed
@@ -4923,7 +4687,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.unix_micros
 - **Status**: failed
@@ -4932,7 +4695,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.unix_millis
 - **Status**: failed
@@ -4941,7 +4703,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.unix_seconds
 - **Status**: failed
@@ -4950,7 +4711,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.unix_timestamp
 - **Status**: failed
@@ -4959,7 +4719,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.unwrap_udt
 - **Status**: failed
@@ -4968,7 +4728,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.upper
 - **Status**: failed
@@ -4977,7 +4736,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.url_decode
 - **Status**: failed
@@ -4986,7 +4744,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.url_encode
 - **Status**: failed
@@ -4995,7 +4752,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.user
 - **Status**: failed
@@ -5004,7 +4760,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.validate_geocode_data
 - **Status**: failed
@@ -5013,7 +4769,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 'NoneType' object has no attribute 'columns'
 
 ### siege_utilities.distributed.validate_geometry
 - **Status**: failed
@@ -5022,7 +4778,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 'NoneType' object has no attribute 'select'
 
 ### siege_utilities.distributed.validate_utf8
 - **Status**: failed
@@ -5031,7 +4787,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.var_pop
 - **Status**: failed
@@ -5040,7 +4795,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.var_samp
 - **Status**: failed
@@ -5049,7 +4803,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.variance
 - **Status**: failed
@@ -5058,7 +4811,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.variant_get
 - **Status**: failed
@@ -5067,7 +4819,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 
 
 ### siege_utilities.distributed.version
 - **Status**: failed
@@ -5076,7 +4828,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Execution failed: 
 
 ### siege_utilities.distributed.weekday
 - **Status**: failed
@@ -5085,7 +4837,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.weekofyear
 - **Status**: failed
@@ -5094,7 +4845,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.when
 - **Status**: failed
@@ -5103,7 +4853,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN] Argument `condition` should be a Column, got NoneType.
 
 ### siege_utilities.distributed.width_bucket
 - **Status**: failed
@@ -5112,7 +4862,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.window
 - **Status**: failed
@@ -5121,7 +4871,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.window_time
 - **Status**: failed
@@ -5130,16 +4880,14 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.write_df_to_parquet
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.xpath
 - **Status**: failed
@@ -5148,7 +4896,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.xpath_boolean
 - **Status**: failed
@@ -5157,7 +4905,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.xpath_double
 - **Status**: failed
@@ -5166,7 +4914,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.xpath_float
 - **Status**: failed
@@ -5175,7 +4923,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.xpath_int
 - **Status**: failed
@@ -5184,7 +4932,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.xpath_long
 - **Status**: failed
@@ -5193,7 +4941,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.xpath_number
 - **Status**: failed
@@ -5202,7 +4950,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.xpath_short
 - **Status**: failed
@@ -5211,7 +4959,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.xpath_string
 - **Status**: failed
@@ -5220,7 +4968,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [NOT_COLUMN_OR_STR] Argument `col` should be a Column or str, got NoneType.
 
 ### siege_utilities.distributed.xxhash64
 - **Status**: failed
@@ -5229,7 +4977,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.year
 - **Status**: failed
@@ -5238,7 +4985,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.years
 - **Status**: failed
@@ -5247,7 +4993,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.zeroifnull
 - **Status**: failed
@@ -5256,7 +5001,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.distributed.zip_with
 - **Status**: failed
@@ -5265,25 +5009,23 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: [SESSION_OR_CONTEXT_NOT_EXISTS] SparkContext or SparkSession should be created first.
 
 ### siege_utilities.files.cleanup_all_loggers
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.files.cleanup_logger
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.files.configure_shared_logging
 - **Status**: skipped
@@ -5295,121 +5037,108 @@
 - **Execution Error**: Skipped - requires external dependencies
 
 ### siege_utilities.files.disable_shared_logging
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.files.get_all_loggers
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.files.get_logger
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.files.init_logger
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 7
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.files.log_critical
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.files.log_debug
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.files.log_error
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.files.log_info
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.files.log_warning
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.files.parse_log_level
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.files.set_default_logger_name
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.geo.compare_census_datasets
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.geo.concatenate_addresses
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 5
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.geo.get_analysis_approach
 - **Status**: failed
@@ -5418,7 +5147,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 'NoneType' object has no attribute 'lower'
 
 ### siege_utilities.geo.get_best_dataset_for_analysis
 - **Status**: failed
@@ -5427,34 +5156,31 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: None is not a valid GeographyLevel
 
 ### siege_utilities.geo.get_census_data_selector
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.geo.get_census_dataset_mapper
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.geo.get_census_intelligence
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.geo.quick_census_selection
 - **Status**: failed
@@ -5463,7 +5189,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 'NoneType' object has no attribute 'lower'
 
 ### siege_utilities.geo.select_census_datasets
 - **Status**: failed
@@ -5472,7 +5198,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 'NoneType' object has no attribute 'lower'
 
 ### siege_utilities.geo.use_nominatim_geocoder
 - **Status**: failed
@@ -5481,7 +5207,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: name 'log_warning' is not defined
 
 ### siege_utilities.git.analyze_branch_status
 - **Status**: failed
@@ -5490,7 +5216,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.git.apply_stash
 - **Status**: failed
@@ -5499,7 +5224,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: expected str, bytes or os.PathLike object, not NoneType
 
 ### siege_utilities.git.categorize_commits
 - **Status**: failed
@@ -5508,7 +5233,6 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.git.cherry_pick_commit
 - **Status**: failed
@@ -5517,25 +5241,23 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: expected str, bytes or os.PathLike object, not NoneType
 
 ### siege_utilities.git.clean_working_directory
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.git.complete_feature_workflow
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 5
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.git.create_feature_branch
 - **Status**: failed
@@ -5544,7 +5266,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: expected string or bytes-like object, got 'NoneType'
 
 ### siege_utilities.git.create_tag
 - **Status**: failed
@@ -5553,16 +5275,15 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 5
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: expected str, bytes or os.PathLike object, not NoneType
 
 ### siege_utilities.git.enforce_commit_conventions
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.git.generate_branch_report
 - **Status**: failed
@@ -5571,34 +5292,31 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: expected str, bytes or os.PathLike object, not NoneType
 
 ### siege_utilities.git.get_branch_info
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.git.get_commit_history
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.git.get_file_changes
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.git.get_log_summary
 - **Status**: skipped
@@ -5610,13 +5328,12 @@
 - **Execution Error**: Skipped - requires external dependencies
 
 ### siege_utilities.git.get_remote_info
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.git.get_repository_status
 - **Status**: failed
@@ -5625,25 +5342,22 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.git.get_stash_list
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.git.get_tag_list
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.git.hotfix_workflow
 - **Status**: failed
@@ -5652,7 +5366,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: Invalid hotfix name: ["Branch name doesn't follow any standard pattern", 'Branch name contains uppercase letters (use lowercase)', 'Branch name contains invalid characters']
 
 ### siege_utilities.git.merge_branch
 - **Status**: failed
@@ -5661,7 +5375,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 5
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: expected str, bytes or os.PathLike object, not NoneType
 
 ### siege_utilities.git.pull_branch
 - **Status**: failed
@@ -5670,7 +5384,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: expected str, bytes or os.PathLike object, not NoneType
 
 ### siege_utilities.git.push_branch
 - **Status**: failed
@@ -5679,7 +5393,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: expected str, bytes or os.PathLike object, not NoneType
 
 ### siege_utilities.git.rebase_branch
 - **Status**: failed
@@ -5688,7 +5402,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: expected str, bytes or os.PathLike object, not NoneType
 
 ### siege_utilities.git.release_workflow
 - **Status**: failed
@@ -5697,7 +5411,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: expected string or bytes-like object, got 'NoneType'
 
 ### siege_utilities.git.reset_to_commit
 - **Status**: failed
@@ -5706,7 +5420,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: Invalid reset type. Must be one of: ['soft', 'mixed', 'hard']
 
 ### siege_utilities.git.start_feature_workflow
 - **Status**: failed
@@ -5715,16 +5429,15 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: Invalid feature name: ["Branch name doesn't follow any standard pattern", 'Branch name contains uppercase letters (use lowercase)', 'Branch name contains invalid characters']
 
 ### siege_utilities.git.stash_changes
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.git.switch_branch
 - **Status**: failed
@@ -5733,16 +5446,15 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 'in <string>' requires string as left operand, not NoneType
 
 ### siege_utilities.git.validate_branch_naming
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.reporting.create_content_page
 - **Status**: failed
@@ -5751,7 +5463,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 6
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: cannot unpack non-iterable NoneType object
 
 ### siege_utilities.reporting.create_table_of_contents
 - **Status**: failed
@@ -5760,7 +5472,7 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 5
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: cannot unpack non-iterable NoneType object
 
 ### siege_utilities.reporting.create_title_page
 - **Status**: failed
@@ -5769,70 +5481,63 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 8
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: cannot unpack non-iterable NoneType object
 
 ### siege_utilities.reporting.generate_sections_from_report_structure
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.testing.build_pytest_command
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 4
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.testing.check_java_version
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.testing.diagnose_environment
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.testing.ensure_env_vars
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.testing.get_system_info
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.testing.get_test_report
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.testing.import_module_with_fallbacks
 - **Status**: failed
@@ -5841,52 +5546,47 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 'NoneType' object has no attribute 'startswith'
 
 ### siege_utilities.testing.log_error
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.testing.log_info
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: False
 - **Parameters**: 1
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.testing.log_warning
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 2
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.testing.quick_environment_setup
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.testing.quick_smoke_test
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.testing.run_command
 - **Status**: failed
@@ -5895,16 +5595,15 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 3
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: can only join an iterable
 
 ### siege_utilities.testing.run_comprehensive_test
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 
 ### siege_utilities.testing.run_test_suite
 - **Status**: failed
@@ -5913,14 +5612,13 @@
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 6
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
+- **Execution Error**: Failed with None values: 'NoneType' object has no attribute 'upper'
 
 ### siege_utilities.testing.setup_spark_environment
-- **Status**: failed
+- **Status**: working
 - **Importable**: True
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True
 - **Parameters**: 0
-- **Execution Error**: Module/function access failed: name 'func_name' is not defined
 

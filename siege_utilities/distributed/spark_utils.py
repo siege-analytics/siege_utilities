@@ -947,7 +947,7 @@ def validate_geometry(df, geom_col, step_name):
     return df
 
 
-def backup_full_dataframe(df, step_name):
+def backup_full_dataframe(df, step_name: str) -> None:
     """""\"
 Utility function: backup full dataframe.
 
