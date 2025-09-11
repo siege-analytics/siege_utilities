@@ -974,3 +974,7 @@
 2025-09-11 01:57:54,956 - INFO - Successful: 0
 2025-09-11 01:57:54,956 - INFO - Failed: 610
 2025-09-11 01:57:54,956 - INFO - Skipped: 40
+2025-09-11 02:07:24,021 - DEBUG - test_string
+2025-09-11 02:07:24,022 - INFO - test_string
+2025-09-11 02:07:24,022 - WARNING - test_string
+2025-09-11 02:07:24,022 - ERROR - test_string

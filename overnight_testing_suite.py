@@ -167,7 +167,7 @@ class FunctionTester:
             params = list(sig.parameters.keys())
             
             # Skip functions that require complex parameters we can't easily provide
-            skip_patterns = ['client_id', 'api_key', 'credentials', 'config', 'file_path', 'url', 'service_account', 'oauth', 'auth']
+            skip_patterns = ['client_id', 'api_key', 'credentials', 'url', 'service_account', 'oauth', 'auth']
             if any(pattern in ' '.join(params).lower() for pattern in skip_patterns):
                 result['error'] = "Skipped - requires external dependencies"
                 return result
@@ -241,6 +241,10 @@ class FunctionTester:
         from pathlib import Path
         import tempfile
         
+        # File-related functions
+        if 'file' in function_name.lower() or 'file' in param_name.lower():
+            return Path('/tmp/test_file.txt')
+        
         # Path-related functions
         if 'path' in function_name.lower() or 'path' in param_name.lower():
             return Path('/tmp/test_path')
@@ -248,6 +252,22 @@ class FunctionTester:
         # Directory functions
         if 'directory' in function_name.lower() or 'dir' in function_name.lower():
             return Path('/tmp/test_dir')
+        
+        # Project name functions
+        if 'project' in function_name.lower() or param_name.lower() in ['project_name', 'project']:
+            return "test_project"
+        
+        # Cache type functions
+        if 'cache' in function_name.lower() or param_name.lower() in ['cache_type']:
+            return "default"
+        
+        # Output type functions
+        if 'output' in function_name.lower() or param_name.lower() in ['output_type']:
+            return "default"
+        
+        # Data type functions
+        if 'data' in function_name.lower() and 'type' in param_name.lower():
+            return "default"
         
         # String functions
         if 'string' in function_name.lower() or param_name.lower() in ['text', 'message', 'name']:
