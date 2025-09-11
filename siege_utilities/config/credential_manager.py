@@ -451,7 +451,10 @@ class CredentialManager:
             
             creds = credentials_data['installed']
             
-            # Create comprehensive 1Password item
+            # Create comprehensive 1Password item with both individual fields and raw JSON
+            import json
+            raw_json = json.dumps(credentials_data, indent=2)
+            
             cmd = [
                 'op', 'item', 'create',
                 '--category=API Credential',
@@ -461,6 +464,7 @@ class CredentialManager:
                 f'client_secret={creds["client_secret"]}',
                 f'auth_uri={creds["auth_uri"]}',
                 f'token_uri={creds["token_uri"]}',
+                f'raw_json[text]={raw_json}',
                 '--tags=google-analytics,api,oauth2,siege-utilities'
             ]
             
