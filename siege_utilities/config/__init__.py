@@ -254,6 +254,8 @@ from .credential_manager import (
     store_ga_credentials_from_file,
     get_ga_credentials,
     credential_status,
+    store_ga_service_account_from_file,
+    get_ga_service_account_credentials,
 )
 
 # Export all for easy importing
@@ -338,6 +340,7 @@ __all__ = [
     'cleanup_old_connections', 'get_connection_status',
     
     # Credential management functions
-    'CredentialManager', 'get_credential', 'store_credential',
+    'CredentialManager', 'get_credential', 'store_credential', 
     'store_ga_credentials_from_file', 'get_ga_credentials', 'credential_status',
+    'store_ga_service_account_from_file', 'get_ga_service_account_credentials',
 ]

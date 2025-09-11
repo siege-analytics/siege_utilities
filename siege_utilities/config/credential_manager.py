@@ -740,3 +740,123 @@ def credential_status() -> Dict[str, Dict[str, Any]]:
     """Get status of all credential backends."""
     manager = CredentialManager()
     return manager.backend_status()
+
+
+def store_ga_service_account_from_file(credentials_file: Union[str, Path],
+                                      item_title: str = "Google Analytics Service Account", 
+                                      vault: str = "Private",
+                                      delete_file: bool = False) -> bool:
+    """
+    Store Google Analytics service account credentials in 1Password.
+    
+    Args:
+        credentials_file: Path to service account JSON file
+        item_title: Title for 1Password item
+        vault: 1Password vault name
+        delete_file: Whether to delete file after storing
+        
+    Returns:
+        True if successful
+    """
+    try:
+        credentials_file = Path(credentials_file)
+        
+        if not credentials_file.exists():
+            log_error(f"Service account file not found: {credentials_file}")
+            return False
+        
+        # Read service account JSON
+        with open(credentials_file, 'r') as f:
+            service_account_data = json.load(f)
+        
+        # Validate service account format
+        required_fields = ['type', 'project_id', 'private_key_id', 'private_key', 'client_email']
+        if not all(field in service_account_data for field in required_fields):
+            log_error("Invalid service account credentials format")
+            return False
+        
+        if service_account_data.get('type') != 'service_account':
+            log_error("Not a service account credentials file")
+            return False
+        
+        # Create comprehensive 1Password item with service account data
+        raw_json = json.dumps(service_account_data, indent=2)
+        
+        cmd = [
+            'op', 'item', 'create',
+            '--category=API Credential',
+            f'--title={item_title}',
+            f'--vault={vault}',
+            f'project_id={service_account_data["project_id"]}',
+            f'client_email={service_account_data["client_email"]}',
+            f'private_key_id={service_account_data["private_key_id"]}',
+            f'private_key[password]={service_account_data["private_key"]}',
+            f'raw_json[text]={raw_json}',
+            '--tags=google-analytics,service-account,ga4,siege-utilities'
+        ]
+        
+        # Add optional fields if present
+        if 'client_id' in service_account_data:
+            cmd.append(f'client_id={service_account_data["client_id"]}')
+        if 'auth_uri' in service_account_data:
+            cmd.append(f'auth_uri={service_account_data["auth_uri"]}')
+        if 'token_uri' in service_account_data:
+            cmd.append(f'token_uri={service_account_data["token_uri"]}')
+        
+        # Execute 1Password command
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        
+        log_info(f"Stored Google Analytics service account: '{item_title}'")
+        
+        # Verify storage by retrieving client_email
+        test_email = get_credential('google-analytics-sa', service_account_data['client_email'], 'client_email')
+        if test_email:
+            log_info("Service account credential storage verified")
+            
+            # Delete original file if requested
+            if delete_file:
+                credentials_file.unlink()
+                log_info(f"Deleted original file: {credentials_file}")
+            
+            return True
+        else:
+            log_warning("Could not verify service account storage (but likely successful)")
+            return True  # Still consider success since 1Password command succeeded
+            
+    except subprocess.CalledProcessError as e:
+        log_error(f"Failed to store service account credentials: {e.stderr}")
+        return False
+    except Exception as e:
+        log_error(f"Error storing service account credentials: {str(e)}")
+        return False
+
+
+def get_ga_service_account_credentials() -> Optional[Dict[str, str]]:
+    """
+    Get Google Analytics service account credentials.
+    
+    Returns:
+        Dict with service account data or None
+    """
+    manager = CredentialManager()
+    
+    # Try to get service account email first
+    client_email = manager.get_credential('google-analytics-sa', 'service', 'client_email')
+    if not client_email:
+        return None
+    
+    # Get other required fields
+    project_id = manager.get_credential('google-analytics-sa', 'service', 'project_id')
+    private_key = manager.get_credential('google-analytics-sa', 'service', 'private_key')
+    private_key_id = manager.get_credential('google-analytics-sa', 'service', 'private_key_id')
+    
+    if all([client_email, project_id, private_key, private_key_id]):
+        return {
+            'client_email': client_email,
+            'project_id': project_id,
+            'private_key': private_key,
+            'private_key_id': private_key_id,
+            'type': 'service_account'
+        }
+    
+    return None
