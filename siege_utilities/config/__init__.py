@@ -246,6 +246,11 @@ from .connections import (
     get_connection_status,
 )
 
+from .credential_manager import (
+    get_google_service_account_from_1password,
+    create_temporary_service_account_file,
+)
+
 # Import credential management functions
 from .credential_manager import (
     CredentialManager,
@@ -338,6 +343,10 @@ __all__ = [
     'create_database_config', 'save_database_config',
     'load_database_config', 'list_database_configs', 'test_database_connection',
     'cleanup_old_connections', 'get_connection_status',
+    
+    # Credential management functions
+    'get_google_service_account_from_1password',
+    'create_temporary_service_account_file',
     
     # Credential management functions
     'CredentialManager', 'get_credential', 'store_credential', 

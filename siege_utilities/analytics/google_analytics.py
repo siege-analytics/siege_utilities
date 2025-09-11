@@ -51,27 +51,48 @@ except ImportError:
 class GoogleAnalyticsConnector:
     """Google Analytics connection and data retrieval manager."""
     
-    def __init__(self, client_id: str, client_secret: str, 
-                 redirect_uri: str = "urn:ietf:wg:oauth:2.0:oob"):
+    def __init__(self, client_id: str = None, client_secret: str = None, 
+                 redirect_uri: str = "urn:ietf:wg:oauth:2.0:oob",
+                 auth_method: str = "oauth2",
+                 service_account_data: Dict[str, Any] = None):
         """
         Initialize Google Analytics connector.
         
         Args:
-            client_id: OAuth2 client ID from Google Cloud Console
-            client_secret: OAuth2 client secret from Google Cloud Console
-            redirect_uri: OAuth2 redirect URI
+            client_id: OAuth2 client ID from Google Cloud Console (for OAuth2)
+            client_secret: OAuth2 client secret from Google Cloud Console (for OAuth2)
+            redirect_uri: OAuth2 redirect URI (for OAuth2)
+            auth_method: Authentication method ("oauth2" or "service_account")
+            service_account_data: Service account credentials dict (for service account auth)
         """
         if not GOOGLE_ANALYTICS_AVAILABLE:
             raise ImportError("Google Analytics libraries not available. Install: pip install google-auth-oauthlib google-auth-httplib2 google-api-python-client google-analytics-data")
         
+        self.auth_method = auth_method
         self.client_id = client_id
         self.client_secret = client_secret
         self.redirect_uri = redirect_uri
+        self.service_account_data = service_account_data
         self.credentials = None
         self.analytics_service = None
         self.ga4_client = None
         
-        log_info(f"Initialized Google Analytics connector for client: {client_id}")
+        # Auto-authenticate with service account if provided
+        if auth_method == "service_account" and service_account_data:
+            self.authenticate_service_account()
+        elif auth_method == "service_account" and not service_account_data:
+            # Try to get service account from 1Password
+            try:
+                from ..config import get_google_service_account_from_1password
+                self.service_account_data = get_google_service_account_from_1password()
+                if self.service_account_data:
+                    self.authenticate_service_account()
+                else:
+                    log_warning("No service account data provided and could not retrieve from 1Password")
+            except ImportError:
+                log_warning("Could not import 1Password service account function")
+        
+        log_info(f"Initialized Google Analytics connector with {auth_method} authentication")
     
     def authenticate(self, token_file: str = "ga_token.json") -> bool:
         """
@@ -134,6 +155,51 @@ class GoogleAnalyticsConnector:
         with open(token_path, 'w') as token:
             token.write(self.credentials.to_json())
         log_info(f"Saved credentials to: {token_path}")
+    
+    def authenticate_service_account(self) -> bool:
+        """
+        Authenticate with Google Analytics using service account.
+        Based on working implementation from GA project.
+        
+        Returns:
+            True if authentication successful
+        """
+        try:
+            from google.oauth2 import service_account
+            from ..config import create_temporary_service_account_file
+            from pathlib import Path
+            
+            if not self.service_account_data:
+                log_error("No service account data available for authentication")
+                return False
+            
+            # Create temporary service account file
+            temp_file = create_temporary_service_account_file(self.service_account_data)
+            if not temp_file:
+                log_error("Failed to create temporary service account file")
+                return False
+            
+            try:
+                # Create credentials from service account file
+                self.credentials = service_account.Credentials.from_service_account_file(
+                    temp_file,
+                    scopes=['https://www.googleapis.com/auth/analytics.readonly']
+                )
+                
+                # Build services
+                self.analytics_service = build('analytics', 'v3', credentials=self.credentials)
+                self.ga4_client = BetaAnalyticsDataClient(credentials=self.credentials)
+                
+                log_info(f"Service account authentication successful: {self.service_account_data['client_email']}")
+                return True
+                
+            finally:
+                # Clean up temporary file
+                Path(temp_file).unlink(missing_ok=True)
+                
+        except Exception as e:
+            log_error(f"Service account authentication failed: {e}")
+            return False
     
     def get_ga4_data(self, property_id: str, start_date: str, end_date: str,
                      metrics: List[str], dimensions: List[str] = None,
@@ -528,3 +594,65 @@ def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
             'accounts_processed': 0,
             'total_rows': 0
         }
+
+
+def create_ga_connector_with_service_account(service_account_data: Dict[str, Any] = None) -> GoogleAnalyticsConnector:
+    """
+    Create a GoogleAnalyticsConnector using service account authentication.
+    
+    Args:
+        service_account_data: Service account credentials dict (optional, will try 1Password if None)
+        
+    Returns:
+        GoogleAnalyticsConnector instance configured for service account auth
+    """
+    return GoogleAnalyticsConnector(
+        auth_method="service_account",
+        service_account_data=service_account_data
+    )
+
+
+def create_ga_connector_from_1password(item_title: str = "Google Analytics Service Account - Multi-Client Reporter") -> Optional[GoogleAnalyticsConnector]:
+    """
+    Create a GoogleAnalyticsConnector using service account from 1Password.
+    
+    Args:
+        item_title: Title of the 1Password item containing service account
+        
+    Returns:
+        GoogleAnalyticsConnector instance or None if failed
+    """
+    try:
+        from ..config import get_google_service_account_from_1password
+        service_account_data = get_google_service_account_from_1password(item_title)
+        
+        if service_account_data:
+            return create_ga_connector_with_service_account(service_account_data)
+        else:
+            log_error("Could not retrieve service account from 1Password")
+            return None
+            
+    except ImportError as e:
+        log_error(f"Could not import 1Password function: {e}")
+        return None
+
+
+def create_ga_connector_with_oauth2(client_id: str, client_secret: str, 
+                                   redirect_uri: str = "urn:ietf:wg:oauth:2.0:oob") -> GoogleAnalyticsConnector:
+    """
+    Create a GoogleAnalyticsConnector using OAuth2 authentication.
+    
+    Args:
+        client_id: OAuth2 client ID from Google Cloud Console
+        client_secret: OAuth2 client secret from Google Cloud Console
+        redirect_uri: OAuth2 redirect URI
+        
+    Returns:
+        GoogleAnalyticsConnector instance configured for OAuth2 auth
+    """
+    return GoogleAnalyticsConnector(
+        client_id=client_id,
+        client_secret=client_secret,
+        redirect_uri=redirect_uri,
+        auth_method="oauth2"
+    )

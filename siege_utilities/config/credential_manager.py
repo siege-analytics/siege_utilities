@@ -860,3 +860,80 @@ def get_ga_service_account_credentials() -> Optional[Dict[str, str]]:
         }
     
     return None
+
+
+def get_google_service_account_from_1password(item_title: str = "Google Analytics Service Account - Multi-Client Reporter") -> Optional[Dict[str, str]]:
+    """
+    Get Google service account credentials from 1Password.
+    Based on working implementation from GA project.
+    
+    Args:
+        item_title: Title of the 1Password item containing service account
+        
+    Returns:
+        Service account credentials dictionary or None if not found
+    """
+    try:
+        import subprocess
+        
+        def get_field(field_name: str) -> str:
+            """Get a specific field from the 1Password item"""
+            cmd = ['op', 'item', 'get', item_title, f'--field={field_name}', '--reveal']
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            value = result.stdout.strip()
+            
+            # Clean up private key - remove extra quotes and fix newlines
+            if field_name == 'private_key':
+                value = value.strip('"')  # Remove surrounding quotes
+                value = value.replace('\\n', '\n')  # Fix escaped newlines
+            
+            return value
+        
+        service_account = {
+            "type": "service_account",
+            "project_id": get_field('project_id'),
+            "private_key_id": get_field('private_key_id'),
+            "private_key": get_field('private_key'),
+            "client_email": get_field('client_email'),
+            "client_id": get_field('client_id'),
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs"
+        }
+        
+        log_info(f"Retrieved Google service account: {service_account['client_email']}")
+        return service_account
+        
+    except subprocess.CalledProcessError as e:
+        log_error(f"Failed to get Google service account from 1Password: {e}")
+        return None
+    except Exception as e:
+        log_error(f"Error retrieving Google service account: {e}")
+        return None
+
+
+def create_temporary_service_account_file(service_account_data: Dict[str, str]) -> Optional[str]:
+    """
+    Create a temporary service account file for Google APIs.
+    Useful for APIs that require a file path.
+    
+    Args:
+        service_account_data: Service account credentials dictionary
+        
+    Returns:
+        Path to temporary file or None if failed
+    """
+    try:
+        import tempfile
+        import json
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(service_account_data, f, indent=2)
+            temp_file_path = f.name
+        
+        log_info(f"Created temporary service account file: {temp_file_path}")
+        return temp_file_path
+        
+    except Exception as e:
+        log_error(f"Failed to create temporary service account file: {e}")
+        return None

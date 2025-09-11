@@ -10,6 +10,15 @@ from .client_branding import ClientBrandingManager
 from .analytics_reports import AnalyticsReportGenerator
 from .powerpoint_generator import PowerPointGenerator
 
+# Professional page templates from GA project
+from .title_page_template import TitlePageTemplate, create_title_page
+from .table_of_contents_template import (
+    TableOfContentsTemplate, 
+    create_table_of_contents,
+    generate_sections_from_report_structure
+)
+from .content_page_template import ContentPageTemplate, create_content_page
+
 __all__ = [
     # Base Template
     'BaseReportTemplate',
@@ -23,5 +32,14 @@ __all__ = [
     
     # Specialized Reports
     'AnalyticsReportGenerator',
-    'PowerPointGenerator'
+    'PowerPointGenerator',
+    
+    # Professional Page Templates
+    'TitlePageTemplate',
+    'create_title_page',
+    'TableOfContentsTemplate',
+    'create_table_of_contents',
+    'generate_sections_from_report_structure',
+    'ContentPageTemplate',
+    'create_content_page'
 ]
