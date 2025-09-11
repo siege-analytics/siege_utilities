@@ -27,6 +27,7 @@ dependencies = [
     "google-auth-httplib2>=0.2.0",
     "google-api-python-client>=2.181.0",
     "google-analytics-data>=0.18.19",
+    "google-analytics-admin>=0.25.0",
     "reportlab>=4.4.3",
     "matplotlib>=3.7.5",
     "seaborn>=0.13.2",
@@ -51,6 +52,9 @@ reporting = [
     "folium>=0.14.0",
     "branca>=0.5.0",
     "plotly>=5.17.0",
+    "pypdf2>=3.0.1",
+    "pillow>=10.0.0",
+    "fonttools>=4.40.0",
 ]
 analytics = [
     "scipy>=1.8.0",
@@ -74,6 +78,11 @@ export = [
 ]
 performance = [
     "duckdb>=0.7.0",
+]
+credentials = [
+    # 1Password CLI integration (requires 1Password CLI to be installed separately)
+    # macOS Keychain integration (built-in on macOS)
+    # Cross-platform credential management
 ]
 dev = [
     "pytest>=7.0.0",
