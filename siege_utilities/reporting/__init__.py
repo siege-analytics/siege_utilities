@@ -67,6 +67,69 @@ def create_powerpoint_generator(client_name: str, client_code: str = None) -> Po
     
     return PowerPointGenerator(client_name, output_dir)
 
+def export_branding_config(client_name: str, export_path: str) -> bool:
+    """
+    Export client branding configuration to a file.
+    
+    Args:
+        client_name: Name of the client
+        export_path: Path to export the configuration
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        from .client_branding import ClientBrandingManager
+        from pathlib import Path
+        
+        branding_manager = ClientBrandingManager()
+        return branding_manager.export_branding_config(client_name, Path(export_path))
+    except Exception as e:
+        log.error(f"Failed to export branding config: {e}")
+        return False
+
+def import_branding_config(import_path: str, client_name: str = None) -> bool:
+    """
+    Import client branding configuration from a file.
+    
+    Args:
+        import_path: Path to the configuration file
+        client_name: Name for the client (if not specified in config)
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        from .client_branding import ClientBrandingManager
+        from pathlib import Path
+        
+        branding_manager = ClientBrandingManager()
+        return branding_manager.import_branding_config(Path(import_path), client_name)
+    except Exception as e:
+        log.error(f"Failed to import branding config: {e}")
+        return False
+
+def export_chart_type_config(chart_type_name: str, output_path: str) -> bool:
+    """
+    Export chart type configuration to a file.
+    
+    Args:
+        chart_type_name: Name of the chart type
+        output_path: Path to export the configuration
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        from .chart_types import ChartTypeRegistry
+        
+        chart_registry = ChartTypeRegistry()
+        chart_registry.export_chart_type_config(chart_type_name, output_path)
+        return True
+    except Exception as e:
+        log.error(f"Failed to export chart type config: {e}")
+        return False
+
 # Professional page templates from GA project
 from .title_page_template import TitlePageTemplate, create_title_page
 from .table_of_contents_template import (
@@ -102,6 +165,11 @@ __all__ = [
     'get_report_output_directory',
     'create_report_generator',
     'create_powerpoint_generator',
+    
+    # Export/Import functions
+    'export_branding_config',
+    'import_branding_config',
+    'export_chart_type_config',
     
     # Professional Page Templates
     'TitlePageTemplate',

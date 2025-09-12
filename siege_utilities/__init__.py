@@ -338,8 +338,12 @@ try:
     from .reporting import (
         BaseReportTemplate, ReportGenerator, ChartGenerator, 
         ClientBrandingManager, AnalyticsReportGenerator, PowerPointGenerator,
-        get_report_output_directory, create_report_generator, create_powerpoint_generator
+        get_report_output_directory, create_report_generator, create_powerpoint_generator,
+        export_branding_config, import_branding_config, export_chart_type_config
     )
+    # Import branding export functions
+    from .reporting.client_branding import ClientBrandingManager
+    from .reporting.chart_types import ChartTypeRegistry
 except ImportError as e:
     logger.warning(f"Could not import reporting utilities: {e}")
     BaseReportTemplate = _create_dependency_wrapper('BaseReportTemplate', ['requests', 'jinja2'])
@@ -351,6 +355,9 @@ except ImportError as e:
     get_report_output_directory = _create_dependency_wrapper('get_report_output_directory', ['requests', 'jinja2'])
     create_report_generator = _create_dependency_wrapper('create_report_generator', ['requests', 'jinja2'])
     create_powerpoint_generator = _create_dependency_wrapper('create_powerpoint_generator', ['python-pptx'])
+    export_branding_config = _create_dependency_wrapper('export_branding_config', ['requests', 'jinja2'])
+    import_branding_config = _create_dependency_wrapper('import_branding_config', ['requests', 'jinja2'])
+    export_chart_type_config = _create_dependency_wrapper('export_chart_type_config', ['requests', 'jinja2'])
 
 # Import chart generation functions specifically (high value!)
 try:
@@ -529,6 +536,7 @@ def get_package_info() -> Dict[str, Any]:
         'BaseReportTemplate': 'reporting', 'ReportGenerator': 'reporting', 'ChartGenerator': 'reporting',
         'ClientBrandingManager': 'reporting', 'AnalyticsReportGenerator': 'reporting', 'PowerPointGenerator': 'reporting',
         'get_report_output_directory': 'reporting', 'create_report_generator': 'reporting', 'create_powerpoint_generator': 'reporting',
+        'export_branding_config': 'reporting', 'import_branding_config': 'reporting', 'export_chart_type_config': 'reporting',
         # Chart generation functions (high value!)
         'create_bar_chart': 'reporting', 'create_line_chart': 'reporting', 'create_pie_chart': 'reporting',
         'create_scatter_plot': 'reporting', 'create_heatmap': 'reporting', 'create_choropleth_map': 'reporting',
