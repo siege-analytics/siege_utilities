@@ -1875,6 +1875,35 @@ def create_pie_chart(data: Union['pd.DataFrame', Dict[str, Any]],
         data, label_column, value_column, title, width, height, **kwargs
     )
 
+def create_bivariate_choropleth(data: Union['pd.DataFrame', Dict[str, Any]],
+                               x_column: str = None,
+                               y_column: str = None,
+                               geoid_column: str = 'geoid',
+                               title: str = "Bivariate Choropleth Map",
+                               width: float = 12.0,
+                               height: float = 8.0,
+                               **kwargs) -> Optional['Image']:
+    """
+    Standalone function to create a bivariate choropleth map.
+    
+    Args:
+        data: DataFrame or dictionary with data
+        x_column: Column name for X-axis variable
+        y_column: Column name for Y-axis variable
+        geoid_column: Column name for geographic identifiers
+        title: Map title
+        width: Map width in inches
+        height: Map height in inches
+        **kwargs: Additional arguments
+    
+    Returns:
+        PIL Image object or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_bivariate_choropleth(
+        data, x_column, y_column, geoid_column, title, width, height, **kwargs
+    )
+
 def create_heatmap(data: Union['pd.DataFrame', Dict[str, Any]],
                   x_column: str = None, 
                   y_column: str = None, 

@@ -125,7 +125,7 @@ try:
         refresh_discovery_cache, get_available_state_fips, get_state_abbreviations,
         get_comprehensive_state_info, get_state_by_abbreviation, get_state_by_name,
         validate_state_fips, get_state_name, get_state_abbreviation, download_dataset,
-        get_unified_fips_data, normalize_state_identifier
+        get_unified_fips_data, normalize_state_identifier_standalone as normalize_state_identifier
     )
     
 except ImportError as e:

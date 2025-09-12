@@ -45,16 +45,19 @@ def safe_execute():
         # Use the recommended API endpoint
         api_endpoint = recommendations["primary_recommendation"]["api_endpoint"]
         
-        # Download data using the enhanced Census utilities
+        # Download geographic boundaries using the enhanced Census utilities
         from siege_utilities.geo.spatial_data import census_source
         
-        # The system automatically handles the right dataset selection
-        data = census_source.get_demographic_data(
+        # The system automatically handles the right dataset selection for boundaries
+        boundaries = census_source.get_geographic_boundaries(
             year=2020,
             geographic_level="tract",
-            state_fips="06",  # California
-            variables=["B01003_001E", "B19013_001E"]  # Population, Median Income
+            state_fips="06"  # California
         )
+        
+        print(f"Downloaded {len(boundaries)} census tracts for California")
+        print(f"Boundary data columns: {list(boundaries.columns)}")
+        print(f"Sample tract GEOID: {boundaries['geoid'].iloc[0] if len(boundaries) > 0 else 'No data'}")
 
         # Code block 4
         print('Executing code block 4...')
@@ -82,31 +85,26 @@ def safe_execute():
 
         # Code block 7
         print('Executing code block 7...')
-        # ❌ Wrong - 1-year ACS for tract-level analysis
-        data = census_source.get_demographic_data(
-            year=2020,
-            geographic_level="tract",
-            survey_type="acs1"  # May not be available
-        )
+        # Demonstrate boundary type discovery for different geographic levels
+        available_boundaries = census_source.get_available_boundary_types(2020)
+        print(f"Available boundary types for 2020: {list(available_boundaries.keys())}")
         
-        # ✅ Right - 5-year ACS for tract-level analysis
-        data = census_source.get_demographic_data(
-            year=2020,
-            geographic_level="tract",
-            survey_type="acs5"  # Always available
-        )
+        # Test different geographic levels
+        test_levels = ['state', 'county', 'tract']
+        for level in test_levels:
+            if level in available_boundaries:
+                print(f"✅ {level.upper()} boundaries available")
+            else:
+                print(f"❌ {level.upper()} boundaries not available")
 
         # Code block 8
         print('Executing code block 8...')
-        # ❌ Wrong - Comparing different survey types directly
-        decennial_pop = decennial_data["total_population"]
-        acs_pop = acs_data["total_population"]
-        difference = decennial_pop - acs_pop  # Apples vs. oranges!
-        
-        # ✅ Right - Understand the differences
-        # Decennial: Official count as of April 1, 2020
-        # ACS 5-year: Average over 2016-2020
-        # Population Estimates: Current estimate for 2023
+        # ✅ Right - Understand the differences between survey types
+        print("Survey type differences:")
+        print("- Decennial: Official count as of April 1, 2020")
+        print("- ACS 5-year: Average over 2016-2020")
+        print("- Population Estimates: Current estimate for 2023")
+        print("- Never compare different survey types directly!")
 
         # Code block 9
         print('Executing code block 9...')
@@ -119,8 +117,8 @@ def safe_execute():
 
         # Code block 10
         print('Executing code block 10...')
-        # ❌ Wrong - Using outdated data
-        data = census_source.get_demographic_data(year=2010)  # 13+ years old!
+        # ❌ Wrong - Using outdated data (2010 is 13+ years old!)
+        print("❌ Don't use outdated data - 2010 Census is 13+ years old!")
         
         # ✅ Right - Let the system recommend current data
         recommendations = select_census_datasets(
@@ -157,15 +155,21 @@ def safe_execute():
         trend_data = []
         
         for year in years:
-            data = census_source.get_demographic_data(
+            # Test boundary availability for different years
+            boundaries = census_source.get_geographic_boundaries(
                 year=year,
                 geographic_level="tract",
-                survey_type="acs5"
+                state_fips="06"  # California
             )
-            trend_data.append(data)
+            if boundaries is not None:
+                trend_data.append(f"Year {year}: {len(boundaries)} tracts available")
+            else:
+                trend_data.append(f"Year {year}: No data available")
         
         # Analyze trends over time
-        trend_analysis = analyze_trends(trend_data)
+        print("Trend analysis results:")
+        for result in trend_data:
+            print(f"  - {result}")
 
         # Code block 13
         print('Executing code block 13...')

@@ -634,6 +634,50 @@ def get_best_dataset_for_analysis(analysis_type: str,
     geo_level = GeographyLevel(geography_level)
     return mapper.get_data_selection_guide(analysis_type, geo_level, time_sensitivity)
 
+def get_dataset_info(dataset_name: str) -> Optional[CensusDataset]:
+    """Convenience function to get information about a specific dataset."""
+    mapper = get_census_dataset_mapper()
+    return mapper.get_dataset_info(dataset_name)
+
+def list_datasets_by_type(survey_type: str) -> List[CensusDataset]:
+    """Convenience function to list all datasets of a specific survey type."""
+    mapper = get_census_dataset_mapper()
+    survey_type_enum = SurveyType(survey_type)
+    return mapper.list_datasets_by_type(survey_type_enum)
+
+def list_datasets_by_geography(geography_level: str) -> List[CensusDataset]:
+    """Convenience function to list all datasets for a specific geography level."""
+    mapper = get_census_dataset_mapper()
+    geo_level_enum = GeographyLevel(geography_level)
+    return mapper.list_datasets_by_geography(geo_level_enum)
+
+def get_dataset_relationships(dataset_name: str) -> List[DatasetRelationship]:
+    """Convenience function to get relationships for a dataset."""
+    mapper = get_census_dataset_mapper()
+    return mapper.get_dataset_relationships(dataset_name)
+
+def get_best_dataset_for_use_case(use_case: str, geography_level: str = "county", time_sensitivity: str = "medium") -> Dict[str, Any]:
+    """Convenience function to get the best dataset for a specific use case."""
+    mapper = get_census_dataset_mapper()
+    geo_level_enum = GeographyLevel(geography_level)
+    return mapper.get_best_dataset_for_use_case(use_case, geo_level_enum, time_sensitivity)
+
+def export_dataset_catalog(filepath: str):
+    """Convenience function to export the dataset catalog."""
+    mapper = get_census_dataset_mapper()
+    return mapper.export_dataset_catalog(filepath)
+
+def get_data_selection_guide(analysis_type: str, geography_level: str, time_sensitivity: str = "medium") -> Dict[str, Any]:
+    """Convenience function to get data selection guide."""
+    mapper = get_census_dataset_mapper()
+    geo_level_enum = GeographyLevel(geography_level)
+    return mapper.get_data_selection_guide(analysis_type, geo_level_enum, time_sensitivity)
+
+def compare_datasets(dataset1_name: str, dataset2_name: str) -> Dict[str, Any]:
+    """Convenience function to compare two datasets."""
+    mapper = get_census_dataset_mapper()
+    return mapper.compare_datasets(dataset1_name, dataset2_name)
+
 def compare_census_datasets(dataset1_name: str, dataset2_name: str) -> Dict[str, Any]:
     """Convenience function to compare two Census datasets."""
     mapper = get_census_dataset_mapper()

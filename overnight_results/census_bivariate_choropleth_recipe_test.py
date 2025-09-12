@@ -102,11 +102,11 @@ try:
     boundaries = su.get_census_boundaries(
         year=2020,
         geographic_level='county',
-        state_identifier='CA'  # Can use FIPS, name, or abbreviation
+        state_fips='06'  # California FIPS code
     )
     
-    print(f"Downloaded {len(boundaries)} county boundaries")
-    print(f"Columns: {list(boundaries.columns)}")
+    print(f"✅ Downloaded {len(boundaries)} county boundaries")
+    print(f"📋 Available columns: {list(boundaries.columns)}")
     
 except ImportError as e:
     print(f"Boundary download requires geopandas: {e}")

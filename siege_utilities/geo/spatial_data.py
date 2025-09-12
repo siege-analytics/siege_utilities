@@ -1062,6 +1062,92 @@ def download_osm_data(query: str, bbox: Optional[List[float]] = None) -> Optiona
     source = OpenStreetMapDataSource()
     return source.download_osm_data(query, bbox)
 
+# Standalone convenience functions
+def get_available_years(force_refresh: bool = False) -> List[int]:
+    """Get available Census years."""
+    return census_source.get_available_years(force_refresh)
+
+def get_year_directory_contents(year: int) -> List[str]:
+    """Get directory contents for a specific year."""
+    return census_source.get_year_directory_contents(year)
+
+def discover_boundary_types(year: int) -> List[str]:
+    """Discover available boundary types for a year."""
+    return census_source.discover_boundary_types(year)
+
+def construct_download_url(year: int, geographic_level: str, state_fips: Optional[str] = None) -> str:
+    """Construct download URL for Census data."""
+    return census_source.construct_download_url(year, geographic_level, state_fips)
+
+def validate_download_url(url: str) -> bool:
+    """Validate a download URL."""
+    return census_source.validate_download_url(url)
+
+def get_optimal_year(geographic_level: str, preferred_year: Optional[int] = None) -> int:
+    """Get optimal year for geographic level."""
+    return census_source.get_optimal_year(geographic_level, preferred_year)
+
+def download_data(year: int, geographic_level: str, state_fips: Optional[str] = None) -> Optional[GeoDataFrame]:
+    """Download Census data."""
+    return census_source.download_data(year, geographic_level, state_fips)
+
+def get_geographic_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str = 'county', 
+                            state_fips: Optional[str] = None, state_identifier: Optional[str] = None) -> Optional[GeoDataFrame]:
+    """Get geographic boundaries."""
+    return census_source.get_geographic_boundaries(year, geographic_level, state_fips, state_identifier)
+
+def get_available_boundary_types(year: int) -> List[str]:
+    """Get available boundary types for a year."""
+    return census_source.get_available_boundary_types(year)
+
+def refresh_discovery_cache() -> None:
+    """Refresh the discovery cache."""
+    return census_source.refresh_discovery_cache()
+
+def get_unified_fips_data() -> Dict[str, Dict[str, Any]]:
+    """Get unified FIPS data with state names and abbreviations."""
+    return census_source.get_comprehensive_state_info()
+
+def normalize_state_identifier_standalone(identifier: str) -> str:
+    """Normalize state identifier - standalone function."""
+    return census_source.normalize_state_identifier(identifier)
+
+def get_available_state_fips() -> List[str]:
+    """Get available state FIPS codes."""
+    return census_source.get_available_state_fips()
+
+def get_state_abbreviations() -> List[str]:
+    """Get state abbreviations."""
+    return census_source.get_state_abbreviations()
+
+def get_comprehensive_state_info() -> Dict[str, Dict[str, Any]]:
+    """Get comprehensive state information."""
+    return census_source.get_comprehensive_state_info()
+
+def get_state_by_abbreviation(abbreviation: str) -> Optional[Dict[str, Any]]:
+    """Get state info by abbreviation."""
+    return census_source.get_state_by_abbreviation(abbreviation)
+
+def get_state_by_name(name: str) -> Optional[Dict[str, Any]]:
+    """Get state info by name."""
+    return census_source.get_state_by_name(name)
+
+def validate_state_fips(fips: str) -> bool:
+    """Validate state FIPS code."""
+    return census_source.validate_state_fips(fips)
+
+def get_state_name(fips: str) -> Optional[str]:
+    """Get state name from FIPS code."""
+    return census_source.get_state_name(fips)
+
+def get_state_abbreviation(fips: str) -> Optional[str]:
+    """Get state abbreviation from FIPS code."""
+    return census_source.get_state_abbreviation(fips)
+
+def download_dataset(year: int, geographic_level: str, state_fips: Optional[str] = None) -> Optional[GeoDataFrame]:
+    """Download Census dataset."""
+    return census_source.download_dataset(year, geographic_level, state_fips)
+
 # Global instances for easy access
 census_source = CensusDataSource()  # Uses centralized Census timeout settings
 government_source = GovernmentDataSource("https://data.gov")
