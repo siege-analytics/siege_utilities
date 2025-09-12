@@ -218,15 +218,22 @@ class CensusDataSelector:
         ranked = []
         
         for dataset in datasets:
-            score = 0.0
+            score_breakdown = {
+                "geography_match": 0.0,
+                "primary_dataset": 0.0,
+                "reliability_match": 0.0,
+                "time_period": 0.0,
+                "variable_coverage": 0.0,
+                "geography_preference": 0.0
+            }
             
             # Geography preference scoring
             if geography_level.value in pattern.get("geography_preferences", []):
-                score += 2.0
+                score_breakdown["geography_match"] = 2.0
             
             # Pattern dataset preference
             if dataset.name in pattern.get("primary_datasets", []):
-                score += 1.5
+                score_breakdown["primary_dataset"] = 1.5
             
             # Reliability scoring
             reliability_order = ["low", "medium", "high", "estimated"]
@@ -234,7 +241,7 @@ class CensusDataSelector:
             pattern_idx = reliability_order.index(pattern["reliability_requirement"])
             
             if dataset_idx <= pattern_idx:
-                score += 1.0
+                score_breakdown["reliability_match"] = 1.0
             
             # Time period scoring
             if time_period:
@@ -244,18 +251,22 @@ class CensusDataSelector:
                     years_diff = abs((dataset_date - target_date).days / 365.25)
                     
                     if years_diff <= 1:
-                        score += 1.0
+                        score_breakdown["time_period"] = 1.0
                     elif years_diff <= 3:
-                        score += 0.5
+                        score_breakdown["time_period"] = 0.5
                     elif years_diff <= 5:
-                        score += 0.2
+                        score_breakdown["time_period"] = 0.2
                 except ValueError:
                     pass
             
-            ranked.append((dataset, score))
+            # Calculate total score
+            total_score = sum(score_breakdown.values())
+            score_breakdown["total"] = min(total_score, 5.0)  # Cap at 5.0
+            
+            ranked.append((dataset, score_breakdown))
         
-        # Sort by score (highest first)
-        ranked.sort(key=lambda x: x[1], reverse=True)
+        # Sort by total score (highest first)
+        ranked.sort(key=lambda x: x[1]["total"], reverse=True)
         return ranked
     
     def _generate_recommendations(self, ranked_datasets: List[Tuple],
@@ -267,7 +278,7 @@ class CensusDataSelector:
         if not ranked_datasets:
             return {"error": "No suitable datasets found after filtering"}
         
-        primary_dataset, primary_score = ranked_datasets[0]
+        primary_dataset, primary_score_breakdown = ranked_datasets[0]
         alternatives = ranked_datasets[1:3] if len(ranked_datasets) > 1 else []
         
         recommendations = {
@@ -278,7 +289,8 @@ class CensusDataSelector:
                 "survey_type": primary_dataset.survey_type.value,
                 "time_period": primary_dataset.time_period,
                 "reliability": primary_dataset.reliability.value,
-                "score": primary_score,
+                "suitability_score": primary_score_breakdown["total"],
+                "score_breakdown": primary_score_breakdown,
                 "rationale": self._generate_rationale(primary_dataset, pattern),
                 "variables": primary_dataset.variables,
                 "limitations": primary_dataset.limitations,
@@ -290,10 +302,11 @@ class CensusDataSelector:
                     "survey_type": alt_dataset.survey_type.value,
                     "time_period": alt_dataset.time_period,
                     "reliability": alt_dataset.reliability.value,
-                    "score": alt_score,
-                    "rationale": f"Alternative option with {alt_score:.1f} suitability score"
+                    "suitability_score": alt_score_breakdown["total"],
+                    "score_breakdown": alt_score_breakdown,
+                    "rationale": f"Alternative option with {alt_score_breakdown['total']:.1f} suitability score"
                 }
-                for alt_dataset, alt_score in alternatives
+                for alt_dataset, alt_score_breakdown in alternatives
             ],
             "data_quality_notes": primary_dataset.data_quality_notes,
             "considerations": [
