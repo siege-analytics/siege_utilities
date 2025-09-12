@@ -69,21 +69,27 @@ except ImportError as e:
 
 # Demonstrate dataset selection system
 try:
+    # Get dataset selector
+    selector = su.get_census_data_selector()
+    
     # Get recommendations for demographic analysis
     recommendations = su.select_census_datasets(
         analysis_type='demographics',
         geography_level='county',
         time_period='recent'
     )
-    
-    print("Recommended Census datasets:")
-    print(f"Primary recommendation: {recommendations['primary_recommendation']['dataset']}")
-    print(f"Rationale: {recommendations['primary_recommendation']['rationale']}")
-    print(f"API Endpoint: {recommendations['primary_recommendation']['api_endpoint']}")
-    
+
+    print("Primary recommendation:")
+    primary = recommendations['primary_recommendation']
+    print(f"  - {primary['dataset']}: Score {primary['suitability_score']}")
+    print(f"    Breakdown: {primary['score_breakdown']}")
+    print(f"    Rationale: {primary['rationale']}")
+
     print("\nAlternatives:")
     for alt in recommendations['alternatives']:
-        print(f"  - {alt['dataset']}: {alt['rationale']}")
+        print(f"  - {alt['dataset']}: Score {alt['suitability_score']}")
+        print(f"    Breakdown: {alt['score_breakdown']}")
+        print(f"    Rationale: {alt['rationale']}")
         
 except ImportError as e:
     print(f"Dataset selection requires pandas: {e}")

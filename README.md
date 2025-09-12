@@ -26,6 +26,52 @@ A comprehensive Python utilities package providing **260+ functions** across **1
 
 ## 🎆 **Major Library Restoration Complete**
 
+### **Enhanced Configuration System** 🔧
+
+**NEW**: Type-safe configuration management with Pydantic validation and hierarchical directory resolution.
+
+```python
+import siege_utilities as su
+
+# Create user profile with validation
+user_profile = su.EnhancedUserProfile(
+    username='john_doe',
+    email='john@example.com',
+    preferred_download_directory='/Users/john/Downloads/siege_utilities',
+    default_output_format='pptx',
+    default_dpi=300
+)
+
+# Save and load with validation
+su.save_user_profile(user_profile)
+loaded_user = su.load_user_profile()
+
+# Client-specific configuration
+client = su.ClientProfile(
+    client_name='Acme Corp',
+    client_code='ACME',
+    download_directory='/tmp/acme_downloads',
+    industry='Technology'
+)
+su.save_client_profile(client)
+
+# Hierarchical directory resolution
+user_dir = su.get_download_directory()  # User's preferred directory
+client_dir = su.get_download_directory(client_code='ACME')  # Client-specific
+override_dir = su.get_download_directory(specific_path='/tmp/override')  # Override
+
+# Export/import configuration
+su.export_config_yaml('/tmp/backup.yaml')
+su.import_config_yaml('/tmp/backup.yaml')
+```
+
+**Key Benefits:**
+- ✅ **Type Safety**: Pydantic validation catches errors at runtime
+- ✅ **Hierarchical Resolution**: Smart fallback for download directories  
+- ✅ **Backward Compatible**: Existing functional API still works
+- ✅ **Export/Import**: Easy configuration backup and migration
+- ✅ **No Forced OOP**: Hybrid functional + data models approach
+
 ### **From Catastrophic Failure to Professional Excellence**
 
 This library was completely broken after automated AI modifications. Here's what was restored:

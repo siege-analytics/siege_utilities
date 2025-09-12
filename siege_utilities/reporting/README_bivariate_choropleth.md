@@ -8,6 +8,7 @@ This document describes the enhanced bivariate choropleth map functionality adde
 - **Real Census data**: TIGER/Line boundary downloads working with 3,234+ county boundaries
 - **State normalization**: CA/California/06 all resolve correctly
 - **Core geospatial functions**: All working with live Census.gov data
+- **Enhanced scoring system**: Dataset selection now shows detailed suitability scores and breakdowns
 
 ## Overview
 

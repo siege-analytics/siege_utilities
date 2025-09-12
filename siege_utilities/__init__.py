@@ -125,7 +125,8 @@ try:
         refresh_discovery_cache, get_available_state_fips, get_state_abbreviations,
         get_comprehensive_state_info, get_state_by_abbreviation, get_state_by_name,
         validate_state_fips, get_state_name, get_state_abbreviation, download_dataset,
-        get_unified_fips_data, normalize_state_identifier_standalone as normalize_state_identifier
+        get_unified_fips_data, normalize_state_identifier_standalone as normalize_state_identifier,
+        normalize_state_input, normalize_state_name, normalize_state_abbreviation, normalize_fips_code
     )
     
 except ImportError as e:
@@ -183,6 +184,10 @@ except ImportError as e:
     download_dataset = _create_dependency_wrapper('download_dataset', ['pandas', 'geopandas', 'requests'])
     get_unified_fips_data = _create_dependency_wrapper('get_unified_fips_data', ['pandas'])
     normalize_state_identifier = _create_dependency_wrapper('normalize_state_identifier', ['pandas'])
+    normalize_state_input = _create_dependency_wrapper('normalize_state_input', ['pandas'])
+    normalize_state_name = _create_dependency_wrapper('normalize_state_name', ['pandas'])
+    normalize_state_abbreviation = _create_dependency_wrapper('normalize_state_abbreviation', ['pandas'])
+    normalize_fips_code = _create_dependency_wrapper('normalize_fips_code', ['pandas'])
 
 # Spatial utilities are now consolidated in the geo module  
 # All spatial functions are available through the geo module
@@ -191,6 +196,20 @@ except ImportError as e:
 from .config.user_config import (
     UserConfigManager, UserProfile, user_config,
     get_user_config, get_download_directory
+)
+
+# Enhanced config system with Pydantic validation
+from .config.enhanced_config import (
+    UserProfile as EnhancedUserProfile,
+    ClientProfile,
+    SiegeConfig,
+    load_user_profile,
+    save_user_profile,
+    load_client_profile,
+    save_client_profile,
+    list_client_profiles,
+    export_config_yaml,
+    import_config_yaml,
 )
 
 # Import hygiene utilities (expanded)
@@ -219,7 +238,7 @@ from .git.git_workflow import start_feature_workflow, validate_branch_naming
 try:
     from .data.sample_data import (
         load_sample_data, list_available_datasets, get_dataset_info,
-        get_census_boundaries, get_census_data, join_boundaries_and_data, create_sample_dataset,
+        join_boundaries_and_data, create_sample_dataset,
         generate_synthetic_population, generate_synthetic_businesses, generate_synthetic_housing,
         SAMPLE_DATASETS, CENSUS_SAMPLES, SYNTHETIC_SAMPLES
     )
@@ -229,7 +248,6 @@ except ImportError as e:
     load_sample_data = _create_dependency_wrapper('load_sample_data', ['pandas'])
     list_available_datasets = _create_dependency_wrapper('list_available_datasets', ['pandas'])
     get_dataset_info = _create_dependency_wrapper('get_dataset_info', ['pandas'])
-    get_census_boundaries = _create_dependency_wrapper('get_census_boundaries', ['pandas', 'geopandas'])
     get_census_data = _create_dependency_wrapper('get_census_data', ['pandas'])
     join_boundaries_and_data = _create_dependency_wrapper('join_boundaries_and_data', ['pandas', 'geopandas'])
     create_sample_dataset = _create_dependency_wrapper('create_sample_dataset', ['pandas'])
@@ -421,6 +439,10 @@ def get_package_info() -> Dict[str, Any]:
         'find_connection_by_name': 'config', 'list_connection_profiles': 'config', 'update_connection_profile': 'config',
         'verify_connection_profile': 'config', 'get_connection_status': 'config', 'cleanup_old_connections': 'config',
         'get_user_config': 'config', 'get_download_directory': 'config',
+        'load_user_profile': 'config', 'save_user_profile': 'config',
+        'load_client_profile': 'config', 'save_client_profile': 'config',
+        'list_client_profiles': 'config', 'export_config_yaml': 'config',
+        'import_config_yaml': 'config',
         
         # Geo/Census functions (comprehensive!)
         'concatenate_addresses': 'geo', 'use_nominatim_geocoder': 'geo',

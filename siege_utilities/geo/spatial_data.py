@@ -1035,8 +1035,13 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
     Args:
         year: Census year
         geographic_level: Geographic level (county, tract, etc.)
-        state_fips: State FIPS code (deprecated, use state_identifier instead)
-        state_identifier: State identifier (FIPS code, abbreviation, or name)
+        state_fips: State FIPS code (e.g., '06' for California)
+        state_identifier: State identifier - accepts FIPS code, abbreviation, or name
+                         (e.g., '06', 'CA', 'California' all work)
+    
+    Note:
+        Provide either state_fips OR state_identifier, not both.
+        If both are provided, state_identifier takes precedence.
     
     Returns:
         GeoDataFrame with Census boundaries
@@ -1049,10 +1054,13 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
     # If state_identifier is provided, normalize it to FIPS
     if state_param:
         try:
-            normalized_fips = normalize_state_identifier(state_param)
+            # First normalize the input format (trim, uppercase, pad FIPS)
+            normalized_input = normalize_state_input(state_param)
+            # Then convert to FIPS code
+            normalized_fips = normalize_state_identifier(normalized_input)
             return source.get_geographic_boundaries(year, geographic_level, normalized_fips)
         except ValueError as e:
-            log.error(f"Invalid state identifier: '{state_param}' - {e}")
+            log.error(f"Invalid state identifier: '{state_param}' (normalized: '{normalized_input}') - {e}")
             return None
     else:
         return source.get_geographic_boundaries(year, geographic_level, None)
@@ -1112,6 +1120,76 @@ def normalize_state_identifier_standalone(identifier: str) -> str:
     """Normalize state identifier - standalone function."""
     return census_source.normalize_state_identifier(identifier)
 
+def normalize_state_input(raw_input: str) -> str:
+    """
+    Normalize state input to handle formatting and trivial errors.
+    
+    Args:
+        raw_input: Raw state input (name, abbreviation, or FIPS)
+    
+    Returns:
+        Normalized input (uppercase, trimmed, FIPS padded)
+    
+    Examples:
+        normalize_state_input("  ca  ") -> "CA"
+        normalize_state_input("CAlifornia") -> "CALIFORNIA" 
+        normalize_state_input("6") -> "06"
+    """
+    if not raw_input:
+        return raw_input
+    
+    # Trim whitespace and convert to uppercase
+    normalized = raw_input.strip().upper()
+    
+    # Handle numeric FIPS codes (6 -> 06)
+    if normalized.isdigit():
+        return normalized.zfill(2)
+    
+    return normalized
+
+def normalize_state_name(name: str) -> str:
+    """
+    Normalize state name input (e.g., "CAlifornia" -> "CALIFORNIA").
+    
+    Args:
+        name: State name input
+    
+    Returns:
+        Normalized state name in uppercase
+    """
+    return normalize_state_input(name)
+
+def normalize_state_abbreviation(abbrev: str) -> str:
+    """
+    Normalize state abbreviation input (e.g., " ca " -> "CA").
+    
+    Args:
+        abbrev: State abbreviation input
+    
+    Returns:
+        Normalized state abbreviation in uppercase
+    """
+    return normalize_state_input(abbrev)
+
+def normalize_fips_code(fips: Union[str, int]) -> str:
+    """
+    Normalize FIPS code input (e.g., 6 -> "06", "6" -> "06").
+    
+    Args:
+        fips: FIPS code as string or integer
+    
+    Returns:
+        Normalized FIPS code as 2-digit string
+    """
+    if isinstance(fips, int):
+        fips = str(fips)
+    
+    normalized = str(fips).strip()
+    if normalized.isdigit():
+        return normalized.zfill(2)
+    
+    return normalized.upper()
+
 def get_available_state_fips() -> List[str]:
     """Get available state FIPS codes."""
     return census_source.get_available_state_fips()
@@ -1162,6 +1240,10 @@ __all__ = [
     'get_census_data',
     'get_census_boundaries',
     'download_osm_data',
+    'normalize_state_input',
+    'normalize_state_name',
+    'normalize_state_abbreviation',
+    'normalize_fips_code',
     'census_source',
     'government_source',
     'osm_source'

@@ -1,6 +1,7 @@
 """
 User configuration management for siege_utilities.
 Handles user preferences, default settings, and personal information.
+Enhanced with Pydantic validation while maintaining backward compatibility.
 """
 
 import logging
@@ -11,6 +12,9 @@ from typing import Dict, Any, Optional, Union
 import os
 from dataclasses import dataclass, asdict
 import getpass
+
+# Import enhanced config for validation
+from .enhanced_config import UserProfile as EnhancedUserProfile, load_user_profile as enhanced_load_user_profile
 
 log = logging.getLogger(__name__)
 
@@ -287,6 +291,18 @@ def get_user_config() -> UserConfigManager:
     """Get the global user configuration manager."""
     return user_config
 
-def get_download_directory(specific_path: Optional[str] = None) -> Path:
-    """Get the appropriate download directory."""
-    return user_config.get_download_directory(specific_path)
+def get_download_directory(specific_path: Optional[str] = None, client_code: Optional[str] = None, config_dir: Optional[Path] = None) -> Path:
+    """
+    Get the appropriate download directory with enhanced hierarchical resolution.
+    
+    Args:
+        specific_path: Specific path override
+        client_code: Client code for client-specific directory
+        config_dir: Configuration directory
+    
+    Returns:
+        Path object for download directory
+    """
+    # Use enhanced config system for hierarchical resolution
+    from .enhanced_config import get_download_directory as enhanced_get_download_directory
+    return enhanced_get_download_directory(client_code, specific_path, config_dir)

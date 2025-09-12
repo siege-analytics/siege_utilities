@@ -233,6 +233,20 @@ from .user_config import (
     get_download_directory,
 )
 
+# Enhanced config system with Pydantic validation
+from .enhanced_config import (
+    UserProfile as EnhancedUserProfile,
+    ClientProfile,
+    SiegeConfig,
+    load_user_profile,
+    save_user_profile,
+    load_client_profile,
+    save_client_profile,
+    list_client_profiles,
+    export_config_yaml,
+    import_config_yaml,
+)
+
 from .databases import (
     create_database_config,
     save_database_config,

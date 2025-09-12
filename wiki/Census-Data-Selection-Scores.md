@@ -40,25 +40,46 @@ The Census data selection system uses a sophisticated scoring algorithm to rank 
 - **Full points**: Dataset supports your preferred geography level
 - **Zero points**: Dataset doesn't support your preferred geography level
 
-## Example Scores
+## Real-World Example Scores
 
-### ACS 5-Year Estimates (2020) for Demographic Analysis
-- Geography match: +2.0 (supports county level)
-- Primary dataset: +1.5 (recommended for demographics)
-- Reliability match: +1.0 (meets medium reliability requirement)
-- Time period: +1.0 (2020 data is current)
-- Variable coverage: +1.0 (covers all demographic variables)
-- Geography preference: +1.0 (county is preferred level)
-- **Total: 7.5 points (capped at 5.0) → Excellent match**
+### Current System Output: ACS 5-Year Estimates (2020) for Demographic Analysis
+- **Geography match**: +2.0 (supports county level analysis)
+- **Primary dataset**: +0.0 (not in primary_datasets list for demographics pattern)
+- **Reliability match**: +1.0 (meets medium reliability requirement)
+- **Time period**: +0.0 (no specific time_period provided in request)
+- **Variable coverage**: +0.0 (no specific variables requested)
+- **Geography preference**: +0.0 (no geography preference specified)
+- **Total: 3.0 points → Good match**
 
-### ACS 1-Year Estimates (2020) for Demographic Analysis  
-- Geography match: +2.0 (supports county level)
-- Primary dataset: +1.5 (recommended for demographics)
-- Reliability match: +0.0 (below medium reliability requirement)
-- Time period: +1.0 (2020 data is current)
-- Variable coverage: +0.5 (limited variable coverage)
-- Geography preference: +1.0 (county is preferred level)
-- **Total: 6.0 points (capped at 5.0) → Excellent match**
+### Why Some Scores Are Zero
+
+The scoring system is conservative and only awards points when specific criteria are met:
+
+1. **Primary Dataset (0.0)**: Only awards points if the dataset is explicitly listed in the analysis pattern's `primary_datasets` list
+2. **Time Period (0.0)**: Only awards points when you specify a target year in your request
+3. **Variable Coverage (0.0)**: Only awards points when you specify required variables
+4. **Geography Preference (0.0)**: Only awards points when you specify geography preferences
+
+### How to Get Higher Scores
+
+To maximize your dataset scores, provide more specific requirements:
+
+```python
+# Basic request (gets ~3.0 score)
+recommendations = su.select_census_datasets(
+    analysis_type='demographics',
+    geography_level='county'
+)
+
+# Detailed request (can get 4.0+ score)
+recommendations = su.select_census_datasets(
+    analysis_type='demographics',
+    geography_level='county',
+    time_period='2020',           # Specify target year
+    required_variables=['population', 'income'],  # Specify variables
+    geography_preferences=['county', 'tract']     # Specify preferences
+)
+```
 
 ## Using Scores in Your Analysis
 
