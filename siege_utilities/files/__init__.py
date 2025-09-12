@@ -59,6 +59,7 @@ from .hashing import (
 def get_download_directory() -> Path:
     """
     Get the default download directory for siege_utilities.
+    Uses the enhanced config system with profile-based directory resolution.
     
     Returns:
         Path to the download directory
@@ -71,10 +72,15 @@ def get_download_directory() -> Path:
     if download_dir:
         return Path(download_dir)
     
-    # Default to Downloads/siege_utilities
-    downloads_dir = Path.home() / "Downloads" / "siege_utilities"
-    ensure_path_exists(downloads_dir)
-    return downloads_dir
+    # Use enhanced config system for profile-based directory resolution
+    try:
+        from ..config.enhanced_config import get_download_directory as enhanced_get_download_directory
+        return enhanced_get_download_directory()
+    except ImportError:
+        # Fallback to default if enhanced config not available
+        downloads_dir = Path.home() / "Downloads" / "siege_utilities"
+        ensure_path_exists(downloads_dir)
+        return downloads_dir
 
 # Export all functions for mutual availability
 __all__ = [

@@ -337,7 +337,8 @@ except ImportError as e:
 try:
     from .reporting import (
         BaseReportTemplate, ReportGenerator, ChartGenerator, 
-        ClientBrandingManager, AnalyticsReportGenerator, PowerPointGenerator
+        ClientBrandingManager, AnalyticsReportGenerator, PowerPointGenerator,
+        get_report_output_directory, create_report_generator, create_powerpoint_generator
     )
 except ImportError as e:
     logger.warning(f"Could not import reporting utilities: {e}")
@@ -347,6 +348,9 @@ except ImportError as e:
     ClientBrandingManager = _create_dependency_wrapper('ClientBrandingManager', ['requests', 'pillow'])
     AnalyticsReportGenerator = _create_dependency_wrapper('AnalyticsReportGenerator', ['pandas', 'matplotlib'])
     PowerPointGenerator = _create_dependency_wrapper('PowerPointGenerator', ['python-pptx', 'pandas'])
+    get_report_output_directory = _create_dependency_wrapper('get_report_output_directory', ['requests', 'jinja2'])
+    create_report_generator = _create_dependency_wrapper('create_report_generator', ['requests', 'jinja2'])
+    create_powerpoint_generator = _create_dependency_wrapper('create_powerpoint_generator', ['python-pptx'])
 
 # Import chart generation functions specifically (high value!)
 try:
@@ -524,6 +528,7 @@ def get_package_info() -> Dict[str, Any]:
         # Reporting functions  
         'BaseReportTemplate': 'reporting', 'ReportGenerator': 'reporting', 'ChartGenerator': 'reporting',
         'ClientBrandingManager': 'reporting', 'AnalyticsReportGenerator': 'reporting', 'PowerPointGenerator': 'reporting',
+        'get_report_output_directory': 'reporting', 'create_report_generator': 'reporting', 'create_powerpoint_generator': 'reporting',
         # Chart generation functions (high value!)
         'create_bar_chart': 'reporting', 'create_line_chart': 'reporting', 'create_pie_chart': 'reporting',
         'create_scatter_plot': 'reporting', 'create_heatmap': 'reporting', 'create_choropleth_map': 'reporting',
