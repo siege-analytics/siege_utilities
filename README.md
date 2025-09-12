@@ -28,12 +28,12 @@ A comprehensive Python utilities package providing **260+ functions** across **1
 
 ### **Enhanced Configuration System** 🔧
 
-**NEW**: Type-safe configuration management with Pydantic validation and hierarchical directory resolution.
+**NEW**: Type-safe configuration management with Pydantic validation, gitignored profile storage, and admin utilities.
 
 ```python
 import siege_utilities as su
 
-# Create user profile with validation
+# Create user profile with validation (defaults to project profiles/ directory)
 user_profile = su.EnhancedUserProfile(
     username='john_doe',
     email='john@example.com',
@@ -45,6 +45,11 @@ user_profile = su.EnhancedUserProfile(
 # Save and load with validation
 su.save_user_profile(user_profile)
 loaded_user = su.load_user_profile()
+
+# Admin functions for profile management
+default_location = su.get_default_profile_location()  # project/profiles/
+su.create_default_profiles()  # Creates example user and client profiles
+summary = su.get_profile_summary()  # Get profile statistics
 
 # Client-specific configuration
 client = su.ClientProfile(

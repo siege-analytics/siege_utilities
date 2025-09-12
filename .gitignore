@@ -138,3 +138,6 @@ wiki_backup_*/
 
 # Release management logs
 release_logs/
+
+# User and client profiles (contains sensitive data)
+profiles/

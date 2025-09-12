@@ -315,9 +315,14 @@ class TestConfigFunctions:
             email="test@example.com",
             preferred_download_directory="/tmp/user"
         )
-        save_user_profile(user_profile, temp_config_dir)
+        # Save user profile (to users subdirectory)
+        user_dir = temp_config_dir / "users"
+        user_dir.mkdir(parents=True, exist_ok=True)
+        save_user_profile(user_profile, user_dir)
         
-        # Create client profiles
+        # Create client profiles (to clients subdirectory)
+        client_dir = temp_config_dir / "clients"
+        client_dir.mkdir(parents=True, exist_ok=True)
         clients = [
             ClientProfile(
                 client_name="Client 1",
@@ -332,7 +337,7 @@ class TestConfigFunctions:
         ]
         
         for client in clients:
-            save_client_profile(client, temp_config_dir)
+            save_client_profile(client, client_dir)
         
         # Export configuration
         export_path = temp_config_dir / "export.yaml"
@@ -388,7 +393,8 @@ class TestConfigFunctions:
         import_config_yaml(str(import_path), config_dir=temp_config_dir)
         
         # Verify user profile was imported
-        user_profile = load_user_profile(temp_config_dir)
+        user_dir = temp_config_dir / "users"
+        user_profile = load_user_profile(user_dir)
         assert user_profile.username == "importuser"
         assert user_profile.email == "import@example.com"
         assert str(user_profile.preferred_download_directory) == "/tmp/import_user"
@@ -396,7 +402,8 @@ class TestConfigFunctions:
         assert user_profile.default_dpi == 200
         
         # Verify client profile was imported
-        client_profile = load_client_profile("IMPORT_CLIENT", temp_config_dir)
+        client_dir = temp_config_dir / "clients"
+        client_profile = load_client_profile("IMPORT_CLIENT", client_dir)
         assert client_profile is not None
         assert client_profile.client_name == "Import Client"
         assert client_profile.client_code == "IMPORT_CLIENT"
@@ -457,9 +464,14 @@ class TestConfigIntegration:
             full_name="Workflow User",
             preferred_download_directory="/tmp/workflow/user"
         )
-        save_user_profile(user_profile, temp_config_dir)
+        # Save user profile (to users subdirectory)
+        user_dir = temp_config_dir / "users"
+        user_dir.mkdir(parents=True, exist_ok=True)
+        save_user_profile(user_profile, user_dir)
         
-        # Step 2: Create and save multiple client profiles
+        # Step 2: Create and save multiple client profiles (to clients subdirectory)
+        client_dir = temp_config_dir / "clients"
+        client_dir.mkdir(parents=True, exist_ok=True)
         clients_data = [
             ("Acme Corp", "ACME", "/tmp/workflow/acme", "Technology", 10),
             ("Beta Inc", "BETA", "/tmp/workflow/beta", "Manufacturing", 5),
@@ -474,7 +486,7 @@ class TestConfigIntegration:
                 industry=industry,
                 project_count=projects
             )
-            save_client_profile(client, temp_config_dir)
+            save_client_profile(client, client_dir)
         
         # Step 3: Test directory resolution for each client
         acme_dir = get_download_directory(client_code="ACME", config_dir=temp_config_dir)
@@ -508,10 +520,10 @@ class TestConfigIntegration:
         import_config_yaml(str(export_path), config_dir=new_config_dir)
         
         # Step 7: Verify imported data
-        imported_user = load_user_profile(new_config_dir)
+        imported_user = load_user_profile(new_config_dir / "users")
         assert imported_user.username == "workflowuser"
         
-        imported_clients = list_client_profiles(new_config_dir)
+        imported_clients = list_client_profiles(new_config_dir / "clients")
         assert len(imported_clients) == 3
         assert "ACME" in imported_clients
         assert "BETA" in imported_clients

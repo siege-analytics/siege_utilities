@@ -212,6 +212,18 @@ from .config.enhanced_config import (
     import_config_yaml,
 )
 
+# Admin utilities for profile management
+from .admin.profile_manager import (
+    get_default_profile_location,
+    set_profile_location,
+    get_profile_location,
+    list_profile_locations,
+    migrate_profiles,
+    create_default_profiles,
+    validate_profile_location,
+    get_profile_summary
+)
+
 # Import hygiene utilities (expanded)
 from .hygiene.generate_docstrings import (
     generate_docstring_template, analyze_function_signature, categorize_function,
@@ -443,6 +455,12 @@ def get_package_info() -> Dict[str, Any]:
         'load_client_profile': 'config', 'save_client_profile': 'config',
         'list_client_profiles': 'config', 'export_config_yaml': 'config',
         'import_config_yaml': 'config',
+        
+        # Admin functions
+        'get_default_profile_location': 'admin', 'set_profile_location': 'admin',
+        'get_profile_location': 'admin', 'list_profile_locations': 'admin',
+        'migrate_profiles': 'admin', 'create_default_profiles': 'admin',
+        'validate_profile_location': 'admin', 'get_profile_summary': 'admin',
         
         # Geo/Census functions (comprehensive!)
         'concatenate_addresses': 'geo', 'use_nominatim_geocoder': 'geo',

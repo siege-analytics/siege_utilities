@@ -9,6 +9,17 @@ from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field, field_validator
 import yaml
 
+# Import profile location management
+try:
+    from ..admin.profile_manager import get_default_profile_location, get_profile_location
+except ImportError:
+    # Fallback if admin module not available
+    def get_default_profile_location():
+        return Path.home() / ".siege_utilities" / "config"
+    
+    def get_profile_location(profile_type: str = "default"):
+        return get_default_profile_location()
+
 # Custom YAML representer for Path objects
 def path_representer(dumper, data):
     return dumper.represent_str(str(data))
@@ -118,13 +129,13 @@ def load_user_profile(config_dir: Optional[Path] = None) -> UserProfile:
     Load user profile with Pydantic validation.
     
     Args:
-        config_dir: Configuration directory (defaults to ~/.siege_utilities/config)
+        config_dir: Configuration directory (defaults to project profiles directory)
     
     Returns:
         Validated UserProfile object
     """
     if config_dir is None:
-        config_dir = Path.home() / ".siege_utilities" / "config"
+        config_dir = get_default_profile_location() / "users"
     
     config_file = config_dir / "user_config.yaml"
     
@@ -154,10 +165,10 @@ def save_user_profile(profile: UserProfile, config_dir: Optional[Path] = None) -
     
     Args:
         profile: UserProfile object to save
-        config_dir: Configuration directory
+        config_dir: Configuration directory (defaults to project profiles/users)
     """
     if config_dir is None:
-        config_dir = Path.home() / ".siege_utilities" / "config"
+        config_dir = get_default_profile_location() / "users"
     
     config_dir.mkdir(parents=True, exist_ok=True)
     config_file = config_dir / "user_config.yaml"
@@ -183,15 +194,15 @@ def load_client_profile(client_code: str, config_dir: Optional[Path] = None) -> 
     
     Args:
         client_code: Client code to load
-        config_dir: Configuration directory
+        config_dir: Configuration directory (defaults to project profiles/clients)
     
     Returns:
         Validated ClientProfile object or None if not found
     """
     if config_dir is None:
-        config_dir = Path.home() / ".siege_utilities" / "config"
+        config_dir = get_default_profile_location() / "clients"
     
-    client_file = config_dir / "clients" / f"{client_code}.yaml"
+    client_file = config_dir / f"{client_code}.yaml"
     
     if client_file.exists():
         try:
@@ -228,12 +239,12 @@ def save_client_profile(profile: ClientProfile, config_dir: Optional[Path] = Non
     
     Args:
         profile: ClientProfile object to save
-        config_dir: Configuration directory
+        config_dir: Configuration directory (defaults to project profiles/clients)
     """
     if config_dir is None:
-        config_dir = Path.home() / ".siege_utilities" / "config"
+        config_dir = get_default_profile_location() / "clients"
     
-    client_dir = config_dir / "clients"
+    client_dir = config_dir
     client_dir.mkdir(parents=True, exist_ok=True)
     client_file = client_dir / f"{profile.client_code}.yaml"
     
@@ -280,14 +291,27 @@ def get_download_directory(
     if specific_path:
         download_dir = Path(specific_path)
     elif client_code:
-        client_profile = load_client_profile(client_code, config_dir)
+        # Try loading client profile from clients subdirectory if config_dir is base directory
+        if config_dir and (config_dir / "clients").exists():
+            client_profile = load_client_profile(client_code, config_dir / "clients")
+        else:
+            client_profile = load_client_profile(client_code, config_dir)
+        
         if client_profile and client_profile.download_directory:
             download_dir = client_profile.download_directory
         else:
-            user_profile = load_user_profile(config_dir)
+            # Try loading user profile from users subdirectory if config_dir is base directory
+            if config_dir and (config_dir / "users").exists():
+                user_profile = load_user_profile(config_dir / "users")
+            else:
+                user_profile = load_user_profile(config_dir)
             download_dir = user_profile.preferred_download_directory
     else:
-        user_profile = load_user_profile(config_dir)
+        # Try loading user profile from users subdirectory if config_dir is base directory
+        if config_dir and (config_dir / "users").exists():
+            user_profile = load_user_profile(config_dir / "users")
+        else:
+            user_profile = load_user_profile(config_dir)
         download_dir = user_profile.preferred_download_directory
     
     # Ensure directory exists
@@ -299,15 +323,15 @@ def list_client_profiles(config_dir: Optional[Path] = None) -> List[str]:
     List available client profile codes.
     
     Args:
-        config_dir: Configuration directory
+        config_dir: Configuration directory (defaults to project profiles/clients)
     
     Returns:
         List of client codes
     """
     if config_dir is None:
-        config_dir = Path.home() / ".siege_utilities" / "config"
+        config_dir = get_default_profile_location() / "clients"
     
-    client_dir = config_dir / "clients"
+    client_dir = config_dir
     if not client_dir.exists():
         return []
     
@@ -321,17 +345,17 @@ def export_config_yaml(output_path: str, include_api_keys: bool = False, config_
     Args:
         output_path: Path to save exported config
         include_api_keys: Whether to include API keys in export
-        config_dir: Configuration directory
+        config_dir: Configuration directory (defaults to project profiles directory)
     """
     if config_dir is None:
-        config_dir = Path.home() / ".siege_utilities" / "config"
+        config_dir = get_default_profile_location()
     
     config = SiegeConfig()
-    config.user = load_user_profile(config_dir)
+    config.user = load_user_profile(config_dir / "users")
     
     # Load all client profiles
-    for client_code in list_client_profiles(config_dir):
-        client_profile = load_client_profile(client_code, config_dir)
+    for client_code in list_client_profiles(config_dir / "clients"):
+        client_profile = load_client_profile(client_code, config_dir / "clients")
         if client_profile:
             config.clients[client_code] = client_profile
     
@@ -368,10 +392,10 @@ def import_config_yaml(input_path: str, config_dir: Optional[Path] = None) -> No
     
     Args:
         input_path: Path to YAML file to import
-        config_dir: Configuration directory
+        config_dir: Configuration directory (defaults to project profiles directory)
     """
     if config_dir is None:
-        config_dir = Path.home() / ".siege_utilities" / "config"
+        config_dir = get_default_profile_location()
     
     with open(input_path, 'r') as f:
         config_data = yaml.safe_load(f)
@@ -379,12 +403,12 @@ def import_config_yaml(input_path: str, config_dir: Optional[Path] = None) -> No
     # Import user profile
     if 'user' in config_data:
         user_profile = UserProfile(**config_data['user'])
-        save_user_profile(user_profile, config_dir)
+        save_user_profile(user_profile, config_dir / "users")
     
     # Import client profiles
     if 'clients' in config_data:
         for client_code, client_data in config_data['clients'].items():
             client_profile = ClientProfile(**client_data)
-            save_client_profile(client_profile, config_dir)
+            save_client_profile(client_profile, config_dir / "clients")
     
     log.info(f"Configuration imported from {input_path}")
