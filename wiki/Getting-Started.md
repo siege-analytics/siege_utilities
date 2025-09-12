@@ -246,7 +246,7 @@ config = {
         'github': 'your_github_username'
     },
     'preferences': {
-        'default_download_dir': '~/Downloads',
+        'default_download_dir': '~/Downloads/siege_utilities',
         'log_level': 'INFO',
         'theme': 'dark'
     },
@@ -511,7 +511,7 @@ user_info:
   company: "Your Company"
 
 preferences:
-  default_download_dir: "~/Downloads"
+  default_download_dir: "~/Downloads/siege_utilities"
   log_level: "INFO"
   theme: "dark"
   language: "en"

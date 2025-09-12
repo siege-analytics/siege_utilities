@@ -40,7 +40,7 @@ from pathlib import Path
 # Follow user's zsh pattern for environment variables
 SIEGE_UTILITIES_HOME = Path(os.getenv('SIEGE_UTILITIES', Path.home() / 'siege_utilities'))
 SIEGE_CACHE_DIR = Path(os.getenv('SIEGE_CACHE', Path.home() / '.siege_cache'))
-SIEGE_OUTPUT_DIR = Path(os.getenv('SIEGE_OUTPUT', Path.home() / 'Downloads'))
+SIEGE_OUTPUT_DIR = Path(os.getenv('SIEGE_OUTPUT', Path.home() / 'Downloads' / 'siege_utilities'))
 
 # State/geography constants
 STATE_FIPS_CODES = {

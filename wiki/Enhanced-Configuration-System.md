@@ -78,7 +78,7 @@ print(f"Welcome, {loaded_user.full_name}!")
 client = su.ClientProfile(
     client_name='Acme Corporation',
     client_code='ACME',
-    download_directory='/tmp/acme_downloads',
+    download_directory='/Users/john/Downloads/siege_utilities/acme',
     industry='Technology',
     project_count=10,
     status='active',
@@ -106,7 +106,7 @@ The system provides intelligent directory resolution with the following priority
 4. **System Default** (lowest priority)
 
 ```python
-# Test different directory resolutions
+# Test different directory resolutions with profile system
 user_dir = su.get_download_directory()
 client_dir = su.get_download_directory(client_code='ACME')
 specific_dir = su.get_download_directory(specific_path='/tmp/override')
@@ -114,6 +114,11 @@ specific_dir = su.get_download_directory(specific_path='/tmp/override')
 print(f"User directory: {user_dir}")
 print(f"ACME directory: {client_dir}")
 print(f"Override directory: {specific_dir}")
+
+# Profile management
+default_location = su.get_default_profile_location()
+su.create_default_profiles()
+summary = su.get_profile_summary()
 ```
 
 ### Configuration Export/Import

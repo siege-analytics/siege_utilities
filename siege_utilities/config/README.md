@@ -21,7 +21,7 @@ import siege_utilities as su
 user_profile = su.EnhancedUserProfile(
     username='your_username',
     email='your@email.com',
-    preferred_download_directory='/path/to/downloads'
+    preferred_download_directory='/Users/username/Downloads/siege_utilities'
 )
 su.save_user_profile(user_profile)
 
@@ -29,12 +29,17 @@ su.save_user_profile(user_profile)
 client = su.ClientProfile(
     client_name='Client Name',
     client_code='CLIENT_CODE',
-    download_directory='/path/to/client/downloads'
+    download_directory='/Users/username/Downloads/siege_utilities/client_code'
 )
 su.save_client_profile(client)
 
 # Get download directory with hierarchical resolution
 download_dir = su.get_download_directory(client_code='CLIENT_CODE')
+
+# Profile management
+default_location = su.get_default_profile_location()
+su.create_default_profiles()
+summary = su.get_profile_summary()
 ```
 
 ## Available Classes

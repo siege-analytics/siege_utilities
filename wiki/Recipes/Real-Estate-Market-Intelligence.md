@@ -85,10 +85,11 @@ print(f"Available boundaries: {list(boundary_types.keys())}")
 
 ```python
 from siege_utilities.files import ensure_path_exists, get_download_directory
+import siege_utilities as su
 import time
 
-# Create data directory structure
-data_dir = get_download_directory() / "real_estate_intelligence" / str(analysis_year)
+# Create data directory structure using profile system
+data_dir = su.get_download_directory() / "real_estate_intelligence" / str(analysis_year)
 ensure_path_exists(data_dir)
 
 # Download boundaries and demographics for each target state

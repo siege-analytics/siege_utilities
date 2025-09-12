@@ -330,9 +330,10 @@ logging:
   backup_count: 5
 
 paths:
-  default_download: ~/Downloads
+  default_download: ~/Downloads/siege_utilities
   temp_directory: /tmp/siege
   config_directory: ~/.config/siege
+  profiles_directory: ~/.siege_utilities/profiles
 ```
 
 ## 🚨 **Troubleshooting**

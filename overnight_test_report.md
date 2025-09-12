@@ -332,8 +332,9 @@
 - **Parameters**: 1
 
 ### siege_utilities.config.get_download_directory
-- **Status**: working
+- **Status**: working (updated for profile system)
 - **Importable**: True
+- **Profile Integration**: ✅ Uses hierarchical resolution with user/client profiles
 - **Callable**: True
 - **Has Docstring**: True
 - **Has Type Hints**: True

@@ -25,6 +25,7 @@ pip install siege-utilities[geo,analytics,reporting]
 from siege_utilities.geo.spatial_data import census_source
 from siege_utilities.files import ensure_path_exists, get_download_directory
 from siege_utilities.core.logging import init_logger
+import siege_utilities as su
 import geopandas as gpd
 import pandas as pd
 
@@ -88,8 +89,8 @@ combined_counties['centroid_lat'] = combined_counties['centroid'].y
 from siege_utilities.files import ensure_path_exists
 from siege_utilities.reporting.chart_generator import ChartGenerator
 
-# Create output directory
-output_dir = get_download_directory() / "census_analysis"
+# Create output directory using profile system
+output_dir = su.get_download_directory() / "census_analysis"
 ensure_path_exists(output_dir)
 
 # Export to multiple formats
@@ -396,11 +397,14 @@ except ImportError:
 ```python
 from siege_utilities.config import update_user_config
 
-# Set custom download directory
-update_user_config({
-    'download_directory': '/path/to/custom/census/data',
-    'cache_timeout': 7200,  # 2 hours
-    'max_retries': 3
+# Set custom download directory using profile system
+user_profile = su.EnhancedUserProfile(
+    username='census_user',
+    preferred_download_directory='/path/to/custom/census/data',
+    enable_logging=True,
+    log_level='INFO'
+)
+su.save_user_profile(user_profile)
 })
 ```
 

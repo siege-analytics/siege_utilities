@@ -55,15 +55,20 @@ summary = su.get_profile_summary()  # Get profile statistics
 client = su.ClientProfile(
     client_name='Acme Corp',
     client_code='ACME',
-    download_directory='/tmp/acme_downloads',
+    download_directory='/Users/john/Downloads/siege_utilities/acme',
     industry='Technology'
 )
 su.save_client_profile(client)
 
-# Hierarchical directory resolution
-user_dir = su.get_download_directory()  # User's preferred directory
-client_dir = su.get_download_directory(client_code='ACME')  # Client-specific
-override_dir = su.get_download_directory(specific_path='/tmp/override')  # Override
+# Hierarchical directory resolution with profile system
+user_dir = su.get_download_directory()  # User's preferred directory from profile
+client_dir = su.get_download_directory(client_code='ACME')  # Client-specific directory
+override_dir = su.get_download_directory(specific_path='/tmp/override')  # Override path
+
+# Profile-based configuration
+profiles_dir = su.get_default_profile_location()  # Get profiles directory
+su.create_default_profiles()  # Create example profiles
+summary = su.get_profile_summary()  # Get profile status
 
 # Export/import configuration
 su.export_config_yaml('/tmp/backup.yaml')

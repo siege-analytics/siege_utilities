@@ -223,7 +223,7 @@ config = siege_utilities.create_user_config(
     username="your_name",
     email="your_email@example.com",
     github_login="your_github",
-    default_download_directory="~/Downloads/siege_data",
+    default_download_directory="~/Downloads/siege_utilities",
     api_keys={
         'census': 'your_census_api_key',
         'google_analytics': 'your_ga_key'
