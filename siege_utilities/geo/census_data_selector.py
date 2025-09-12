@@ -104,7 +104,9 @@ class CensusDataSelector:
             reliability_requirement: Reliability requirement ("low", "medium", "high")
         
         Returns:
-            Dictionary with dataset recommendations and rationale
+            Dictionary with dataset recommendations and rationale.
+            Suitability scores use 0-5 scale: 0-2.0 (poor), 2.1-3.0 (moderate), 
+            3.1-4.0 (good), 4.1-5.0 (excellent match)
         """
         
         # Convert geography level to enum if string
@@ -195,7 +197,23 @@ class CensusDataSelector:
                                     pattern: Dict,
                                     geography_level: GeographyLevel,
                                     time_period: Optional[str]) -> List[Tuple]:
-        """Rank datasets by suitability for the analysis."""
+        """
+        Rank datasets by suitability for the analysis.
+        
+        Suitability scores are calculated on a 0-5 scale:
+        - Geography match: +2.0 points (if dataset supports required geography level)
+        - Primary dataset: +1.5 points (if dataset is in pattern's primary_datasets list)
+        - Reliability match: +1.0 points (if dataset reliability meets requirement)
+        - Time period: +1.0 points (≤1 year diff), +0.5 points (≤3 years), +0.2 points (≤5 years)
+        - Variable coverage: Up to +1.0 points (based on variable overlap)
+        - Geography preference: +1.0 points (if geography level matches preferences)
+        
+        Score Interpretation:
+        - 0-2.0: Poor match
+        - 2.1-3.0: Moderate match
+        - 3.1-4.0: Good match
+        - 4.1-5.0: Excellent match
+        """
         
         ranked = []
         

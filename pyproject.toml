@@ -35,6 +35,7 @@ dependencies = [
     "geopy>=2.4.1",
     "osmnx>=1.9.4",
     "folium>=0.18.0",
+    "notebook>=7.3.3",
 ]
 
 [project.optional-dependencies]
