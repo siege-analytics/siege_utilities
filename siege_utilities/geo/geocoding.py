@@ -3,6 +3,16 @@ import json
 import logging
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
+
+# Import logging functions
+try:
+    from ..core.logging import log_warning, log_info, log_debug, log_error
+except ImportError:
+    def log_warning(message): print(f"WARNING: {message}")
+    def log_info(message): print(f"INFO: {message}")
+    def log_debug(message): print(f"DEBUG: {message}")
+    def log_error(message): print(f"ERROR: {message}")
+
 logger = logging.getLogger(__name__)
 GEOCODER_CONFIG = {'user_agent': 'geocoding_application_v1.0', 'timeout': 
     10, 'country_codes': 'gb', 'rate_limit_seconds': 1}

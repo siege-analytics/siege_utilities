@@ -1,0 +1,70 @@
+# Default Client Profile Configuration
+defaults:
+  - _self_
+
+# Basic Information
+client_id: ""
+client_name: ""
+client_code: ""
+industry: ""
+project_count: 0
+status: "active"
+
+# Contact Information
+contact_info:
+  email: ""
+  phone: ""
+  address: ""
+  website: ""
+  linkedin: ""
+
+# Configurations
+database_connections: []
+social_media_accounts: []
+
+# Branding Configuration
+branding_config:
+  primary_color: "#1f77b4"
+  secondary_color: "#ff7f0e"
+  accent_color: "#2ca02c"
+  text_color: "#000000"
+  background_color: "#ffffff"
+  primary_font: "Arial"
+  secondary_font: "Arial"
+  logo_path: null
+  logo_width: null
+  logo_height: null
+  header_height: 40
+  footer_height: 20
+  margin_top: 20
+  margin_bottom: 20
+  margin_left: 20
+  margin_right: 20
+  title_font_size: 24
+  subtitle_font_size: 18
+  body_font_size: 12
+  caption_font_size: 10
+  chart_color_palette: "viridis"
+  chart_background_color: "#ffffff"
+  chart_grid_color: "#e0e0e0"
+
+# Report Preferences
+report_preferences:
+  default_format: "pptx"
+  include_executive_summary: true
+  chart_style: "professional"
+  page_size: "A4"
+  orientation: "landscape"
+  include_table_of_contents: true
+  include_page_numbers: true
+  include_watermark: false
+  watermark_text: null
+  chart_quality: "high"
+  chart_dpi: 300
+  include_chart_titles: true
+  include_chart_legends: true
+  include_data_labels: false
+  sections: ["executive_summary", "methodology", "findings", "recommendations"]
+  export_metadata: true
+  compress_output: false
+  include_source_data: false

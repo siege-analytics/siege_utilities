@@ -1,0 +1,42 @@
+# Default Database Connections Configuration
+defaults:
+  - _self_
+
+# Default database connections
+connections:
+  - name: "default_postgres"
+    connection_type: "postgresql"
+    host: "localhost"
+    port: 5432
+    database: "siege_analytics"
+    username: "postgres"
+    password: "password"
+    ssl_enabled: true
+    connection_timeout: 30
+    max_connections: 10
+  
+  - name: "default_duckdb"
+    connection_type: "duckdb"
+    host: "localhost"
+    port: 0
+    database: "siege_analytics.duckdb"
+    username: ""
+    password: ""
+    ssl_enabled: false
+    connection_timeout: 30
+    max_connections: 1
+
+# Connection pool settings
+pool_settings:
+  max_connections: 20
+  min_connections: 2
+  connection_timeout: 30
+  idle_timeout: 300
+  max_lifetime: 3600
+
+# Default connection preferences
+preferences:
+  default_connection: "default_postgres"
+  auto_connect: true
+  retry_attempts: 3
+  retry_delay: 5

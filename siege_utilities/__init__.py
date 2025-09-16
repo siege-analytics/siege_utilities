@@ -406,14 +406,19 @@ def get_package_info() -> Dict[str, Any]:
         'version': '1.0.0',
         'description': 'Comprehensive utilities for data engineering, analytics, and distributed computing',
         'total_functions': 0,
+        'total_modules': 0,
         'available_functions': [],
+        'available_modules': [],
         'unavailable_functions': [],
+        'failed_imports': [],
+        'subpackages': [],
         'categories': {
             'core': [],
             'files': [],
             'distributed': [],
             'geo': [],
             'config': [],
+            'admin': [],
             'hygiene': [],
             'testing': [],
             'data': [],
@@ -563,13 +568,16 @@ def get_package_info() -> Dict[str, Any]:
                 package_info['available_functions'].append(name)
                 package_info['total_functions'] += 1
     
+    # Count modules
+    package_info['total_modules'] = len([name for name in dir(current_module) if inspect.ismodule(getattr(current_module, name, None))])
+    
     # Sort for consistent output
     package_info['available_functions'].sort()
     package_info['unavailable_functions'].sort()
     for category in package_info['categories']:
         package_info['categories'][category].sort()
     
-    log_info(f"Package info generated: {package_info['total_functions']} available functions, {len(package_info['unavailable_functions'])} unavailable")
+    log_info(f"Package info generated: {package_info['total_functions']} available functions, {package_info['total_modules']} modules, {len(package_info['unavailable_functions'])} unavailable")
     return package_info
 
 

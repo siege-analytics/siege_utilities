@@ -247,6 +247,25 @@ from .enhanced_config import (
     import_config_yaml,
 )
 
+# Hydra + Pydantic configuration system
+from .hydra_manager import HydraConfigManager
+from .models import (
+    UserProfile as PydanticUserProfile,
+    ClientProfile as PydanticClientProfile,
+    ContactInfo,
+    BrandingConfig,
+    ReportPreferences,
+    DatabaseConnection,
+    SocialMediaAccount,
+)
+
+# Migration utilities
+from .migration import (
+    ConfigurationMigrator,
+    migrate_configurations,
+    backup_and_migrate,
+)
+
 from .databases import (
     create_database_config,
     save_database_config,
@@ -366,4 +385,12 @@ __all__ = [
     'CredentialManager', 'get_credential', 'store_credential', 
     'store_ga_credentials_from_file', 'get_ga_credentials', 'credential_status',
     'store_ga_service_account_from_file', 'get_ga_service_account_credentials',
+    
+    # Hydra + Pydantic configuration system
+    'HydraConfigManager',
+    'PydanticUserProfile', 'PydanticClientProfile', 'ContactInfo',
+    'BrandingConfig', 'ReportPreferences', 'DatabaseConnection', 'SocialMediaAccount',
+    
+    # Migration utilities
+    'ConfigurationMigrator', 'migrate_configurations', 'backup_and_migrate',
 ]

@@ -1,0 +1,41 @@
+# Default Social Media Accounts Configuration
+defaults:
+  - _self_
+
+# Default social media accounts
+accounts: []
+
+# Platform-specific settings
+platform_settings:
+  facebook:
+    api_version: "v2.0"
+    rate_limit: 200
+    batch_size: 50
+  
+  twitter:
+    api_version: "v2.0"
+    rate_limit: 300
+    batch_size: 100
+  
+  linkedin:
+    api_version: "v2.0"
+    rate_limit: 100
+    batch_size: 25
+  
+  instagram:
+    api_version: "v1.0"
+    rate_limit: 200
+    batch_size: 50
+  
+  youtube:
+    api_version: "v3.0"
+    rate_limit: 10000
+    batch_size: 50
+
+# Default account settings
+default_settings:
+  is_active: true
+  auto_refresh_tokens: true
+  cache_duration: 3600
+  retry_attempts: 3
+  retry_delay: 5

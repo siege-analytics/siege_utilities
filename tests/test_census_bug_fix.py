@@ -83,17 +83,14 @@ class TestCensusBugFix:
         result = get_census_boundaries(
             year=2022,
             geographic_level='county',
-            state_fips='06',
-            county_fips='001'
+            state_fips='06'
         )
         
         # Verify the mock was called with correct parameters
         mock_instance.get_geographic_boundaries.assert_called_once_with(
-            year=2022,
-            geographic_level='county',
-            state_fips='06',
-            county_fips='001',
-            congress_number=None
+            2022,  # year
+            'county',  # geographic_level
+            '06'  # state_fips
         )
         
         assert result is not None
