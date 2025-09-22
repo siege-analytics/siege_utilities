@@ -4,9 +4,9 @@ import logging
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 
-# Import logging functions
+# Import logging functions - use package-level imports
 try:
-    from ..core.logging import log_warning, log_info, log_debug, log_error
+    from siege_utilities import log_warning, log_info, log_debug, log_error
 except ImportError:
     def log_warning(message): print(f"WARNING: {message}")
     def log_info(message): print(f"INFO: {message}")
@@ -14,8 +14,304 @@ except ImportError:
     def log_error(message): print(f"ERROR: {message}")
 
 logger = logging.getLogger(__name__)
-GEOCODER_CONFIG = {'user_agent': 'geocoding_application_v1.0', 'timeout': 
-    10, 'country_codes': 'gb', 'rate_limit_seconds': 1}
+
+# Country code mapping for Nominatim geocoding
+COUNTRY_CODES = {
+    # North America
+    'us': 'United States',
+    'ca': 'Canada',
+    'mx': 'Mexico',
+    'gt': 'Guatemala',
+    'bz': 'Belize',
+    'sv': 'El Salvador',
+    'hn': 'Honduras',
+    'ni': 'Nicaragua',
+    'cr': 'Costa Rica',
+    'pa': 'Panama',
+    'cu': 'Cuba',
+    'jm': 'Jamaica',
+    'ht': 'Haiti',
+    'do': 'Dominican Republic',
+    'pr': 'Puerto Rico',
+    'tt': 'Trinidad and Tobago',
+    'bb': 'Barbados',
+    'lc': 'Saint Lucia',
+    'vc': 'Saint Vincent and the Grenadines',
+    'gd': 'Grenada',
+    'ag': 'Antigua and Barbuda',
+    'kn': 'Saint Kitts and Nevis',
+    'dm': 'Dominica',
+    'bs': 'Bahamas',
+    'tc': 'Turks and Caicos Islands',
+    'ky': 'Cayman Islands',
+    'bm': 'Bermuda',
+    'gl': 'Greenland',
+    'as': 'American Samoa',
+    'gu': 'Guam',
+    'mp': 'Northern Mariana Islands',
+    'vi': 'U.S. Virgin Islands',
+    
+    # South America
+    'br': 'Brazil',
+    'ar': 'Argentina',
+    'cl': 'Chile',
+    'co': 'Colombia',
+    'pe': 'Peru',
+    've': 'Venezuela',
+    'uy': 'Uruguay',
+    'py': 'Paraguay',
+    'bo': 'Bolivia',
+    'ec': 'Ecuador',
+    'gy': 'Guyana',
+    'sr': 'Suriname',
+    'gf': 'French Guiana',
+    'fk': 'Falkland Islands',
+    'gs': 'South Georgia and the South Sandwich Islands',
+    
+    # Europe
+    'gb': 'United Kingdom',
+    'ie': 'Ireland',
+    'fr': 'France',
+    'de': 'Germany',
+    'it': 'Italy',
+    'es': 'Spain',
+    'pt': 'Portugal',
+    'nl': 'Netherlands',
+    'be': 'Belgium',
+    'ch': 'Switzerland',
+    'at': 'Austria',
+    'se': 'Sweden',
+    'no': 'Norway',
+    'dk': 'Denmark',
+    'fi': 'Finland',
+    'is': 'Iceland',
+    'pl': 'Poland',
+    'cz': 'Czech Republic',
+    'hu': 'Hungary',
+    'sk': 'Slovakia',
+    'si': 'Slovenia',
+    'hr': 'Croatia',
+    'bg': 'Bulgaria',
+    'ro': 'Romania',
+    'gr': 'Greece',
+    'cy': 'Cyprus',
+    'mt': 'Malta',
+    'lu': 'Luxembourg',
+    'ee': 'Estonia',
+    'lv': 'Latvia',
+    'lt': 'Lithuania',
+    'ad': 'Andorra',
+    'mc': 'Monaco',
+    'sm': 'San Marino',
+    'va': 'Vatican City',
+    'li': 'Liechtenstein',
+    'gi': 'Gibraltar',
+    'ax': 'Åland Islands',
+    'fo': 'Faroe Islands',
+    'sj': 'Svalbard and Jan Mayen',
+    'bq': 'Bonaire, Sint Eustatius and Saba',
+    'cw': 'Curaçao',
+    'sx': 'Sint Maarten',
+    'aw': 'Aruba',
+    
+    # Asia
+    'ru': 'Russia',
+    'kz': 'Kazakhstan',
+    'uz': 'Uzbekistan',
+    'kg': 'Kyrgyzstan',
+    'tj': 'Tajikistan',
+    'tm': 'Turkmenistan',
+    'af': 'Afghanistan',
+    'pk': 'Pakistan',
+    'in': 'India',
+    'bd': 'Bangladesh',
+    'bt': 'Bhutan',
+    'np': 'Nepal',
+    'lk': 'Sri Lanka',
+    'mv': 'Maldives',
+    'cn': 'China',
+    'tw': 'Taiwan',
+    'hk': 'Hong Kong',
+    'mo': 'Macau',
+    'mn': 'Mongolia',
+    'jp': 'Japan',
+    'kr': 'South Korea',
+    'kp': 'North Korea',
+    'th': 'Thailand',
+    'vn': 'Vietnam',
+    'la': 'Laos',
+    'kh': 'Cambodia',
+    'my': 'Malaysia',
+    'sg': 'Singapore',
+    'id': 'Indonesia',
+    'ph': 'Philippines',
+    'bn': 'Brunei',
+    'tl': 'East Timor',
+    'mm': 'Myanmar',
+    
+    # Middle East
+    'tr': 'Turkey',
+    'ge': 'Georgia',
+    'am': 'Armenia',
+    'az': 'Azerbaijan',
+    'sa': 'Saudi Arabia',
+    'ye': 'Yemen',
+    'om': 'Oman',
+    'ae': 'United Arab Emirates',
+    'qa': 'Qatar',
+    'bh': 'Bahrain',
+    'kw': 'Kuwait',
+    'iq': 'Iraq',
+    'sy': 'Syria',
+    'lb': 'Lebanon',
+    'jo': 'Jordan',
+    'il': 'Israel',
+    'ps': 'Palestine',
+    'ir': 'Iran',
+    
+    # Africa
+    'eg': 'Egypt',
+    'ly': 'Libya',
+    'tn': 'Tunisia',
+    'dz': 'Algeria',
+    'ma': 'Morocco',
+    'eh': 'Western Sahara',
+    'mr': 'Mauritania',
+    'ml': 'Mali',
+    'ne': 'Niger',
+    'td': 'Chad',
+    'sd': 'Sudan',
+    'ss': 'South Sudan',
+    'et': 'Ethiopia',
+    'er': 'Eritrea',
+    'dj': 'Djibouti',
+    'so': 'Somalia',
+    'ke': 'Kenya',
+    'ug': 'Uganda',
+    'rw': 'Rwanda',
+    'bi': 'Burundi',
+    'tz': 'Tanzania',
+    'mw': 'Malawi',
+    'zm': 'Zambia',
+    'zw': 'Zimbabwe',
+    'bw': 'Botswana',
+    'na': 'Namibia',
+    'za': 'South Africa',
+    'sz': 'Eswatini',
+    'ls': 'Lesotho',
+    'mg': 'Madagascar',
+    'mu': 'Mauritius',
+    'sc': 'Seychelles',
+    'km': 'Comoros',
+    're': 'Réunion',
+    'yt': 'Mayotte',
+    'mz': 'Mozambique',
+    'ao': 'Angola',
+    'cd': 'Democratic Republic of the Congo',
+    'cg': 'Republic of the Congo',
+    'cf': 'Central African Republic',
+    'cm': 'Cameroon',
+    'gq': 'Equatorial Guinea',
+    'ga': 'Gabon',
+    'st': 'São Tomé and Príncipe',
+    'gh': 'Ghana',
+    'tg': 'Togo',
+    'bj': 'Benin',
+    'bf': 'Burkina Faso',
+    'sn': 'Senegal',
+    'gm': 'Gambia',
+    'gw': 'Guinea-Bissau',
+    'gn': 'Guinea',
+    'sl': 'Sierra Leone',
+    'lr': 'Liberia',
+    'ci': 'Ivory Coast',
+    'ng': 'Nigeria',
+    
+    # Oceania
+    'au': 'Australia',
+    'nz': 'New Zealand',
+    'fj': 'Fiji',
+    'pg': 'Papua New Guinea',
+    'sb': 'Solomon Islands',
+    'vu': 'Vanuatu',
+    'nc': 'New Caledonia',
+    'pf': 'French Polynesia',
+    'ws': 'Samoa',
+    'to': 'Tonga',
+    'ki': 'Kiribati',
+    'tv': 'Tuvalu',
+    'nr': 'Nauru',
+    'pw': 'Palau',
+    'fm': 'Micronesia',
+    'mh': 'Marshall Islands',
+    'nf': 'Norfolk Island',
+    'pn': 'Pitcairn Islands',
+    'cc': 'Cocos (Keeling) Islands',
+    'cx': 'Christmas Island',
+    'ck': 'Cook Islands',
+    'nu': 'Niue',
+    'tk': 'Tokelau',
+    'wf': 'Wallis and Futuna',
+    'sh': 'Saint Helena, Ascension and Tristan da Cunha',
+    'ac': 'Ascension Island',
+    'ta': 'Tristan da Cunha',
+    
+    # Other territories
+    'io': 'British Indian Ocean Territory',
+    'bv': 'Bouvet Island',
+    'hm': 'Heard Island and McDonald Islands',
+    'tf': 'French Southern Territories',
+    'aq': 'Antarctica'
+}
+
+# Default country code (US)
+DEFAULT_COUNTRY_CODE = 'us'
+
+GEOCODER_CONFIG = {
+    'user_agent': 'geocoding_application_v1.0', 
+    'timeout': 10, 
+    'country_codes': DEFAULT_COUNTRY_CODE, 
+    'rate_limit_seconds': 1
+}
+
+
+def get_country_name(country_code):
+    """
+    Get the full country name from a country code.
+    
+    Args:
+        country_code: Two-letter country code (e.g., 'us', 'gb', 'ca')
+        
+    Returns:
+        str: Full country name or the code if not found
+    """
+    return COUNTRY_CODES.get(country_code.lower(), country_code)
+
+
+def get_country_code(country_name):
+    """
+    Get the country code from a country name.
+    
+    Args:
+        country_name: Full country name (e.g., 'United States', 'Canada')
+        
+    Returns:
+        str: Two-letter country code or None if not found
+    """
+    for code, name in COUNTRY_CODES.items():
+        if name.lower() == country_name.lower():
+            return code
+    return None
+
+
+def list_countries():
+    """
+    Get a list of all available countries with their codes.
+    
+    Returns:
+        dict: Dictionary mapping country codes to country names
+    """
+    return COUNTRY_CODES.copy()
 
 
 def concatenate_addresses(street=None, city=None, state_province_area=None,
@@ -38,6 +334,33 @@ def concatenate_addresses(street=None, city=None, state_province_area=None,
     return ', '.join(components)
 
 
+def get_coordinates(query_address, country_codes=None, max_retries=3):
+    """
+    Get coordinates (latitude, longitude) for an address using Nominatim.
+    Returns a tuple of (latitude, longitude) or None if geocoding fails.
+    
+    Args:
+        query_address: The address to geocode
+        country_codes: Optional country code filter (defaults to US)
+        max_retries: Maximum number of retry attempts
+        
+    Returns:
+        tuple: (latitude, longitude) or None if geocoding fails
+    """
+    try:
+        result_json = use_nominatim_geocoder(query_address, country_codes=country_codes, max_retries=max_retries)
+        if result_json:
+            data = json.loads(result_json)
+            lat = data.get('nominatim_lat')
+            lng = data.get('nominatim_lng')
+            if lat and lng:
+                return (float(lat), float(lng))
+        return None
+    except Exception as e:
+        log_error(f"Geocoding failed for {query_address}: {e}")
+        return None
+
+
 def use_nominatim_geocoder(query_address, id=None, country_codes=None,
     max_retries=3):
     """
@@ -47,7 +370,7 @@ def use_nominatim_geocoder(query_address, id=None, country_codes=None,
     Args:
         query_address: The address to geocode
         id: An identifier for tracking
-        country_codes: Optional country code filter (default from settings)
+        country_codes: Optional country code filter (defaults to US)
         max_retries: Number of retry attempts for transient errors
 
     Returns:
@@ -95,176 +418,136 @@ def use_nominatim_geocoder(query_address, id=None, country_codes=None,
                 return None
             time.sleep(2 ** attempt)
         except Exception as e:
-            message = f'Error geocoding {query_address}: {str(e)}'
+            message = f'Unexpected error during geocoding: {str(e)}'
             log_error(message)
             return None
+    return None
 
 
 class NominatimGeoClassifier:
     """
-    geo = GeoRankClassifier()
-    place_rank_udf, importance_udf = geo.register_udfs(spark)
-
-    df = df.withColumn("place_rank_label", place_rank_udf("nominatim_place_rank"))
-    df = df.withColumn("importance_label", importance_udf("nominatim_importance"))
-
-    geo.get_place_ranks_by_label("Town or village")  # → [19, 20, 21, 22]
-    geo.get_importance_threshold_by_label("City or notable place")  # → 0.01
-
+    A classifier for geocoding results using Nominatim.
+    Provides methods to categorize and analyze geocoding results.
     """
-
+    
     def __init__(self):
-        """""\"
-Utility function:   init  .
-
-Part of Siege Utilities Utilities module.
-Auto-discovered and available at package level.
-
-Returns:
-    Description needed
-
-Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.__init__()
-    >>> print(result)
-
-Note:
-    This function is auto-discovered and available without imports
-    across all siege_utilities modules.
-""\""""
-        self.place_rank_dict = {'Continent or ocean': list(range(0, 5)),
-            'Country': list(range(5, 8)), 'State or region': list(range(8, 
-            11)), 'County or district': list(range(11, 13)),
-            'Municipality or metro': list(range(13, 16)),
-            'City or large town': list(range(16, 19)), 'Town or village':
-            list(range(19, 23)), 'Suburb or locality': list(range(23, 25)),
-            'Neighborhood or area': list(range(25, 27)), 'Street': [27],
-            'Address or building': list(range(28, 31))}
-        self.importance_dict = {(0.5): 'Global landmark', (0.1):
-            'Major city or capital', (0.01): 'City or notable place', (
-            0.001): 'Small town or feature', (0.0): 'Minor/local detail'}
-
-    def get_place_rank_label(self, rank):
-        """""\"
-Utility function: get place rank label.
-
-Part of Siege Utilities Utilities module.
-Auto-discovered and available at package level.
-
-Returns:
-    Description needed
-
-Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.get_place_rank_label()
-    >>> print(result)
-
-Note:
-    This function is auto-discovered and available without imports
-    across all siege_utilities modules.
-""\""""
-        if rank is None:
-            return 'Unknown'
-        for label, values in self.place_rank_dict.items():
-            if rank in values:
-                return label
-        return 'Unknown'
-
-    def get_importance_label(self, importance):
-        """""\"
-Utility function: get importance label.
-
-Part of Siege Utilities Utilities module.
-Auto-discovered and available at package level.
-
-Returns:
-    Description needed
-
-Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.get_importance_label()
-    >>> print(result)
-
-Note:
-    This function is auto-discovered and available without imports
-    across all siege_utilities modules.
-""\""""
-        if importance is None:
-            return 'Unknown'
-        for threshold in sorted(self.importance_dict.keys(), reverse=True):
-            if importance >= threshold:
-                return self.importance_dict[threshold]
-        return 'Unknown'
+        self.place_rank_dict = {
+            0: 'Country',
+            1: 'State',
+            2: 'County',
+            3: 'City',
+            4: 'Town',
+            5: 'Village',
+            6: 'Hamlet',
+            7: 'Suburb',
+            8: 'Neighbourhood',
+            9: 'Street',
+            10: 'Building'
+        }
+        
+        self.importance_dict = {
+            0.9: 'Country',
+            0.8: 'State',
+            0.7: 'County',
+            0.6: 'City',
+            0.5: 'Town',
+            0.4: 'Village',
+            0.3: 'Hamlet',
+            0.2: 'Suburb',
+            0.1: 'Neighbourhood',
+            0.05: 'Street',
+            0.01: 'Building'
+        }
 
     def get_place_ranks_by_label(self, label):
-        """""\"
-Utility function: get place ranks by label.
+        """
+        Utility function: get place ranks by label.
 
-Part of Siege Utilities Utilities module.
-Auto-discovered and available at package level.
+        Part of Siege Utilities Utilities module.
+        Auto-discovered and available at package level.
 
-Returns:
-    Description needed
+        Returns:
+            Description needed
 
-Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.get_place_ranks_by_label()
-    >>> print(result)
+        Example:
+            >>> import siege_utilities
+            >>> result = siege_utilities.get_place_ranks_by_label()
+            >>> print(result)
 
-Note:
-    This function is auto-discovered and available without imports
-    across all siege_utilities modules.
-""\""""
+        Note:
+            This function is auto-discovered and available without imports
+            across all siege_utilities modules.
+        """
         return self.place_rank_dict.get(label, [])
 
     def get_importance_threshold_by_label(self, label):
-        """""\"
-Utility function: get importance threshold by label.
+        """
+        Utility function: get importance threshold by label.
 
-Part of Siege Utilities Utilities module.
-Auto-discovered and available at package level.
+        Part of Siege Utilities Utilities module.
+        Auto-discovered and available at package level.
 
-Returns:
-    Description needed
+        Returns:
+            Description needed
 
-Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.get_importance_threshold_by_label()
-    >>> print(result)
+        Example:
+            >>> import siege_utilities
+            >>> result = siege_utilities.get_importance_threshold_by_label()
+            >>> print(result)
 
-Note:
-    This function is auto-discovered and available without imports
-    across all siege_utilities modules.
-""\""""
+        Note:
+            This function is auto-discovered and available without imports
+            across all siege_utilities modules.
+        """
         for k, v in self.importance_dict.items():
             if v == label:
                 return k
         return None
 
     def to_json(self):
-        """""\"
-Utility function: to json.
+        """
+        Utility function: to json.
 
-Part of Siege Utilities Utilities module.
-Auto-discovered and available at package level.
+        Part of Siege Utilities Utilities module.
+        Auto-discovered and available at package level.
 
-Returns:
-    Description needed
+        Returns:
+            Description needed
 
-Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.to_json()
-    >>> print(result)
+        Example:
+            >>> import siege_utilities
+            >>> result = siege_utilities.to_json()
+            >>> print(result)
 
-Note:
-    This function is auto-discovered and available without imports
-    across all siege_utilities modules.
-""\""""
-        return json.dumps({'place_rank_dict': self.place_rank_dict,
-            'importance_dict': self.importance_dict}, indent=2)
+        Note:
+            This function is auto-discovered and available without imports
+            across all siege_utilities modules.
+        """
+        return json.dumps({
+            'place_ranks': self.place_rank_dict,
+            'importance_thresholds': self.importance_dict
+        })
 
-    def register_udfs(self, spark):
-        """Register PySpark UDFs and return them."""
-        place_rank_udf = udf(self.get_place_rank_label, StringType())
-        importance_udf = udf(self.get_importance_label, StringType())
-        return place_rank_udf, importance_udf
+    def from_json(self, json_string):
+        """
+        Utility function: from json.
+
+        Part of Siege Utilities Utilities module.
+        Auto-discovered and available at package level.
+
+        Returns:
+            Description needed
+
+        Example:
+            >>> import siege_utilities
+            >>> result = siege_utilities.from_json()
+            >>> print(result)
+
+        Note:
+            This function is auto-discovered and available without imports
+            across all siege_utilities modules.
+        """
+        data = json.loads(json_string)
+        self.place_rank_dict = data.get('place_ranks', {})
+        self.importance_dict = data.get('importance_thresholds', {})
+        return self
