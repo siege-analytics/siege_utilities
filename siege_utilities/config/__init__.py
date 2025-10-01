@@ -255,9 +255,15 @@ from .models import (
     ContactInfo,
     BrandingConfig,
     ReportPreferences,
-    DatabaseConnection,
     SocialMediaAccount,
 )
+
+# Import Person/Actor architecture models
+from .models.person import Person
+from .models.actor_types import User, Client, Collaborator, Organization, Collaboration
+from .models.credential import Credential, OnePasswordCredential
+from .models.oauth_integration import OAuthIntegration, OAuthScope
+from .models.database_connection import DatabaseConnection
 
 # Migration utilities
 from .migration import (
@@ -390,6 +396,10 @@ __all__ = [
     'HydraConfigManager',
     'PydanticUserProfile', 'PydanticClientProfile', 'ContactInfo',
     'BrandingConfig', 'ReportPreferences', 'DatabaseConnection', 'SocialMediaAccount',
+    
+    # Person/Actor architecture models
+    'Person', 'User', 'Client', 'Collaborator', 'Organization', 'Collaboration',
+    'Credential', 'OnePasswordCredential', 'OAuthIntegration', 'OAuthScope',
     
     # Migration utilities
     'ConfigurationMigrator', 'migrate_configurations', 'backup_and_migrate',

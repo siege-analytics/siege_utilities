@@ -1,414 +1,363 @@
 """
-Enhanced configuration management with Pydantic validation.
-Provides type-safe config models while maintaining functional API compatibility.
+Migration utilities for transitioning from legacy configuration system to Hydra + Pydantic.
+
+This module provides tools to migrate existing configurations to the new system
+while maintaining backward compatibility.
 """
 
-import logging
-from pathlib import Path
-from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, Field, field_validator
+import json
 import yaml
+from pathlib import Path
+from typing import Dict, Any, Optional, List
+from datetime import datetime
+import logging
 
-# Import profile location management
+from .models import UserProfile, ClientProfile, BrandingConfig, ReportPreferences
 try:
-    from ..admin.profile_manager import get_default_profile_location, get_profile_location
+    from .hydra_manager import HydraConfigManager
 except ImportError:
-    # Fallback if admin module not available
-    def get_default_profile_location():
-        return Path.home() / ".siege_utilities" / "config"
-    
-    def get_profile_location(profile_type: str = "default"):
-        return get_default_profile_location()
+    HydraConfigManager = None
 
-# Custom YAML representer for Path objects
-def path_representer(dumper, data):
-    return dumper.represent_str(str(data))
+logger = logging.getLogger(__name__)
 
-yaml.add_representer(Path, path_representer)
 
-log = logging.getLogger(__name__)
-
-class UserProfile(BaseModel):
-    """Enhanced user profile with validation."""
-    
-    # Personal Information
-    username: str = ""
-    email: str = ""
-    full_name: str = ""
-    github_login: str = ""
-    organization: str = ""
-    
-    # Preferences
-    preferred_download_directory: Path = Field(
-        default_factory=lambda: Path.home() / "Downloads" / "siege_utilities"
-    )
-    default_output_format: str = Field(default="pdf", pattern="^(pdf|pptx|html)$")
-    preferred_map_style: str = Field(default="open-street-map")
-    default_color_scheme: str = Field(default="YlOrRd")
-    
-    # Technical Preferences
-    default_dpi: int = Field(default=300, ge=72, le=600)
-    default_figure_size: tuple = Field(default=(10, 8))
-    enable_logging: bool = True
-    log_level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
-    
-    # API Keys (will be handled securely)
-    google_analytics_key: str = ""
-    facebook_business_key: str = ""
-    census_api_key: str = ""
-    
-    # Database Preferences
-    default_database: str = Field(default="postgresql", pattern="^(postgresql|mysql|sqlite|duckdb)$")
-    postgresql_connection: str = ""
-    duckdb_path: str = ""
-    
-    @field_validator('preferred_download_directory', mode='before')
-    @classmethod
-    def validate_download_directory(cls, v):
-        """Ensure download directory is a Path object."""
-        if isinstance(v, str):
-            return Path(v)
-        return v
-    
-    model_config = {
-        "json_schema_serialization_mode": "json"
-    }
-
-class ClientProfile(BaseModel):
-    """Enhanced client profile with validation."""
-    
-    client_id: str = ""
-    client_name: str
-    client_code: str
-    
-    # Contact Information
-    contact_info: Dict[str, str] = Field(default_factory=dict)
-    
-    # Client-specific preferences
-    download_directory: Optional[Path] = None
-    data_format: str = Field(default="parquet", pattern="^(parquet|csv|json|xlsx)$")
-    report_style: str = Field(default="standard")
-    
-    # Design artifacts
-    logo_path: str = ""
-    brand_colors: List[str] = Field(default_factory=list)
-    style_guide: str = ""
-    templates: List[str] = Field(default_factory=list)
-    
-    # Metadata
-    industry: str = ""
-    project_count: int = Field(default=0, ge=0)
-    status: str = Field(default="active", pattern="^(active|inactive|archived)$")
-    notes: str = ""
-    
-    @field_validator('download_directory', mode='before')
-    @classmethod
-    def validate_download_directory(cls, v):
-        """Ensure download directory is a Path object."""
-        if v and isinstance(v, str):
-            return Path(v)
-        return v
-    
-    model_config = {
-        "json_schema_serialization_mode": "json"
-    }
-
-class SiegeConfig(BaseModel):
-    """Unified configuration container."""
-    
-    user: UserProfile = Field(default_factory=UserProfile)
-    clients: Dict[str, ClientProfile] = Field(default_factory=dict)
-    
-    model_config = {
-        "json_schema_serialization_mode": "json"
-    }
-
-# Functional API functions (maintaining backward compatibility)
-def load_user_profile(config_dir: Optional[Path] = None) -> UserProfile:
+class ConfigurationMigrator:
     """
-    Load user profile with Pydantic validation.
+    Handles migration from legacy configuration system to Hydra + Pydantic.
     
-    Args:
-        config_dir: Configuration directory (defaults to project profiles directory)
-    
-    Returns:
-        Validated UserProfile object
+    Provides utilities to migrate existing user profiles, client profiles,
+    and other configuration data to the new system.
     """
-    if config_dir is None:
-        config_dir = get_default_profile_location() / "users"
     
-    config_file = config_dir / "user_config.yaml"
-    
-    if config_file.exists():
-        try:
-            # Use manual YAML loading and Pydantic parsing (Pydantic v2 compatible)
-            with open(config_file, 'r') as f:
-                data = yaml.safe_load(f)
-            return UserProfile(**data)
-        except Exception as e:
-            log.warning(f"Failed to load user config: {e}, using defaults")
-    
-    # Create default profile
-    profile = UserProfile()
-    
-    # Save default profile
-    try:
-        save_user_profile(profile, config_dir)
-    except Exception as e:
-        log.warning(f"Failed to save default user config: {e}")
-    
-    return profile
-
-def save_user_profile(profile: UserProfile, config_dir: Optional[Path] = None) -> None:
-    """
-    Save user profile with validation.
-    
-    Args:
-        profile: UserProfile object to save
-        config_dir: Configuration directory (defaults to project profiles/users)
-    """
-    if config_dir is None:
-        config_dir = get_default_profile_location() / "users"
-    
-    config_dir.mkdir(parents=True, exist_ok=True)
-    config_file = config_dir / "user_config.yaml"
-    
-    try:
-        # Convert Path objects and tuples to strings for YAML serialization
-        profile_data = profile.model_dump()
-        if 'preferred_download_directory' in profile_data:
-            profile_data['preferred_download_directory'] = str(profile_data['preferred_download_directory'])
-        if 'default_figure_size' in profile_data:
-            profile_data['default_figure_size'] = list(profile_data['default_figure_size'])
+    def __init__(self, legacy_config_dir: Optional[Path] = None, new_config_dir: Optional[Path] = None):
+        """
+        Initialize the migrator.
         
-        with open(config_file, 'w') as f:
-            yaml.dump(profile_data, f, default_flow_style=False)
-        log.info(f"User profile saved to {config_file}")
-    except Exception as e:
-        log.error(f"Failed to save user config: {e}")
-        raise
-
-def load_client_profile(client_code: str, config_dir: Optional[Path] = None) -> Optional[ClientProfile]:
-    """
-    Load client profile with validation.
+        Args:
+            legacy_config_dir: Directory containing legacy configuration files
+            new_config_dir: Directory for new Hydra configuration files
+        """
+        self.legacy_config_dir = legacy_config_dir or Path.home() / ".siege_utilities" / "config"
+        self.new_config_dir = new_config_dir or Path(__file__).parent.parent / "configs"
+        
+        logger.info(f"Initialized migrator: {self.legacy_config_dir} -> {self.new_config_dir}")
     
-    Args:
-        client_code: Client code to load
-        config_dir: Configuration directory (defaults to project profiles/clients)
-    
-    Returns:
-        Validated ClientProfile object or None if not found
-    """
-    if config_dir is None:
-        config_dir = get_default_profile_location() / "clients"
-    
-    client_file = config_dir / f"{client_code}.yaml"
-    
-    if client_file.exists():
-        try:
-            # Add a small delay to ensure file is fully written
-            import time
-            time.sleep(0.1)
+    def migrate_user_profile(self, legacy_file: Optional[Path] = None) -> UserProfile:
+        """
+        Migrate legacy user profile to new system.
+        
+        Args:
+            legacy_file: Path to legacy user config file
             
-            # Read file content first to debug
-            with open(client_file, 'r') as f:
-                content = f.read()
-                if not content.strip():
-                    log.warning(f"Client config file {client_code} is empty")
-                    return None
+        Returns:
+            New UserProfile instance
+        """
+        if legacy_file is None:
+            legacy_file = self.legacy_config_dir / "user_config.yaml"
+        
+        if not legacy_file.exists():
+            logger.warning(f"Legacy user profile not found: {legacy_file}")
+            return self._create_default_user_profile()
+        
+        try:
+            with open(legacy_file, 'r') as f:
+                legacy_data = yaml.safe_load(f)
             
-            # Use manual YAML loading and Pydantic parsing
-            with open(client_file, 'r') as f:
-                data = yaml.safe_load(f)
-            return ClientProfile(**data)
+            logger.info(f"Loading legacy user profile from: {legacy_file}")
+            
+            # Map legacy fields to new UserProfile fields
+            new_data = self._map_user_profile_fields(legacy_data)
+            
+            # Create new UserProfile
+            profile = UserProfile(**new_data)
+            
+            logger.info("Successfully migrated user profile")
+            return profile
+            
         except Exception as e:
-            log.warning(f"Failed to load client config for {client_code}: {e}")
-            # Try to read file content for debugging
-            try:
-                with open(client_file, 'r') as f:
-                    content = f.read()
-                    log.debug(f"File content length: {len(content)}")
-            except Exception as debug_e:
-                log.debug(f"Could not read file for debugging: {debug_e}")
+            logger.error(f"Failed to migrate user profile: {e}")
+            return self._create_default_user_profile()
     
-    return None
-
-def save_client_profile(profile: ClientProfile, config_dir: Optional[Path] = None) -> None:
-    """
-    Save client profile with validation.
-    
-    Args:
-        profile: ClientProfile object to save
-        config_dir: Configuration directory (defaults to project profiles/clients)
-    """
-    if config_dir is None:
-        config_dir = get_default_profile_location() / "clients"
-    
-    client_dir = config_dir
-    client_dir.mkdir(parents=True, exist_ok=True)
-    client_file = client_dir / f"{profile.client_code}.yaml"
-    
-    try:
-        # Convert Path objects to strings for YAML serialization
-        profile_data = profile.model_dump()
-        if 'download_directory' in profile_data and profile_data['download_directory']:
-            profile_data['download_directory'] = str(profile_data['download_directory'])
+    def migrate_client_profile(self, legacy_file: Path, client_code: str) -> ClientProfile:
+        """
+        Migrate legacy client profile to new system.
         
-        # Write to temporary file first, then rename (atomic operation)
-        temp_file = client_file.with_suffix('.tmp')
-        with open(temp_file, 'w') as f:
-            yaml.dump(profile_data, f, default_flow_style=False)
+        Args:
+            legacy_file: Path to legacy client config file
+            client_code: Client code for the profile
+            
+        Returns:
+            New ClientProfile instance
+        """
+        if not legacy_file.exists():
+            logger.warning(f"Legacy client profile not found: {legacy_file}")
+            return self._create_default_client_profile(client_code)
         
-        # Atomic rename
-        temp_file.rename(client_file)
-        log.info(f"Client profile saved to {client_file}")
-    except Exception as e:
-        log.error(f"Failed to save client config: {e}")
-        raise
-
-def get_download_directory(
-    client_code: Optional[str] = None,
-    specific_path: Optional[str] = None,
-    config_dir: Optional[Path] = None
-) -> Path:
-    """
-    Get download directory with hierarchical resolution.
+        try:
+            with open(legacy_file, 'r') as f:
+                legacy_data = yaml.safe_load(f) if legacy_file.suffix in ['.yaml', '.yml'] else json.load(f)
+            
+            logger.info(f"Loading legacy client profile from: {legacy_file}")
+            
+            # Map legacy fields to new ClientProfile fields
+            new_data = self._map_client_profile_fields(legacy_data, client_code)
+            
+            # Create new ClientProfile
+            profile = ClientProfile(**new_data)
+            
+            logger.info(f"Successfully migrated client profile for: {client_code}")
+            return profile
+            
+        except Exception as e:
+            logger.error(f"Failed to migrate client profile for {client_code}: {e}")
+            return self._create_default_client_profile(client_code)
     
-    Priority order:
-    1. specific_path (if provided)
-    2. client-specific directory (if client_code provided and exists)
-    3. user's preferred directory
-    4. system default
-    
-    Args:
-        client_code: Client code for client-specific directory
-        specific_path: Specific path override
-        config_dir: Configuration directory
-    
-    Returns:
-        Path object for download directory
-    """
-    if specific_path:
-        download_dir = Path(specific_path)
-    elif client_code:
-        # Try loading client profile from clients subdirectory if config_dir is base directory
-        if config_dir and (config_dir / "clients").exists():
-            client_profile = load_client_profile(client_code, config_dir / "clients")
-        else:
-            client_profile = load_client_profile(client_code, config_dir)
+    def migrate_all_configurations(self, dry_run: bool = False) -> Dict[str, Any]:
+        """
+        Migrate all configurations from legacy system to new system.
         
-        if client_profile and client_profile.download_directory:
-            download_dir = client_profile.download_directory
-        else:
-            # Try loading user profile from users subdirectory if config_dir is base directory
-            if config_dir and (config_dir / "users").exists():
-                user_profile = load_user_profile(config_dir / "users")
+        Args:
+            dry_run: If True, only show what would be migrated without making changes
+            
+        Returns:
+            Dictionary with migration results
+        """
+        results = {
+            "user_profile": {"migrated": False, "error": None},
+            "client_profiles": {"migrated": [], "errors": []},
+            "total_migrated": 0,
+            "dry_run": dry_run
+        }
+        
+        logger.info(f"Starting migration {'(dry run)' if dry_run else ''}")
+        
+        try:
+            # Migrate user profile
+            if not dry_run:
+                user_profile = self.migrate_user_profile()
+                results["user_profile"]["migrated"] = True
+                logger.info("User profile migrated successfully")
             else:
-                user_profile = load_user_profile(config_dir)
-            download_dir = user_profile.preferred_download_directory
-    else:
-        # Try loading user profile from users subdirectory if config_dir is base directory
-        if config_dir and (config_dir / "users").exists():
-            user_profile = load_user_profile(config_dir / "users")
-        else:
-            user_profile = load_user_profile(config_dir)
-        download_dir = user_profile.preferred_download_directory
+                logger.info("Would migrate user profile")
+            
+            # Find and migrate client profiles
+            legacy_client_dir = self.legacy_config_dir / "clients"
+            if legacy_client_dir.exists():
+                for client_file in legacy_client_dir.glob("*.yaml"):
+                    client_code = client_file.stem
+                    
+                    if not dry_run:
+                        try:
+                            client_profile = self.migrate_client_profile(client_file, client_code)
+                            results["client_profiles"]["migrated"].append(client_code)
+                            logger.info(f"Client profile migrated: {client_code}")
+                        except Exception as e:
+                            results["client_profiles"]["errors"].append(f"{client_code}: {e}")
+                            logger.error(f"Failed to migrate client {client_code}: {e}")
+                    else:
+                        logger.info(f"Would migrate client profile: {client_code}")
+            
+            results["total_migrated"] = len(results["client_profiles"]["migrated"])
+            
+            if not dry_run:
+                logger.info(f"Migration completed: {results['total_migrated']} profiles migrated")
+            else:
+                logger.info(f"Dry run completed: {results['total_migrated']} profiles would be migrated")
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Migration failed: {e}")
+            results["error"] = str(e)
+            return results
     
-    # Ensure directory exists
-    download_dir.mkdir(parents=True, exist_ok=True)
-    return download_dir
+    def _map_user_profile_fields(self, legacy_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Map legacy user profile fields to new UserProfile fields."""
+        field_mapping = {
+            "username": "username",
+            "email": "email",
+            "full_name": "full_name",
+            "github_login": "github_login",
+            "organization": "organization",
+            "preferred_download_directory": "preferred_download_directory",
+            "default_output_format": "default_output_format",
+            "preferred_map_style": "preferred_map_style",
+            "default_color_scheme": "default_color_scheme",
+            "default_dpi": "default_dpi",
+            "default_figure_size": "default_figure_size",
+            "enable_logging": "enable_logging",
+            "log_level": "log_level",
+            "google_analytics_key": "google_analytics_key",
+            "facebook_business_key": "facebook_business_key",
+            "census_api_key": "census_api_key",
+            "default_database": "default_database",
+            "postgresql_connection": "postgresql_connection",
+            "duckdb_path": "duckdb_path"
+        }
+        
+        new_data = {}
+        for legacy_field, new_field in field_mapping.items():
+            if legacy_field in legacy_data:
+                new_data[new_field] = legacy_data[legacy_field]
+        
+        return new_data
+    
+    def _map_client_profile_fields(self, legacy_data: Dict[str, Any], client_code: str) -> Dict[str, Any]:
+        """Map legacy client profile fields to new ClientProfile fields."""
+        # Basic client information
+        new_data = {
+            "client_id": client_code.lower(),
+            "client_name": legacy_data.get("client_name", client_code.title()),
+            "client_code": client_code.upper(),
+            "industry": legacy_data.get("industry", ""),
+            "project_count": legacy_data.get("project_count", 0),
+            "status": legacy_data.get("status", "active"),
+            "notes": legacy_data.get("notes", "")
+        }
+        
+        # Contact information
+        contact_info = {
+            "email": legacy_data.get("contact_email", ""),
+            "phone": legacy_data.get("contact_phone", ""),
+            "address": legacy_data.get("contact_address", ""),
+            "website": legacy_data.get("website", ""),
+            "linkedin": legacy_data.get("linkedin", "")
+        }
+        new_data["contact_info"] = contact_info
+        
+        # Branding configuration
+        branding_data = {
+            "primary_color": legacy_data.get("branding", {}).get("primary_color", "#1f77b4"),
+            "secondary_color": legacy_data.get("branding", {}).get("secondary_color", "#ff7f0e"),
+            "accent_color": legacy_data.get("branding", {}).get("accent_color", "#2ca02c"),
+            "text_color": legacy_data.get("branding", {}).get("text_color", "#000000"),
+            "background_color": legacy_data.get("branding", {}).get("background_color", "#ffffff"),
+            "primary_font": legacy_data.get("branding", {}).get("primary_font", "Arial"),
+            "secondary_font": legacy_data.get("branding", {}).get("secondary_font", "Arial")
+        }
+        new_data["branding_config"] = branding_data
+        
+        # Report preferences
+        report_prefs = {
+            "default_format": legacy_data.get("report_format", "pptx"),
+            "include_executive_summary": legacy_data.get("include_executive_summary", True),
+            "chart_style": legacy_data.get("chart_style", "professional"),
+            "page_size": legacy_data.get("page_size", "A4"),
+            "orientation": legacy_data.get("orientation", "landscape")
+        }
+        new_data["report_preferences"] = report_prefs
+        
+        # Database connections
+        new_data["database_connections"] = []
+        if "database_connections" in legacy_data:
+            for conn_data in legacy_data["database_connections"]:
+                new_data["database_connections"].append(conn_data)
+        
+        # Social media accounts
+        new_data["social_media_accounts"] = []
+        if "social_media_accounts" in legacy_data:
+            for acc_data in legacy_data["social_media_accounts"]:
+                new_data["social_media_accounts"].append(acc_data)
+        
+        return new_data
+    
+    def _create_default_user_profile(self) -> UserProfile:
+        """Create a default user profile."""
+        return UserProfile(
+            username="",
+            email="",
+            full_name="",
+            github_login="",
+            organization=""
+        )
+    
+    def _create_default_client_profile(self, client_code: str) -> ClientProfile:
+        """Create a default client profile."""
+        from .models import ContactInfo, BrandingConfig, ReportPreferences
+        
+        # Use a valid client code if the provided one is reserved
+        valid_client_code = client_code.upper() if client_code.upper() not in ["TEST", "DEFAULT", "SYSTEM"] else "DEMO"
+        
+        return ClientProfile(
+            client_id=client_code.lower(),
+            client_name=client_code.title(),
+            client_code=valid_client_code,
+            contact_info=ContactInfo(email=""),
+            industry="Technology",
+            project_count=0,
+            status="active",
+            branding_config=BrandingConfig(
+                primary_color="#1f77b4",
+                secondary_color="#ff7f0e",
+                accent_color="#2ca02c",
+                text_color="#000000",
+                background_color="#ffffff",
+                primary_font="Arial",
+                secondary_font="Arial"
+            ),
+            report_preferences=ReportPreferences()
+        )
+    
+    def backup_legacy_configurations(self, backup_dir: Optional[Path] = None) -> Path:
+        """
+        Create a backup of legacy configurations before migration.
+        
+        Args:
+            backup_dir: Directory to store backup files
+            
+        Returns:
+            Path to backup directory
+        """
+        if backup_dir is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_dir = self.legacy_config_dir.parent / f"config_backup_{timestamp}"
+        
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        
+        logger.info(f"Creating backup in: {backup_dir}")
+        
+        # Copy all configuration files
+        if self.legacy_config_dir.exists():
+            import shutil
+            shutil.copytree(self.legacy_config_dir, backup_dir / "config", dirs_exist_ok=True)
+        
+        logger.info(f"Backup created successfully: {backup_dir}")
+        return backup_dir
 
-def list_client_profiles(config_dir: Optional[Path] = None) -> List[str]:
+
+def migrate_configurations(legacy_config_dir: Optional[Path] = None, dry_run: bool = False) -> Dict[str, Any]:
     """
-    List available client profile codes.
+    Convenience function to migrate all configurations.
     
     Args:
-        config_dir: Configuration directory (defaults to project profiles/clients)
-    
+        legacy_config_dir: Directory containing legacy configuration files
+        dry_run: If True, only show what would be migrated without making changes
+        
     Returns:
-        List of client codes
+        Dictionary with migration results
     """
-    if config_dir is None:
-        config_dir = get_default_profile_location() / "clients"
-    
-    client_dir = config_dir
-    if not client_dir.exists():
-        return []
-    
-    client_files = list(client_dir.glob("*.yaml"))
-    return [f.stem for f in client_files]
+    migrator = ConfigurationMigrator(legacy_config_dir)
+    return migrator.migrate_all_configurations(dry_run)
 
-def export_config_yaml(output_path: str, include_api_keys: bool = False, config_dir: Optional[Path] = None) -> None:
+
+def backup_and_migrate(legacy_config_dir: Optional[Path] = None, backup_dir: Optional[Path] = None) -> Dict[str, Any]:
     """
-    Export configuration to YAML file.
+    Create backup and migrate all configurations.
     
     Args:
-        output_path: Path to save exported config
-        include_api_keys: Whether to include API keys in export
-        config_dir: Configuration directory (defaults to project profiles directory)
+        legacy_config_dir: Directory containing legacy configuration files
+        backup_dir: Directory to store backup files
+        
+    Returns:
+        Dictionary with migration results including backup location
     """
-    if config_dir is None:
-        config_dir = get_default_profile_location()
+    migrator = ConfigurationMigrator(legacy_config_dir)
     
-    config = SiegeConfig()
-    config.user = load_user_profile(config_dir / "users")
+    # Create backup first
+    backup_path = migrator.backup_legacy_configurations(backup_dir)
     
-    # Load all client profiles
-    for client_code in list_client_profiles(config_dir / "clients"):
-        client_profile = load_client_profile(client_code, config_dir / "clients")
-        if client_profile:
-            config.clients[client_code] = client_profile
+    # Perform migration
+    results = migrator.migrate_all_configurations(dry_run=False)
+    results["backup_location"] = str(backup_path)
     
-    # Remove sensitive data if requested
-    if not include_api_keys:
-        config.user.google_analytics_key = ""
-        config.user.facebook_business_key = ""
-        config.user.census_api_key = ""
-    
-    # Convert Path objects to strings for YAML serialization
-    config_data = config.model_dump()
-    
-    # Convert user profile Path objects and tuples
-    if 'user' in config_data:
-        if 'preferred_download_directory' in config_data['user']:
-            config_data['user']['preferred_download_directory'] = str(config_data['user']['preferred_download_directory'])
-        if 'default_figure_size' in config_data['user']:
-            config_data['user']['default_figure_size'] = list(config_data['user']['default_figure_size'])
-    
-    # Convert client profile Path objects
-    if 'clients' in config_data:
-        for client_code, client_data in config_data['clients'].items():
-            if 'download_directory' in client_data and client_data['download_directory']:
-                client_data['download_directory'] = str(client_data['download_directory'])
-    
-    with open(output_path, 'w') as f:
-        yaml.dump(config_data, f, default_flow_style=False)
-    
-    log.info(f"Configuration exported to {output_path}")
-
-def import_config_yaml(input_path: str, config_dir: Optional[Path] = None) -> None:
-    """
-    Import configuration from YAML file.
-    
-    Args:
-        input_path: Path to YAML file to import
-        config_dir: Configuration directory (defaults to project profiles directory)
-    """
-    if config_dir is None:
-        config_dir = get_default_profile_location()
-    
-    with open(input_path, 'r') as f:
-        config_data = yaml.safe_load(f)
-    
-    # Import user profile
-    if 'user' in config_data:
-        user_profile = UserProfile(**config_data['user'])
-        save_user_profile(user_profile, config_dir / "users")
-    
-    # Import client profiles
-    if 'clients' in config_data:
-        for client_code, client_data in config_data['clients'].items():
-            client_profile = ClientProfile(**client_data)
-            save_client_profile(client_profile, config_dir / "clients")
-    
-    log.info(f"Configuration imported from {input_path}")
+    return results

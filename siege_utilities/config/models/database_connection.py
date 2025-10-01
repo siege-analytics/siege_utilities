@@ -2,7 +2,7 @@
 Database connection model with comprehensive validation.
 """
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional
 import re
 
@@ -14,6 +14,12 @@ class DatabaseConnection(BaseModel):
     Provides type-safe, validated database connection settings with
     detailed field constraints and security validation.
     """
+    
+    model_config = ConfigDict(
+        json_schema_serialization_mode="json",
+        validate_assignment=True,
+        extra="forbid"
+    )
     
     name: str = Field(
         min_length=1,
@@ -152,8 +158,9 @@ class DatabaseConnection(BaseModel):
         else:
             raise ValueError(f"Unsupported connection type: {self.connection_type}")
     
-    model_config = {
-        "json_schema_serialization_mode": "json",
-        "validate_assignment": True,
-        "extra": "forbid"
-    }
+
+
+
+
+
+
