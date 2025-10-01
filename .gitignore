@@ -141,3 +141,7 @@ release_logs/
 
 # User and client profiles (contains sensitive data)
 profiles/
+
+# Production notebooks with real credentials
+*_PRODUCTION.ipynb
+*_production.ipynb

@@ -361,3 +361,252 @@ def backup_and_migrate(legacy_config_dir: Optional[Path] = None, backup_dir: Opt
     results["backup_location"] = str(backup_path)
     
     return results
+
+
+# Legacy compatibility functions for user_config.py
+def load_user_profile(username: str, config_dir: Optional[Path] = None) -> Optional[UserProfile]:
+    """
+    Load user profile from YAML file (legacy compatibility).
+    
+    Args:
+        username: Username to load
+        config_dir: Configuration directory
+        
+    Returns:
+        UserProfile object or None if not found
+    """
+    try:
+        config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "users"
+        config_file = config_dir / f"{username}.yaml"
+        
+        if not config_file.exists():
+            logger.warning(f"User profile not found: {config_file}")
+            return None
+            
+        with open(config_file, 'r') as f:
+            data = yaml.safe_load(f)
+            
+        return UserProfile(**data)
+        
+    except Exception as e:
+        logger.error(f"Failed to load user profile {username}: {e}")
+        return None
+
+
+def save_user_profile(profile: UserProfile, username: str, config_dir: Optional[Path] = None) -> bool:
+    """
+    Save user profile to YAML file (legacy compatibility).
+    
+    Args:
+        profile: UserProfile object to save
+        username: Username to save as
+        config_dir: Configuration directory
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "users"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_file = config_dir / f"{username}.yaml"
+        
+        # Convert to dict and serialize
+        profile_data = profile.model_dump()
+        
+        # Convert Path objects to strings for YAML serialization
+        if 'preferred_download_directory' in profile_data:
+            profile_data['preferred_download_directory'] = str(profile_data['preferred_download_directory'])
+            
+        with open(config_file, 'w') as f:
+            yaml.dump(profile_data, f, default_flow_style=False)
+            
+        logger.info(f"Saved user profile: {config_file}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to save user profile {username}: {e}")
+        return False
+
+
+def get_download_directory(username: str, config_dir: Optional[Path] = None) -> Path:
+    """
+    Get download directory for user (legacy compatibility).
+    
+    Args:
+        username: Username
+        config_dir: Configuration directory
+        
+    Returns:
+        Path to download directory
+    """
+    profile = load_user_profile(username, config_dir)
+    if profile and profile.preferred_download_directory:
+        return Path(profile.preferred_download_directory)
+    
+    # Default fallback
+    return Path.home() / "Downloads" / "siege_utilities"
+
+
+# Additional legacy compatibility functions
+def load_client_profile(client_code: str, config_dir: Optional[Path] = None) -> Optional[ClientProfile]:
+    """
+    Load client profile from YAML file (legacy compatibility).
+    
+    Args:
+        client_code: Client code to load
+        config_dir: Configuration directory
+        
+    Returns:
+        ClientProfile object or None if not found
+    """
+    try:
+        config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "clients"
+        config_file = config_dir / f"{client_code}.yaml"
+        
+        if not config_file.exists():
+            logger.warning(f"Client profile not found: {config_file}")
+            return None
+            
+        with open(config_file, 'r') as f:
+            data = yaml.safe_load(f)
+            
+        return ClientProfile(**data)
+        
+    except Exception as e:
+        logger.error(f"Failed to load client profile {client_code}: {e}")
+        return None
+
+
+def save_client_profile(profile: ClientProfile, config_dir: Optional[Path] = None) -> bool:
+    """
+    Save client profile to YAML file (legacy compatibility).
+    
+    Args:
+        profile: ClientProfile object to save
+        config_dir: Configuration directory
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "clients"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_file = config_dir / f"{profile.client_code}.yaml"
+        
+        # Convert to dict and serialize
+        profile_data = profile.model_dump()
+        
+        with open(config_file, 'w') as f:
+            yaml.dump(profile_data, f, default_flow_style=False)
+            
+        logger.info(f"Saved client profile: {config_file}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to save client profile {profile.client_code}: {e}")
+        return False
+
+
+class SiegeConfig:
+    """
+    Legacy SiegeConfig class for backward compatibility.
+    """
+    
+    def __init__(self, config_dir: Optional[Path] = None):
+        self.config_dir = config_dir or Path.home() / ".siege_utilities" / "config"
+        self.config_dir.mkdir(parents=True, exist_ok=True)
+    
+    def get_user_profile(self, username: str) -> Optional[UserProfile]:
+        """Get user profile."""
+        return load_user_profile(username, self.config_dir / "profiles" / "users")
+    
+    def get_client_profile(self, client_code: str) -> Optional[ClientProfile]:
+        """Get client profile."""
+        return load_client_profile(client_code, self.config_dir / "profiles" / "clients")
+    
+    def save_user_profile(self, profile: UserProfile, username: str) -> bool:
+        """Save user profile."""
+        return save_user_profile(profile, username, self.config_dir / "profiles" / "users")
+    
+    def save_client_profile(self, profile: ClientProfile) -> bool:
+        """Save client profile."""
+        return save_client_profile(profile, self.config_dir / "profiles" / "clients")
+
+
+# Additional utility functions
+def list_client_profiles(config_dir: Optional[Path] = None) -> List[str]:
+    """
+    List all client profile codes (legacy compatibility).
+    
+    Args:
+        config_dir: Configuration directory
+        
+    Returns:
+        List of client codes
+    """
+    try:
+        config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "clients"
+        
+        if not config_dir.exists():
+            return []
+            
+        client_files = list(config_dir.glob("*.yaml"))
+        client_codes = [f.stem for f in client_files]
+        
+        logger.info(f"Found {len(client_codes)} client profiles: {client_codes}")
+        return client_codes
+        
+    except Exception as e:
+        logger.error(f"Failed to list client profiles: {e}")
+        return []
+
+
+def export_config_yaml(config_data: Dict[str, Any], output_file: Path) -> bool:
+    """
+    Export configuration data to YAML file (legacy compatibility).
+    
+    Args:
+        config_data: Configuration data to export
+        output_file: Output file path
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(output_file, 'w') as f:
+            yaml.dump(config_data, f, default_flow_style=False)
+            
+        logger.info(f"Exported configuration to: {output_file}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to export configuration: {e}")
+        return False
+
+
+def import_config_yaml(input_file: Path) -> Optional[Dict[str, Any]]:
+    """
+    Import configuration data from YAML file (legacy compatibility).
+    
+    Args:
+        input_file: Input file path
+        
+    Returns:
+        Configuration data or None if failed
+    """
+    try:
+        if not input_file.exists():
+            logger.warning(f"Configuration file not found: {input_file}")
+            return None
+            
+        with open(input_file, 'r') as f:
+            config_data = yaml.safe_load(f)
+            
+        logger.info(f"Imported configuration from: {input_file}")
+        return config_data
+        
+    except Exception as e:
+        logger.error(f"Failed to import configuration: {e}")
+        return None
