@@ -304,63 +304,123 @@ def list_directory(path: FilePath,
         log.error(f"Failed to list directory {path}: {e}")
         return None
 
-def run_command(command: Union[str, List[str]], 
+def run_command(command: Union[str, List[str]],
                 cwd: Optional[FilePath] = None,
-                timeout: Optional[int] = None,
-                capture_output: bool = True) -> Optional[subprocess.CompletedProcess]:
+                timeout: Optional[int] = 30,
+                capture_output: bool = True,
+                allow_list: Optional[set] = None,
+                unsafe: bool = False) -> Optional[subprocess.CompletedProcess]:
     """
-    Run a shell command with proper error handling.
-    
+    Run a shell command with security validation and proper error handling.
+
+    SECURITY: This function now validates commands by default. Only whitelisted
+    commands are allowed unless unsafe=True is explicitly set.
+
     Args:
         command: Command to run (string or list)
         cwd: Working directory for the command
-        timeout: Timeout in seconds
+        timeout: Timeout in seconds (default: 30)
         capture_output: Whether to capture command output
-        
+        allow_list: Optional custom whitelist of allowed commands
+        unsafe: If True, bypass security validation (DANGEROUS - use with caution)
+
     Returns:
         CompletedProcess object, or None if failed
-        
+
+    Raises:
+        SecurityError: If command fails security validation (when unsafe=False)
+
     Example:
+        >>> # Safe command (works by default)
         >>> result = run_command("ls -la")
         >>> if result and result.returncode == 0:
         ...     print("Command succeeded")
+        >>>
+        >>> # Dangerous command (blocked by default)
+        >>> result = run_command("rm -rf /")  # Raises SecurityError
+        >>>
+        >>> # Custom whitelist
+        >>> result = run_command("git status", allow_list={'git', 'ls'})
+        >>>
+        >>> # Bypass security (DANGEROUS - use only with trusted input)
+        >>> result = run_command("custom_cmd", unsafe=True)
+
+    Security Changes:
+        - Previously used shell=True with no validation (CRITICAL VULNERABILITY)
+        - Now validates all commands against whitelist by default
+        - Blocks command injection, path traversal, sensitive file access
+        - Use unsafe=True ONLY with trusted input in trusted environments
     """
     try:
+        # Import validation function
+        try:
+            from siege_utilities.files.shell import validate_command_safety, SecurityError
+        except ImportError:
+            # Fallback: define minimal SecurityError
+            class SecurityError(Exception):
+                pass
+            # If we can't import validation, we must be in unsafe mode or fail
+            if not unsafe:
+                log.error("Cannot validate command: security module not available")
+                raise SecurityError("Security validation unavailable")
+
+        # Parse command
         if isinstance(command, str):
-            # Use shell=True for string commands
-            result = subprocess.run(
-                command,
-                shell=True,
-                cwd=cwd,
-                timeout=timeout,
-                capture_output=capture_output,
-                text=True
-            )
+            import shlex
+            try:
+                command_list = shlex.split(command)
+            except ValueError:
+                command_list = [command]
         else:
-            # Use shell=False for list commands (safer)
-            result = subprocess.run(
-                command,
-                shell=False,
-                cwd=cwd,
-                timeout=timeout,
-                capture_output=capture_output,
-                text=True
+            command_list = list(command)
+
+        # Security validation (unless explicitly bypassed)
+        if not unsafe:
+            try:
+                validated_command = validate_command_safety(command_list, allow_list)
+                command_to_run = validated_command
+                use_shell = False
+            except (SecurityError, ValueError) as e:
+                log.error(f"Security validation failed: {e}")
+                raise
+        else:
+            # Unsafe mode: log warning and proceed
+            log.warning(
+                f"⚠️ SECURITY WARNING: Running command without validation: {command}"
             )
-        
+            if isinstance(command, str):
+                command_to_run = command
+                use_shell = True  # DANGER: Required for string commands in unsafe mode
+            else:
+                command_to_run = command_list
+                use_shell = False
+
+        # Execute command
+        result = subprocess.run(
+            command_to_run,
+            shell=use_shell,
+            cwd=cwd,
+            timeout=timeout,
+            capture_output=capture_output,
+            text=True
+        )
+
         if result.returncode == 0:
             log.info(f"Command succeeded: {command}")
         else:
             log.warning(f"Command failed with code {result.returncode}: {command}")
             if result.stderr:
                 log.warning(f"Error output: {result.stderr}")
-        
+
         return result
-        
+
     except subprocess.TimeoutExpired:
         log.error(f"Command timed out: {command}")
         return None
     except Exception as e:
         log.error(f"Failed to run command {command}: {e}")
+        if not unsafe:
+            raise  # Re-raise security exceptions
         return None
 
 # Backward compatibility aliases
