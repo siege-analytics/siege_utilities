@@ -52,22 +52,53 @@ def remove_tree(path: FilePath) -> bool:
 def file_exists(path: FilePath) -> bool:
     """
     Check if a file exists at the specified path.
-    
+
+    SECURITY: This function validates paths to prevent path traversal attacks
+    and access to sensitive system files.
+
     Args:
         path: Path to check
-        
+
     Returns:
         True if file exists, False otherwise
-        
+
+    Raises:
+        PathSecurityError: If path fails security validation
+
     Example:
         >>> if file_exists("config.yaml"):
         ...     print("Config file found")
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> file_exists("../../../etc/passwd")  # Path traversal blocked
+
+    Security Changes:
+        - Now validates paths to block path traversal
+        - Blocks access to sensitive system files
     """
     try:
-        path_obj = Path(path)
+        # Import validation function
+        try:
+            from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+        except ImportError:
+            # Fallback: use basic Path validation without security checks
+            log.warning("Path validation module not available - using basic validation")
+            path_obj = Path(path)
+        else:
+            # Validate path with security checks
+            try:
+                path_obj = validate_safe_path(path, allow_absolute=True)
+            except PathSecurityError as e:
+                log.error(f"Path security validation failed: {e}")
+                raise  # Re-raise to caller
+
         exists = path_obj.exists()
         log.debug(f"File exists check for {path}: {exists}")
         return exists
+
+    except PathSecurityError:
+        # Re-raise security errors
+        raise
     except Exception as e:
         log.error(f"Error checking file existence for {path}: {e}")
         return False
@@ -104,35 +135,65 @@ def touch_file(path: FilePath, create_parents: bool = True) -> bool:
 def count_lines(file_path: FilePath, encoding: str = 'utf-8') -> Optional[int]:
     """
     Count the total number of lines in a text file.
-    
+
+    SECURITY: This function validates paths to prevent path traversal attacks
+    and access to sensitive system files.
+
     Args:
         file_path: Path to the text file
         encoding: File encoding to use
-        
+
     Returns:
         Number of lines, or None if failed
-        
+
+    Raises:
+        PathSecurityError: If path fails security validation (from validation module)
+
     Example:
         >>> line_count = count_lines("data.csv")
         >>> print(f"File has {line_count} lines")
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> count_lines("../../../etc/passwd")  # Path traversal blocked
+
+    Security Changes:
+        - Now validates paths to block path traversal
+        - Blocks access to sensitive system files
+        - Resolves symlinks and validates final destination
     """
     try:
-        path_obj = Path(file_path)
-        
+        # Import validation function
+        try:
+            from siege_utilities.files.validation import validate_file_path, PathSecurityError
+        except ImportError:
+            # Fallback: use basic Path validation without security checks
+            log.warning("Path validation module not available - using basic validation")
+            path_obj = Path(file_path)
+        else:
+            # Validate path with security checks
+            try:
+                path_obj = validate_file_path(file_path, must_exist=True)
+            except PathSecurityError as e:
+                log.error(f"Path security validation failed: {e}")
+                raise  # Re-raise to caller
+
         if not path_obj.exists():
             log.warning(f"File does not exist: {path_obj}")
             return None
-            
+
         if not path_obj.is_file():
             log.warning(f"Path is not a file: {path_obj}")
             return None
-        
+
         with open(path_obj, 'r', encoding=encoding) as f:
             line_count = sum(1 for _ in f)
-            
+
         log.info(f"Counted {line_count} lines in {path_obj}")
         return line_count
-        
+
+    except PathSecurityError:
+        # Re-raise security errors
+        raise
     except Exception as e:
         log.error(f"Failed to count lines in {file_path}: {e}")
         return None
@@ -228,32 +289,61 @@ def move_file(source: FilePath, destination: FilePath, overwrite: bool = False) 
 def get_file_size(file_path: FilePath) -> Optional[int]:
     """
     Get the size of a file in bytes.
-    
+
+    SECURITY: This function validates paths to prevent path traversal attacks
+    and access to sensitive system files.
+
     Args:
         file_path: Path to the file
-        
+
     Returns:
         File size in bytes, or None if failed
-        
+
+    Raises:
+        PathSecurityError: If path fails security validation
+
     Example:
         >>> size = get_file_size("large_file.zip")
         >>> print(f"File size: {size} bytes")
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> get_file_size("/etc/shadow")  # Sensitive file blocked
+
+    Security Changes:
+        - Now validates paths to block path traversal
+        - Blocks access to sensitive system files
     """
     try:
-        path_obj = Path(file_path)
-        
+        # Import validation function
+        try:
+            from siege_utilities.files.validation import validate_file_path, PathSecurityError
+        except ImportError:
+            # Fallback: use basic Path validation without security checks
+            log.warning("Path validation module not available - using basic validation")
+            path_obj = Path(file_path)
+        else:
+            # Validate path with security checks
+            try:
+                path_obj = validate_file_path(file_path, must_exist=True)
+            except PathSecurityError as e:
+                log.error(f"Path security validation failed: {e}")
+                raise  # Re-raise to caller
+
         if not path_obj.exists():
             log.warning(f"File does not exist: {path_obj}")
             return None
-            
+
         if not path_obj.is_file():
             log.warning(f"Path is not a file: {path_obj}")
             return None
-        
+
         size = path_obj.stat().st_size
         log.debug(f"File size for {path_obj}: {size} bytes")
         return size
-        
+
+    except PathSecurityError:
+        # Re-raise security errors
+        raise
     except Exception as e:
         log.error(f"Failed to get file size for {file_path}: {e}")
         return None

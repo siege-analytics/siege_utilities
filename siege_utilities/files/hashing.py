@@ -11,14 +11,39 @@ def generate_sha256_hash_for_file(file_path) ->Optional[str]:
     """
     Generate SHA256 hash for a file - chunked reading for large files
 
+    SECURITY: This function validates paths to prevent path traversal attacks
+    and access to sensitive system files.
+
     Args:
         file_path: Path to the file (str or Path object)
 
     Returns:
         SHA256 hash as hexadecimal string, or None if error
+
+    Raises:
+        PathSecurityError: If path fails security validation
+
+    Example:
+        >>> hash_val = generate_sha256_hash_for_file("data.txt")
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> generate_sha256_hash_for_file("/etc/shadow")  # Sensitive file blocked
+
+    Security Changes:
+        - Now validates paths to block path traversal
+        - Blocks access to sensitive system files
     """
     try:
-        path_obj = pathlib.Path(file_path)
+        # Import validation function
+        try:
+            from siege_utilities.files.validation import validate_file_path, PathSecurityError
+        except ImportError:
+            # Fallback: use basic Path validation without security checks
+            path_obj = pathlib.Path(file_path)
+        else:
+            # Validate path with security checks
+            path_obj = validate_file_path(file_path, must_exist=True)
+
         if not path_obj.exists() or not path_obj.is_file():
             return None
         sha256_hash = hashlib.sha256()
@@ -35,15 +60,40 @@ def get_file_hash(file_path, algorithm='sha256') ->Optional[str]:
     """
     Generate hash for a file using specified algorithm
 
+    SECURITY: This function validates paths to prevent path traversal attacks
+    and access to sensitive system files.
+
     Args:
         file_path: Path to the file (str or Path object)
         algorithm: Hash algorithm to use ('sha256', 'md5', 'sha1', etc.)
 
     Returns:
         Hash as hexadecimal string, or None if error
+
+    Raises:
+        PathSecurityError: If path fails security validation
+
+    Example:
+        >>> hash_val = get_file_hash("data.txt", "sha256")
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> get_file_hash("../../../etc/passwd")  # Path traversal blocked
+
+    Security Changes:
+        - Now validates paths to block path traversal
+        - Blocks access to sensitive system files
     """
     try:
-        path_obj = pathlib.Path(file_path)
+        # Import validation function
+        try:
+            from siege_utilities.files.validation import validate_file_path, PathSecurityError
+        except ImportError:
+            # Fallback: use basic Path validation without security checks
+            path_obj = pathlib.Path(file_path)
+        else:
+            # Validate path with security checks
+            path_obj = validate_file_path(file_path, must_exist=True)
+
         if not path_obj.exists() or not path_obj.is_file():
             return None
         if algorithm.lower() == 'sha256':
