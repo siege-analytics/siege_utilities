@@ -148,175 +148,309 @@ def unzip_file_to_directory(zip_file_path: FilePath,
 def get_file_extension(file_path: FilePath) -> str:
     """
     Get the file extension from a file path.
-    
+
+    SECURITY: Validates paths to prevent path traversal attacks.
+
     Args:
         file_path: Path to the file
-        
+
     Returns:
         File extension (including the dot)
-        
+
+    Raises:
+        PathSecurityError: If path fails security validation
+
     Example:
         >>> ext = get_file_extension("document.pdf")
         >>> print(f"File extension: {ext}")  # .pdf
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> get_file_extension("../../../etc/passwd")  # Path traversal blocked
     """
-    path_obj = Path(file_path)
-    return path_obj.suffix
+    try:
+        # Validate path
+        try:
+            from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+            path_obj = validate_safe_path(file_path, allow_absolute=True)
+        except ImportError:
+            path_obj = Path(file_path)
+
+        return path_obj.suffix
+    except PathSecurityError:
+        raise
+    except Exception as e:
+        log.error(f"Failed to get extension for {file_path}: {e}")
+        raise
 
 def get_file_name_without_extension(file_path: FilePath) -> str:
     """
     Get the file name without its extension.
-    
+
+    SECURITY: Validates paths to prevent path traversal attacks.
+
     Args:
         file_path: Path to the file
-        
+
     Returns:
         File name without extension
-        
+
+    Raises:
+        PathSecurityError: If path fails security validation
+
     Example:
         >>> name = get_file_name_without_extension("document.pdf")
         >>> print(f"File name: {name}")  # document
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> get_file_name_without_extension("../../../etc/shadow")  # Path traversal blocked
     """
-    path_obj = Path(file_path)
-    return path_obj.stem
+    try:
+        # Validate path
+        try:
+            from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+            path_obj = validate_safe_path(file_path, allow_absolute=True)
+        except ImportError:
+            path_obj = Path(file_path)
+
+        return path_obj.stem
+    except PathSecurityError:
+        raise
+    except Exception as e:
+        log.error(f"Failed to get filename for {file_path}: {e}")
+        raise
 
 def is_hidden_file(file_path: FilePath) -> bool:
     """
     Check if a file or directory is hidden.
-    
+
+    SECURITY: Validates paths to prevent path traversal attacks.
+
     Args:
         file_path: Path to check
-        
+
     Returns:
         True if the file/directory is hidden
-        
+
+    Raises:
+        PathSecurityError: If path fails security validation
+
     Example:
         >>> if is_hidden_file(".config"):
         ...     print("Hidden file detected")
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> is_hidden_file("../../.ssh/id_rsa")  # Path traversal blocked
     """
-    path_obj = Path(file_path)
-    return path_obj.name.startswith('.')
+    try:
+        # Validate path
+        try:
+            from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+            path_obj = validate_safe_path(file_path, allow_absolute=True)
+        except ImportError:
+            path_obj = Path(file_path)
+
+        return path_obj.name.startswith('.')
+    except PathSecurityError:
+        raise
+    except Exception as e:
+        log.error(f"Failed to check if hidden: {file_path}: {e}")
+        raise
 
 def get_relative_path(base_path: FilePath, target_path: FilePath) -> Optional[Path]:
     """
     Get the relative path from base_path to target_path.
-    
+
+    SECURITY: Validates both base and target paths to prevent path traversal attacks.
+
     Args:
         base_path: Base directory path
         target_path: Target file/directory path
-        
+
     Returns:
         Relative path from base to target, or None if failed
-        
+
+    Raises:
+        PathSecurityError: If paths fail security validation
+
     Example:
         >>> rel_path = get_relative_path("/home/user", "/home/user/documents/file.txt")
         >>> print(f"Relative path: {rel_path}")  # documents/file.txt
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> get_relative_path("/etc", "/etc/passwd")  # Sensitive path blocked
     """
     try:
-        base = Path(base_path).resolve()
-        target = Path(target_path).resolve()
-        
+        # Validate paths
+        try:
+            from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+            base = validate_safe_path(base_path, allow_absolute=True)
+            target = validate_safe_path(target_path, allow_absolute=True)
+        except ImportError:
+            base = Path(base_path).resolve()
+            target = Path(target_path).resolve()
+
         try:
             relative = target.relative_to(base)
             return relative
         except ValueError:
             log.warning(f"Target {target} is not relative to base {base}")
             return None
-            
+    except PathSecurityError:
+        raise
     except Exception as e:
         log.error(f"Failed to get relative path: {e}")
         return None
 
-def find_files_by_pattern(directory: FilePath, 
+def find_files_by_pattern(directory: FilePath,
                          pattern: str = "*",
                          recursive: bool = False) -> list[Path]:
     """
     Find files matching a pattern in a directory.
-    
+
+    SECURITY: Validates directory path to prevent path traversal attacks.
+
     Args:
         directory: Directory to search in
         pattern: Glob pattern to match
         recursive: Whether to search recursively
-        
+
     Returns:
         List of matching file paths
-        
+
+    Raises:
+        PathSecurityError: If path fails security validation
+
     Example:
         >>> files = find_files_by_pattern("data", "*.csv", recursive=True)
         >>> print(f"Found {len(files)} CSV files")
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> find_files_by_pattern("../../../etc", "*")  # Path traversal blocked
     """
     try:
-        dir_path = Path(directory)
-        
+        # Validate directory path
+        try:
+            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            dir_path = validate_directory_path(directory, must_exist=True)
+        except ImportError:
+            dir_path = Path(directory)
+
         if not dir_path.exists() or not dir_path.is_dir():
             log.warning(f"Directory does not exist or is not a directory: {dir_path}")
             return []
-        
+
         if recursive:
             files = list(dir_path.rglob(pattern))
         else:
             files = list(dir_path.glob(pattern))
-        
+
         # Filter to only files (not directories)
         files = [f for f in files if f.is_file()]
-        
+
         log.debug(f"Found {len(files)} files matching '{pattern}' in {dir_path}")
         return sorted(files)
-        
+    except PathSecurityError:
+        raise
     except Exception as e:
         log.error(f"Failed to find files in {directory}: {e}")
         return []
 
-def create_backup_path(original_path: FilePath, 
+def create_backup_path(original_path: FilePath,
                       backup_suffix: str = ".backup",
                       backup_dir: Optional[FilePath] = None) -> Path:
     """
     Create a backup path for a file.
-    
+
+    SECURITY: Validates both original and backup paths to prevent path traversal attacks.
+
     Args:
         original_path: Path to the original file
         backup_suffix: Suffix to add to the backup filename
         backup_dir: Directory to place backup in (defaults to original file's directory)
-        
+
     Returns:
         Path for the backup file
-        
+
+    Raises:
+        PathSecurityError: If paths fail security validation
+
     Example:
         >>> backup_path = create_backup_path("config.yaml", ".bak")
         >>> print(f"Backup will be saved to: {backup_path}")
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> create_backup_path("/etc/passwd", ".bak")  # Sensitive file blocked
     """
-    original = Path(original_path)
-    
-    if backup_dir is None:
-        backup_dir = original.parent
-    
-    backup_dir_path = Path(backup_dir)
-    backup_dir_path.mkdir(parents=True, exist_ok=True)
-    
-    # Create backup filename
-    backup_name = original.stem + backup_suffix + original.suffix
-    backup_path = backup_dir_path / backup_name
-    
-    log.debug(f"Created backup path: {backup_path}")
-    return backup_path
+    try:
+        # Validate original path
+        try:
+            from siege_utilities.files.validation import validate_safe_path, validate_directory_path, PathSecurityError
+            original = validate_safe_path(original_path, allow_absolute=True)
+        except ImportError:
+            original = Path(original_path)
+
+        if backup_dir is None:
+            backup_dir = original.parent
+
+        # Validate backup directory
+        try:
+            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            backup_dir_path = validate_directory_path(backup_dir, must_exist=False)
+        except ImportError:
+            backup_dir_path = Path(backup_dir)
+
+        backup_dir_path.mkdir(parents=True, exist_ok=True)
+
+        # Create backup filename
+        backup_name = original.stem + backup_suffix + original.suffix
+        backup_path = backup_dir_path / backup_name
+
+        log.debug(f"Created backup path: {backup_path}")
+        return backup_path
+    except PathSecurityError:
+        raise
+    except Exception as e:
+        log.error(f"Failed to create backup path for {original_path}: {e}")
+        raise
 
 def normalize_path(path: FilePath) -> Path:
     """
     Normalize a file path, resolving any relative components.
-    
+
+    SECURITY: Validates normalized path to prevent path traversal attacks.
+
     Args:
         path: Path to normalize
-        
+
     Returns:
         Normalized absolute path
-        
+
+    Raises:
+        PathSecurityError: If path fails security validation
+
     Example:
         >>> norm_path = normalize_path("./../data/file.txt")
         >>> print(f"Normalized path: {norm_path}")
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> normalize_path("../../../etc/passwd")  # Path traversal blocked
     """
-    path_obj = Path(path)
-    normalized = path_obj.resolve()
-    log.debug(f"Normalized {path} to {normalized}")
-    return normalized
+    try:
+        # Validate path
+        try:
+            from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+            normalized = validate_safe_path(path, allow_absolute=True)
+        except ImportError:
+            path_obj = Path(path)
+            normalized = path_obj.resolve()
+
+        log.debug(f"Normalized {path} to {normalized}")
+        return normalized
+    except PathSecurityError:
+        raise
+    except Exception as e:
+        log.error(f"Failed to normalize path {path}: {e}")
+        raise
 
 # Backward compatibility aliases
 unzip_file_to_its_own_directory = unzip_file_to_directory
