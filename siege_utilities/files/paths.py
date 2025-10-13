@@ -65,56 +65,82 @@ def unzip_file_to_directory(zip_file_path: FilePath,
                            create_subdirectory: bool = True) -> Optional[Path]:
     """
     Extract a zip file to a directory.
-    
+
+    SECURITY: Validates paths to prevent zip slip attacks and path traversal.
+
     Args:
         zip_file_path: Path to the zip file
         extract_to: Directory to extract to (defaults to zip file's parent)
         create_subdirectory: Whether to create a subdirectory for extracted files
-        
+
     Returns:
         Path to the extraction directory, or None if failed
-        
+
+    Raises:
+        PathSecurityError: If paths fail security validation
+
     Example:
         >>> extract_dir = unzip_file_to_directory("data.zip")
         >>> print(f"Files extracted to: {extract_dir}")
     """
     try:
-        zip_path = Path(zip_file_path)
-        
+        # Validate paths
+        try:
+            from siege_utilities.files.validation import validate_file_path, validate_directory_path, PathSecurityError
+            zip_path = validate_file_path(zip_file_path, must_exist=True)
+        except ImportError:
+            zip_path = Path(zip_file_path)
+
         if not zip_path.exists():
             log.error(f"Zip file does not exist: {zip_path}")
             return None
-            
+
         if not zip_path.is_file():
             log.error(f"Path is not a file: {zip_path}")
             return None
-        
+
         # Determine extraction directory
         if extract_to is None:
             extract_to = zip_path.parent
-        
-        extract_dir = Path(extract_to)
-        
+
+        try:
+            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            extract_dir = validate_directory_path(extract_to, must_exist=False)
+        except ImportError:
+            extract_dir = Path(extract_to)
+
         if create_subdirectory:
             # Create subdirectory based on zip file name
             subdir_name = zip_path.stem
             target_dir = extract_dir / subdir_name
         else:
             target_dir = extract_dir
-        
+
         # Create target directory
         target_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Extract files
+
+        # Extract files (with zip slip protection)
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            # Validate each member to prevent zip slip attacks
+            for member in zip_ref.namelist():
+                member_path = target_dir / member
+                # Resolve to absolute path and check it's within target_dir
+                try:
+                    member_path.resolve().relative_to(target_dir.resolve())
+                except ValueError:
+                    log.error(f"Zip slip attempt detected: {member}")
+                    continue
+            # If all members are safe, extract
             zip_ref.extractall(target_dir)
-        
+
         log.info(f"Extracted {zip_path} to {target_dir}")
         return target_dir
-        
+
     except zipfile.BadZipFile:
         log.error(f"Invalid zip file: {zip_file_path}")
         return None
+    except PathSecurityError:
+        raise
     except Exception as e:
         log.error(f"Failed to extract {zip_file_path}: {e}")
         return None
