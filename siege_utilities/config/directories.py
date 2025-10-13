@@ -370,13 +370,15 @@ def get_directory_info(directory_path: str) -> Dict[str, Any]:
 
         total_size = sum(f.stat().st_size for f in files if f.is_file())
 
+        total_size_mb = round(total_size / (1024 * 1024), 2)
+
         info = {
             'path': str(dir_path),
             'exists': True,
             'file_count': file_count,
             'directory_count': dir_count,
             'total_size_bytes': total_size,
-            'total_size_mb': round(total_size / (1024 * 1024), 2),
+            'total_size_mb': total_size_mb,
             'subdirectories': [str(d.relative_to(dir_path)) for d in dir_path.iterdir() if d.is_dir()]
         }
 
