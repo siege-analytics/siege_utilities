@@ -65,8 +65,29 @@ def create_feature_branch(
     }
 
 def switch_branch(branch_name: str, repo_path: str = ".") -> Dict[str, str]:
-    """Switch to an existing branch."""
-    
+    """
+    Switch to an existing branch.
+
+    SECURITY: Validates branch names to prevent command injection.
+
+    Args:
+        branch_name: Name of branch to switch to
+        repo_path: Repository path
+
+    Returns:
+        Dictionary with switch status
+
+    Raises:
+        GitSecurityError: If branch name fails validation
+    """
+    # Validate inputs
+    try:
+        from siege_utilities.git.validation import validate_branch_name, validate_repo_path, GitSecurityError
+        branch_name = validate_branch_name(branch_name)
+        repo_path = str(validate_repo_path(repo_path))
+    except ImportError:
+        pass
+
     # Check if branch exists
     branches = run_git_command("branch", "--list", repo_path=repo_path)
     if branch_name not in branches:
@@ -79,10 +100,10 @@ def switch_branch(branch_name: str, repo_path: str = ".") -> Dict[str, str]:
             raise ValueError(f"Branch {branch_name} does not exist locally or remotely")
     else:
         run_git_command("checkout", branch_name, repo_path=repo_path)
-    
+
     # Get current status
     current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
-    
+
     return {
         "previous_branch": "unknown",  # Could be enhanced to track previous branch
         "current_branch": current_branch,
@@ -96,26 +117,51 @@ def merge_branch(
     fast_forward_only: bool = False,
     squash: bool = False
 ) -> Dict[str, str]:
-    """Merge a source branch into target branch."""
-    
+    """
+    Merge a source branch into target branch.
+
+    SECURITY: Validates branch names to prevent command injection.
+
+    Args:
+        source_branch: Branch to merge from
+        target_branch: Branch to merge into
+        repo_path: Repository path
+        fast_forward_only: Only allow fast-forward merges
+        squash: Squash commits during merge
+
+    Returns:
+        Dictionary with merge status
+
+    Raises:
+        GitSecurityError: If branch names fail validation
+    """
+    # Validate inputs
+    try:
+        from siege_utilities.git.validation import validate_branch_name, validate_repo_path, GitSecurityError
+        source_branch = validate_branch_name(source_branch)
+        target_branch = validate_branch_name(target_branch)
+        repo_path = str(validate_repo_path(repo_path))
+    except ImportError:
+        pass
+
     # Switch to target branch
     current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
     if current_branch != target_branch:
         run_git_command("checkout", target_branch, repo_path=repo_path)
         print(f"Switched to target branch: {target_branch}")
-    
+
     # Pull latest changes
     run_git_command("pull", "origin", target_branch, repo_path=repo_path)
-    
+
     # Prepare merge command
     merge_args = ["merge"]
     if fast_forward_only:
         merge_args.append("--ff-only")
     if squash:
         merge_args.append("--squash")
-    
+
     merge_args.append(source_branch)
-    
+
     # Execute merge
     try:
         run_git_command(*merge_args, repo_path=repo_path)
@@ -125,7 +171,7 @@ def merge_branch(
         merge_status = "failed"
         print(f"Merge failed: {e}")
         return {"status": merge_status, "error": str(e)}
-    
+
     return {
         "source_branch": source_branch,
         "target_branch": target_branch,
@@ -140,21 +186,45 @@ def rebase_branch(
     repo_path: str = ".",
     interactive: bool = False
 ) -> Dict[str, str]:
-    """Rebase a branch onto another branch."""
-    
+    """
+    Rebase a branch onto another branch.
+
+    SECURITY: Validates branch names to prevent command injection.
+
+    Args:
+        source_branch: Branch to rebase
+        base_branch: Branch to rebase onto
+        repo_path: Repository path
+        interactive: Use interactive rebase
+
+    Returns:
+        Dictionary with rebase status
+
+    Raises:
+        GitSecurityError: If branch names fail validation
+    """
+    # Validate inputs
+    try:
+        from siege_utilities.git.validation import validate_branch_name, validate_repo_path, GitSecurityError
+        source_branch = validate_branch_name(source_branch)
+        base_branch = validate_branch_name(base_branch)
+        repo_path = str(validate_repo_path(repo_path))
+    except ImportError:
+        pass
+
     # Switch to source branch
     current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
     if current_branch != source_branch:
         run_git_command("checkout", source_branch, repo_path=repo_path)
         print(f"Switched to source branch: {source_branch}")
-    
+
     # Prepare rebase command
     rebase_args = ["rebase"]
     if interactive:
         rebase_args.append("-i")
-    
+
     rebase_args.append(base_branch)
-    
+
     # Execute rebase
     try:
         run_git_command(*rebase_args, repo_path=repo_path)
@@ -164,7 +234,7 @@ def rebase_branch(
         rebase_status = "failed"
         print(f"Rebase failed: {e}")
         return {"status": rebase_status, "error": str(e)}
-    
+
     return {
         "source_branch": source_branch,
         "base_branch": base_branch,
@@ -177,8 +247,31 @@ def stash_changes(
     include_untracked: bool = False,
     repo_path: str = "."
 ) -> Dict[str, str]:
-    """Stash current changes."""
-    
+    """
+    Stash current changes.
+
+    SECURITY: Validates commit message to prevent command injection.
+
+    Args:
+        message: Optional stash message
+        include_untracked: Include untracked files
+        repo_path: Repository path
+
+    Returns:
+        Dictionary with stash status
+
+    Raises:
+        GitSecurityError: If message fails validation
+    """
+    # Validate inputs
+    try:
+        from siege_utilities.git.validation import validate_commit_message, validate_repo_path, GitSecurityError
+        if message:
+            message = validate_commit_message(message)
+        repo_path = str(validate_repo_path(repo_path))
+    except ImportError:
+        pass
+
     stash_args = ["stash"]
     if message:
         stash_args.extend(["push", "-m", message])
@@ -213,8 +306,35 @@ def apply_stash(
     repo_path: str = ".",
     pop: bool = False
 ) -> Dict[str, str]:
-    """Apply a stashed change."""
-    
+    """
+    Apply a stashed change.
+
+    SECURITY: Validates stash reference to prevent command injection.
+
+    Args:
+        stash_ref: Stash reference (e.g., "stash@{0}")
+        repo_path: Repository path
+        pop: Pop instead of apply
+
+    Returns:
+        Dictionary with apply status
+
+    Raises:
+        GitSecurityError: If stash ref fails validation
+    """
+    # Validate inputs
+    try:
+        from siege_utilities.git.validation import has_dangerous_characters, validate_repo_path, GitSecurityError
+        # Validate stash ref format
+        import re
+        if not re.match(r'^stash@\{\d+\}$', stash_ref):
+            raise GitSecurityError(f"Invalid stash ref format: {stash_ref}")
+        if has_dangerous_characters(stash_ref):
+            raise GitSecurityError(f"Dangerous characters in stash ref: {stash_ref}")
+        repo_path = str(validate_repo_path(repo_path))
+    except ImportError:
+        pass
+
     stash_args = ["stash", "pop" if pop else "apply", stash_ref]
     
     try:
@@ -288,12 +408,34 @@ def reset_to_commit(
     reset_type: str = "soft",
     repo_path: str = "."
 ) -> Dict[str, str]:
-    """Reset HEAD to a specific commit."""
-    
+    """
+    Reset HEAD to a specific commit.
+
+    SECURITY: Validates commit hash to prevent command injection.
+
+    Args:
+        commit_hash: Commit SHA to reset to
+        reset_type: Type of reset (soft, mixed, hard)
+        repo_path: Repository path
+
+    Returns:
+        Dictionary with reset status
+
+    Raises:
+        GitSecurityError: If commit hash fails validation
+    """
+    # Validate inputs
+    try:
+        from siege_utilities.git.validation import validate_commit_hash, validate_repo_path, GitSecurityError
+        commit_hash = validate_commit_hash(commit_hash)
+        repo_path = str(validate_repo_path(repo_path))
+    except ImportError:
+        pass
+
     valid_reset_types = ["soft", "mixed", "hard"]
     if reset_type not in valid_reset_types:
         raise ValueError(f"Invalid reset type. Must be one of: {valid_reset_types}")
-    
+
     reset_args = ["reset", f"--{reset_type}", commit_hash]
     
     try:
@@ -316,8 +458,31 @@ def cherry_pick_commit(
     repo_path: str = ".",
     continue_on_conflict: bool = False
 ) -> Dict[str, str]:
-    """Cherry-pick a specific commit."""
-    
+    """
+    Cherry-pick a specific commit.
+
+    SECURITY: Validates commit hash to prevent command injection.
+
+    Args:
+        commit_hash: Commit SHA to cherry-pick
+        repo_path: Repository path
+        continue_on_conflict: Continue after resolving conflicts
+
+    Returns:
+        Dictionary with cherry-pick status
+
+    Raises:
+        GitSecurityError: If commit hash fails validation
+    """
+    # Validate inputs
+    try:
+        from siege_utilities.git.validation import validate_commit_hash, validate_repo_path, GitSecurityError
+        if not continue_on_conflict:  # Only validate if we're using the hash
+            commit_hash = validate_commit_hash(commit_hash)
+        repo_path = str(validate_repo_path(repo_path))
+    except ImportError:
+        pass
+
     cherry_pick_args = ["cherry-pick"]
     if continue_on_conflict:
         cherry_pick_args.append("--continue")
@@ -443,14 +608,39 @@ def push_branch(
     force: bool = False,
     repo_path: str = "."
 ) -> Dict[str, str]:
-    """Push a branch to remote."""
-    
+    """
+    Push a branch to remote.
+
+    SECURITY: Validates branch and remote names to prevent command injection.
+
+    Args:
+        branch_name: Branch to push (None for current branch)
+        remote: Remote repository name
+        force: Force push with lease
+        repo_path: Repository path
+
+    Returns:
+        Dictionary with push status
+
+    Raises:
+        GitSecurityError: If branch or remote name fails validation
+    """
+    # Validate inputs
+    try:
+        from siege_utilities.git.validation import validate_branch_name, validate_remote_name, validate_repo_path, GitSecurityError
+        if branch_name:
+            branch_name = validate_branch_name(branch_name)
+        remote = validate_remote_name(remote)
+        repo_path = str(validate_repo_path(repo_path))
+    except ImportError:
+        pass
+
     push_args = ["push"]
     if force:
         push_args.append("--force-with-lease")  # Safer than --force
-    
+
     push_args.append(remote)
-    
+
     if branch_name:
         push_args.append(branch_name)
     
@@ -477,14 +667,39 @@ def pull_branch(
     rebase: bool = False,
     repo_path: str = "."
 ) -> Dict[str, str]:
-    """Pull changes from remote branch."""
-    
+    """
+    Pull changes from remote branch.
+
+    SECURITY: Validates branch and remote names to prevent command injection.
+
+    Args:
+        branch_name: Branch to pull (None for current branch)
+        remote: Remote repository name
+        rebase: Rebase instead of merge
+        repo_path: Repository path
+
+    Returns:
+        Dictionary with pull status
+
+    Raises:
+        GitSecurityError: If branch or remote name fails validation
+    """
+    # Validate inputs
+    try:
+        from siege_utilities.git.validation import validate_branch_name, validate_remote_name, validate_repo_path, GitSecurityError
+        if branch_name:
+            branch_name = validate_branch_name(branch_name)
+        remote = validate_remote_name(remote)
+        repo_path = str(validate_repo_path(repo_path))
+    except ImportError:
+        pass
+
     pull_args = ["pull"]
     if rebase:
         pull_args.append("--rebase")
-    
+
     pull_args.append(remote)
-    
+
     if branch_name:
         pull_args.append(branch_name)
     
