@@ -174,6 +174,8 @@ def save_directory_config(paths: Dict[str, str], config_name: str,
     """
     Save directory configuration to JSON file.
 
+    SECURITY: Validates config_directory to prevent path traversal attacks.
+
     Args:
         paths: Dictionary of directory paths
         config_name: Name for the configuration
@@ -182,12 +184,26 @@ def save_directory_config(paths: Dict[str, str], config_name: str,
     Returns:
         Path to saved config file
 
+    Raises:
+        PathSecurityError: If config_directory fails security validation
+
     Example:
         >>> paths = create_standard_project_structure("my_project")
         >>> config_file = siege_utilities.save_directory_config(paths, "my_project_dirs")
-    """
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> save_directory_config(paths, "test", "../../etc")  # Path traversal blocked
 
-    config_dir = pathlib.Path(config_directory)
+    Security Changes:
+        - Now validates config_directory to block path traversal
+        - Blocks saving configs to sensitive system locations
+    """
+    # Validate config directory path
+    try:
+        from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+        config_dir = validate_directory_path(config_directory, must_exist=False)
+    except ImportError:
+        config_dir = pathlib.Path(config_directory)
     config_dir.mkdir(parents=True, exist_ok=True)
 
     config_file = config_dir / f"directories_{config_name}.json"
@@ -209,6 +225,8 @@ def load_directory_config(config_name: str, config_directory: str = "config") ->
     """
     Load directory configuration from JSON file.
 
+    SECURITY: Validates config_directory to prevent path traversal attacks.
+
     Args:
         config_name: Name of the configuration to load
         config_directory: Directory containing config files
@@ -216,13 +234,29 @@ def load_directory_config(config_name: str, config_directory: str = "config") ->
     Returns:
         Directory configuration dictionary or None if not found
 
+    Raises:
+        PathSecurityError: If config_directory fails security validation
+
     Example:
         >>> dir_config = siege_utilities.load_directory_config("my_project_dirs")
         >>> if dir_config:
         ...     print(dir_config['paths']['data'])
-    """
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> load_directory_config("test", "../../etc")  # Path traversal blocked
 
-    config_file = pathlib.Path(config_directory) / f"directories_{config_name}.json"
+    Security Changes:
+        - Now validates config_directory to block path traversal
+        - Blocks loading configs from sensitive system locations
+    """
+    # Validate config directory path
+    try:
+        from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+        config_dir = validate_directory_path(config_directory, must_exist=False)
+    except ImportError:
+        config_dir = pathlib.Path(config_directory)
+
+    config_file = config_dir / f"directories_{config_name}.json"
 
     if not config_file.exists():
         log_warning(f"Directory config not found: {config_file}")
@@ -244,21 +278,38 @@ def ensure_directories_exist(paths: Dict[str, str]) -> bool:
     """
     Ensure all directories in a path configuration exist.
 
+    SECURITY: Validates each directory path to prevent path traversal attacks.
+
     Args:
         paths: Dictionary of directory paths
 
     Returns:
         True if all directories exist or were created successfully
 
+    Raises:
+        PathSecurityError: If any path fails security validation
+
     Example:
         >>> dir_config = load_directory_config("my_project_dirs")
         >>> if dir_config:
         ...     success = siege_utilities.ensure_directories_exist(dir_config['paths'])
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> ensure_directories_exist({"bad": "../../etc"})  # Path traversal blocked
+
+    Security Changes:
+        - Now validates each directory path to block path traversal
+        - Blocks creating directories in sensitive system locations
     """
 
     try:
         for name, path in paths.items():
-            dir_path = pathlib.Path(path)
+            # Validate each directory path
+            try:
+                from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+                dir_path = validate_directory_path(path, must_exist=False)
+            except ImportError:
+                dir_path = pathlib.Path(path)
             dir_path.mkdir(parents=True, exist_ok=True)
 
             # Ensure .gitkeep exists
@@ -279,18 +330,34 @@ def get_directory_info(directory_path: str) -> Dict[str, Any]:
     """
     Get information about a directory (size, file count, etc.).
 
+    SECURITY: Validates directory_path to prevent path traversal attacks.
+
     Args:
         directory_path: Path to directory
 
     Returns:
         Dictionary with directory information
 
+    Raises:
+        PathSecurityError: If directory_path fails security validation
+
     Example:
         >>> info = siege_utilities.get_directory_info("my_project/data")
         >>> print(f"Total files: {info['file_count']}")
-    """
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> get_directory_info("../../etc/passwd")  # Path traversal blocked
 
-    dir_path = pathlib.Path(directory_path)
+    Security Changes:
+        - Now validates directory_path to block path traversal
+        - Blocks accessing sensitive system directories
+    """
+    # Validate directory path
+    try:
+        from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+        dir_path = validate_directory_path(directory_path, must_exist=False)
+    except ImportError:
+        dir_path = pathlib.Path(directory_path)
 
     if not dir_path.exists() or not dir_path.is_dir():
         log_warning(f"Directory does not exist: {directory_path}")
@@ -325,6 +392,8 @@ def clean_empty_directories(base_path: str, keep_gitkeep: bool = True) -> int:
     """
     Remove empty directories (optionally keeping ones with .gitkeep).
 
+    SECURITY: Validates base_path to prevent path traversal attacks.
+
     Args:
         base_path: Base path to start cleaning from
         keep_gitkeep: If True, don't remove directories that only contain .gitkeep
@@ -332,12 +401,28 @@ def clean_empty_directories(base_path: str, keep_gitkeep: bool = True) -> int:
     Returns:
         Number of directories removed
 
+    Raises:
+        PathSecurityError: If base_path fails security validation
+
     Example:
         >>> removed = siege_utilities.clean_empty_directories("my_project/data")
         >>> print(f"Removed {removed} empty directories")
-    """
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> clean_empty_directories("../../etc")  # Path traversal blocked
 
-    base_path = pathlib.Path(base_path)
+    Security Changes:
+        - Now validates base_path to block path traversal
+        - Blocks cleaning sensitive system directories
+    """
+    # Validate base path
+    try:
+        from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+        base_path_obj = validate_directory_path(base_path, must_exist=False)
+    except ImportError:
+        base_path_obj = pathlib.Path(base_path)
+
+    base_path = base_path_obj
 
     if not base_path.exists():
         log_warning(f"Base path does not exist: {base_path}")
@@ -388,19 +473,35 @@ def list_directory_configs(config_directory: str = "config") -> List[Dict[str, A
     """
     List all available directory configurations.
 
+    SECURITY: Validates config_directory to prevent path traversal attacks.
+
     Args:
         config_directory: Directory containing config files
 
     Returns:
         List of dictionaries with directory config info
 
+    Raises:
+        PathSecurityError: If config_directory fails security validation
+
     Example:
         >>> configs = siege_utilities.list_directory_configs()
         >>> for config in configs:
         ...     print(f"{config['name']}: {len(config['paths'])} directories")
-    """
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> list_directory_configs("../../etc")  # Path traversal blocked
 
-    config_dir = pathlib.Path(config_directory)
+    Security Changes:
+        - Now validates config_directory to block path traversal
+        - Blocks listing configs from sensitive system locations
+    """
+    # Validate config directory path
+    try:
+        from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+        config_dir = validate_directory_path(config_directory, must_exist=False)
+    except ImportError:
+        config_dir = pathlib.Path(config_directory)
 
     if not config_dir.exists():
         log_info("Config directory does not exist")

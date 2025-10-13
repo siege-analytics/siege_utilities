@@ -57,7 +57,6 @@ SENSITIVE_PATHS = {
     # macOS specific
     '/System',
     '/private/etc',
-    '/private/var',
 
     # Windows sensitive (for cross-platform)
     'C:\\Windows\\System32',

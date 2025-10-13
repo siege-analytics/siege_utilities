@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude install jetbrains)",
+      "Bash(claude install:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

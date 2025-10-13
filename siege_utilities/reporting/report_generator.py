@@ -16,7 +16,7 @@ try:
 except ImportError:
     ImageType = Any
 
-from .base_template import BaseReportTemplate
+from .templates.base_template import BaseReportTemplate
 from .chart_generator import ChartGenerator
 from .client_branding import ClientBrandingManager
 

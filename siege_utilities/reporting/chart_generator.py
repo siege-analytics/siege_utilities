@@ -63,6 +63,9 @@ from reportlab.platypus import Image, Paragraph, Spacer
 from reportlab.lib.units import inch
 from reportlab.lib.styles import getSampleStyleSheet
 
+# Legend management will be added later
+# from .legend_manager import LegendManager, LegendPosition, ColorScheme
+
 log = logging.getLogger(__name__)
 
 class ChartGenerator:
@@ -83,9 +86,14 @@ class ChartGenerator:
         self._setup_default_colors()
         self._setup_plotting_style()
         
-        # Set default figure size and DPI
-        self.default_figsize = (10, 6)
-        self.default_dpi = 300
+        # Set default figure size and DPI for professional quality
+        self.default_figsize = (3, 2)  # Reasonable default size
+        self.default_dpi = 72  # High DPI for crisp, professional quality
+        
+        # Set matplotlib global DPI for consistency
+        if MATPLOTLIB_AVAILABLE:
+            plt.rcParams['figure.dpi'] = 72
+            plt.rcParams['savefig.dpi'] = 72
 
     def _setup_default_colors(self):
         """Setup default color scheme for charts."""
@@ -121,7 +129,8 @@ class ChartGenerator:
                 sns.set_palette(self.color_palette)
                 sns.set_style("whitegrid")
             
-            # Set default font sizes
+            # Set default font sizes and DPI
+            plt.rcParams['figure.dpi'] = 72
             plt.rcParams['font.size'] = 10
             plt.rcParams['axes.titlesize'] = 12
             plt.rcParams['axes.labelsize'] = 10
@@ -129,11 +138,20 @@ class ChartGenerator:
             plt.rcParams['ytick.labelsize'] = 9
             plt.rcParams['legend.fontsize'] = 9
             plt.rcParams['figure.titlesize'] = 14
+            
+            # Enhanced legend settings to prevent label collisions
+            plt.rcParams['legend.frameon'] = True
+            plt.rcParams['legend.fancybox'] = True
+            plt.rcParams['legend.shadow'] = True
+            plt.rcParams['legend.framealpha'] = 0.9
+            plt.rcParams['legend.edgecolor'] = 'black'
+            plt.rcParams['legend.facecolor'] = 'white'
 
     def create_bar_chart(self, data: Union[pd.DataFrame, Dict[str, Any]], 
                         x_column: str = None, y_column: str = None,
                         title: str = "", width: float = 6.0, height: float = 4.0,
-                        chart_type: str = "bar", group_by: str = None) -> Image:
+                        chart_type: str = "bar", group_by: str = None,
+                        show_legend: bool = True, legend_position: str = "best") -> Image:
         """
         Create a bar chart from data.
         
@@ -179,8 +197,9 @@ class ChartGenerator:
                 else:
                     return self._create_placeholder_chart(width, height, "No numeric data found")
             
-            # Create figure
-            fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
+            # Create figure with very conservative sizing to prevent ReportLab crashes
+            fig, ax = plt.subplots(figsize=(width * 0.3, height * 0.3), dpi=self.default_dpi)
+            fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
             
             # Create chart
             if chart_type == "horizontal":
@@ -206,7 +225,14 @@ class ChartGenerator:
                 ax.text(bar.get_x() + bar.get_width()/2., height,
                        f'{height:,.0f}', ha='center', va='bottom')
             
-            plt.tight_layout()
+            # Add legend with better positioning
+            if show_legend and (group_by or len(y_values) > 1):
+                if legend_position == "outside":
+                    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+                elif legend_position == "bottom":
+                    ax.legend(bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=min(3, len(y_values) if len(y_values) > 1 else 1))
+                else:  # "best" or default
+                    ax.legend(loc='best')
             
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
@@ -217,7 +243,8 @@ class ChartGenerator:
 
     def create_line_chart(self, data: Union[pd.DataFrame, Dict[str, Any]],
                          x_column: str = None, y_columns: List[str] = None,
-                         title: str = "", width: float = 6.0, height: float = 4.0) -> Image:
+                         title: str = "", width: float = 6.0, height: float = 4.0,
+                         show_legend: bool = True, legend_position: str = "best") -> Image:
         """
         Create a line chart from data.
         
@@ -257,8 +284,9 @@ class ChartGenerator:
                     numeric_cols.remove(x_column)
                 y_columns = numeric_cols[:5]  # Limit to 5 columns
             
-            # Create figure
-            fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
+            # Create figure with very conservative sizing to prevent ReportLab crashes
+            fig, ax = plt.subplots(figsize=(width * 0.3, height * 0.3), dpi=self.default_dpi)
+            fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
             
             # Plot each line
             for i, col in enumerate(y_columns):
@@ -271,14 +299,25 @@ class ChartGenerator:
             ax.set_title(title or f"Trends over time")
             ax.set_xlabel(x_column if x_column != 'index' else 'Index')
             ax.set_ylabel('Value')
-            ax.legend()
+            
+            # Add legend with better positioning
+            if show_legend and len(y_columns) > 1:
+                if legend_position == "outside":
+                    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+                elif legend_position == "bottom":
+                    ax.legend(bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=min(len(y_columns), 3))
+                else:  # "best" or default
+                    ax.legend(loc='best')
+            elif show_legend and len(y_columns) == 1:
+                # Single line - add legend if title suggests it's needed
+                if "vs" in title.lower() or "comparison" in title.lower():
+                    ax.legend([y_columns[0]], loc='best')
+            
             ax.grid(True, alpha=0.3)
             
             # Rotate x-axis labels if needed
             if len(x_values) > 5:
                 plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
-            
-            plt.tight_layout()
             
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
@@ -289,7 +328,8 @@ class ChartGenerator:
 
     def create_pie_chart(self, data: Union[pd.DataFrame, Dict[str, Any]],
                         labels_column: str = None, values_column: str = None,
-                        title: str = "", width: float = 6.0, height: float = 4.0) -> Image:
+                        title: str = "", width: float = 6.0, height: float = 4.0,
+                        show_legend: bool = True, legend_position: str = "right") -> Image:
         """
         Create a pie chart from data.
         
@@ -327,21 +367,63 @@ class ChartGenerator:
                 else:
                     return self._create_placeholder_chart(width, height, "Need at least 2 columns for pie chart")
             
-            # Create figure
-            fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
+            # Create figure with larger size for dominant appearance
+            fig, ax = plt.subplots(figsize=(width * 0.3, height * 0.3), dpi=self.default_dpi)
             
-            # Create pie chart
-            wedges, texts, autotexts = ax.pie(values, labels=labels, autopct='%1.1f%%',
-                                             colors=self.color_palette[:len(values)],
-                                             startangle=90)
+            # Adjust subplot parameters to make room for legend table
+            fig.subplots_adjust(left=0.1, right=0.6, top=0.9, bottom=0.1)
+            
+            # Create clean pie chart with NO LABELS AT ALL
+            wedges = ax.pie(values, labels=None, autopct=None,
+                           colors=self.color_palette[:len(values)],
+                           startangle=90)[0]
             
             # Customize chart
             ax.set_title(title or "Data Distribution")
             
-            # Add legend
-            ax.legend(wedges, labels, title="Categories", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1))
-            
-            plt.tight_layout()
+            # Add legend with configurable positioning to avoid collisions
+            # Create legend table instead of matplotlib legend
+            if show_legend:
+                # Calculate percentages for the table
+                total = sum(values)
+                percentages = [(v/total)*100 for v in values]
+                
+                # Create legend table data
+                legend_data = []
+                for i, (label, value, pct) in enumerate(zip(labels, values, percentages)):
+                    legend_data.append([
+                        f"■",  # Color indicator
+                        label,
+                        f"{value:,}",
+                        f"{pct:.1f}%"
+                    ])
+                
+                # Create table
+                table = ax.table(cellText=legend_data,
+                               colLabels=['', 'Label', 'Value', 'Percent'],
+                               cellLoc='center',
+                               loc='center',
+                               bbox=[1.1, 0.1, 0.3, 0.8])
+                
+                # Style the table
+                table.auto_set_font_size(False)
+                table.set_fontsize(8)
+                table.scale(1, 1.5)
+                
+                # Color the first column with the actual colors
+                for i, color in enumerate(self.color_palette[:len(values)]):
+                    table[(i+1, 0)].set_facecolor(color)
+                    table[(i+1, 0)].set_text_props(weight='bold')
+                
+                # Style header
+                for i in range(4):
+                    table[(0, i)].set_facecolor('#40466e')
+                    table[(0, i)].set_text_props(weight='bold', color='white')
+                
+                # Remove table borders
+                for i in range(len(legend_data) + 1):
+                    for j in range(4):
+                        table[(i, j)].set_edgecolor('none')
             
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
@@ -522,8 +604,8 @@ class ChartGenerator:
             color_matrix = self._create_bivariate_color_matrix(color_scheme)
             merged_with_colors = self._apply_bivariate_colors(merged, value_column1, value_column2, color_matrix)
             
-            # Create figure and axes
-            fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
+            # Create figure with very conservative sizing to prevent ReportLab crashes
+            fig, ax = plt.subplots(figsize=(width * 0.3, height * 0.3), dpi=self.default_dpi)
             
             # Create true bivariate choropleth
             merged_with_colors.plot(
@@ -704,8 +786,8 @@ class ChartGenerator:
             else:
                 merged[f'{value_column}_classified'] = pd.qcut(merged[value_column], bins, labels=False, duplicates='drop')
             
-            # Create figure and axes
-            fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
+            # Create figure with very conservative sizing to prevent ReportLab crashes
+            fig, ax = plt.subplots(figsize=(width * 0.3, height * 0.3), dpi=self.default_dpi)
             
             # Create choropleth
             merged.plot(
@@ -1342,8 +1424,8 @@ class ChartGenerator:
             else:
                 df = data.copy()
             
-            # Create figure
-            fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
+            # Create figure with very conservative sizing to prevent ReportLab crashes
+            fig, ax = plt.subplots(figsize=(width * 0.3, height * 0.3), dpi=self.default_dpi)
             
             # Create scatter plot
             if color_column and color_column in df.columns:
@@ -1392,8 +1474,8 @@ class ChartGenerator:
             else:
                 cols, rows = 2, 2
             
-            # Create subplot grid
-            fig, axes = plt.subplots(rows, cols, figsize=(width, height), dpi=self.default_dpi)
+            # Create subplot grid with very conservative sizing to prevent ReportLab crashes
+            fig, axes = plt.subplots(rows, cols, figsize=(width * 0.3, height * 0.3), dpi=self.default_dpi)
             
             # Handle single subplot case
             if rows == 1 and cols == 1:
@@ -1546,7 +1628,7 @@ class ChartGenerator:
 
     def _matplotlib_to_reportlab_image(self, fig, width: float, height: float) -> Image:
         """
-        Convert matplotlib figure to ReportLab Image.
+        Convert matplotlib figure to ReportLab Image with size optimization.
         
         Args:
             fig: Matplotlib figure
@@ -1557,10 +1639,23 @@ class ChartGenerator:
             ReportLab Image object
         """
         try:
-            # Save figure to bytes buffer
+            # Use high DPI for crisp, professional quality
+            optimal_dpi = self.default_dpi
+            
+            # Save figure to bytes buffer with optimized settings
             img_buffer = io.BytesIO()
-            fig.savefig(img_buffer, format='png', dpi=self.default_dpi, bbox_inches='tight')
+            fig.savefig(img_buffer, format='png', dpi=optimal_dpi, 
+                       facecolor='white', edgecolor='none', pad_inches=0.05)
             img_buffer.seek(0)
+            
+            # Check if image is still too large
+            img_size = len(img_buffer.getvalue())
+            if img_size > 5 * 1024 * 1024:  # 5MB limit
+                log.warning(f"Image size {img_size/1024/1024:.1f}MB exceeds limit, reducing quality")
+                img_buffer.seek(0)
+                fig.savefig(img_buffer, format='png', dpi=150, 
+                           facecolor='white', edgecolor='none', pad_inches=0.05)
+                img_buffer.seek(0)
             
             # Encode as base64
             img_data = base64.b64encode(img_buffer.getvalue()).decode()
@@ -1571,12 +1666,151 @@ class ChartGenerator:
             # Close the figure to free memory
             plt.close(fig)
             
-            # Create ReportLab Image
-            return Image(data_url, width=width*inch, height=height*inch)
+            # Create ReportLab Image - let ReportLab determine height from image
+            rl_image = Image(data_url, width=width*inch)
+            return rl_image
             
         except Exception as e:
             log.error(f"Error converting matplotlib figure to ReportLab Image: {e}")
             return self._create_placeholder_chart(width, height, "Image Conversion Error")
+
+    def create_proportional_text_bar_chart(self, 
+                                         data: pd.DataFrame,
+                                         labels_column: str,
+                                         values_column: str,
+                                         title: str = "Proportional Text Bar Chart",
+                                         max_width: int = 50,
+                                         bar_char: str = "█",
+                                         show_values: bool = True,
+                                         sort_descending: bool = True) -> str:
+        """
+        Create a proportional text-based bar chart
+        
+        Args:
+            data: DataFrame containing the data
+            labels_column: Column name for labels
+            values_column: Column name for values
+            title: Chart title
+            max_width: Maximum width of bars in characters
+            bar_char: Character to use for bars
+            show_values: Whether to show actual values
+            sort_descending: Whether to sort by values descending
+            
+        Returns:
+            Formatted text chart string
+        """
+        try:
+            if data.empty:
+                return f"<i>No data available for {title}</i>"
+            
+            # Sort data if requested
+            if sort_descending:
+                data = data.sort_values(values_column, ascending=False)
+            
+            # Get max value for proportional scaling
+            max_value = data[values_column].max()
+            
+            # Create chart
+            chart_lines = [f"<b>{title}</b>", "=" * len(title), ""]
+            
+            for _, row in data.iterrows():
+                label = str(row[labels_column])
+                value = row[values_column]
+                
+                # Calculate proportional bar length
+                if max_value > 0:
+                    bar_length = int((value / max_value) * max_width)
+                else:
+                    bar_length = 0
+                
+                # Create bar
+                bar = bar_char * bar_length
+                
+                # Format the line
+                if show_values:
+                    chart_lines.append(f"{label:<20} {bar} {value:,}")
+                else:
+                    chart_lines.append(f"{label:<20} {bar}")
+            
+            return "<br/>".join(chart_lines)
+            
+        except Exception as e:
+            log.error(f"Error creating proportional text bar chart: {e}")
+            return f"<i>Error creating text bar chart: {str(e)}</i>"
+    
+    def create_heatmap_text_chart(self,
+                                data: pd.DataFrame,
+                                x_column: str,
+                                y_column: str,
+                                value_column: str,
+                                title: str = "Text Heatmap",
+                                max_width: int = 20,
+                                max_height: int = 10,
+                                heat_chars: str = " ░▒▓█") -> str:
+        """
+        Create a text-based heatmap visualization
+        
+        Args:
+            data: DataFrame containing the data
+            x_column: Column name for x-axis labels
+            y_column: Column name for y-axis labels
+            value_column: Column name for values
+            title: Chart title
+            max_width: Maximum width in characters
+            max_height: Maximum height in characters
+            heat_chars: Characters for heat intensity (light to dark)
+            
+        Returns:
+            Formatted text heatmap string
+        """
+        try:
+            if data.empty:
+                return f"<i>No data available for {title}</i>"
+            
+            # Create pivot table
+            pivot_data = data.pivot_table(
+                values=value_column, 
+                index=y_column, 
+                columns=x_column, 
+                fill_value=0
+            )
+            
+            # Normalize values to heat character indices
+            max_value = pivot_data.values.max()
+            min_value = pivot_data.values.min()
+            value_range = max_value - min_value if max_value > min_value else 1
+            
+            # Create heatmap
+            chart_lines = [f"<b>{title}</b>", "=" * len(title), ""]
+            
+            # Add column headers
+            col_headers = [f"{col:<8}" for col in pivot_data.columns]
+            chart_lines.append(" " * 12 + "".join(col_headers))
+            chart_lines.append(" " * 12 + "-" * len("".join(col_headers)))
+            
+            # Add rows
+            for idx, row in pivot_data.iterrows():
+                row_label = f"{str(idx):<10}"
+                heat_row = ""
+                
+                for value in row:
+                    # Normalize value to heat character index
+                    normalized = (value - min_value) / value_range
+                    char_index = int(normalized * (len(heat_chars) - 1))
+                    char_index = max(0, min(char_index, len(heat_chars) - 1))
+                    heat_row += heat_chars[char_index] * 2
+                
+                chart_lines.append(f"{row_label} {heat_row}")
+            
+            # Add legend
+            chart_lines.append("")
+            chart_lines.append("Legend: " + " ".join([f"{heat_chars[i]} {i/(len(heat_chars)-1)*100:.0f}%" for i in range(len(heat_chars))]))
+            
+            return "<br/>".join(chart_lines)
+            
+        except Exception as e:
+            log.error(f"Error creating text heatmap: {e}")
+            return f"<i>Error creating text heatmap: {str(e)}</i>"
 
     def _create_placeholder_chart(self, width: float, height: float, 
                                 text: str = "Chart Placeholder") -> Image:

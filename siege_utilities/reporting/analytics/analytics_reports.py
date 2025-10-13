@@ -9,8 +9,8 @@ from typing import Dict, List, Any, Optional, Union
 from datetime import datetime, timedelta
 import pandas as pd
 
-from .report_generator import ReportGenerator
-from .chart_generator import ChartGenerator
+from ..report_generator import ReportGenerator
+from ..chart_generator import ChartGenerator
 
 log = logging.getLogger(__name__)
 
