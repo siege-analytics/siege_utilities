@@ -292,12 +292,11 @@ except ImportError as e:
 try:
     from .analytics.datadotworld_connector import (
         get_datadotworld_connector, search_datadotworld_datasets, load_datadotworld_dataset,
-        query_datadotworld_dataset, search_datasets, list_datasets, get_dataset_metadata,
-        download_dataset, upload_dataset, create_dataset
+        query_datadotworld_dataset, search_datasets, list_datasets
     )
     from .analytics.snowflake_connector import (
         get_snowflake_connector, upload_to_snowflake, download_from_snowflake,
-        execute_snowflake_query, connect, disconnect, list_tables, get_table_schema
+        execute_snowflake_query
     )
 except ImportError as e:
     logger.warning(f"Could not import additional analytics utilities: {e}")
@@ -308,19 +307,11 @@ except ImportError as e:
     query_datadotworld_dataset = _create_dependency_wrapper('query_datadotworld_dataset', ['pandas', 'datadotworld'])
     search_datasets = _create_dependency_wrapper('search_datasets', ['pandas', 'datadotworld'])
     list_datasets = _create_dependency_wrapper('list_datasets', ['pandas', 'datadotworld'])
-    get_dataset_metadata = _create_dependency_wrapper('get_dataset_metadata', ['pandas', 'datadotworld'])
-    download_dataset = _create_dependency_wrapper('download_dataset', ['pandas', 'datadotworld'])
-    upload_dataset = _create_dependency_wrapper('upload_dataset', ['pandas', 'datadotworld'])
-    create_dataset = _create_dependency_wrapper('create_dataset', ['pandas', 'datadotworld'])
     # Snowflake functions
     get_snowflake_connector = _create_dependency_wrapper('get_snowflake_connector', ['pandas', 'snowflake-connector-python'])
     upload_to_snowflake = _create_dependency_wrapper('upload_to_snowflake', ['pandas', 'snowflake-connector-python'])
     download_from_snowflake = _create_dependency_wrapper('download_from_snowflake', ['pandas', 'snowflake-connector-python'])
     execute_snowflake_query = _create_dependency_wrapper('execute_snowflake_query', ['pandas', 'snowflake-connector-python'])
-    connect = _create_dependency_wrapper('connect', ['snowflake-connector-python'])
-    disconnect = _create_dependency_wrapper('disconnect', ['snowflake-connector-python'])
-    list_tables = _create_dependency_wrapper('list_tables', ['pandas', 'snowflake-connector-python'])
-    get_table_schema = _create_dependency_wrapper('get_table_schema', ['pandas', 'snowflake-connector-python'])
 
 try:
     from .analytics.facebook_business import (
