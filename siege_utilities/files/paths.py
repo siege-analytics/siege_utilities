@@ -18,30 +18,44 @@ FilePath = Union[str, Path]
 def ensure_path_exists(desired_path: FilePath) -> Path:
     """
     Ensure a directory path exists, creating it if necessary.
-    
+
+    SECURITY: Validates paths to prevent path traversal and sensitive file access.
+
     Args:
         desired_path: Path to ensure exists
-        
+
     Returns:
         Path object for the created directory
-        
+
+    Raises:
+        PathSecurityError: If path fails security validation
+
     Example:
         >>> path = ensure_path_exists("logs/2024/01")
         >>> print(f"Directory created: {path}")
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> ensure_path_exists("../../../etc")  # Path traversal blocked
     """
     try:
-        path_obj = Path(desired_path)
+        # Validate path
+        try:
+            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            path_obj = validate_directory_path(desired_path, must_exist=False)
+        except ImportError:
+            path_obj = Path(desired_path)
+
         path_obj.mkdir(parents=True, exist_ok=True)
-        
+
         # Create .gitkeep file to ensure directory is tracked by git
         gitkeep_file = path_obj / '.gitkeep'
         if not gitkeep_file.exists():
             gitkeep_file.touch()
             log.debug(f"Created .gitkeep file in {path_obj}")
-        
+
         log.info(f"Ensured path exists: {path_obj}")
         return path_obj
-        
+
     except Exception as e:
         log.error(f"Failed to create path {desired_path}: {e}")
         raise
