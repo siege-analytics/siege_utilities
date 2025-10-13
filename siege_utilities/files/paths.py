@@ -417,7 +417,9 @@ def normalize_path(path: FilePath) -> Path:
     """
     Normalize a file path, resolving any relative components.
 
-    SECURITY: Validates normalized path to prevent path traversal attacks.
+    This function expands ~ (home directory), resolves .. (parent directory),
+    and converts to an absolute path. It does NOT validate for security -
+    use validate_safe_path() if you need security validation.
 
     Args:
         path: Path to normalize
@@ -425,29 +427,17 @@ def normalize_path(path: FilePath) -> Path:
     Returns:
         Normalized absolute path
 
-    Raises:
-        PathSecurityError: If path fails security validation
-
     Example:
-        >>> norm_path = normalize_path("./../data/file.txt")
+        >>> norm_path = normalize_path("~/../data/file.txt")
         >>> print(f"Normalized path: {norm_path}")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> normalize_path("../../../etc/passwd")  # Path traversal blocked
+
+        >>> # Resolves relative paths
+        >>> norm_path = normalize_path("./../data/file.txt")
     """
     try:
-        # Validate path
-        try:
-            from siege_utilities.files.validation import validate_safe_path, PathSecurityError
-            normalized = validate_safe_path(path, allow_absolute=True)
-        except ImportError:
-            path_obj = Path(path)
-            normalized = path_obj.resolve()
-
-        log.debug(f"Normalized {path} to {normalized}")
-        return normalized
-    except PathSecurityError:
-        raise
+        path_obj = Path(path).expanduser().resolve()
+        log.debug(f"Normalized {path} to {path_obj}")
+        return path_obj
     except Exception as e:
         log.error(f"Failed to normalize path {path}: {e}")
         raise
