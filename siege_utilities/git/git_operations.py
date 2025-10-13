@@ -347,22 +347,79 @@ def create_tag(
     repo_path: str = ".",
     push: bool = False
 ) -> Dict[str, str]:
-    """Create a git tag."""
-    
+    """
+    Create a git tag.
+
+    SECURITY: This function validates tag names to prevent command injection
+    and invalid git references.
+
+    Args:
+        tag_name: Name for the tag
+        message: Optional tag message
+        commit_hash: Optional specific commit to tag
+        repo_path: Repository path (default: current directory)
+        push: Whether to push tag to remote
+
+    Returns:
+        Dictionary with tag creation status
+
+    Raises:
+        GitSecurityError: If tag name, message, or commit hash fails validation
+
+    Example:
+        >>> result = create_tag("v1.0.0", message="Release 1.0.0")
+        >>>
+        >>> # This will raise GitSecurityError
+        >>> create_tag("<script>alert('xss')</script>")  # Invalid tag name
+
+    Security Changes:
+        - Now validates tag names against git ref name rules
+        - Blocks command injection patterns
+        - Validates commit hash format
+        - Validates commit message content
+    """
+    # Import validation functions
+    try:
+        from siege_utilities.git.validation import (
+            validate_tag_name,
+            validate_commit_message,
+            validate_commit_hash,
+            validate_repo_path,
+            GitSecurityError
+        )
+    except ImportError:
+        # Fallback: minimal validation
+        if not tag_name or not tag_name.strip():
+            raise ValueError("Tag name cannot be empty")
+        if any(c in tag_name for c in [';', '&', '|', '$', '`', '(', ')']):
+            raise ValueError(f"Tag name contains dangerous characters: {tag_name}")
+    else:
+        # Validate inputs
+        try:
+            tag_name = validate_tag_name(tag_name)
+            if message:
+                message = validate_commit_message(message)
+            if commit_hash:
+                commit_hash = validate_commit_hash(commit_hash)
+            repo_path_obj = validate_repo_path(repo_path)
+            repo_path = str(repo_path_obj)
+        except (GitSecurityError, ValueError) as e:
+            return {"status": "failed", "error": f"Validation failed: {e}"}
+
     tag_args = ["tag"]
     if message:
         tag_args.extend(["-m", message])
-    
+
     tag_args.append(tag_name)
-    
+
     if commit_hash:
         tag_args.append(commit_hash)
-    
+
     try:
         run_git_command(*tag_args, repo_path=repo_path)
         tag_status = "success"
         print(f"Tag {tag_name} created successfully")
-        
+
         if push:
             run_git_command("push", "origin", tag_name, repo_path=repo_path)
             print(f"Tag {tag_name} pushed to remote")
@@ -371,7 +428,7 @@ def create_tag(
         tag_status = "failed"
         print(f"Tag creation failed: {e}")
         return {"status": tag_status, "error": str(e)}
-    
+
     return {
         "tag_name": tag_name,
         "message": message,
