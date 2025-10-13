@@ -237,7 +237,10 @@ from .development.architecture import (
 )
 
 # Import git utilities (actual functions only)
-from .git.branch_analyzer import analyze_branch_status, generate_branch_report
+from .git.branch_analyzer import (
+    analyze_branch_status, generate_branch_report, get_commit_history,
+    categorize_commits, get_file_changes, get_file_stats
+)
 from .git.git_operations import (
     create_feature_branch, switch_branch, merge_branch, rebase_branch,
     stash_changes, apply_stash, clean_working_directory, reset_to_commit,
@@ -344,6 +347,8 @@ try:
     # Import branding export functions
     from .reporting.client_branding import ClientBrandingManager
     from .reporting.chart_types import ChartTypeRegistry
+    # Import polling analysis functions
+    from .reporting.polling_analyzer import PollingAnalyzer
 except ImportError as e:
     logger.warning(f"Could not import reporting utilities: {e}")
     BaseReportTemplate = _create_dependency_wrapper('BaseReportTemplate', ['requests', 'jinja2'])
@@ -358,6 +363,7 @@ except ImportError as e:
     export_branding_config = _create_dependency_wrapper('export_branding_config', ['requests', 'jinja2'])
     import_branding_config = _create_dependency_wrapper('import_branding_config', ['requests', 'jinja2'])
     export_chart_type_config = _create_dependency_wrapper('export_chart_type_config', ['requests', 'jinja2'])
+    PollingAnalyzer = _create_dependency_wrapper('PollingAnalyzer', ['pandas', 'matplotlib', 'seaborn'])
 
 # Import chart generation functions specifically (high value!)
 try:
@@ -383,7 +389,14 @@ except ImportError as e:
     generate_chart_from_dataframe = _create_dependency_wrapper('generate_chart_from_dataframe', ['matplotlib', 'seaborn', 'pandas'])
 
 # Import testing utilities
-from .testing.environment import setup_spark_environment, get_system_info
+from .testing.environment import (
+    setup_spark_environment, get_system_info, ensure_env_vars,
+    check_java_version, diagnose_environment, quick_environment_setup
+)
+from .testing.runner import (
+    run_test_suite, get_test_report, run_comprehensive_test,
+    quick_smoke_test, build_pytest_command
+)
 
 # Package version and metadata
 __version__ = "1.0.0"
@@ -542,6 +555,7 @@ def get_package_info() -> Dict[str, Any]:
         'ClientBrandingManager': 'reporting', 'AnalyticsReportGenerator': 'reporting', 'PowerPointGenerator': 'reporting',
         'get_report_output_directory': 'reporting', 'create_report_generator': 'reporting', 'create_powerpoint_generator': 'reporting',
         'export_branding_config': 'reporting', 'import_branding_config': 'reporting', 'export_chart_type_config': 'reporting',
+        'PollingAnalyzer': 'reporting',
         # Chart generation functions (high value!)
         'create_bar_chart': 'reporting', 'create_line_chart': 'reporting', 'create_pie_chart': 'reporting',
         'create_scatter_plot': 'reporting', 'create_heatmap': 'reporting', 'create_choropleth_map': 'reporting',
