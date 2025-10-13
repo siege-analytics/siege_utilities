@@ -25,6 +25,8 @@ def create_project_config(project_name: str, project_code: str,
     """
     Create a simple project configuration.
 
+    SECURITY: Validates base directory path to prevent path traversal attacks.
+
     Args:
         project_name: Human-readable project name
         project_code: Short project code (e.g., "PROJ001")
@@ -34,6 +36,9 @@ def create_project_config(project_name: str, project_code: str,
     Returns:
         Dictionary with project configuration
 
+    Raises:
+        PathSecurityError: If base_directory fails security validation
+
     Example:
         >>> import siege_utilities
         >>> config = siege_utilities.create_project_config(
@@ -42,9 +47,26 @@ def create_project_config(project_name: str, project_code: str,
         ...     description="Analytics for customer behavior"
         ... )
         >>> print(config['directories']['output'])
-    """
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> create_project_config("Bad", "BAD", base_directory="../../../etc")  # Path traversal blocked
 
-    project_dir = pathlib.Path(base_directory) / project_code
+    Security Changes:
+        - Now validates base_directory to block path traversal
+        - Blocks creating projects in sensitive system locations
+    """
+    try:
+        # Validate base directory path
+        try:
+            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            base_path = validate_directory_path(base_directory, must_exist=False)
+        except ImportError:
+            base_path = pathlib.Path(base_directory)
+
+        project_dir = base_path / project_code
+    except Exception as e:
+        log_error(f"Failed to create project config: {e}")
+        raise
 
     config = {
         'project_name': project_name,
@@ -80,6 +102,8 @@ def save_project_config(config: Dict[str, Any], config_directory: str = "config"
     """
     Save project configuration to JSON file.
 
+    SECURITY: Validates config directory path to prevent path traversal attacks.
+
     Args:
         config: Project configuration dictionary
         config_directory: Directory to save config files
@@ -87,14 +111,33 @@ def save_project_config(config: Dict[str, Any], config_directory: str = "config"
     Returns:
         Path to saved config file
 
+    Raises:
+        PathSecurityError: If config_directory fails security validation
+
     Example:
         >>> config = create_project_config("My Project", "MP001")
         >>> file_path = siege_utilities.save_project_config(config)
         >>> print(f"Config saved to: {file_path}")
-    """
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> save_project_config(config, "../../../etc")  # Path traversal blocked
 
-    config_dir = pathlib.Path(config_directory)
-    config_dir.mkdir(parents=True, exist_ok=True)
+    Security Changes:
+        - Now validates config_directory to block path traversal
+        - Blocks saving config files to sensitive system locations
+    """
+    try:
+        # Validate config directory path
+        try:
+            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            config_dir = validate_directory_path(config_directory, must_exist=False)
+        except ImportError:
+            config_dir = pathlib.Path(config_directory)
+
+        config_dir.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        log_error(f"Failed to create config directory: {e}")
+        raise
 
     project_code = config['project_code']
     config_file = config_dir / f"project_{project_code}.json"
@@ -110,6 +153,8 @@ def load_project_config(project_code: str, config_directory: str = "config") -> 
     """
     Load project configuration from JSON file.
 
+    SECURITY: Validates config directory path to prevent path traversal attacks.
+
     Args:
         project_code: Project code to load
         config_directory: Directory containing config files
@@ -117,13 +162,33 @@ def load_project_config(project_code: str, config_directory: str = "config") -> 
     Returns:
         Project configuration dictionary or None if not found
 
+    Raises:
+        PathSecurityError: If config_directory fails security validation
+
     Example:
         >>> config = siege_utilities.load_project_config("MP001")
         >>> if config:
         ...     print(f"Loaded: {config['project_name']}")
-    """
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> load_project_config("MP001", "../../../etc")  # Path traversal blocked
 
-    config_file = pathlib.Path(config_directory) / f"project_{project_code}.json"
+    Security Changes:
+        - Now validates config_directory to block path traversal
+        - Blocks loading config files from sensitive system locations
+    """
+    try:
+        # Validate config directory path
+        try:
+            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            config_dir = validate_directory_path(config_directory, must_exist=False)
+        except ImportError:
+            config_dir = pathlib.Path(config_directory)
+
+        config_file = config_dir / f"project_{project_code}.json"
+    except Exception as e:
+        log_error(f"Failed to access config directory: {e}")
+        raise
 
     if not config_file.exists():
         log_warning(f"Project config not found: {config_file}")
@@ -145,24 +210,44 @@ def setup_project_directories(config: Dict[str, Any]) -> bool:
     """
     Create the directory structure for a project.
 
+    SECURITY: Validates all directory paths in config to prevent path traversal attacks.
+
     Args:
         config: Project configuration dictionary
 
     Returns:
         True if successful, False otherwise
 
+    Raises:
+        PathSecurityError: If any directory path fails security validation
+
     Example:
         >>> config = create_project_config("My Project", "MP001")
         >>> success = siege_utilities.setup_project_directories(config)
         >>> if success:
         ...     print("Project directories created")
-    """
 
+    Security Changes:
+        - Now validates all directory paths to block path traversal
+        - Blocks creating directories in sensitive system locations
+    """
     try:
+        # Import validation function
+        try:
+            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            use_validation = True
+        except ImportError:
+            use_validation = False
+
         directories = config.get('directories', {})
 
         for dir_name, dir_path in directories.items():
-            path = pathlib.Path(dir_path)
+            # Validate each directory path
+            if use_validation:
+                path = validate_directory_path(dir_path, must_exist=False)
+            else:
+                path = pathlib.Path(dir_path)
+
             path.mkdir(parents=True, exist_ok=True)
 
             # Create .gitkeep file to ensure directory is tracked
@@ -211,19 +296,39 @@ def list_projects(config_directory: str = "config") -> list:
     """
     List all available project configurations.
 
+    SECURITY: Validates config directory path to prevent path traversal attacks.
+
     Args:
         config_directory: Directory containing config files
 
     Returns:
         List of dictionaries with project info
 
+    Raises:
+        PathSecurityError: If config_directory fails security validation
+
     Example:
         >>> projects = siege_utilities.list_projects()
         >>> for project in projects:
         ...     print(f"{project['code']}: {project['name']}")
-    """
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> list_projects("../../../etc")  # Path traversal blocked
 
-    config_dir = pathlib.Path(config_directory)
+    Security Changes:
+        - Now validates config_directory to block path traversal
+        - Blocks listing config files from sensitive system locations
+    """
+    try:
+        # Validate config directory path
+        try:
+            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            config_dir = validate_directory_path(config_directory, must_exist=False)
+        except ImportError:
+            config_dir = pathlib.Path(config_directory)
+    except Exception as e:
+        log_error(f"Failed to access config directory: {e}")
+        raise
 
     if not config_dir.exists():
         log_info("Config directory does not exist")

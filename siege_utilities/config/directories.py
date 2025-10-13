@@ -10,10 +10,22 @@ from typing import Dict, Any, Optional, List
 
 logger = logging.getLogger(__name__)
 
+# Import logging functions from main package
+try:
+    from siege_utilities import log_info, log_warning, log_error, log_debug
+except ImportError:
+    # Fallback if main package not available yet
+    def log_info(message): print(f"INFO: {message}")
+    def log_warning(message): print(f"WARNING: {message}")
+    def log_error(message): print(f"ERROR: {message}")
+    def log_debug(message): pass  # Silent in fallback
+
 
 def create_directory_structure(base_path: str, structure: Dict[str, Any]) -> Dict[str, str]:
     """
     Create a directory structure from a configuration dictionary.
+
+    SECURITY: Validates base path to prevent path traversal attacks.
 
     Args:
         base_path: Base directory path
@@ -21,6 +33,9 @@ def create_directory_structure(base_path: str, structure: Dict[str, Any]) -> Dic
 
     Returns:
         Dictionary mapping directory names to created paths
+
+    Raises:
+        PathSecurityError: If base_path fails security validation
 
     Example:
         >>> import siege_utilities
@@ -31,9 +46,25 @@ def create_directory_structure(base_path: str, structure: Dict[str, Any]) -> Dic
         ... }
         >>> paths = siege_utilities.create_directory_structure("my_project", structure)
         >>> print(paths["data/raw"])
-    """
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> create_directory_structure("../../../etc", structure)  # Path traversal blocked
 
-    base_path = pathlib.Path(base_path)
+    Security Changes:
+        - Now validates base_path to block path traversal
+        - Blocks creating directories in sensitive system locations
+    """
+    try:
+        # Validate base path
+        try:
+            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            base_path_obj = validate_directory_path(base_path, must_exist=False)
+        except ImportError:
+            base_path_obj = pathlib.Path(base_path)
+    except Exception as e:
+        log_error(f"Failed to validate base path: {e}")
+        raise
+
     created_paths = {}
 
     def create_recursive(current_path: pathlib.Path, struct: Dict[str, Any], prefix: str = ""):
@@ -55,9 +86,9 @@ def create_directory_structure(base_path: str, structure: Dict[str, Any]) -> Dic
             if isinstance(subdirs, dict) and subdirs:
                 create_recursive(dir_path, subdirs, key)
 
-    create_recursive(base_path, structure)
+    create_recursive(base_path_obj, structure)
 
-    log_info(f"Created directory structure at {base_path} with {len(created_paths)} directories")
+    log_info(f"Created directory structure at {base_path_obj} with {len(created_paths)} directories")
     return created_paths
 
 
