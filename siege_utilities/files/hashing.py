@@ -125,14 +125,36 @@ def get_quick_file_signature(file_path) ->str:
     Generate a quick file signature using file stats + partial hash
     Faster for change detection, not cryptographically secure
 
+    SECURITY: This function validates paths to prevent path traversal attacks
+    and access to sensitive system files.
+
     Args:
         file_path: Path to the file
 
     Returns:
-        Quick signature string
+        Quick signature string ('missing', 'error', or hash)
+
+    Raises:
+        PathSecurityError: If path fails security validation
+
+    Example:
+        >>> sig = get_quick_file_signature("data.txt")
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> get_quick_file_signature("/etc/passwd")  # Sensitive file blocked
+
+    Security Changes:
+        - Now validates paths to block path traversal
+        - Blocks access to sensitive system files
     """
     try:
-        path_obj = pathlib.Path(file_path)
+        # Validate path
+        try:
+            from siege_utilities.files.validation import validate_file_path, PathSecurityError
+            path_obj = validate_file_path(file_path, must_exist=False)
+        except ImportError:
+            path_obj = pathlib.Path(file_path)
+
         if not path_obj.exists():
             return 'missing'
         stat = path_obj.stat()
@@ -150,6 +172,8 @@ def get_quick_file_signature(file_path) ->str:
         stat_string = f'{stat.st_size}_{stat.st_mtime}_{len(first_chunk)}'
         hash_obj.update(stat_string.encode())
         return hash_obj.hexdigest()
+    except PathSecurityError:
+        raise
     except Exception as e:
         print(f'Error generating quick signature for {file_path}: {e}')
         try:
@@ -163,6 +187,9 @@ def verify_file_integrity(file_path, expected_hash, algorithm='sha256') ->bool:
     """
     Verify file integrity by comparing with expected hash
 
+    SECURITY: This function validates paths to prevent path traversal attacks
+    and access to sensitive system files (through get_file_hash).
+
     Args:
         file_path: Path to the file
         expected_hash: Expected hash value
@@ -170,6 +197,21 @@ def verify_file_integrity(file_path, expected_hash, algorithm='sha256') ->bool:
 
     Returns:
         True if file matches expected hash, False otherwise
+
+    Raises:
+        PathSecurityError: If path fails security validation
+
+    Example:
+        >>> expected = "abc123..."
+        >>> if verify_file_integrity("data.txt", expected):
+        ...     print("File integrity verified")
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> verify_file_integrity("/etc/shadow", expected)  # Sensitive file blocked
+
+    Security Changes:
+        - Now validates paths via get_file_hash() to block path traversal
+        - Blocks access to sensitive system files
     """
     try:
         current_hash = get_file_hash(file_path, algorithm)

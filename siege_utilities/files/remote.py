@@ -73,35 +73,52 @@ def _get_progress_bar(*args, **kwargs):
     else:
         return _DummyProgressBar(*args, **kwargs)
 
-def download_file(url: str, local_filename: FilePath, 
+def download_file(url: str, local_filename: FilePath,
                  chunk_size: int = 8192,
                  timeout: int = 30,
                  verify_ssl: bool = True) -> Union[str, bool]:
     """
     Download a file from a URL to a local file with progress bar.
-    
+
+    SECURITY: Validates local file path to prevent path traversal attacks.
+
     Args:
         url: The URL to download from
         local_filename: The local path where the file should be saved
         chunk_size: Size of chunks to download at once
         timeout: Request timeout in seconds
         verify_ssl: Whether to verify SSL certificates
-        
+
     Returns:
         The local filename if successful, False otherwise
-        
+
+    Raises:
+        PathSecurityError: If local path fails security validation
+
     Example:
         >>> result = download_file("https://example.com/file.zip", "downloads/file.zip")
         >>> if result:
         ...     print(f"Downloaded to {result}")
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> download_file("https://example.com/file.zip", "../../../etc/passwd")  # Path traversal blocked
+
+    Security Changes:
+        - Now validates local file paths to block path traversal
+        - Blocks writing to sensitive system locations
     """
     _check_requests_dependency()
-    
+
     try:
         log.info(f'Downloading {url} to {local_filename}')
-        
-        # Ensure local filename is a Path object
-        local_path = Path(local_filename)
+
+        # Validate local file path
+        try:
+            from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+            local_path = validate_safe_path(local_filename, allow_absolute=True)
+        except ImportError:
+            local_path = Path(local_filename)
+
         local_path.parent.mkdir(parents=True, exist_ok=True)
         
         # Make the request with streaming, using smart SSL verification
@@ -138,7 +155,8 @@ def download_file(url: str, local_filename: FilePath,
             
             log.info(f'Successfully downloaded {url} to {local_path}')
             return str(local_path)
-            
+    except PathSecurityError:
+        raise
     except requests.exceptions.SSLError as e:
         log.warning(f'SSL verification failed for {url}, retrying without verification: {e}')
         # Retry without SSL verification
@@ -194,30 +212,47 @@ def generate_local_path_from_url(url: str, directory_path: FilePath,
                                 as_string: bool = True) -> Union[Path, str, bool]:
     """
     Generate a local file path from a URL.
-    
+
+    SECURITY: Validates directory path to prevent path traversal attacks.
+
     Args:
         url: URL to extract filename from
         directory_path: Directory where the file should be saved
         as_string: Whether to return the result as a string
-        
+
     Returns:
         Path object, string, or False if failed
-        
+
+    Raises:
+        PathSecurityError: If directory path fails security validation
+
     Example:
         >>> path = generate_local_path_from_url("https://example.com/file.zip", "downloads")
         >>> print(f"Local path: {path}")
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> generate_local_path_from_url("https://example.com/file.zip", "../../../etc")  # Path traversal blocked
+
+    Security Changes:
+        - Now validates directory paths to block path traversal
+        - Blocks writing to sensitive system locations
     """
     try:
         # Parse URL to get filename
         parsed_url = urlparse(url)
         remote_filename = parsed_url.path.split('/')[-1]
-        
+
         if not remote_filename:
             log.warning(f'Could not extract filename from URL: {url}')
             return False
-        
-        # Ensure directory path is a Path object
-        dir_path = Path(directory_path)
+
+        # Validate directory path
+        try:
+            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            dir_path = validate_directory_path(directory_path, must_exist=False)
+        except ImportError:
+            dir_path = Path(directory_path)
+
         dir_path.mkdir(parents=True, exist_ok=True)
         
         # Create full local path
@@ -229,7 +264,8 @@ def generate_local_path_from_url(url: str, directory_path: FilePath,
             return str(local_path)
         else:
             return local_path
-            
+    except PathSecurityError:
+        raise
     except Exception as e:
         log.error(f'Error generating local path from {url}: {e}')
         return False

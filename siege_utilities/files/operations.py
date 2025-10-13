@@ -582,30 +582,41 @@ check_if_file_exists_at_path = file_exists
 def delete_existing_file_and_replace_it_with_an_empty_file(file_path: FilePath, create_parents: bool = True) -> bool:
     """
     Backward compatibility function that deletes existing file and replaces it with empty file.
-    
+
+    SECURITY: Validates paths to prevent path traversal attacks.
+
     Args:
         file_path: Path to the file
         create_parents: Whether to create parent directories
-        
+
     Returns:
         True if successful, False otherwise
+
+    Raises:
+        PathSecurityError: If path fails security validation
     """
     try:
-        path_obj = Path(file_path)
-        
+        # Validate path
+        try:
+            from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+            path_obj = validate_safe_path(file_path, allow_absolute=True)
+        except ImportError:
+            path_obj = Path(file_path)
+
         # Create parent directories if needed
         if create_parents:
             path_obj.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Remove existing file if it exists
         if path_obj.exists():
             path_obj.unlink()
-        
+
         # Create empty file
         path_obj.touch()
         log.info(f"Created/updated empty file: {path_obj}")
         return True
-        
+    except PathSecurityError:
+        raise
     except Exception as e:
         log.error(f"Failed to create empty file {file_path}: {e}")
         return False
