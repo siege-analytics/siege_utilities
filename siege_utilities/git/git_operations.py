@@ -43,19 +43,27 @@ def create_feature_branch(
         # Switch to base branch first
         run_git_command("checkout", base_branch, repo_path=repo_path)
         print(f"Switched to base branch: {base_branch}")
-    
-    # Pull latest changes
-    run_git_command("pull", "origin", base_branch, repo_path=repo_path)
-    print(f"Pulled latest changes from {base_branch}")
-    
+
+    # Pull latest changes if remote exists
+    remotes = run_git_command("remote", repo_path=repo_path, check=False)
+    if remotes and "origin" in remotes:
+        try:
+            run_git_command("pull", "origin", base_branch, repo_path=repo_path, check=False)
+            print(f"Pulled latest changes from {base_branch}")
+        except:
+            pass  # Pull failed, continue anyway
+
     # Create and switch to new branch
     run_git_command("checkout", "-b", branch_name, repo_path=repo_path)
     print(f"Created and switched to feature branch: {branch_name}")
-    
-    # Push to remote if switch_to_branch is True
-    if switch_to_branch:
-        run_git_command("push", "-u", "origin", branch_name, repo_path=repo_path)
-        print(f"Pushed branch to remote: origin/{branch_name}")
+
+    # Push to remote if switch_to_branch is True and remote exists
+    if switch_to_branch and remotes and "origin" in remotes:
+        try:
+            run_git_command("push", "-u", "origin", branch_name, repo_path=repo_path, check=False)
+            print(f"Pushed branch to remote: origin/{branch_name}")
+        except:
+            print(f"Could not push to remote (continuing anyway)")
     
     return {
         "branch_name": branch_name,
