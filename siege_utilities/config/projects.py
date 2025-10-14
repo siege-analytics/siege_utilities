@@ -12,12 +12,13 @@ logger = logging.getLogger(__name__)
 
 # Import logging functions from main package
 try:
-    from siege_utilities import log_info, log_warning, log_error
+    from siege_utilities import log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if main package not available yet
     def log_info(message): print(f"INFO: {message}")
     def log_warning(message): print(f"WARNING: {message}")
     def log_error(message): print(f"ERROR: {message}")
+    def log_debug(message): pass  # Silent in fallback
 
 
 def create_project_config(project_name: str, project_code: str,
