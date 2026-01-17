@@ -7,7 +7,7 @@ name = "siege-utilities"
 version = "1.0.1"
 description = "A comprehensive Python utilities package with enhanced auto-discovery"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 authors = [
     {name = "Dheeraj Chand", email = "dheeraj@siegeanalytics.com"}
 ]
