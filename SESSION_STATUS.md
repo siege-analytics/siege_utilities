@@ -1,7 +1,29 @@
 # Siege Utilities - Session Status
 
-**Last Updated:** January 17, 2026 (10:15 AM CST)
+**Last Updated:** January 17, 2026 (11:15 AM CST)
 **Branch:** `dheerajchand/sketch/siege-utilities-restoration`
+
+---
+
+## Session 4 Completed (January 17, 2026)
+
+### API Fixes Applied
+1. **CensusDataSource methods** - Added `get_available_years()`, `get_year_directory_contents()`, `discover_boundary_types()` methods that were missing from the class
+2. **Expanded exports** - Updated `__all__` in `spatial_data.py` to include all key functions (`normalize_state_identifier`, `get_state_by_abbreviation`, etc.)
+3. **Fixed pytest.ini** - Changed section header from `[tool:pytest]` to `[pytest]` so markers are registered
+
+### Verified Working
+- `get_census_boundaries(year=2020, geographic_level='county', state_fips='06')` - Downloads 3,234 county features
+- `download_data(year=2020, geographic_level='county', state_fips='06')` - Same functionality
+- `normalize_state_identifier('CA')` → `'06'` - State FIPS normalization
+- `get_available_years()` - Returns [1992, 1999, 2002, ...]
+- All 418 tests passing
+
+### Ready for pure-translation
+Core functionality needed by pure-translation is verified working:
+- Census boundary downloads
+- State FIPS normalization
+- Geographic data processing
 
 ---
 
