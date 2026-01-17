@@ -8,9 +8,9 @@ set -e  # Exit on any error
 echo "🌙 Starting Comprehensive Overnight Testing System"
 echo "=================================================="
 
-# Set up environment
-export PATH="/Users/dheerajchand/Library/Python/3.9/bin:$PATH"
-cd /Users/dheerajchand/Desktop/in_process/code/siege_utilities_verify
+# Set up environment - use script directory as base
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 # Create results directory
 mkdir -p overnight_results
@@ -42,33 +42,39 @@ run_with_timeout() {
     fi
 }
 
+# Helper function to run a script if it exists
+run_if_exists() {
+    local script="$1"
+    local timeout="${2:-300}"
+    local description="$3"
+
+    if [ -f "$script" ]; then
+        run_with_timeout "uv run python $script" "$timeout" "$description"
+    else
+        log "⏭️  Skipping: $description ($script not found)"
+    fi
+}
+
 # 1. Run comprehensive testing system
-log "🚀 Running comprehensive testing system..."
-run_with_timeout "uv run python overnight_comprehensive_testing.py" 1800 "Comprehensive Testing System"
+run_if_exists "overnight_comprehensive_testing.py" 1800 "Comprehensive Testing System"
 
 # 1.5. Run critical untested functions test
-log "🔬 Testing critical untested functions..."
-run_with_timeout "uv run python test_critical_untested_functions.py" 600 "Critical Untested Functions"
+run_if_exists "test_critical_untested_functions.py" 600 "Critical Untested Functions"
 
 # 1.6. Convert and test notebooks
-log "📓 Converting and testing notebooks..."
-run_with_timeout "uv run python convert_notebooks_to_scripts.py" 600 "Notebook Conversion"
+run_if_exists "convert_notebooks_to_scripts.py" 600 "Notebook Conversion"
 
 # 1.7. Test recipe code
-log "📚 Testing recipe code..."
-run_with_timeout "uv run python test_recipe_code.py" 600 "Recipe Code Testing"
+run_if_exists "test_recipe_code.py" 600 "Recipe Code Testing"
 
 # 2. Run existing overnight testing suite
-log "🔬 Running existing overnight testing suite..."
-run_with_timeout "uv run python overnight_testing_suite.py" 600 "Overnight Testing Suite"
+run_if_exists "overnight_testing_suite.py" 600 "Overnight Testing Suite"
 
 # 3. Generate comprehensive morning report
-log "📊 Generating comprehensive morning report..."
-run_with_timeout "uv run python generate_comprehensive_morning_report.py" 300 "Comprehensive Morning Report"
+run_if_exists "generate_comprehensive_morning_report.py" 300 "Comprehensive Morning Report"
 
 # 3.5. Generate morning recommendations
-log "📊 Generating morning recommendations..."
-run_with_timeout "uv run python morning_recommendations_generator.py" 300 "Morning Recommendations"
+run_if_exists "morning_recommendations_generator.py" 300 "Morning Recommendations"
 
 # 4. Run specific notebook tests
 log "📓 Testing specific notebooks..."

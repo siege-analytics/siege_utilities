@@ -4,11 +4,142 @@
 **Branch:** `dheerajchand/sketch/siege-utilities-restoration`
 **Initial State:** 265 passing, 27 failing, 2 errors
 **After First Pass:** 272 passing, 24 skipped, 2 errors
-**Final State:** 314 passing, 2 skipped, 2 errors (census tests excluded due to optional deps)
+**After Second Pass:** 314 passing, 2 skipped
+**Current State:** 418 passing (all tests running)
 
 ---
 
-## Completed Work (January 17, 2026)
+## Session 2: January 17, 2026 (Afternoon)
+
+### Fixes Applied
+
+1. **`get_download_directory()` API Mismatch** - `user_config.py` was calling `enhanced_get_download_directory(client_code, specific_path, config_dir)` but the actual signature is `(username, config_dir)`. This broke all Census downloads. Fixed by rewriting the function to use the local `UserConfigManager` directly.
+
+2. **Missing Geocoding Exports** - Functions like `get_country_name`, `get_country_code`, `list_countries`, `get_coordinates` were defined but not exported from `siege_utilities/__init__.py`. Added proper exports with fallback wrappers.
+
+3. **Hardcoded Census Years** - `census_constants.py` had years hardcoded to 2025. Changed to dynamically calculate using `datetime.now().year`.
+
+4. **Test Year Assertions** - Tests were asserting `year <= 2025` which fails in 2026. Fixed to use `current_year`.
+
+### Commits
+- `f10cbe1` - fix: Rewrite config tests to match current API (314 pass, 2 skip)
+- `9395d4a` - fix: Fix broken API calls and make census years dynamic (418 tests pass)
+
+---
+
+## CI/CD Analysis
+
+### Why GitHub Actions Will Fail
+
+#### 1. **run_overnight_comprehensive.sh has hardcoded macOS paths** (CRITICAL)
+**File:** `run_overnight_comprehensive.sh:12-13`
+```bash
+export PATH="/Users/dheerajchand/Library/Python/3.9/bin:$PATH"
+cd /Users/dheerajchand/Desktop/in_process/code/siege_utilities_verify
+```
+- These paths don't exist on GitHub Actions Ubuntu runners
+- Script will fail immediately with "No such file or directory"
+
+#### 2. **Missing Python scripts referenced by battle tests**
+Scripts that the overnight test expects but don't exist:
+- `test_critical_untested_functions.py` - MISSING
+- `test_recipe_code.py` - MISSING
+
+Scripts that exist:
+- `overnight_comprehensive_testing.py` ✓
+- `overnight_testing_suite.py` ✓
+- `generate_comprehensive_morning_report.py` ✓
+- `morning_recommendations_generator.py` ✓
+- `convert_notebooks_to_scripts.py` ✓
+
+#### 3. **No Sphinx documentation setup**
+The CI documentation job expects:
+```bash
+cd docs && make html
+```
+But `docs/` contains only markdown files - no `Makefile`, `conf.py`, or Sphinx setup.
+
+#### 4. **Coverage threshold at 85%**
+`pytest.ini:18` requires `--cov-fail-under=85`. Current coverage likely lower.
+
+#### 5. **`safety check` deprecated free API**
+The security job runs `safety check --json` which now requires a paid subscription.
+
+#### 6. **Python 3.8 compatibility issues**
+Some dependencies (osmnx, notebook>=7) may not work on Python 3.8.
+
+---
+
+## Code Review Findings (Thorough Analysis)
+
+### HIGH SEVERITY
+
+#### 1. `download_data()` Never Implemented
+**File:** `siege_utilities/geo/spatial_data.py`
+- Line 523: `SpatialDataSource.download_data()` raises `NotImplementedError`
+- Line 1098: Module-level `download_data()` wrapper calls this unimplemented method
+- `CensusDataSource` never overrides it - implements `get_geographic_boundaries()` instead
+- **Impact:** Calling `download_data()` always fails with NotImplementedError
+
+#### 2. O(n²) Complexity Bug in `generate_synthetic_population()`
+**File:** `siege_utilities/data/sample_data.py:487-515`
+```python
+for ethnicity, percentage in demographics.items():
+    for _ in range(ethnic_count):
+        person = _generate_synthetic_person(...)
+        population_data.append(person)
+
+        # BUG: These are INSIDE the inner loop!
+        if tract_info:
+            for person in population_data:  # Re-processes ALL persons each iteration
+                person.update({...})
+```
+- For each person generated, it re-processes ALL previous persons
+- 1000 people = 500,000+ unnecessary iterations
+- **Impact:** Severe performance degradation at scale
+
+#### 3. Parameter Order Mismatch in `get_optimal_year()`
+**File:** `siege_utilities/geo/spatial_data.py`
+- Line 483 (class method): `get_optimal_year(requested_year: int, boundary_type: str)`
+- Line 1094 (module function): `get_optimal_year(geographic_level: str, preferred_year: Optional[int])`
+- **Impact:** Wrong parameter order causes incorrect behavior
+
+### MEDIUM SEVERITY
+
+#### 4. Duplicate `get_download_directory()` Definitions
+- `user_config.py:294`: `get_download_directory(specific_path, client_code, config_dir)`
+- `enhanced_config.py:444`: `get_download_directory(username, config_dir)`
+- **Impact:** Import order determines which version wins
+
+#### 5. Wrong Return Type Annotations
+**File:** `siege_utilities/geo/spatial_data.py`
+- Line 1197: `get_state_abbreviations() -> List[str]` but returns `Dict[str, str]`
+- Line 1193: `get_available_state_fips() -> List[str]` but returns `Dict[str, str]`
+
+#### 6. Missing Exports in `__all__`
+Functions defined but not exported:
+- `normalize_state_input()` - Line 1123
+- `normalize_state_name()` - Line 1150
+- `normalize_state_abbreviation()` - Line 1162
+- `normalize_fips_code()` - Line 1174
+- `get_census_county_sample()` - data module
+- `get_metropolitan_sample()` - data module
+
+#### 7. Wildcard Imports in `__init__.py`
+Lines 70-73 use `from .distributed.* import *` which causes namespace pollution.
+
+### LOW SEVERITY
+
+#### 8. Hardcoded LA-Centric Sample Data
+**File:** `siege_utilities/data/sample_data.py`
+- Line 314: Default state_fips='06' (California)
+- Line 315: Default county_fips='037' (Los Angeles)
+- Lines 708-709: Hardcoded LA coordinates (33.5-34.5, -118.5 to -117.5)
+- Lines 461-467: Hardcoded demographics matching LA demographics
+
+---
+
+## Session 1: January 17, 2026 (Morning)
 
 ### Tests Rewritten
 All 24 skipped tests have been rewritten to match the current API:
@@ -21,10 +152,6 @@ All 24 skipped tests have been rewritten to match the current API:
 2. **API Signature Mismatch in profile_manager.py** - `create_default_profiles()` was calling `save_user_profile(profile, user_dir)` but the signature is `save_user_profile(profile, username, config_dir)`.
 
 3. **Deprecated ClientProfile Fields** - `create_default_profiles()` was using old fields (`download_directory`, `data_format`, `brand_colors`) that no longer exist. Updated to use current model with `ContactInfo`, `BrandingConfig`, `ReportPreferences`.
-
-### Remaining Issues
-- Census tests (`test_census_*.py`) require `geopandas` which is an optional dependency
-- 2 integration test errors in `test_multi_engine.py` and `test_svg_markers.py` (unrelated to config system)
 
 ---
 
@@ -287,6 +414,44 @@ python -c "import siege_utilities; print(siege_utilities.get_package_info())"
 # Verify no duplicate files
 find siege_utilities -name "* 2.*" -type f
 ```
+
+---
+
+## Recommended Action Order
+
+### Phase 1: Fix CI/CD (Blocking GitHub Actions)
+1. [ ] Fix `run_overnight_comprehensive.sh` - remove hardcoded paths, use `$PWD`
+2. [ ] Create missing scripts (`test_critical_untested_functions.py`, `test_recipe_code.py`) or remove references
+3. [ ] Set up Sphinx docs or skip documentation job
+4. [ ] Replace `safety check` with `pip-audit` (free alternative)
+5. [ ] Consider dropping Python 3.8 from matrix
+
+### Phase 2: Fix High-Severity Code Issues
+6. [ ] Fix O(n²) bug in `generate_synthetic_population()` - move nested loops outside inner loop
+7. [ ] Implement `CensusDataSource.download_data()` or remove the wrapper function
+8. [ ] Fix `get_optimal_year()` parameter order to be consistent
+
+### Phase 3: Clean Up Medium-Severity Issues
+9. [ ] Consolidate `get_download_directory()` - keep one implementation
+10. [ ] Fix return type annotations in `spatial_data.py`
+11. [ ] Add missing functions to `__all__` exports
+12. [ ] Remove wildcard imports from `__init__.py`
+
+### Phase 4: Optional Improvements
+13. [ ] Make sample data configurable (not hardcoded to LA)
+14. [ ] Remove deprecated function wrappers or add deprecation warnings
+15. [ ] Add proper Sphinx documentation setup
+
+---
+
+## Test Status Summary
+
+| Metric | Before | After Session 1 | After Session 2 |
+|--------|--------|-----------------|-----------------|
+| Passing | 265 | 314 | 418 |
+| Failing | 27 | 0 | 0 |
+| Skipped | 0 | 2 | 0 |
+| Errors | 2 | 2 | 0 |
 
 ---
 

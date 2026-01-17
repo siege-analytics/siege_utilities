@@ -1092,12 +1092,33 @@ def validate_download_url(url: str) -> bool:
     return census_source.validate_download_url(url)
 
 def get_optimal_year(geographic_level: str, preferred_year: Optional[int] = None) -> int:
-    """Get optimal year for geographic level."""
-    return census_source.get_optimal_year(geographic_level, preferred_year)
+    """Get optimal year for geographic level.
+
+    Args:
+        geographic_level: Geographic level (county, tract, etc.)
+        preferred_year: Preferred year (defaults to current year if None)
+
+    Returns:
+        Best available year for the requested boundary type
+    """
+    from datetime import datetime
+    year = preferred_year if preferred_year is not None else datetime.now().year
+    return census_source.get_optimal_year(year, geographic_level)
 
 def download_data(year: int, geographic_level: str, state_fips: Optional[str] = None) -> Optional[GeoDataFrame]:
-    """Download Census data."""
-    return census_source.download_data(year, geographic_level, state_fips)
+    """Download Census data.
+
+    This is a convenience wrapper around get_geographic_boundaries().
+
+    Args:
+        year: Census year
+        geographic_level: Geographic level (state, county, tract, etc.)
+        state_fips: State FIPS code (required for tract, block_group, etc.)
+
+    Returns:
+        GeoDataFrame with boundaries or None if failed
+    """
+    return census_source.get_geographic_boundaries(year, geographic_level, state_fips)
 
 def get_geographic_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str = 'county', 
                             state_fips: Optional[str] = None, state_identifier: Optional[str] = None) -> Optional[GeoDataFrame]:

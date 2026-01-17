@@ -483,37 +483,37 @@ def generate_synthetic_population(demographics: Optional[Dict] = None,
                 include_education=include_education
             )
             population_data.append(person)
-    
-            # Add tract/county information if provided
-            if tract_info:
-                for person in population_data:
-                    person.update({
-                        'state_fips': tract_info.get('state_fips'),
-                        'county_fips': tract_info.get('county_fips'),
-                        'tract_fips': tract_info.get('tract_fips'),
-                        'geography_level': geography_level
-                    })
-            
-            # Add category columns for visualization compatibility
-            for person in population_data:
-                # Map income brackets to categories
-                income = person.get('income_bracket', '')
-                if 'Less than $25,000' in str(income) or 'Less than $10,000' in str(income) or '$10,000 to $24,999' in str(income):
-                    person['income_category'] = 'Low'
-                elif '$25,000 to $49,999' in str(income) or '$50,000 to $74,999' in str(income):
-                    person['income_category'] = 'Medium'
-                else:
-                    person['income_category'] = 'High'
-                
-                # Map education to categories
-                education = person.get('education_attainment', '')
-                if 'Less than 9th grade' in str(education) or '9th to 12th grade' in str(education) or 'High school graduate' in str(education):
-                    person['education_category'] = 'Low'
-                elif 'Some college' in str(education) or "Associate's degree" in str(education):
-                    person['education_category'] = 'Medium'
-                else:
-                    person['education_category'] = 'High'
-    
+
+    # Add tract/county information if provided (OUTSIDE loops - O(n) not O(n²))
+    if tract_info:
+        for person in population_data:
+            person.update({
+                'state_fips': tract_info.get('state_fips'),
+                'county_fips': tract_info.get('county_fips'),
+                'tract_fips': tract_info.get('tract_fips'),
+                'geography_level': geography_level
+            })
+
+    # Add category columns for visualization compatibility (OUTSIDE loops - O(n) not O(n²))
+    for person in population_data:
+        # Map income brackets to categories
+        income = person.get('income_bracket', '')
+        if 'Less than $25,000' in str(income) or 'Less than $10,000' in str(income) or '$10,000 to $24,999' in str(income):
+            person['income_category'] = 'Low'
+        elif '$25,000 to $49,999' in str(income) or '$50,000 to $74,999' in str(income):
+            person['income_category'] = 'Medium'
+        else:
+            person['income_category'] = 'High'
+
+        # Map education to categories
+        education = person.get('education_attainment', '')
+        if 'Less than 9th grade' in str(education) or '9th to 12th grade' in str(education) or 'High school graduate' in str(education):
+            person['education_category'] = 'Low'
+        elif 'Some college' in str(education) or "Associate's degree" in str(education):
+            person['education_category'] = 'Medium'
+        else:
+            person['education_category'] = 'High'
+
     return pd.DataFrame(population_data)
 
 def generate_synthetic_businesses(business_count: int = 500,
