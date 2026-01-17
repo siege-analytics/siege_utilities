@@ -1,7 +1,34 @@
 # Siege Utilities - Session Status
 
-**Last Updated:** January 17, 2026 (2:30 PM CST)
+**Last Updated:** January 17, 2026 (4:15 PM CST)
 **Branch:** `dheerajchand/sketch/siege-utilities-restoration`
+
+---
+
+## Session 7 Progress (January 17, 2026 - Evening)
+
+### Census Longitudinal Analysis - GitHub Issues Created
+
+Created comprehensive issue set for enabling longitudinal Census data analysis:
+
+| Issue | Title | Purpose |
+|-------|-------|---------|
+| #12 | [EPIC] Longitudinal Census Data Analysis System | Parent epic |
+| #13 | Census API Demographic Data Fetching | Actually fetch ACS/Decennial data |
+| #14 | Shape and Demographics Joining on GEOID | Merge geometries with attributes |
+| #15 | Census Boundary Crosswalk Support (2010-2020) | Track boundary changes over time |
+| #16 | Time-Series Analysis and Trend Functions | Multi-year trend analysis |
+
+**Current Capability Analysis:**
+- ✅ Geometry downloading (TIGER/Line) - **Working**
+- ✅ Dataset metadata (CensusDatasetMapper) - **Working**
+- ❌ Demographic data fetching - **Not implemented** (notebooks use fake data!)
+- ❌ Shape-data joining - **Not implemented**
+- ❌ Boundary crosswalks - **Not implemented**
+- ❌ Time-series analysis - **Not implemented**
+
+**Implementation Order:**
+1. #13 (foundation) → #14 (depends on #13) → #15 and #16 (parallel)
 
 ---
 
@@ -66,21 +93,24 @@ ae3e8c1 feat: Add Profile/Branding testing notebook (#5)
 
 ## Remaining Work (GitHub Issues)
 
-### Priority 1: In Progress
+### Priority 1: Completed
 - [x] **#4 Analytics Connectors** - Notebook created, awaiting credentials
 - [x] **#5 Profile/Branding** - Notebook created, user testing
 - [x] **#6 ReportLab PDF** - Notebook created
 - [x] **#7 PowerPoint** - Notebook created
+- [x] **#8 Spark Utilities** - 11/11 tests pass (Java 17 required)
+- [x] **#11 Census Data Functions** - Fixed (post-download filtering)
 
-### Priority 2: Completed
-- [x] **#8 Spark Utilities** - 10/11 tests pass (Java 17 required)
+### Priority 2: Census Longitudinal Analysis (NEW)
+- [ ] **#12 [EPIC] Longitudinal Census Data Analysis** - Parent issue
+- [ ] **#13 Census API Demographic Data Fetching** - Foundation (do first)
+- [ ] **#14 Shape and Demographics Joining** - Depends on #13
+- [ ] **#15 Census Boundary Crosswalk Support** - 2010→2020 changes
+- [ ] **#16 Time-Series Analysis and Trends** - Multi-year analysis
 
 ### Priority 3: Pending
 - [ ] **#9 Wiki Documentation** - Sync recipes with current API
 - [ ] **#10 CI/CD Pipeline** - Fix GitHub Actions issues
-
-### Priority 3: Bug Fixes
-- [x] **#11 Census Data Functions** - Fixed (post-download filtering)
 
 ---
 
