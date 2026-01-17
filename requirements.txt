@@ -5,3 +5,9 @@ numpy>=1.21.0
 pyyaml>=6.0
 beautifulsoup4>=4.12.0
 lxml>=4.9.0
+
+# Analytics connectors (optional)
+facebook-business>=20.0.0
+# google-analytics-data>=0.18.0  # For Google Analytics
+# datadotworld>=1.7.0  # For data.world
+# snowflake-connector-python>=3.0.0  # For Snowflake
