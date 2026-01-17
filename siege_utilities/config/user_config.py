@@ -82,20 +82,36 @@ class UserConfigManager:
                 with open(self.user_config_file, 'r') as f:
                     config_data = yaml.safe_load(f)
                     if config_data:
+                        # Convert lists back to tuples for specific fields
+                        if 'default_figure_size' in config_data and isinstance(config_data['default_figure_size'], list):
+                            config_data['default_figure_size'] = tuple(config_data['default_figure_size'])
                         return UserProfile(**config_data)
             except Exception as e:
                 log.warning(f"Failed to load user config: {e}")
-        
+
         # Return default profile
         return UserProfile()
     
     def _save_user_profile(self):
         """Save user profile to configuration file."""
         try:
+            config_dict = asdict(self.user_profile)
+            # Convert tuples to lists for YAML compatibility
+            config_dict = self._convert_to_yaml_safe(config_dict)
             with open(self.user_config_file, 'w') as f:
-                yaml.dump(asdict(self.user_profile), f, default_flow_style=False)
+                yaml.dump(config_dict, f, default_flow_style=False)
         except Exception as e:
             log.error(f"Failed to save user config: {e}")
+
+    def _convert_to_yaml_safe(self, obj):
+        """Convert Python objects to YAML-safe types."""
+        if isinstance(obj, dict):
+            return {k: self._convert_to_yaml_safe(v) for k, v in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            return [self._convert_to_yaml_safe(item) for item in obj]
+        elif hasattr(obj, 'value'):  # Enum
+            return obj.value
+        return obj
     
     def get_user_profile(self) -> UserProfile:
         """Get the current user profile."""
