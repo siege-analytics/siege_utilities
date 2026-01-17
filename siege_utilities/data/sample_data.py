@@ -5,12 +5,18 @@ This module provides built-in sample datasets for testing, learning, and demonst
 Combines real Census data with synthetic personal data using Faker for realistic datasets.
 """
 
+from __future__ import annotations
+
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Union, Any, Tuple
+from typing import Dict, List, Optional, Union, Any, Tuple, TYPE_CHECKING
 import warnings
 import os
 from pathlib import Path
+
+# Type checking imports for optional dependencies
+if TYPE_CHECKING:
+    import geopandas as gpd
 
 # Try to import optional dependencies
 try:
@@ -27,6 +33,7 @@ try:
     GEOPANDAS_AVAILABLE = True
 except ImportError:
     GEOPANDAS_AVAILABLE = False
+    gpd = None  # type: ignore[assignment]
     warnings.warn("GeoPandas not available. Install with: pip install geopandas")
 
 # Import existing Census utilities
@@ -116,7 +123,7 @@ def get_dataset_info(dataset_name: str) -> Optional[Dict[str, Any]]:
     """
     return SAMPLE_DATASETS.get(dataset_name)
 
-def load_sample_data(dataset_name: str, **kwargs) -> Union[pd.DataFrame, gpd.GeoDataFrame, None]:
+def load_sample_data(dataset_name: str, **kwargs) -> Union[pd.DataFrame, "gpd.GeoDataFrame", None]:
     """
     Load a sample dataset by name.
     

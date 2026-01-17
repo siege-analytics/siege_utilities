@@ -333,17 +333,29 @@ class TestFileOperations:
         assert str(self.temp_dir) in result.stdout
     
     def test_run_command_with_timeout(self):
-        """Test run_command with timeout."""
-        result = run_command("sleep 2", timeout=1)
-        
+        """Test run_command with timeout using allowed command."""
+        # Use 'tail -f' which will hang, with a short timeout
+        # Create a temp file to tail
+        test_file = self.temp_dir / "timeout_test.txt"
+        test_file.write_text("test")
+        result = run_command(f"tail -f {test_file}", timeout=0.1)
+
         assert result is None  # Should timeout
-    
+
     def test_run_command_failed(self):
-        """Test run_command with failing command."""
-        result = run_command("nonexistent_command")
-        
+        """Test run_command with failing allowed command."""
+        # Use an allowed command that will fail (ls on nonexistent path)
+        result = run_command("ls /nonexistent/path/that/does/not/exist")
+
         assert result is not None
         assert result.returncode != 0
+
+    def test_run_command_security_blocks_disallowed(self):
+        """Test that security validation blocks non-allowed commands."""
+        from siege_utilities.files.shell import SecurityError
+
+        with pytest.raises(SecurityError):
+            run_command("nonexistent_command")
     
     def test_run_command_no_capture(self):
         """Test run_command without capturing output."""

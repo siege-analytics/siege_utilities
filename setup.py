@@ -35,6 +35,7 @@ setup(
         "pyyaml>=6.0",
         "beautifulsoup4>=4.12.0",
         "lxml>=4.9.0",
+        "pydantic>=2.0.0",  # Required for config models
     ],
     extras_require={
         # Distributed computing
