@@ -393,15 +393,31 @@ def load_user_profile(username: str, config_dir: Optional[Path] = None) -> Optio
         return None
 
 
+def _convert_to_yaml_safe(obj: Any) -> Any:
+    """Recursively convert Python objects to YAML-safe types."""
+    if isinstance(obj, dict):
+        return {k: _convert_to_yaml_safe(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [_convert_to_yaml_safe(item) for item in obj]
+    elif isinstance(obj, Path):
+        return str(obj)
+    elif hasattr(obj, 'value'):  # Enum
+        return obj.value
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    else:
+        return obj
+
+
 def save_user_profile(profile: UserProfile, username: str, config_dir: Optional[Path] = None) -> bool:
     """
     Save user profile to YAML file (legacy compatibility).
-    
+
     Args:
         profile: UserProfile object to save
         username: Username to save as
         config_dir: Configuration directory
-        
+
     Returns:
         True if successful, False otherwise
     """
@@ -409,20 +425,17 @@ def save_user_profile(profile: UserProfile, username: str, config_dir: Optional[
         config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "users"
         config_dir.mkdir(parents=True, exist_ok=True)
         config_file = config_dir / f"{username}.yaml"
-        
-        # Convert to dict and serialize
+
+        # Convert to dict and make YAML-safe
         profile_data = profile.model_dump()
-        
-        # Convert Path objects to strings for YAML serialization
-        if 'preferred_download_directory' in profile_data:
-            profile_data['preferred_download_directory'] = str(profile_data['preferred_download_directory'])
-            
+        profile_data = _convert_to_yaml_safe(profile_data)
+
         with open(config_file, 'w') as f:
             yaml.dump(profile_data, f, default_flow_style=False)
-            
+
         logger.info(f"Saved user profile: {config_file}")
         return True
-        
+
     except Exception as e:
         logger.error(f"Failed to save user profile {username}: {e}")
         return False
@@ -480,11 +493,11 @@ def load_client_profile(client_code: str, config_dir: Optional[Path] = None) -> 
 def save_client_profile(profile: ClientProfile, config_dir: Optional[Path] = None) -> bool:
     """
     Save client profile to YAML file (legacy compatibility).
-    
+
     Args:
         profile: ClientProfile object to save
         config_dir: Configuration directory
-        
+
     Returns:
         True if successful, False otherwise
     """
@@ -492,16 +505,17 @@ def save_client_profile(profile: ClientProfile, config_dir: Optional[Path] = Non
         config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "clients"
         config_dir.mkdir(parents=True, exist_ok=True)
         config_file = config_dir / f"{profile.client_code}.yaml"
-        
-        # Convert to dict and serialize
+
+        # Convert to dict and make YAML-safe
         profile_data = profile.model_dump()
-        
+        profile_data = _convert_to_yaml_safe(profile_data)
+
         with open(config_file, 'w') as f:
             yaml.dump(profile_data, f, default_flow_style=False)
-            
+
         logger.info(f"Saved client profile: {config_file}")
         return True
-        
+
     except Exception as e:
         logger.error(f"Failed to save client profile {profile.client_code}: {e}")
         return False

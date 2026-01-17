@@ -8,11 +8,12 @@ import shutil
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 from ..config.enhanced_config import (
-    UserProfile, ClientProfile, 
+    UserProfile, ClientProfile,
     load_user_profile, save_user_profile,
     load_client_profile, save_client_profile,
     list_client_profiles
 )
+from ..config.models import ContactInfo, BrandingConfig, ReportPreferences
 
 log = logging.getLogger(__name__)
 
@@ -109,64 +110,84 @@ def validate_profile_location(location: Path) -> bool:
 def create_default_profiles(profile_location: Optional[Path] = None) -> Tuple[UserProfile, List[ClientProfile]]:
     """
     Create default user and client profiles in the specified location.
-    
+
     Args:
         profile_location: Where to create profiles (defaults to default location)
-    
+
     Returns:
         Tuple of (created_user_profile, list_of_created_client_profiles)
     """
     if profile_location is None:
         profile_location = get_default_profile_location()
-    
+
     # Ensure directory structure exists
     user_dir = profile_location / "users"
     client_dir = profile_location / "clients"
     user_dir.mkdir(parents=True, exist_ok=True)
     client_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Create default user profile
-    user_profile = UserProfile()
-    save_user_profile(user_profile, user_dir)
+    user_profile = UserProfile(username="default")
+    save_user_profile(user_profile, "default", user_dir)
     log.info(f"Created default user profile at {user_dir}")
-    
+
     # Create example client profiles
     client_profiles = []
-    
+
     # Example client 1: Government Agency
     gov_client = ClientProfile(
+        client_id="gov001",
         client_name="Government Agency",
         client_code="GOV001",
         industry="Government",
-        contact_info={
-            "email": "contact@govagency.gov",
-            "phone": "(555) 123-4567"
-        },
-        download_directory=profile_location / "downloads" / "gov001",
-        data_format="parquet",
-        brand_colors=["#003366", "#FFFFFF", "#CC0000"]
+        project_count=0,
+        status="active",
+        contact_info=ContactInfo(
+            email="contact@govagency.gov",
+            phone="5551234567"
+        ),
+        branding_config=BrandingConfig(
+            primary_color="#003366",
+            secondary_color="#FFFFFF",
+            accent_color="#CC0000",
+            text_color="#000000",
+            background_color="#ffffff",
+            primary_font="Arial",
+            secondary_font="Helvetica"
+        ),
+        report_preferences=ReportPreferences()
     )
     save_client_profile(gov_client, client_dir)
     client_profiles.append(gov_client)
-    
+
     # Example client 2: Private Business
     biz_client = ClientProfile(
+        client_id="biz001",
         client_name="Private Business Inc",
-        client_code="BIZ001", 
+        client_code="BIZ001",
         industry="Private Sector",
-        contact_info={
-            "email": "analytics@privatebiz.com",
-            "phone": "(555) 987-6543"
-        },
-        download_directory=profile_location / "downloads" / "biz001",
-        data_format="csv",
-        brand_colors=["#2E8B57", "#FFFFFF", "#FFD700"]
+        project_count=0,
+        status="active",
+        contact_info=ContactInfo(
+            email="analytics@privatebiz.com",
+            phone="5559876543"
+        ),
+        branding_config=BrandingConfig(
+            primary_color="#2E8B57",
+            secondary_color="#FFFFFF",
+            accent_color="#FFD700",
+            text_color="#000000",
+            background_color="#ffffff",
+            primary_font="Arial",
+            secondary_font="Helvetica"
+        ),
+        report_preferences=ReportPreferences()
     )
     save_client_profile(biz_client, client_dir)
     client_profiles.append(biz_client)
-    
+
     log.info(f"Created {len(client_profiles)} example client profiles at {client_dir}")
-    
+
     return user_profile, client_profiles
 
 def migrate_profiles(

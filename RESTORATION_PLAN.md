@@ -3,7 +3,28 @@
 **Date:** January 17, 2026
 **Branch:** `dheerajchand/sketch/siege-utilities-restoration`
 **Initial State:** 265 passing, 27 failing, 2 errors
-**Current State:** 272 passing, 24 skipped, 2 errors
+**After First Pass:** 272 passing, 24 skipped, 2 errors
+**Final State:** 314 passing, 2 skipped, 2 errors (census tests excluded due to optional deps)
+
+---
+
+## Completed Work (January 17, 2026)
+
+### Tests Rewritten
+All 24 skipped tests have been rewritten to match the current API:
+- `tests/test_enhanced_config.py` - 42 tests, all passing
+- `tests/test_admin_profile_manager.py` - 15 tests, all passing
+
+### API Bugs Fixed
+1. **YAML Serialization Bug** - `save_user_profile()` and `save_client_profile()` were serializing Python tuples and enums in non-YAML-safe format. Fixed with `_convert_to_yaml_safe()` helper function.
+
+2. **API Signature Mismatch in profile_manager.py** - `create_default_profiles()` was calling `save_user_profile(profile, user_dir)` but the signature is `save_user_profile(profile, username, config_dir)`.
+
+3. **Deprecated ClientProfile Fields** - `create_default_profiles()` was using old fields (`download_directory`, `data_format`, `brand_colors`) that no longer exist. Updated to use current model with `ContactInfo`, `BrandingConfig`, `ReportPreferences`.
+
+### Remaining Issues
+- Census tests (`test_census_*.py`) require `geopandas` which is an optional dependency
+- 2 integration test errors in `test_multi_engine.py` and `test_svg_markers.py` (unrelated to config system)
 
 ---
 

@@ -91,50 +91,44 @@ class TestProfileLocationManagement:
                 # Restore permissions for cleanup
                 readonly_dir.chmod(0o755)
 
-@pytest.mark.skip(reason="create_default_profiles creates ClientProfile with deprecated fields. Needs model update.")
 class TestDefaultProfileCreation:
-    """Test default profile creation functionality.
-
-    NOTE: These tests are skipped because create_default_profiles() creates
-    ClientProfile instances with fields that don't exist in the current model
-    (download_directory, data_format, brand_colors).
-    """
+    """Test default profile creation functionality."""
 
     def test_create_default_profiles(self):
         """Test creating default user and client profiles."""
         with tempfile.TemporaryDirectory() as temp_dir:
             profile_location = Path(temp_dir) / "profiles"
-            
+
             user_profile, client_profiles = create_default_profiles(profile_location)
-            
+
             # Check user profile
             assert isinstance(user_profile, UserProfile)
             assert profile_location.exists()
             assert (profile_location / "users").exists()
-            assert (profile_location / "users" / "user_config.yaml").exists()
-            
+            assert (profile_location / "users" / "default.yaml").exists()
+
             # Check client profiles
             assert isinstance(client_profiles, list)
             assert len(client_profiles) == 2
             assert all(isinstance(p, ClientProfile) for p in client_profiles)
             assert (profile_location / "clients").exists()
-            
+
             # Check specific client files exist
             client_codes = [p.client_code for p in client_profiles]
             assert "GOV001" in client_codes
             assert "BIZ001" in client_codes
-            
+
             for client_code in client_codes:
                 client_file = profile_location / "clients" / f"{client_code}.yaml"
                 assert client_file.exists()
-    
+
     def test_create_default_profiles_default_location(self):
         """Test creating default profiles in default location."""
         # This test might affect the actual project directory
         # So we'll just test that the function doesn't crash
         try:
             user_profile, client_profiles = create_default_profiles()
-            
+
             assert isinstance(user_profile, UserProfile)
             assert isinstance(client_profiles, list)
             assert len(client_profiles) >= 0  # May or may not create example clients
@@ -232,17 +226,16 @@ class TestProfileSummary:
             assert summary["client_codes"] == []
             assert summary["total_size_mb"] == 0
     
-    @pytest.mark.skip(reason="Calls create_default_profiles which uses deprecated ClientProfile fields")
     def test_get_profile_summary_with_profiles(self):
         """Test getting summary for location with profiles."""
         with tempfile.TemporaryDirectory() as temp_dir:
             profile_location = Path(temp_dir) / "profiles"
-            
+
             # Create profiles
             user_profile, client_profiles = create_default_profiles(profile_location)
-            
+
             summary = get_profile_summary(profile_location)
-            
+
             # Handle macOS path variations (/var vs /private/var)
             expected_location = str(profile_location.resolve())
             actual_location = summary["location"]
@@ -264,7 +257,6 @@ class TestProfileSummary:
         assert "client_codes" in summary
         assert "total_size_mb" in summary
 
-@pytest.mark.skip(reason="Uses create_default_profiles which uses deprecated ClientProfile fields")
 class TestIntegration:
     """Integration tests for profile management."""
 
@@ -274,31 +266,32 @@ class TestIntegration:
             # Set up custom location
             custom_location = Path(temp_dir) / "custom_profiles"
             set_profile_location(custom_location, "workflow_test")
-            
+
             # Create default profiles
             user_profile, client_profiles = create_default_profiles(custom_location)
-            
+
             # Get summary
             summary = get_profile_summary(custom_location)
             assert summary["client_profiles"] == 2
-            
+
             # Migrate to new location
             new_location = Path(temp_dir) / "new_profiles"
             stats = migrate_profiles(custom_location, new_location)
-            
+
             assert stats["users_migrated"] == 1
             assert stats["clients_migrated"] == 2
-            
+
             # Verify migration
             new_summary = get_profile_summary(new_location)
             assert new_summary["client_profiles"] == 2
-            
+
             # Test profile loading from new location
             from siege_utilities.config.enhanced_config import load_user_profile, list_client_profiles
-            
-            loaded_user = load_user_profile(new_location / "users")
+
+            loaded_user = load_user_profile("default", new_location / "users")
+            assert loaded_user is not None
             assert loaded_user.username == user_profile.username
-            
+
             client_codes = list_client_profiles(new_location / "clients")
             assert len(client_codes) == 2
             assert "GOV001" in client_codes
