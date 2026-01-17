@@ -109,6 +109,15 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+dataspell_venv/
+*_venv/
+
+# IDE settings
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
 
 # Spyder project settings
 .spyderproject
@@ -145,3 +154,17 @@ profiles/
 # Production notebooks with real credentials
 *_PRODUCTION.ipynb
 *_production.ipynb
+
+# Test artifacts and debug output
+overnight_results/
+overnight_test_results.json
+function_priority_list.json
+function_validation_log.txt
+recipe_test_results.json
+notebook_conversion_results.json
+
+# Session progress files (temporary)
+SESSION_*_PROGRESS.md
+
+# Claude artifacts
+.claude/
