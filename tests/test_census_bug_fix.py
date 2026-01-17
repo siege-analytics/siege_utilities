@@ -67,35 +67,43 @@ class TestCensusBugFix:
     
     @patch('siege_utilities.geo.spatial_data.CensusDataSource')
     def test_census_function_parameter_passing(self, mock_census_source):
-        """Test that parameters are passed correctly to underlying functions."""
+        """Test that parameters are passed correctly to underlying functions.
+
+        Note: For national-only types like 'county', we download the national file
+        and filter post-download. So state_fips is passed as None to download.
+        """
         # Mock the CensusDataSource and its methods
         mock_instance = MagicMock()
         mock_census_source.return_value = mock_instance
-        
-        # Mock a successful response
+
+        # Mock a successful response with statefp column for filtering
         mock_gdf = gpd.GeoDataFrame({
-            'NAME': ['Test County'],
-            'geometry': [Point(0, 0)]
+            'NAME': ['Test County', 'Other County'],
+            'statefp': ['06', '07'],
+            'geometry': [Point(0, 0), Point(1, 1)]
         })
         mock_instance.get_geographic_boundaries.return_value = mock_gdf
-        
-        # Call the function
+
+        # Call the function with a state filter
         result = get_census_boundaries(
             year=2022,
             geographic_level='county',
             state_fips='06'
         )
-        
-        # Verify the mock was called with correct parameters
+
+        # For county (national-only type), state_fips should be None in the call
+        # because we download national file and filter afterward
         mock_instance.get_geographic_boundaries.assert_called_once_with(
             2022,  # year
             'county',  # geographic_level
-            '06'  # state_fips
+            None  # state_fips is None for national-only types
         )
-        
+
+        # Result should be filtered to only state '06'
         assert result is not None
         assert len(result) == 1
         assert result.iloc[0]['NAME'] == 'Test County'
+        assert result.iloc[0]['statefp'] == '06'
     
     def test_census_function_error_handling(self):
         """Test Census function handles errors gracefully."""

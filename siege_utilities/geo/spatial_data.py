@@ -389,13 +389,14 @@ class CensusDirectoryDiscovery:
             'sldu', 'sldl', 'vtd', 'vtd10', 'vtd20', 'cousub', 'submcd'
         }
         
-        # Define national-only types (never use state FIPS)
+        # Define national-only types (never use state FIPS in URL)
+        # Note: county is national-only but we filter results post-download
         national_only_types = {
-            'state', 'county', 'cbsa', 'csa', 'metdiv', 'micro', 'necta', 
+            'state', 'county', 'cbsa', 'csa', 'metdiv', 'micro', 'necta',
             'nectadiv', 'cnecta', 'aiannh', 'aitsce', 'ttract', 'tbg',
             'elsd', 'scsd', 'unsd', 'uac', 'uac10', 'uac20'
         }
-        
+
         # Define flexible types (can be national or state-specific)
         flexible_types = {'place', 'zcta', 'anrc', 'concity'}
         
@@ -1052,26 +1053,31 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
                          state_fips: Optional[str] = None, state_identifier: Optional[str] = None) -> Optional[GeoDataFrame]:
     """
     Convenience function to get Census boundaries.
-    
+
     Args:
         year: Census year
         geographic_level: Geographic level (county, tract, etc.)
         state_fips: State FIPS code (e.g., '06' for California)
         state_identifier: State identifier - accepts FIPS code, abbreviation, or name
                          (e.g., '06', 'CA', 'California' all work)
-    
+
     Note:
         Provide either state_fips OR state_identifier, not both.
         If both are provided, state_identifier takes precedence.
-    
+
     Returns:
-        GeoDataFrame with Census boundaries
+        GeoDataFrame with Census boundaries (filtered by state if specified)
     """
     source = CensusDataSource()
-    
+
+    # National-only boundary types (downloaded as national file, filtered post-download)
+    national_only_types = {'state', 'county', 'cbsa', 'csa', 'metdiv', 'micro', 'necta',
+                          'nectadiv', 'cnecta', 'aiannh', 'uac', 'uac10', 'uac20'}
+
     # Handle both parameter names for backward compatibility
     state_param = state_identifier or state_fips
-    
+    normalized_fips = None
+
     # If state_identifier is provided, normalize it to FIPS
     if state_param:
         try:
@@ -1079,12 +1085,34 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
             normalized_input = normalize_state_input(state_param)
             # Then convert to FIPS code
             normalized_fips = normalize_state_identifier(normalized_input)
-            return source.get_geographic_boundaries(year, geographic_level, normalized_fips)
         except ValueError as e:
-            log.error(f"Invalid state identifier: '{state_param}' (normalized: '{normalized_input}') - {e}")
+            log.error(f"Invalid state identifier: '{state_param}' - {e}")
             return None
+
+    # Download boundaries
+    # For national-only types, don't pass state_fips to the download function
+    if geographic_level in national_only_types:
+        gdf = source.get_geographic_boundaries(year, geographic_level, None)
     else:
-        return source.get_geographic_boundaries(year, geographic_level, None)
+        gdf = source.get_geographic_boundaries(year, geographic_level, normalized_fips)
+
+    # Post-download filtering for national-only types when state is specified
+    if gdf is not None and normalized_fips and geographic_level in national_only_types:
+        # Filter by state FIPS column (statefp or STATEFP)
+        fips_col = None
+        for col in ['statefp', 'STATEFP', 'statefp20', 'STATEFP20', 'statefp10', 'STATEFP10']:
+            if col in gdf.columns:
+                fips_col = col
+                break
+
+        if fips_col:
+            original_count = len(gdf)
+            gdf = gdf[gdf[fips_col] == normalized_fips].copy()
+            log.info(f"Filtered {geographic_level} from {original_count} to {len(gdf)} features for state {normalized_fips}")
+        else:
+            log.warning(f"No state FIPS column found in {geographic_level} data - cannot filter by state")
+
+    return gdf
 
 def download_osm_data(query: str, bbox: Optional[List[float]] = None) -> Optional[GeoDataFrame]:
     """Convenience function to download OSM data."""
