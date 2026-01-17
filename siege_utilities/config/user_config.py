@@ -293,16 +293,41 @@ def get_user_config() -> UserConfigManager:
 
 def get_download_directory(specific_path: Optional[str] = None, client_code: Optional[str] = None, config_dir: Optional[Path] = None) -> Path:
     """
-    Get the appropriate download directory with enhanced hierarchical resolution.
-    
+    Get the appropriate download directory with hierarchical resolution.
+
+    Priority order:
+    1. specific_path if provided
+    2. Client-specific directory if client_code provided and client profile exists
+    3. User's preferred download directory from profile
+    4. Default fallback (~/.siege_utilities/downloads)
+
     Args:
-        specific_path: Specific path override
+        specific_path: Specific path override (highest priority)
         client_code: Client code for client-specific directory
-        config_dir: Configuration directory
-    
+        config_dir: Configuration directory (unused, kept for compatibility)
+
     Returns:
         Path object for download directory
     """
-    # Use enhanced config system for hierarchical resolution
-    from .enhanced_config import get_download_directory as enhanced_get_download_directory
-    return enhanced_get_download_directory(client_code, specific_path, config_dir)
+    # Priority 1: Specific path override
+    if specific_path:
+        download_dir = Path(specific_path)
+        download_dir.mkdir(parents=True, exist_ok=True)
+        return download_dir
+
+    # Priority 2: Client-specific directory
+    if client_code:
+        try:
+            from .enhanced_config import load_client_profile
+            client_profile = load_client_profile(client_code, config_dir)
+            if client_profile:
+                # Client profiles don't have download_directory anymore,
+                # use a client-specific subdirectory instead
+                client_dir = user_config.get_download_directory() / "clients" / client_code.lower()
+                client_dir.mkdir(parents=True, exist_ok=True)
+                return client_dir
+        except Exception as e:
+            log.debug(f"Could not load client profile for {client_code}: {e}")
+
+    # Priority 3 & 4: User's preferred directory or default
+    return user_config.get_download_directory()

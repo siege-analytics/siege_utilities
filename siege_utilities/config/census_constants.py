@@ -4,6 +4,10 @@ Centralized configuration for Census Bureau data sources and operations.
 """
 
 from typing import Dict, List, Any
+from datetime import datetime
+
+# Get current year for dynamic range calculation
+_CURRENT_YEAR = datetime.now().year
 
 # =============================================================================
 # CENSUS BUREAU DATA SOURCES
@@ -105,13 +109,14 @@ STATE_NAMES = {
 # CENSUS YEARS AND AVAILABILITY
 # =============================================================================
 
-# Available Census years (will be updated as new data becomes available)
-AVAILABLE_CENSUS_YEARS = [2010, 2020, 2021, 2022, 2023]
-DEFAULT_CENSUS_YEAR = 2023
+# Available Census years (dynamically calculated based on current year)
+# TIGER/Line data typically available from 2010 onwards
+AVAILABLE_CENSUS_YEARS = list(range(2010, _CURRENT_YEAR + 1))
+DEFAULT_CENSUS_YEAR = _CURRENT_YEAR
 
 # Year ranges for different data types
-DECENNIAL_YEARS = [2000, 2010, 2020]
-ACS_AVAILABLE_YEARS = list(range(2009, 2024))  # ACS available from 2009
+DECENNIAL_YEARS = [year for year in [2000, 2010, 2020, 2030] if year <= _CURRENT_YEAR]
+ACS_AVAILABLE_YEARS = list(range(2009, _CURRENT_YEAR + 1))  # ACS available from 2009
 
 # =============================================================================
 # CENSUS FILE FORMATS AND PATTERNS

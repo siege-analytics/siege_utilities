@@ -100,7 +100,10 @@ from .files.shell import (
 # Import comprehensive Census functionality (the missing sophisticated functions!)
 try:
     from .geo import get_census_intelligence, quick_census_selection
-    from .geo.geocoding import concatenate_addresses, use_nominatim_geocoder
+    from .geo.geocoding import (
+        concatenate_addresses, use_nominatim_geocoder,
+        get_country_name, get_country_code, list_countries, get_coordinates
+    )
     
     # Census Data Selection Intelligence
     from .geo.census_data_selector import (
@@ -137,6 +140,10 @@ except ImportError as e:
     quick_census_selection = _create_dependency_wrapper('quick_census_selection', ['pandas', 'geopandas'])
     concatenate_addresses = _create_dependency_wrapper('concatenate_addresses', ['geopy'])
     use_nominatim_geocoder = _create_dependency_wrapper('use_nominatim_geocoder', ['geopy'])
+    get_country_name = _create_dependency_wrapper('get_country_name', ['geopy'])
+    get_country_code = _create_dependency_wrapper('get_country_code', ['geopy'])
+    list_countries = _create_dependency_wrapper('list_countries', ['geopy'])
+    get_coordinates = _create_dependency_wrapper('get_coordinates', ['geopy', 'requests'])
     
     # Census Data Selection Intelligence
     get_census_data_selector = _create_dependency_wrapper('get_census_data_selector', ['pandas', 'geopandas'])

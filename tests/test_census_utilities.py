@@ -74,9 +74,11 @@ class TestCensusDirectoryDiscovery:
         
         years = self.discovery.get_available_years()
         
-        # Should fall back to known years
+        # Should fall back to known years (2010 to current year)
+        import datetime
+        current_year = datetime.datetime.now().year
         assert len(years) > 0
-        assert all(2010 <= year <= 2025 for year in years)
+        assert all(2010 <= year <= current_year for year in years)
     
     @patch('requests.get')
     def test_get_year_directory_contents(self, mock_get):
