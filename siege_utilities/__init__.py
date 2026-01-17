@@ -346,7 +346,7 @@ try:
     from .reporting.client_branding import ClientBrandingManager
     from .reporting.chart_types import ChartTypeRegistry
     # Import polling analysis functions
-    from .reporting.polling_analyzer import PollingAnalyzer
+    from .reporting.analytics.polling_analyzer import PollingAnalyzer
 except ImportError as e:
     logger.warning(f"Could not import reporting utilities: {e}")
     BaseReportTemplate = _create_dependency_wrapper('BaseReportTemplate', ['requests', 'jinja2'])

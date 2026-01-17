@@ -2166,3 +2166,179 @@ def create_heatmap(data: Union['pd.DataFrame', Dict[str, Any]],
     return generator.create_heatmap(
         data, x_column, y_column, value_column, title, width, height, **kwargs
     )
+
+
+def create_choropleth_map(data: Union['pd.DataFrame', Dict[str, Any]],
+                         location_column: str = None,
+                         value_column: str = None,
+                         title: str = "",
+                         width: float = 8.0,
+                         height: float = 6.0,
+                         map_type: str = "world",
+                         **kwargs) -> Optional['Image']:
+    """
+    Standalone function to create a choropleth map.
+
+    Args:
+        data: DataFrame or dictionary with data
+        location_column: Column name for locations (country codes, state names, etc.)
+        value_column: Column name for values to color by
+        title: Chart title
+        width: Chart width in inches
+        height: Chart height in inches
+        map_type: Type of map ("world", "usa", "europe", etc.)
+        **kwargs: Additional arguments
+
+    Returns:
+        PIL Image object or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_choropleth_map(
+        data, location_column, value_column, title, width, height, map_type, **kwargs
+    )
+
+
+def create_marker_map(data: Union['pd.DataFrame', Dict[str, Any]],
+                     latitude_column: str = None,
+                     longitude_column: str = None,
+                     value_column: str = None,
+                     label_column: str = None,
+                     title: str = "",
+                     width: float = 10.0,
+                     height: float = 8.0,
+                     map_style: str = "open-street-map",
+                     zoom_level: int = 10,
+                     **kwargs) -> Optional['Image']:
+    """
+    Standalone function to create a marker map.
+
+    Args:
+        data: DataFrame or dictionary with data
+        latitude_column: Column name for latitude values
+        longitude_column: Column name for longitude values
+        value_column: Column name for values (optional)
+        label_column: Column name for labels (optional)
+        title: Chart title
+        width: Chart width in inches
+        height: Chart height in inches
+        map_style: Map style
+        zoom_level: Initial zoom level
+        **kwargs: Additional arguments
+
+    Returns:
+        PIL Image object or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_marker_map(
+        data, latitude_column, longitude_column, value_column, label_column,
+        title, width, height, map_style, zoom_level, **kwargs
+    )
+
+
+def create_flow_map(data: Union['pd.DataFrame', Dict[str, Any]],
+                   origin_lat_column: str = None,
+                   origin_lon_column: str = None,
+                   dest_lat_column: str = None,
+                   dest_lon_column: str = None,
+                   flow_value_column: str = None,
+                   title: str = "",
+                   width: float = 12.0,
+                   height: float = 10.0,
+                   **kwargs) -> Optional['Image']:
+    """
+    Standalone function to create a flow map.
+
+    Args:
+        data: DataFrame or dictionary with data
+        origin_lat_column: Column name for origin latitude
+        origin_lon_column: Column name for origin longitude
+        dest_lat_column: Column name for destination latitude
+        dest_lon_column: Column name for destination longitude
+        flow_value_column: Column name for flow values (optional)
+        title: Chart title
+        width: Chart width in inches
+        height: Chart height in inches
+        **kwargs: Additional arguments
+
+    Returns:
+        PIL Image object or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_flow_map(
+        data, origin_lat_column, origin_lon_column, dest_lat_column, dest_lon_column,
+        flow_value_column, title, width, height, **kwargs
+    )
+
+
+def create_dashboard(charts: list,
+                    layout: str = "2x2",
+                    width: float = 12.0,
+                    height: float = 8.0,
+                    **kwargs) -> Optional['Image']:
+    """
+    Standalone function to create a dashboard with multiple charts.
+
+    Args:
+        charts: List of chart configurations
+        layout: Layout string (e.g., "2x2", "3x1")
+        width: Total dashboard width in inches
+        height: Total dashboard height in inches
+        **kwargs: Additional arguments
+
+    Returns:
+        PIL Image object or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_dashboard(charts, layout, width, height, **kwargs)
+
+
+def create_dataframe_summary_charts(df: 'pd.DataFrame',
+                                   title: str = "",
+                                   width: float = 8.0,
+                                   height: float = 6.0,
+                                   **kwargs) -> Optional['Image']:
+    """
+    Standalone function to create summary charts from a DataFrame.
+
+    Args:
+        df: Pandas DataFrame
+        title: Chart title
+        width: Chart width in inches
+        height: Chart height in inches
+        **kwargs: Additional arguments
+
+    Returns:
+        PIL Image object or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_dataframe_summary_charts(df, title, width, height, **kwargs)
+
+
+def generate_chart_from_dataframe(df: 'pd.DataFrame',
+                                 chart_type: str = "bar",
+                                 x_column: str = None,
+                                 y_columns: list = None,
+                                 title: str = "",
+                                 width: float = 6.0,
+                                 height: float = 4.0,
+                                 **kwargs) -> Optional['Image']:
+    """
+    Standalone function to generate a chart from a DataFrame.
+
+    Args:
+        df: Pandas DataFrame
+        chart_type: Type of chart to create
+        x_column: Column to use for X-axis labels
+        y_columns: Columns to plot
+        title: Chart title
+        width: Chart width in inches
+        height: Chart height in inches
+        **kwargs: Additional arguments
+
+    Returns:
+        PIL Image object or None if error
+    """
+    generator = ChartGenerator()
+    return generator.generate_chart_from_dataframe(
+        df, chart_type, x_column, y_columns, title, width, height, **kwargs
+    )

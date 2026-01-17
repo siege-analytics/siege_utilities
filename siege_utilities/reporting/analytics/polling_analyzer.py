@@ -10,7 +10,7 @@ from typing import Dict, List, Tuple, Optional, Union
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import seaborn as sns
-from .chart_generator import ChartGenerator
+from ..chart_generator import ChartGenerator
 
 class PollingAnalyzer:
     """
