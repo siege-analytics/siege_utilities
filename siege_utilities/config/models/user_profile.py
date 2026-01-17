@@ -57,8 +57,8 @@ class UserProfile(BaseModel):
     )
     preferred_map_style: str = Field(
         default="open-street-map",
-        pattern=r'^(open-street-map|satellite|terrain)$',
-        description="Preferred map style"
+        pattern=r'^(open-street-map|carto-positron|carto-darkmatter|stamen-terrain|stamen-toner|stamen-watercolor|satellite|terrain)$',
+        description="Preferred map style (Plotly mapbox styles)"
     )
     default_color_scheme: str = Field(
         default="YlOrRd",
