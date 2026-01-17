@@ -543,9 +543,30 @@ class CensusDataSource(SpatialDataSource):
         
         # Geographic levels that don't require state FIPS
         self.national_levels = ['nation', 'state', 'county', 'place', 'zcta', 'cd']
-        
+
         log.info(f"Initialized Census data source with {len(self.available_years)} available years")
-    
+
+    def get_available_years(self, force_refresh: bool = False) -> List[int]:
+        """Get list of available Census years.
+
+        Args:
+            force_refresh: If True, re-discover years from Census server
+
+        Returns:
+            List of available years
+        """
+        if force_refresh:
+            self.available_years = self.discovery.get_available_years(force_refresh=True)
+        return self.available_years
+
+    def get_year_directory_contents(self, year: int) -> List[str]:
+        """Get directory contents for a specific year."""
+        return self.discovery.get_year_directory_contents(year)
+
+    def discover_boundary_types(self, year: int) -> List[str]:
+        """Discover available boundary types for a year."""
+        return self.discovery.discover_boundary_types(year)
+
     def get_geographic_boundaries(self, 
                                 year: int = DEFAULT_CENSUS_YEAR,
                                 geographic_level: str = 'county',
@@ -1253,18 +1274,31 @@ government_source = GovernmentDataSource("https://data.gov")
 osm_source = OpenStreetMapDataSource()
 
 __all__ = [
+    # Classes
     'SpatialDataSource',
-    'CensusDataSource', 
+    'CensusDataSource',
     'GovernmentDataSource',
     'OpenStreetMapDataSource',
     'CensusDirectoryDiscovery',
+    # Census functions
     'get_census_data',
     'get_census_boundaries',
-    'download_osm_data',
+    'get_available_years',
+    'get_year_directory_contents',
+    'discover_boundary_types',
+    'download_data',
+    'get_geographic_boundaries',
+    # State normalization
+    'normalize_state_identifier',
     'normalize_state_input',
     'normalize_state_name',
     'normalize_state_abbreviation',
     'normalize_fips_code',
+    'get_state_by_abbreviation',
+    'get_state_by_name',
+    # OSM
+    'download_osm_data',
+    # Global instances
     'census_source',
     'government_source',
     'osm_source'

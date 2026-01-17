@@ -1,7 +1,28 @@
 # Siege Utilities - Session Status
 
-**Last Updated:** January 17, 2026
+**Last Updated:** January 17, 2026 (10:15 AM CST)
 **Branch:** `dheerajchand/sketch/siege-utilities-restoration`
+
+---
+
+## Active Background Tasks
+
+### FEC 2010 Retry (Running in Screen)
+```bash
+# Check status
+screen -r fec_retry
+
+# Detach: Ctrl+A, D
+
+# Quick checks:
+ps aux | grep no_spark_downloader | grep -v grep
+ls /mnt/md/nvme/data/electinfo/fec_data/monroe/2010/ | wc -l  # Started at 81,411
+```
+
+**Purpose:** Categorizing 178,590 unknown file numbers as either:
+- Hypothetical (404 - file never existed on FEC)
+- Downloaded (file exists and was retrieved)
+- Error (should retry later)
 
 ---
 
@@ -252,9 +273,47 @@ c496853 - fix: Rewrite config tests
 
 ---
 
+## Pure Translation / FEC Download Status
+
+### Download Complete (Jan 17, 2026 04:20 AM)
+- **Total downloaded:** 1,740,603 files
+- **Total size:** 556.01 GB
+- **Years:** 2001-2026
+- **Errors:** 3 (all in 2010)
+- **Not found:** 250,631 (hypothetical file numbers)
+
+### New Retry Functions Added
+Location: `pure-translation/spark_jobs/download/no_spark_downloader.py`
+
+```bash
+# Show download progress
+python3 no_spark_downloader.py status [OUTPUT_DIR] [YEARS]
+
+# Analyze missing files (errors vs hypotheticals)
+python3 no_spark_downloader.py missing [OUTPUT_DIR] [YEARS]
+
+# Retry errors & unknown (skip hypotheticals)
+python3 no_spark_downloader.py retry [OUTPUT_DIR] [YEARS] [WORKERS]
+
+# Re-check old hypotheticals for new filings
+python3 no_spark_downloader.py refresh [OUTPUT_DIR] [YEARS] [MAX_AGE_DAYS]
+
+# Build file status from downloaded files
+python3 no_spark_downloader.py build-status [OUTPUT_DIR] [YEARS]
+```
+
+**Key concepts:**
+- **Hypothetical files:** FEC file numbers that return 404 (never existed)
+- **Errors:** Actual download failures that should be retried
+- **Unknown:** Files never attempted (need to check FEC)
+- `file_status.json` tracks per-file status with timestamps
+
+---
+
 ## Next Session Startup
 
 1. Read this file
-2. Read `FUNCTION_ANALYSIS.md` for module details
-3. Read `RESTORATION_PLAN.md` for full restoration context
-4. Continue with: **Create notebook to test choropleth workflow end-to-end**
+2. Check on FEC retry: `screen -r fec_retry`
+3. Read `FUNCTION_ANALYSIS.md` for module details
+4. Read `RESTORATION_PLAN.md` for full restoration context
+5. Continue with: **Create notebook to test choropleth workflow end-to-end**
