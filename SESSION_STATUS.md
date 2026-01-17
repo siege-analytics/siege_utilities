@@ -36,6 +36,13 @@ ae3e8c1 feat: Add Profile/Branding testing notebook (#5)
 - PyCharm Jupyter integration had issues (fixed by using browser)
 - 1Password credential: `"Google Analytics Service Account - Multi-Client Reporter"`
 
+### Spark Utilities Testing
+- **Requirement:** Java 17+ (PySpark 4.1.0 requires class file version 61.0)
+- **Setup:** `sdk install java 17.0.17-tem` via SDKMAN
+- **Results:** 10/11 tests pass
+- **Test file:** `tests/test_spark_utils_live.py`
+- **Only failure:** parquet_io (HDFS safe mode - infrastructure issue, not code bug)
+
 ---
 
 ## Current State Summary
@@ -51,7 +58,7 @@ ae3e8c1 feat: Add Profile/Branding testing notebook (#5)
 | Analytics Connectors | Needs Credentials | 09 |
 | PowerPoint Generation | **Ready** | 12 |
 | ReportGenerator PDF | **Working** | 11 |
-| Spark Utilities (530 functions) | Needs Spark Env | - |
+| Spark Utilities (530 functions) | **Working** (10/11 tests) | test_spark_utils_live.py |
 
 **Tests:** 418 passing, 1 skipped
 
@@ -65,8 +72,10 @@ ae3e8c1 feat: Add Profile/Branding testing notebook (#5)
 - [x] **#6 ReportLab PDF** - Notebook created
 - [x] **#7 PowerPoint** - Notebook created
 
-### Priority 2: Pending
-- [ ] **#8 Spark Utilities** - Needs Spark environment
+### Priority 2: Completed
+- [x] **#8 Spark Utilities** - 10/11 tests pass (Java 17 required)
+
+### Priority 3: Pending
 - [ ] **#9 Wiki Documentation** - Sync recipes with current API
 - [ ] **#10 CI/CD Pipeline** - Fix GitHub Actions issues
 
