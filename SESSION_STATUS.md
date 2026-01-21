@@ -5,6 +5,49 @@
 
 ---
 
+## Session Notes (2026-01-21) - Lessons Learned
+
+### Mistakes to Avoid
+
+1. **Zeppelin repo staged deletions** - Found staged deletions in electinfo/zeppelin that would have removed critical config files (interpreter-setting.json, Dockerfiles, etc.). This appears to be from running `git add -A` while files were temporarily absent. **Always check `git status` before committing in repos you haven't actively worked on.**
+
+2. **GeoDjango requires PostGIS** - The new GeoDjango integration module (`siege_utilities/geo/django/`) requires a PostGIS-enabled database. Document this dependency clearly and consider adding a health check function.
+
+3. **Census API rate limits** - When using CensusAPIClient extensively, ensure caching is enabled (default 24-hour Parquet cache). The client handles rate limits with automatic retry, but uncached bulk requests can hit limits quickly.
+
+### Useful Patterns
+
+1. **ReportGenerator chart handling** - The `_process_chart_list()` method now accepts multiple input types:
+   - File paths (str/Path) for saved images
+   - Matplotlib Figure objects (auto-saves to temp file)
+   - PIL Image objects
+   - BytesIO image data
+   - ReportLab Flowables (pass-through)
+   - Dict with `image_path` key
+
+2. **GeoDjango spatial queries** - Use manager methods for cleaner queries:
+   ```python
+   Tract.objects.containing_point(point).for_year(2020).for_state('06')
+   ```
+
+3. **Census GEOID construction** - Use `geoid_utils.construct_geoid()` instead of string concatenation:
+   ```python
+   from siege_utilities.geo.geoid_utils import construct_geoid
+   geoid = construct_geoid(state='06', county='037', tract='980000')
+   ```
+
+### Commands That Worked Well
+
+```bash
+# Check all electinfo repos at once
+for dir in */; do if [ -d "$dir/.git" ]; then echo "=== $dir ===" && cd "$dir" && git status --short && cd ..; fi; done
+
+# Push ahead commits without full workflow
+git push  # when already ahead of tracked branch
+```
+
+---
+
 ## Session 10 Progress (January 21, 2026)
 
 ### Enhanced Google Analytics Reporting
