@@ -220,10 +220,12 @@ ACS 5-year estimates represent **averages** over the period:
 |---------|----------|-----------|-----------|
 | ACS 5-Year | `get_demographics()` | State → Block Group | All B-tables |
 | ACS 1-Year | `CensusAPIClient.fetch_data(dataset='acs1')` | State → Place | All B-tables |
-| PL 94-171 | `CensusAPIClient.fetch_data(dataset='dec')` | State → Block* | P1, H1 |
+| PL 94-171 (API) | `CensusAPIClient.fetch_data(dataset='dec')` | State → Tract | P1-P5, H1 |
+| PL 94-171 (Files) | `get_pl_blocks()`, `get_pl_data()` | State → Block | P1-P5, H1 |
 | PEP | `CensusAPIClient.fetch_data(dataset='pep')` | Limited | Population |
-
-*Block-level PL 94-171 requires direct download, not API
+| TIGER/Line | `SpatialDataSource.get_*()` | All levels | Boundaries |
+| Crosswalks | `get_crosswalk()`, `apply_crosswalk()` | Tract | 2010↔2020 |
+| Time-Series | `get_longitudinal_data()` | All API levels | Any variable |
 
 ### Usage Examples
 
@@ -289,22 +291,229 @@ from siege_utilities.geo import VARIABLE_GROUPS
 
 ---
 
-## Gaps and Planned Enhancements
+## PL 94-171 File Downloads
 
-### Current Limitations
+The Census API does not support block-level PL 94-171 data. Use the `PLFileDownloader` for direct file downloads:
 
-1. **Block-level PL 94-171:** API doesn't support blocks; requires file download
-2. **DHC Tables:** Not yet integrated
-3. **Full PL variable set:** Only P1 implemented, missing P2-P5, H1
+### Block-Level Data
 
-### Planned for Future Releases
+```python
+from siege_utilities.geo import get_pl_blocks, get_pl_data, PLFileDownloader
 
-| Feature | Priority | Issue |
-|---------|----------|-------|
-| Full PL 94-171 variable set | High | TBD |
-| DHC file integration | Medium | TBD |
-| Block-level data download | Medium | TBD |
-| CVAP (Citizen Voting Age) | Medium | TBD |
+# Get block-level redistricting data for a state
+blocks = get_pl_blocks('California', year=2020)
+
+# Get block-level data for specific county
+la_blocks = get_pl_blocks('California', county='037', year=2020)
+
+# Get tract-level PL data
+tracts = get_pl_data('California', geography='tract', year=2020)
+
+# Specify which tables to include
+blocks = get_pl_blocks(
+    'California',
+    tables=['P1', 'P2', 'H1']  # Race, Hispanic, Housing
+)
+```
+
+### Available PL Tables
+
+| Table | Content | Variables |
+|-------|---------|-----------|
+| P1 | Race | Total population, race categories |
+| P2 | Hispanic/Latino by Race | Hispanic origin crossed with race |
+| P3 | Race (18+) | Voting age population by race |
+| P4 | Hispanic/Latino by Race (18+) | VAP by Hispanic origin and race |
+| P5 | Group Quarters | Institutional and non-institutional |
+| H1 | Housing Occupancy | Total, occupied, vacant units |
+
+### PLFileDownloader Class
+
+```python
+from siege_utilities.geo import PLFileDownloader
+
+# Initialize downloader with caching
+downloader = PLFileDownloader(cache_dir='~/.census_cache')
+
+# Download and parse PL files
+df = downloader.get_data(
+    state='CA',
+    year=2020,
+    geography='block',
+    tables=['P1', 'P2', 'P3', 'P4', 'P5', 'H1']
+)
+
+# List available files
+files = downloader.list_available_files(state='CA', year=2020)
+```
+
+---
+
+## Complete PL 94-171 Variable Groups
+
+The `census_api_client` provides predefined variable groups for all PL tables:
+
+```python
+from siege_utilities.geo import VARIABLE_GROUPS, CensusAPIClient
+
+# Available PL variable groups:
+# - 'pl_p1_race': Total population and race (13 variables)
+# - 'pl_p2_hispanic': Hispanic/Latino by race (26 variables)
+# - 'pl_p3_race_18plus': Race for 18+ population (13 variables)
+# - 'pl_p4_hispanic_18plus': Hispanic by race 18+ (26 variables)
+# - 'pl_p5_group_quarters': Group quarters population (10 variables)
+# - 'pl_h1_housing': Housing occupancy (3 variables)
+# - 'pl_redistricting_core': Essential redistricting vars (8 variables)
+# - 'pl_voting_age': Voting age population subset (7 variables)
+
+# Get tract-level data with full PL support
+client = CensusAPIClient()
+df = client.fetch_data(
+    variables='pl_redistricting_core',
+    year=2020,
+    dataset='dec',
+    geography='tract',
+    state_fips='06'
+)
+```
+
+---
+
+## Shape/Boundary Downloads
+
+siege_utilities provides comprehensive support for downloading TIGER/Line shapefiles:
+
+```python
+from siege_utilities.geo import SpatialDataSource
+
+# Initialize data source
+source = SpatialDataSource()
+
+# Available geographies:
+# - states, counties, tracts, block_groups, blocks
+# - congressional_districts (cd), places, zctas, vtds
+
+# Download state boundaries
+states = source.get_states(year=2020)
+
+# Download county boundaries for a state
+ca_counties = source.get_counties(state_fips='06', year=2020)
+
+# Download tracts with Census data
+ca_tracts = source.get_tracts(
+    state_fips='06',
+    year=2020,
+    include_demographics=True
+)
+
+# Download blocks for a county
+la_blocks = source.get_blocks(
+    state_fips='06',
+    county_fips='037',
+    year=2020
+)
+
+# Congressional districts
+cds = source.get_congressional_districts(year=2020)
+
+# Voting tabulation districts
+vtds = source.get_vtds(state_fips='06', year=2020)
+```
+
+---
+
+## Boundary Crosswalks (2010-2020)
+
+Census tract boundaries change between decennials. Use crosswalks to normalize data:
+
+```python
+from siege_utilities.geo import (
+    get_crosswalk,
+    apply_crosswalk,
+    normalize_to_year,
+    identify_boundary_changes
+)
+
+# Get crosswalk table
+crosswalk = get_crosswalk(
+    source_year=2010,
+    target_year=2020,
+    geography_level='tract',
+    state_fips='06'
+)
+
+# Apply crosswalk to transform 2010 data to 2020 boundaries
+df_2020 = apply_crosswalk(
+    df=df_2010,
+    source_year=2010,
+    target_year=2020,
+    weight_method='area'  # or 'population', 'housing'
+)
+
+# Normalize multiple years to common boundaries
+df_normalized = normalize_to_year(
+    df=df,
+    year_column='year',
+    target_year=2020
+)
+
+# Identify boundary changes
+changes = identify_boundary_changes(
+    crosswalk,
+    include_unchanged=False
+)
+```
+
+---
+
+## Time-Series Analysis
+
+Longitudinal analysis with automatic boundary normalization:
+
+```python
+from siege_utilities.geo import (
+    get_longitudinal_data,
+    calculate_change_metrics,
+    classify_trends,
+    TrendThresholds
+)
+
+# Fetch multi-year data with boundary normalization
+df = get_longitudinal_data(
+    variables='B19013_001E',  # Median household income
+    years=[2010, 2015, 2020],
+    geography='tract',
+    state='California',
+    target_year=2020  # Normalize all years to 2020 boundaries
+)
+
+# Calculate change metrics
+df = calculate_change_metrics(
+    df,
+    value_column='B19013_001E',
+    metrics=['absolute', 'percent', 'cagr']
+)
+
+# Classify trends
+df = classify_trends(
+    df,
+    change_column='B19013_001E_pct_change',
+    thresholds=TrendThresholds(
+        rapid_growth=0.20,
+        moderate_growth=0.05,
+        moderate_decline=-0.05,
+        rapid_decline=-0.20
+    )
+)
+```
+
+---
+
+## Current Limitations
+
+1. **DHC Tables:** Demographic and Housing Characteristics files not yet integrated
+2. **CVAP Data:** Citizen Voting Age Population special tabulation not yet supported
+3. **Historical Data:** PL file downloads currently support 2020 only (2010 planned)
 
 ---
 

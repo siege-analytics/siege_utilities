@@ -131,6 +131,18 @@ from .timeseries import (
     THRESHOLD_PRESETS,
 )
 
+# PL 94-171 redistricting file downloads
+from .census_files import (
+    PLFileDownloader,
+    get_pl_data,
+    get_pl_blocks,
+    get_pl_tracts,
+    download_pl_file,
+    list_available_pl_files,
+    PL_FILE_TYPES,
+    PL_TABLES,
+)
+
 __all__ = [
     # Core spatial data classes
     'CensusDirectoryDiscovery',
@@ -236,6 +248,16 @@ __all__ = [
     'identify_outliers',
     'compare_trends',
     'THRESHOLD_PRESETS',
+
+    # PL 94-171 redistricting files
+    'PLFileDownloader',
+    'get_pl_data',
+    'get_pl_blocks',
+    'get_pl_tracts',
+    'download_pl_file',
+    'list_available_pl_files',
+    'PL_FILE_TYPES',
+    'PL_TABLES',
 ]
 
 # Package metadata
