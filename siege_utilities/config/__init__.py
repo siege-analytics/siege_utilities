@@ -119,7 +119,12 @@ from .census_constants import (
     CENSUS_MAX_CACHE_SIZE,
     CENSUS_TIMEOUT,
     CENSUS_RETRY_ATTEMPTS,
-    
+
+    # API-specific settings
+    CENSUS_API_CACHE_TIMEOUT,
+    CENSUS_API_DEFAULT_TIMEOUT,
+    CENSUS_API_RATE_LIMIT_RETRY_DELAY,
+
     # Helper functions
     normalize_state_identifier,
     get_tiger_url,
@@ -351,6 +356,7 @@ __all__ = [
     'AVAILABLE_CENSUS_YEARS', 'DEFAULT_CENSUS_YEAR', 'DECENNIAL_YEARS', 'ACS_AVAILABLE_YEARS',
     'TIGER_FILE_PATTERNS',
     'CENSUS_CACHE_TIMEOUT', 'CENSUS_MAX_CACHE_SIZE', 'CENSUS_TIMEOUT', 'CENSUS_RETRY_ATTEMPTS',
+    'CENSUS_API_CACHE_TIMEOUT', 'CENSUS_API_DEFAULT_TIMEOUT', 'CENSUS_API_RATE_LIMIT_RETRY_DELAY',
     'normalize_state_identifier', 'get_tiger_url', 'validate_geographic_level', 'get_fips_info',
     
     # NCES constants

@@ -46,6 +46,40 @@ from .geocoding import (
     NominatimGeoClassifier
 )
 
+from .census_api_client import (
+    CensusAPIClient,
+    CensusAPIError,
+    CensusAPIKeyError,
+    CensusRateLimitError,
+    CensusVariableError,
+    CensusGeographyError,
+    VARIABLE_GROUPS,
+    VARIABLE_DESCRIPTIONS,
+    get_demographics,
+    get_population,
+    get_income_data,
+    get_education_data,
+    get_housing_data,
+    get_census_api_client,
+    get_census_data_with_geometry,
+    join_demographics_to_shapes,
+)
+
+from .geoid_utils import (
+    GEOID_LENGTHS,
+    GEOID_COMPONENT_LENGTHS,
+    normalize_geoid,
+    normalize_geoid_column,
+    construct_geoid,
+    construct_geoid_from_row,
+    parse_geoid,
+    extract_parent_geoid,
+    validate_geoid,
+    validate_geoid_column,
+    prepare_geoid_for_join,
+    find_geoid_column,
+)
+
 __all__ = [
     # Core spatial data classes
     'CensusDirectoryDiscovery',
@@ -81,7 +115,39 @@ __all__ = [
     # Geocoding
     'concatenate_addresses',
     'use_nominatim_geocoder',
-    'NominatimGeoClassifier'
+    'NominatimGeoClassifier',
+
+    # Census API client for demographic data
+    'CensusAPIClient',
+    'CensusAPIError',
+    'CensusAPIKeyError',
+    'CensusRateLimitError',
+    'CensusVariableError',
+    'CensusGeographyError',
+    'VARIABLE_GROUPS',
+    'VARIABLE_DESCRIPTIONS',
+    'get_demographics',
+    'get_population',
+    'get_income_data',
+    'get_education_data',
+    'get_housing_data',
+    'get_census_api_client',
+    'get_census_data_with_geometry',
+    'join_demographics_to_shapes',
+
+    # GEOID utilities
+    'GEOID_LENGTHS',
+    'GEOID_COMPONENT_LENGTHS',
+    'normalize_geoid',
+    'normalize_geoid_column',
+    'construct_geoid',
+    'construct_geoid_from_row',
+    'parse_geoid',
+    'extract_parent_geoid',
+    'validate_geoid',
+    'validate_geoid_column',
+    'prepare_geoid_for_join',
+    'find_geoid_column',
 ]
 
 # Package metadata

@@ -149,6 +149,11 @@ CENSUS_MAX_CACHE_SIZE = 1000  # Reasonable limit for file-based cache
 CENSUS_TIMEOUT = 45           # Longer timeout due to large files and slower servers
 CENSUS_RETRY_ATTEMPTS = 5     # More retries - Census reliability is critical
 
+# API-specific settings for demographic data fetching
+CENSUS_API_CACHE_TIMEOUT = 86400  # 24 hours - matches geometry cache
+CENSUS_API_DEFAULT_TIMEOUT = 30   # Default timeout for API requests
+CENSUS_API_RATE_LIMIT_RETRY_DELAY = 60  # Seconds to wait after rate limit hit
+
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
