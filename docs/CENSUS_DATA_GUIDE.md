@@ -1,10 +1,258 @@
 # Census Data Products Reference Guide
 
-This guide explains the relationships between Census Bureau data products, when to use each, and how they integrate with `siege_utilities`.
+This guide provides a complete conceptual understanding of Census Bureau data products, how they relate to each other, when to use each, and how they integrate with `siege_utilities`.
 
 ---
 
-## Quick Reference: Which Dataset Should I Use?
+## Table of Contents
+
+1. [The Mental Model: How Census Data Works](#the-mental-model-how-census-data-works)
+2. [The Three Pillars of Census Data](#the-three-pillars-of-census-data)
+3. [Geographic Hierarchy: The Nesting Structure](#geographic-hierarchy-the-nesting-structure)
+4. [Understanding Census Variables](#understanding-census-variables)
+5. [Counts vs. Estimates: The Fundamental Distinction](#counts-vs-estimates-the-fundamental-distinction)
+6. [When to Use What: Decision Framework](#when-to-use-what-decision-framework)
+7. [Combining Datasets: What Works and What Doesn't](#combining-datasets-what-works-and-what-doesnt)
+8. [Census Data Products Overview](#census-data-products-overview)
+9. [siege_utilities Support](#siege_utilities-support)
+
+---
+
+## The Mental Model: How Census Data Works
+
+The Census Bureau produces data through **two fundamentally different methods**:
+
+### Complete Enumeration (Counting Everyone)
+- **What:** The Decennial Census attempts to count every person in the United States
+- **When:** Every 10 years (years ending in 0)
+- **Result:** Exact counts with no margin of error
+- **Products:** PL 94-171, DHC, Summary Files
+
+### Sample Surveys (Asking a Representative Sample)
+- **What:** The American Community Survey samples ~3.5 million households annually
+- **When:** Continuously, with annual releases
+- **Result:** Estimates with margins of error
+- **Products:** ACS 1-Year, ACS 5-Year estimates
+
+**Key Insight:** These two methods produce data that *look* similar but are fundamentally different. A "Total Population" from PL 94-171 is a count; a "Total Population" from ACS is an estimate. You cannot directly compare them.
+
+---
+
+## The Three Pillars of Census Data
+
+All Census data products fall into three categories:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        CENSUS DATA UNIVERSE                         │
+├─────────────────────┬─────────────────────┬─────────────────────────┤
+│   DECENNIAL CENSUS  │         ACS         │          PEP            │
+│   (Every 10 years)  │   (Continuous)      │    (Annual estimates)   │
+├─────────────────────┼─────────────────────┼─────────────────────────┤
+│ • Complete count    │ • Sample survey     │ • Model-based           │
+│ • Constitutional    │ • Detailed topics   │ • Between decennials    │
+│ • Block-level       │ • Block group min   │ • County minimum        │
+│ • Limited topics    │ • All topics        │ • Population only       │
+├─────────────────────┼─────────────────────┼─────────────────────────┤
+│ Products:           │ Products:           │ Products:               │
+│ • PL 94-171         │ • 1-Year (65K+ pop) │ • Annual Estimates      │
+│ • DHC               │ • 5-Year (all areas)│ • Components of Change  │
+│ • Summary File 1    │ • PUMS              │ • Vintage series        │
+└─────────────────────┴─────────────────────┴─────────────────────────┘
+```
+
+### How They Relate to Each Other
+
+1. **PEP controls to Decennial:** Annual population estimates are "benchmarked" to the most recent Decennial count and adjusted forward using births, deaths, and migration data.
+
+2. **ACS uses Decennial boundaries:** ACS data is tabulated using the geographic boundaries from the most recent Decennial Census. When boundaries change (e.g., 2010 → 2020), you need crosswalks.
+
+3. **ACS and PL measure the same concepts differently:** Both have "Total Population" but:
+   - PL: Count as of Census Day (April 1)
+   - ACS: Estimate averaged over a period (calendar year or 5 years)
+
+---
+
+## Geographic Hierarchy: The Nesting Structure
+
+Census geography is **hierarchical and nested**. Smaller units always fit perfectly inside larger ones:
+
+```
+                    NATION
+                       │
+                    REGIONS (4)
+                       │
+                   DIVISIONS (9)
+                       │
+                    STATES (50 + DC + territories)
+                       │
+         ┌─────────────┴─────────────┐
+         │                           │
+      COUNTIES                    PLACES
+         │                    (cities, towns)
+         │
+    CENSUS TRACTS
+    (1,200-8,000 pop)
+         │
+    BLOCK GROUPS
+    (600-3,000 pop)
+         │
+       BLOCKS
+    (0-many pop)
+```
+
+### Understanding GEOIDs
+
+Every geographic unit has a unique identifier called a GEOID. The structure reveals the hierarchy:
+
+```
+GEOID: 060371234561234
+
+  06     037    123456    1     234
+  ──     ───    ──────    ─     ───
+State  County   Tract    BG    Block
+
+060371234561 = Block Group (12 digits)
+06037123456  = Tract (11 digits)
+06037        = County (5 digits)
+06           = State (2 digits)
+```
+
+**Key Insight:** You can always derive parent geography from a child GEOID by truncating.
+
+### Non-Nesting Geographies
+
+Some geographies don't nest perfectly:
+
+| Geography | Nests Within | Notes |
+|-----------|--------------|-------|
+| Congressional Districts | State | Change with redistricting |
+| School Districts | State | May cross county lines |
+| ZCTAs | None | Approximate ZIP codes |
+| Urban Areas | None | Cross state/county lines |
+| Metropolitan Areas | None | Cross state lines |
+
+---
+
+## Understanding Census Variables
+
+### Variable Naming Conventions
+
+Census variables follow predictable patterns:
+
+**ACS Variables (B-tables):**
+```
+B19013_001E
+│ │    │  └── E = Estimate (M = Margin of Error)
+│ │    └───── 001 = Variable sequence number
+│ └────────── 19013 = Table number
+└──────────── B = Base table (C = Collapsed, S = Subject)
+```
+
+**Table Number Meaning:**
+| Series | Topic |
+|--------|-------|
+| B01xxx | Age and Sex |
+| B02xxx | Race |
+| B03xxx | Hispanic Origin |
+| B05xxx | Citizenship |
+| B08xxx | Commuting |
+| B15xxx | Education |
+| B17xxx | Poverty |
+| B19xxx | Income |
+| B25xxx | Housing |
+
+**PL 94-171 Variables:**
+```
+P1_001N
+│  │  └── N = Count (there is no "E" for estimates)
+│  └───── 001 = Variable sequence
+└──────── P1 = Table (P = Population, H = Housing)
+```
+
+### The Same Concept Across Products
+
+Here's how "Total Population" appears in different products:
+
+| Product | Variable | What It Represents |
+|---------|----------|-------------------|
+| PL 94-171 | P1_001N | Count on April 1 of Census year |
+| DHC | P1_001N | Same as PL (identical) |
+| ACS 1-Year | B01001_001E | Estimate for single calendar year |
+| ACS 5-Year | B01001_001E | Estimate averaged over 5 years |
+| PEP | POPESTIMATE | Modeled estimate for July 1 |
+
+**These are NOT directly comparable.** The values will differ because:
+1. Different reference dates (April 1 vs July 1 vs year average)
+2. Different methods (count vs sample vs model)
+3. Different definitions (group quarters handling varies)
+
+---
+
+## Counts vs. Estimates: The Fundamental Distinction
+
+### Decennial Census = Counts
+- No margin of error
+- Exact value (within Census's ability to count)
+- Point-in-time (April 1)
+- Available for all geographies including blocks
+
+### ACS = Estimates
+- Always has a margin of error (MOE)
+- The "true" value falls within the confidence interval
+- Represents a period average, not a point in time
+- Available only down to block group level
+
+### Working with Margins of Error
+
+ACS estimates should ALWAYS be evaluated with their MOE:
+
+```
+Median Household Income: $65,000 ± $5,000
+                              ↑        ↑
+                          Estimate    MOE
+
+90% Confidence Interval: $60,000 to $70,000
+```
+
+**Rules of Thumb:**
+- MOE > 30% of estimate = Unreliable, use with caution
+- Compare overlapping confidence intervals = Not statistically different
+- Smaller geographies = Larger MOEs
+
+---
+
+## When to Use What: Decision Framework
+
+### Decision Tree
+
+```
+START: What do you need?
+         │
+         ├── Official population count for legal purposes?
+         │         → PL 94-171 (Decennial)
+         │
+         ├── Block-level data?
+         │         → PL 94-171 only
+         │
+         ├── Race/ethnicity data?
+         │         ├── At block level? → PL 94-171
+         │         └── At tract or higher? → ACS or PL
+         │
+         ├── Income, education, poverty, commuting?
+         │         → ACS (not in Decennial)
+         │
+         ├── Small area (tract/block group)?
+         │         → ACS 5-Year
+         │
+         ├── Current year trends (large area 65K+ pop)?
+         │         → ACS 1-Year
+         │
+         └── Population for year between decennials?
+                   → PEP (or ACS 1-Year)
+```
+
+### Quick Reference: Which Dataset Should I Use?
 
 | Analysis Need | Best Dataset | Alternative | Notes |
 |--------------|--------------|-------------|-------|
@@ -16,6 +264,116 @@ This guide explains the relationships between Census Bureau data products, when 
 | **Small area estimates** | ACS 5-Year | - | Most reliable for tracts |
 | **Annual population estimates** | PEP | ACS 1-Year | Between decennials |
 | **Housing characteristics** | ACS 5-Year | Decennial | Detailed housing data |
+
+---
+
+## Combining Datasets: What Works and What Doesn't
+
+### Safe Combinations
+
+| Combination | Safe? | Notes |
+|-------------|:-----:|-------|
+| ACS 5-Year + TIGER shapefiles (same year) | ✓ | Standard mapping workflow |
+| PL 94-171 + TIGER shapefiles (same year) | ✓ | Redistricting mapping |
+| Multiple ACS 5-Year releases (5+ years apart) | ✓ | Non-overlapping periods |
+| ACS variables from same release | ✓ | Same sample, same period |
+
+### Problematic Combinations
+
+| Combination | Problem | Solution |
+|-------------|---------|----------|
+| PL + ACS directly | Different methods, dates | Use as separate analyses |
+| ACS 1-Year + 5-Year | Different periods | Pick one based on need |
+| Adjacent ACS 5-Year releases | 4-year overlap | Use 5+ years apart |
+| 2010 data + 2020 boundaries | Boundary changes | Apply crosswalk |
+
+### The Crosswalk Problem
+
+Census tract boundaries change every 10 years. Comparing 2010 and 2020 data requires:
+
+```
+2010 Data                      2020 Data
+(2010 boundaries)              (2020 boundaries)
+      │                              │
+      └───────────┬──────────────────┘
+                  │
+           CROSSWALK FILE
+     (maps old tracts → new tracts)
+                  │
+                  ▼
+        NORMALIZED DATA
+     (all in 2020 boundaries)
+```
+
+**What can change:**
+- Tract split into multiple tracts (disaggregation needed)
+- Multiple tracts merged (aggregation needed)
+- Tract renumbered (simple rename)
+
+---
+
+## Understanding ACS Time Periods
+
+This is one of the most confusing aspects of Census data. Here's how it works:
+
+### ACS 1-Year vs 5-Year: What's the Difference?
+
+```
+         2018      2019      2020      2021      2022
+          │         │         │         │         │
+ACS 1-Year│         │         │         │         │
+  2022    │         │         │         │    ████████
+          │         │         │         │    (1 year)
+          │         │         │         │
+ACS 5-Year│         │         │         │
+  2022    │████████████████████████████████████████│
+          │        (5 years: 2018-2022)            │
+```
+
+| Characteristic | ACS 1-Year | ACS 5-Year |
+|---------------|------------|------------|
+| **Time period** | Single calendar year | Rolling 5-year period |
+| **Sample size** | ~3.5 million households | ~17.5 million (5 × 3.5M) |
+| **Precision** | Lower (higher MOE) | Higher (lower MOE) |
+| **Currency** | More recent | Less recent (midpoint) |
+| **Geography** | 65,000+ pop only | All areas |
+| **Best for** | Trends in large areas | Small area analysis |
+
+### The 5-Year Period Overlap Problem
+
+Adjacent ACS 5-Year releases share 4 years of data:
+
+```
+2021 ACS 5-Year: [2017─2018─2019─2020─2021]
+2022 ACS 5-Year:      [2018─2019─2020─2021─2022]
+                       └──── 4 years shared ────┘
+```
+
+**Implication:** Changes between 2021 and 2022 ACS 5-Year are NOT statistically independent. For true comparisons:
+- Use releases 5+ years apart (no overlap)
+- Or use 1-Year estimates for annual trends
+
+### Which Boundaries Apply When?
+
+ACS data uses the **boundaries from the most recent Decennial Census**:
+
+| ACS Release | Data Period | Boundaries Used |
+|-------------|-------------|-----------------|
+| 2019 | 2015-2019 | **2010** Census |
+| 2020 | 2016-2020 | **2020** Census |
+| 2021 | 2017-2021 | **2020** Census |
+| 2022 | 2018-2022 | **2020** Census |
+
+**Key Insight:** The 2020 ACS 5-Year was a transition year. Data from 2016-2019 was collected on 2010 boundaries but tabulated to 2020 boundaries. This can introduce small inconsistencies.
+
+### Reference Date Comparison
+
+| Product | Reference Date | What It Means |
+|---------|---------------|---------------|
+| Decennial (PL) | April 1, 2020 | Where people lived on Census Day |
+| ACS 1-Year 2022 | Calendar 2022 | Average over the year |
+| ACS 5-Year 2022 | 2018-2022 | Average over 5 years (midpoint ~mid-2020) |
+| PEP 2022 | July 1, 2022 | Estimated population on that date |
 
 ---
 
