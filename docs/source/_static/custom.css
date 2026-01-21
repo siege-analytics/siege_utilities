@@ -1,0 +1,47 @@
+/* Custom styling for Siege Utilities docs */
+
+.highlight {
+    background: #f8f8f8;
+    border: 1px solid #e1e4e5;
+    border-radius: 3px;
+    padding: 10px;
+}
+
+.rst-content .admonition {
+    background: #f7f7f7;
+    border-left: 4px solid #2980B9;
+}
+
+.rst-content .admonition.note {
+    border-left-color: #2980B9;
+}
+
+.rst-content .admonition.tip {
+    border-left-color: #27AE60;
+}
+
+.rst-content .admonition.warning {
+    border-left-color: #E67E22;
+}
+
+/* Auto-discovery callouts */
+.auto-discovery {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 20px 0;
+}
+
+.auto-discovery h3 {
+    color: white;
+    margin-top: 0;
+}
+
+/* Function signature styling */
+.sig {
+    background: #f0f0f0;
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-family: monospace;
+}
