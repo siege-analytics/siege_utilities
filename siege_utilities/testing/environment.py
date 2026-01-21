@@ -19,10 +19,91 @@ except ImportError:
     def log_error(message): print(f"ERROR: {message}")
 
 
+def _get_sdkman_root() -> Optional[str]:
+    """
+    Find SDKMAN installation directory across platforms.
+
+    Checks multiple locations:
+    - Standard Linux/macOS: ~/.sdkman/candidates
+    - macOS Homebrew: /opt/homebrew/opt/sdkman-cli/libexec/candidates
+    - Custom SDKMAN_DIR environment variable
+
+    Returns:
+        Path to SDKMAN candidates directory or None if not found
+    """
+    candidates = [
+        os.path.expanduser("~/.sdkman/candidates"),  # Linux/macOS standard
+        "/opt/homebrew/opt/sdkman-cli/libexec/candidates",  # macOS Homebrew
+        "/usr/local/sdkman/candidates",  # Alternative install location
+    ]
+
+    # Check custom SDKMAN_DIR first
+    sdkman_dir = os.environ.get("SDKMAN_DIR")
+    if sdkman_dir:
+        custom_path = os.path.join(sdkman_dir, "candidates")
+        candidates.insert(0, custom_path)
+
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+
+    return None
+
+
+def _get_system_java_paths() -> List[str]:
+    """
+    Get common system Java installation paths for Linux.
+
+    Returns:
+        List of paths to check for Java installations
+    """
+    return [
+        "/usr/lib/jvm/java-17-openjdk-amd64",
+        "/usr/lib/jvm/java-17-openjdk",
+        "/usr/lib/jvm/java-11-openjdk-amd64",
+        "/usr/lib/jvm/java-11-openjdk",
+        "/usr/lib/jvm/java-8-openjdk-amd64",
+        "/usr/lib/jvm/java-8-openjdk",
+        "/usr/lib/jvm/default-java",
+        "/usr/java/latest",
+        "/usr/java/default",
+    ]
+
+
+def _get_system_spark_paths() -> List[str]:
+    """
+    Get common system Spark installation paths.
+
+    Returns:
+        List of paths to check for Spark installations
+    """
+    return [
+        "/opt/spark",
+        "/usr/local/spark",
+        "/usr/share/spark",
+        os.path.expanduser("~/spark"),
+    ]
+
+
+def _get_system_hadoop_paths() -> List[str]:
+    """
+    Get common system Hadoop installation paths.
+
+    Returns:
+        List of paths to check for Hadoop installations
+    """
+    return [
+        "/opt/hadoop",
+        "/usr/local/hadoop",
+        "/usr/share/hadoop",
+        os.path.expanduser("~/hadoop"),
+    ]
+
+
 def ensure_env_vars(required_vars: List[str]) -> Dict[str, Optional[str]]:
     """
     Ensure required environment variables are set.
-    If missing, use default values for SDKMAN-managed tools on macOS.
+    Checks SDKMAN on Linux and macOS, falls back to system paths.
 
     Args:
         required_vars: List of environment variable names to check/set
@@ -35,7 +116,7 @@ def ensure_env_vars(required_vars: List[str]) -> Dict[str, Optional[str]]:
         >>> resolved = siege_utilities.ensure_env_vars(["JAVA_HOME", "SPARK_HOME"])
         >>> print(f"Java: {resolved['JAVA_HOME']}")
     """
-    sdk_root = "/opt/homebrew/opt/sdkman-cli/libexec/candidates"
+    sdk_root = _get_sdkman_root()
     resolved = {}
 
     for var in required_vars:
@@ -46,8 +127,20 @@ def ensure_env_vars(required_vars: List[str]) -> Dict[str, Optional[str]]:
 
         # Try to auto-detect common tools
         if var == "JAVA_HOME":
-            java_home = os.path.join(sdk_root, "java", "current")
-            if os.path.exists(java_home):
+            java_home = None
+            # Try SDKMAN first
+            if sdk_root:
+                sdkman_java = os.path.join(sdk_root, "java", "current")
+                if os.path.exists(sdkman_java):
+                    java_home = sdkman_java
+            # Fall back to system paths
+            if not java_home:
+                for sys_path in _get_system_java_paths():
+                    if os.path.exists(sys_path):
+                        java_home = sys_path
+                        break
+
+            if java_home:
                 os.environ[var] = java_home
                 resolved[var] = java_home
                 log_info(f"🔍 Auto-detected {var}: {java_home}")
@@ -56,8 +149,20 @@ def ensure_env_vars(required_vars: List[str]) -> Dict[str, Optional[str]]:
                 log_warning(f"⚠️  {var} not found")
 
         elif var == "SPARK_HOME":
-            spark_home = os.path.join(sdk_root, "spark", "current")
-            if os.path.exists(spark_home):
+            spark_home = None
+            # Try SDKMAN first
+            if sdk_root:
+                sdkman_spark = os.path.join(sdk_root, "spark", "current")
+                if os.path.exists(sdkman_spark):
+                    spark_home = sdkman_spark
+            # Fall back to system paths
+            if not spark_home:
+                for sys_path in _get_system_spark_paths():
+                    if os.path.exists(sys_path):
+                        spark_home = sys_path
+                        break
+
+            if spark_home:
                 os.environ[var] = spark_home
                 resolved[var] = spark_home
                 log_info(f"🔍 Auto-detected {var}: {spark_home}")
@@ -66,8 +171,20 @@ def ensure_env_vars(required_vars: List[str]) -> Dict[str, Optional[str]]:
                 log_warning(f"⚠️  {var} not found")
 
         elif var == "HADOOP_HOME":
-            hadoop_home = os.path.join(sdk_root, "hadoop", "current")
-            if os.path.exists(hadoop_home):
+            hadoop_home = None
+            # Try SDKMAN first
+            if sdk_root:
+                sdkman_hadoop = os.path.join(sdk_root, "hadoop", "current")
+                if os.path.exists(sdkman_hadoop):
+                    hadoop_home = sdkman_hadoop
+            # Fall back to system paths
+            if not hadoop_home:
+                for sys_path in _get_system_hadoop_paths():
+                    if os.path.exists(sys_path):
+                        hadoop_home = sys_path
+                        break
+
+            if hadoop_home:
                 os.environ[var] = hadoop_home
                 resolved[var] = hadoop_home
                 log_info(f"🔍 Auto-detected {var}: {hadoop_home}")
@@ -76,14 +193,20 @@ def ensure_env_vars(required_vars: List[str]) -> Dict[str, Optional[str]]:
                 log_warning(f"⚠️  {var} not found")
 
         elif var == "SCALA_HOME":
-            scala_home = os.path.join(sdk_root, "scala", "current")
-            if os.path.exists(scala_home):
-                os.environ[var] = scala_home
-                resolved[var] = scala_home
-                log_info(f"🔍 Auto-detected {var}: {scala_home}")
+            scala_home = None
+            if sdk_root:
+                sdkman_scala = os.path.join(sdk_root, "scala", "current")
+                if os.path.exists(sdkman_scala):
+                    scala_home = sdkman_scala
+                    os.environ[var] = scala_home
+                    resolved[var] = scala_home
+                    log_info(f"🔍 Auto-detected {var}: {scala_home}")
+                else:
+                    resolved[var] = None
+                    log_warning(f"⚠️  {var} not found")
             else:
                 resolved[var] = None
-                log_warning(f"⚠️  {var} not found")
+                log_warning(f"⚠️  {var} not found (SDKMAN not available)")
 
         else:
             resolved[var] = None  # Unknown env var
