@@ -2,7 +2,8 @@
 Geographic utilities for spatial data analysis, Census data access, and mapping.
 
 This package provides comprehensive tools for working with geographic data,
-including enhanced Census utilities, intelligent data selection, and spatial analysis.
+including enhanced Census utilities, intelligent data selection, spatial analysis,
+boundary crosswalks, and time-series analysis.
 """
 
 from .spatial_data import (
@@ -80,6 +81,56 @@ from .geoid_utils import (
     find_geoid_column,
 )
 
+# Crosswalk support for boundary changes between Census years
+from .crosswalk import (
+    # Enums
+    RelationshipType,
+    WeightMethod,
+    # Data classes
+    CrosswalkRelationship,
+    CrosswalkMetadata,
+    GeographyChange,
+    # Client
+    CrosswalkClient,
+    get_crosswalk,
+    get_crosswalk_client,
+    get_crosswalk_metadata,
+    list_available_crosswalks,
+    # Processor
+    CrosswalkProcessor,
+    apply_crosswalk,
+    normalize_to_year,
+    # Analysis
+    identify_boundary_changes,
+    get_split_tracts,
+    get_merged_tracts,
+    # Constants
+    SUPPORTED_CROSSWALK_YEARS,
+)
+
+# Time-series analysis for longitudinal data
+from .timeseries import (
+    # Longitudinal data
+    get_longitudinal_data,
+    get_available_years,
+    validate_longitudinal_years,
+    # Change metrics
+    calculate_change_metrics,
+    calculate_multi_period_changes,
+    calculate_index,
+    get_change_summary,
+    # Trend classification
+    TrendCategory,
+    TrendThresholds,
+    classify_trends,
+    classify_by_zscore,
+    classify_by_quantiles,
+    get_trend_summary,
+    identify_outliers,
+    compare_trends,
+    THRESHOLD_PRESETS,
+)
+
 __all__ = [
     # Core spatial data classes
     'CensusDirectoryDiscovery',
@@ -148,6 +199,43 @@ __all__ = [
     'validate_geoid_column',
     'prepare_geoid_for_join',
     'find_geoid_column',
+
+    # Crosswalk support
+    'RelationshipType',
+    'WeightMethod',
+    'CrosswalkRelationship',
+    'CrosswalkMetadata',
+    'GeographyChange',
+    'CrosswalkClient',
+    'get_crosswalk',
+    'get_crosswalk_client',
+    'get_crosswalk_metadata',
+    'list_available_crosswalks',
+    'CrosswalkProcessor',
+    'apply_crosswalk',
+    'normalize_to_year',
+    'identify_boundary_changes',
+    'get_split_tracts',
+    'get_merged_tracts',
+    'SUPPORTED_CROSSWALK_YEARS',
+
+    # Time-series analysis
+    'get_longitudinal_data',
+    'get_available_years',
+    'validate_longitudinal_years',
+    'calculate_change_metrics',
+    'calculate_multi_period_changes',
+    'calculate_index',
+    'get_change_summary',
+    'TrendCategory',
+    'TrendThresholds',
+    'classify_trends',
+    'classify_by_zscore',
+    'classify_by_quantiles',
+    'get_trend_summary',
+    'identify_outliers',
+    'compare_trends',
+    'THRESHOLD_PRESETS',
 ]
 
 # Package metadata
