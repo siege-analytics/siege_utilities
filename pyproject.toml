@@ -87,6 +87,12 @@ export = [
 performance = [
     "duckdb>=0.7.0",
 ]
+geodjango = [
+    "django>=4.2.0",
+    "djangorestframework>=3.14.0",
+    "djangorestframework-gis>=1.0.0",
+    "psycopg2-binary>=2.9.0",
+]
 credentials = [
     # 1Password CLI integration (requires 1Password CLI to be installed separately)
     # macOS Keychain integration (built-in on macOS)
