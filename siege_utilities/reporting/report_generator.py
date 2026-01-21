@@ -492,6 +492,100 @@ class ReportGenerator:
             log.error(f"Error generating PDF report: {e}")
             return False
 
+    def _process_chart_list(self, charts: List[Any], width: float = 6,
+                             height: float = 4) -> List:
+        """
+        Process a list of charts in various formats into ReportLab Image objects.
+
+        Supported formats:
+        - File path (str or Path)
+        - matplotlib Figure object
+        - PIL Image object
+        - BytesIO object containing image data
+        - ReportLab Flowable (passed through)
+
+        Args:
+            charts: List of chart objects in various formats
+            width: Image width in inches
+            height: Image height in inches
+
+        Returns:
+            List of ReportLab Image flowables
+        """
+        if not REPORTLAB_AVAILABLE:
+            return []
+
+        import io
+        import tempfile
+
+        result = []
+
+        for chart in charts:
+            try:
+                # Handle ReportLab flowables (pass through)
+                if hasattr(chart, 'drawOn'):
+                    result.append(chart)
+                    continue
+
+                # Handle file paths
+                if isinstance(chart, (str, Path)):
+                    chart_path = Path(chart)
+                    if chart_path.exists():
+                        img = RLImage(str(chart_path), width=width*inch, height=height*inch)
+                        result.append(img)
+                    continue
+
+                # Handle matplotlib Figure
+                if hasattr(chart, 'savefig'):
+                    # matplotlib Figure
+                    buf = io.BytesIO()
+                    chart.savefig(buf, format='png', dpi=150, bbox_inches='tight')
+                    buf.seek(0)
+                    img = RLImage(buf, width=width*inch, height=height*inch)
+                    result.append(img)
+                    # Close the figure to free memory
+                    try:
+                        import matplotlib.pyplot as plt
+                        plt.close(chart)
+                    except:
+                        pass
+                    continue
+
+                # Handle PIL Image
+                if hasattr(chart, 'save') and hasattr(chart, 'mode'):
+                    # PIL Image
+                    buf = io.BytesIO()
+                    chart.save(buf, format='PNG')
+                    buf.seek(0)
+                    img = RLImage(buf, width=width*inch, height=height*inch)
+                    result.append(img)
+                    continue
+
+                # Handle BytesIO
+                if isinstance(chart, io.BytesIO):
+                    chart.seek(0)
+                    img = RLImage(chart, width=width*inch, height=height*inch)
+                    result.append(img)
+                    continue
+
+                # Handle dict with image_path
+                if isinstance(chart, dict):
+                    image_path = chart.get('image_path') or chart.get('path')
+                    if image_path and Path(image_path).exists():
+                        chart_width = chart.get('width', width)
+                        chart_height = chart.get('height', height)
+                        img = RLImage(str(image_path), width=chart_width*inch,
+                                     height=chart_height*inch)
+                        result.append(img)
+                    continue
+
+                log.warning(f"Unknown chart type: {type(chart)}")
+
+            except Exception as e:
+                log.error(f"Error processing chart: {e}")
+
+        return result
+
     def _build_section_content(self, section: Dict[str, Any],
                               template) -> List:
         """
@@ -561,11 +655,44 @@ class ReportGenerator:
                 story.append(Spacer(1, 12))
 
         elif section_type == 'chart' or section_type == 'charts':
-            image_path = section.get('content', {}).get('image_path')
+            content = section.get('content', {})
+            charts = content.get('charts', [])
+            image_path = content.get('image_path')
+            description = content.get('description', '')
+            layout = content.get('layout', 'vertical')
+
+            # Add description if provided
+            if description:
+                story.append(Paragraph(description, styles['Normal']))
+                story.append(Spacer(1, 8))
+
+            # Handle single image path (legacy support)
             if image_path and Path(image_path).exists():
                 img = RLImage(str(image_path), width=6*inch, height=4*inch)
                 story.append(img)
                 story.append(Spacer(1, 12))
+
+            # Handle list of charts (new enhanced support)
+            if charts:
+                chart_images = self._process_chart_list(charts)
+                for chart_img in chart_images:
+                    story.append(chart_img)
+                    story.append(Spacer(1, 12))
+
+        elif section_type == 'maps' or section_type == 'map':
+            content = section.get('content', {})
+            maps = content.get('maps', [])
+            description = content.get('description', '')
+
+            if description:
+                story.append(Paragraph(description, styles['Normal']))
+                story.append(Spacer(1, 8))
+
+            if maps:
+                map_images = self._process_chart_list(maps)
+                for map_img in map_images:
+                    story.append(map_img)
+                    story.append(Spacer(1, 12))
 
         else:
             # Default: treat as text
