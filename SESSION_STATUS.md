@@ -1,7 +1,37 @@
 # Siege Utilities - Session Status
 
-**Last Updated:** January 17, 2026 (4:15 PM CST)
+**Last Updated:** January 20, 2026
 **Branch:** `dheerajchand/sketch/siege-utilities-restoration`
+
+---
+
+## Session 8 Progress (January 20, 2026)
+
+### Census API Client Implementation Complete (#13, #14)
+
+Implemented comprehensive Census API client for demographic data fetching and shape-demographics joining:
+
+**New Modules:**
+| File | Purpose | Tests |
+|------|---------|-------|
+| `geo/census_api_client.py` | CensusAPIClient with caching, rate limiting, predefined variable groups | 57 passing |
+| `geo/geoid_utils.py` | GEOID normalization, construction, parsing, validation | 45 passing |
+
+**Key Features:**
+- Fetch demographic data from ACS 1-year, 5-year and Decennial surveys
+- Support for state, county, tract, block group geographies
+- Predefined variable groups: `total_population`, `demographics_basic`, `race_ethnicity`, `income`, `education`, `poverty`, `housing`
+- Automatic GEOID construction for joining with TIGER/Line shapes
+- Parquet-based caching with 24-hour timeout
+- Rate limit handling with automatic retry
+- MOE (margin of error) variable support
+
+**Convenience Functions:**
+- `get_demographics()`, `get_population()`, `get_income_data()`
+- `get_education_data()`, `get_housing_data()`
+- `get_census_data_with_geometry()` - fetches TIGER shapes + demographics and joins on GEOID
+
+**Commit:** `5cbd5e6 feat: Add Census API client for demographic data fetching (#13, #14)`
 
 ---
 
@@ -22,8 +52,8 @@ Created comprehensive issue set for enabling longitudinal Census data analysis:
 **Current Capability Analysis:**
 - ✅ Geometry downloading (TIGER/Line) - **Working**
 - ✅ Dataset metadata (CensusDatasetMapper) - **Working**
-- ❌ Demographic data fetching - **Not implemented** (notebooks use fake data!)
-- ❌ Shape-data joining - **Not implemented**
+- ✅ Demographic data fetching - **Working** (CensusAPIClient)
+- ✅ Shape-data joining - **Working** (get_census_data_with_geometry)
 - ❌ Boundary crosswalks - **Not implemented**
 - ❌ Time-series analysis - **Not implemented**
 
@@ -101,10 +131,10 @@ ae3e8c1 feat: Add Profile/Branding testing notebook (#5)
 - [x] **#8 Spark Utilities** - 11/11 tests pass (Java 17 required)
 - [x] **#11 Census Data Functions** - Fixed (post-download filtering)
 
-### Priority 2: Census Longitudinal Analysis (NEW)
+### Priority 2: Census Longitudinal Analysis
 - [ ] **#12 [EPIC] Longitudinal Census Data Analysis** - Parent issue
-- [ ] **#13 Census API Demographic Data Fetching** - Foundation (do first)
-- [ ] **#14 Shape and Demographics Joining** - Depends on #13
+- [x] **#13 Census API Demographic Data Fetching** - ✅ Complete (102 tests)
+- [x] **#14 Shape and Demographics Joining** - ✅ Complete (GEOID utilities)
 - [ ] **#15 Census Boundary Crosswalk Support** - 2010→2020 changes
 - [ ] **#16 Time-Series Analysis and Trends** - Multi-year analysis
 
@@ -141,9 +171,9 @@ export DW_AUTH_TOKEN="your-token"
 ## Next Session Startup
 
 1. Read this file
-2. Check if user finished testing notebooks 09-12
-3. Continue with #8 Spark Utilities or #9 Wiki Documentation
-4. User was testing `10_Profile_Branding_Testing.ipynb` when session ended
+2. Consider implementing #15 Census Boundary Crosswalk Support
+3. Consider implementing #16 Time-Series Analysis and Trends
+4. Check if user wants to run integration tests with Census API key
 
 ---
 
