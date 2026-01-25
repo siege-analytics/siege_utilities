@@ -11,7 +11,14 @@ from .spatial_data import (
     CensusDataSource,
     SpatialDataSource,
     GovernmentDataSource,
-    OpenStreetMapDataSource
+    OpenStreetMapDataSource,
+    # Convenience functions
+    get_census_boundaries,
+    download_data,
+    normalize_state_identifier,
+    get_state_by_abbreviation,
+    get_state_by_name,
+    discover_boundary_types,
 )
 
 from .census_dataset_mapper import (
@@ -146,10 +153,17 @@ from .census_files import (
 __all__ = [
     # Core spatial data classes
     'CensusDirectoryDiscovery',
-    'CensusDataSource', 
+    'CensusDataSource',
     'SpatialDataSource',
     'GovernmentDataSource',
     'OpenStreetMapDataSource',
+    # Convenience functions for Census boundaries
+    'get_census_boundaries',
+    'download_data',
+    'normalize_state_identifier',
+    'get_state_by_abbreviation',
+    'get_state_by_name',
+    'discover_boundary_types',
     
     # Census dataset mapping and intelligence
     'CensusDatasetMapper',
