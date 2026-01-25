@@ -60,6 +60,30 @@ from siege_utilities.config.models.client_profile import ClientProfile
 - `run_overnight_comprehensive.sh` - NEW (CI battle-test script)
 - Deleted: `siege_utilities/config/__init__ 2.py`, `user_config 2.py`, `files/operations 2.py`, `files/hashing 2.py`
 
+### Mac Troubleshooting Session
+
+After pushing to origin, encountered several issues on Mac during local testing:
+
+| Problem | Root Cause | Fix |
+|---------|------------|-----|
+| DataSpell Jupyter server exit code 1 | `httpx 1.0.dev3` (broken dev version) | `pip install 'httpx>=0.24,<1.0'` |
+| "No space left on device" | Mac disk space exhausted | Free disk space |
+| Notebook files "corrupted" | DataSpell cache corruption | Clear JetBrains caches |
+| Many duplicate " 2" and " 3" files | macOS file conflict copies | `git reset --hard` + `git clean -fd` |
+
+**Recovery Commands:**
+```bash
+# Fix httpx
+pip install 'httpx>=0.24,<1.0'
+
+# Force sync with remote
+git fetch origin
+git reset --hard origin/dheerajchand/sketch/siege-utilities-restoration
+git clean -fd
+```
+
+**Current State:** Repository is clean and synced with origin.
+
 ### Next Steps
 
 1. **User testing in JetBrains** - Test notebooks 02, 04, 14, 15
