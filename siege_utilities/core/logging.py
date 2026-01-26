@@ -46,31 +46,39 @@ class LoggerManager:
         self._default_name = "siege_utilities"
         self._shared_config: Optional[LoggingConfig] = None
     
-    def configure_shared_logging(self, 
-                                log_file_path: Union[str, Path],
+    def configure_shared_logging(self,
+                                log_file_path: Optional[Union[str, Path]] = None,
                                 level: LogLevel = "INFO",
                                 max_bytes: int = 5_000_000,
                                 backup_count: int = 5) -> None:
         """
         Configure shared logging for all loggers.
-        
+
         Args:
-            log_file_path: Path to shared log file
-            level: Log level for shared file
+            log_file_path: Path to shared log file. If None, configures console-only logging.
+            level: Log level for shared file (or console if no file)
             max_bytes: Max file size before rotation
             backup_count: Number of backup files to keep
         """
-        log_file = Path(log_file_path)
-        log_file.parent.mkdir(parents=True, exist_ok=True)
-        
-        self._shared_config = LoggingConfig(
-            log_to_file=True,
-            log_dir=log_file.parent,
-            max_bytes=max_bytes,
-            backup_count=backup_count,
-            shared_log_file=log_file,
-            shared_level=level
-        )
+        if log_file_path is not None:
+            log_file = Path(log_file_path)
+            log_file.parent.mkdir(parents=True, exist_ok=True)
+
+            self._shared_config = LoggingConfig(
+                log_to_file=True,
+                log_dir=log_file.parent,
+                max_bytes=max_bytes,
+                backup_count=backup_count,
+                shared_log_file=log_file,
+                shared_level=level
+            )
+        else:
+            # Console-only logging
+            self._shared_config = LoggingConfig(
+                log_to_file=False,
+                log_to_console=True,
+                console_level=level
+            )
         
         # Update existing loggers
         for logger in self._loggers.values():
@@ -219,11 +227,19 @@ class LoggerManager:
 _logger_manager = LoggerManager()
 
 # Convenience functions that use the global manager
-def configure_shared_logging(log_file_path: Union[str, Path],
+def configure_shared_logging(log_file_path: Optional[Union[str, Path]] = None,
                             level: LogLevel = "INFO",
                             max_bytes: int = 5_000_000,
                             backup_count: int = 5) -> None:
-    """Configure shared logging for all loggers."""
+    """
+    Configure shared logging for all loggers.
+
+    Args:
+        log_file_path: Path to shared log file. If None, configures console-only logging.
+        level: Log level for logging
+        max_bytes: Max file size before rotation (only used with file logging)
+        backup_count: Number of backup files to keep (only used with file logging)
+    """
     _logger_manager.configure_shared_logging(log_file_path, level, max_bytes, backup_count)
 
 def get_logger(name: Optional[LoggerName] = None) -> logging.Logger:
