@@ -10,6 +10,16 @@ import textwrap
 from pathlib import Path
 from typing import get_type_hints, Any
 
+# Import logging functions from main package
+try:
+    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+except ImportError:
+    # Fallback if main package not available yet
+    def log_info(message): pass
+    def log_warning(message): pass
+    def log_error(message): pass
+    def log_debug(message): pass
+
 
 def analyze_function_signature(func):
     """Analyze a function to generate parameter and return type info."""
@@ -32,7 +42,7 @@ def analyze_function_signature(func):
         return_desc = f'{return_type}: Description needed'
         return params, return_desc
     except Exception as e:
-        print(f'   ⚠️  Could not analyze signature: {e}')
+        log_warning(f'Could not analyze signature: {e}')
         return [], 'Any: Description needed'
 
 
@@ -138,10 +148,10 @@ Note:
             else:
                 docstring_node = ast.Expr(value=ast.Str(s=docstring_content))
             node.body.insert(0, docstring_node)
-            print(f'   ✅ Added docstring to {node.name}')
+            log_info(f'Added docstring to {node.name}')
             self.functions_processed += 1
         else:
-            print(f'   ⏭️  {node.name} already has docstring')
+            log_debug(f'{node.name} already has docstring')
             self.functions_skipped += 1
         return self.generic_visit(node)
 
@@ -149,14 +159,14 @@ Note:
 def process_python_file(file_path):
     """Process a single Python file to add missing docstrings."""
     relative_path = file_path.relative_to(Path.cwd())
-    print(f'\n🔍 Processing {relative_path}')
+    log_info(f'\nProcessing {relative_path}')
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
         try:
             tree = ast.parse(content)
         except SyntaxError as e:
-            print(f'   ❌ Syntax error in {file_path}: {e}')
+            log_error(f'Syntax error in {file_path}: {e}')
             return False
         module_name = str(relative_path).replace('.py', '').replace('/', '.')
         transformer = DocstringAdder(module_name)
@@ -166,24 +176,24 @@ def process_python_file(file_path):
                 import astor
                 new_content = astor.to_source(new_tree)
             except ImportError:
-                print(
-                    f'   ❌ astor not available, install with: pip install astor'
+                log_error(
+                    f'astor not available, install with: pip install astor'
                     )
                 return False
             except Exception as e:
-                print(f'   ❌ Error converting AST back to source: {e}')
+                log_error(f'Error converting AST back to source: {e}')
                 return False
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(new_content)
-            print(f'   ✅ Updated {file_path}')
-            print(
-                f'   📊 Processed: {transformer.functions_processed}, Skipped: {transformer.functions_skipped}'
+            log_info(f'Updated {file_path}')
+            log_info(
+                f'Processed: {transformer.functions_processed}, Skipped: {transformer.functions_skipped}'
                 )
         else:
-            print(f'   ✨ No changes needed')
+            log_info(f'No changes needed')
         return True
     except Exception as e:
-        print(f'   ❌ Error processing {file_path}: {e}')
+        log_error(f'Error processing {file_path}: {e}')
         return False
 
 
@@ -205,22 +215,22 @@ def find_python_files(base_path):
 
 def main():
     """Main function to process all Python files in siege_utilities."""
-    print('🚀 Auto-generating docstrings for siege_utilities')
-    print('=' * 60)
+    log_info('Auto-generating docstrings for siege_utilities')
+    log_info('=' * 60)
     try:
         import astor
     except ImportError:
-        print('❌ Missing dependency: astor')
-        print('   Install with: pip install astor')
+        log_error('Missing dependency: astor')
+        log_info('Install with: pip install astor')
         return False
     base_path = Path.cwd()
     python_files = find_python_files(base_path)
     if not python_files:
-        print('❌ No Python files found. Are you in the right directory?')
-        print(f'   Current directory: {base_path}')
-        print('   Expected: directory containing siege_utilities package')
+        log_error('No Python files found. Are you in the right directory?')
+        log_info(f'Current directory: {base_path}')
+        log_info('Expected: directory containing siege_utilities package')
         return False
-    print(f'📁 Found {len(python_files)} Python files to process')
+    log_info(f'Found {len(python_files)} Python files to process')
     successful = 0
     failed = 0
     for file_path in python_files:
@@ -228,17 +238,17 @@ def main():
             successful += 1
         else:
             failed += 1
-    print(f'\n' + '=' * 60)
-    print(f'🎉 Docstring generation complete!')
-    print(f'📊 Summary:')
-    print(f'   ✅ Successfully processed: {successful} files')
+    log_info(f'\n' + '=' * 60)
+    log_info(f'Docstring generation complete!')
+    log_info(f'Summary:')
+    log_info(f'Successfully processed: {successful} files')
     if failed > 0:
-        print(f'   ❌ Failed: {failed} files')
-    print(f'💡 Next steps:')
-    print(f'   1. Review generated docstrings')
-    print(f'   2. Rebuild docs: cd docs && make html')
-    print(
-        f"   3. Commit changes: git add -A && git commit -m 'Add auto-generated docstrings'"
+        log_error(f'Failed: {failed} files')
+    log_info(f'Next steps:')
+    log_info(f'1. Review generated docstrings')
+    log_info(f'2. Rebuild docs: cd docs && make html')
+    log_info(
+        f"3. Commit changes: git add -A && git commit -m 'Add auto-generated docstrings'"
         )
     return failed == 0
 
@@ -254,7 +264,7 @@ def cli():
         'Base path to search for Python files')
     args = parser.parse_args()
     if args.dry_run:
-        print('🔍 DRY RUN MODE - No files will be modified')
+        log_info('DRY RUN MODE - No files will be modified')
     return main()
 
 

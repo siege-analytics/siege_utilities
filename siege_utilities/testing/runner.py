@@ -9,6 +9,16 @@ import subprocess
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
+# Import logging functions from main package
+try:
+    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+except ImportError:
+    # Fallback if main package not available yet
+    def log_info(message): pass
+    def log_warning(message): pass
+    def log_error(message): pass
+    def log_debug(message): pass
+
 
 def run_command(cmd: List[str], description: str, log_file: Optional[str] = None) -> bool:
     """
@@ -29,7 +39,7 @@ def run_command(cmd: List[str], description: str, log_file: Optional[str] = None
         >>>     "Running tests"
         >>> )
     """
-    log_info(f"\n🔄 {description}")
+    log_info(f"\n{description}")
     log_info(f"Running: {' '.join(cmd)}")
     log_info("-" * 60)
 
@@ -42,11 +52,11 @@ def run_command(cmd: List[str], description: str, log_file: Optional[str] = None
                 text=True
             )
             for line in process.stdout:
-                print(line, end='')
+                log_info(line.rstrip())
                 f.write(line)
             _, stderr = process.communicate()
             if stderr:
-                print(stderr, file=sys.stderr)
+                log_error(stderr)
                 f.write(stderr)
             returncode = process.returncode
     else:
@@ -54,9 +64,9 @@ def run_command(cmd: List[str], description: str, log_file: Optional[str] = None
         returncode = process.returncode
 
     if returncode == 0:
-        log_info(f"✅ {description} completed successfully")
+        log_info(f"{description} completed successfully")
     else:
-        log_error(f"❌ {description} failed with return code {returncode}")
+        log_error(f"{description} failed with return code {returncode}")
 
     return returncode == 0
 
@@ -73,35 +83,35 @@ def quick_smoke_test() -> bool:
         >>> if siege_utilities.quick_smoke_test():
         >>>     print("Basic functionality working!")
     """
-    log_info("🔥 Quick Smoke Test - Testing basic imports and functions")
+    log_info("Quick Smoke Test - Testing basic imports and functions")
 
     try:
         import siege_utilities
-        log_info("✅ Package imports successfully")
+        log_info("Package imports successfully")
 
         # Test basic functions
         info = siege_utilities.get_package_info()
-        log_info(f"✅ Package info: {info['total_functions']} functions found")
+        log_info(f"Package info: {info['total_functions']} functions found")
 
         # Test logging
         siege_utilities.log_info("Smoke test message")
-        log_info("✅ Logging works")
+        log_info("Logging works")
 
         # Test string utils
         result = siege_utilities.remove_wrapping_quotes_and_trim('"test"')
         assert result == "test"
-        log_info("✅ String utilities work")
+        log_info("String utilities work")
 
         # Test dependencies
         deps = siege_utilities.check_dependencies()
         available_deps = [dep for dep, available in deps.items() if available]
-        log_info(f"✅ Dependencies check: {len(available_deps)}/{len(deps)} available")
+        log_info(f"Dependencies check: {len(available_deps)}/{len(deps)} available")
 
-        log_info("\n🎉 Basic smoke test PASSED!")
+        log_info("\nBasic smoke test PASSED!")
         return True
 
     except Exception as e:
-        log_error(f"\n❌ Basic smoke test FAILED: {e}")
+        log_error(f"\nBasic smoke test FAILED: {e}")
         return False
 
 
@@ -144,7 +154,7 @@ def build_pytest_command(
 
     # Configure based on mode
     if mode == "smoke":
-        log_info("🔥 Running SMOKE TESTS - Quick tests to find broken functions")
+        log_info("Running SMOKE TESTS - Quick tests to find broken functions")
         cmd.extend([
             "--maxfail=10",  # Stop after 10 failures
             "--tb=short",
@@ -152,18 +162,18 @@ def build_pytest_command(
         ])
 
     elif mode == "fast":
-        log_info("⚡ Running FAST TESTS - Skip slow tests")
+        log_info("Running FAST TESTS - Skip slow tests")
         cmd.extend([
             "-m", "not slow",
             "--maxfail=5"
         ])
 
     elif mode == "unit":
-        log_info("🧪 Running UNIT TESTS")
+        log_info("Running UNIT TESTS")
         cmd.extend(["-m", "unit or not integration"])
 
     elif mode == "coverage":
-        log_info("📊 Running COVERAGE ANALYSIS")
+        log_info("Running COVERAGE ANALYSIS")
         cmd.extend([
             "--cov=siege_utilities",
             "--cov-report=html:htmlcov",
@@ -173,12 +183,12 @@ def build_pytest_command(
         ])
 
     elif mode == "all":
-        log_info("🎯 Running ALL TESTS")
+        log_info("Running ALL TESTS")
         # No additional filters
 
     # Filter by module if specified
     if module:
-        log_info(f"🎯 Filtering tests for module: {module}")
+        log_info(f"Filtering tests for module: {module}")
         if module == "core":
             cmd.append("tests/test_core_*.py")
         elif module == "files":
@@ -223,11 +233,11 @@ def run_test_suite(
         >>>     setup_environment=True
         >>> )
     """
-    log_info("🚀 Starting siege-utilities test suite...")
+    log_info("Starting siege-utilities test suite...")
 
     # Ensure we're in the right directory
     if not Path("siege_utilities").exists():
-        log_error("❌ Error: siege_utilities directory not found!")
+        log_error("Error: siege_utilities directory not found!")
         log_error("Please run this from the project root directory.")
         return False
 
@@ -236,18 +246,18 @@ def run_test_suite(
 
     # Set up environment if requested
     if setup_environment:
-        log_info("🔧 Setting up environment...")
+        log_info("Setting up environment...")
         try:
             import siege_utilities
             if not siege_utilities.setup_spark_environment():
-                log_warning("⚠️  Environment setup had issues, continuing anyway...")
+                log_warning("Environment setup had issues, continuing anyway...")
         except Exception as e:
             log_error(f"Environment setup failed: {e}")
             return False
 
     # Install dependencies if requested
     if install_deps:
-        log_info("📦 Installing test dependencies...")
+        log_info("Installing test dependencies...")
         success = run_command([
             sys.executable, "-m", "pip", "install", "-r", "test_requirements.txt"
         ], "Installing test dependencies")
@@ -262,19 +272,19 @@ def run_test_suite(
 
     # Report results
     if success:
-        log_info("\n🎉 Tests completed successfully!")
+        log_info("\nTests completed successfully!")
 
         # Show coverage report location if generated
         if mode == "coverage" or "cov" in cmd:
             if Path("htmlcov").exists():
-                log_info(f"📊 Coverage report: file://{Path('htmlcov/index.html').absolute()}")
+                log_info(f"Coverage report: file://{Path('htmlcov/index.html').absolute()}")
 
         # Show test report location
         if Path("reports/pytest_report.html").exists():
-            log_info(f"📋 Test report: file://{Path('reports/pytest_report.html').absolute()}")
+            log_info(f"Test report: file://{Path('reports/pytest_report.html').absolute()}")
 
     else:
-        log_error("\n❌ Some tests failed!")
+        log_error("\nSome tests failed!")
         log_info("\nDebugging tips:")
         log_info("1. Check the test output above for specific errors")
         log_info("2. Run with verbose=True for more details")
@@ -350,31 +360,31 @@ def run_comprehensive_test() -> bool:
         >>> if siege_utilities.run_comprehensive_test():
         >>>     print("Everything is working perfectly!")
     """
-    log_info("🎯 Running comprehensive test suite...")
+    log_info("Running comprehensive test suite...")
 
     all_passed = True
 
     # Step 1: Environment diagnostics
-    log_info("\n📊 Step 1: Environment Diagnostics")
+    log_info("\nStep 1: Environment Diagnostics")
     try:
         import siege_utilities
         env_healthy = siege_utilities.diagnose_environment()
         if not env_healthy:
-            log_warning("⚠️  Environment issues detected, but continuing...")
+            log_warning("Environment issues detected, but continuing...")
             all_passed = False
     except Exception as e:
         log_error(f"Environment diagnostics failed: {e}")
         all_passed = False
 
     # Step 2: Smoke test
-    log_info("\n🔥 Step 2: Smoke Test")
+    log_info("\nStep 2: Smoke Test")
     smoke_passed = quick_smoke_test()
     if not smoke_passed:
         log_error("Smoke test failed - stopping comprehensive test")
         return False
 
     # Step 3: Dependency check
-    log_info("\n📦 Step 3: Dependency Check")
+    log_info("\nStep 3: Dependency Check")
     try:
         import siege_utilities
         deps = siege_utilities.check_dependencies()
@@ -383,7 +393,7 @@ def run_comprehensive_test() -> bool:
         log_info(f"Dependencies: {available}/{total} available")
 
         if not deps.get('pyspark', False):
-            log_warning("⚠️  PySpark not available - some tests may be skipped")
+            log_warning("PySpark not available - some tests may be skipped")
     except Exception as e:
         log_error(f"Dependency check failed: {e}")
         all_passed = False
@@ -392,7 +402,7 @@ def run_comprehensive_test() -> bool:
     test_modes = ["smoke", "unit"]
 
     for mode in test_modes:
-        log_info(f"\n🧪 Step 4.{test_modes.index(mode) + 1}: {mode.upper()} Tests")
+        log_info(f"\nStep 4.{test_modes.index(mode) + 1}: {mode.upper()} Tests")
         test_passed = run_test_suite(mode=mode, verbose=False, setup_environment=False)
         if not test_passed:
             log_error(f"{mode.upper()} tests failed")
@@ -401,13 +411,13 @@ def run_comprehensive_test() -> bool:
     # Final report
     log_info("\n" + "=" * 60)
     if all_passed:
-        log_info("🎉 COMPREHENSIVE TEST PASSED!")
-        log_info("✅ Environment is healthy")
-        log_info("✅ All smoke tests passed")
-        log_info("✅ All unit tests passed")
+        log_info("COMPREHENSIVE TEST PASSED!")
+        log_info("Environment is healthy")
+        log_info("All smoke tests passed")
+        log_info("All unit tests passed")
     else:
-        log_warning("⚠️  COMPREHENSIVE TEST HAD ISSUES")
-        log_info("💡 Check the logs above for specific problems")
-        log_info("💡 Run siege_utilities.get_test_report() for detailed analysis")
+        log_warning("COMPREHENSIVE TEST HAD ISSUES")
+        log_info("Check the logs above for specific problems")
+        log_info("Run siege_utilities.get_test_report() for detailed analysis")
 
     return all_passed

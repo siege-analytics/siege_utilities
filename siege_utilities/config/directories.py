@@ -10,15 +10,15 @@ from typing import Dict, Any, Optional, List
 
 logger = logging.getLogger(__name__)
 
-# Import logging functions from main package
+# Import logging functions from core logging module
 try:
-    from siege_utilities import log_info, log_warning, log_error, log_debug
+    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
 except ImportError:
-    # Fallback if main package not available yet
-    def log_info(message): print(f"INFO: {message}")
-    def log_warning(message): print(f"WARNING: {message}")
-    def log_error(message): print(f"ERROR: {message}")
-    def log_debug(message): pass  # Silent in fallback
+    # Fallback if core logging not available yet
+    def log_info(message): logger.info(message)
+    def log_warning(message): logger.warning(message)
+    def log_error(message): logger.error(message)
+    def log_debug(message): logger.debug(message)
 
 
 def create_directory_structure(base_path: str, structure: Dict[str, Any]) -> Dict[str, str]:

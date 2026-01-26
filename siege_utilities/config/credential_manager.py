@@ -19,13 +19,16 @@ from typing import Dict, Any, Optional, List, Union, Tuple
 from pathlib import Path
 
 # Import logging functions
+import logging
+_logger = logging.getLogger(__name__)
+
 try:
     from ..core.logging import log_info, log_warning, log_error
 except ImportError:
     # Fallback if core logging not available
-    def log_info(message): print(f"INFO: {message}")
-    def log_warning(message): print(f"WARNING: {message}")
-    def log_error(message): print(f"ERROR: {message}")
+    def log_info(message): _logger.info(message)
+    def log_warning(message): _logger.warning(message)
+    def log_error(message): _logger.error(message)
 
 
 class CredentialManager:

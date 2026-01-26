@@ -15,12 +15,15 @@ logger = logging.getLogger(__name__)
 
 # Import logging functions from main package
 try:
-    from siege_utilities import log_info, log_error, log_warning
+    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if main package not available yet
-    def log_info(message): print(f"INFO: {message}")
-    def log_error(message): print(f"ERROR: {message}")
-    def log_warning(message): print(f"WARNING: {message}")
+    import logging
+    _fallback_logger = logging.getLogger(__name__)
+    def log_info(message): _fallback_logger.info(message)
+    def log_error(message): _fallback_logger.error(message)
+    def log_warning(message): _fallback_logger.warning(message)
+    def log_debug(message): _fallback_logger.debug(message)
 
 
 class SecurityError(Exception):

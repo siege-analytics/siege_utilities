@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import seaborn as sns
 from ..chart_generator import ChartGenerator
+from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
 
 class PollingAnalyzer:
     """
@@ -67,7 +68,7 @@ class PollingAnalyzer:
             return cross_tabs
             
         except Exception as e:
-            print(f"Error creating cross-tabulation matrix: {e}")
+            log_error(f"Error creating cross-tabulation matrix: {e}")
             return {}
     
     def create_longitudinal_analysis(self, 
@@ -118,7 +119,7 @@ class PollingAnalyzer:
             return longitudinal_results
             
         except Exception as e:
-            print(f"Error creating longitudinal analysis: {e}")
+            log_error(f"Error creating longitudinal analysis: {e}")
             return {}
     
     def create_performance_rankings(self, 
@@ -161,7 +162,7 @@ class PollingAnalyzer:
             return rankings
             
         except Exception as e:
-            print(f"Error creating performance rankings: {e}")
+            log_error(f"Error creating performance rankings: {e}")
             return {}
     
     def create_time_series_choropleth_data(self, 
@@ -227,7 +228,7 @@ class PollingAnalyzer:
             return time_series_data
             
         except Exception as e:
-            print(f"Error creating time series choropleth data: {e}")
+            log_error(f"Error creating time series choropleth data: {e}")
             return {}
     
     def create_change_detection_data(self, 
@@ -274,7 +275,7 @@ class PollingAnalyzer:
             return merged
             
         except Exception as e:
-            print(f"Error creating change detection data: {e}")
+            log_error(f"Error creating change detection data: {e}")
             return pd.DataFrame()
     
     def create_geographic_device_crosstab(self, 
@@ -336,7 +337,7 @@ class PollingAnalyzer:
             return pd.DataFrame(crosstab_data)
             
         except Exception as e:
-            print(f"Error creating geographic device crosstab: {e}")
+            log_error(f"Error creating geographic device crosstab: {e}")
             return pd.DataFrame()
     
     def create_polling_summary(self, 
@@ -430,7 +431,7 @@ class PollingAnalyzer:
             return fig
             
         except Exception as e:
-            print(f"Error creating heatmap visualization: {e}")
+            log_error(f"Error creating heatmap visualization: {e}")
             return None
     
     def create_trend_analysis_chart(self, 
@@ -471,6 +472,6 @@ class PollingAnalyzer:
             return fig
             
         except Exception as e:
-            print(f"Error creating trend analysis chart: {e}")
+            log_error(f"Error creating trend analysis chart: {e}")
             return None
 

@@ -153,8 +153,8 @@ class UserConfigManager:
     
     def setup_initial_profile(self):
         """Interactive setup for initial user profile."""
-        print("🚀 Welcome to Siege Utilities!")
-        print("Let's set up your user profile.\n")
+        log.info("Welcome to Siege Utilities!")
+        log.info("Let's set up your user profile.")
         
         # Get user information
         username = input("Username (for file naming): ").strip()
@@ -178,8 +178,8 @@ class UserConfigManager:
             preferred_download_directory=download_dir
         )
         
-        print(f"\n✅ User profile created successfully!")
-        print(f"Configuration saved to: {self.user_config_file}")
+        log.info("User profile created successfully!")
+        log.info(f"Configuration saved to: {self.user_config_file}")
     
     def get_api_key(self, service: str) -> str:
         """
@@ -275,7 +275,7 @@ class UserConfigManager:
             with open(output_path, 'w') as f:
                 yaml.dump(config_data, f, default_flow_style=False)
             
-            print(f"✅ Configuration exported to: {output_path}")
+            log.info(f"Configuration exported to: {output_path}")
         except Exception as e:
             log.error(f"Failed to export configuration: {e}")
     
@@ -296,7 +296,7 @@ class UserConfigManager:
                     setattr(self.user_profile, key, value)
             
             self._save_user_profile()
-            print(f"✅ Configuration imported from: {input_path}")
+            log.info(f"Configuration imported from: {input_path}")
         except Exception as e:
             log.error(f"Failed to import configuration: {e}")
 

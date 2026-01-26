@@ -19,6 +19,17 @@ package_dir = os.path.dirname(__file__)
 def _get_logging_functions():
     """Get logging functions from parent package."""
     try:
+        from siege_utilities.core.logging import log_info, log_error, log_debug, log_warning
+        return {
+            'log_info': log_info,
+            'log_error': log_error,
+            'log_debug': log_debug,
+            'log_warning': log_warning
+        }
+    except ImportError:
+        pass
+
+    try:
         parent_module = sys.modules.get(__name__.split('.')[0])
         if parent_module:
             return {
@@ -30,11 +41,10 @@ def _get_logging_functions():
     except:
         pass
 
-    # Fallback functions that accept any arguments
+    # Fallback functions that do nothing
     def make_fallback(level):
         def fallback(*args, **kwargs):
-            message = args[0] if args else kwargs.get('message', 'No message')
-            print(f"{level}: {message}")
+            pass
         return fallback
 
     return {

@@ -15,6 +15,8 @@ from .census_dataset_mapper import (
     get_census_dataset_mapper
 )
 
+from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+
 class CensusDataSelector:
     """
     Intelligent selector for Census data based on analysis requirements.
@@ -624,8 +626,8 @@ if __name__ == "__main__":
         geography_level="tract",
         variables=["population", "income", "education"]
     )
-    print("Dataset Recommendations:")
-    print(recommendations)
+    log_info("Dataset Recommendations:")
+    log_info(str(recommendations))
     
     # Example: Get analysis approach
 def suggest_analysis_approach(analysis_type: str,
@@ -653,5 +655,5 @@ if __name__ == "__main__":
         geography_level="county",
         time_constraints="comprehensive"
     )
-    print("\nAnalysis Approach:")
-    print(approach)
+    log_info("Analysis Approach:")
+    log_info(str(approach))

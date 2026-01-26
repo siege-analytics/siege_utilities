@@ -11,12 +11,13 @@ from typing import Dict, List, Optional, Tuple
 
 # Import logging functions from main package
 try:
-    from siege_utilities import log_info, log_warning, log_error
+    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if main package not available yet
-    def log_info(message): print(f"INFO: {message}")
-    def log_warning(message): print(f"WARNING: {message}")
-    def log_error(message): print(f"ERROR: {message}")
+    def log_info(message): pass
+    def log_warning(message): pass
+    def log_error(message): pass
+    def log_debug(message): pass
 
 
 def _get_sdkman_root() -> Optional[str]:
@@ -122,7 +123,7 @@ def ensure_env_vars(required_vars: List[str]) -> Dict[str, Optional[str]]:
     for var in required_vars:
         if os.environ.get(var):
             resolved[var] = os.environ[var]
-            log_info(f"✅ {var} already set: {os.environ[var]}")
+            log_info(f"{var} already set: {os.environ[var]}")
             continue
 
         # Try to auto-detect common tools
@@ -143,10 +144,10 @@ def ensure_env_vars(required_vars: List[str]) -> Dict[str, Optional[str]]:
             if java_home:
                 os.environ[var] = java_home
                 resolved[var] = java_home
-                log_info(f"🔍 Auto-detected {var}: {java_home}")
+                log_info(f"Auto-detected {var}: {java_home}")
             else:
                 resolved[var] = None
-                log_warning(f"⚠️  {var} not found")
+                log_warning(f"{var} not found")
 
         elif var == "SPARK_HOME":
             spark_home = None
@@ -165,10 +166,10 @@ def ensure_env_vars(required_vars: List[str]) -> Dict[str, Optional[str]]:
             if spark_home:
                 os.environ[var] = spark_home
                 resolved[var] = spark_home
-                log_info(f"🔍 Auto-detected {var}: {spark_home}")
+                log_info(f"Auto-detected {var}: {spark_home}")
             else:
                 resolved[var] = None
-                log_warning(f"⚠️  {var} not found")
+                log_warning(f"{var} not found")
 
         elif var == "HADOOP_HOME":
             hadoop_home = None
@@ -187,10 +188,10 @@ def ensure_env_vars(required_vars: List[str]) -> Dict[str, Optional[str]]:
             if hadoop_home:
                 os.environ[var] = hadoop_home
                 resolved[var] = hadoop_home
-                log_info(f"🔍 Auto-detected {var}: {hadoop_home}")
+                log_info(f"Auto-detected {var}: {hadoop_home}")
             else:
                 resolved[var] = None
-                log_warning(f"⚠️  {var} not found")
+                log_warning(f"{var} not found")
 
         elif var == "SCALA_HOME":
             scala_home = None
@@ -200,17 +201,17 @@ def ensure_env_vars(required_vars: List[str]) -> Dict[str, Optional[str]]:
                     scala_home = sdkman_scala
                     os.environ[var] = scala_home
                     resolved[var] = scala_home
-                    log_info(f"🔍 Auto-detected {var}: {scala_home}")
+                    log_info(f"Auto-detected {var}: {scala_home}")
                 else:
                     resolved[var] = None
-                    log_warning(f"⚠️  {var} not found")
+                    log_warning(f"{var} not found")
             else:
                 resolved[var] = None
-                log_warning(f"⚠️  {var} not found (SDKMAN not available)")
+                log_warning(f"{var} not found (SDKMAN not available)")
 
         else:
             resolved[var] = None  # Unknown env var
-            log_warning(f"⚠️  Unknown environment variable: {var}")
+            log_warning(f"Unknown environment variable: {var}")
 
     return resolved
 
@@ -263,7 +264,7 @@ def setup_spark_environment() -> bool:
         >>> if siege_utilities.setup_spark_environment():
         >>>     print("Spark environment ready!")
     """
-    log_info("🚀 Setting up Spark environment...")
+    log_info("Setting up Spark environment...")
 
     # Ensure required environment variables
     required_vars = ["JAVA_HOME", "SPARK_HOME"]
@@ -273,10 +274,10 @@ def setup_spark_environment() -> bool:
     java_version, java_compatible = check_java_version()
     if not java_compatible:
         log_error(f"Java version {java_version} may not be compatible with Spark")
-        log_info("💡 Try switching to Java 11 or 17: sdk use java 11.0.27.fx-zulu")
+        log_info("Try switching to Java 11 or 17: sdk use java 11.0.27.fx-zulu")
         return False
 
-    log_info(f"✅ Java {java_version} is compatible")
+    log_info(f"Java {java_version} is compatible")
 
     # Check dependencies
     try:
@@ -285,21 +286,21 @@ def setup_spark_environment() -> bool:
 
         if not deps['pyspark']:
             log_error("PySpark not available")
-            log_info("💡 Install with: pip install pyspark")
+            log_info("Install with: pip install pyspark")
             return False
 
-        log_info("✅ PySpark is available")
+        log_info("PySpark is available")
 
         if deps['apache-sedona']:
-            log_info("✅ Apache Sedona is available")
+            log_info("Apache Sedona is available")
         else:
-            log_warning("⚠️  Apache Sedona not available (optional)")
+            log_warning("Apache Sedona not available (optional)")
 
     except Exception as e:
         log_error(f"Could not check dependencies: {e}")
         return False
 
-    log_info("🎉 Spark environment setup complete!")
+    log_info("Spark environment setup complete!")
     return True
 
 
@@ -358,7 +359,7 @@ def diagnose_environment() -> bool:
         >>> else:
         >>>     print("Issues found - check logs")
     """
-    log_info("🔍 Running environment diagnostics...")
+    log_info("Running environment diagnostics...")
 
     issues_found = []
 
@@ -407,18 +408,18 @@ def diagnose_environment() -> bool:
 
     # Report results
     if issues_found:
-        log_error(f"🔍 Environment diagnostics found {len(issues_found)} issues:")
+        log_error(f"Environment diagnostics found {len(issues_found)} issues:")
         for issue in issues_found:
-            log_error(f"   ❌ {issue}")
+            log_error(f"   {issue}")
 
-        log_info("\n💡 Suggested fixes:")
-        log_info("   • Ensure Java 11 or 17 is installed: sdk list java")
-        log_info("   • Install missing dependencies: pip install pyspark")
-        log_info("   • Set environment variables manually if auto-detection fails")
+        log_info("\nSuggested fixes:")
+        log_info("   - Ensure Java 11 or 17 is installed: sdk list java")
+        log_info("   - Install missing dependencies: pip install pyspark")
+        log_info("   - Set environment variables manually if auto-detection fails")
 
         return False
     else:
-        log_info("✅ Environment diagnostics passed - no issues found!")
+        log_info("Environment diagnostics passed - no issues found!")
         return True
 
 
@@ -434,7 +435,7 @@ def quick_environment_setup() -> bool:
         >>> if siege_utilities.quick_environment_setup():
         >>>     print("Ready to go!")
     """
-    log_info("⚡ Quick environment setup...")
+    log_info("Quick environment setup...")
 
     try:
         # Step 1: Environment variables
@@ -442,23 +443,23 @@ def quick_environment_setup() -> bool:
             return False
 
         # Step 2: Test basic functionality
-        log_info("🧪 Testing basic functionality...")
+        log_info("Testing basic functionality...")
         import siege_utilities
 
         # Test package import
         info = siege_utilities.get_package_info()
-        log_info(f"✅ Package loaded: {info['total_functions']} functions available")
+        log_info(f"Package loaded: {info['total_functions']} functions available")
 
         # Test logging
         siege_utilities.log_info("Environment setup test message")
-        log_info("✅ Logging system working")
+        log_info("Logging system working")
 
         # Test string utilities
         result = siege_utilities.remove_wrapping_quotes_and_trim('"test"')
         assert result == "test"
-        log_info("✅ String utilities working")
+        log_info("String utilities working")
 
-        log_info("🎉 Quick environment setup complete!")
+        log_info("Quick environment setup complete!")
         return True
 
     except Exception as e:

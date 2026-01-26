@@ -16,12 +16,7 @@ from pathlib import Path
 import yaml
 from typing import Dict, Any, Optional, List, Union
 
-try:
-    from ..core.logging import log_info, log_warning, log_error
-except ImportError:
-    def log_info(message): print(f"INFO: {message}")
-    def log_warning(message): print(f"WARNING: {message}")
-    def log_error(message): print(f"ERROR: {message}")
+from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
 
 
 class ContentPageTemplate:

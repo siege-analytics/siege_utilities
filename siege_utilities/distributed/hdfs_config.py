@@ -7,6 +7,8 @@ import pathlib
 from dataclasses import dataclass
 from typing import Optional, Callable
 
+from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+
 
 @dataclass
 class HDFSConfig:
@@ -78,9 +80,9 @@ class HDFSConfig:
         if 'YARN_QUEUE' in os.environ:
             self.yarn_queue = os.environ['YARN_QUEUE']
         if self.log_info_func is None:
-            self.log_info_func = lambda msg: print(f'INFO: {msg}')
+            self.log_info_func = lambda msg: log_info(msg)
         if self.log_error_func is None:
-            self.log_error_func = lambda msg: print(f'ERROR: {msg}')
+            self.log_error_func = lambda msg: log_error(msg)
 
     def get_cache_path(self, filename: str) ->pathlib.Path:
         """Get path for cache files"""

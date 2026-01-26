@@ -556,6 +556,6 @@ try:
     from ..core.logging import log_info, log_warning, log_error
 except ImportError:
     # Fallback if core logging not available
-    def log_info(message): print(f"INFO: {message}")
-    def log_warning(message): print(f"WARNING: {message}")
-    def log_error(message): print(f"ERROR: {message}")
+    def log_info(message): logger.info(message)
+    def log_warning(message): logger.warning(message)
+    def log_error(message): logger.error(message)

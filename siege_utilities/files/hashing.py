@@ -6,6 +6,8 @@ import hashlib
 import pathlib
 from typing import Optional
 
+from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+
 
 def generate_sha256_hash_for_file(file_path) ->Optional[str]:
     """
@@ -52,7 +54,7 @@ def generate_sha256_hash_for_file(file_path) ->Optional[str]:
                 sha256_hash.update(chunk)
         return sha256_hash.hexdigest()
     except Exception as e:
-        print(f'Error generating SHA256 hash for {file_path}: {e}')
+        log_error(f'Error generating SHA256 hash for {file_path}: {e}')
         return None
 
 
@@ -109,7 +111,7 @@ def get_file_hash(file_path, algorithm='sha256') ->Optional[str]:
                 hash_func.update(chunk)
         return hash_func.hexdigest()
     except Exception as e:
-        print(f'Error generating {algorithm} hash for {file_path}: {e}')
+        log_error(f'Error generating {algorithm} hash for {file_path}: {e}')
         return None
 
 
@@ -175,7 +177,7 @@ def get_quick_file_signature(file_path) ->str:
     except PathSecurityError:
         raise
     except Exception as e:
-        print(f'Error generating quick signature for {file_path}: {e}')
+        log_error(f'Error generating quick signature for {file_path}: {e}')
         try:
             stat = pathlib.Path(file_path).stat()
             return f'fallback_{stat.st_size}_{stat.st_mtime}'
@@ -230,17 +232,17 @@ def test_hash_functions():
         f.write('Hello, World! This is a test file for hashing.')
         test_file = f.name
     try:
-        print('Testing hash functions...')
+        log_info('Testing hash functions...')
         sha256_hash = generate_sha256_hash_for_file(test_file)
-        print(f'SHA256: {sha256_hash}')
+        log_info(f'SHA256: {sha256_hash}')
         md5_hash = get_file_hash(test_file, 'md5')
-        print(f'MD5: {md5_hash}')
+        log_info(f'MD5: {md5_hash}')
         quick_sig = get_quick_file_signature(test_file)
-        print(f'Quick signature: {quick_sig}')
+        log_info(f'Quick signature: {quick_sig}')
         if sha256_hash:
             verification = verify_file_integrity(test_file, sha256_hash)
-            print(f'Verification: {verification}')
-        print('✅ All hash functions working!')
+            log_info(f'Verification: {verification}')
+        log_info('All hash functions working!')
     finally:
         os.unlink(test_file)
 

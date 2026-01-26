@@ -13,6 +13,8 @@ from enum import Enum
 import pandas as pd
 import warnings
 
+from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+
 class SurveyType(Enum):
     """Enumeration of Census survey types."""
     DECENNIAL = "decennial"           # Every 10 years (2020, 2010, etc.)
@@ -608,8 +610,8 @@ class CensusDatasetMapper:
         
         with open(filepath, 'w') as f:
             json.dump(catalog, f, indent=2)
-        
-        print(f"Dataset catalog exported to {filepath}")
+
+        log_info(f"Dataset catalog exported to {filepath}")
 
 # Convenience functions
 def get_census_dataset_mapper() -> CensusDatasetMapper:
@@ -691,10 +693,10 @@ if __name__ == "__main__":
         geography_level="tract",
         time_sensitivity="medium"
     )
-    print("Data Selection Guide:")
-    print(json.dumps(guide, indent=2))
-    
+    log_info("Data Selection Guide:")
+    log_info(json.dumps(guide, indent=2))
+
     # Example: Compare decennial census with ACS
     comparison = compare_census_datasets("decennial_2020", "acs_5yr_2020")
-    print("\nDataset Comparison:")
-    print(json.dumps(comparison, indent=2))
+    log_info("Dataset Comparison:")
+    log_info(json.dumps(comparison, indent=2))

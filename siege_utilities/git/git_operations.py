@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import List, Dict, Optional, Union
 import re
 
+from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+
 def run_git_command(*args, repo_path: str = ".", check: bool = True) -> str:
     """Run a git command and return the output."""
     try:
@@ -26,45 +28,45 @@ def run_git_command(*args, repo_path: str = ".", check: bool = True) -> str:
         return ""
 
 def create_feature_branch(
-    branch_name: str, 
+    branch_name: str,
     base_branch: str = "main",
     repo_path: str = ".",
     switch_to_branch: bool = True
 ) -> Dict[str, str]:
     """Create a new feature branch from base branch."""
-    
+
     # Validate branch name
     if not re.match(r'^[a-zA-Z0-9/_-]+$', branch_name):
         raise ValueError(f"Invalid branch name: {branch_name}")
-    
+
     # Check if we're on the base branch
     current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
     if current_branch != base_branch:
         # Switch to base branch first
         run_git_command("checkout", base_branch, repo_path=repo_path)
-        print(f"Switched to base branch: {base_branch}")
+        log_info(f"Switched to base branch: {base_branch}")
 
     # Pull latest changes if remote exists
     remotes = run_git_command("remote", repo_path=repo_path, check=False)
     if remotes and "origin" in remotes:
         try:
             run_git_command("pull", "origin", base_branch, repo_path=repo_path, check=False)
-            print(f"Pulled latest changes from {base_branch}")
+            log_info(f"Pulled latest changes from {base_branch}")
         except:
             pass  # Pull failed, continue anyway
 
     # Create and switch to new branch
     run_git_command("checkout", "-b", branch_name, repo_path=repo_path)
-    print(f"Created and switched to feature branch: {branch_name}")
+    log_info(f"Created and switched to feature branch: {branch_name}")
 
     # Push to remote if switch_to_branch is True and remote exists
     if switch_to_branch and remotes and "origin" in remotes:
         try:
             run_git_command("push", "-u", "origin", branch_name, repo_path=repo_path, check=False)
-            print(f"Pushed branch to remote: origin/{branch_name}")
+            log_info(f"Pushed branch to remote: origin/{branch_name}")
         except:
-            print(f"Could not push to remote (continuing anyway)")
-    
+            log_warning(f"Could not push to remote (continuing anyway)")
+
     return {
         "branch_name": branch_name,
         "base_branch": base_branch,
@@ -156,7 +158,7 @@ def merge_branch(
     current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
     if current_branch != target_branch:
         run_git_command("checkout", target_branch, repo_path=repo_path)
-        print(f"Switched to target branch: {target_branch}")
+        log_info(f"Switched to target branch: {target_branch}")
 
     # Pull latest changes
     run_git_command("pull", "origin", target_branch, repo_path=repo_path)
@@ -174,10 +176,10 @@ def merge_branch(
     try:
         run_git_command(*merge_args, repo_path=repo_path)
         merge_status = "success"
-        print(f"Successfully merged {source_branch} into {target_branch}")
+        log_info(f"Successfully merged {source_branch} into {target_branch}")
     except RuntimeError as e:
         merge_status = "failed"
-        print(f"Merge failed: {e}")
+        log_error(f"Merge failed: {e}")
         return {"status": merge_status, "error": str(e)}
 
     return {
@@ -224,7 +226,7 @@ def rebase_branch(
     current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
     if current_branch != source_branch:
         run_git_command("checkout", source_branch, repo_path=repo_path)
-        print(f"Switched to source branch: {source_branch}")
+        log_info(f"Switched to source branch: {source_branch}")
 
     # Prepare rebase command
     rebase_args = ["rebase"]
@@ -237,10 +239,10 @@ def rebase_branch(
     try:
         run_git_command(*rebase_args, repo_path=repo_path)
         rebase_status = "success"
-        print(f"Successfully rebased {source_branch} onto {base_branch}")
+        log_info(f"Successfully rebased {source_branch} onto {base_branch}")
     except RuntimeError as e:
         rebase_status = "failed"
-        print(f"Rebase failed: {e}")
+        log_error(f"Rebase failed: {e}")
         return {"status": rebase_status, "error": str(e)}
 
     return {
@@ -285,19 +287,19 @@ def stash_changes(
         stash_args.extend(["push", "-m", message])
     if include_untracked:
         stash_args.append("-u")
-    
+
     try:
         result = run_git_command(*stash_args, repo_path=repo_path)
         stash_status = "success"
-        
+
         # Extract stash hash if available
         stash_hash = ""
         if "Saved working directory" in result:
             match = re.search(r'stash@{(\d+)}', result)
             if match:
                 stash_hash = match.group(1)
-        
-        print(f"Changes stashed successfully")
+
+        log_info(f"Changes stashed successfully")
         return {
             "status": stash_status,
             "stash_hash": stash_hash,
@@ -306,7 +308,7 @@ def stash_changes(
         }
     except RuntimeError as e:
         stash_status = "failed"
-        print(f"Stash failed: {e}")
+        log_error(f"Stash failed: {e}")
         return {"status": stash_status, "error": str(e)}
 
 def apply_stash(
@@ -344,17 +346,17 @@ def apply_stash(
         pass
 
     stash_args = ["stash", "pop" if pop else "apply", stash_ref]
-    
+
     try:
         run_git_command(*stash_args, repo_path=repo_path)
         apply_status = "success"
         action = "popped" if pop else "applied"
-        print(f"Stash {stash_ref} {action} successfully")
+        log_info(f"Stash {stash_ref} {action} successfully")
     except RuntimeError as e:
         apply_status = "failed"
-        print(f"Stash apply failed: {e}")
+        log_error(f"Stash apply failed: {e}")
         return {"status": apply_status, "error": str(e)}
-    
+
     return {
         "stash_ref": stash_ref,
         "status": apply_status,
@@ -367,26 +369,26 @@ def clean_working_directory(
     directories: bool = False
 ) -> Dict[str, str]:
     """Clean untracked files from working directory."""
-    
+
     clean_args = ["clean"]
     if force:
         clean_args.append("-f")
     if directories:
         clean_args.append("-d")
-    
+
     # First, show what would be cleaned
     dry_run_args = clean_args + ["-n"]
     dry_run_output = run_git_command(*dry_run_args, repo_path=repo_path)
-    
+
     if not dry_run_output.strip():
         return {
             "status": "clean",
             "message": "Working directory is already clean"
         }
-    
-    print("Files to be cleaned:")
-    print(dry_run_output)
-    
+
+    log_info("Files to be cleaned:")
+    log_info(dry_run_output)
+
     if not force:
         response = input("Proceed with cleaning? (y/N): ")
         if response.lower() != 'y':
@@ -394,17 +396,17 @@ def clean_working_directory(
                 "status": "cancelled",
                 "message": "Clean operation cancelled by user"
             }
-    
+
     # Execute clean
     try:
         run_git_command(*clean_args, repo_path=repo_path)
         clean_status = "success"
-        print("Working directory cleaned successfully")
+        log_info("Working directory cleaned successfully")
     except RuntimeError as e:
         clean_status = "failed"
-        print(f"Clean failed: {e}")
+        log_error(f"Clean failed: {e}")
         return {"status": clean_status, "error": str(e)}
-    
+
     return {
         "status": clean_status,
         "force": force,
@@ -445,16 +447,16 @@ def reset_to_commit(
         raise ValueError(f"Invalid reset type. Must be one of: {valid_reset_types}")
 
     reset_args = ["reset", f"--{reset_type}", commit_hash]
-    
+
     try:
         run_git_command(*reset_args, repo_path=repo_path)
         reset_status = "success"
-        print(f"Reset to commit {commit_hash} ({reset_type}) successful")
+        log_info(f"Reset to commit {commit_hash} ({reset_type}) successful")
     except RuntimeError as e:
         reset_status = "failed"
-        print(f"Reset failed: {e}")
+        log_error(f"Reset failed: {e}")
         return {"status": reset_status, "error": str(e)}
-    
+
     return {
         "commit_hash": commit_hash,
         "reset_type": reset_type,
@@ -496,17 +498,17 @@ def cherry_pick_commit(
         cherry_pick_args.append("--continue")
     else:
         cherry_pick_args.append(commit_hash)
-    
+
     try:
         run_git_command(*cherry_pick_args, repo_path=repo_path)
         cherry_pick_status = "success"
         action = "continued" if continue_on_conflict else "applied"
-        print(f"Cherry-pick {action} successfully")
+        log_info(f"Cherry-pick {action} successfully")
     except RuntimeError as e:
         cherry_pick_status = "failed"
-        print(f"Cherry-pick failed: {e}")
+        log_error(f"Cherry-pick failed: {e}")
         return {"status": cherry_pick_status, "error": str(e)}
-    
+
     return {
         "commit_hash": commit_hash,
         "status": cherry_pick_status,
@@ -591,15 +593,15 @@ def create_tag(
     try:
         run_git_command(*tag_args, repo_path=repo_path)
         tag_status = "success"
-        print(f"Tag {tag_name} created successfully")
+        log_info(f"Tag {tag_name} created successfully")
 
         if push:
             run_git_command("push", "origin", tag_name, repo_path=repo_path)
-            print(f"Tag {tag_name} pushed to remote")
+            log_info(f"Tag {tag_name} pushed to remote")
             tag_status = "pushed"
     except RuntimeError as e:
         tag_status = "failed"
-        print(f"Tag creation failed: {e}")
+        log_error(f"Tag creation failed: {e}")
         return {"status": tag_status, "error": str(e)}
 
     return {
@@ -651,17 +653,17 @@ def push_branch(
 
     if branch_name:
         push_args.append(branch_name)
-    
+
     try:
         run_git_command(*push_args, repo_path=repo_path)
         push_status = "success"
         force_text = " (force)" if force else ""
-        print(f"Branch pushed to {remote}{force_text} successfully")
+        log_info(f"Branch pushed to {remote}{force_text} successfully")
     except RuntimeError as e:
         push_status = "failed"
-        print(f"Push failed: {e}")
+        log_error(f"Push failed: {e}")
         return {"status": push_status, "error": str(e)}
-    
+
     return {
         "branch_name": branch_name,
         "remote": remote,
@@ -710,17 +712,17 @@ def pull_branch(
 
     if branch_name:
         pull_args.append(branch_name)
-    
+
     try:
         run_git_command(*pull_args, repo_path=repo_path)
         pull_status = "success"
         rebase_text = " (rebase)" if rebase else ""
-        print(f"Changes pulled from {remote}{rebase_text} successfully")
+        log_info(f"Changes pulled from {remote}{rebase_text} successfully")
     except RuntimeError as e:
         pull_status = "failed"
-        print(f"Pull failed: {e}")
+        log_error(f"Pull failed: {e}")
         return {"status": pull_status, "error": str(e)}
-    
+
     return {
         "branch_name": branch_name,
         "remote": remote,

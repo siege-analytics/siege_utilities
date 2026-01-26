@@ -7,6 +7,8 @@ import time
 import logging
 import uuid
 
+from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+
 if TYPE_CHECKING:
     from pyspark.sql import DataFrame, SparkSession, Column
 
@@ -241,95 +243,61 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
         DataFrame: The DataFrame with the JSON column flattened.
     """
 
-    def log_info(message):
-        """""\"
-Log a message using the info level.
-
-Part of Siege Utilities Logging module.
-Auto-discovered and available at package level.
-
-Returns:
-    Description needed
-
-Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.log_info()
-    >>> print(result)
-
-Note:
-    This function is auto-discovered and available without imports
-    across all siege_utilities modules.
-""\""""
+    def _log_info(message):
+        """Log a message using the info level."""
         if logger:
             logger.info(message)
         else:
-            print(message)
+            log_info(message)
 
-    def log_error(message):
-        """""\"
-Log a message using the error level.
-
-Part of Siege Utilities Logging module.
-Auto-discovered and available at package level.
-
-Returns:
-    Description needed
-
-Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.log_error()
-    >>> print(result)
-
-Note:
-    This function is auto-discovered and available without imports
-    across all siege_utilities modules.
-""\""""
+    def _log_error(message):
+        """Log a message using the error level."""
         if logger:
             logger.error(message)
         else:
-            print(f'ERROR: {message}')
+            log_error(message)
     if verbose:
-        log_info(
+        _log_info(
             f'Flattening JSON in column: {json_column} with prefix: {prefix}')
     if show_samples:
         df.createOrReplaceTempView('json_data_view')
         sample_df = df.filter(col(json_column).isNotNull()).select(json_column
             ).limit(sample_size)
-        log_info(f'Sample of JSON data in {json_column}:')
+        _log_info(f'Sample of JSON data in {json_column}:')
         sample_df.show(truncate=False)
     sample_json = df.filter(col(json_column).isNotNull() & (length(trim(col
         (json_column))) > 2)).select(json_column).limit(sample_size).collect()
     if not sample_json or len(sample_json) == 0 or not sample_json[0][0]:
-        log_info(
+        _log_info(
             f'No valid JSON sample available in column {json_column}, skipping flattening'
             )
         return df.drop(json_column) if drop_original else df
     try:
-        log_info(f'Inferring schema from sample JSON in column {json_column}')
+        _log_info(f'Inferring schema from sample JSON in column {json_column}')
         sample_rdd = df.sparkSession.sparkContext.parallelize([sample_json[
             0][0]])
         inferred_schema = df.sparkSession.read.json(sample_rdd).schema
         if '_corrupt_record' in [field.name for field in inferred_schema.fields
             ]:
-            log_info(
+            _log_info(
                 f'Found corrupt JSON records in column {json_column}. Sample: {sample_json[0][0][:100]}...'
                 )
             if len(sample_json) > 1:
                 for i in range(1, len(sample_json)):
                     if sample_json[i][0]:
-                        log_info(f'Trying with another sample (#{i + 1})')
+                        _log_info(f'Trying with another sample (#{i + 1})')
                         sample_rdd = df.sparkSession.sparkContext.parallelize([
                             sample_json[i][0]])
                         inferred_schema = df.sparkSession.read.json(sample_rdd
                             ).schema
                         if '_corrupt_record' not in [field.name for field in
                             inferred_schema.fields]:
-                            log_info(f'Found valid schema with sample #{i + 1}'
+                            _log_info(f'Found valid schema with sample #{i + 1}'
                                 )
                             break
             if '_corrupt_record' in [field.name for field in
                 inferred_schema.fields]:
-                log_info(
+                _log_info(
                     f'All samples contain corrupt JSON. Falling back to string schema for {json_column}'
                     )
 
@@ -368,12 +336,12 @@ Note:
                     col('parsed_json').isNull(), lit(None).cast(StringType(
                     ))).otherwise(col('parsed_json')))
                 return df.drop(json_column) if drop_original else df
-        log_info(f'Inferred schema: {inferred_schema}')
+        _log_info(f'Inferred schema: {inferred_schema}')
         df_with_json = df.withColumn('parsed_json', from_json(col(
             json_column), inferred_schema))
     except Exception as e:
-        log_error(f'Error inferring schema for {json_column}: {e}')
-        log_info(f'Falling back to string schema for {json_column}')
+        _log_error(f'Error inferring schema for {json_column}: {e}')
+        _log_info(f'Falling back to string schema for {json_column}')
         try:
 
             def validate_json(s):
@@ -411,7 +379,7 @@ Note:
                 'parsed_json').isNull(), lit(None).cast(StringType())).
                 otherwise(col('parsed_json')))
         except:
-            log_error(
+            _log_error(
                 f'Failed even with string schema for {json_column}. Returning original dataframe.'
                 )
             return df.drop(json_column) if drop_original else df
@@ -454,7 +422,7 @@ Note:
                     df = df.drop(struct_col)
                 return df
             except Exception as e:
-                log_error(f'Error in flatten_struct: {e}')
+                _log_error(f'Error in flatten_struct: {e}')
                 return df
         result_df = flatten_struct(df_with_json, 'parsed_json', prefix,
             flatten_level)
@@ -466,17 +434,17 @@ Note:
                 result_df = result_df.withColumn(array_column,
                     explode_outer(col(array_column)))
         except Exception as e:
-            log_error(f'Error exploding arrays: {e}')
+            _log_error(f'Error exploding arrays: {e}')
     columns_to_drop = ['parsed_json']
     if drop_original:
         columns_to_drop.append(json_column)
     result_df = result_df.drop(*columns_to_drop)
-    log_info(
+    _log_info(
         f'Finished flattening JSON column {json_column}. Drop original: {drop_original}'
         )
     if verbose:
-        log_info('Columns after flattening:')
-        log_info(str(result_df.columns))
+        _log_info('Columns after flattening:')
+        _log_info(str(result_df.columns))
     return result_df
 
 
@@ -583,7 +551,7 @@ def reproject_geom_columns(df, geom_columns, source_srid, target_srid):
     Returns:
       DataFrame: The DataFrame with each specified geometry column conditionally reprojected.
     """
-    print('I LOVE LEENA')
+    log_debug('Starting reproject_geom_columns')
     try:
         target_srid_int = int(target_srid.split(':')[1])
         for geom_col in geom_columns:
@@ -592,16 +560,16 @@ def reproject_geom_columns(df, geom_columns, source_srid, target_srid):
                 ))
         return df
     except Exception as e:
-        print('AN ERROR OCCURRED in reproject_geom_columns:', e)
+        log_error(f'An error occurred in reproject_geom_columns: {e}')
         try:
             spark = SparkSession.getActiveSession()
             if spark is not None:
                 spark.stop()
-                print('Spark session stopped due to error.')
+                log_info('Spark session stopped due to error.')
             else:
-                print('No active Spark session to stop.')
+                log_warning('No active Spark session to stop.')
         except Exception as stop_exc:
-            print('Failed to stop Spark session:', stop_exc)
+            log_error(f'Failed to stop Spark session: {stop_exc}')
         raise e
 
 
@@ -623,14 +591,14 @@ def prepare_dataframe_for_export(df, logger_func=None):
     """
     from pyspark.sql.types import BinaryType, StringType, StructType, ArrayType, IntegerType, LongType, DoubleType, FloatType, BooleanType, DateType, TimestampType
     from pyspark.sql.functions import base64, col, to_json, when, isnan, isnull
-    log = logger_func if logger_func else print
+    _log = logger_func if logger_func else log_info
     try:
-        log('🔄 Preparing DataFrame for export...')
+        _log('Preparing DataFrame for export...')
         original_columns = len(df.columns)
         binary_columns = [field.name for field in df.schema.fields if
             isinstance(field.dataType, BinaryType)]
         if binary_columns:
-            log(f'   Converting {len(binary_columns)} binary columns to Base64'
+            _log(f'   Converting {len(binary_columns)} binary columns to Base64'
                 )
             for bcol in binary_columns:
                 df = df.withColumn(bcol, base64(col(bcol)))
@@ -641,7 +609,7 @@ def prepare_dataframe_for_export(df, logger_func=None):
                 ) and field.name != 'parsed_json':
                 simple_fields.append(field.name)
         if simple_fields:
-            log(f'   Converting {len(simple_fields)} scalar fields to strings')
+            _log(f'   Converting {len(simple_fields)} scalar fields to strings')
             for field_name in simple_fields:
                 df = df.withColumn(field_name, when(col(field_name).isNull(
                     ), '').when(isnan(col(field_name)), '').otherwise(col(
@@ -650,29 +618,12 @@ def prepare_dataframe_for_export(df, logger_func=None):
         columns_to_drop = [col_name for col_name in intermediate_columns if
             col_name in df.columns]
         if columns_to_drop:
-            log(f'   Dropping {len(columns_to_drop)} intermediate columns: {columns_to_drop}'
+            _log(f'   Dropping {len(columns_to_drop)} intermediate columns: {columns_to_drop}'
                 )
             df = df.drop(*columns_to_drop)
 
         def identify_complex_columns(dframe):
-            """""\"
-Utility function: identify complex columns.
-
-Part of Siege Utilities Utilities module.
-Auto-discovered and available at package level.
-
-Returns:
-    Description needed
-
-Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.identify_complex_columns()
-    >>> print(result)
-
-Note:
-    This function is auto-discovered and available without imports
-    across all siege_utilities modules.
-""\""""
+            """Utility function: identify complex columns."""
             complex_cols = []
             for field in dframe.schema.fields:
                 if isinstance(field.dataType, (StructType, ArrayType)):
@@ -680,23 +631,23 @@ Note:
             return complex_cols
         complex_columns = identify_complex_columns(df)
         if complex_columns:
-            log(f'   Converting {len(complex_columns)} complex columns to JSON: {complex_columns}'
+            _log(f'   Converting {len(complex_columns)} complex columns to JSON: {complex_columns}'
                 )
             for column_name in complex_columns:
                 df = df.withColumn(column_name, when(col(column_name).
                     isNull(), '').otherwise(to_json(col(column_name))))
         remaining_complex = identify_complex_columns(df)
         if remaining_complex:
-            log(f'⚠️  Some complex columns could not be converted: {remaining_complex}'
+            log_warning(f'Some complex columns could not be converted: {remaining_complex}'
                 )
         else:
-            log('✅ All columns successfully prepared for export')
+            _log('All columns successfully prepared for export')
         final_columns = len(df.columns)
-        log(f'   DataFrame prepared: {original_columns} → {final_columns} columns'
+        _log(f'   DataFrame prepared: {original_columns} -> {final_columns} columns'
             )
         return df
     except Exception as e:
-        log(f'❌ Error preparing DataFrame for export: {e}')
+        log_error(f'Error preparing DataFrame for export: {e}')
         raise
 
 
@@ -714,7 +665,7 @@ def prepare_summary_dataframe(data_tuples, column_names=['metric', 'value'],
     Returns:
         Spark DataFrame with all string columns
     """
-    log = logger_func if logger_func else print
+    _log = logger_func if logger_func else log_info
     try:
         string_data = []
         for row in data_tuples:
@@ -729,10 +680,10 @@ def prepare_summary_dataframe(data_tuples, column_names=['metric', 'value'],
         if spark is None:
             raise Exception('No active Spark session found')
         df = spark.createDataFrame(string_data, schema)
-        log(f'✅ Created summary DataFrame with {len(data_tuples)} rows')
+        _log(f'Created summary DataFrame with {len(data_tuples)} rows')
         return df
     except Exception as e:
-        log(f'❌ Error creating summary DataFrame: {e}')
+        log_error(f'Error creating summary DataFrame: {e}')
         raise
 
 
@@ -752,9 +703,9 @@ def export_pyspark_df_to_excel(df, file_name='output.xlsx', sheet_name='Sheet1'
     try:
         pandas_df = df.toPandas()
         pandas_df.to_excel(file_name, sheet_name=sheet_name, index=False)
-        print(f'DataFrame successfully exported to {file_name}')
+        log_info(f'DataFrame successfully exported to {file_name}')
     except Exception as e:
-        print(f'Error exporting DataFrame: {e}')
+        log_error(f'Error exporting DataFrame: {e}')
 
 
 def pivot_summary_table_for_bools(df, columns, spark):
@@ -874,9 +825,9 @@ def print_debug_table(spark_df, title):
     pdf = spark_df.toPandas()
     table_str = tabulate(pdf, headers='keys', tablefmt='psql', showindex=False)
     log_info(title)
-    print(f'\n{title}:\n')
-    print(table_str)
-    print('\n')
+    log_info(f'\n{title}:\n')
+    log_info(table_str)
+    log_info('\n')
 
 
 walkability_config = {'Trivial': {'max': 100, 'label': 'Trivial (<100m)'},
