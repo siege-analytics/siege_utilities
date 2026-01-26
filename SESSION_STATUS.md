@@ -70,6 +70,7 @@ After pushing to origin, encountered several issues on Mac during local testing:
 | "No space left on device" | Mac disk space exhausted | Free disk space |
 | Notebook files "corrupted" | DataSpell cache corruption | Clear JetBrains caches |
 | Many duplicate " 2" and " 3" files | macOS file conflict copies | `git reset --hard` + `git clean -fd` |
+| DataSpell "Nothing to show" | Persistent cache corruption | Hard reboot + Invalidate Caches |
 
 **Recovery Commands:**
 ```bash
@@ -80,9 +81,18 @@ pip install 'httpx>=0.24,<1.0'
 git fetch origin
 git reset --hard origin/dheerajchand/sketch/siege-utilities-restoration
 git clean -fd
+
+# Clear DataSpell caches (run after closing DataSpell)
+rm -rf ~/Library/Caches/JetBrains/DataSpell2025.3
+rm -rf ~/Library/Application\ Support/JetBrains/DataSpell2025.3/caches
 ```
 
-**Current State:** Repository is clean and synced with origin.
+**Current State:** User doing hard reboot due to strange Mac behavior. Disk space is fine (122GB free).
+
+**After Reboot:**
+1. Clear DataSpell caches OR use DataSpell → Invalidate Caches → Invalidate and Restart
+2. Alternative: Use browser-based Jupyter (`jupyter lab`) to bypass DataSpell
+3. Test notebooks: 02, 04, 14, 15
 
 ### Next Steps
 
