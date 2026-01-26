@@ -5,6 +5,58 @@
 
 ---
 
+## Session 13 Progress (January 25, 2026)
+
+### Logging Refactoring Complete
+
+Replaced all `print()` statements with structured logging using `siege_utilities.core.logging` functions throughout the library.
+
+**Commit:** `aea67b4 refactor: Replace print() with structured logging across library modules`
+
+### Modules Updated (32 files)
+
+| Category | Files |
+|----------|-------|
+| analytics/ | facebook_business.py, google_analytics.py |
+| config/ | clients.py, connections.py, credential_manager.py, databases.py, directories.py, projects.py, user_config.py |
+| core/ | __init__.py |
+| data/ | sample_data.py |
+| development/ | architecture.py |
+| distributed/ | __init__.py, hdfs_config.py, hdfs_legacy.py, spark_utils.py |
+| files/ | hashing.py, shell.py |
+| geo/ | census_data_selector.py, census_dataset_mapper.py |
+| git/ | branch_analyzer.py, git_operations.py, git_workflow.py |
+| hygiene/ | generate_docstrings.py, pypi_release.py |
+| reporting/ | polling_analyzer.py, content_page_template.py, table_of_contents_template.py, title_page_template.py |
+| testing/ | __init__.py, environment.py, runner.py |
+
+### Pattern Used
+
+Each module now imports logging functions with fallback:
+```python
+try:
+    from siege_utilities.core.logging import log_info, log_warning, log_error, log_debug
+except ImportError:
+    def log_info(message): logger.info(message)
+    def log_warning(message): logger.warning(message)
+    def log_error(message): logger.error(message)
+    def log_debug(message): logger.debug(message)
+```
+
+### Test Results
+```
+751 passed, 8 skipped in 396.70s
+Coverage: 33.20% (threshold: 20%)
+```
+
+### Next Steps
+
+1. **Test notebooks in JetBrains** - 02, 04, 14, 15
+2. **Create PR** - Merge `dheerajchand/sketch/siege-utilities-restoration` → `main`
+3. **Update pure-translation** - Add siege_utilities as dependency
+
+---
+
 ## Session 12 Progress (January 25, 2026)
 
 ### Notebook Review and Fixes
