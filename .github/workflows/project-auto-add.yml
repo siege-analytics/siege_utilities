@@ -1,0 +1,14 @@
+name: Auto-add issues to electinfo/tasks project
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  add-to-project:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/add-to-project@v1
+        with:
+          project-url: https://github.com/orgs/electinfo/projects/1
+          github-token: ${{ secrets.ELECTINFO_PROJECT_TOKEN }}
