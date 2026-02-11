@@ -30,9 +30,12 @@ import hashlib
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Union, Any
+from typing import Dict, List, Optional, Union, Any, TYPE_CHECKING
 
 import pandas as pd
+
+if TYPE_CHECKING:
+    import geopandas as gpd
 import requests
 
 from ..config import (

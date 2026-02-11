@@ -4,7 +4,7 @@ Specific actor types that extend the base Person model.
 
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import re
 

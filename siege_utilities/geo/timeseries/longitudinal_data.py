@@ -24,9 +24,12 @@ Example usage:
 """
 
 import logging
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, TYPE_CHECKING
 
 import pandas as pd
+
+if TYPE_CHECKING:
+    import geopandas as gpd
 import numpy as np
 
 log = logging.getLogger(__name__)

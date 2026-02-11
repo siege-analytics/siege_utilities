@@ -3,7 +3,10 @@ Reporting utilities for siege_utilities package.
 Comprehensive PDF and PowerPoint report generation with client branding.
 """
 
+import logging
 from pathlib import Path
+
+log = logging.getLogger(__name__)
 from .templates.base_template import BaseReportTemplate
 from .report_generator import ReportGenerator
 from .chart_generator import ChartGenerator, create_bar_chart, create_line_chart, create_scatter_plot, create_pie_chart, create_heatmap

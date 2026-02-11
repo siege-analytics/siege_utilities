@@ -12,6 +12,15 @@ except ImportError:
     # Fallback if rest_framework_gis is not installed
     GeoFeatureModelSerializer = serializers.ModelSerializer
 
+try:
+    from ..models import (
+        State, County, Tract, BlockGroup, Place, ZCTA,
+        CongressionalDistrict, DemographicSnapshot, BoundaryCrosswalk,
+    )
+except ImportError:
+    State = County = Tract = BlockGroup = Place = ZCTA = None
+    CongressionalDistrict = DemographicSnapshot = BoundaryCrosswalk = None
+
 
 class CensusBoundarySerializer(GeoFeatureModelSerializer):
     """Base serializer for Census boundary models."""
@@ -40,8 +49,6 @@ class CensusBoundarySerializer(GeoFeatureModelSerializer):
 class StateSerializer(CensusBoundarySerializer):
     """Serializer for State boundaries."""
 
-    from ..models import State
-
     class Meta(CensusBoundarySerializer.Meta):
         model = State
         fields = CensusBoundarySerializer.Meta.fields + [
@@ -53,8 +60,6 @@ class StateSerializer(CensusBoundarySerializer):
 
 class CountySerializer(CensusBoundarySerializer):
     """Serializer for County boundaries."""
-
-    from ..models import County
 
     state_name = serializers.CharField(source="state.name", read_only=True)
 
@@ -71,8 +76,6 @@ class CountySerializer(CensusBoundarySerializer):
 
 class TractSerializer(CensusBoundarySerializer):
     """Serializer for Census Tract boundaries."""
-
-    from ..models import Tract
 
     tract_number = serializers.ReadOnlyField()
     county_name = serializers.CharField(source="county.name", read_only=True)
@@ -93,8 +96,6 @@ class TractSerializer(CensusBoundarySerializer):
 class BlockGroupSerializer(CensusBoundarySerializer):
     """Serializer for Block Group boundaries."""
 
-    from ..models import BlockGroup
-
     tract_number = serializers.CharField(source="tract.tract_number", read_only=True)
 
     class Meta(CensusBoundarySerializer.Meta):
@@ -110,8 +111,6 @@ class BlockGroupSerializer(CensusBoundarySerializer):
 
 class PlaceSerializer(CensusBoundarySerializer):
     """Serializer for Place boundaries."""
-
-    from ..models import Place
 
     state_name = serializers.CharField(source="state.name", read_only=True)
 
@@ -129,8 +128,6 @@ class PlaceSerializer(CensusBoundarySerializer):
 class ZCTASerializer(CensusBoundarySerializer):
     """Serializer for ZCTA boundaries."""
 
-    from ..models import ZCTA
-
     class Meta(CensusBoundarySerializer.Meta):
         model = ZCTA
         fields = CensusBoundarySerializer.Meta.fields + ["zcta5"]
@@ -138,8 +135,6 @@ class ZCTASerializer(CensusBoundarySerializer):
 
 class CongressionalDistrictSerializer(CensusBoundarySerializer):
     """Serializer for Congressional District boundaries."""
-
-    from ..models import CongressionalDistrict
 
     is_at_large = serializers.ReadOnlyField()
     state_name = serializers.CharField(source="state.name", read_only=True)
@@ -158,8 +153,6 @@ class CongressionalDistrictSerializer(CensusBoundarySerializer):
 
 class DemographicSnapshotSerializer(serializers.ModelSerializer):
     """Serializer for DemographicSnapshot."""
-
-    from ..models import DemographicSnapshot
 
     geography_type = serializers.CharField(
         source="content_type.model", read_only=True
@@ -230,8 +223,6 @@ class BoundaryWithDemographicsSerializer(serializers.Serializer):
 
 class BoundaryCrosswalkSerializer(serializers.ModelSerializer):
     """Serializer for BoundaryCrosswalk."""
-
-    from ..models import BoundaryCrosswalk
 
     is_unchanged = serializers.ReadOnlyField()
     is_one_to_one = serializers.ReadOnlyField()

@@ -18,7 +18,7 @@ except ImportError:
 
 # ReportLab for PDF generation
 try:
-    from reportlab.platypus import Table, Paragraph, Spacer
+    from reportlab.platypus import Table, Paragraph, Spacer, TableStyle
     from reportlab.lib import colors
     from reportlab.lib.units import inch
     from reportlab.lib.styles import getSampleStyleSheet
@@ -26,6 +26,7 @@ try:
 except ImportError:
     REPORTLAB_AVAILABLE = False
     Table = None
+    TableStyle = None
     Paragraph = None
     Spacer = None
     colors = None
