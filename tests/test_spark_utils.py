@@ -12,24 +12,20 @@ import sys
 import os
 import json
 
-# PySpark
-
 # Unit Testing
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 
-# Spark functions
+# Skip all tests if PySpark is not available
+pyspark = pytest.importorskip("pyspark", reason="PySpark not available")
 
+# PySpark (only imported after skip guard)
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 from pyspark.sql.functions import col
 
 # Siege Utilities
-
 import siege_utilities
-
-# Skip all tests if PySpark is not available
-pytest.importorskip("pyspark", reason="PySpark not available")
 
 try:
     import siege_utilities
