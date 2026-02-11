@@ -8,6 +8,14 @@ import pathlib
 import json
 from unittest.mock import patch, MagicMock
 
+
+def _has_pyspark():
+    try:
+        import pyspark  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
 # Import the functions to test
 from siege_utilities.config.clients import (
     create_client_profile, save_client_profile, load_client_profile,
@@ -328,6 +336,10 @@ class TestConnectionConfiguration:
         assert result['connection_type'] == "notebook"
         assert result['response_time_ms'] is not None
     
+    @pytest.mark.skipif(
+        not _has_pyspark(),
+        reason="PySpark not available"
+    )
     @patch('pyspark.sql.SparkSession')
     def test_test_connection_spark(self, mock_spark_session, tmp_path):
         """Test testing a Spark connection."""

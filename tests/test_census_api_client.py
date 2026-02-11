@@ -12,6 +12,14 @@ from unittest.mock import Mock, patch, MagicMock
 import tempfile
 import os
 
+
+def _has_pyarrow():
+    try:
+        import pyarrow  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
 from siege_utilities.geo.census_api_client import (
     CensusAPIClient,
     CensusAPIError,
@@ -521,6 +529,10 @@ class TestCaching:
         )
         assert key1 != key2
 
+    @pytest.mark.skipif(
+        not _has_pyarrow(),
+        reason="pyarrow not available (required for parquet cache)"
+    )
     def test_save_and_retrieve_from_cache(self, census_client):
         """Test saving and retrieving data from cache."""
         df = pd.DataFrame({
