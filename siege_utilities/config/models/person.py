@@ -3,10 +3,12 @@ Base Person model with comprehensive validation and credential management.
 """
 
 from pydantic import BaseModel, Field, field_validator, ConfigDict
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
 from pathlib import Path
 import re
+
+import yaml
 
 from .credential import Credential, OnePasswordCredential
 from .oauth_integration import OAuthIntegration
@@ -468,8 +470,71 @@ class Person(BaseModel):
         
         return recommendations
     
+    # YAML Serialization Methods
+    def to_dict(self, exclude_sensitive: bool = False) -> dict:
+        """Convert to dictionary, optionally stripping sensitive credential data."""
+        data = self.model_dump()
+        data = _convert_to_yaml_safe(data)
+        if exclude_sensitive:
+            data = _strip_sensitive_fields(data)
+        return data
+
+    def to_yaml(self, path: Optional[Path] = None, exclude_sensitive: bool = False) -> str:
+        """Serialize to YAML string, optionally writing to a file."""
+        data = self.to_dict(exclude_sensitive=exclude_sensitive)
+        yaml_str = yaml.dump(data, default_flow_style=False, sort_keys=False)
+        if path is not None:
+            path = Path(path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(yaml_str)
+        return yaml_str
+
+    @classmethod
+    def from_yaml(cls, yaml_str_or_path: Union[str, Path]) -> 'Person':
+        """Deserialize from a YAML string or file path."""
+        source = yaml_str_or_path
+        if isinstance(source, Path) or (isinstance(source, str) and '\n' not in source and Path(source).exists()):
+            source = Path(source).read_text()
+        data = yaml.safe_load(source)
+        return cls(**data)
+
     model_config = {
         "json_schema_serialization_mode": "json",
         "validate_assignment": True,
         "extra": "forbid"
     }
+
+
+def _convert_to_yaml_safe(obj: Any) -> Any:
+    """Recursively convert Python objects to YAML-safe types."""
+    if isinstance(obj, dict):
+        return {k: _convert_to_yaml_safe(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [_convert_to_yaml_safe(item) for item in obj]
+    elif isinstance(obj, Path):
+        return str(obj)
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    elif hasattr(obj, 'value') and isinstance(obj, type(obj)):
+        # Enum types
+        return obj.value
+    else:
+        return obj
+
+
+def _strip_sensitive_fields(data: dict) -> dict:
+    """Strip sensitive credential data from a dictionary."""
+    sensitive_keys = {'password', 'api_key', 'token', 'secret', 'api_keys',
+                      'google_analytics_key', 'facebook_business_key', 'census_api_key',
+                      'postgresql_connection', 'duckdb_path'}
+    result = {}
+    for k, v in data.items():
+        if k in sensitive_keys:
+            result[k] = '***REDACTED***' if v else v
+        elif isinstance(v, dict):
+            result[k] = _strip_sensitive_fields(v)
+        elif isinstance(v, list):
+            result[k] = [_strip_sensitive_fields(item) if isinstance(item, dict) else item for item in v]
+        else:
+            result[k] = v
+    return result

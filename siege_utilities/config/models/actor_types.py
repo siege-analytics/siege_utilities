@@ -3,23 +3,37 @@ Specific actor types that extend the base Person model.
 """
 
 from pydantic import BaseModel, Field, field_validator, ConfigDict
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from datetime import datetime, timedelta
 from pathlib import Path
 import re
 
-from .person import Person
+import yaml
+
+from .person import Person, _convert_to_yaml_safe, _strip_sensitive_fields
+from .branding_config import BrandingConfig
+from .report_preferences import ReportPreferences
 
 
 class User(Person):
     """
     User actor - Siege/Masai team members and internal users.
-    
+
     Extends Person with user-specific fields and capabilities.
     """
-    
+
     model_config = ConfigDict()
-    
+
+    # Client assignment
+    assigned_clients: List[str] = Field(
+        default_factory=list,
+        description="List of client codes this user is assigned to"
+    )
+    primary_client: Optional[str] = Field(
+        default=None,
+        description="Primary client code for this user"
+    )
+
     # User-specific fields
     username: str = Field(
         min_length=1,
@@ -168,16 +182,77 @@ class User(Person):
             self.permissions.remove(permission)
             self.last_updated = datetime.now()
 
+    # Client Assignment Methods
+    def assign_client(self, client_code: str) -> None:
+        """Assign a client to this user."""
+        if client_code not in self.assigned_clients:
+            self.assigned_clients.append(client_code)
+            self.last_updated = datetime.now()
+
+    def unassign_client(self, client_code: str) -> bool:
+        """Unassign a client from this user. Returns True if removed."""
+        if client_code in self.assigned_clients:
+            self.assigned_clients.remove(client_code)
+            if self.primary_client == client_code:
+                self.primary_client = None
+            self.last_updated = datetime.now()
+            return True
+        return False
+
+    def set_primary_client(self, client_code: str) -> None:
+        """Set the primary client for this user. Must be in assigned_clients."""
+        if client_code not in self.assigned_clients:
+            self.assigned_clients.append(client_code)
+        self.primary_client = client_code
+        self.last_updated = datetime.now()
+
+    def get_assigned_clients(self) -> List[str]:
+        """Get list of assigned client codes."""
+        return list(self.assigned_clients)
+
+    def has_client(self, client_code: str) -> bool:
+        """Check if user is assigned to a client."""
+        return client_code in self.assigned_clients
+
+    @field_validator('assigned_clients')
+    @classmethod
+    def validate_assigned_clients(cls, v):
+        """Validate assigned clients list."""
+        if v:
+            if len(v) != len(set(v)):
+                raise ValueError('Assigned clients must be unique')
+        return v
+
+    @field_validator('primary_client')
+    @classmethod
+    def validate_primary_client(cls, v, info):
+        """Validate primary client is in assigned list."""
+        if v is not None:
+            assigned = info.data.get('assigned_clients', [])
+            if assigned and v not in assigned:
+                raise ValueError(f'Primary client {v} must be in assigned_clients')
+        return v
+
 
 class Client(Person):
     """
     Client actor - External client organizations.
-    
+
     Extends Person with client-specific fields and capabilities.
     """
-    
+
     model_config = ConfigDict()
-    
+
+    # User assignment
+    assigned_users: List[str] = Field(
+        default_factory=list,
+        description="List of person IDs assigned to this client"
+    )
+    primary_user: Optional[str] = Field(
+        default=None,
+        description="Primary user person_id for this client"
+    )
+
     # Client-specific fields
     client_code: str = Field(
         min_length=2,
@@ -200,14 +275,30 @@ class Client(Person):
     )
     
     # Client-specific configurations
-    branding_config: Optional[Dict[str, Any]] = Field(
+    branding_config: Optional[BrandingConfig] = Field(
         default=None,
         description="Client branding configuration"
     )
-    report_preferences: Optional[Dict[str, Any]] = Field(
+    report_preferences: Optional[ReportPreferences] = Field(
         default=None,
         description="Report generation preferences"
     )
+
+    @field_validator('branding_config', mode='before')
+    @classmethod
+    def coerce_branding_config(cls, v):
+        """Accept Dict input and coerce to BrandingConfig for backward compatibility."""
+        if isinstance(v, dict):
+            return BrandingConfig(**v)
+        return v
+
+    @field_validator('report_preferences', mode='before')
+    @classmethod
+    def coerce_report_preferences(cls, v):
+        """Accept Dict input and coerce to ReportPreferences for backward compatibility."""
+        if isinstance(v, dict):
+            return ReportPreferences(**v)
+        return v
     
     @field_validator('client_code')
     @classmethod
@@ -240,6 +331,57 @@ class Client(Person):
     def is_active_client(self) -> bool:
         """Check if client is active."""
         return self.client_status == "active" and self.is_active()
+
+    # User Assignment Methods
+    def assign_user(self, person_id: str) -> None:
+        """Assign a user to this client."""
+        if person_id not in self.assigned_users:
+            self.assigned_users.append(person_id)
+            self.last_updated = datetime.now()
+
+    def unassign_user(self, person_id: str) -> bool:
+        """Unassign a user from this client. Returns True if removed."""
+        if person_id in self.assigned_users:
+            self.assigned_users.remove(person_id)
+            if self.primary_user == person_id:
+                self.primary_user = None
+            self.last_updated = datetime.now()
+            return True
+        return False
+
+    def set_primary_user(self, person_id: str) -> None:
+        """Set the primary user for this client. Must be in assigned_users."""
+        if person_id not in self.assigned_users:
+            self.assigned_users.append(person_id)
+        self.primary_user = person_id
+        self.last_updated = datetime.now()
+
+    def get_assigned_users(self) -> List[str]:
+        """Get list of assigned user person_ids."""
+        return list(self.assigned_users)
+
+    def has_user(self, person_id: str) -> bool:
+        """Check if a user is assigned to this client."""
+        return person_id in self.assigned_users
+
+    @field_validator('assigned_users')
+    @classmethod
+    def validate_assigned_users(cls, v):
+        """Validate assigned users list."""
+        if v:
+            if len(v) != len(set(v)):
+                raise ValueError('Assigned users must be unique')
+        return v
+
+    @field_validator('primary_user')
+    @classmethod
+    def validate_primary_user(cls, v, info):
+        """Validate primary user is in assigned list."""
+        if v is not None:
+            assigned = info.data.get('assigned_users', [])
+            if assigned and v not in assigned:
+                raise ValueError(f'Primary user {v} must be in assigned_users')
+        return v
 
 
 class Collaborator(Person):
@@ -476,7 +618,7 @@ class Organization(BaseModel):
             self.members.append(person_id)
         self.primary_contact = person_id
         self.last_updated = datetime.now()
-    
+
     def get_summary(self) -> Dict[str, Any]:
         """Get organization summary information."""
         return {
@@ -489,6 +631,31 @@ class Organization(BaseModel):
             'created_date': self.created_date.isoformat(),
             'last_updated': self.last_updated.isoformat()
         }
+
+    # YAML Serialization Methods
+    def to_dict(self, exclude_sensitive: bool = False) -> dict:
+        """Convert to dictionary."""
+        data = self.model_dump()
+        return _convert_to_yaml_safe(data)
+
+    def to_yaml(self, path: Optional[Path] = None, exclude_sensitive: bool = False) -> str:
+        """Serialize to YAML string, optionally writing to a file."""
+        data = self.to_dict(exclude_sensitive=exclude_sensitive)
+        yaml_str = yaml.dump(data, default_flow_style=False, sort_keys=False)
+        if path is not None:
+            path = Path(path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(yaml_str)
+        return yaml_str
+
+    @classmethod
+    def from_yaml(cls, yaml_str_or_path: Union[str, Path]) -> 'Organization':
+        """Deserialize from a YAML string or file path."""
+        source = yaml_str_or_path
+        if isinstance(source, Path) or (isinstance(source, str) and '\n' not in source and Path(source).exists()):
+            source = Path(source).read_text()
+        data = yaml.safe_load(source)
+        return cls(**data)
 
 
 class Collaboration(BaseModel):
@@ -626,3 +793,28 @@ class Collaboration(BaseModel):
             'created_date': self.created_date.isoformat(),
             'last_updated': self.last_updated.isoformat()
         }
+
+    # YAML Serialization Methods
+    def to_dict(self, exclude_sensitive: bool = False) -> dict:
+        """Convert to dictionary."""
+        data = self.model_dump()
+        return _convert_to_yaml_safe(data)
+
+    def to_yaml(self, path: Optional[Path] = None, exclude_sensitive: bool = False) -> str:
+        """Serialize to YAML string, optionally writing to a file."""
+        data = self.to_dict(exclude_sensitive=exclude_sensitive)
+        yaml_str = yaml.dump(data, default_flow_style=False, sort_keys=False)
+        if path is not None:
+            path = Path(path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(yaml_str)
+        return yaml_str
+
+    @classmethod
+    def from_yaml(cls, yaml_str_or_path: Union[str, Path]) -> 'Collaboration':
+        """Deserialize from a YAML string or file path."""
+        source = yaml_str_or_path
+        if isinstance(source, Path) or (isinstance(source, str) and '\n' not in source and Path(source).exists()):
+            source = Path(source).read_text()
+        data = yaml.safe_load(source)
+        return cls(**data)
