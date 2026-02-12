@@ -530,3 +530,334 @@ class TestDeprecationWarnings:
             save_client_profile(profile, config_dir=Path(tempfile.mkdtemp()))
             dep_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
             assert len(dep_warnings) >= 1
+
+
+# ============================================================================
+# 7. Person Validator Coverage
+# ============================================================================
+
+class TestPersonValidators:
+    """Tests for Person field validators (phone, website, linkedin, orgs, collabs)."""
+
+    def test_valid_phone(self):
+        u = make_user(phone="(555) 123-4567")
+        assert u.phone == "(555) 123-4567"
+
+    def test_phone_too_few_digits(self):
+        with pytest.raises(Exception):
+            make_user(phone="12345")
+
+    def test_phone_none(self):
+        u = make_user(phone=None)
+        assert u.phone is None
+
+    def test_valid_website(self):
+        u = make_user(website="https://example.com")
+        assert u.website == "https://example.com"
+
+    def test_invalid_website(self):
+        with pytest.raises(Exception):
+            make_user(website="not-a-url")
+
+    def test_valid_linkedin(self):
+        u = make_user(linkedin="https://linkedin.com/in/dheeraj-chand")
+        assert u.linkedin is not None
+
+    def test_invalid_linkedin(self):
+        with pytest.raises(Exception):
+            make_user(linkedin="https://example.com/dheeraj")
+
+    def test_duplicate_organizations_rejected(self):
+        with pytest.raises(Exception):
+            make_user(organizations=["org1", "org1"])
+
+    def test_duplicate_collaborations_rejected(self):
+        with pytest.raises(Exception):
+            make_user(collaborations=["c1", "c1"])
+
+    def test_invalid_email_rejected(self):
+        with pytest.raises(Exception):
+            make_user(email="not-an-email")
+
+
+# ============================================================================
+# 8. Person Credential Management
+# ============================================================================
+
+class TestPersonCredentialManagement:
+    """Tests for Person.add_credential/remove_credential/get_credential etc."""
+
+    def _make_credential(self, name="ga-cred", service="google_analytics"):
+        from siege_utilities.config.models.credential import Credential
+        return Credential(
+            name=name, credential_type="api_key", service=service,
+            api_key="abcdefghijklmnop"
+        )
+
+    def test_add_credential(self):
+        u = make_user()
+        cred = self._make_credential()
+        u.add_credential(cred)
+        assert len(u.credentials) == 1
+
+    def test_add_duplicate_credential_rejected(self):
+        u = make_user()
+        cred = self._make_credential()
+        u.add_credential(cred)
+        with pytest.raises(ValueError, match="already exists"):
+            u.add_credential(cred)
+
+    def test_remove_credential(self):
+        u = make_user()
+        u.add_credential(self._make_credential())
+        result = u.remove_credential("ga-cred")
+        assert result is True
+        assert len(u.credentials) == 0
+
+    def test_remove_credential_not_found(self):
+        u = make_user()
+        result = u.remove_credential("nonexistent")
+        assert result is False
+
+    def test_get_credential(self):
+        u = make_user()
+        u.add_credential(self._make_credential())
+        cred = u.get_credential("ga-cred")
+        assert cred is not None
+        assert cred.name == "ga-cred"
+
+    def test_get_credential_not_found(self):
+        u = make_user()
+        assert u.get_credential("nonexistent") is None
+
+    def test_get_credentials_for_service(self):
+        u = make_user()
+        u.add_credential(self._make_credential("cred1", "google_analytics"))
+        u.add_credential(self._make_credential("cred2", "facebook"))
+        ga_creds = u.get_credentials_for_service("google_analytics")
+        assert len(ga_creds) == 1
+        assert ga_creds[0].name == "cred1"
+
+    def test_get_valid_credentials(self):
+        u = make_user()
+        u.add_credential(self._make_credential())
+        valid = u.get_valid_credentials()
+        assert len(valid) == 1
+
+
+# ============================================================================
+# 9. Person Organization & Collaboration Management
+# ============================================================================
+
+class TestPersonOrgCollabManagement:
+    """Tests for Person org/collab add/remove/set_primary methods."""
+
+    def test_add_organization(self):
+        u = make_user()
+        u.add_organization("siege")
+        assert "siege" in u.organizations
+
+    def test_add_organization_no_duplicate(self):
+        u = make_user()
+        u.add_organization("siege")
+        u.add_organization("siege")
+        assert u.organizations.count("siege") == 1
+
+    def test_remove_organization(self):
+        u = make_user()
+        u.add_organization("siege")
+        u.remove_organization("siege")
+        assert "siege" not in u.organizations
+
+    def test_remove_organization_clears_primary(self):
+        u = make_user()
+        u.set_primary_organization("siege")
+        u.remove_organization("siege")
+        assert u.primary_organization is None
+
+    def test_set_primary_organization_auto_adds(self):
+        u = make_user()
+        u.set_primary_organization("siege")
+        assert "siege" in u.organizations
+        assert u.primary_organization == "siege"
+
+    def test_has_organization(self):
+        u = make_user()
+        u.add_organization("siege")
+        assert u.has_organization("siege")
+        assert not u.has_organization("other")
+
+    def test_add_collaboration(self):
+        u = make_user()
+        u.add_collaboration("proj1")
+        assert "proj1" in u.collaborations
+
+    def test_add_collaboration_no_duplicate(self):
+        u = make_user()
+        u.add_collaboration("proj1")
+        u.add_collaboration("proj1")
+        assert u.collaborations.count("proj1") == 1
+
+    def test_remove_collaboration(self):
+        u = make_user()
+        u.add_collaboration("proj1")
+        u.remove_collaboration("proj1")
+        assert "proj1" not in u.collaborations
+
+    def test_has_collaboration(self):
+        u = make_user()
+        u.add_collaboration("proj1")
+        assert u.has_collaboration("proj1")
+        assert not u.has_collaboration("other")
+
+    def test_is_active(self):
+        u = make_user()
+        assert u.is_active()
+
+    def test_get_summary(self):
+        u = make_user()
+        summary = u.get_summary()
+        assert summary["person_id"] == "dheeraj"
+        assert "created_date" in summary
+
+
+# ============================================================================
+# 10. YAML Utility Function Edge Cases
+# ============================================================================
+
+class TestYamlUtilityEdgeCases:
+    """Tests for _convert_to_yaml_safe and _strip_sensitive_fields edge cases."""
+
+    def test_convert_path_to_string(self):
+        from siege_utilities.config.models.person import _convert_to_yaml_safe
+        result = _convert_to_yaml_safe(Path("/tmp/test"))
+        assert result == "/tmp/test"
+        assert isinstance(result, str)
+
+    def test_convert_datetime_to_iso(self):
+        from siege_utilities.config.models.person import _convert_to_yaml_safe
+        dt = datetime(2026, 1, 1, 12, 0, 0)
+        result = _convert_to_yaml_safe(dt)
+        assert result == "2026-01-01T12:00:00"
+
+    def test_convert_enum(self):
+        from siege_utilities.config.models.person import _convert_to_yaml_safe
+        from siege_utilities.config.models.credential import CredentialType
+        result = _convert_to_yaml_safe(CredentialType.API_KEY)
+        assert result == "api_key"
+
+    def test_convert_nested_list(self):
+        from siege_utilities.config.models.person import _convert_to_yaml_safe
+        result = _convert_to_yaml_safe([Path("/a"), Path("/b")])
+        assert result == ["/a", "/b"]
+
+    def test_strip_sensitive_nested_dict(self):
+        from siege_utilities.config.models.person import _strip_sensitive_fields
+        data = {"config": {"api_key": "secret123", "name": "test"}}
+        result = _strip_sensitive_fields(data)
+        assert result["config"]["api_key"] == "***REDACTED***"
+        assert result["config"]["name"] == "test"
+
+    def test_strip_sensitive_list_of_dicts(self):
+        from siege_utilities.config.models.person import _strip_sensitive_fields
+        data = {"creds": [{"password": "pass123"}, {"name": "safe"}]}
+        result = _strip_sensitive_fields(data)
+        assert result["creds"][0]["password"] == "***REDACTED***"
+        assert result["creds"][1]["name"] == "safe"
+
+    def test_strip_sensitive_empty_value(self):
+        from siege_utilities.config.models.person import _strip_sensitive_fields
+        data = {"api_key": "", "name": "test"}
+        result = _strip_sensitive_fields(data)
+        assert result["api_key"] == ""  # empty string stays empty
+
+    def test_convert_plain_value_passthrough(self):
+        from siege_utilities.config.models.person import _convert_to_yaml_safe
+        assert _convert_to_yaml_safe(42) == 42
+        assert _convert_to_yaml_safe("hello") == "hello"
+        assert _convert_to_yaml_safe(True) is True
+
+    def test_convert_nested_dict(self):
+        from siege_utilities.config.models.person import _convert_to_yaml_safe
+        dt = datetime(2026, 6, 15)
+        result = _convert_to_yaml_safe({"inner": {"date": dt, "path": Path("/x")}})
+        assert result["inner"]["date"] == "2026-06-15T00:00:00"
+        assert result["inner"]["path"] == "/x"
+
+
+# ============================================================================
+# 11. Collaborator-specific Tests
+# ============================================================================
+
+class TestCollaboratorMethods:
+    """Tests for Collaborator-specific methods."""
+
+    def test_is_access_expired_false(self):
+        co = make_collaborator()
+        assert not co.is_access_expired()
+
+    def test_is_access_expired_no_expiry(self):
+        co = make_collaborator(access_expires=None)
+        assert not co.is_access_expired()
+
+    def test_can_access_service_inactive(self):
+        co = make_collaborator(invitation_accepted=None)
+        assert not co.can_access_service("google_analytics")
+
+    def test_can_access_service_accepted(self):
+        co = make_collaborator(
+            invitation_accepted=datetime.now(),
+            allowed_services=["google_analytics"]
+        )
+        assert co.can_access_service("google_analytics")
+        assert not co.can_access_service("facebook")
+
+    def test_can_access_service_no_restrictions(self):
+        co = make_collaborator(
+            invitation_accepted=datetime.now(),
+            allowed_services=[]
+        )
+        assert co.can_access_service("anything")
+
+
+# ============================================================================
+# 12. Client-specific Method Tests
+# ============================================================================
+
+class TestClientMethods:
+    """Tests for Client-specific methods."""
+
+    def test_increment_project_count(self):
+        c = make_client(project_count=3)
+        c.increment_project_count()
+        assert c.project_count == 4
+
+    def test_decrement_project_count(self):
+        c = make_client(project_count=3)
+        c.decrement_project_count()
+        assert c.project_count == 2
+
+    def test_decrement_project_count_at_zero(self):
+        c = make_client(project_count=0)
+        c.decrement_project_count()
+        assert c.project_count == 0
+
+    def test_is_active_client(self):
+        c = make_client(client_status="active")
+        assert c.is_active_client()
+
+    def test_is_active_client_inactive(self):
+        c = make_client(client_status="inactive")
+        assert not c.is_active_client()
+
+    def test_client_code_too_short(self):
+        with pytest.raises(Exception):
+            make_client(client_code="H")
+
+    def test_client_code_not_uppercase(self):
+        with pytest.raises(Exception):
+            make_client(client_code="hill")
+
+    def test_client_code_reserved(self):
+        with pytest.raises(Exception):
+            make_client(client_code="DEFAULT")
