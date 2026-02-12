@@ -6,6 +6,7 @@ Enhanced with Pydantic validation while maintaining backward compatibility.
 
 import logging
 import json
+import warnings
 import yaml
 from pathlib import Path
 from typing import Dict, Any, Optional, Union
@@ -20,8 +21,19 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class UserProfile:
-    """User profile information and preferences."""
-    
+    """User profile information and preferences.
+
+    .. deprecated::
+        Use ``User`` from ``siege_utilities.config.models.actor_types`` instead.
+    """
+
+    def __post_init__(self):
+        warnings.warn(
+            "UserProfile (dataclass) is deprecated. Use User from siege_utilities.config.models.actor_types instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
     # Personal Information
     username: str = ""
     email: str = ""

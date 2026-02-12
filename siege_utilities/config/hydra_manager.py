@@ -13,14 +13,15 @@ from typing import Dict, Any, Optional, List, Union
 import logging
 
 from .models import (
-    UserProfile, 
-    ClientProfile, 
+    UserProfile,
+    ClientProfile,
     ContactInfo,
     DatabaseConnection,
     SocialMediaAccount,
     BrandingConfig,
     ReportPreferences
 )
+from .models.actor_types import User, Client
 
 logger = logging.getLogger(__name__)
 
@@ -331,6 +332,105 @@ class HydraConfigManager:
         logger.info(f"Loaded default branding for client: {client_code or 'default'}")
         return branding
     
+    # Modern Person/Actor model methods
+    def load_user(self, person_id: str, profiles_dir: Optional[Path] = None) -> Optional[User]:
+        """
+        Load a modern User from YAML file.
+
+        Args:
+            person_id: The person_id of the user to load.
+            profiles_dir: Directory containing user YAML files. Defaults to config_dir/profiles/users.
+
+        Returns:
+            User instance, or None if file not found.
+        """
+        profiles_dir = profiles_dir or self.config_dir / "profiles" / "users"
+        user_file = profiles_dir / f"{person_id}.yaml"
+
+        if not user_file.exists():
+            logger.warning(f"User profile not found: {user_file}")
+            return None
+
+        try:
+            user = User.from_yaml(user_file)
+            logger.info(f"Loaded modern User: {person_id}")
+            return user
+        except Exception as e:
+            logger.error(f"Failed to load User {person_id}: {e}")
+            return None
+
+    def load_client(self, client_code: str, profiles_dir: Optional[Path] = None) -> Optional[Client]:
+        """
+        Load a modern Client from YAML file.
+
+        Args:
+            client_code: The client_code to load.
+            profiles_dir: Directory containing client YAML files. Defaults to config_dir/profiles/clients.
+
+        Returns:
+            Client instance, or None if file not found.
+        """
+        profiles_dir = profiles_dir or self.config_dir / "profiles" / "clients"
+        client_file = profiles_dir / f"{client_code}.yaml"
+
+        if not client_file.exists():
+            logger.warning(f"Client profile not found: {client_file}")
+            return None
+
+        try:
+            client = Client.from_yaml(client_file)
+            logger.info(f"Loaded modern Client: {client_code}")
+            return client
+        except Exception as e:
+            logger.error(f"Failed to load Client {client_code}: {e}")
+            return None
+
+    def save_user(self, user: User, profiles_dir: Optional[Path] = None) -> bool:
+        """
+        Save a modern User to YAML file.
+
+        Args:
+            user: User instance to save.
+            profiles_dir: Directory to save the YAML file. Defaults to config_dir/profiles/users.
+
+        Returns:
+            True if successful, False otherwise.
+        """
+        profiles_dir = profiles_dir or self.config_dir / "profiles" / "users"
+        profiles_dir.mkdir(parents=True, exist_ok=True)
+        user_file = profiles_dir / f"{user.person_id}.yaml"
+
+        try:
+            user.to_yaml(path=user_file)
+            logger.info(f"Saved modern User: {user.person_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save User {user.person_id}: {e}")
+            return False
+
+    def save_client(self, client: Client, profiles_dir: Optional[Path] = None) -> bool:
+        """
+        Save a modern Client to YAML file.
+
+        Args:
+            client: Client instance to save.
+            profiles_dir: Directory to save the YAML file. Defaults to config_dir/profiles/clients.
+
+        Returns:
+            True if successful, False otherwise.
+        """
+        profiles_dir = profiles_dir or self.config_dir / "profiles" / "clients"
+        profiles_dir.mkdir(parents=True, exist_ok=True)
+        client_file = profiles_dir / f"{client.client_code}.yaml"
+
+        try:
+            client.to_yaml(path=client_file)
+            logger.info(f"Saved modern Client: {client.client_code}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save Client {client.client_code}: {e}")
+            return False
+
     def cleanup(self):
         """Clean up Hydra instance."""
         if self._hydra_initialized:

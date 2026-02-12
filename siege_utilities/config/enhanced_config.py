@@ -6,6 +6,7 @@ while maintaining backward compatibility.
 """
 
 import json
+import warnings
 import yaml
 from pathlib import Path
 from typing import Dict, Any, Optional, List
@@ -367,14 +368,22 @@ def backup_and_migrate(legacy_config_dir: Optional[Path] = None, backup_dir: Opt
 def load_user_profile(username: str, config_dir: Optional[Path] = None) -> Optional[UserProfile]:
     """
     Load user profile from YAML file (legacy compatibility).
-    
+
+    .. deprecated::
+        Use ``HydraConfigManager.load_user()`` for the modern User model.
+
     Args:
         username: Username to load
         config_dir: Configuration directory
-        
+
     Returns:
         UserProfile object or None if not found
     """
+    warnings.warn(
+        "load_user_profile() is deprecated. Use HydraConfigManager.load_user() for the modern User model.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     try:
         config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "users"
         config_file = config_dir / f"{username}.yaml"
@@ -413,6 +422,9 @@ def save_user_profile(profile: UserProfile, username: str, config_dir: Optional[
     """
     Save user profile to YAML file (legacy compatibility).
 
+    .. deprecated::
+        Use ``HydraConfigManager.save_user()`` for the modern User model.
+
     Args:
         profile: UserProfile object to save
         username: Username to save as
@@ -421,6 +433,11 @@ def save_user_profile(profile: UserProfile, username: str, config_dir: Optional[
     Returns:
         True if successful, False otherwise
     """
+    warnings.warn(
+        "save_user_profile() is deprecated. Use HydraConfigManager.save_user() for the modern User model.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     try:
         config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "users"
         config_dir.mkdir(parents=True, exist_ok=True)
@@ -464,14 +481,22 @@ def get_download_directory(username: str, config_dir: Optional[Path] = None) -> 
 def load_client_profile(client_code: str, config_dir: Optional[Path] = None) -> Optional[ClientProfile]:
     """
     Load client profile from YAML file (legacy compatibility).
-    
+
+    .. deprecated::
+        Use ``HydraConfigManager.load_client()`` for the modern Client model.
+
     Args:
         client_code: Client code to load
         config_dir: Configuration directory
-        
+
     Returns:
         ClientProfile object or None if not found
     """
+    warnings.warn(
+        "load_client_profile() is deprecated. Use HydraConfigManager.load_client() for the modern Client model.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     try:
         config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "clients"
         config_file = config_dir / f"{client_code}.yaml"
@@ -494,6 +519,9 @@ def save_client_profile(profile: ClientProfile, config_dir: Optional[Path] = Non
     """
     Save client profile to YAML file (legacy compatibility).
 
+    .. deprecated::
+        Use ``HydraConfigManager.save_client()`` for the modern Client model.
+
     Args:
         profile: ClientProfile object to save
         config_dir: Configuration directory
@@ -501,6 +529,11 @@ def save_client_profile(profile: ClientProfile, config_dir: Optional[Path] = Non
     Returns:
         True if successful, False otherwise
     """
+    warnings.warn(
+        "save_client_profile() is deprecated. Use HydraConfigManager.save_client() for the modern Client model.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     try:
         config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "clients"
         config_dir.mkdir(parents=True, exist_ok=True)
