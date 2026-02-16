@@ -43,21 +43,24 @@ class CredentialManager:
     5. Interactive prompts (fallback)
     """
     
-    def __init__(self, 
-                 backend_priority: List[str] = None, 
+    def __init__(self,
+                 backend_priority: List[str] = None,
                  default_vault: str = "Private",
+                 default_account: Optional[str] = None,
                  credential_paths: List[Union[str, Path]] = None):
         """
         Initialize credential manager.
-        
+
         Args:
             backend_priority: List of backends in priority order
                             ['files', 'env', '1password', 'keychain', 'prompt']
             default_vault: Default 1Password vault to use
+            default_account: Default 1Password account shorthand or UUID
             credential_paths: Additional paths to search for credential files
         """
         self.backend_priority = backend_priority or ['files', 'env', '1password', 'keychain', 'prompt']
         self.default_vault = default_vault
+        self.default_account = default_account
         self.credential_paths = self._setup_credential_paths(credential_paths)
         self.available_backends = self._detect_available_backends()
         
@@ -130,31 +133,57 @@ class CredentialManager:
         except FileNotFoundError:
             return False
     
-    def get_credential(self, service: str, username: str, field: str = "password", 
-                      search_paths: Optional[List[Path]] = None) -> Optional[str]:
+    def _build_op_flags(self, vault: Optional[str] = None,
+                        account: Optional[str] = None) -> List[str]:
+        """Build common op CLI flags for vault and account targeting.
+
+        Args:
+            vault: Vault override. Falls back to self.default_vault if None.
+            account: Account override. Falls back to self.default_account if None.
+
+        Returns:
+            List of CLI flag strings to append to op commands.
+        """
+        flags = []
+        effective_vault = vault or self.default_vault
+        effective_account = account or self.default_account
+
+        if effective_vault:
+            flags.append(f'--vault={effective_vault}')
+        if effective_account:
+            flags.append(f'--account={effective_account}')
+
+        return flags
+
+    def get_credential(self, service: str, username: str, field: str = "password",
+                      search_paths: Optional[List[Path]] = None,
+                      vault: Optional[str] = None,
+                      account: Optional[str] = None) -> Optional[str]:
         """
         Retrieve credential using configured backend priority.
-        
+
         Args:
             service: Service name (e.g., 'google-analytics', 'postgres')
             username: Username or identifier
             field: Field to retrieve ('password', 'client_id', 'client_secret', etc.)
             search_paths: Additional paths to search for credential files
-            
+            vault: 1Password vault override (falls back to default_vault)
+            account: 1Password account override (falls back to default_account)
+
         Returns:
             Credential value or None if not found
         """
         for backend in self.backend_priority:
             if not self.available_backends.get(backend, False):
                 continue
-                
+
             try:
                 if backend == 'files':
                     value = self._get_from_files(service, username, field, search_paths)
                 elif backend == 'env':
                     value = self._get_from_env(service, username, field)
                 elif backend == '1password':
-                    value = self._get_from_1password(service, field)
+                    value = self._get_from_1password(service, field, vault=vault, account=account)
                 elif backend == 'keychain':
                     value = self._get_from_keychain(service, username)
                 elif backend == 'prompt':
@@ -271,35 +300,44 @@ class CredentialManager:
                 return value
         return None
     
-    def _get_from_1password(self, service: str, field: str) -> Optional[str]:
-        """Get credential from 1Password."""
+    def _get_from_1password(self, service: str, field: str,
+                            vault: Optional[str] = None,
+                            account: Optional[str] = None) -> Optional[str]:
+        """Get credential from 1Password.
+
+        Args:
+            service: Item title or identifier in 1Password
+            field: Field name to retrieve
+            vault: Vault override (falls back to default_vault)
+            account: Account override (falls back to default_account)
+        """
         try:
+            op_flags = self._build_op_flags(vault=vault, account=account)
+
             # Try to find item by service name
-            result = subprocess.run([
-                'op', 'item', 'get', service, f'--field={field}'
-            ], capture_output=True, text=True)
-            
+            cmd = ['op', 'item', 'get', service, f'--field={field}'] + op_flags
+            result = subprocess.run(cmd, capture_output=True, text=True)
+
             if result.returncode == 0:
                 return result.stdout.strip()
-            
+
             # Try with common service name variations
             service_variations = [
                 f"{service} API",
-                f"{service} Credentials", 
+                f"{service} Credentials",
                 f"{service.replace('-', ' ').title()} API",
                 f"{service.replace('-', ' ').title()} Credentials"
             ]
-            
+
             for variation in service_variations:
-                result = subprocess.run([
-                    'op', 'item', 'get', variation, f'--field={field}'
-                ], capture_output=True, text=True)
-                
+                cmd = ['op', 'item', 'get', variation, f'--field={field}'] + op_flags
+                result = subprocess.run(cmd, capture_output=True, text=True)
+
                 if result.returncode == 0:
                     return result.stdout.strip()
-                    
+
             return None
-            
+
         except Exception:
             return None
     
@@ -338,23 +376,28 @@ class CredentialManager:
         except (EOFError, KeyboardInterrupt):
             return None
     
-    def store_credential(self, service: str, username: str, value: str, 
-                        field: str = "password", backend: str = "1password") -> bool:
+    def store_credential(self, service: str, username: str, value: str,
+                        field: str = "password", backend: str = "1password",
+                        vault: Optional[str] = None,
+                        account: Optional[str] = None) -> bool:
         """
         Store credential in specified backend.
-        
+
         Args:
             service: Service name
-            username: Username or identifier  
+            username: Username or identifier
             value: Credential value
             field: Field name
             backend: Backend to use ('1password', 'keychain', 'env')
-            
+            vault: 1Password vault override (falls back to default_vault)
+            account: 1Password account override (falls back to default_account)
+
         Returns:
             True if successful, False otherwise
         """
         if backend == '1password' and self.available_backends.get('1password'):
-            return self._store_in_1password(service, username, value, field)
+            return self._store_in_1password(service, username, value, field,
+                                            vault=vault, account=account)
         elif backend == 'keychain' and self.available_backends.get('keychain'):
             return self._store_in_keychain(service, username, value)
         elif backend == 'env':
@@ -363,29 +406,31 @@ class CredentialManager:
             log_error(f"Backend '{backend}' not available")
             return False
     
-    def _store_in_1password(self, service: str, username: str, value: str, field: str) -> bool:
+    def _store_in_1password(self, service: str, username: str, value: str, field: str,
+                            vault: Optional[str] = None,
+                            account: Optional[str] = None) -> bool:
         """Store credential in 1Password."""
         try:
+            op_flags = self._build_op_flags(vault=vault, account=account)
+
             # Check if item exists, update or create
-            existing = self._get_from_1password(service, field)
-            
+            existing = self._get_from_1password(service, field, vault=vault, account=account)
+
             if existing:
                 # Update existing item
-                result = subprocess.run([
-                    'op', 'item', 'edit', service,
-                    f'{field}={value}'
-                ], capture_output=True, text=True)
+                cmd = ['op', 'item', 'edit', service, f'{field}={value}'] + op_flags
+                result = subprocess.run(cmd, capture_output=True, text=True)
             else:
                 # Create new item
-                result = subprocess.run([
+                cmd = [
                     'op', 'item', 'create',
                     '--category=login',
                     f'--title={service}',
-                    f'--vault={self.default_vault}',
                     f'username={username}',
                     f'{field}={value}',
                     f'--tags=siege-utilities,{service}'
-                ], capture_output=True, text=True)
+                ] + op_flags
+                result = subprocess.run(cmd, capture_output=True, text=True)
             
             if result.returncode == 0:
                 log_info(f"Stored {field} for {service} in 1Password")
@@ -529,28 +574,32 @@ class CredentialManager:
             log_error(f"Error retrieving Google Analytics credentials: {e}")
             return None
     
-    def list_stored_credentials(self, service_filter: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_stored_credentials(self, service_filter: Optional[str] = None,
+                                vault: Optional[str] = None,
+                                account: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         List stored credentials across all backends.
-        
+
         Args:
             service_filter: Optional service name to filter by
-            
+            vault: 1Password vault override (falls back to default_vault)
+            account: 1Password account override (falls back to default_account)
+
         Returns:
             List of credential information dictionaries
         """
         credentials = []
-        
+
         # List from 1Password
         if self.available_backends.get('1password'):
             try:
                 tags = 'siege-utilities'
                 if service_filter:
                     tags += f',{service_filter}'
-                
-                result = subprocess.run([
-                    'op', 'item', 'list', f'--tags={tags}', '--format=json'
-                ], capture_output=True, text=True)
+
+                op_flags = self._build_op_flags(vault=vault, account=account)
+                cmd = ['op', 'item', 'list', f'--tags={tags}', '--format=json'] + op_flags
+                result = subprocess.run(cmd, capture_output=True, text=True)
                 
                 if result.returncode == 0:
                     items = json.loads(result.stdout)
@@ -648,42 +697,58 @@ class CredentialManager:
 
 
 # Convenience functions for common operations
-def get_credential(service: str, username: str, field: str = "password", 
-                  search_paths: Optional[List[Union[str, Path]]] = None) -> Optional[str]:
+def get_credential(service: str, username: str, field: str = "password",
+                  search_paths: Optional[List[Union[str, Path]]] = None,
+                  vault: Optional[str] = None,
+                  account: Optional[str] = None) -> Optional[str]:
     """
     Get credential using default credential manager.
-    
+
     Args:
-        service: Service name
+        service: Service name (or 1Password item title)
         username: Username or identifier
         field: Field to retrieve
         search_paths: Additional paths to search for credential files
-        
+        vault: 1Password vault (overrides default "Private")
+        account: 1Password account shorthand or UUID
+
     Returns:
         Credential value or None
     """
-    manager = CredentialManager()
+    manager = CredentialManager(
+        default_vault=vault or "Private",
+        default_account=account,
+    )
     path_objects = [Path(p) for p in search_paths] if search_paths else None
-    return manager.get_credential(service, username, field, path_objects)
+    return manager.get_credential(service, username, field, path_objects,
+                                  vault=vault, account=account)
 
 
-def store_credential(service: str, username: str, value: str, 
-                    field: str = "password", backend: str = "1password") -> bool:
+def store_credential(service: str, username: str, value: str,
+                    field: str = "password", backend: str = "1password",
+                    vault: Optional[str] = None,
+                    account: Optional[str] = None) -> bool:
     """
     Store credential using default credential manager.
-    
+
     Args:
         service: Service name
         username: Username or identifier
         value: Credential value
         field: Field name
         backend: Backend to use
-        
+        vault: 1Password vault (overrides default "Private")
+        account: 1Password account shorthand or UUID
+
     Returns:
         True if successful
     """
-    manager = CredentialManager()
-    return manager.store_credential(service, username, value, field, backend)
+    manager = CredentialManager(
+        default_vault=vault or "Private",
+        default_account=account,
+    )
+    return manager.store_credential(service, username, value, field, backend,
+                                    vault=vault, account=account)
 
 
 def store_ga_credentials_from_file(credentials_file: Union[str, Path],
@@ -865,23 +930,33 @@ def get_ga_service_account_credentials() -> Optional[Dict[str, str]]:
     return None
 
 
-def get_google_service_account_from_1password(item_title: str = "Google Analytics Service Account - Multi-Client Reporter") -> Optional[Dict[str, str]]:
+def get_google_service_account_from_1password(item_title: str = "Google Analytics Service Account - Multi-Client Reporter",
+                                              vault: Optional[str] = None,
+                                              account: Optional[str] = None) -> Optional[Dict[str, str]]:
     """
     Get Google service account credentials from 1Password.
     Based on working implementation from GA project.
-    
+
     Args:
         item_title: Title of the 1Password item containing service account
-        
+        vault: 1Password vault name
+        account: 1Password account shorthand or UUID
+
     Returns:
         Service account credentials dictionary or None if not found
     """
     try:
         import subprocess
-        
+
+        op_flags = []
+        if vault:
+            op_flags.append(f'--vault={vault}')
+        if account:
+            op_flags.append(f'--account={account}')
+
         def get_field(field_name: str) -> str:
             """Get a specific field from the 1Password item"""
-            cmd = ['op', 'item', 'get', item_title, f'--field={field_name}', '--reveal']
+            cmd = ['op', 'item', 'get', item_title, f'--field={field_name}', '--reveal'] + op_flags
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             value = result.stdout.strip()
             
