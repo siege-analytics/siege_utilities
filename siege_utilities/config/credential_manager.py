@@ -315,7 +315,7 @@ class CredentialManager:
             op_flags = self._build_op_flags(vault=vault, account=account)
 
             # Try to find item by service name
-            cmd = ['op', 'item', 'get', service, f'--field={field}'] + op_flags
+            cmd = ['op', 'item', 'get', service, f'--field={field}', '--reveal'] + op_flags
             result = subprocess.run(cmd, capture_output=True, text=True)
 
             if result.returncode == 0:
@@ -330,7 +330,7 @@ class CredentialManager:
             ]
 
             for variation in service_variations:
-                cmd = ['op', 'item', 'get', variation, f'--field={field}'] + op_flags
+                cmd = ['op', 'item', 'get', variation, f'--field={field}', '--reveal'] + op_flags
                 result = subprocess.run(cmd, capture_output=True, text=True)
 
                 if result.returncode == 0:
