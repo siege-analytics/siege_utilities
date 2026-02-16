@@ -17,6 +17,7 @@ from siege_utilities.geo.geoid_utils import (
     parse_geoid,
     extract_parent_geoid,
     validate_geoid,
+    can_normalize_geoid,
     validate_geoid_column,
     prepare_geoid_for_join,
     find_geoid_column,
@@ -227,9 +228,13 @@ class TestValidateGEOID:
         """Test validating correct tract GEOID."""
         assert validate_geoid("06037101100", "tract") is True
 
+    def test_invalid_short_geoid_default(self):
+        """Test that short GEOID missing leading zeros is invalid by default."""
+        assert validate_geoid("6037", "county") is False
+
     def test_valid_short_geoid_non_strict(self):
-        """Test that short GEOID is valid in non-strict mode."""
-        assert validate_geoid("6037", "county") is True
+        """Test that short GEOID is valid in non-strict mode (normalizable)."""
+        assert validate_geoid("6037", "county", strict=False) is True
 
     def test_invalid_short_geoid_strict(self):
         """Test that short GEOID is invalid in strict mode."""
@@ -246,6 +251,39 @@ class TestValidateGEOID:
     def test_invalid_none(self):
         """Test that None GEOID is invalid."""
         assert validate_geoid(None, "county") is False
+
+
+class TestCanNormalizeGEOID:
+    """Tests for GEOID normalizability check."""
+
+    def test_already_valid_geoid(self):
+        """Test that a properly formatted GEOID is normalizable."""
+        assert can_normalize_geoid("06037", "county") is True
+
+    def test_short_geoid_normalizable(self):
+        """Test that a short all-digits value can be zero-padded."""
+        assert can_normalize_geoid("6037", "county") is True
+
+    def test_integer_normalizable(self):
+        """Test that integer values are normalizable."""
+        assert can_normalize_geoid(6037, "county") is True
+        assert can_normalize_geoid(6, "state") is True
+
+    def test_too_long_not_normalizable(self):
+        """Test that values too long for geography are not normalizable."""
+        assert can_normalize_geoid("123456", "county") is False
+
+    def test_non_numeric_not_normalizable(self):
+        """Test that non-numeric values are not normalizable."""
+        assert can_normalize_geoid("CA037", "county") is False
+
+    def test_empty_not_normalizable(self):
+        """Test that empty string is not normalizable."""
+        assert can_normalize_geoid("", "county") is False
+
+    def test_unknown_geography(self):
+        """Test that unknown geography level returns False."""
+        assert can_normalize_geoid("06037", "invalid_level") is False
 
 
 class TestValidateGEOIDColumn:

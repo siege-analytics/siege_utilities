@@ -13,7 +13,7 @@ GEOID Structure:
 - Block: 15 digits (state + county + tract + block)
 
 Example usage:
-    from siege_utilities.geo import normalize_geoid, construct_geoid, validate_geoid
+    from siege_utilities.geo import normalize_geoid, construct_geoid, validate_geoid, can_normalize_geoid
 
     # Normalize a GEOID to proper length
     geoid = normalize_geoid("6037", "county")  # Returns "06037"
@@ -21,8 +21,12 @@ Example usage:
     # Construct GEOID from components
     geoid = construct_geoid(state="06", county="037", geography="county")
 
-    # Validate GEOID format
+    # Validate GEOID format (strict by default — requires leading zeros)
     is_valid = validate_geoid("06037", "county")  # Returns True
+    is_valid = validate_geoid("6037", "county")   # Returns False (missing leading zero)
+
+    # Check if a value can be normalized to a valid GEOID
+    can_fix = can_normalize_geoid("6037", "county")  # Returns True
 """
 
 import logging
@@ -381,15 +385,21 @@ def extract_parent_geoid(
 def validate_geoid(
     geoid: str,
     geography_level: str,
-    strict: bool = False
+    strict: bool = True
 ) -> bool:
     """
     Validate a GEOID format.
 
+    Census GEOIDs are always fixed-width, zero-padded strings. A value missing
+    leading zeros (e.g., '6037' instead of '06037') is NOT a valid GEOID — it
+    may be normalizable via normalize_geoid(), but it would fail joins against
+    Census shapefiles.
+
     Args:
         geoid: GEOID string to validate
         geography_level: Expected geography level
-        strict: If True, require exact length match
+        strict: If True (default), require exact length match.
+                If False, allow shorter values that could be zero-padded.
 
     Returns:
         True if GEOID is valid, False otherwise
@@ -398,9 +408,9 @@ def validate_geoid(
         >>> validate_geoid("06037", "county")
         True
         >>> validate_geoid("6037", "county")  # Missing leading zero
-        True  # Still valid (can be normalized)
-        >>> validate_geoid("6037", "county", strict=True)
-        False  # Strict mode requires exact length
+        False  # Not a valid GEOID (use can_normalize_geoid to check normalizability)
+        >>> validate_geoid("6037", "county", strict=False)
+        True  # Non-strict allows shorter values
     """
     if not geoid or not isinstance(geoid, str):
         return False
@@ -426,11 +436,53 @@ def validate_geoid(
         return len(geoid) <= expected_length
 
 
+def can_normalize_geoid(
+    geoid: Union[str, int],
+    geography_level: str
+) -> bool:
+    """
+    Check whether a value can be normalized to a valid GEOID.
+
+    Unlike validate_geoid(), this accepts values that are shorter than the
+    expected length (e.g., '6037' for county) because they can be zero-padded
+    to a valid GEOID via normalize_geoid().
+
+    Args:
+        geoid: Value to check (string or integer)
+        geography_level: Expected geography level
+
+    Returns:
+        True if value can be normalized to a valid GEOID
+
+    Example:
+        >>> can_normalize_geoid("6037", "county")
+        True  # Can be zero-padded to "06037"
+        >>> can_normalize_geoid("06037", "county")
+        True  # Already valid
+        >>> can_normalize_geoid("CA037", "county")
+        False  # Contains non-numeric characters
+        >>> can_normalize_geoid("123456", "county")
+        False  # Too long (county GEOID is 5 digits)
+    """
+    geoid_str = str(geoid).strip()
+
+    if not geoid_str or not geoid_str.isdigit():
+        return False
+
+    geography_lower = geography_level.lower().replace(' ', '_').replace('-', '_')
+    expected_length = GEOID_LENGTHS.get(geography_lower)
+
+    if expected_length is None:
+        return False
+
+    return len(geoid_str) <= expected_length
+
+
 def validate_geoid_column(
     df: pd.DataFrame,
     geoid_column: str,
     geography_level: str,
-    strict: bool = False
+    strict: bool = True
 ) -> pd.Series:
     """
     Validate a GEOID column in a DataFrame.
@@ -439,7 +491,7 @@ def validate_geoid_column(
         df: DataFrame containing GEOID column
         geoid_column: Name of the GEOID column
         geography_level: Expected geography level
-        strict: If True, require exact length match
+        strict: If True (default), require exact length match
 
     Returns:
         Boolean Series indicating validity of each GEOID
