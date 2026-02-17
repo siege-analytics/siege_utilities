@@ -54,6 +54,62 @@ log = logging.getLogger(__name__)
 FilePath = Union[str, Path]
 GeoDataFrame = gpd.GeoDataFrame
 
+# ---------------------------------------------------------------------------
+# Boundary Type Catalog
+# ---------------------------------------------------------------------------
+# Reference data for Census TIGER/Line boundary types.
+# Keys match the internal names returned by discover_boundary_types().
+# Each entry: category (redistricting | general), Census abbreviation, human name.
+
+BOUNDARY_TYPE_CATALOG = {
+    # --- Redistricting & Electoral ---
+    'state':        {'category': 'redistricting', 'abbrev': 'STATE',      'name': 'State Boundaries'},
+    'county':       {'category': 'redistricting', 'abbrev': 'COUNTY',     'name': 'County Boundaries'},
+    'cousub':       {'category': 'redistricting', 'abbrev': 'COUSUB',     'name': 'County Subdivisions (townships)'},
+    'tract':        {'category': 'redistricting', 'abbrev': 'TRACT',      'name': 'Census Tracts'},
+    'block_group':  {'category': 'redistricting', 'abbrev': 'BG',         'name': 'Block Groups'},
+    'block':        {'category': 'redistricting', 'abbrev': 'TABBLOCK',   'name': 'Census Blocks (atomic unit)'},
+    'tabblock20':   {'category': 'redistricting', 'abbrev': 'TABBLOCK20', 'name': 'Census Blocks (2020)'},
+    'tabblock10':   {'category': 'redistricting', 'abbrev': 'TABBLOCK10', 'name': 'Census Blocks (2010)'},
+    'place':        {'category': 'redistricting', 'abbrev': 'PLACE',      'name': 'Places (cities/towns)'},
+    'cd':           {'category': 'redistricting', 'abbrev': 'CD',         'name': 'Congressional Districts'},
+    'cd116':        {'category': 'redistricting', 'abbrev': 'CD116',      'name': 'Congressional Districts (116th)'},
+    'cd117':        {'category': 'redistricting', 'abbrev': 'CD117',      'name': 'Congressional Districts (117th)'},
+    'cd118':        {'category': 'redistricting', 'abbrev': 'CD118',      'name': 'Congressional Districts (118th)'},
+    'cd119':        {'category': 'redistricting', 'abbrev': 'CD119',      'name': 'Congressional Districts (119th)'},
+    'sldu':         {'category': 'redistricting', 'abbrev': 'SLDU',       'name': 'State Legislative Upper (Senate)'},
+    'sldl':         {'category': 'redistricting', 'abbrev': 'SLDL',       'name': 'State Legislative Lower (House)'},
+    'vtd':          {'category': 'redistricting', 'abbrev': 'VTD',        'name': 'Voting Districts / Precincts'},
+    'vtd20':        {'category': 'redistricting', 'abbrev': 'VTD20',      'name': 'Voting Districts (2020)'},
+    'zcta':         {'category': 'redistricting', 'abbrev': 'ZCTA5',      'name': 'ZIP Code Tabulation Areas'},
+    # --- General ---
+    'cbsa':         {'category': 'general', 'abbrev': 'CBSA',      'name': 'Core-Based Statistical Areas'},
+    'csa':          {'category': 'general', 'abbrev': 'CSA',       'name': 'Combined Statistical Areas'},
+    'metdiv':       {'category': 'general', 'abbrev': 'METDIV',    'name': 'Metropolitan Divisions'},
+    'micro':        {'category': 'general', 'abbrev': 'MICRO',     'name': 'Micropolitan Statistical Areas'},
+    'necta':        {'category': 'general', 'abbrev': 'NECTA',     'name': 'New England City & Town Areas'},
+    'nectadiv':     {'category': 'general', 'abbrev': 'NECTADIV',  'name': 'NECTA Divisions'},
+    'cnecta':       {'category': 'general', 'abbrev': 'CNECTA',    'name': 'Combined NECTAs'},
+    'aiannh':       {'category': 'general', 'abbrev': 'AIANNH',    'name': 'American Indian / Alaska Native Areas'},
+    'aitsce':       {'category': 'general', 'abbrev': 'AITSCE',    'name': 'Tribal Subdivisions'},
+    'ttract':       {'category': 'general', 'abbrev': 'TTRACT',    'name': 'Tribal Census Tracts'},
+    'tbg':          {'category': 'general', 'abbrev': 'TBG',       'name': 'Tribal Block Groups'},
+    'elsd':         {'category': 'general', 'abbrev': 'ELSD',      'name': 'Elementary School Districts'},
+    'scsd':         {'category': 'general', 'abbrev': 'SCSD',      'name': 'Secondary School Districts'},
+    'unsd':         {'category': 'general', 'abbrev': 'UNSD',      'name': 'Unified School Districts'},
+    'address_features': {'category': 'general', 'abbrev': 'ADDRFEAT',    'name': 'Address Features'},
+    'linear_water': {'category': 'general', 'abbrev': 'LINEARWATER', 'name': 'Linear Water Features'},
+    'area_water':   {'category': 'general', 'abbrev': 'AREAWATER',  'name': 'Area Water Features'},
+    'roads':        {'category': 'general', 'abbrev': 'ROADS',      'name': 'Roads'},
+    'rails':        {'category': 'general', 'abbrev': 'RAILS',      'name': 'Railroads'},
+    'edges':        {'category': 'general', 'abbrev': 'EDGES',      'name': 'All Edges (roads, hydro, etc.)'},
+    'anrc':         {'category': 'general', 'abbrev': 'ANRC',       'name': 'Alaska Native Regional Corps'},
+    'concity':      {'category': 'general', 'abbrev': 'CONCITY',    'name': 'Consolidated Cities'},
+    'submcd':       {'category': 'general', 'abbrev': 'SUBMCD',     'name': 'Sub-Minor Civil Divisions'},
+    'uac':          {'category': 'general', 'abbrev': 'UAC',        'name': 'Urban Areas'},
+    'uac20':        {'category': 'general', 'abbrev': 'UAC20',      'name': 'Urban Areas (2020)'},
+}
+
 
 class CensusDirectoryDiscovery:
     """Discovers available Census TIGER/Line data dynamically."""

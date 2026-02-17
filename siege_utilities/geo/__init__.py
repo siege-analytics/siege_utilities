@@ -12,6 +12,8 @@ from .spatial_data import (
     SpatialDataSource,
     GovernmentDataSource,
     OpenStreetMapDataSource,
+    # Reference data
+    BOUNDARY_TYPE_CATALOG,
     # Convenience functions
     get_census_boundaries,
     download_data,
