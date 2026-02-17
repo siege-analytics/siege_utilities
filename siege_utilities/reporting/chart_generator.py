@@ -1925,7 +1925,7 @@ class ChartGenerator:
             elif chart_type == "scatter":
                 return self.create_scatter_plot(df, x_column, y_columns[0] if y_columns else None, title, width, height)
             elif chart_type == "heatmap":
-                return self.create_heatmap(df, x_column, y_columns[0] if y_columns else None, title, width, height)
+                return self.create_heatmap(df, title=title, width=width, height=height)
             elif chart_type == "choropleth":
                 return self.create_choropleth_map(df, x_column, y_columns[0] if y_columns else None, title, width, height)
             elif chart_type == "bivariate_choropleth":
