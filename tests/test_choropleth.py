@@ -2,11 +2,13 @@
 Unit tests for the choropleth map creation module.
 
 Tests create_choropleth, create_choropleth_comparison, create_classified_comparison,
-create_bivariate_choropleth, save_map, and supporting constants.
+create_bivariate_choropleth, save_map, bivariate verification artifacts, and
+supporting constants/helpers.
 """
 
 import pytest
 import numpy as np
+import pandas as pd
 import geopandas as gpd
 import matplotlib
 import matplotlib.pyplot as plt
@@ -18,10 +20,17 @@ from siege_utilities.geo.choropleth import (
     create_choropleth_comparison,
     create_classified_comparison,
     create_bivariate_choropleth,
+    create_bivariate_crosstab,
+    create_bivariate_companion_maps,
+    verify_bivariate_classification,
+    create_bivariate_analysis,
+    BivariateAnalysisResult,
     save_map,
     BIVARIATE_COLOR_SCHEMES,
     SCHEME_LABELS,
     _resolve_color_scheme,
+    _format_breakpoint,
+    _compute_bivariate_classes,
     HAS_MAPCLASSIFY,
 )
 
@@ -297,3 +306,271 @@ class TestSaveMap:
         fig, ax = create_choropleth(sample_gdf, 'population')
         result = save_map(fig, str(tmp_path / 'map.png'))
         assert isinstance(result, Path)
+
+
+# =============================================================================
+# _format_breakpoint TESTS
+# =============================================================================
+
+class TestFormatBreakpoint:
+    """Tests for the _format_breakpoint helper."""
+
+    def test_millions(self):
+        assert _format_breakpoint(1_500_000) == '1.5M'
+
+    def test_thousands(self):
+        assert _format_breakpoint(50_000) == '50.0K'
+
+    def test_small_integer(self):
+        assert _format_breakpoint(123) == '123'
+
+    def test_zero(self):
+        assert _format_breakpoint(0) == '0'
+
+    def test_fraction(self):
+        result = _format_breakpoint(0.034)
+        assert '0.034' in result
+
+    def test_negative(self):
+        result = _format_breakpoint(-50_000)
+        assert result == '-50.0K'
+
+
+# =============================================================================
+# _compute_bivariate_classes TESTS
+# =============================================================================
+
+class TestComputeBivariateClasses:
+    """Tests for the _compute_bivariate_classes helper."""
+
+    def test_returns_three_elements(self, sample_gdf):
+        classified, v1_breaks, v2_breaks = _compute_bivariate_classes(
+            sample_gdf, 'population', 'income', 3
+        )
+        assert isinstance(classified, gpd.GeoDataFrame)
+        assert isinstance(v1_breaks, np.ndarray)
+        assert isinstance(v2_breaks, np.ndarray)
+
+    def test_class_columns_present(self, sample_gdf):
+        classified, _, _ = _compute_bivariate_classes(
+            sample_gdf, 'population', 'income', 3
+        )
+        assert '_var1_class' in classified.columns
+        assert '_var2_class' in classified.columns
+        assert '_bivar_class' in classified.columns
+
+    def test_breakpoint_length(self, sample_gdf):
+        _, v1_breaks, v2_breaks = _compute_bivariate_classes(
+            sample_gdf, 'population', 'income', 3
+        )
+        assert len(v1_breaks) == 4  # n_classes + 1
+        assert len(v2_breaks) == 4
+
+    def test_breakpoints_monotonic(self, sample_gdf):
+        _, v1_breaks, v2_breaks = _compute_bivariate_classes(
+            sample_gdf, 'population', 'income', 3
+        )
+        assert np.all(np.diff(v1_breaks) >= 0)
+        assert np.all(np.diff(v2_breaks) >= 0)
+
+
+# =============================================================================
+# BIVARIATE LEGEND MAGNITUDES TESTS
+# =============================================================================
+
+class TestBivariateLegendMagnitudes:
+    """Tests that the bivariate legend now shows magnitude tick labels."""
+
+    def test_legend_has_xtick_labels(self, sample_gdf):
+        fig, axes = create_bivariate_choropleth(
+            sample_gdf, 'population', 'income'
+        )
+        ax_legend = axes[1]
+        labels = [t.get_text() for t in ax_legend.get_xticklabels()]
+        # Should have n_classes + 1 = 4 tick labels
+        assert len(labels) == 4
+
+    def test_legend_has_ytick_labels(self, sample_gdf):
+        fig, axes = create_bivariate_choropleth(
+            sample_gdf, 'population', 'income'
+        )
+        ax_legend = axes[1]
+        labels = [t.get_text() for t in ax_legend.get_yticklabels()]
+        assert len(labels) == 4
+
+    def test_tick_labels_are_not_empty(self, sample_gdf):
+        fig, axes = create_bivariate_choropleth(
+            sample_gdf, 'population', 'income'
+        )
+        ax_legend = axes[1]
+        x_labels = [t.get_text() for t in ax_legend.get_xticklabels()]
+        y_labels = [t.get_text() for t in ax_legend.get_yticklabels()]
+        assert all(label != '' for label in x_labels)
+        assert all(label != '' for label in y_labels)
+
+    def test_tick_labels_contain_numeric_chars(self, sample_gdf):
+        fig, axes = create_bivariate_choropleth(
+            sample_gdf, 'population', 'income'
+        )
+        ax_legend = axes[1]
+        x_labels = [t.get_text() for t in ax_legend.get_xticklabels()]
+        for label in x_labels:
+            assert any(c.isdigit() for c in label), f"Label '{label}' has no digits"
+
+    def test_legend_preserves_variable_names(self, sample_gdf):
+        fig, axes = create_bivariate_choropleth(
+            sample_gdf, 'population', 'income'
+        )
+        ax_legend = axes[1]
+        assert 'population' in ax_legend.get_xlabel()
+        assert 'income' in ax_legend.get_ylabel()
+
+
+# =============================================================================
+# create_bivariate_crosstab TESTS
+# =============================================================================
+
+class TestCreateBivariateCrosstab:
+    """Tests for create_bivariate_crosstab."""
+
+    def test_returns_dataframe(self, sample_gdf):
+        ct = create_bivariate_crosstab(sample_gdf, 'population', 'income')
+        assert isinstance(ct, pd.DataFrame)
+
+    def test_shape_matches_n_classes(self, sample_gdf):
+        ct = create_bivariate_crosstab(
+            sample_gdf, 'population', 'income', n_classes=3
+        )
+        assert ct.shape == (3, 3)
+
+    def test_sum_equals_total_units(self, sample_gdf):
+        ct = create_bivariate_crosstab(sample_gdf, 'population', 'income')
+        assert ct.values.sum() == len(sample_gdf)
+
+    def test_render_returns_tuple(self, sample_gdf):
+        result = create_bivariate_crosstab(
+            sample_gdf, 'population', 'income', render=True
+        )
+        assert isinstance(result, tuple)
+        assert len(result) == 3
+        ct, fig, ax = result
+        assert isinstance(ct, pd.DataFrame)
+        assert isinstance(fig, matplotlib.figure.Figure)
+        assert isinstance(ax, matplotlib.axes.Axes)
+
+    def test_column_labels_contain_ranges(self, sample_gdf):
+        ct = create_bivariate_crosstab(sample_gdf, 'population', 'income')
+        # Labels should contain en-dash (range separator)
+        for label in ct.columns:
+            assert '\u2013' in str(label), f"Column label '{label}' missing range separator"
+
+
+# =============================================================================
+# create_bivariate_companion_maps TESTS
+# =============================================================================
+
+class TestCreateBivariateCompanionMaps:
+    """Tests for create_bivariate_companion_maps."""
+
+    @pytest.mark.skipif(not HAS_MAPCLASSIFY, reason="mapclassify not installed")
+    def test_returns_fig_and_two_axes(self, sample_gdf):
+        fig, axes = create_bivariate_companion_maps(
+            sample_gdf, 'population', 'income'
+        )
+        assert isinstance(fig, matplotlib.figure.Figure)
+        assert isinstance(axes, np.ndarray)
+        assert len(axes) == 2
+
+    @pytest.mark.skipif(not HAS_MAPCLASSIFY, reason="mapclassify not installed")
+    def test_each_axis_has_title(self, sample_gdf):
+        fig, axes = create_bivariate_companion_maps(
+            sample_gdf, 'population', 'income'
+        )
+        assert axes[0].get_title() == 'population'
+        assert axes[1].get_title() == 'income'
+
+    @pytest.mark.skipif(not HAS_MAPCLASSIFY, reason="mapclassify not installed")
+    def test_axes_are_off(self, sample_gdf):
+        fig, axes = create_bivariate_companion_maps(
+            sample_gdf, 'population', 'income'
+        )
+        assert not axes[0].axison
+        assert not axes[1].axison
+
+
+# =============================================================================
+# verify_bivariate_classification TESTS
+# =============================================================================
+
+class TestVerifyBivariateClassification:
+    """Tests for verify_bivariate_classification."""
+
+    def test_returns_dict(self, sample_gdf):
+        result = verify_bivariate_classification(
+            sample_gdf, 'population', 'income'
+        )
+        assert isinstance(result, dict)
+
+    def test_valid_flag_is_true_for_good_data(self, sample_gdf):
+        result = verify_bivariate_classification(
+            sample_gdf, 'population', 'income'
+        )
+        assert result['valid'] is True
+
+    def test_total_matches_input_length(self, sample_gdf):
+        result = verify_bivariate_classification(
+            sample_gdf, 'population', 'income'
+        )
+        assert result['total_units'] == len(sample_gdf)
+        assert result['classified_units'] == len(sample_gdf)
+
+    def test_has_breakpoint_arrays(self, sample_gdf):
+        result = verify_bivariate_classification(
+            sample_gdf, 'population', 'income'
+        )
+        assert isinstance(result['var1_breaks'], np.ndarray)
+        assert isinstance(result['var2_breaks'], np.ndarray)
+        assert len(result['var1_breaks']) == 4  # n_classes + 1
+
+    def test_errors_empty_for_valid(self, sample_gdf):
+        result = verify_bivariate_classification(
+            sample_gdf, 'population', 'income'
+        )
+        assert result['errors'] == []
+
+
+# =============================================================================
+# create_bivariate_analysis (ORCHESTRATOR) TESTS
+# =============================================================================
+
+class TestCreateBivariateAnalysis:
+    """Tests for the create_bivariate_analysis orchestrator."""
+
+    @pytest.mark.skipif(not HAS_MAPCLASSIFY, reason="mapclassify not installed")
+    def test_returns_dataclass(self, sample_gdf):
+        result = create_bivariate_analysis(
+            sample_gdf, 'population', 'income'
+        )
+        assert isinstance(result, BivariateAnalysisResult)
+
+    @pytest.mark.skipif(not HAS_MAPCLASSIFY, reason="mapclassify not installed")
+    def test_all_fields_populated(self, sample_gdf):
+        result = create_bivariate_analysis(
+            sample_gdf, 'population', 'income'
+        )
+        assert isinstance(result.bivariate_fig, matplotlib.figure.Figure)
+        assert isinstance(result.bivariate_axes, np.ndarray)
+        assert isinstance(result.crosstab, pd.DataFrame)
+        assert isinstance(result.crosstab_fig, matplotlib.figure.Figure)
+        assert isinstance(result.companion_fig, matplotlib.figure.Figure)
+        assert isinstance(result.companion_axes, np.ndarray)
+        assert isinstance(result.verification, dict)
+        assert isinstance(result.var1_breaks, np.ndarray)
+        assert isinstance(result.var2_breaks, np.ndarray)
+
+    @pytest.mark.skipif(not HAS_MAPCLASSIFY, reason="mapclassify not installed")
+    def test_verification_passes(self, sample_gdf):
+        result = create_bivariate_analysis(
+            sample_gdf, 'population', 'income'
+        )
+        assert result.verification['valid'] is True
