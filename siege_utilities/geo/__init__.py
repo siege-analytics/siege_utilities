@@ -159,6 +159,16 @@ from .census_files import (
     PL_TABLES,
 )
 
+# Choropleth map creation
+from .choropleth import (
+    create_choropleth,
+    create_choropleth_comparison,
+    create_classified_comparison,
+    create_bivariate_choropleth,
+    save_map,
+    BIVARIATE_COLOR_SCHEMES,
+)
+
 __all__ = [
     # Core spatial data classes
     'CensusDirectoryDiscovery',
@@ -276,6 +286,14 @@ __all__ = [
     'identify_outliers',
     'compare_trends',
     'THRESHOLD_PRESETS',
+
+    # Choropleth mapping
+    'create_choropleth',
+    'create_choropleth_comparison',
+    'create_classified_comparison',
+    'create_bivariate_choropleth',
+    'save_map',
+    'BIVARIATE_COLOR_SCHEMES',
 
     # PL 94-171 redistricting files
     'PLFileDownloader',

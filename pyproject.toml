@@ -40,6 +40,7 @@ dependencies = [
     "osmnx>=1.9.4",
     "folium>=0.18.0",
     "notebook>=7.3.3",
+    "mapclassify>=2.5.0",
 ]
 
 [project.optional-dependencies]
@@ -53,6 +54,7 @@ geo = [
     "fiona>=1.8.0",
     "geopy>=2.3.0",
     "rtree>=1.0.0",
+    "mapclassify>=2.5.0",
 ]
 reporting = [
     "matplotlib>=3.5.0",
