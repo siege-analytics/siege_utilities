@@ -433,130 +433,95 @@ class ChartGenerator:
             return self._create_placeholder_chart(width, height, f"Chart Error: {str(e)}")
 
     def create_choropleth_map(self, data: Union[pd.DataFrame, Dict[str, Any]],
-                             location_column: str, value_column: str,
+                             geo_data: Union['gpd.GeoDataFrame', str, Path, Dict, None] = None,
+                             location_column: str = None, value_column: str = None,
                              title: str = "", width: float = 8.0, height: float = 6.0,
-                             map_type: str = "world") -> Image:
+                             map_type: str = "us",
+                             key_on: str = "feature.properties.geoid",
+                             fill_color: str = "YlOrRd") -> Image:
         """
-        Create a choropleth map from data.
-        
+        Create a choropleth map from data using Folium.
+
         Args:
             data: DataFrame or dictionary with data
-            location_column: Column name for locations (country codes, state names, etc.)
+            geo_data: GeoDataFrame, path to GeoJSON, GeoJSON dict, or None.
+                      If a GeoDataFrame is passed it is converted to GeoJSON automatically.
+            location_column: Column name for locations (must match geo_data features via key_on)
             value_column: Column name for values to color by
             title: Map title
             width: Map width in inches
             height: Map height in inches
-            map_type: Type of map ('world', 'us', 'europe', etc.)
-            
+            map_type: Type of map ('world', 'us', 'europe')
+            key_on: GeoJSON feature property to join on (e.g. 'feature.properties.geoid')
+            fill_color: Brewer color scheme name (e.g. 'YlOrRd', 'BuGn', 'Blues')
+
         Returns:
-            ReportLab Image object
+            ReportLab Image object (placeholder — HTML saved to ~/.siege_utilities/)
         """
         if not FOLIUM_AVAILABLE:
             return self._create_placeholder_chart(width, height, "Folium not available")
-        
+
+        if geo_data is None:
+            return self._create_placeholder_chart(width, height, "geo_data is required for choropleth map")
+
         try:
             # Convert data to DataFrame if needed
             if isinstance(data, dict):
                 df = pd.DataFrame(data)
             else:
                 df = data.copy()
-            
+
+            # Convert GeoDataFrame to GeoJSON for Folium
+            geojson_data = self._resolve_geo_data(geo_data)
+
             # Create base map
             if map_type == "world":
                 m = folium.Map(location=[20, 0], zoom_start=2)
             elif map_type == "us":
                 m = folium.Map(location=[39.8283, -98.5795], zoom_start=4)
+            elif map_type == "europe":
+                m = folium.Map(location=[50, 10], zoom_start=4)
             else:
                 m = folium.Map(location=[20, 0], zoom_start=2)
-            
+
             # Add choropleth layer
             folium.Choropleth(
-                geo_data=None,  # You'll need to provide GeoJSON data
+                geo_data=geojson_data,
                 name="choropleth",
                 data=df,
                 columns=[location_column, value_column],
-                key_on="feature.id",
-                fill_color="YlOrRd",
+                key_on=key_on,
+                fill_color=fill_color,
                 fill_opacity=0.7,
                 line_opacity=0.2,
                 legend_name=value_column
             ).add_to(m)
-            
+
             # Add layer control
             folium.LayerControl().add_to(m)
-            
+
             # Save map to temporary file
-            temp_map_path = Path.home() / ".siege_utilities" / "temp_map.html"
+            temp_map_path = Path.home() / ".siege_utilities" / "temp_choropleth_map.html"
             temp_map_path.parent.mkdir(parents=True, exist_ok=True)
             m.save(str(temp_map_path))
-            
-            # Convert HTML to image (this is a simplified approach)
-            # In practice, you might want to use selenium or similar to render the HTML
-            return self._create_placeholder_chart(width, height, "Choropleth Map - HTML file saved")
-            
+            log.info(f"Choropleth map saved to {temp_map_path}")
+
+            return self._create_placeholder_chart(width, height,
+                f"Choropleth Map — saved to {temp_map_path}")
+
         except Exception as e:
             log.error(f"Error creating choropleth map: {e}")
             return self._create_placeholder_chart(width, height, f"Map Error: {str(e)}")
 
-    def create_bivariate_choropleth(self, data: Union[pd.DataFrame, Dict[str, Any]],
-                                   location_column: str, value_column1: str, value_column2: str,
-                                   title: str = "", width: float = 8.0, height: float = 6.0) -> Image:
-        """
-        Create a bivariate choropleth map from data using Folium.
-        
-        Args:
-            data: DataFrame or dictionary with data
-            location_column: Column name for locations (country codes, state names, etc.)
-            value_column1: Column name for the first value to color by
-            value_column2: Column name for the second value to color by
-            title: Map title
-            width: Map width in inches
-            height: Map height in inches
-            
-        Returns:
-            ReportLab Image object
-        """
-        if not FOLIUM_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Folium not available")
-        
-        try:
-            # Convert data to DataFrame if needed
-            if isinstance(data, dict):
-                df = pd.DataFrame(data)
-            else:
-                df = data.copy()
-            
-            # Create base map
-            m = folium.Map(location=[20, 0], zoom_start=2)
-            
-            # Add bivariate choropleth layer
-            folium.Choropleth(
-                geo_data=None,  # You'll need to provide GeoJSON data
-                name="bivariate_choropleth",
-                data=df,
-                columns=[location_column, value_column1, value_column2],
-                key_on="feature.id",
-                fill_color="YlOrRd",
-                fill_opacity=0.7,
-                line_opacity=0.2,
-                legend_name=f"{value_column1} vs {value_column2}"
-            ).add_to(m)
-            
-            # Add layer control
-            folium.LayerControl().add_to(m)
-            
-            # Save map to temporary file
-            temp_map_path = Path.home() / ".siege_utilities" / "temp_map.html"
-            temp_map_path.parent.mkdir(parents=True, exist_ok=True)
-            m.save(str(temp_map_path))
-            
-            # Convert HTML to image (this is a simplified approach)
-            # In practice, you might want to use selenium or similar to render the HTML
-            return self._create_placeholder_chart(width, height, "Bivariate Choropleth Map - HTML file saved")
-            
-        except Exception as e:
-            log.error(f"Error creating bivariate choropleth map: {e}")
-            return self._create_placeholder_chart(width, height, f"Bivariate Choropleth Map Error: {str(e)}")
+    def _resolve_geo_data(self, geo_data) -> Union[str, Dict]:
+        """Convert geo_data argument to a format Folium accepts (GeoJSON dict or path string)."""
+        if GEOPANDAS_AVAILABLE and isinstance(geo_data, gpd.GeoDataFrame):
+            return json.loads(geo_data.to_json())
+        if isinstance(geo_data, (str, Path)):
+            return str(geo_data)
+        if isinstance(geo_data, dict):
+            return geo_data
+        raise TypeError(f"Unsupported geo_data type: {type(geo_data)}")
 
     def create_bivariate_choropleth_matplotlib(self, data: Union[pd.DataFrame, Dict[str, Any]],
                                              geodata: Union[gpd.GeoDataFrame, str, Path],
@@ -1266,77 +1231,110 @@ class ChartGenerator:
             return self._create_placeholder_chart(width, height, f"Flow Map Error: {str(e)}")
 
     def create_bivariate_choropleth(self, data: Union[pd.DataFrame, Dict[str, Any]],
-                                  location_column: str, value_column1: str, value_column2: str,
-                                  title: str = "", width: float = 8.0, height: float = 6.0) -> Image:
+                                  geo_data: Union['gpd.GeoDataFrame', str, Path, Dict, None] = None,
+                                  location_column: str = None,
+                                  value_column1: str = None, value_column2: str = None,
+                                  title: str = "", width: float = 8.0, height: float = 6.0,
+                                  color_scheme: str = "default") -> Image:
         """
-        Create a bivariate choropleth map from data.
-        
+        Create a bivariate choropleth map from data using Folium.
+
+        Uses the same 3x3 bivariate color classification as
+        ``create_bivariate_choropleth_matplotlib`` but renders the result as an
+        interactive Folium map.
+
         Args:
-            data: DataFrame or dictionary with data
-            location_column: Column name for locations (country codes, state names, etc.)
-            value_column1: Column name for the first value to color by
-            value_column2: Column name for the second value to color by
+            data: DataFrame or dictionary with data (must include geometry if GeoDataFrame,
+                  or be joinable to *geo_data* via *location_column*)
+            geo_data: GeoDataFrame, path to GeoJSON, GeoJSON dict, or None.
+                      If *data* is already a GeoDataFrame this can be omitted.
+            location_column: Column to join data ↔ geo_data on
+            value_column1: First variable (X-axis in bivariate scheme)
+            value_column2: Second variable (Y-axis in bivariate scheme)
             title: Map title
             width: Map width in inches
             height: Map height in inches
-            
+            color_scheme: Bivariate color scheme ('default', 'blue_red', 'green_orange')
+
         Returns:
-            ReportLab Image object
+            ReportLab Image object (placeholder — HTML saved to ~/.siege_utilities/)
         """
-        if not FOLIUM_AVAILABLE or not GEOPANDAS_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Folium or GeoPandas not available")
-        
+        if not FOLIUM_AVAILABLE:
+            return self._create_placeholder_chart(width, height, "Folium not available")
+        if not GEOPANDAS_AVAILABLE:
+            return self._create_placeholder_chart(width, height, "GeoPandas not available")
+
         try:
-            # Convert data to DataFrame if needed
+            # Convert data to DataFrame / GeoDataFrame
             if isinstance(data, dict):
                 df = pd.DataFrame(data)
             else:
                 df = data.copy()
-            
-            # Ensure location_column is a string
-            if not isinstance(location_column, str):
-                location_column = str(location_column)
-            
-            # Ensure value_column1 and value_column2 are strings
-            if not isinstance(value_column1, str):
-                value_column1 = str(value_column1)
-            if not isinstance(value_column2, str):
-                value_column2 = str(value_column2)
-            
-            # Create base map
-            m = folium.Map(location=[20, 0], zoom_start=2)
-            
-            # Add bivariate choropleth layer
-            folium.Choropleth(
-                geo_data=None,  # You'll need to provide GeoJSON data
-                name="bivariate_choropleth",
-                data=df,
-                columns=[location_column, value_column1, value_column2],
-                key_on="feature.id",
-                fill_color=["YlOrRd", "BuPu"], # Example color schemes
-                fill_opacity=0.7,
-                line_opacity=0.2,
-                legend_name=f"{value_column1} vs {value_column2}",
-                bins=[0, 10, 20, 30, 40, 50], # Example bins for bivariate
-                overlay=True,
-                highlight=True
+
+            # Resolve geodata
+            if geo_data is not None:
+                if isinstance(geo_data, (str, Path)):
+                    gdf = gpd.read_file(geo_data)
+                elif isinstance(geo_data, dict):
+                    gdf = gpd.GeoDataFrame.from_features(geo_data.get('features', geo_data))
+                else:
+                    gdf = geo_data.copy()
+                # Merge tabular data onto geometry
+                if location_column and location_column in df.columns:
+                    gdf = gdf.merge(df, on=location_column, how='left', suffixes=('', '_data'))
+            elif hasattr(df, 'geometry'):
+                gdf = df
+            else:
+                return self._create_placeholder_chart(width, height,
+                    "geo_data is required (GeoDataFrame, GeoJSON path, or dict)")
+
+            # Apply bivariate classification using existing helpers
+            color_matrix = self._create_bivariate_color_matrix(color_scheme)
+            gdf = self._apply_bivariate_colors(gdf, value_column1, value_column2, color_matrix)
+
+            # Build a color lookup keyed by index for the style_function
+            color_lookup = gdf['bivariate_color'].to_dict()
+
+            # Calculate map center from geometry bounds
+            bounds = gdf.total_bounds  # [minx, miny, maxx, maxy]
+            center_lat = (bounds[1] + bounds[3]) / 2
+            center_lon = (bounds[0] + bounds[2]) / 2
+
+            m = folium.Map(location=[center_lat, center_lon], zoom_start=6,
+                           tiles='cartodbpositron')
+
+            # Convert to GeoJSON and add styled layer
+            geojson_data = json.loads(gdf.to_json())
+
+            # Attach index to each feature so we can look up color
+            for i, feature in enumerate(geojson_data['features']):
+                feature['properties']['_idx'] = list(color_lookup.keys())[i]
+
+            folium.GeoJson(
+                geojson_data,
+                name=title or "Bivariate Choropleth",
+                style_function=lambda feature: {
+                    'fillColor': color_lookup.get(feature['properties'].get('_idx'), '#cccccc'),
+                    'color': 'black',
+                    'weight': 0.5,
+                    'fillOpacity': 0.7,
+                },
             ).add_to(m)
-            
-            # Add layer control
+
             folium.LayerControl().add_to(m)
-            
-            # Save map to temporary file
-            temp_map_path = Path.home() / ".siege_utilities" / "temp_map.html"
+
+            # Save map
+            temp_map_path = Path.home() / ".siege_utilities" / "temp_bivariate_choropleth.html"
             temp_map_path.parent.mkdir(parents=True, exist_ok=True)
             m.save(str(temp_map_path))
-            
-            # Convert HTML to image (this is a simplified approach)
-            # In practice, you might want to use selenium or similar to render the HTML
-            return self._create_placeholder_chart(width, height, "Bivariate Choropleth Map - HTML file saved")
-            
+            log.info(f"Bivariate choropleth saved to {temp_map_path}")
+
+            return self._create_placeholder_chart(width, height,
+                f"Bivariate Choropleth — saved to {temp_map_path}")
+
         except Exception as e:
             log.error(f"Error creating bivariate choropleth map: {e}")
-            return self._create_placeholder_chart(width, height, f"Bivariate Choropleth Map Error: {str(e)}")
+            return self._create_placeholder_chart(width, height, f"Bivariate Choropleth Error: {str(e)}")
 
     def create_heatmap(self, data: Union[pd.DataFrame, Dict[str, Any]],
                       x_column: str = None, y_column: str = None, value_column: str = None,
