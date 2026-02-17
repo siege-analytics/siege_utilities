@@ -3,9 +3,14 @@ Tests for Census download function bug fix.
 
 This test suite ensures the Census download function works correctly
 after fixing the variable name mismatch bug.
+
+NOTE: Some tests make real network calls to Census servers.
+Marked as integration tests — skipped by default in pytest.ini.
 """
 
 import pytest
+
+pytestmark = pytest.mark.integration
 from unittest.mock import patch, MagicMock
 import pandas as pd
 import geopandas as gpd

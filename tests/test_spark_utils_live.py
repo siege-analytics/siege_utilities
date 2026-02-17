@@ -3,9 +3,13 @@
 Live Spark utilities tests - requires actual Spark environment.
 
 Run with: python tests/test_spark_utils_live.py
+Skipped by default in pytest (marked integration).
 """
 
+import pytest
 import sys
+
+pytestmark = pytest.mark.integration
 import tempfile
 from pathlib import Path
 
