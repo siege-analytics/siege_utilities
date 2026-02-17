@@ -1,7 +1,108 @@
 # Siege Utilities - Session Status
 
-**Last Updated:** January 25, 2026
+**Last Updated:** February 16, 2026
 **Branch:** `dheerajchand/sketch/siege-utilities-restoration`
+
+---
+
+## Session 16 Progress (February 16, 2026)
+
+### Geographic Level Naming Reconciliation — Issue #85 COMPLETE
+
+Unified three incompatible geographic level naming conventions into one canonical system with alias resolution.
+
+**Problem:** Geographic levels were referenced with three conventions:
+- Long snake_case: `congressional_district`, `state_legislative_upper`, `block_group`
+- Short Census abbreviations: `cd`, `sldu`, `bg`
+- Mixed: `CensusDataSource.state_required_levels` had `'block_group'` while `_construct_filename_with_fips_validation` checked `'bg'`
+
+**Solution:** One canonical name per level, accept any variant, resolve early.
+
+**Commits:**
+- `260b541` — Reconcile geographic level naming across codebase (#85)
+- `f2cf06b` — Report Census API key source (1Password vs env var) in NB04
+- `bc8699c` — Add comprehensive tests for canonical geographic level system (75 tests)
+
+### Files Changed
+
+| File | Changes |
+|------|---------|
+| `config/census_constants.py` | Added `CANONICAL_GEOGRAPHIC_LEVELS` (20 entries), `_ALIAS_TO_CANONICAL`, `resolve_geographic_level()`. Rewrote `GEOGRAPHIC_LEVELS`, `GEOGRAPHIC_HIERARCHY`, `TIGER_FILE_PATTERNS`. Updated `get_tiger_url()`, `validate_geographic_level()`. |
+| `geo/geoid_utils.py` | Derived `GEOID_LENGTHS` from canonical. Updated 7 functions to use `resolve_geographic_level()`. |
+| `geo/spatial_data.py` | Fixed `'bg'` → `'block_group'` bug in `_construct_filename_with_fips_validation()`. |
+| `geo/census_dataset_mapper.py` | Updated `GeographyLevel` enum to canonical values, added backward-compat aliases, added `_missing_()`. |
+| `geo/census_api_client.py` | Updated `_validate_geography()` to use resolution with proper error wrapping. |
+| `geo/__init__.py` | Exported `resolve_geographic_level`, `CANONICAL_GEOGRAPHIC_LEVELS`. |
+| `config/__init__.py` | Exported `resolve_geographic_level`, `CANONICAL_GEOGRAPHIC_LEVELS`. |
+| `tests/test_geographic_levels.py` | NEW — 75 tests covering all data structures and functions. |
+| `tests/test_geoid_utils.py` | Fixed error message match for updated error text. |
+| `notebooks/04_Spatial_Data_Census_Boundaries.ipynb` | Updated Census API key cell to report source (1Password vs env var). |
+
+### Key New APIs
+
+```python
+from siege_utilities.config.census_constants import (
+    CANONICAL_GEOGRAPHIC_LEVELS,  # 20 entries with aliases and geoid_length
+    resolve_geographic_level,      # Any variant → canonical name
+    validate_geographic_level,     # Returns bool, no exception
+    _ALIAS_TO_CANONICAL,           # Reverse lookup dict
+)
+
+# Examples
+resolve_geographic_level('congressional_district')  # → 'cd'
+resolve_geographic_level('bg')                       # → 'block_group'
+resolve_geographic_level('zip_code')                 # → 'zcta'
+resolve_geographic_level('CD')                       # → 'cd' (case-insensitive)
+
+# GeographyLevel enum now resolves aliases
+from siege_utilities.geo.census_dataset_mapper import GeographyLevel
+GeographyLevel('congressional_district')  # → GeographyLevel.CD (via _missing_)
+GeographyLevel.CONGRESSIONAL_DISTRICT     # → GeographyLevel.CD (Python enum alias)
+```
+
+### Notebook Testing Status
+
+| # | Notebook | Status |
+|---|----------|--------|
+| 01 | Configuration System Demo | ✅ Passed (Feb 12) |
+| 02 | Create User/Client Profiles | ✅ Passed (Feb 12) |
+| 03 | Person/Actor Architecture | ✅ Passed (Feb 16) |
+| 04 | Spatial Data & Census | ✅ Passed (Feb 16) — declared a win |
+| 05-15 | All remaining | ✅ No changes needed — already use canonical names |
+
+### Test Results
+```
+128 tests passing (53 geoid_utils + 75 geographic_levels)
+All existing tests unaffected
+```
+
+### Also This Session
+
+- **NB04 Census API key reporting**: Cell now tracks and reports whether key came from 1Password or env var
+- **Created siege_utilities#92**: Engine-agnostic DataFrame operations (pandas → DuckDB/Spark/PostGIS) — backlog
+- **BOUNDARY_TYPE_CATALOG**: Created in previous session, validated with consistency tests
+
+---
+
+## Session 15 Progress (February 16, 2026)
+
+### NB04 Fixes and BOUNDARY_TYPE_CATALOG
+
+- Fixed GEOID resolution in NB04 (CredentialManager, cell ordering)
+- Created `BOUNDARY_TYPE_CATALOG` (44 boundary types) in `spatial_data.py`
+- Created `discover_boundary_types()` function
+- Planned #85 (geographic level naming reconciliation)
+
+---
+
+## Session 14 Progress (February 12, 2026)
+
+### Person/Actor Architecture — Epic #67 CLOSED
+
+- All 12 issues (#67-#78) closed with commit SHAs
+- 109 tests passing, 34.37% coverage
+- NB02 cleaned up, NB10 updated to modern API
+- See MEMORY.md for full details
 
 ---
 
@@ -543,18 +644,24 @@ ae3e8c1 feat: Add Profile/Branding testing notebook (#5)
 
 | Component | Status | Notebook |
 |-----------|--------|----------|
-| Census/Spatial Data | **Working** | 04 |
+| Census/Spatial Data | **Working** — canonical geo levels | 04 |
+| Geographic Level Resolution | **NEW** — `resolve_geographic_level()` | 04, tests |
+| BOUNDARY_TYPE_CATALOG | **NEW** — 44 boundary types | 04, tests |
 | Choropleth Maps | **Working** | 05 |
 | Report Generation (ReportLab) | **Working** | 06, 11 |
 | Geocoding | **Working** | 07 |
 | Sample Data Generation | **Working** | 08 |
-| Profile/Branding Models | **Testing** | 10 |
+| Profile/Branding Models | **Working** | 10 |
 | Analytics Connectors | Needs Credentials | 09 |
 | PowerPoint Generation | **Ready** | 12 |
 | ReportGenerator PDF | **Working** | 11 |
+| GeoDjango Integration | **Ready** (needs PostGIS) | 13 |
+| GA Analytics Report | Needs GA credentials | 14 |
+| Census Demographics | **Working** | 15 |
+| Person/Actor Architecture | **Working** — Epic #67 closed | 03 |
 | Spark Utilities (530 functions) | **Working** (11/11 tests) | test_spark_utils_live.py |
 
-**Tests:** 751 passing, 8 skipped (as of Jan 25, 2026)
+**Tests:** 128+ passing geo tests, NB01-04 verified (as of Feb 16, 2026)
 
 ---
 
@@ -608,10 +715,10 @@ export DW_AUTH_TOKEN="your-token"
 ## Next Session Startup
 
 1. Read this file
-2. **Test notebooks in JetBrains:** 02, 04, 14, 15
-3. **If tests pass:** Create PR to merge `dheerajchand/sketch/siege-utilities-restoration` → `main`
+2. **Continue NB testing:** NB05+ (all should work, no code changes needed)
+3. **Merge gate:** All notebooks pass → Epic A #38 (merge to main)
 4. **After merge:** Update pure-translation to use siege_utilities for Census integration
-5. Consider implementing remaining issues (#9 Wiki, #10 CI/CD improvements)
+5. **Backlog:** #92 (engine-agnostic DataFrames), #9 (Wiki), #10 (CI/CD)
 
 ---
 
