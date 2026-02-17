@@ -3,6 +3,7 @@ Path configuration constants for siege_utilities.
 Centralized path management following the Zsh configuration pattern.
 """
 
+import logging
 import os
 from pathlib import Path
 from typing import Dict, Optional, List
@@ -13,13 +14,13 @@ from typing import Dict, Optional, List
 # Following the ${VARIABLE:-default} pattern from Zsh configuration
 
 # Primary project paths (from environment variables with fallbacks)
-SIEGE_UTILITIES_HOME = Path(os.getenv('SIEGE_UTILITIES', Path.home() / 'Documents/Professional/Siege_Analytics/Code/siege_utilities'))
-SIEGE_UTILITIES_TEST = Path(os.getenv('SIEGE_UTILITIES_TEST', Path.home() / 'projects/test-remote-branch/siege_utilities'))
+SIEGE_UTILITIES_HOME = Path(os.getenv('SIEGE_UTILITIES', Path.home() / 'siege_utilities'))
+SIEGE_UTILITIES_TEST = Path(os.getenv('SIEGE_UTILITIES_TEST', Path.home() / 'siege_utilities_test'))
 
 # Siege Analytics organization paths
-SIEGE_ANALYTICS_ROOT = Path(os.getenv('SIEGE', Path.home() / 'Documents/Professional/Siege_Analytics'))
-GEOCODING_PROJECT = Path(os.getenv('GEOCODE', SIEGE_ANALYTICS_ROOT / 'Clients/TAN/Projects/tan_geocoding_test'))
-MASAI_PROJECT = Path(os.getenv('MASAI', SIEGE_ANALYTICS_ROOT / 'Clients/MI'))
+SIEGE_ANALYTICS_ROOT = Path(os.getenv('SIEGE', Path.home() / 'siege_analytics'))
+GEOCODING_PROJECT = Path(os.getenv('GEOCODE', SIEGE_ANALYTICS_ROOT / 'geocoding'))
+MASAI_PROJECT = Path(os.getenv('MASAI', SIEGE_ANALYTICS_ROOT / 'masai'))
 
 # =============================================================================
 # CACHE AND TEMPORARY DIRECTORIES
@@ -268,7 +269,11 @@ def get_relative_to_home(path: Path) -> str:
 # =============================================================================
 
 def initialize_siege_directories() -> List[Path]:
-    """Initialize all standard Siege utilities directories."""
+    """Initialize all standard Siege utilities directories.
+
+    Catches PermissionError, FileNotFoundError, and OSError so that
+    imports do not fail in containers, CI, or cross-platform environments.
+    """
     directories_to_create = [
         SIEGE_CACHE_DIR,
         TEMP_DIR,
@@ -289,11 +294,18 @@ def initialize_siege_directories() -> List[Path]:
         CONFIG_BACKUP_DIR,
         DATA_BACKUP_DIR
     ]
-    
+
+    created = []
     for directory in directories_to_create:
-        ensure_directory_exists(directory)
-    
-    return directories_to_create
+        try:
+            ensure_directory_exists(directory)
+            created.append(directory)
+        except (PermissionError, FileNotFoundError, OSError) as exc:
+            logging.getLogger(__name__).warning(
+                "Could not create directory %s: %s", directory, exc
+            )
+
+    return created
 
 # Auto-initialize on import (can be disabled by setting environment variable)
 if os.getenv('SIEGE_AUTO_INIT_DIRS', 'true').lower() == 'true':

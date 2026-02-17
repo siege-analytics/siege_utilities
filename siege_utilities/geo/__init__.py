@@ -165,6 +165,11 @@ from .choropleth import (
     create_choropleth_comparison,
     create_classified_comparison,
     create_bivariate_choropleth,
+    create_bivariate_crosstab,
+    create_bivariate_companion_maps,
+    verify_bivariate_classification,
+    create_bivariate_analysis,
+    BivariateAnalysisResult,
     save_map,
     BIVARIATE_COLOR_SCHEMES,
 )
@@ -292,6 +297,11 @@ __all__ = [
     'create_choropleth_comparison',
     'create_classified_comparison',
     'create_bivariate_choropleth',
+    'create_bivariate_crosstab',
+    'create_bivariate_companion_maps',
+    'verify_bivariate_classification',
+    'create_bivariate_analysis',
+    'BivariateAnalysisResult',
     'save_map',
     'BIVARIATE_COLOR_SCHEMES',
 

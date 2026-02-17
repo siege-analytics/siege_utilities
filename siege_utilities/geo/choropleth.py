@@ -9,16 +9,21 @@ For ReportLab PDF integration, see reporting.chart_generator.ChartGenerator
 which provides parallel implementations returning ReportLab Image objects.
 
 Functions:
-    create_choropleth            -- Single-variable choropleth
-    create_choropleth_comparison -- Multiple variables side by side
-    create_classified_comparison -- Same variable, different classification schemes
-    create_bivariate_choropleth  -- Two-variable bivariate map with legend
-    save_map                     -- Save figure to file with sensible defaults
+    create_choropleth                -- Single-variable choropleth
+    create_choropleth_comparison     -- Multiple variables side by side
+    create_classified_comparison     -- Same variable, different classification schemes
+    create_bivariate_choropleth      -- Two-variable bivariate map with legend
+    create_bivariate_crosstab        -- NxN count table for bivariate bins
+    create_bivariate_companion_maps  -- Side-by-side monovariate maps with same bins
+    verify_bivariate_classification  -- Data-level verification of classification
+    create_bivariate_analysis        -- Orchestrator returning all artifacts
+    save_map                         -- Save figure to file with sensible defaults
 """
 
 import logging
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -128,6 +133,68 @@ def _resolve_color_scheme(
             f"{n_classes}x{n_classes} = {expected} required"
         )
     return colors
+
+
+def _format_breakpoint(value: float) -> str:
+    """Format a numeric breakpoint for compact display on legend ticks.
+
+    Examples:
+        50000    → "50.0K"
+        1500000  → "1.5M"
+        0.034    → "0.034"
+        123      → "123"
+    """
+    abs_val = abs(value)
+    sign = '-' if value < 0 else ''
+    if abs_val >= 1_000_000:
+        return f"{sign}{abs_val / 1_000_000:.1f}M"
+    if abs_val >= 1_000:
+        return f"{sign}{abs_val / 1_000:.1f}K"
+    if abs_val == 0:
+        return "0"
+    if abs_val < 1:
+        return f"{value:.3g}"
+    if abs_val == int(abs_val):
+        return f"{sign}{int(abs_val)}"
+    return f"{value:.1f}"
+
+
+def _compute_bivariate_classes(
+    gdf: gpd.GeoDataFrame,
+    var1: str,
+    var2: str,
+    n_classes: int = 3,
+) -> Tuple[gpd.GeoDataFrame, np.ndarray, np.ndarray]:
+    """Compute quantile-based bivariate class assignments with breakpoints.
+
+    Args:
+        gdf: GeoDataFrame with two numeric columns.
+        var1: Column name for first variable (x-axis).
+        var2: Column name for second variable (y-axis).
+        n_classes: Number of quantile classes per variable.
+
+    Returns:
+        Tuple of:
+            - GeoDataFrame copy with columns '_var1_class', '_var2_class', '_bivar_class'
+            - var1_breaks: numpy array of breakpoint values (length n_classes + 1)
+            - var2_breaks: numpy array of breakpoint values (length n_classes + 1)
+    """
+    gdf = gdf.copy()
+
+    _, var1_bins = pd.qcut(gdf[var1], n_classes, labels=False,
+                           duplicates='drop', retbins=True)
+    _, var2_bins = pd.qcut(gdf[var2], n_classes, labels=False,
+                           duplicates='drop', retbins=True)
+
+    gdf['_var1_class'] = pd.qcut(
+        gdf[var1], n_classes, labels=False, duplicates='drop'
+    )
+    gdf['_var2_class'] = pd.qcut(
+        gdf[var2], n_classes, labels=False, duplicates='drop'
+    )
+    gdf['_bivar_class'] = gdf['_var1_class'] + gdf['_var2_class'] * n_classes
+
+    return gdf, np.asarray(var1_bins), np.asarray(var2_bins)
 
 
 # =============================================================================
@@ -378,21 +445,16 @@ def create_bivariate_choropleth(
     colors = _resolve_color_scheme(color_scheme, n_classes)
     cmap = mcolors.ListedColormap(colors)
 
-    gdf = gdf.copy()
-    gdf['_var1_class'] = pd.qcut(
-        gdf[var1], n_classes, labels=False, duplicates='drop'
+    classified, var1_breaks, var2_breaks = _compute_bivariate_classes(
+        gdf, var1, var2, n_classes
     )
-    gdf['_var2_class'] = pd.qcut(
-        gdf[var2], n_classes, labels=False, duplicates='drop'
-    )
-    gdf['_bivar_class'] = gdf['_var1_class'] + gdf['_var2_class'] * n_classes
 
     fig, (ax_map, ax_legend) = plt.subplots(
         1, 2, figsize=figsize,
         gridspec_kw={'width_ratios': [1, legend_size_ratio]},
     )
 
-    gdf.plot(
+    classified.plot(
         column='_bivar_class',
         ax=ax_map,
         cmap=cmap,
@@ -404,18 +466,23 @@ def create_bivariate_choropleth(
     ax_map.set_title(title, fontsize=14)
     ax_map.axis('off')
 
-    # Create NxN legend grid
+    # Create NxN legend grid with magnitude tick labels
     legend_array = np.arange(n_classes * n_classes).reshape(n_classes, n_classes)
     ax_legend.imshow(legend_array, cmap=cmap, origin='lower')
+
+    # Tick positions at cell boundaries (edges between cells + outer edges)
+    tick_positions = np.arange(n_classes + 1) - 0.5
+    var1_labels = [_format_breakpoint(v) for v in var1_breaks]
+    var2_labels = [_format_breakpoint(v) for v in var2_breaks]
+
+    ax_legend.set_xticks(tick_positions)
+    ax_legend.set_xticklabels(var1_labels, fontsize=7, rotation=45, ha='right')
+    ax_legend.set_yticks(tick_positions)
+    ax_legend.set_yticklabels(var2_labels, fontsize=7)
+
     ax_legend.set_xlabel(f'{var1} \u2192', fontsize=10)
     ax_legend.set_ylabel(f'{var2} \u2192', fontsize=10)
-    ax_legend.set_xticks([])
-    ax_legend.set_yticks([])
     ax_legend.set_title('Legend', fontsize=10)
-
-    # Clean up temp columns
-    gdf.drop(columns=['_var1_class', '_var2_class', '_bivar_class'],
-             inplace=True, errors='ignore')
 
     plt.tight_layout()
     axes = np.array([ax_map, ax_legend])
@@ -456,3 +523,346 @@ def save_map(
     )
     log_info(f"Map saved to: {path}")
     return path
+
+
+# =============================================================================
+# BIVARIATE VERIFICATION ARTIFACTS
+# =============================================================================
+
+def create_bivariate_crosstab(
+    gdf: gpd.GeoDataFrame,
+    var1: str,
+    var2: str,
+    *,
+    n_classes: int = 3,
+    color_scheme: Union[str, List[str]] = 'purple_blue',
+    render: bool = False,
+    figsize: Tuple[float, float] = (6, 5),
+) -> Union[pd.DataFrame, Tuple[pd.DataFrame, matplotlib.figure.Figure, plt.Axes]]:
+    """Create a cross-tabulation of bivariate class counts.
+
+    Args:
+        gdf: GeoDataFrame with two numeric columns.
+        var1: Column name for first variable (columns of crosstab).
+        var2: Column name for second variable (rows of crosstab).
+        n_classes: Number of quantile classes per variable.
+        color_scheme: Key into BIVARIATE_COLOR_SCHEMES or raw list (for render colors).
+        render: If True, also return a colored matplotlib figure.
+        figsize: Figure size for rendered crosstab.
+
+    Returns:
+        If render=False: DataFrame with counts (n_classes rows × n_classes cols).
+        If render=True: Tuple of (DataFrame, fig, ax).
+    """
+    classified, var1_breaks, var2_breaks = _compute_bivariate_classes(
+        gdf, var1, var2, n_classes
+    )
+
+    # Build range labels from breakpoints
+    def _range_labels(breaks: np.ndarray) -> List[str]:
+        labels = []
+        for i in range(len(breaks) - 1):
+            labels.append(
+                f"{_format_breakpoint(breaks[i])}\u2013{_format_breakpoint(breaks[i + 1])}"
+            )
+        return labels
+
+    var1_labels = _range_labels(var1_breaks)
+    var2_labels = _range_labels(var2_breaks)
+
+    ct = pd.crosstab(
+        classified['_var2_class'],
+        classified['_var1_class'],
+    )
+
+    # Ensure all classes present even if empty
+    for i in range(n_classes):
+        if i not in ct.index:
+            ct.loc[i] = 0
+        if i not in ct.columns:
+            ct[i] = 0
+    ct = ct.sort_index(axis=0).sort_index(axis=1)
+
+    # Apply readable labels
+    ct.index = var2_labels[:ct.shape[0]]
+    ct.columns = var1_labels[:ct.shape[1]]
+    ct.index.name = var2
+    ct.columns.name = var1
+
+    if not render:
+        return ct
+
+    # Render colored figure
+    colors = _resolve_color_scheme(color_scheme, n_classes)
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
+
+    color_array = np.array(colors).reshape(n_classes, n_classes)
+    for row in range(ct.shape[0]):
+        for col in range(ct.shape[1]):
+            cell_color = color_array[row, col]
+            ax.add_patch(plt.Rectangle(
+                (col, row), 1, 1, facecolor=cell_color, edgecolor='white', linewidth=1,
+            ))
+            count = ct.iloc[row, col]
+            # Choose text color based on luminance
+            rgb = mcolors.to_rgb(cell_color)
+            lum = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]
+            text_color = 'white' if lum < 0.5 else 'black'
+            ax.text(
+                col + 0.5, row + 0.5, str(count),
+                ha='center', va='center', fontsize=12, fontweight='bold',
+                color=text_color,
+            )
+
+    ax.set_xlim(0, n_classes)
+    ax.set_ylim(0, n_classes)
+    ax.set_xticks(np.arange(n_classes) + 0.5)
+    ax.set_xticklabels(ct.columns, fontsize=8, rotation=45, ha='right')
+    ax.set_yticks(np.arange(n_classes) + 0.5)
+    ax.set_yticklabels(ct.index, fontsize=8)
+    ax.set_xlabel(f'{var1} \u2192', fontsize=10)
+    ax.set_ylabel(f'{var2} \u2192', fontsize=10)
+    ax.set_title('Bivariate Classification Crosstab', fontsize=11)
+    ax.set_aspect('equal')
+    plt.tight_layout()
+
+    return ct, fig, ax
+
+
+def create_bivariate_companion_maps(
+    gdf: gpd.GeoDataFrame,
+    var1: str,
+    var2: str,
+    *,
+    n_classes: int = 3,
+    cmap1: str = 'YlOrRd',
+    cmap2: str = 'YlGnBu',
+    figsize: Tuple[float, float] = (16, 8),
+    edgecolor: str = 'black',
+    linewidth: float = 0.3,
+) -> Tuple[matplotlib.figure.Figure, np.ndarray]:
+    """Create two side-by-side monovariate choropleths using the same quantile bins.
+
+    Useful as companion maps alongside a bivariate choropleth to let readers
+    see each variable independently with the same classification.
+
+    Args:
+        gdf: GeoDataFrame with geometry and two numeric columns.
+        var1: Column name for first variable (left map).
+        var2: Column name for second variable (right map).
+        n_classes: Number of quantile classes (same as bivariate map).
+        cmap1: Colormap for var1.
+        cmap2: Colormap for var2.
+        figsize: Figure size (width, height) in inches.
+        edgecolor: Edge color.
+        linewidth: Edge width.
+
+    Returns:
+        (fig, axes) tuple where axes is a numpy array of 2 Axes.
+    """
+    fig, axes = plt.subplots(1, 2, figsize=figsize)
+
+    for ax, var, cmap_name in [(axes[0], var1, cmap1), (axes[1], var2, cmap2)]:
+        create_choropleth(
+            gdf, var,
+            title=var,
+            cmap=cmap_name,
+            scheme='quantiles',
+            k=n_classes,
+            edgecolor=edgecolor,
+            linewidth=linewidth,
+            ax=ax,
+        )
+
+    plt.tight_layout()
+    return fig, np.array(axes)
+
+
+def verify_bivariate_classification(
+    gdf: gpd.GeoDataFrame,
+    var1: str,
+    var2: str,
+    *,
+    n_classes: int = 3,
+) -> Dict[str, Any]:
+    """Verify the integrity of a bivariate quantile classification.
+
+    Pure data function — no plotting. Checks that the classification is
+    complete, breakpoints are monotonic, and counts sum correctly.
+
+    Args:
+        gdf: GeoDataFrame with two numeric columns.
+        var1: Column name for first variable.
+        var2: Column name for second variable.
+        n_classes: Number of quantile classes per variable.
+
+    Returns:
+        Dict with keys:
+            valid (bool): True if all checks pass.
+            total_units (int): Total number of geographic units.
+            classified_units (int): Number successfully classified.
+            crosstab (pd.DataFrame): Raw count crosstab.
+            var1_breaks (np.ndarray): Breakpoint values for var1.
+            var2_breaks (np.ndarray): Breakpoint values for var2.
+            errors (List[str]): List of error messages (empty if valid).
+    """
+    errors: List[str] = []
+
+    classified, var1_breaks, var2_breaks = _compute_bivariate_classes(
+        gdf, var1, var2, n_classes
+    )
+
+    total_units = len(classified)
+    classified_mask = classified['_bivar_class'].notna()
+    classified_units = int(classified_mask.sum())
+
+    if classified_units != total_units:
+        errors.append(
+            f"Unclassified units: {total_units - classified_units} of {total_units}"
+        )
+
+    # Check breakpoints are monotonically increasing
+    for name, breaks in [('var1', var1_breaks), ('var2', var2_breaks)]:
+        diffs = np.diff(breaks)
+        if not np.all(diffs >= 0):
+            errors.append(f"{name} breakpoints are not monotonically increasing")
+
+    # Build crosstab
+    ct = pd.crosstab(classified['_var2_class'], classified['_var1_class'])
+    crosstab_sum = ct.values.sum()
+    if crosstab_sum != classified_units:
+        errors.append(
+            f"Crosstab sum ({crosstab_sum}) != classified units ({classified_units})"
+        )
+
+    return {
+        'valid': len(errors) == 0,
+        'total_units': total_units,
+        'classified_units': classified_units,
+        'crosstab': ct,
+        'var1_breaks': var1_breaks,
+        'var2_breaks': var2_breaks,
+        'errors': errors,
+    }
+
+
+# =============================================================================
+# BIVARIATE ANALYSIS ORCHESTRATOR
+# =============================================================================
+
+@dataclass
+class BivariateAnalysisResult:
+    """Container for all bivariate choropleth analysis artifacts.
+
+    Attributes:
+        bivariate_fig: Figure containing the bivariate choropleth map.
+        bivariate_axes: Axes array [ax_map, ax_legend].
+        crosstab: DataFrame of class-pair unit counts.
+        crosstab_fig: Figure of the rendered crosstab (colored grid).
+        crosstab_ax: Axes for the rendered crosstab.
+        companion_fig: Figure with two monovariate companion maps.
+        companion_axes: Axes array [ax_var1, ax_var2].
+        verification: Dict from verify_bivariate_classification().
+        var1_breaks: Breakpoint array for variable 1.
+        var2_breaks: Breakpoint array for variable 2.
+    """
+    bivariate_fig: matplotlib.figure.Figure
+    bivariate_axes: np.ndarray
+    crosstab: pd.DataFrame
+    crosstab_fig: matplotlib.figure.Figure
+    crosstab_ax: plt.Axes
+    companion_fig: matplotlib.figure.Figure
+    companion_axes: np.ndarray
+    verification: Dict[str, Any]
+    var1_breaks: np.ndarray
+    var2_breaks: np.ndarray
+
+
+def create_bivariate_analysis(
+    gdf: gpd.GeoDataFrame,
+    var1: str,
+    var2: str,
+    *,
+    title: str = 'Bivariate Choropleth',
+    n_classes: int = 3,
+    color_scheme: Union[str, List[str]] = 'purple_blue',
+    figsize: Tuple[float, float] = (14, 10),
+    edgecolor: str = 'white',
+    linewidth: float = 0.5,
+    legend_size_ratio: float = 0.25,
+    cmap1: str = 'YlOrRd',
+    cmap2: str = 'YlGnBu',
+    companion_figsize: Tuple[float, float] = (16, 8),
+    crosstab_figsize: Tuple[float, float] = (6, 5),
+) -> BivariateAnalysisResult:
+    """Create a complete bivariate choropleth analysis with all verification artifacts.
+
+    One call produces:
+    - Bivariate choropleth map with magnitude legend
+    - Rendered crosstab showing unit counts per class pair
+    - Two companion monovariate maps (one per variable)
+    - Verification dict confirming classification integrity
+
+    Args:
+        gdf: GeoDataFrame with geometry and two numeric columns.
+        var1: Column name for first variable (x-axis).
+        var2: Column name for second variable (y-axis).
+        title: Title for the bivariate map.
+        n_classes: Number of quantile classes per variable.
+        color_scheme: Bivariate color scheme name or raw list.
+        figsize: Size of the bivariate map figure.
+        edgecolor: Polygon edge color on the bivariate map.
+        linewidth: Polygon edge width on the bivariate map.
+        legend_size_ratio: Legend panel width ratio.
+        cmap1: Colormap for var1 companion map.
+        cmap2: Colormap for var2 companion map.
+        companion_figsize: Size of the companion maps figure.
+        crosstab_figsize: Size of the rendered crosstab figure.
+
+    Returns:
+        BivariateAnalysisResult dataclass with all artifacts.
+    """
+    bivar_fig, bivar_axes = create_bivariate_choropleth(
+        gdf, var1, var2,
+        title=title,
+        n_classes=n_classes,
+        color_scheme=color_scheme,
+        figsize=figsize,
+        edgecolor=edgecolor,
+        linewidth=linewidth,
+        legend_size_ratio=legend_size_ratio,
+    )
+
+    ct, ct_fig, ct_ax = create_bivariate_crosstab(
+        gdf, var1, var2,
+        n_classes=n_classes,
+        color_scheme=color_scheme,
+        render=True,
+        figsize=crosstab_figsize,
+    )
+
+    comp_fig, comp_axes = create_bivariate_companion_maps(
+        gdf, var1, var2,
+        n_classes=n_classes,
+        cmap1=cmap1,
+        cmap2=cmap2,
+        figsize=companion_figsize,
+    )
+
+    verification = verify_bivariate_classification(
+        gdf, var1, var2,
+        n_classes=n_classes,
+    )
+
+    return BivariateAnalysisResult(
+        bivariate_fig=bivar_fig,
+        bivariate_axes=bivar_axes,
+        crosstab=ct,
+        crosstab_fig=ct_fig,
+        crosstab_ax=ct_ax,
+        companion_fig=comp_fig,
+        companion_axes=comp_axes,
+        verification=verification,
+        var1_breaks=verification['var1_breaks'],
+        var2_breaks=verification['var2_breaks'],
+    )
