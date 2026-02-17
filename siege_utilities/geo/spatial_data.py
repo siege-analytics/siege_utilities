@@ -120,100 +120,83 @@ class CensusDirectoryDiscovery:
         self.cache = {}
         self.cache_timeout = CENSUS_CACHE_TIMEOUT
         
+    def _parse_year_links(self, content: bytes) -> List[int]:
+        """Parse Census directory HTML to extract available years."""
+        soup = BeautifulSoup(content, 'html.parser')
+        year_patterns = [
+            re.compile(r'TIGER(\d{4})'),
+            re.compile(r'GENZ(\d{4})'),
+            re.compile(r'TGRGDB(\d{2})'),  # TGRGDB13, TGRGDB14, etc.
+            re.compile(r'TGRGPKG(\d{2})')  # TGRGPKG24, TGRGPKG25, etc.
+        ]
+
+        years = []
+        for link in soup.find_all('a'):
+            href = link.get('href', '')
+            for pattern in year_patterns:
+                match = pattern.search(href)
+                if match:
+                    if 'TGRGDB' in href or 'TGRGPKG' in href:
+                        year = 2000 + int(match.group(1))
+                    else:
+                        year = int(match.group(1))
+                    if 1990 <= year <= datetime.now().year + 1:
+                        years.append(year)
+                    break
+
+        return sorted(list(set(years)))
+
     def get_available_years(self, force_refresh: bool = False) -> List[int]:
-        """Get list of available Census years."""
+        """Get list of available Census years with retry and exponential backoff."""
         cache_key = "available_years"
-        
+
         if not force_refresh and cache_key in self.cache:
             cache_time, data = self.cache[cache_key]
             if time.time() - cache_time < self.cache_timeout:
                 return data
-        
-        try:
-            # Try with SSL verification first
-            response = requests.get(self.base_url, timeout=self.timeout)
-            response.raise_for_status()
-            
-            # Parse HTML to find TIGER and GENZ year directories
-            soup = BeautifulSoup(response.content, 'html.parser')
-            # Handle both TIGER and GENZ patterns, plus other variations
-            year_patterns = [
-                re.compile(r'TIGER(\d{4})'),
-                re.compile(r'GENZ(\d{4})'),
-                re.compile(r'TGRGDB(\d{2})'),  # TGRGDB13, TGRGDB14, etc.
-                re.compile(r'TGRGPKG(\d{2})')  # TGRGPKG24, TGRGPKG25, etc.
-            ]
-            
-            years = []
-            for link in soup.find_all('a'):
-                href = link.get('href', '')
-                
-                # Try each pattern
-                for pattern in year_patterns:
-                    match = pattern.search(href)
-                    if match:
-                        if 'TGRGDB' in href or 'TGRGPKG' in href:
-                            # Convert 2-digit years to 4-digit (assume 20xx)
-                            year = 2000 + int(match.group(1))
-                        else:
-                            year = int(match.group(1))
-                        
-                        if 1990 <= year <= datetime.now().year + 1:
-                            years.append(year)
-                        break
-            
-            # Remove duplicates and sort
-            years = sorted(list(set(years)))
-            self.cache[cache_key] = (time.time(), years)
-            return years
-            
-        except requests.exceptions.SSLError:
-            log.warning("SSL verification failed, trying without verification...")
+
+        last_exception = None
+        for attempt in range(CENSUS_RETRY_ATTEMPTS):
+            verify_ssl = True
             try:
-                # Fallback: try without SSL verification
-                response = requests.get(self.base_url, timeout=self.timeout, verify=False)
+                log.debug(f"Discovering Census years (attempt {attempt + 1}/{CENSUS_RETRY_ATTEMPTS})")
+                response = requests.get(self.base_url, timeout=self.timeout, verify=verify_ssl)
                 response.raise_for_status()
-                
-                # Parse HTML to find TIGER and GENZ year directories
-                soup = BeautifulSoup(response.content, 'html.parser')
-                year_patterns = [
-                    re.compile(r'TIGER(\d{4})'),
-                    re.compile(r'GENZ(\d{4})'),
-                    re.compile(r'TGRGDB(\d{2})'),
-                    re.compile(r'TGRGPKG(\d{2})')
-                ]
-                
-                years = []
-                for link in soup.find_all('a'):
-                    href = link.get('href', '')
-                    
-                    for pattern in year_patterns:
-                        match = pattern.search(href)
-                        if match:
-                            if 'TGRGDB' in href or 'TGRGPKG' in href:
-                                year = 2000 + int(match.group(1))
-                            else:
-                                year = int(match.group(1))
-                            
-                            if 1990 <= year <= datetime.now().year + 1:
-                                years.append(year)
-                            break
-                
-                years = sorted(list(set(years)))
+
+                years = self._parse_year_links(response.content)
                 self.cache[cache_key] = (time.time(), years)
                 return years
-                
-            except Exception as e:
-                log.error(f"Failed to discover available years (with SSL bypass): {e}")
-                log.info("Using fallback years (2010-present)")
-                # Fallback to known years
-                return list(range(2010, datetime.now().year + 1))
-                
-        except Exception as e:
-            log.error(f"Failed to discover available years: {e}")
-            log.info("Using fallback years (2010-present)")
-            # Fallback to known years
-            return list(range(2010, datetime.now().year + 1))
+
+            except requests.exceptions.SSLError:
+                if verify_ssl:
+                    log.warning("SSL verification failed, retrying without verification...")
+                    verify_ssl = False
+                    try:
+                        response = requests.get(self.base_url, timeout=self.timeout, verify=False)
+                        response.raise_for_status()
+                        years = self._parse_year_links(response.content)
+                        self.cache[cache_key] = (time.time(), years)
+                        return years
+                    except Exception as e:
+                        last_exception = e
+
+            except requests.exceptions.Timeout as e:
+                last_exception = e
+                log.warning(f"Census directory request timed out (attempt {attempt + 1}/{CENSUS_RETRY_ATTEMPTS})")
+
+            except requests.exceptions.RequestException as e:
+                last_exception = e
+                log.warning(f"Census directory request failed (attempt {attempt + 1}/{CENSUS_RETRY_ATTEMPTS}): {e}")
+
+            # Exponential backoff before retry (1s, 2s, 4s, 8s, ...)
+            if attempt < CENSUS_RETRY_ATTEMPTS - 1:
+                sleep_time = 2 ** attempt
+                log.info(f"Retrying in {sleep_time}s...")
+                time.sleep(sleep_time)
+
+        log.error(f"Failed to discover available years after {CENSUS_RETRY_ATTEMPTS} attempts: {last_exception}")
+        log.info("Using fallback years (2010-present)")
+        return list(range(2010, datetime.now().year + 1))
     
     def get_year_directory_contents(self, year: int, force_refresh: bool = False) -> List[str]:
         """Get contents of a specific TIGER year directory."""

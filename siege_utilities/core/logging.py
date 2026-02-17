@@ -117,6 +117,9 @@ class LoggerManager:
     
     def _configure_logger(self, logger: logging.Logger, config: LoggingConfig) -> None:
         """Configure a logger with the specified configuration."""
+        # Clear existing handlers to prevent stacking on reconfigure
+        logger.handlers.clear()
+
         # Set base level
         base_level = min(
             self._parse_log_level(config.console_level),
