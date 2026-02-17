@@ -61,6 +61,14 @@ def pytest_configure(config):
         os.makedirs(path, exist_ok=True)
         os.environ[env_var] = path
 
+    # Django test configuration (only if django is installed)
+    try:
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tests.django_settings')
+        import django
+        django.setup()
+    except ImportError:
+        pass
+
 
 def pytest_unconfigure(config):
     """Clean up the temp directory tree after the session."""

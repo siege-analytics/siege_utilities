@@ -7,7 +7,7 @@ name = "siege-utilities"
 version = "1.0.1"
 description = "A comprehensive Python utilities package with enhanced auto-discovery"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [
     {name = "Dheeraj Chand", email = "dheeraj@siegeanalytics.com"}
 ]
@@ -41,6 +41,7 @@ dependencies = [
     "folium>=0.18.0",
     "notebook>=7.3.3",
     "mapclassify>=2.5.0",
+    "pysal>=24.1",
 ]
 
 [project.optional-dependencies]
@@ -71,6 +72,9 @@ analytics = [
     "scikit-learn>=1.1.0",
     "psycopg2-binary>=2.9.0",
     "sqlalchemy>=1.4.0",
+    "facebook-business>=20.0.0",
+    "datadotworld>=1.7.0",
+    "snowflake-connector-python>=3.0.0",
 ]
 streamlit = [
     "streamlit>=1.28.0",
@@ -111,6 +115,7 @@ dev = [
     "black>=21.0.0",
     "flake8>=3.8.0",
     "astor>=0.8.1",
+    "django>=4.2.0",
 ]
 all = [
     "pyspark>=3.3.0",
@@ -140,6 +145,14 @@ all = [
     "psutil>=5.9.0",
     "memory-profiler>=0.61.0",
     "duckdb>=0.7.0",
+    "django>=4.2.0",
+    "djangorestframework>=3.14.0",
+    "djangorestframework-gis>=1.0.0",
+    "mapclassify>=2.5.0",
+    "facebook-business>=20.0.0",
+    "datadotworld>=1.7.0",
+    "snowflake-connector-python>=3.0.0",
+    "pysal>=24.1",
 ]
 
 [project.urls]
