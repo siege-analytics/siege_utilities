@@ -93,6 +93,8 @@ from .census_constants import (
     CENSUS_FTP_BASE_URL,
     
     # Geographic levels
+    CANONICAL_GEOGRAPHIC_LEVELS,
+    resolve_geographic_level,
     GEOGRAPHIC_LEVELS,
     GEOGRAPHIC_HIERARCHY,
     
@@ -350,6 +352,7 @@ __all__ = [
     
     # Census constants
     'CENSUS_BASE_URL', 'CENSUS_API_BASE_URL', 'CENSUS_FTP_BASE_URL',
+    'CANONICAL_GEOGRAPHIC_LEVELS', 'resolve_geographic_level',
     'GEOGRAPHIC_LEVELS', 'GEOGRAPHIC_HIERARCHY',
     'DATASET_TYPES', 'RELIABILITY_LEVELS',
     'STATE_FIPS_CODES', 'FIPS_TO_STATE', 'STATE_NAMES',

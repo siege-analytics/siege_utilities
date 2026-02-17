@@ -439,9 +439,9 @@ class CensusDirectoryDiscovery:
                                                patterns: Dict[str, Any]) -> Optional[str]:
         """Construct filename using FIPS validation and boundary type rules."""
         
-        # Define which boundary types require state FIPS
+        # Define which boundary types require state FIPS (canonical names)
         state_required_types = {
-            'tabblock', 'tabblock10', 'tabblock20', 'tract', 'bg', 'block',
+            'tabblock', 'tabblock10', 'tabblock20', 'tract', 'block_group', 'block',
             'sldu', 'sldl', 'vtd', 'vtd10', 'vtd20', 'cousub', 'submcd'
         }
         

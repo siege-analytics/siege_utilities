@@ -19,31 +19,103 @@ CENSUS_API_BASE_URL = "https://api.census.gov/data"
 CENSUS_FTP_BASE_URL = "https://www2.census.gov"
 
 # =============================================================================
-# CENSUS GEOGRAPHIC LEVELS
+# CANONICAL GEOGRAPHIC LEVELS (single source of truth)
+# =============================================================================
+# Keys are canonical names. Every other reference site derives from this dict.
+# Aliases map legacy long-form names, Census abbreviations, and common variants.
+
+CANONICAL_GEOGRAPHIC_LEVELS = {
+    'nation':       {'aliases': ['us', 'national'],                                    'geoid_length': 1},
+    'region':       {'aliases': [],                                                    'geoid_length': 1},
+    'division':     {'aliases': [],                                                    'geoid_length': 1},
+    'state':        {'aliases': [],                                                    'geoid_length': 2},
+    'county':       {'aliases': [],                                                    'geoid_length': 5},
+    'cousub':       {'aliases': ['county_subdivision'],                                'geoid_length': 10},
+    'place':        {'aliases': [],                                                    'geoid_length': 7},
+    'cd':           {'aliases': ['congressional_district'],                            'geoid_length': 4},
+    'sldu':         {'aliases': ['state_legislative_upper',
+                                 'state_legislative_district_upper',
+                                 'state_legislative_district'],                        'geoid_length': 5},
+    'sldl':         {'aliases': ['state_legislative_lower',
+                                 'state_legislative_district_lower'],                  'geoid_length': 5},
+    'tract':        {'aliases': [],                                                    'geoid_length': 11},
+    'block_group':  {'aliases': ['bg', 'blockgroup'],                                  'geoid_length': 12},
+    'block':        {'aliases': ['tabblock'],                                          'geoid_length': 15},
+    'tabblock20':   {'aliases': [],                                                    'geoid_length': 15},
+    'tabblock10':   {'aliases': [],                                                    'geoid_length': 15},
+    'zcta':         {'aliases': ['zip_code', 'zcta5', 'zipcode'],                      'geoid_length': 5},
+    'cbsa':         {'aliases': [],                                                    'geoid_length': 5},
+    'puma':         {'aliases': [],                                                    'geoid_length': 7},
+    'vtd':          {'aliases': ['voting_district'],                                   'geoid_length': 6},
+    'vtd20':        {'aliases': [],                                                    'geoid_length': 6},
+}
+
+# Build reverse lookup: alias → canonical (computed once at import time)
+_ALIAS_TO_CANONICAL: Dict[str, str] = {}
+for _canonical, _info in CANONICAL_GEOGRAPHIC_LEVELS.items():
+    _ALIAS_TO_CANONICAL[_canonical] = _canonical
+    for _alias in _info['aliases']:
+        _ALIAS_TO_CANONICAL[_alias] = _canonical
+
+
+def resolve_geographic_level(level: str) -> str:
+    """
+    Resolve any geographic level name variant to its canonical form.
+
+    Accepts long forms (congressional_district), short forms (cd),
+    Census abbreviations (CD), and common aliases (zip_code → zcta).
+
+    Args:
+        level: Geographic level string in any supported format
+
+    Returns:
+        Canonical lowercase form
+
+    Raises:
+        ValueError: If level is not recognized
+    """
+    normalized = level.strip().lower()
+    canonical = _ALIAS_TO_CANONICAL.get(normalized)
+    if canonical is not None:
+        return canonical
+    raise ValueError(
+        f"Unrecognized geographic level: '{level}'. "
+        f"Valid levels: {sorted(CANONICAL_GEOGRAPHIC_LEVELS.keys())}"
+    )
+
+
+# =============================================================================
+# BACKWARD-COMPATIBLE GEOGRAPHIC LEVELS (derived from canonical)
 # =============================================================================
 
 GEOGRAPHIC_LEVELS = {
     "NATION": "nation",
-    "REGION": "region", 
+    "REGION": "region",
     "DIVISION": "division",
     "STATE": "state",
     "COUNTY": "county",
-    "COUNTY_SUBDIVISION": "county_subdivision",
+    "COUSUB": "cousub",
+    "COUNTY_SUBDIVISION": "cousub",     # alias
     "PLACE": "place",
-    "CONGRESSIONAL_DISTRICT": "congressional_district",
-    "STATE_LEGISLATIVE_DISTRICT": "state_legislative_district",
+    "CD": "cd",
+    "CONGRESSIONAL_DISTRICT": "cd",     # alias
+    "SLDU": "sldu",
+    "SLDL": "sldl",
+    "STATE_LEGISLATIVE_DISTRICT": "sldu",  # alias (defaults to upper)
     "TRACT": "tract",
     "BLOCK_GROUP": "block_group",
     "BLOCK": "block",
-    "ZIP_CODE": "zip_code",
-    "CBSA": "cbsa",  # Metropolitan/Micropolitan Statistical Areas
-    "PUMA": "puma",  # Public Use Microdata Areas
+    "ZCTA": "zcta",
+    "ZIP_CODE": "zcta",                 # alias
+    "CBSA": "cbsa",
+    "PUMA": "puma",
+    "VTD": "vtd",
 }
 
 # Geographic level hierarchy (for validation)
 GEOGRAPHIC_HIERARCHY = [
-    "nation", "region", "division", "state", "county", 
-    "county_subdivision", "tract", "block_group", "block"
+    "nation", "region", "division", "state", "county",
+    "cousub", "tract", "block_group", "block"
 ]
 
 # =============================================================================
@@ -122,14 +194,26 @@ ACS_AVAILABLE_YEARS = list(range(2009, _CURRENT_YEAR + 1))  # ACS available from
 # CENSUS FILE FORMATS AND PATTERNS
 # =============================================================================
 
-# File naming patterns for TIGER/Line files
+# File naming patterns for TIGER/Line files (keyed by canonical level name)
 TIGER_FILE_PATTERNS = {
-    "county": "tl_{year}_{state_fips}_county.zip",
-    "tract": "tl_{year}_{state_fips}_tract.zip", 
-    "block_group": "tl_{year}_{state_fips}_bg.zip",
-    "place": "tl_{year}_{state_fips}_place.zip",
+    "nation": "tl_{year}_us_nation.zip",
     "state": "tl_{year}_us_state.zip",
-    "nation": "tl_{year}_us_nation.zip"
+    "county": "tl_{year}_us_county.zip",
+    "cousub": "tl_{year}_{state_fips}_cousub.zip",
+    "tract": "tl_{year}_{state_fips}_tract.zip",
+    "block_group": "tl_{year}_{state_fips}_bg.zip",
+    "block": "tl_{year}_{state_fips}_tabblock20.zip",
+    "tabblock20": "tl_{year}_{state_fips}_tabblock20.zip",
+    "tabblock10": "tl_{year}_{state_fips}_tabblock10.zip",
+    "place": "tl_{year}_{state_fips}_place.zip",
+    "cd": "tl_{year}_us_cd{congress_number}.zip",
+    "sldu": "tl_{year}_{state_fips}_sldu.zip",
+    "sldl": "tl_{year}_{state_fips}_sldl.zip",
+    "vtd": "tl_{year}_{state_fips}_vtd.zip",
+    "vtd20": "tl_{year}_{state_fips}_vtd20.zip",
+    "zcta": "tl_{year}_us_zcta520.zip",
+    "cbsa": "tl_{year}_us_cbsa.zip",
+    "puma": "tl_{year}_{state_fips}_puma20.zip",
 }
 
 # =============================================================================
@@ -191,33 +275,40 @@ def normalize_state_identifier(state_input: str) -> str:
 def get_tiger_url(year: int, state_fips: str, geographic_level: str) -> str:
     """
     Generate TIGER/Line download URL.
-    
+
     Args:
         year: Census year
         state_fips: State FIPS code
-        geographic_level: Geographic level (county, tract, etc.)
-        
+        geographic_level: Geographic level — accepts any alias (e.g., 'cd',
+                         'congressional_district', 'bg', 'block_group')
+
     Returns:
         Complete URL for TIGER/Line file
-        
+
     Raises:
         ValueError: If parameters are invalid
     """
+    geographic_level = resolve_geographic_level(geographic_level)
+
     if geographic_level not in TIGER_FILE_PATTERNS:
         raise ValueError(f"Unsupported geographic level: {geographic_level}")
-    
+
     if year not in AVAILABLE_CENSUS_YEARS:
         raise ValueError(f"Census year {year} not available")
-    
+
     filename = TIGER_FILE_PATTERNS[geographic_level].format(
         year=year, state_fips=state_fips
     )
-    
+
     return f"{CENSUS_BASE_URL}/TIGER{year}/{geographic_level.upper()}/{filename}"
 
 def validate_geographic_level(level: str) -> bool:
-    """Validate if geographic level is supported."""
-    return level.lower() in GEOGRAPHIC_LEVELS.values()
+    """Validate if geographic level is supported. Accepts any alias."""
+    try:
+        resolve_geographic_level(level)
+        return True
+    except ValueError:
+        return False
 
 def get_fips_info(state_identifier: str) -> Dict[str, str]:
     """

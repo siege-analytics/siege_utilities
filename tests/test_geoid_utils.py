@@ -82,7 +82,7 @@ class TestNormalizeGEOID:
 
     def test_normalize_invalid_geography(self):
         """Test that invalid geography raises error."""
-        with pytest.raises(ValueError, match="Unknown geography level"):
+        with pytest.raises(ValueError, match="Unrecognized geographic level"):
             normalize_geoid("06", "invalid_level")
 
 

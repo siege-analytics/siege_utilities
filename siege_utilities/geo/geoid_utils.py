@@ -35,30 +35,22 @@ from typing import Dict, Optional, Union
 
 import pandas as pd
 
+from siege_utilities.config.census_constants import (
+    CANONICAL_GEOGRAPHIC_LEVELS,
+    resolve_geographic_level,
+)
+
 log = logging.getLogger(__name__)
 
 
 # =============================================================================
-# GEOID LENGTH CONSTANTS
+# GEOID LENGTH CONSTANTS (derived from canonical geographic levels)
 # =============================================================================
 
 GEOID_LENGTHS = {
-    'nation': 1,
-    'region': 1,
-    'division': 1,
-    'state': 2,
-    'county': 5,
-    'county_subdivision': 10,
-    'place': 7,
-    'tract': 11,
-    'block_group': 12,
-    'block': 15,
-    'zcta': 5,
-    'congressional_district': 4,
-    'state_legislative_upper': 5,
-    'state_legislative_lower': 5,
-    'cbsa': 5,
-    'puma': 7,
+    name: info['geoid_length']
+    for name, info in CANONICAL_GEOGRAPHIC_LEVELS.items()
+    if info.get('geoid_length') is not None
 }
 
 # Component lengths within GEOID
@@ -105,8 +97,8 @@ def normalize_geoid(
     # Convert to string
     geoid_str = str(geoid).strip()
 
-    # Get expected length
-    geography_lower = geography_level.lower().replace(' ', '_').replace('-', '_')
+    # Resolve to canonical name and get expected length
+    geography_lower = resolve_geographic_level(geography_level)
     expected_length = GEOID_LENGTHS.get(geography_lower)
 
     if expected_length is None:
@@ -193,7 +185,7 @@ def construct_geoid(
         >>> construct_geoid("tract", state="06", county="037", tract="101100")
         "06037101100"
     """
-    geography_lower = geography.lower().replace(' ', '_').replace('-', '_')
+    geography_lower = resolve_geographic_level(geography)
 
     # Normalize components
     def pad(value: Optional[str], length: int) -> str:
@@ -210,7 +202,7 @@ def construct_geoid(
     elif geography_lower == 'tract':
         return pad(state, 2) + pad(county, 3) + pad(tract, 6)
 
-    elif geography_lower in ('block_group', 'blockgroup'):
+    elif geography_lower == 'block_group':
         return pad(state, 2) + pad(county, 3) + pad(tract, 6) + pad(block_group, 1)
 
     elif geography_lower == 'block':
@@ -245,7 +237,7 @@ def construct_geoid_from_row(
         geoid = construct_geoid_from_row(row, 'tract')
         # Returns: '06037101100'
     """
-    geography_lower = geography_level.lower().replace(' ', '_').replace('-', '_')
+    geography_lower = resolve_geographic_level(geography_level)
 
     def get_value(col_name: str) -> Optional[str]:
         """Get value from row, handling different column name formats."""
@@ -301,7 +293,7 @@ def parse_geoid(
         >>> parse_geoid("06037101100", "tract")
         {'state': '06', 'county': '037', 'tract': '101100'}
     """
-    geography_lower = geography_level.lower().replace(' ', '_').replace('-', '_')
+    geography_lower = resolve_geographic_level(geography_level)
 
     # Normalize first
     geoid = normalize_geoid(geoid, geography_level)
@@ -320,7 +312,7 @@ def parse_geoid(
         result['county'] = geoid[2:5]
         result['tract'] = geoid[5:11]
 
-    elif geography_lower in ('block_group', 'blockgroup'):
+    elif geography_lower == 'block_group':
         result['state'] = geoid[:2]
         result['county'] = geoid[2:5]
         result['tract'] = geoid[5:11]
@@ -366,7 +358,7 @@ def extract_parent_geoid(
     """
     components = parse_geoid(geoid, child_geography)
 
-    parent_lower = parent_geography.lower().replace(' ', '_').replace('-', '_')
+    parent_lower = resolve_geographic_level(parent_geography)
 
     if parent_lower == 'state':
         return components['state']
@@ -422,8 +414,11 @@ def validate_geoid(
     if not geoid.isdigit():
         return False
 
-    # Get expected length
-    geography_lower = geography_level.lower().replace(' ', '_').replace('-', '_')
+    # Resolve to canonical name and get expected length
+    try:
+        geography_lower = resolve_geographic_level(geography_level)
+    except ValueError:
+        return False
     expected_length = GEOID_LENGTHS.get(geography_lower)
 
     if expected_length is None:
@@ -469,7 +464,10 @@ def can_normalize_geoid(
     if not geoid_str or not geoid_str.isdigit():
         return False
 
-    geography_lower = geography_level.lower().replace(' ', '_').replace('-', '_')
+    try:
+        geography_lower = resolve_geographic_level(geography_level)
+    except ValueError:
+        return False
     expected_length = GEOID_LENGTHS.get(geography_lower)
 
     if expected_length is None:

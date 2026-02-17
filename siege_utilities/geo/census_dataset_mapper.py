@@ -26,22 +26,42 @@ class SurveyType(Enum):
     HOUSING_ESTIMATES = "housing_estimates"  # Annual housing estimates
 
 class GeographyLevel(Enum):
-    """Enumeration of Census geography levels."""
+    """Enumeration of Census geography levels (canonical names)."""
     NATION = "nation"
     REGION = "region"
     DIVISION = "division"
     STATE = "state"
     COUNTY = "county"
-    COUNTY_SUBDIVISION = "county_subdivision"
+    COUSUB = "cousub"
     PLACE = "place"
-    CONGRESSIONAL_DISTRICT = "congressional_district"
-    STATE_LEGISLATIVE_DISTRICT = "state_legislative_district"
+    CD = "cd"
+    SLDU = "sldu"
+    SLDL = "sldl"
     TRACT = "tract"
     BLOCK_GROUP = "block_group"
     BLOCK = "block"
-    ZIP_CODE = "zip_code"
-    CBSA = "cbsa"  # Metropolitan/Micropolitan Statistical Areas
-    PUMA = "puma"  # Public Use Microdata Areas
+    ZCTA = "zcta"
+    CBSA = "cbsa"
+    PUMA = "puma"
+
+    # Backward-compatible aliases (same value → Python Enum alias)
+    COUNTY_SUBDIVISION = "cousub"
+    CONGRESSIONAL_DISTRICT = "cd"
+    STATE_LEGISLATIVE_DISTRICT = "sldu"  # defaults to upper chamber
+    ZIP_CODE = "zcta"
+
+    @classmethod
+    def _missing_(cls, value):
+        """Resolve aliases like 'congressional_district' → CD."""
+        from siege_utilities.config.census_constants import resolve_geographic_level
+        try:
+            canonical = resolve_geographic_level(value)
+            for member in cls:
+                if member.value == canonical:
+                    return member
+        except ValueError:
+            pass
+        return None
 
 class DataReliability(Enum):
     """Enumeration of data reliability levels."""

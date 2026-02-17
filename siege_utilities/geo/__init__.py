@@ -91,6 +91,12 @@ from .geoid_utils import (
     find_geoid_column,
 )
 
+# Canonical geographic level resolution
+from siege_utilities.config.census_constants import (
+    CANONICAL_GEOGRAPHIC_LEVELS,
+    resolve_geographic_level,
+)
+
 # Crosswalk support for boundary changes between Census years
 from .crosswalk import (
     # Enums
@@ -214,6 +220,10 @@ __all__ = [
     'get_census_api_client',
     'get_census_data_with_geometry',
     'join_demographics_to_shapes',
+
+    # Geographic level resolution
+    'CANONICAL_GEOGRAPHIC_LEVELS',
+    'resolve_geographic_level',
 
     # GEOID utilities
     'GEOID_LENGTHS',

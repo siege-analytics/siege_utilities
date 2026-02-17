@@ -584,12 +584,22 @@ class CensusAPIClient:
         state_fips: Optional[str],
         county_fips: Optional[str]
     ) -> None:
-        """Validate geography parameters."""
-        valid_geographies = ['state', 'county', 'tract', 'block_group', 'place', 'zcta']
-
-        if geography not in valid_geographies:
+        """Validate geography parameters. Accepts any alias (e.g., 'bg', 'zip_code')."""
+        from siege_utilities.config.census_constants import resolve_geographic_level
+        try:
+            geography = resolve_geographic_level(geography)
+        except ValueError:
             raise CensusGeographyError(
-                f"Invalid geography '{geography}'. Valid options: {valid_geographies}"
+                f"Invalid geography '{geography}'. "
+                f"Valid options: {['state', 'county', 'tract', 'block_group', 'place', 'zcta']}"
+            )
+        # Census API supports these levels
+        api_supported = {'state', 'county', 'tract', 'block_group', 'place', 'zcta'}
+
+        if geography not in api_supported:
+            raise CensusGeographyError(
+                f"Census API does not support geography '{geography}'. "
+                f"Supported: {sorted(api_supported)}"
             )
 
         # Tract and block group require state FIPS
