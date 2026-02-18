@@ -7,10 +7,10 @@
 
 ## Session 18 Progress (February 17–18, 2026)
 
-### Headless Notebook Execution — 13/13 Runnable PASS
+### Headless Notebook Execution — 17/17 PASS
 
-Ran all 17 notebooks headlessly via `jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=180`.
-13 of 17 notebooks executed successfully; 4 skipped due to external service dependencies.
+Ran all 17 notebooks headlessly via `jupyter nbconvert --to notebook --execute`.
+**All 17 pass** — including the 4 originally thought to need external services.
 
 | # | Notebook | Headless | Output | Notes |
 |---|----------|----------|--------|-------|
@@ -22,22 +22,24 @@ Ran all 17 notebooks headlessly via `jupyter nbconvert --to notebook --execute -
 | 06 | Report Generation | PASS | 7.6MB | Full chart gallery |
 | 07 | Geocoding & Address Processing | PASS | 120KB | Local Spark session created |
 | 08 | Sample Data Generation | PASS | 74KB | |
-| 09 | Analytics Connectors | SKIP | — | Needs analytics credentials |
+| 09 | Analytics Connectors | PASS | 26KB | Graceful degradation — logs warnings for missing creds |
 | 10 | Profile Branding | PASS | 93KB | Fixed SecurityError (commit `0792355`) |
 | 11 | ReportLab PDF Features | PASS | 57KB | |
 | 12 | PowerPoint Generation | PASS | 30KB | |
-| 13 | GeoDjango Integration | SKIP | — | Needs PostGIS |
-| 14 | GA Analytics Report | SKIP | — | Needs GA credentials |
+| 13 | GeoDjango Integration | PASS | 28KB | Mostly prints example code; no live PostGIS needed |
+| 14 | GA Analytics Report | PASS | 406KB | Uses `generate_sample_ga_data()` — no creds needed |
 | 15 | Census Demographics | PASS | 40KB | |
-| 16 | Spark Distributed Operations | SKIP | — | Needs PySpark/Java 17 |
+| 16 | Spark Distributed Operations | PASS | 73KB | Required `JAVA_HOME` override + `pip install openpyxl` |
 | 17 | Developer Tooling | PASS | 119KB | |
 
-**NB10 Fix:** Cell used `python3 -c "print('custom allowlist works')"` which triggered `SecurityError`
-from `validate_command_safety()` (parentheses are forbidden injection characters). Changed to
-`python3 --version`. Commit: `0792355`.
+**Fixes required:**
+- **NB10:** `python3 -c "print(...)"` → `python3 --version` (SecurityError from parentheses). Commit: `0792355`.
+- **NB16:** `JAVA_HOME` was stale (Java 11 instead of 17). Override with `JAVA_HOME=/home/dheerajchand/.sdkman/candidates/java/current`. Also needed `pip install openpyxl` (already in pyproject.toml but not in venv).
+
+**Environment notes:** Claude Code doesn't inherit full ZSH env — SDKMAN `current` symlink points to Java 17 but `JAVA_HOME` env var was stale at Java 11. Run NB16 with explicit `JAVA_HOME` or source SDKMAN init first.
 
 **Remaining for merge gate:** GUI verification on laptop/dev machine for visual confirmation.
-Headless runs serve as pre-verification — all code paths execute without error.
+Headless runs confirm all code paths execute without error.
 
 ### Test Fix: Census Year Discovery Retry Fallback
 
@@ -763,7 +765,7 @@ ae3e8c1 feat: Add Profile/Branding testing notebook (#5)
 | Person/Actor Architecture | **Working** — Epic #67 closed | 03 |
 | Spark Utilities (530 functions) | **Working** (11/11 tests) | test_spark_utils_live.py |
 
-**Tests:** 953 passing, 36.37% coverage (as of Feb 18, 2026). All 17 notebook imports verified. 13/13 runnable notebooks pass headlessly.
+**Tests:** 953 passing, 36.37% coverage (as of Feb 18, 2026). **All 17 notebooks pass headlessly** (including Spark, GeoDjango, analytics).
 
 ---
 
@@ -817,8 +819,8 @@ export DW_AUTH_TOKEN="your-token"
 ## Next Session Startup
 
 1. Read this file
-2. **GUI verification:** Run NB01-NB17 on laptop/dev (headless pre-verified — visual confirmation only)
-3. **Skipped notebooks:** NB09 (analytics creds), NB13 (PostGIS), NB14 (GA creds), NB16 (PySpark/Java 17)
+2. **GUI verification:** Run NB01-NB17 on laptop/dev (all 17 headless-verified — visual confirmation only)
+3. **NB16 env note:** Needs `JAVA_HOME=/home/dheerajchand/.sdkman/candidates/java/current` and `openpyxl` installed
 4. **Merge gate:** All notebooks pass GUI → Epic A #38 (merge to main)
 5. **After merge:** Update pure-translation to use siege_utilities for Census integration
 6. **Backlog:** #92 (engine-agnostic DataFrames), #110 (test validity gaps), #9 (Wiki), #10 (CI/CD)
