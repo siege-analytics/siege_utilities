@@ -18,7 +18,20 @@ Patched `time.sleep` in both test files to avoid 15s backoff during tests.
 
 **Commit:** `fa09891` — Fix retry fallback for generic exceptions in Census year discovery
 
-**Test Results:** 983 passed, 1 skipped, 0 failed (36.65% coverage, 20% threshold met)
+**Test Results:** 953 passed, 0 failed (36.37% coverage, 20% threshold met) — after cleanup
+
+### Test Suite Cleanup — Issue #97 CLOSED
+
+**Commit:** `4e6fb91`
+
+| Action | File | Rationale |
+|--------|------|-----------|
+| DELETE | `test_census_utilities.py` | 100% subset of `test_enhanced_census_utilities.py` (27 duplicate tests) |
+| MOVE | `test_bivariate_choropleth.py` → `scripts/verify_bivariate_choropleth.py` | Standalone script, not a pytest file |
+| DELETE | `test_spark_utils.py` | 2 tests consolidated into `test_spark_utils_live.py` (integration) |
+| EDIT | `test_spark_utils_live.py` | Added `TestSparkUtilsFunctions` class with 2 methods |
+
+All 5 acceptance criteria met. 953 passed, 0 failed, 50 deselected (integration).
 
 ### Notebook Import Verification
 
