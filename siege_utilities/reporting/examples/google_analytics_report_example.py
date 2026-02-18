@@ -156,6 +156,71 @@ class SparklineChart(Flowable):
         self.canv.circle(points[-1][0], points[-1][1], 2, fill=1)
 
 
+def create_heatmapped_table_style(table_data: List[List], value_column_index: int,
+                                   base_style: Optional[List] = None,
+                                   color_scheme: str = 'blue') -> TableStyle:
+    """
+    Create a TableStyle with heatmap coloring based on scalar values in a column.
+
+    Salvaged from Masai-Interactive/google_analytics_reports StructuredGAReportGenerator.
+
+    Args:
+        table_data: Table data including header row
+        value_column_index: Index of column with numeric values for heatmapping
+        base_style: Base style commands (list of tuples). If None, uses professional defaults.
+        color_scheme: Color gradient scheme ('blue', 'green', 'red', 'purple')
+
+    Returns:
+        TableStyle with heatmap row coloring applied
+    """
+    if base_style is None:
+        base_style = [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
+        ]
+
+    # Extract numeric values from data rows (skip header)
+    values = []
+    for row in table_data[1:]:
+        try:
+            val_str = str(row[value_column_index]).replace(',', '').replace('%', '').replace('+', '')
+            values.append(float(val_str))
+        except (ValueError, IndexError):
+            values.append(0)
+
+    if not values:
+        return TableStyle(base_style)
+
+    min_val = min(values)
+    max_val = max(values)
+    val_range = max_val - min_val if max_val != min_val else 1
+
+    style_commands = list(base_style)
+
+    schemes = {
+        'blue': lambda i: (235 - int(i * 80), 245 - int(i * 40), 255 - int(i * 30)),
+        'green': lambda i: (235 - int(i * 80), 250 - int(i * 20), 235 - int(i * 80)),
+        'red': lambda i: (255 - int(i * 30), 235 - int(i * 80), 235 - int(i * 80)),
+        'purple': lambda i: (245 - int(i * 40), 235 - int(i * 80), 255 - int(i * 20)),
+    }
+    color_fn = schemes.get(color_scheme, schemes['blue'])
+
+    for i, value in enumerate(values):
+        intensity = (value - min_val) / val_range
+        r, g, b = color_fn(intensity)
+        r, g, b = max(0, min(255, r)), max(0, min(255, g)), max(0, min(255, b))
+        heat_color = colors.HexColor(f"#{r:02x}{g:02x}{b:02x}")
+        style_commands.append(('BACKGROUND', (0, i + 1), (-1, i + 1), heat_color))
+
+    return TableStyle(style_commands)
+
+
 def generate_sample_ga_data(start_date: datetime, end_date: datetime) -> Dict[str, Any]:
     """
     Generate sample Google Analytics data for demonstration.
@@ -255,6 +320,36 @@ def generate_sample_ga_data(start_date: datetime, end_date: datetime) -> Dict[st
     prior_bounce = avg_bounce_rate + 3.2
     prior_duration = avg_session_duration * 0.92
 
+    # Best/worst day analysis
+    best_day_idx = daily_sessions.index(max(daily_sessions))
+    worst_day_idx = daily_sessions.index(min(daily_sessions))
+
+    # Weekly aggregation
+    daily_df = pd.DataFrame({
+        'date': dates,
+        'sessions': daily_sessions,
+        'users': daily_users,
+    })
+    daily_df['week'] = daily_df['date'].apply(lambda d: d.isocalendar()[1])
+    weekly_agg = daily_df.groupby('week').agg({'sessions': 'sum', 'users': 'sum'}).reset_index()
+    best_week_idx = weekly_agg['sessions'].idxmax()
+    worst_week_idx = weekly_agg['sessions'].idxmin()
+
+    # Longitudinal sample data (simulated multi-year)
+    current_year = end_date.year
+    longitudinal_data = {}
+    for offset in [2, 1, 0]:
+        year = current_year - offset
+        # Simulate growth: ~15% annually
+        year_factor = (1.0 + 0.15) ** (2 - offset)
+        year_sessions = int(total_sessions * 12 * year_factor)  # Annualize
+        year_users = int(total_users * 12 * year_factor)
+        longitudinal_data[str(year)] = {
+            'sessions': year_sessions,
+            'users': year_users,
+            'pageviews': int(year_sessions * 3.2),
+        }
+
     return {
         'date_range': {
             'start': start_date.strftime('%Y-%m-%d'),
@@ -292,7 +387,299 @@ def generate_sample_ga_data(start_date: datetime, end_date: datetime) -> Dict[st
         'top_pages': top_pages,
         'geo_data': geo_data,
         'devices': devices,
+        'best_day': {
+            'date': dates[best_day_idx].strftime('%Y-%m-%d'),
+            'sessions': daily_sessions[best_day_idx],
+            'users': daily_users[best_day_idx],
+        },
+        'worst_day': {
+            'date': dates[worst_day_idx].strftime('%Y-%m-%d'),
+            'sessions': daily_sessions[worst_day_idx],
+            'users': daily_users[worst_day_idx],
+        },
+        'best_week': {
+            'week': int(weekly_agg.loc[best_week_idx, 'week']),
+            'sessions': int(weekly_agg.loc[best_week_idx, 'sessions']),
+        },
+        'worst_week': {
+            'week': int(weekly_agg.loc[worst_week_idx, 'week']),
+            'sessions': int(weekly_agg.loc[worst_week_idx, 'sessions']),
+        },
+        'weekly_data': weekly_agg.to_dict('records'),
+        'longitudinal': longitudinal_data,
     }
+
+
+def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
+                        credential_item_name: str = "Google Analytics Service Account - Multi-Client Reporter"
+                        ) -> Optional[Dict[str, Any]]:
+    """
+    Fetch real GA4 data using GoogleAnalyticsConnector with 1Password credentials.
+
+    Returns the same dict structure as generate_sample_ga_data() so notebook code
+    works identically with either data source.
+
+    Salvaged from Masai-Interactive/google_analytics_reports.
+
+    Args:
+        property_id: GA4 property ID (e.g., '366963525')
+        start_date: Start date string 'YYYY-MM-DD'
+        end_date: End date string 'YYYY-MM-DD'
+        credential_item_name: 1Password item name for service account
+
+    Returns:
+        GA data dict matching generate_sample_ga_data() structure, or None if unavailable
+    """
+    try:
+        from siege_utilities.analytics import GoogleAnalyticsConnector
+        from siege_utilities.config import get_google_service_account_from_1password
+    except ImportError:
+        log.warning("GoogleAnalyticsConnector not available — install google-analytics-data")
+        return None
+
+    try:
+        # Get service account credentials from 1Password
+        service_account_data = get_google_service_account_from_1password()
+        if not service_account_data:
+            log.warning("No GA service account credentials found in 1Password")
+            return None
+
+        connector = GoogleAnalyticsConnector(
+            auth_method="service_account",
+            service_account_data=service_account_data
+        )
+
+        # Fetch daily metrics
+        daily_df = connector.get_ga4_data(
+            property_id=property_id,
+            start_date=start_date,
+            end_date=end_date,
+            metrics=["sessions", "totalUsers", "screenPageViews", "bounceRate", "averageSessionDuration"],
+            dimensions=["date"]
+        )
+
+        if daily_df is None or daily_df.empty:
+            log.warning("No daily data returned from GA4")
+            return None
+
+        # Fetch traffic sources
+        sources_df = connector.get_ga4_data(
+            property_id=property_id,
+            start_date=start_date,
+            end_date=end_date,
+            metrics=["sessions", "totalUsers", "bounceRate", "averageSessionDuration"],
+            dimensions=["sessionDefaultChannelGrouping"]
+        )
+
+        # Fetch device categories
+        device_df = connector.get_ga4_data(
+            property_id=property_id,
+            start_date=start_date,
+            end_date=end_date,
+            metrics=["sessions", "bounceRate"],
+            dimensions=["deviceCategory"]
+        )
+
+        # Fetch geographic data
+        geo_df = connector.get_ga4_data(
+            property_id=property_id,
+            start_date=start_date,
+            end_date=end_date,
+            metrics=["sessions", "totalUsers"],
+            dimensions=["city", "region", "country"]
+        )
+
+        # Fetch top pages
+        pages_df = connector.get_ga4_data(
+            property_id=property_id,
+            start_date=start_date,
+            end_date=end_date,
+            metrics=["screenPageViews", "bounceRate", "averageSessionDuration"],
+            dimensions=["pagePath"]
+        )
+
+        # Convert daily data
+        daily_df['date'] = pd.to_datetime(daily_df['date'])
+        daily_df = daily_df.sort_values('date')
+        dates = daily_df['date'].tolist()
+        daily_sessions = daily_df['sessions'].astype(int).tolist()
+        daily_users = daily_df['totalUsers'].astype(int).tolist()
+        daily_pageviews = daily_df['screenPageViews'].astype(int).tolist()
+        daily_bounce = daily_df['bounceRate'].astype(float).tolist()
+        daily_duration = daily_df['averageSessionDuration'].astype(float).tolist()
+
+        total_sessions = sum(daily_sessions)
+        total_users = sum(daily_users)
+        total_pageviews = sum(daily_pageviews)
+        avg_bounce = float(np.mean(daily_bounce)) if daily_bounce else 0.0
+        avg_duration = float(np.mean(daily_duration)) if daily_duration else 0.0
+
+        # Traffic sources
+        traffic_sources = []
+        if sources_df is not None and not sources_df.empty:
+            for _, row in sources_df.nlargest(5, 'sessions').iterrows():
+                traffic_sources.append({
+                    'source': row.get('sessionDefaultChannelGrouping', 'unknown'),
+                    'medium': 'channel',
+                    'sessions': int(row['sessions']),
+                    'users': int(row.get('totalUsers', 0)),
+                    'bounce_rate': float(row.get('bounceRate', 0)),
+                    'avg_duration': float(row.get('averageSessionDuration', 0)),
+                })
+
+        # Devices
+        devices = []
+        if device_df is not None and not device_df.empty:
+            for _, row in device_df.iterrows():
+                devices.append({
+                    'device': row.get('deviceCategory', 'unknown'),
+                    'sessions': int(row['sessions']),
+                    'bounce_rate': float(row.get('bounceRate', 0)),
+                })
+
+        # Geographic data (top 5 cities)
+        geo_data = []
+        if geo_df is not None and not geo_df.empty:
+            for _, row in geo_df.nlargest(5, 'sessions').iterrows():
+                geo_data.append({
+                    'country': row.get('country', 'Unknown'),
+                    'region': row.get('region', 'Unknown'),
+                    'city': row.get('city', 'Unknown'),
+                    'sessions': int(row['sessions']),
+                    'users': int(row.get('totalUsers', 0)),
+                })
+
+        # Top pages
+        top_pages = []
+        if pages_df is not None and not pages_df.empty:
+            for _, row in pages_df.nlargest(5, 'screenPageViews').iterrows():
+                top_pages.append({
+                    'page': row.get('pagePath', '/'),
+                    'pageviews': int(row['screenPageViews']),
+                    'unique_views': int(row['screenPageViews'] * 0.85),
+                    'avg_time': float(row.get('averageSessionDuration', 0)),
+                    'bounce_rate': float(row.get('bounceRate', 0)),
+                    'exit_rate': float(row.get('bounceRate', 0)) * 0.8,
+                })
+
+        # Best/worst day
+        best_day_idx = daily_sessions.index(max(daily_sessions))
+        worst_day_idx = daily_sessions.index(min(daily_sessions))
+
+        # Weekly aggregation
+        daily_df_agg = pd.DataFrame({'date': dates, 'sessions': daily_sessions, 'users': daily_users})
+        daily_df_agg['week'] = daily_df_agg['date'].apply(lambda d: d.isocalendar()[1])
+        weekly_agg = daily_df_agg.groupby('week').agg({'sessions': 'sum', 'users': 'sum'}).reset_index()
+        best_week_idx = weekly_agg['sessions'].idxmax()
+        worst_week_idx = weekly_agg['sessions'].idxmin()
+
+        # Prior period comparison (fetch prior period data)
+        start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+        end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+        period_days = (end_dt - start_dt).days
+        prior_start = (start_dt - timedelta(days=period_days)).strftime('%Y-%m-%d')
+        prior_end = (start_dt - timedelta(days=1)).strftime('%Y-%m-%d')
+
+        prior_df = connector.get_ga4_data(
+            property_id=property_id,
+            start_date=prior_start,
+            end_date=prior_end,
+            metrics=["sessions", "totalUsers", "bounceRate", "averageSessionDuration"],
+            dimensions=["date"]
+        )
+
+        prior_sessions = int(prior_df['sessions'].sum()) if prior_df is not None else int(total_sessions / 1.08)
+        prior_users = int(prior_df['totalUsers'].sum()) if prior_df is not None else int(total_users / 1.10)
+        prior_bounce = float(prior_df['bounceRate'].mean()) if prior_df is not None else avg_bounce + 3.2
+        prior_duration = float(prior_df['averageSessionDuration'].mean()) if prior_df is not None else avg_duration * 0.92
+
+        # Longitudinal data (fetch yearly totals)
+        current_year = end_dt.year
+        longitudinal_data = {}
+        for offset in [2, 1, 0]:
+            year = current_year - offset
+            year_start = f"{year}-01-01"
+            year_end = end_date if offset == 0 else f"{year}-12-31"
+            try:
+                year_df = connector.get_ga4_data(
+                    property_id=property_id,
+                    start_date=year_start,
+                    end_date=year_end,
+                    metrics=["sessions", "totalUsers", "screenPageViews"],
+                    dimensions=["year"]
+                )
+                if year_df is not None and not year_df.empty:
+                    longitudinal_data[str(year)] = {
+                        'sessions': int(year_df['sessions'].sum()),
+                        'users': int(year_df['totalUsers'].sum()),
+                        'pageviews': int(year_df['screenPageViews'].sum()),
+                    }
+            except Exception:
+                log.debug(f"Could not fetch longitudinal data for {year}")
+
+        result = {
+            'date_range': {'start': start_date, 'end': end_date},
+            'daily_data': {
+                'dates': [d.strftime('%Y-%m-%d') for d in dates],
+                'users': daily_users,
+                'sessions': daily_sessions,
+                'pageviews': daily_pageviews,
+                'bounce_rate': daily_bounce,
+                'avg_duration': daily_duration,
+            },
+            'totals': {
+                'users': total_users,
+                'sessions': total_sessions,
+                'pageviews': total_pageviews,
+                'avg_bounce_rate': avg_bounce,
+                'avg_session_duration': avg_duration,
+                'pages_per_session': total_pageviews / total_sessions if total_sessions else 0,
+            },
+            'prior_period': {
+                'users': prior_users,
+                'sessions': prior_sessions,
+                'avg_bounce_rate': prior_bounce,
+                'avg_session_duration': prior_duration,
+            },
+            'changes': {
+                'users': ((total_users - prior_users) / prior_users * 100) if prior_users else 0,
+                'sessions': ((total_sessions - prior_sessions) / prior_sessions * 100) if prior_sessions else 0,
+                'bounce_rate': avg_bounce - prior_bounce,
+                'duration': ((avg_duration - prior_duration) / prior_duration * 100) if prior_duration else 0,
+            },
+            'traffic_sources': traffic_sources,
+            'top_pages': top_pages,
+            'geo_data': geo_data,
+            'devices': devices,
+            'best_day': {
+                'date': dates[best_day_idx].strftime('%Y-%m-%d'),
+                'sessions': daily_sessions[best_day_idx],
+                'users': daily_users[best_day_idx],
+            },
+            'worst_day': {
+                'date': dates[worst_day_idx].strftime('%Y-%m-%d'),
+                'sessions': daily_sessions[worst_day_idx],
+                'users': daily_users[worst_day_idx],
+            },
+            'best_week': {
+                'week': int(weekly_agg.loc[best_week_idx, 'week']),
+                'sessions': int(weekly_agg.loc[best_week_idx, 'sessions']),
+            },
+            'worst_week': {
+                'week': int(weekly_agg.loc[worst_week_idx, 'week']),
+                'sessions': int(weekly_agg.loc[worst_week_idx, 'sessions']),
+            },
+            'weekly_data': weekly_agg.to_dict('records'),
+            'longitudinal': longitudinal_data,
+            'data_source': 'ga4_api',
+        }
+
+        log.info(f"Fetched real GA4 data: {total_sessions:,} sessions, {total_users:,} users")
+        return result
+
+    except Exception as e:
+        log.warning(f"Could not fetch real GA4 data: {e}")
+        return None
 
 
 def create_kpi_dashboard(ga_data: Dict[str, Any]) -> List[Flowable]:
@@ -582,15 +969,23 @@ def generate_recommendations(ga_data: Dict[str, Any]) -> List[str]:
 
 def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
                            client_name: str = "Demo Client",
-                           report_title: str = "Google Analytics Performance Report") -> bool:
+                           report_title: str = "Google Analytics Performance Report",
+                           branding_key: Optional[str] = None,
+                           prepared_by: str = "Siege Analytics") -> bool:
     """
-    Generate a comprehensive Google Analytics PDF report.
+    Generate a comprehensive Google Analytics PDF report with professional styling.
+
+    Produces a multi-section report including executive summary, KPI dashboard,
+    traffic trends, source analysis, geographic data, longitudinal YoY comparison,
+    best/worst day analysis, and actionable recommendations.
 
     Args:
-        ga_data: Google Analytics data dictionary
+        ga_data: Google Analytics data dictionary (from generate_sample_ga_data or fetch_real_ga4_data)
         output_path: Output PDF file path
         client_name: Client name for branding
         report_title: Report title
+        branding_key: Optional ClientBrandingManager template key (e.g., 'hillcrest', 'siege_analytics')
+        prepared_by: Name of report preparer
 
     Returns:
         True if successful
@@ -600,220 +995,340 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         return False
 
     try:
-        # Create document
+        # Load branding colors
+        primary_color = '#1E3A5F'
+        secondary_color = '#2E7D32'
+        if branding_key:
+            try:
+                from siege_utilities.reporting.client_branding import ClientBrandingManager
+                mgr = ClientBrandingManager()
+                branding = mgr.get_client_branding(branding_key)
+                if branding:
+                    primary_color = branding.get('colors', {}).get('primary', primary_color)
+                    secondary_color = branding.get('colors', {}).get('secondary', secondary_color)
+                    client_name = branding.get('name', client_name)
+                    prepared_by = branding.get('footer', {}).get('left_text', f"Prepared by: {prepared_by}").replace('Prepared by: ', '')
+            except Exception as e:
+                log.debug(f"Could not load branding '{branding_key}': {e}")
+
+        date_range = ga_data['date_range']
+        totals = ga_data['totals']
+        changes = ga_data['changes']
+
+        # Header/footer callback
+        def _header_footer(canvas_obj, doc_obj):
+            canvas_obj.saveState()
+            canvas_obj.setFont('Helvetica-Bold', 8)
+            canvas_obj.setFillColor(colors.HexColor(primary_color))
+            canvas_obj.drawString(0.75*inch, letter[1] - 0.4*inch, report_title)
+            canvas_obj.setFont('Helvetica', 7)
+            canvas_obj.setFillColor(colors.HexColor('#666666'))
+            canvas_obj.drawString(0.75*inch, letter[1] - 0.52*inch, f"{client_name}  |  {date_range['start']} to {date_range['end']}")
+            # Footer
+            canvas_obj.setFont('Helvetica', 7)
+            canvas_obj.drawString(0.75*inch, 0.4*inch, f"Page {doc_obj.page}")
+            canvas_obj.drawRightString(letter[0] - 0.75*inch, 0.4*inch, prepared_by)
+            canvas_obj.restoreState()
+
+        # Create document with room for header/footer
         doc = SimpleDocTemplate(
             output_path,
             pagesize=letter,
             rightMargin=0.75*inch,
             leftMargin=0.75*inch,
-            topMargin=0.75*inch,
-            bottomMargin=0.75*inch
+            topMargin=0.85*inch,
+            bottomMargin=0.7*inch
         )
 
         styles = getSampleStyleSheet()
 
-        # Custom styles
+        # Branding-aware styles
         title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Title'],
-            fontSize=24,
-            spaceAfter=30,
-            alignment=TA_CENTER
+            'CustomTitle', parent=styles['Title'],
+            fontSize=28, spaceAfter=8, alignment=TA_CENTER,
+            textColor=colors.HexColor(primary_color), fontName='Helvetica-Bold'
         )
-
+        subtitle_style = ParagraphStyle(
+            'CustomSubtitle', parent=styles['Normal'],
+            fontSize=14, alignment=TA_CENTER, textColor=colors.HexColor('#666666'),
+            spaceAfter=20
+        )
         heading_style = ParagraphStyle(
-            'CustomHeading',
-            parent=styles['Heading1'],
-            fontSize=16,
-            spaceBefore=20,
-            spaceAfter=10,
-            textColor=colors.HexColor('#2c3e50')
+            'CustomHeading', parent=styles['Heading1'],
+            fontSize=16, spaceBefore=20, spaceAfter=10,
+            textColor=colors.HexColor(primary_color)
         )
-
         subheading_style = ParagraphStyle(
-            'CustomSubheading',
-            parent=styles['Heading2'],
-            fontSize=13,
-            spaceBefore=15,
-            spaceAfter=8,
+            'CustomSubheading', parent=styles['Heading2'],
+            fontSize=13, spaceBefore=15, spaceAfter=8,
             textColor=colors.HexColor('#34495e')
         )
-
         body_style = ParagraphStyle(
-            'CustomBody',
-            parent=styles['Normal'],
-            fontSize=10,
-            leading=14,
-            spaceBefore=6,
-            spaceAfter=6
+            'CustomBody', parent=styles['Normal'],
+            fontSize=10, leading=14, spaceBefore=6, spaceAfter=6
+        )
+        bullet_style = ParagraphStyle(
+            'CustomBullet', parent=styles['Normal'],
+            fontSize=10, leading=14, leftIndent=20, bulletIndent=10,
+            spaceBefore=3, spaceAfter=3
+        )
+        details_style = ParagraphStyle(
+            'Details', parent=styles['Normal'],
+            fontSize=11, spaceAfter=6, alignment=TA_LEFT
         )
 
-        bullet_style = ParagraphStyle(
-            'CustomBullet',
-            parent=styles['Normal'],
-            fontSize=10,
-            leading=14,
-            leftIndent=20,
-            bulletIndent=10,
-            spaceBefore=3,
-            spaceAfter=3
-        )
+        # Standard table styles
+        primary_table_style = [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(primary_color)),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F8F9FA')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E9ECEF')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#F8F9FA'), colors.white]),
+        ]
+
+        green_table_style = list(primary_table_style)
+        green_table_style[0] = ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(secondary_color))
 
         story = []
 
-        # Title page
-        story.append(Spacer(1, 2*inch))
-        story.append(Paragraph(report_title, title_style))
-        story.append(Paragraph(f"Prepared for: {client_name}",
-                              ParagraphStyle('Subtitle', parent=styles['Normal'],
-                                           fontSize=14, alignment=TA_CENTER)))
-        story.append(Spacer(1, 12))
-
-        date_range = ga_data['date_range']
-        story.append(Paragraph(
-            f"Reporting Period: {date_range['start']} to {date_range['end']}",
-            ParagraphStyle('DateRange', parent=styles['Normal'],
-                          fontSize=12, alignment=TA_CENTER, textColor=colors.grey)
-        ))
-        story.append(Spacer(1, 12))
-        story.append(Paragraph(
-            f"Generated: {datetime.now().strftime('%B %d, %Y')}",
-            ParagraphStyle('Generated', parent=styles['Normal'],
-                          fontSize=10, alignment=TA_CENTER, textColor=colors.grey)
-        ))
+        # ── TITLE PAGE ──
+        story.append(Spacer(1, 1.5*inch))
+        story.append(Paragraph(client_name, title_style))
+        story.append(Paragraph("Comprehensive Website Performance Analysis", subtitle_style))
+        story.append(Spacer(1, 0.3*inch))
+        story.append(Paragraph(report_title, ParagraphStyle(
+            'ReportTitle', parent=styles['Heading1'],
+            fontSize=20, alignment=TA_CENTER, fontName='Helvetica-Bold'
+        )))
+        story.append(Spacer(1, 0.5*inch))
+        story.append(Paragraph(f"<b>Report Date:</b> {datetime.now().strftime('%B %d, %Y')}", details_style))
+        story.append(Paragraph(f"<b>Period Covered:</b> {date_range['start']} to {date_range['end']}", details_style))
+        story.append(Paragraph(f"<b>Prepared By:</b> {prepared_by}", details_style))
+        data_source = ga_data.get('data_source', 'sample')
+        story.append(Paragraph(f"<b>Data Source:</b> {'GA4 API (Live)' if data_source == 'ga4_api' else 'Sample Data'}", details_style))
         story.append(PageBreak())
 
-        # Executive Summary
-        story.append(Paragraph("Executive Summary", heading_style))
+        # ── TABLE OF CONTENTS ──
+        story.append(Paragraph("Table of Contents", heading_style))
+        story.append(Spacer(1, 12))
+        toc_items = [
+            "1. Executive Summary",
+            "2. Key Performance Indicators",
+            "3. Traffic Trends",
+            "4. Traffic Sources Analysis",
+            "5. Device Analysis",
+            "6. Top Pages Performance",
+            "7. Geographic Distribution",
+        ]
+        if ga_data.get('longitudinal'):
+            toc_items.append("8. Year-over-Year Analysis")
+        if ga_data.get('best_day'):
+            toc_items.append(f"{len(toc_items) + 1}. Performance Highlights")
+        toc_items.append(f"{len(toc_items) + 1}. Key Insights")
+        toc_items.append(f"{len(toc_items) + 1}. Recommendations")
+        for item in toc_items:
+            story.append(Paragraph(item, ParagraphStyle(
+                'TOC', parent=styles['Normal'], fontSize=12, spaceBefore=4, spaceAfter=4,
+                leftIndent=20
+            )))
+        story.append(PageBreak())
 
-        totals = ga_data['totals']
-        changes = ga_data['changes']
-        summary_text = f"""
-        This report provides a comprehensive analysis of website performance for the period
-        {date_range['start']} to {date_range['end']}. During this period, the website received
-        <b>{totals['users']:,}</b> unique users and <b>{totals['sessions']:,}</b> sessions,
-        representing a <b>{changes['users']:+.1f}%</b> change in users compared to the prior period.
+        # ── 1. EXECUTIVE SUMMARY ──
+        story.append(Paragraph("1. Executive Summary", heading_style))
+        summary_text = (
+            f"This report provides a comprehensive analysis of website performance for the period "
+            f"{date_range['start']} to {date_range['end']}. During this period, the website received "
+            f"<b>{totals['users']:,}</b> unique users and <b>{totals['sessions']:,}</b> sessions, "
+            f"representing a <b>{changes['users']:+.1f}%</b> change in users compared to the prior period."
+        )
+        story.append(Paragraph(summary_text, body_style))
+        story.append(Spacer(1, 8))
+        summary_text2 = (
+            f"Key performance indicators show an average bounce rate of <b>{totals['avg_bounce_rate']:.1f}%</b> "
+            f"and average session duration of <b>{totals['avg_session_duration']:.0f} seconds</b>. "
+            f"Users viewed an average of <b>{totals['pages_per_session']:.1f} pages</b> per session."
+        )
+        story.append(Paragraph(summary_text2, body_style))
+        story.append(Spacer(1, 15))
 
-        Key performance indicators show an average bounce rate of <b>{totals['avg_bounce_rate']:.1f}%</b>
-        and average session duration of <b>{totals['avg_session_duration']:.0f} seconds</b>.
-        Users viewed an average of <b>{totals['pages_per_session']:.1f} pages</b> per session.
-        """
-        story.append(Paragraph(summary_text.strip(), body_style))
+        # Key Performance Highlights table
+        avg_daily = totals['sessions'] / max(1, len(ga_data['daily_data']['sessions']))
+        kph_data = [
+            ["Metric", "Value", "Details"],
+            ["Total Sessions", f"{totals['sessions']:,}", f"Average: {avg_daily:.0f} per day"],
+            ["Total Users", f"{totals['users']:,}", "Unique visitors"],
+            ["Total Pageviews", f"{totals['pageviews']:,}", f"{totals['pages_per_session']:.1f} pages/session"],
+            ["Avg Bounce Rate", f"{totals['avg_bounce_rate']:.1f}%", f"{changes['bounce_rate']:+.1f}% vs prior"],
+            ["Avg Session Duration", f"{totals['avg_session_duration']:.0f}s", f"{changes['duration']:+.1f}% vs prior"],
+        ]
+        if ga_data.get('best_day'):
+            kph_data.append(["Best Day", f"{ga_data['best_day']['sessions']:,} sessions", ga_data['best_day']['date']])
+        if ga_data.get('worst_day'):
+            kph_data.append(["Lowest Day", f"{ga_data['worst_day']['sessions']:,} sessions", ga_data['worst_day']['date']])
+
+        kph_table = Table(kph_data, colWidths=[2*inch, 1.5*inch, 2.8*inch])
+        kph_table.setStyle(TableStyle(primary_table_style))
+        story.append(kph_table)
         story.append(Spacer(1, 20))
 
-        # KPI Dashboard
-        story.append(Paragraph("Key Performance Indicators", heading_style))
+        # ── 2. KPI DASHBOARD ──
+        story.append(Paragraph("2. Key Performance Indicators", heading_style))
         story.extend(create_kpi_dashboard(ga_data))
-        story.append(Spacer(1, 20))
+        story.append(PageBreak())
 
-        # Traffic Trends
-        story.append(Paragraph("Traffic Trends", heading_style))
+        # ── 3. TRAFFIC TRENDS ──
+        story.append(Paragraph("3. Traffic Trends", heading_style))
         trend_chart = create_traffic_trend_chart(ga_data)
         if trend_chart:
             story.append(RLImage(trend_chart, width=7*inch, height=3*inch))
             story.append(Spacer(1, 12))
-
         story.append(PageBreak())
 
-        # Traffic Sources Section
-        story.append(Paragraph("Traffic Sources Analysis", heading_style))
-
-        # Side by side: pie chart and table
+        # ── 4. TRAFFIC SOURCES ──
+        story.append(Paragraph("4. Traffic Sources Analysis", heading_style))
         source_chart = create_traffic_sources_chart(ga_data)
-        source_table_data = create_traffic_sources_table(ga_data)
-
         if source_chart:
             story.append(RLImage(source_chart, width=4*inch, height=3*inch))
             story.append(Spacer(1, 12))
 
-        story.append(Paragraph("Traffic Sources Breakdown", subheading_style))
+        source_table_data = create_traffic_sources_table(ga_data)
+        # Heatmap the sessions column (index 2)
         source_table = Table(source_table_data, colWidths=[1.2*inch, 1*inch, 1*inch, 1*inch, 1*inch, 1.2*inch])
-        source_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('FONTSIZE', (0, 1), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ecf0f1')),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
-        ]))
+        source_table.setStyle(create_heatmapped_table_style(
+            source_table_data, value_column_index=2,
+            base_style=primary_table_style, color_scheme='blue'
+        ))
         story.append(source_table)
         story.append(Spacer(1, 20))
 
-        # Device Breakdown
-        story.append(Paragraph("Device Analysis", subheading_style))
+        # ── 5. DEVICE ANALYSIS ──
+        story.append(Paragraph("5. Device Analysis", heading_style))
         device_chart = create_device_breakdown_chart(ga_data)
         if device_chart:
             story.append(RLImage(device_chart, width=3.5*inch, height=2.5*inch))
-
         story.append(PageBreak())
 
-        # Top Pages Section
-        story.append(Paragraph("Top Pages Performance", heading_style))
+        # ── 6. TOP PAGES ──
+        story.append(Paragraph("6. Top Pages Performance", heading_style))
         pages_table_data = create_top_pages_table(ga_data)
         pages_table = Table(pages_table_data, colWidths=[2.2*inch, 0.9*inch, 0.9*inch, 0.8*inch, 0.9*inch, 0.8*inch])
-        pages_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('FONTSIZE', (0, 1), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
-        ]))
+        pages_table.setStyle(create_heatmapped_table_style(
+            pages_table_data, value_column_index=1,
+            base_style=[
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(primary_color)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+                ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
+            ],
+            color_scheme='blue'
+        ))
         story.append(pages_table)
         story.append(Spacer(1, 20))
 
-        # Geographic Distribution
-        story.append(Paragraph("Geographic Distribution", heading_style))
+        # ── 7. GEOGRAPHIC DISTRIBUTION ──
+        story.append(Paragraph("7. Geographic Distribution", heading_style))
         story.append(Paragraph("Top locations by session volume:", body_style))
         geo_table_data = create_geo_table(ga_data)
         geo_table = Table(geo_table_data, colWidths=[1.8*inch, 1.5*inch, 1.2*inch, 1.2*inch])
-        geo_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#27ae60')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('FONTSIZE', (0, 1), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
-        ]))
+        geo_table.setStyle(create_heatmapped_table_style(
+            geo_table_data, value_column_index=2,
+            base_style=green_table_style, color_scheme='green'
+        ))
         story.append(geo_table)
+        story.append(PageBreak())
+
+        # ── 8. YEAR-OVER-YEAR ANALYSIS (if available) ──
+        longitudinal = ga_data.get('longitudinal', {})
+        if longitudinal:
+            story.append(Paragraph("8. Year-over-Year Analysis", heading_style))
+            story.append(Paragraph(
+                "Longitudinal comparison of website performance across years.",
+                body_style
+            ))
+            story.append(Spacer(1, 10))
+
+            yoy_header = ["Year", "Sessions", "Users", "Pageviews", "Growth Rate"]
+            yoy_rows = []
+            years_sorted = sorted(longitudinal.keys())
+            prev_sessions = None
+            for year in years_sorted:
+                year_data = longitudinal[year]
+                sessions = year_data['sessions']
+                growth = "Baseline"
+                if prev_sessions and prev_sessions > 0:
+                    rate = ((sessions - prev_sessions) / prev_sessions) * 100
+                    growth = f"{rate:+.1f}%"
+                yoy_rows.append([
+                    year if year == years_sorted[-1] else year,
+                    f"{sessions:,}",
+                    f"{year_data['users']:,}",
+                    f"{year_data['pageviews']:,}",
+                    growth,
+                ])
+                prev_sessions = sessions
+
+            yoy_table_data = [yoy_header] + yoy_rows
+            yoy_table = Table(yoy_table_data, colWidths=[1.2*inch, 1.4*inch, 1.4*inch, 1.4*inch, 1.2*inch])
+            yoy_table.setStyle(create_heatmapped_table_style(
+                yoy_table_data, value_column_index=1,
+                base_style=green_table_style, color_scheme='green'
+            ))
+            story.append(yoy_table)
+            story.append(Spacer(1, 20))
+
+        # ── PERFORMANCE HIGHLIGHTS (best/worst) ──
+        best_day = ga_data.get('best_day')
+        worst_day = ga_data.get('worst_day')
+        best_week = ga_data.get('best_week')
+        worst_week = ga_data.get('worst_week')
+        if best_day or best_week:
+            section_num = 9 if longitudinal else 8
+            story.append(Paragraph(f"{section_num}. Performance Highlights", heading_style))
+
+            highlights = [["Metric", "Value", "Details"]]
+            if best_day:
+                highlights.append(["Best Day", f"{best_day['sessions']:,} sessions", best_day['date']])
+            if worst_day:
+                highlights.append(["Lowest Day", f"{worst_day['sessions']:,} sessions", worst_day['date']])
+            if best_week:
+                highlights.append(["Best Week", f"{best_week['sessions']:,} sessions", f"Week {best_week['week']}"])
+            if worst_week:
+                highlights.append(["Lowest Week", f"{worst_week['sessions']:,} sessions", f"Week {worst_week['week']}"])
+
+            hl_table = Table(highlights, colWidths=[2*inch, 2*inch, 2.3*inch])
+            hl_table.setStyle(TableStyle(primary_table_style))
+            story.append(hl_table)
+            story.append(Spacer(1, 20))
 
         story.append(PageBreak())
 
-        # Insights Section
-        story.append(Paragraph("Key Insights", heading_style))
+        # ── INSIGHTS ──
+        insights_num = (10 if longitudinal and (best_day or best_week) else
+                       9 if longitudinal or (best_day or best_week) else 8)
+        story.append(Paragraph(f"{insights_num}. Key Insights", heading_style))
         insights = generate_insights(ga_data)
-        for i, insight in enumerate(insights, 1):
-            story.append(Paragraph(f"\u2022 {insight}", bullet_style))
+        for insight in insights:
+            story.append(Paragraph(f"-- {insight}", bullet_style))
         story.append(Spacer(1, 20))
 
-        # Recommendations Section
-        story.append(Paragraph("Recommendations", heading_style))
+        # ── RECOMMENDATIONS ──
+        story.append(Paragraph(f"{insights_num + 1}. Recommendations", heading_style))
         recommendations = generate_recommendations(ga_data)
         for i, rec in enumerate(recommendations, 1):
             story.append(Paragraph(f"<b>{i}.</b> {rec}", bullet_style))
-        story.append(Spacer(1, 20))
-
-        # Footer
         story.append(Spacer(1, 30))
-        story.append(Paragraph(
-            "<i>This report was generated using siege_utilities analytics reporting system.</i>",
-            ParagraphStyle('Footer', parent=styles['Normal'],
-                          fontSize=8, alignment=TA_CENTER, textColor=colors.grey)
-        ))
 
-        # Build document
-        doc.build(story)
+        # Build with header/footer
+        doc.build(story, onFirstPage=lambda c, d: None, onLaterPages=_header_footer)
 
         log.info(f"Google Analytics report generated: {output_path}")
         return True

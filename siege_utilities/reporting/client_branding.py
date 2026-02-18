@@ -112,6 +112,44 @@ class ClientBrandingManager:
                     'left': 1.0,
                     'right': 1.0
                 }
+            },
+            'hillcrest': {
+                'name': 'Hillcrest Children & Family Center',
+                'colors': {
+                    'primary': '#1E3A5F',
+                    'secondary': '#2E7D32',
+                    'accent': '#E74C3C',
+                    'text_color': '#1A1A1A',
+                    'header_footer_text_color': '#666666',
+                    'background': '#FFFFFF'
+                },
+                'fonts': {
+                    'default_font': 'Helvetica',
+                    'h1': {'font_size': 24, 'leading': 28},
+                    'h2': {'font_size': 18, 'leading': 22},
+                    'h3': {'font_size': 14, 'leading': 18},
+                    'BodyText': {'font_size': 11, 'leading': 14}
+                },
+                'logo': {
+                    'image_url': 'https://hillcrestchildren.org/logo.png',
+                    'width': 1.5,
+                    'height': 0.6
+                },
+                'header': {
+                    'left_text': 'Google Analytics Report',
+                    'right_text': 'Hillcrest Children & Family Center'
+                },
+                'footer': {
+                    'left_text': 'Prepared by: Masai Interactive / Siege Analytics',
+                    'right_text': 'hillcrestchildren.org',
+                    'page_number_format': 'Page %s'
+                },
+                'page_margins': {
+                    'top': 1.0,
+                    'bottom': 1.0,
+                    'left': 0.75,
+                    'right': 0.75
+                }
             }
         }
 
