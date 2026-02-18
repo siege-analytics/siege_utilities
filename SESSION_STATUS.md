@@ -1,11 +1,43 @@
 # Siege Utilities - Session Status
 
-**Last Updated:** February 17, 2026 (evening)
+**Last Updated:** February 18, 2026
 **Branch:** `dheerajchand/sketch/siege-utilities-restoration`
 
 ---
 
-## Session 18 Progress (February 17, 2026 — evening)
+## Session 18 Progress (February 17–18, 2026)
+
+### Headless Notebook Execution — 13/13 Runnable PASS
+
+Ran all 17 notebooks headlessly via `jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=180`.
+13 of 17 notebooks executed successfully; 4 skipped due to external service dependencies.
+
+| # | Notebook | Headless | Output | Notes |
+|---|----------|----------|--------|-------|
+| 01 | Configuration System Demo | PASS | 30KB | |
+| 02 | Create User/Client Profiles | PASS | 37KB | |
+| 03 | Person/Actor Architecture | PASS | 50KB | |
+| 04 | Spatial Data Census Boundaries | PASS | 577KB | Census data downloaded live |
+| 05 | Choropleth Maps | PASS | 1.8MB | Map images rendered |
+| 06 | Report Generation | PASS | 7.6MB | Full chart gallery |
+| 07 | Geocoding & Address Processing | PASS | 120KB | Local Spark session created |
+| 08 | Sample Data Generation | PASS | 74KB | |
+| 09 | Analytics Connectors | SKIP | — | Needs analytics credentials |
+| 10 | Profile Branding | PASS | 93KB | Fixed SecurityError (commit `0792355`) |
+| 11 | ReportLab PDF Features | PASS | 57KB | |
+| 12 | PowerPoint Generation | PASS | 30KB | |
+| 13 | GeoDjango Integration | SKIP | — | Needs PostGIS |
+| 14 | GA Analytics Report | SKIP | — | Needs GA credentials |
+| 15 | Census Demographics | PASS | 40KB | |
+| 16 | Spark Distributed Operations | SKIP | — | Needs PySpark/Java 17 |
+| 17 | Developer Tooling | PASS | 119KB | |
+
+**NB10 Fix:** Cell used `python3 -c "print('custom allowlist works')"` which triggered `SecurityError`
+from `validate_command_safety()` (parentheses are forbidden injection characters). Changed to
+`python3 --version`. Commit: `0792355`.
+
+**Remaining for merge gate:** GUI verification on laptop/dev machine for visual confirmation.
+Headless runs serve as pre-verification — all code paths execute without error.
 
 ### Test Fix: Census Year Discovery Retry Fallback
 
@@ -731,7 +763,7 @@ ae3e8c1 feat: Add Profile/Branding testing notebook (#5)
 | Person/Actor Architecture | **Working** — Epic #67 closed | 03 |
 | Spark Utilities (530 functions) | **Working** (11/11 tests) | test_spark_utils_live.py |
 
-**Tests:** 983 passing, 36.65% coverage (as of Feb 17, 2026). All 17 notebook imports verified.
+**Tests:** 953 passing, 36.37% coverage (as of Feb 18, 2026). All 17 notebook imports verified. 13/13 runnable notebooks pass headlessly.
 
 ---
 
@@ -785,10 +817,11 @@ export DW_AUTH_TOKEN="your-token"
 ## Next Session Startup
 
 1. Read this file
-2. **Continue NB testing:** NB05+ (all should work, no code changes needed)
-3. **Merge gate:** All notebooks pass → Epic A #38 (merge to main)
-4. **After merge:** Update pure-translation to use siege_utilities for Census integration
-5. **Backlog:** #92 (engine-agnostic DataFrames), #9 (Wiki), #10 (CI/CD)
+2. **GUI verification:** Run NB01-NB17 on laptop/dev (headless pre-verified — visual confirmation only)
+3. **Skipped notebooks:** NB09 (analytics creds), NB13 (PostGIS), NB14 (GA creds), NB16 (PySpark/Java 17)
+4. **Merge gate:** All notebooks pass GUI → Epic A #38 (merge to main)
+5. **After merge:** Update pure-translation to use siege_utilities for Census integration
+6. **Backlog:** #92 (engine-agnostic DataFrames), #110 (test validity gaps), #9 (Wiki), #10 (CI/CD)
 
 ---
 
