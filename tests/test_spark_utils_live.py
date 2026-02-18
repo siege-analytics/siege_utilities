@@ -196,6 +196,65 @@ def test_spark_utilities():
     return results
 
 
+class TestSparkUtilsFunctions:
+    """Pytest-style tests for individual Spark utility functions.
+    Consolidated from test_spark_utils.py.
+    """
+
+    @pytest.fixture(scope="class")
+    def spark(self):
+        """Create a test Spark session."""
+        pyspark = pytest.importorskip("pyspark", reason="PySpark not available")
+        from pyspark.sql import SparkSession
+        spark = SparkSession.builder \
+            .appName("test_siege_utilities") \
+            .master("local[2]") \
+            .config("spark.sql.adaptive.enabled", "false") \
+            .getOrCreate()
+        yield spark
+        spark.stop()
+
+    @pytest.fixture
+    def sample_df(self, spark):
+        """Create a sample DataFrame for testing."""
+        from pyspark.sql.types import StructType, StructField, StringType, IntegerType
+        data = [
+            ("John Doe", 30, "Engineer"),
+            ("Jane Smith", 25, "Designer"),
+            ("Bob Johnson", 35, "Manager")
+        ]
+        schema = StructType([
+            StructField("name", StringType(), True),
+            StructField("age", IntegerType(), True),
+            StructField("job", StringType(), True)
+        ])
+        return spark.createDataFrame(data, schema)
+
+    def test_move_column_to_front_of_dataframe(self, sample_df):
+        """Test moving column to front."""
+        import siege_utilities
+        result_df = siege_utilities.move_column_to_front_of_dataframe(sample_df, "age")
+        assert result_df.columns == ['age', 'name', 'job']
+
+        result_df2 = siege_utilities.move_column_to_front_of_dataframe(sample_df, "name")
+        assert result_df2.columns == ['name', 'age', 'job']
+
+    def test_reproject_geom_columns_function_exists(self):
+        """Test that reproject_geom_columns function exists."""
+        from unittest.mock import Mock, patch
+        import siege_utilities
+        with patch('builtins.print') as mock_print:
+            try:
+                mock_df = Mock()
+                mock_df.withColumn.return_value = mock_df
+                siege_utilities.reproject_geom_columns(
+                    mock_df, ["geom"], "EPSG:4326", "EPSG:27700"
+                )
+                mock_print.assert_called_with('I LOVE LEENA')
+            except Exception:
+                mock_print.assert_called_with('I LOVE LEENA')
+
+
 if __name__ == "__main__":
     results = test_spark_utilities()
 
