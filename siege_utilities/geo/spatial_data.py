@@ -188,6 +188,10 @@ class CensusDirectoryDiscovery:
                 last_exception = e
                 log.warning(f"Census directory request failed (attempt {attempt + 1}/{CENSUS_RETRY_ATTEMPTS}): {e}")
 
+            except Exception as e:
+                last_exception = e
+                log.warning(f"Unexpected error during Census discovery (attempt {attempt + 1}/{CENSUS_RETRY_ATTEMPTS}): {e}")
+
             # Exponential backoff before retry (1s, 2s, 4s, 8s, ...)
             if attempt < CENSUS_RETRY_ATTEMPTS - 1:
                 sleep_time = 2 ** attempt

@@ -111,11 +111,12 @@ class TestCensusDirectoryDiscovery:
         assert 2020 in years
         assert len(years) > 0
     
+    @patch('time.sleep')
     @patch('requests.get')
-    def test_get_available_years_fallback(self, mock_get):
+    def test_get_available_years_fallback(self, mock_get, mock_sleep):
         """Test fallback when discovery fails completely."""
         mock_get.side_effect = Exception("Network error")
-        
+
         years = self.discovery.get_available_years()
 
         # Should fall back to known years (2010 to current year)
