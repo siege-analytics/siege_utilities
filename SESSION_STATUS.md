@@ -1,7 +1,64 @@
 # Siege Utilities - Session Status
 
-**Last Updated:** February 16, 2026
+**Last Updated:** February 17, 2026 (evening)
 **Branch:** `dheerajchand/sketch/siege-utilities-restoration`
+
+---
+
+## Session 18 Progress (February 17, 2026 — evening)
+
+### Test Fix: Census Year Discovery Retry Fallback
+
+**Problem:** Commit `bd4901c` added retry-with-backoff to `get_available_years()` but
+only caught `SSLError`, `Timeout`, and `RequestException`. A bare `Exception` (from mocks
+or unexpected errors) propagated uncaught instead of triggering the fallback path.
+
+**Fix:** Added generic `except Exception as e` handler to the retry loop in `spatial_data.py`.
+Patched `time.sleep` in both test files to avoid 15s backoff during tests.
+
+**Commit:** `fa09891` — Fix retry fallback for generic exceptions in Census year discovery
+
+**Test Results:** 983 passed, 1 skipped, 0 failed (36.65% coverage, 20% threshold met)
+
+### Notebook Import Verification
+
+All 17 notebooks' siege_utilities imports verified working (headless — import-only check):
+- NB01-NB06: PASS
+- NB07 (Geocoding): PASS
+- NB08-NB12: PASS
+- NB13 (GeoDjango): PASS
+- NB14 (GA Analytics): PASS
+- NB15 (Census Demographics): PASS
+- NB16 (Spark): PASS
+- NB17 (Developer Tooling): PASS
+
+### Board Updates
+
+- NB05 (#98) → In Progress (other session did extensive work)
+- NB06 (#99) → In Progress (other session did extensive work)
+
+---
+
+## Session 17 Progress (February 17, 2026 — other session)
+
+### NB05 + NB06 Work (commits bd88b15 through f5b5f01)
+
+- `bd88b15` Extract choropleth map functions into reusable library module (NB05)
+- `8122f1c` Fix ChartGenerator NameError in NB05 section 5
+- `af25505` Add 33 new tests for bivariate choropleth verification functions
+- `a124dbf` Add bivariate verification artifacts + fix test infrastructure
+- `e178190` Adding analytics connectors + PySal/Geopandas to requirements
+- `c70f8cc` Rewrite NB06 as complete ChartGenerator gallery, fix Folium choropleth stubs
+- `9417233` Add None guard to NB06 geo data cell with retry and clear error message
+- `0212c42` NB06: add pathlib-based DATA_DIR config in cell 1
+- `c1fc6a6` NB01, NB02: add DATA_DIR path config to setup cells
+- `70f7874` Fix heatmap dispatcher bug in generate_chart_from_dataframe
+- `95357b5` Pin dependency versions, sync requirements.txt, add Django test config
+- `488247f` Expand notebook API coverage to ~85-90% with dual-mode Spark support
+- `bd4901c` Fix triple-logging bug and add retry with backoff to Census year discovery
+- `f5b5f01` Test cleanup: move misplaced test, add integration markers
+
+Test count jumped from 128 → 983 (massive expansion of test coverage)
 
 ---
 
@@ -661,7 +718,7 @@ ae3e8c1 feat: Add Profile/Branding testing notebook (#5)
 | Person/Actor Architecture | **Working** — Epic #67 closed | 03 |
 | Spark Utilities (530 functions) | **Working** (11/11 tests) | test_spark_utils_live.py |
 
-**Tests:** 128+ passing geo tests, NB01-04 verified (as of Feb 16, 2026)
+**Tests:** 983 passing, 36.65% coverage (as of Feb 17, 2026). All 17 notebook imports verified.
 
 ---
 
