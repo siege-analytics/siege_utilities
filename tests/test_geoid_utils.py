@@ -344,3 +344,85 @@ class TestPrepareGEOIDForJoin:
         result = prepare_geoid_for_join(df, 'fips', 'county', output_column='GEOID')
         assert 'GEOID' in result.columns
         assert result['GEOID'].iloc[0] == '06037'
+
+
+# =============================================================================
+# GEOID DATA TYPE CONSISTENCY
+# =============================================================================
+
+class TestGEOIDDataTypeConsistency:
+    """Verify GEOID functions always return strings, never ints."""
+
+    def test_normalize_returns_string_from_string(self):
+        """normalize_geoid('06', 'state') returns str."""
+        result = normalize_geoid('06', 'state')
+        assert isinstance(result, str)
+
+    def test_normalize_returns_string_from_int(self):
+        """normalize_geoid(6, 'state') returns str '06'."""
+        result = normalize_geoid(6, 'state')
+        assert isinstance(result, str)
+        assert result == '06'
+
+    def test_normalize_returns_string_from_short_string(self):
+        """normalize_geoid('6', 'state') returns str '06'."""
+        result = normalize_geoid('6', 'state')
+        assert isinstance(result, str)
+        assert result == '06'
+
+    def test_construct_returns_string(self):
+        """construct_geoid always returns str."""
+        result = construct_geoid(state='06', county='037', geography='county')
+        assert isinstance(result, str)
+        assert result == '06037'
+
+    def test_construct_from_row_returns_string(self):
+        """construct_geoid_from_row always returns str."""
+        row = pd.Series({'state': '06', 'county': '037'})
+        result = construct_geoid_from_row(row, 'county')
+        assert isinstance(result, str)
+
+    def test_parse_returns_string_values(self):
+        """All values from parse_geoid are str."""
+        result = parse_geoid('06037101100', 'tract')
+        for key, value in result.items():
+            assert isinstance(value, str), (
+                f"parse_geoid result['{key}'] is {type(value).__name__}, expected str"
+            )
+
+
+# =============================================================================
+# GEOID_LENGTHS COMPLETENESS
+# =============================================================================
+
+class TestGEOIDLengthsCompleteness:
+    """Verify GEOID_LENGTHS covers all canonical levels with correct values."""
+
+    def test_all_canonical_levels_have_geoid_length(self):
+        """Every canonical level must be in GEOID_LENGTHS."""
+        from siege_utilities.config.census_constants import CANONICAL_GEOGRAPHIC_LEVELS
+        for level in CANONICAL_GEOGRAPHIC_LEVELS:
+            assert level in GEOID_LENGTHS, (
+                f"Canonical level '{level}' missing from GEOID_LENGTHS"
+            )
+
+    def test_cd_geoid_length(self):
+        assert GEOID_LENGTHS['cd'] == 4
+
+    def test_puma_geoid_length(self):
+        assert GEOID_LENGTHS['puma'] == 7
+
+    def test_vtd_geoid_length(self):
+        assert GEOID_LENGTHS['vtd'] == 6
+
+    def test_cbsa_geoid_length(self):
+        assert GEOID_LENGTHS['cbsa'] == 5
+
+    def test_cousub_geoid_length(self):
+        assert GEOID_LENGTHS['cousub'] == 10
+
+    def test_nation_region_division_lengths(self):
+        """These non-obvious levels all have geoid_length 1."""
+        assert GEOID_LENGTHS['nation'] == 1
+        assert GEOID_LENGTHS['region'] == 1
+        assert GEOID_LENGTHS['division'] == 1

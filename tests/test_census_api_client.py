@@ -775,3 +775,72 @@ class TestIntegrationWithExisting:
         assert normalize_state_identifier('CA') == '06'
         assert normalize_state_identifier('California') == '06'
         assert normalize_state_identifier('06') == '06'
+
+
+# =============================================================================
+# GEOID VALIDATION FROM API MOCK DATA
+# =============================================================================
+
+class TestGEOIDValidationFromAPI:
+    """Verify Census API GEOID construction produces valid GEOIDs."""
+
+    def test_state_geoid_length_from_mock(self):
+        """State GEOIDs from API mock should be 2 characters."""
+        from siege_utilities.geo.geoid_utils import GEOID_LENGTHS, validate_geoid
+        client = CensusAPIClient.__new__(CensusAPIClient)
+        df = pd.DataFrame([{'state': '06'}, {'state': '36'}])
+        result = client._construct_geoid(df, 'state')
+        for geoid in result['GEOID']:
+            assert len(str(geoid)) == GEOID_LENGTHS['state']
+            assert validate_geoid(str(geoid), 'state')
+
+    def test_county_geoid_length_from_mock(self):
+        """County GEOIDs from API mock should be 5 characters."""
+        from siege_utilities.geo.geoid_utils import GEOID_LENGTHS, validate_geoid
+        client = CensusAPIClient.__new__(CensusAPIClient)
+        df = pd.DataFrame([
+            {'state': '06', 'county': '037'},
+            {'state': '36', 'county': '061'},
+        ])
+        result = client._construct_geoid(df, 'county')
+        for geoid in result['GEOID']:
+            assert len(str(geoid)) == GEOID_LENGTHS['county']
+            assert validate_geoid(str(geoid), 'county')
+
+    def test_tract_geoid_length_from_mock(self):
+        """Tract GEOIDs from API mock should be 11 characters."""
+        from siege_utilities.geo.geoid_utils import GEOID_LENGTHS, validate_geoid
+        client = CensusAPIClient.__new__(CensusAPIClient)
+        df = pd.DataFrame([
+            {'state': '06', 'county': '037', 'tract': '101100'},
+        ])
+        result = client._construct_geoid(df, 'tract')
+        for geoid in result['GEOID']:
+            assert len(str(geoid)) == GEOID_LENGTHS['tract']
+            assert validate_geoid(str(geoid), 'tract')
+
+    def test_geoid_column_is_string_type(self):
+        """GEOID column must have string dtype after construction."""
+        client = CensusAPIClient.__new__(CensusAPIClient)
+        df = pd.DataFrame([{'state': '06', 'county': '037'}])
+        result = client._construct_geoid(df, 'county')
+        assert result['GEOID'].dtype == 'object', (
+            f"GEOID column dtype is {result['GEOID'].dtype}, expected 'object' (string)"
+        )
+
+    def test_all_mock_geoids_pass_validation(self):
+        """All constructed GEOIDs from mock data must pass validate_geoid."""
+        from siege_utilities.geo.geoid_utils import validate_geoid
+        client = CensusAPIClient.__new__(CensusAPIClient)
+        test_cases = [
+            ('state', pd.DataFrame([{'state': '06'}])),
+            ('county', pd.DataFrame([{'state': '06', 'county': '037'}])),
+            ('tract', pd.DataFrame([{'state': '06', 'county': '037', 'tract': '101100'}])),
+            ('place', pd.DataFrame([{'state': '06', 'place': '44000'}])),
+        ]
+        for geography, df in test_cases:
+            result = client._construct_geoid(df, geography)
+            geoid = result['GEOID'].iloc[0]
+            assert validate_geoid(str(geoid), geography), (
+                f"{geography} GEOID '{geoid}' fails validate_geoid()"
+            )

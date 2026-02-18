@@ -43,12 +43,17 @@ class GeographyLevel(Enum):
     ZCTA = "zcta"
     CBSA = "cbsa"
     PUMA = "puma"
+    VTD = "vtd"
+    VTD20 = "vtd20"
+    TABBLOCK20 = "tabblock20"
+    TABBLOCK10 = "tabblock10"
 
     # Backward-compatible aliases (same value → Python Enum alias)
     COUNTY_SUBDIVISION = "cousub"
     CONGRESSIONAL_DISTRICT = "cd"
     STATE_LEGISLATIVE_DISTRICT = "sldu"  # defaults to upper chamber
     ZIP_CODE = "zcta"
+    VOTING_DISTRICT = "vtd"
 
     @classmethod
     def _missing_(cls, value):

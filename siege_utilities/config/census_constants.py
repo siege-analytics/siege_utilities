@@ -110,6 +110,10 @@ GEOGRAPHIC_LEVELS = {
     "CBSA": "cbsa",
     "PUMA": "puma",
     "VTD": "vtd",
+    "VTD20": "vtd20",
+    "TABBLOCK20": "tabblock20",
+    "TABBLOCK10": "tabblock10",
+    "VOTING_DISTRICT": "vtd",               # alias
 }
 
 # Geographic level hierarchy (for validation)

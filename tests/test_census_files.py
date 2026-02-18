@@ -505,3 +505,64 @@ class TestCacheBehavior:
 
         assert test_path.exists()
         assert test_path.suffix == '.parquet'
+
+
+# =============================================================================
+# PL GEOID ALIGNMENT WITH CANONICAL
+# =============================================================================
+
+class TestPLGEOIDAlignment:
+    """Verify PL downloader geographic level references align with canonical."""
+
+    def test_all_summary_level_keys_resolve(self):
+        """Every SUMMARY_LEVELS key must resolve via resolve_geographic_level."""
+        from siege_utilities.config.census_constants import resolve_geographic_level
+        for key in SUMMARY_LEVELS:
+            resolved = resolve_geographic_level(key)
+            assert resolved is not None, (
+                f"SUMMARY_LEVELS key '{key}' does not resolve"
+            )
+
+    def test_county_subdivision_resolves_to_cousub(self):
+        """The PL alias 'county_subdivision' must resolve to canonical 'cousub'."""
+        from siege_utilities.config.census_constants import resolve_geographic_level
+        assert resolve_geographic_level('county_subdivision') == 'cousub'
+
+    def test_pl_constructed_geoids_correct_length(self):
+        """PL-constructed GEOIDs must match GEOID_LENGTHS."""
+        import pandas as pd
+        from siege_utilities.geo.geoid_utils import GEOID_LENGTHS
+        dl = PLFileDownloader.__new__(PLFileDownloader)
+        test_data = pd.DataFrame([{
+            'STATE': '06', 'COUNTY': '037', 'TRACT': '101100',
+            'BLKGRP': '1', 'BLOCK': '1001',
+        }])
+        expected = {
+            'state': GEOID_LENGTHS['state'],
+            'county': GEOID_LENGTHS['county'],
+            'tract': GEOID_LENGTHS['tract'],
+            'block_group': GEOID_LENGTHS['block_group'],
+            'block': GEOID_LENGTHS['block'],
+        }
+        for geography, exp_len in expected.items():
+            result = dl._construct_geoid(test_data.copy(), geography)
+            geoid = result['GEOID'].iloc[0]
+            assert len(geoid) == exp_len, (
+                f"PL {geography} GEOID '{geoid}' has length {len(geoid)}, expected {exp_len}"
+            )
+
+    def test_pl_constructed_geoids_pass_validate(self):
+        """PL-constructed GEOIDs must pass validate_geoid."""
+        import pandas as pd
+        from siege_utilities.geo.geoid_utils import validate_geoid
+        dl = PLFileDownloader.__new__(PLFileDownloader)
+        test_data = pd.DataFrame([{
+            'STATE': '06', 'COUNTY': '037', 'TRACT': '101100',
+            'BLKGRP': '1', 'BLOCK': '1001',
+        }])
+        for geography in ['state', 'county', 'tract', 'block_group', 'block']:
+            result = dl._construct_geoid(test_data.copy(), geography)
+            geoid = result['GEOID'].iloc[0]
+            assert validate_geoid(geoid, geography), (
+                f"PL {geography} GEOID '{geoid}' fails validate_geoid()"
+            )

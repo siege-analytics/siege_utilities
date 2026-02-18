@@ -530,3 +530,45 @@ class TestConstants:
         assert (2010, 2020) in SUPPORTED_CROSSWALK_YEARS
         assert SUPPORTED_CROSSWALK_YEARS[(2010, 2020)]['tract'] is True
         assert SUPPORTED_CROSSWALK_YEARS[(2010, 2020)]['block_group'] is True
+
+
+# =============================================================================
+# CROSSWALK GEOID FORMAT VALIDATION
+# =============================================================================
+
+class TestCrosswalkGEOIDFormat:
+    """Verify crosswalk GEOIDs conform to GEOID_LENGTHS."""
+
+    SAMPLE_TRACT_GEOIDS = [
+        '06037101100', '06037101200', '06037101300',
+        '36061000100', '36061000200',
+    ]
+
+    def test_fixture_source_geoids_valid(self):
+        """Standard tract GEOIDs must pass validate_geoid."""
+        from siege_utilities.geo.geoid_utils import validate_geoid
+        for geoid in self.SAMPLE_TRACT_GEOIDS:
+            assert validate_geoid(geoid, 'tract'), (
+                f"Source GEOID '{geoid}' fails validate_geoid('tract')"
+            )
+
+    def test_fixture_target_geoids_valid(self):
+        """Target tract GEOIDs must also pass validation."""
+        from siege_utilities.geo.geoid_utils import validate_geoid
+        # Typical crosswalk target GEOIDs (may differ from source after redistricting)
+        target_geoids = ['06037101101', '06037101102', '36061000101']
+        for geoid in target_geoids:
+            assert validate_geoid(geoid, 'tract'), (
+                f"Target GEOID '{geoid}' fails validate_geoid('tract')"
+            )
+
+    def test_fixture_geoids_correct_length(self):
+        """All tract GEOIDs must be exactly 11 characters."""
+        from siege_utilities.geo.geoid_utils import GEOID_LENGTHS
+        for geoid in self.SAMPLE_TRACT_GEOIDS:
+            assert len(geoid) == GEOID_LENGTHS['tract'] == 11
+
+    def test_fixture_geoids_are_strings(self):
+        """All GEOIDs must be strings."""
+        for geoid in self.SAMPLE_TRACT_GEOIDS:
+            assert isinstance(geoid, str)
