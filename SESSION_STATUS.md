@@ -5,6 +5,33 @@
 
 ---
 
+## Session 20 Progress (February 19, 2026)
+
+### Test Suite Pruning — Issue #113 (In Review)
+
+Removed all test files covering modules **not validated by NB01-NB05**. These tests covered
+unvalidated code paths (files, distributed, geocoding, GeoDjango, multi-engine, SVG, packaging,
+admin modules). Deleted files are preserved in git history for restoration when their modules
+are validated by later notebooks.
+
+**Before:** 1,026 collected tests across 36+ test files
+**After:** 724 collected tests across 19 test files + conftest.py
+**Deleted:** 20 files (17 test files + 2 support files + conftest cleanup)
+**Coverage:** Increased from 18% → 30% (removed dead-weight modules from denominator)
+
+**Files deleted:**
+- `test_pypi_release.py`, `test_file_operations.py`, `test_file_hashing.py`, `test_file_remote.py`
+- `test_remote.py`, `test_shell.py`, `test_paths.py`, `test_geocoding.py`, `test_geodjango.py`
+- `test_hdfs_operations.py`, `test_hdfs_config.py`, `test_multi_engine.py`, `test_svg_markers.py`
+- `test_spark_utils_live.py`, `test_package_format_generation.py`, `test_package_discovery.py`
+- `test_database_connections.py`, `test_admin_profile_manager.py`
+- `validate_functionality.py`, `django_settings.py`
+
+**conftest.py cleanup:** Removed 20 orphaned fixtures. Kept: infrastructure hooks (`pytest_configure`,
+`pytest_unconfigure`, `_siege_test_directories`) and `mock_spark_session` (used by `test_client_and_connection_config.py`).
+
+---
+
 ## Session 19 Progress (February 18, 2026)
 
 ### NB14 GA Analytics Report Upgrade — Issue #111 (In Review)
@@ -794,7 +821,7 @@ ae3e8c1 feat: Add Profile/Branding testing notebook (#5)
 | Person/Actor Architecture | **Working** — Epic #67 closed | 03 |
 | Spark Utilities (530 functions) | **Working** (11/11 tests) | test_spark_utils_live.py |
 
-**Tests:** 953 passing, 36.37% coverage (as of Feb 18, 2026). **All 17 notebooks pass headlessly** (including Spark, GeoDjango, analytics).
+**Tests:** 724 passing, 30.27% coverage (as of Feb 19, 2026 — pruned to NB01-NB05 validated modules only). **All 17 notebooks pass headlessly** (including Spark, GeoDjango, analytics).
 
 ---
 
