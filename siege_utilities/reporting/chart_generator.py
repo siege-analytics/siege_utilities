@@ -74,14 +74,18 @@ class ChartGenerator:
     Supports pandas DataFrames, Spark DataFrames, and various data sources.
     """
 
-    def __init__(self, branding_config: Optional[Dict[str, Any]] = None):
+    def __init__(self, branding_config: Optional[Dict[str, Any]] = None,
+                 output_dir: Optional[Path] = None):
         """
         Initialize the chart generator.
-        
+
         Args:
             branding_config: Branding configuration for chart colors and styling
+            output_dir: Directory for saving Folium HTML map files.
+                        Defaults to ``~/.siege_utilities`` for backward compatibility.
         """
         self.branding_config = branding_config or {}
+        self.output_dir = Path(output_dir) if output_dir is not None else Path.home() / ".siege_utilities"
         self.styles = getSampleStyleSheet()
         self._setup_default_colors()
         self._setup_plotting_style()
@@ -147,7 +151,30 @@ class ChartGenerator:
             plt.rcParams['legend.edgecolor'] = 'black'
             plt.rcParams['legend.facecolor'] = 'white'
 
-    def create_bar_chart(self, data: Union[pd.DataFrame, Dict[str, Any]], 
+    def _save_folium_map(self, folium_map, filename: str, label: str,
+                         width: float, height: float) -> Image:
+        """Save a Folium map to *self.output_dir* and return a placeholder chart.
+
+        Consolidates the identical mkdir → save → log → placeholder pattern
+        used by every Folium-based method.
+
+        Args:
+            folium_map: A ``folium.Map`` instance.
+            filename: File name (e.g. ``"temp_choropleth_map.html"``).
+            label: Human-readable label shown in the placeholder image.
+            width: Placeholder chart width (inches).
+            height: Placeholder chart height (inches).
+
+        Returns:
+            ReportLab Image placeholder.
+        """
+        map_path = self.output_dir / filename
+        map_path.parent.mkdir(parents=True, exist_ok=True)
+        folium_map.save(str(map_path))
+        log.info(f"{label} saved to {map_path}")
+        return self._create_placeholder_chart(width, height, f"{label} — saved to {map_path}")
+
+    def create_bar_chart(self, data: Union[pd.DataFrame, Dict[str, Any]],
                         x_column: str = None, y_column: str = None,
                         title: str = "", width: float = 6.0, height: float = 4.0,
                         chart_type: str = "bar", group_by: str = None,
@@ -456,7 +483,7 @@ class ChartGenerator:
             fill_color: Brewer color scheme name (e.g. 'YlOrRd', 'BuGn', 'Blues')
 
         Returns:
-            ReportLab Image object (placeholder — HTML saved to ~/.siege_utilities/)
+            ReportLab Image object (placeholder — HTML saved to output_dir)
         """
         if not FOLIUM_AVAILABLE:
             return self._create_placeholder_chart(width, height, "Folium not available")
@@ -500,14 +527,8 @@ class ChartGenerator:
             # Add layer control
             folium.LayerControl().add_to(m)
 
-            # Save map to temporary file
-            temp_map_path = Path.home() / ".siege_utilities" / "temp_choropleth_map.html"
-            temp_map_path.parent.mkdir(parents=True, exist_ok=True)
-            m.save(str(temp_map_path))
-            log.info(f"Choropleth map saved to {temp_map_path}")
-
-            return self._create_placeholder_chart(width, height,
-                f"Choropleth Map — saved to {temp_map_path}")
+            return self._save_folium_map(m, "temp_choropleth_map.html",
+                                        "Choropleth Map", width, height)
 
         except Exception as e:
             log.error(f"Error creating choropleth map: {e}")
@@ -869,12 +890,8 @@ class ChartGenerator:
             # Add layer control
             folium.LayerControl().add_to(m)
             
-            # Save map to temporary file
-            temp_map_path = Path.home() / ".siege_utilities" / "temp_marker_map.html"
-            temp_map_path.parent.mkdir(parents=True, exist_ok=True)
-            m.save(str(temp_map_path))
-            
-            return self._create_placeholder_chart(width, height, "Marker Map - HTML file saved")
+            return self._save_folium_map(m, "temp_marker_map.html",
+                                        "Marker Map", width, height)
             
         except Exception as e:
             log.error(f"Error creating marker map: {e}")
@@ -1018,12 +1035,8 @@ class ChartGenerator:
                     control=False
                 ).add_to(m)
             
-            # Save map to temporary file
-            temp_map_path = Path.home() / ".siege_utilities" / "temp_heatmap.html"
-            temp_map_path.parent.mkdir(parents=True, exist_ok=True)
-            m.save(str(temp_map_path))
-            
-            return self._create_placeholder_chart(width, height, "Heatmap - HTML file saved")
+            return self._save_folium_map(m, "temp_heatmap.html",
+                                        "Heatmap", width, height)
             
         except Exception as e:
             log.error(f"Error creating heatmap: {e}")
@@ -1117,12 +1130,8 @@ class ChartGenerator:
             # Add layer control
             folium.LayerControl().add_to(m)
             
-            # Save map to temporary file
-            temp_map_path = Path.home() / ".siege_utilities" / "temp_cluster_map.html"
-            temp_map_path.parent.mkdir(parents=True, exist_ok=True)
-            m.save(str(temp_map_path))
-            
-            return self._create_placeholder_chart(width, height, "Cluster Map - HTML file saved")
+            return self._save_folium_map(m, "temp_cluster_map.html",
+                                        "Cluster Map", width, height)
             
         except Exception as e:
             log.error(f"Error creating cluster map: {e}")
@@ -1219,12 +1228,8 @@ class ChartGenerator:
                     control=False
                 ).add_to(m)
             
-            # Save map to temporary file
-            temp_map_path = Path.home() / ".siege_utilities" / "temp_flow_map.html"
-            temp_map_path.parent.mkdir(parents=True, exist_ok=True)
-            m.save(str(temp_map_path))
-            
-            return self._create_placeholder_chart(width, height, "Flow Map - HTML file saved")
+            return self._save_folium_map(m, "temp_flow_map.html",
+                                        "Flow Map", width, height)
             
         except Exception as e:
             log.error(f"Error creating flow map: {e}")
@@ -1257,7 +1262,7 @@ class ChartGenerator:
             color_scheme: Bivariate color scheme ('default', 'blue_red', 'green_orange')
 
         Returns:
-            ReportLab Image object (placeholder — HTML saved to ~/.siege_utilities/)
+            ReportLab Image object (placeholder — HTML saved to output_dir)
         """
         if not FOLIUM_AVAILABLE:
             return self._create_placeholder_chart(width, height, "Folium not available")
@@ -1323,14 +1328,8 @@ class ChartGenerator:
 
             folium.LayerControl().add_to(m)
 
-            # Save map
-            temp_map_path = Path.home() / ".siege_utilities" / "temp_bivariate_choropleth.html"
-            temp_map_path.parent.mkdir(parents=True, exist_ok=True)
-            m.save(str(temp_map_path))
-            log.info(f"Bivariate choropleth saved to {temp_map_path}")
-
-            return self._create_placeholder_chart(width, height,
-                f"Bivariate Choropleth — saved to {temp_map_path}")
+            return self._save_folium_map(m, "temp_bivariate_choropleth.html",
+                                        "Bivariate Choropleth", width, height)
 
         except Exception as e:
             log.error(f"Error creating bivariate choropleth map: {e}")
