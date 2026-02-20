@@ -1,0 +1,4 @@
+# Track notebook output for headless review
+# Ignore only Jupyter/Python artifacts
+*.ipynb_checkpoints
+__pycache__/
