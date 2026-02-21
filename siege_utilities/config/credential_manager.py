@@ -990,6 +990,78 @@ def get_google_service_account_from_1password(item_title: str = "Google Analytic
         return None
 
 
+def get_google_oauth_from_1password(
+    item_title: str = "Google Analytics API - Multi-Client Reporter",
+    vault: Optional[str] = None,
+    account: Optional[str] = None,
+) -> Optional[Dict[str, str]]:
+    """Get Google OAuth2 client credentials from 1Password.
+
+    Returns dict with client_id, client_secret, project_id, redirect_uri
+    suitable for GoogleAnalyticsConnector(auth_method="oauth2").
+
+    Args:
+        item_title: Title of the 1Password item containing OAuth2 credentials
+        vault: 1Password vault name (e.g., 'Private')
+        account: 1Password account shorthand or UUID
+
+    Returns:
+        Dict with OAuth2 credential fields, or None if not found
+    """
+    try:
+        op_flags = []
+        if vault:
+            op_flags.append(f'--vault={vault}')
+        if account:
+            op_flags.append(f'--account={account}')
+
+        def get_field(field_name: str) -> Optional[str]:
+            cmd = ['op', 'item', 'get', item_title, f'--field={field_name}', '--reveal'] + op_flags
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode == 0:
+                return result.stdout.strip()
+            return None
+
+        client_id = get_field('client_id')
+        client_secret = get_field('client_secret')
+
+        if not client_id or not client_secret:
+            log_warning(f"Could not retrieve OAuth2 credentials from 1Password item '{item_title}'")
+            return None
+
+        creds = {
+            'client_id': client_id,
+            'client_secret': client_secret,
+        }
+
+        # Get redirect_uri (stored as comma-separated redirect_uris)
+        redirect_uris = get_field('redirect_uris')
+        if redirect_uris:
+            # Take the first URI from the comma-separated list
+            creds['redirect_uri'] = redirect_uris.split(',')[0].strip()
+
+        # Try to extract project_id from raw_json if available
+        raw_json_str = get_field('raw_json')
+        if raw_json_str:
+            try:
+                raw_data = json.loads(raw_json_str)
+                installed = raw_data.get('installed', raw_data)
+                if 'project_id' in installed:
+                    creds['project_id'] = installed['project_id']
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        log_info(f"Retrieved Google OAuth2 credentials from 1Password: {client_id[:20]}...")
+        return creds
+
+    except subprocess.CalledProcessError as e:
+        log_error(f"Failed to get Google OAuth2 credentials from 1Password: {e}")
+        return None
+    except Exception as e:
+        log_error(f"Error retrieving Google OAuth2 credentials: {e}")
+        return None
+
+
 def create_temporary_service_account_file(service_account_data: Dict[str, str]) -> Optional[str]:
     """
     Create a temporary service account file for Google APIs.

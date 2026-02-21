@@ -411,11 +411,14 @@ def generate_sample_ga_data(start_date: datetime, end_date: datetime) -> Dict[st
 
 
 def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
-                        credential_item_name: str = "Google Analytics Service Account - Multi-Client Reporter"
+                        credential_item_name: str = "Google Analytics Service Account - Multi-Client Reporter",
+                        vault: Optional[str] = None,
+                        account: Optional[str] = None,
                         ) -> Optional[Dict[str, Any]]:
     """
     Fetch real GA4 data using GoogleAnalyticsConnector with 1Password credentials.
 
+    Tries service account auth first, then falls back to OAuth2 credentials.
     Returns the same dict structure as generate_sample_ga_data() so notebook code
     works identically with either data source.
 
@@ -426,6 +429,8 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
         start_date: Start date string 'YYYY-MM-DD'
         end_date: End date string 'YYYY-MM-DD'
         credential_item_name: 1Password item name for service account
+        vault: 1Password vault name (e.g., 'Private')
+        account: 1Password account shorthand or UUID
 
     Returns:
         GA data dict matching generate_sample_ga_data() structure, or None if unavailable
@@ -438,16 +443,42 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
         return None
 
     try:
-        # Get service account credentials from 1Password
-        service_account_data = get_google_service_account_from_1password()
-        if not service_account_data:
-            log.warning("No GA service account credentials found in 1Password")
-            return None
+        connector = None
 
-        connector = GoogleAnalyticsConnector(
-            auth_method="service_account",
-            service_account_data=service_account_data
+        # Strategy 1: Try service account credentials from 1Password
+        service_account_data = get_google_service_account_from_1password(
+            vault=vault, account=account,
         )
+        if service_account_data:
+            connector = GoogleAnalyticsConnector(
+                auth_method="service_account",
+                service_account_data=service_account_data,
+            )
+
+        # Strategy 2: Try OAuth2 credentials from 1Password
+        if connector is None:
+            log.info("No service account found — trying OAuth2 credentials")
+            try:
+                from siege_utilities.config import get_google_oauth_from_1password
+            except ImportError:
+                log.warning("get_google_oauth_from_1password not available")
+                return None
+
+            oauth_creds = get_google_oauth_from_1password(vault=vault, account=account)
+            if not oauth_creds:
+                log.warning("No GA credentials found in 1Password (service account or OAuth2)")
+                return None
+
+            connector = GoogleAnalyticsConnector(
+                client_id=oauth_creds['client_id'],
+                client_secret=oauth_creds['client_secret'],
+                redirect_uri=oauth_creds.get('redirect_uri', 'http://localhost'),
+            )
+            token_path = Path.home() / '.siege_utilities' / 'ga_token.json'
+            token_path.parent.mkdir(parents=True, exist_ok=True)
+            if not connector.authenticate(token_file=str(token_path)):
+                log.warning("OAuth2 authentication failed")
+                return None
 
         # Fetch daily metrics
         daily_df = connector.get_ga4_data(

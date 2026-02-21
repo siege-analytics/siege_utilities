@@ -294,6 +294,7 @@ from .connections import (
 
 from .credential_manager import (
     get_google_service_account_from_1password,
+    get_google_oauth_from_1password,
     create_temporary_service_account_file,
 )
 
@@ -394,6 +395,7 @@ __all__ = [
     
     # Credential management functions
     'get_google_service_account_from_1password',
+    'get_google_oauth_from_1password',
     'create_temporary_service_account_file',
     
     # Credential management functions
