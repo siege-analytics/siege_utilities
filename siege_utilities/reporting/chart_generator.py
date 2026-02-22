@@ -488,13 +488,16 @@ class ChartGenerator:
                         f"{pct:.1f}%"
                     ])
                 
-                # Create table
+                # Create table — bbox is [left, bottom, width, height] in
+                # axes coordinates.  With subplots_adjust(right=0.6) the axes
+                # occupies ~50% of figure width, so 0.6 axes-widths ≈ 1.8in
+                # on a 6-inch figure — enough room for the four columns.
                 table = ax.table(cellText=legend_data,
                                colLabels=['', 'Label', 'Value', 'Percent'],
                                cellLoc='center',
                                loc='center',
-                               bbox=[1.1, 0.1, 0.3, 0.8])
-                
+                               bbox=[1.05, 0.0, 0.6, 0.9])
+
                 # Style the table
                 table.auto_set_font_size(False)
                 table.set_fontsize(8)
