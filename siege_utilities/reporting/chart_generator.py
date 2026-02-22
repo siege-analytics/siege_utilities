@@ -948,6 +948,7 @@ class ChartGenerator:
             if title:
                 folium.TileLayer(
                     tiles='',
+                    attr='',
                     name=title,
                     overlay=True,
                     control=False
@@ -1096,6 +1097,7 @@ class ChartGenerator:
             if title:
                 folium.TileLayer(
                     tiles='',
+                    attr='',
                     name=title,
                     overlay=True,
                     control=False
@@ -1188,6 +1190,7 @@ class ChartGenerator:
             if title:
                 folium.TileLayer(
                     tiles='',
+                    attr='',
                     name=title,
                     overlay=True,
                     control=False
@@ -1289,6 +1292,7 @@ class ChartGenerator:
             if title:
                 folium.TileLayer(
                     tiles='',
+                    attr='',
                     name=title,
                     overlay=True,
                     control=False
