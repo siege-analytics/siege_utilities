@@ -2,7 +2,7 @@
 
 A comprehensive Python utilities package providing **260+ functions** across **12 categories** for data engineering, analytics, and distributed computing workflows.
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Functions](https://img.shields.io/badge/functions-260+-orange.svg)](https://github.com/siege-analytics/siege_utilities)
 [![Reliability](https://img.shields.io/badge/reliability-100%25-brightgreen.svg)](https://github.com/siege-analytics/siege_utilities)
@@ -543,7 +543,7 @@ pip install -e ".[dev]"
 2. Create a feature branch: `git checkout -b feature-name`
 3. Add your functions to existing modules or create new ones
 4. **Run tests**: `python -m pytest tests/ --tb=short -q`
-5. Test with: `python3 check_imports.py`
+5. Test with: `python3 scripts/check_imports.py`
 6. Commit changes: `git commit -am 'Add new feature'`
 7. Push: `git push origin feature-name`
 8. Submit a Pull Request

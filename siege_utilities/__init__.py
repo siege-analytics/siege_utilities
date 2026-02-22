@@ -397,7 +397,7 @@ from .testing.runner import (
 )
 
 # Package version and metadata
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __author__ = "Siege Analytics"
 __description__ = "Comprehensive utilities for data engineering, analytics, and distributed computing"
 
@@ -414,7 +414,7 @@ def get_package_info() -> Dict[str, Any]:
     
     package_info = {
         'package_name': 'siege_utilities',
-        'version': '1.0.0',
+        'version': '1.1.0',
         'description': 'Comprehensive utilities for data engineering, analytics, and distributed computing',
         'total_functions': 0,
         'total_modules': 0,
