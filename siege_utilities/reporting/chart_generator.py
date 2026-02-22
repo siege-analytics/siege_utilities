@@ -1354,9 +1354,12 @@ class ChartGenerator:
                     gdf = gpd.GeoDataFrame.from_features(geo_data.get('features', geo_data))
                 else:
                     gdf = geo_data.copy()
-                # Merge tabular data onto geometry
+                # Merge tabular data onto geometry — drop geometry from the
+                # tabular side first to avoid a duplicate geometry column
+                # (e.g. ``geometry_data``) that breaks JSON serialization.
                 if location_column and location_column in df.columns:
-                    gdf = gdf.merge(df, on=location_column, how='left', suffixes=('', '_data'))
+                    df_tabular = df.drop(columns='geometry', errors='ignore')
+                    gdf = gdf.merge(df_tabular, on=location_column, how='left', suffixes=('', '_data'))
             elif hasattr(df, 'geometry'):
                 gdf = df
             else:
