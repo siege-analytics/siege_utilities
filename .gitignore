@@ -1,3 +1,6 @@
+# Generated notebook artifacts (PDFs, reports)
+notebooks/*.pdf
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
