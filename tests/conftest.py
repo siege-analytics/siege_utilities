@@ -86,7 +86,16 @@ def mock_spark_session():
     """Mock Spark session for distributed computing tests."""
     mock_spark = Mock()
     mock_spark.sparkContext.setLogLevel = Mock()
-    mock_spark.read.parquet = Mock()
-    mock_spark.createDataFrame = Mock()
-    mock_spark.sql = Mock()
+    mock_spark.read.parquet = Mock(return_value=Mock())
+    mock_spark.createDataFrame = Mock(return_value=Mock())
+    mock_spark.sql = Mock(return_value=Mock())
+    # Builder pattern for create_spark_session tests
+    mock_spark.builder = Mock()
+    mock_spark.builder.appName.return_value = mock_spark.builder
+    mock_spark.builder.master.return_value = mock_spark.builder
+    mock_spark.builder.config.return_value = mock_spark.builder
+    mock_spark.builder.getOrCreate.return_value = mock_spark
+    # Conf for Sedona settings
+    mock_spark.conf = Mock()
+    mock_spark.conf.set = Mock()
     return mock_spark

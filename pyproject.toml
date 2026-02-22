@@ -48,6 +48,7 @@ dependencies = [
 [project.optional-dependencies]
 distributed = [
     "pyspark>=3.3.0",
+    "apache-sedona>=1.5.0",
 ]
 geo = [
     "geopandas>=0.12.0",
@@ -120,6 +121,7 @@ dev = [
 ]
 all = [
     "pyspark>=3.3.0",
+    "apache-sedona>=1.5.0",
     "geopandas>=0.12.0",
     "shapely>=1.8.0",
     "pyproj>=3.3.0",
