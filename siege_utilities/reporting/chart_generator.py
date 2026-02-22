@@ -91,13 +91,13 @@ class ChartGenerator:
         self._setup_plotting_style()
         
         # Set default figure size and DPI for professional quality
-        self.default_figsize = (3, 2)  # Reasonable default size
-        self.default_dpi = 72  # High DPI for crisp, professional quality
-        
+        self.default_figsize = (8, 5)
+        self.default_dpi = 150
+
         # Set matplotlib global DPI for consistency
         if MATPLOTLIB_AVAILABLE:
-            plt.rcParams['figure.dpi'] = 72
-            plt.rcParams['savefig.dpi'] = 72
+            plt.rcParams['figure.dpi'] = 150
+            plt.rcParams['savefig.dpi'] = 150
 
     def _setup_default_colors(self):
         """Setup default color scheme for charts."""
@@ -134,7 +134,7 @@ class ChartGenerator:
                 sns.set_style("whitegrid")
             
             # Set default font sizes and DPI
-            plt.rcParams['figure.dpi'] = 72
+            plt.rcParams['figure.dpi'] = 150
             plt.rcParams['font.size'] = 10
             plt.rcParams['axes.titlesize'] = 12
             plt.rcParams['axes.labelsize'] = 10
@@ -225,7 +225,7 @@ class ChartGenerator:
                     return self._create_placeholder_chart(width, height, "No numeric data found")
             
             # Create figure with very conservative sizing to prevent ReportLab crashes
-            fig, ax = plt.subplots(figsize=(width * 0.3, height * 0.3), dpi=self.default_dpi)
+            fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
             fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
             
             # Create chart
@@ -312,7 +312,7 @@ class ChartGenerator:
                 y_columns = numeric_cols[:5]  # Limit to 5 columns
             
             # Create figure with very conservative sizing to prevent ReportLab crashes
-            fig, ax = plt.subplots(figsize=(width * 0.3, height * 0.3), dpi=self.default_dpi)
+            fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
             fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
             
             # Plot each line
@@ -395,7 +395,7 @@ class ChartGenerator:
                     return self._create_placeholder_chart(width, height, "Need at least 2 columns for pie chart")
             
             # Create figure with larger size for dominant appearance
-            fig, ax = plt.subplots(figsize=(width * 0.3, height * 0.3), dpi=self.default_dpi)
+            fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
             
             # Adjust subplot parameters to make room for legend table
             fig.subplots_adjust(left=0.1, right=0.6, top=0.9, bottom=0.1)
@@ -591,7 +591,7 @@ class ChartGenerator:
             merged_with_colors = self._apply_bivariate_colors(merged, value_column1, value_column2, color_matrix)
             
             # Create figure with very conservative sizing to prevent ReportLab crashes
-            fig, ax = plt.subplots(figsize=(width * 0.3, height * 0.3), dpi=self.default_dpi)
+            fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
             
             # Create true bivariate choropleth
             merged_with_colors.plot(
@@ -773,7 +773,7 @@ class ChartGenerator:
                 merged[f'{value_column}_classified'] = pd.qcut(merged[value_column], bins, labels=False, duplicates='drop')
             
             # Create figure with very conservative sizing to prevent ReportLab crashes
-            fig, ax = plt.subplots(figsize=(width * 0.3, height * 0.3), dpi=self.default_dpi)
+            fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
             
             # Create choropleth
             merged.plot(
@@ -1422,7 +1422,7 @@ class ChartGenerator:
                 df = data.copy()
             
             # Create figure with very conservative sizing to prevent ReportLab crashes
-            fig, ax = plt.subplots(figsize=(width * 0.3, height * 0.3), dpi=self.default_dpi)
+            fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
             
             # Create scatter plot
             if color_column and color_column in df.columns:
@@ -1472,7 +1472,7 @@ class ChartGenerator:
                 cols, rows = 2, 2
             
             # Create subplot grid with very conservative sizing to prevent ReportLab crashes
-            fig, axes = plt.subplots(rows, cols, figsize=(width * 0.3, height * 0.3), dpi=self.default_dpi)
+            fig, axes = plt.subplots(rows, cols, figsize=(width, height), dpi=self.default_dpi)
             
             # Handle single subplot case
             if rows == 1 and cols == 1:
@@ -1641,8 +1641,8 @@ class ChartGenerator:
             
             # Save figure to bytes buffer with optimized settings
             img_buffer = io.BytesIO()
-            fig.savefig(img_buffer, format='png', dpi=optimal_dpi, 
-                       facecolor='white', edgecolor='none', pad_inches=0.05)
+            fig.savefig(img_buffer, format='png', dpi=optimal_dpi,
+                       facecolor='white', edgecolor='none', pad_inches=0.1)
             img_buffer.seek(0)
             
             # Check if image is still too large
@@ -1650,8 +1650,8 @@ class ChartGenerator:
             if img_size > 5 * 1024 * 1024:  # 5MB limit
                 log.warning(f"Image size {img_size/1024/1024:.1f}MB exceeds limit, reducing quality")
                 img_buffer.seek(0)
-                fig.savefig(img_buffer, format='png', dpi=150, 
-                           facecolor='white', edgecolor='none', pad_inches=0.05)
+                fig.savefig(img_buffer, format='png', dpi=100,
+                           facecolor='white', edgecolor='none', pad_inches=0.1)
                 img_buffer.seek(0)
             
             # Encode as base64

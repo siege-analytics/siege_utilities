@@ -13,6 +13,7 @@ from .chart_generator import ChartGenerator, create_bar_chart, create_line_chart
 from .client_branding import ClientBrandingManager
 from .analytics.analytics_reports import AnalyticsReportGenerator
 from .powerpoint_generator import PowerPointGenerator
+from .image_utils import decode_rl_image, show_rl_image, save_rl_image
 
 # Profile-integrated reporting functions
 def get_report_output_directory(client_code: str = None) -> Path:
@@ -173,6 +174,11 @@ __all__ = [
     'export_branding_config',
     'import_branding_config',
     'export_chart_type_config',
+
+    # Image utilities
+    'decode_rl_image',
+    'show_rl_image',
+    'save_rl_image',
     
     # Professional Page Templates
     'TitlePageTemplate',
