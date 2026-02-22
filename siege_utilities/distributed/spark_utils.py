@@ -12,6 +12,9 @@ from siege_utilities.core.logging import get_logger, log_info, log_warning, log_
 if TYPE_CHECKING:
     from pyspark.sql import DataFrame, SparkSession, Column
 
+# Preserve Python builtins before PySpark wildcard import shadows them
+py_round = round
+
 try:
     from pyspark.sql import DataFrame, SparkSession, Column
     from pyspark.sql.types import *
