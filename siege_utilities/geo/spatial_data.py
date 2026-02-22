@@ -840,7 +840,22 @@ class CensusDataSource(SpatialDataSource):
             if not download_success:
                 log.error("Failed to download TIGER/Line data")
                 return None
-            
+
+            # Validate downloaded file is actually a zip (not an HTML challenge page)
+            import zipfile
+            zip_path = Path(zip_filename)
+            if not zipfile.is_zipfile(zip_path):
+                log.warning(f"Downloaded file is not a valid zip: {zip_path} "
+                            f"({zip_path.stat().st_size} bytes) — removing and retrying")
+                zip_path.unlink(missing_ok=True)
+                # Retry once — the first attempt may have been an anti-bot challenge
+                download_success = download_file(url, zip_filename)
+                if not download_success or not zipfile.is_zipfile(zip_path):
+                    log.error("Retry failed: downloaded file is still not a valid zip")
+                    zip_path.unlink(missing_ok=True)
+                    return None
+                log.info("Retry succeeded — valid zip file downloaded")
+
             # Unzip using existing function
             unzip_dir = unzip_file_to_directory(Path(zip_filename))
             if not unzip_dir:
