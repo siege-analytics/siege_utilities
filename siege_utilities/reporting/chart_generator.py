@@ -75,7 +75,9 @@ class ChartGenerator:
     """
 
     def __init__(self, branding_config: Optional[Dict[str, Any]] = None,
-                 output_dir: Optional[Path] = None):
+                 output_dir: Optional[Path] = None,
+                 max_chart_width: Optional[float] = None,
+                 max_chart_height: Optional[float] = None):
         """
         Initialize the chart generator.
 
@@ -83,13 +85,21 @@ class ChartGenerator:
             branding_config: Branding configuration for chart colors and styling
             output_dir: Directory for saving Folium HTML map files.
                         Defaults to ``~/.siege_utilities`` for backward compatibility.
+            max_chart_width: Maximum chart width in inches for ReportLab output.
+                             When set, charts wider than this are uniformly scaled
+                             down to fit.  ``None`` disables width clamping.
+            max_chart_height: Maximum chart height in inches for ReportLab output.
+                              When set, charts taller than this are uniformly scaled
+                              down to fit.  ``None`` disables height clamping.
         """
         self.branding_config = branding_config or {}
         self.output_dir = Path(output_dir) if output_dir is not None else Path.home() / ".siege_utilities"
+        self.max_chart_width = max_chart_width
+        self.max_chart_height = max_chart_height
         self.styles = getSampleStyleSheet()
         self._setup_default_colors()
         self._setup_plotting_style()
-        
+
         # Set default figure size and DPI for professional quality
         self.default_figsize = (8, 5)
         self.default_dpi = 150
@@ -150,6 +160,59 @@ class ChartGenerator:
             plt.rcParams['legend.framealpha'] = 0.9
             plt.rcParams['legend.edgecolor'] = 'black'
             plt.rcParams['legend.facecolor'] = 'white'
+
+    def _scale_dimensions(self, width: float, height: float,
+                          max_width: Optional[float] = None,
+                          max_height: Optional[float] = None) -> tuple:
+        """Return ``(width, height)`` uniformly scaled to fit within max bounds.
+
+        Resolves effective maximums from instance-level defaults
+        (``self.max_chart_width``/``self.max_chart_height``) and per-call
+        overrides.  When both are set the *tighter* (smaller) limit wins.
+
+        If no maximum is active, the original dimensions are returned
+        unchanged.  Aspect ratio is always preserved.
+
+        Args:
+            width: Original width in inches.
+            height: Original height in inches.
+            max_width: Per-call maximum width override (``None`` → use instance default).
+            max_height: Per-call maximum height override (``None`` → use instance default).
+
+        Returns:
+            ``(scaled_width, scaled_height)`` tuple.
+        """
+        # Resolve effective max — tighter of instance-level and per-call
+        eff_max_w = self.max_chart_width
+        if max_width is not None:
+            eff_max_w = min(max_width, eff_max_w) if eff_max_w is not None else max_width
+
+        eff_max_h = self.max_chart_height
+        if max_height is not None:
+            eff_max_h = min(max_height, eff_max_h) if eff_max_h is not None else max_height
+
+        # No limits → nothing to do
+        if eff_max_w is None and eff_max_h is None:
+            return width, height
+
+        scale = 1.0
+        if eff_max_w is not None and width > eff_max_w:
+            scale = min(scale, eff_max_w / width)
+        if eff_max_h is not None and height > eff_max_h:
+            scale = min(scale, eff_max_h / height)
+
+        if scale < 1.0:
+            new_w = width * scale
+            new_h = height * scale
+            log.info(
+                "Auto-scaling chart from %.2f×%.2f to %.2f×%.2f in "
+                "(max %.1s×%.1s, scale=%.3f)",
+                width, height, new_w, new_h,
+                eff_max_w, eff_max_h, scale,
+            )
+            return new_w, new_h
+
+        return width, height
 
     def _save_folium_map(self, folium_map, filename: str, label: str,
                          width: float, height: float) -> Image:
@@ -248,9 +311,9 @@ class ChartGenerator:
             
             # Add value labels on bars
             for bar in bars:
-                height = bar.get_height()
-                ax.text(bar.get_x() + bar.get_width()/2., height,
-                       f'{height:,.0f}', ha='center', va='bottom')
+                bar_height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., bar_height,
+                       f'{bar_height:,.0f}', ha='center', va='bottom')
             
             # Add legend with better positioning
             if show_legend and (group_by or len(y_values) > 1):
@@ -1623,28 +1686,32 @@ class ChartGenerator:
         except Exception as e:
             log.error(f"Error creating scatter subplot: {e}")
 
-    def _matplotlib_to_reportlab_image(self, fig, width: float, height: float) -> Image:
+    def _matplotlib_to_reportlab_image(self, fig, width: float, height: float,
+                                       max_width: Optional[float] = None,
+                                       max_height: Optional[float] = None) -> Image:
         """
         Convert matplotlib figure to ReportLab Image with size optimization.
-        
+
         Args:
             fig: Matplotlib figure
             width: Image width in inches
             height: Image height in inches
-            
+            max_width: Per-call max width override for ``_scale_dimensions``.
+            max_height: Per-call max height override for ``_scale_dimensions``.
+
         Returns:
             ReportLab Image object
         """
         try:
             # Use high DPI for crisp, professional quality
             optimal_dpi = self.default_dpi
-            
+
             # Save figure to bytes buffer with optimized settings
             img_buffer = io.BytesIO()
             fig.savefig(img_buffer, format='png', dpi=optimal_dpi,
                        facecolor='white', edgecolor='none', pad_inches=0.1)
             img_buffer.seek(0)
-            
+
             # Check if image is still too large
             img_size = len(img_buffer.getvalue())
             if img_size > 5 * 1024 * 1024:  # 5MB limit
@@ -1653,20 +1720,31 @@ class ChartGenerator:
                 fig.savefig(img_buffer, format='png', dpi=100,
                            facecolor='white', edgecolor='none', pad_inches=0.1)
                 img_buffer.seek(0)
-            
+
             # Encode as base64
             img_data = base64.b64encode(img_buffer.getvalue()).decode()
-            
+
             # Create data URL
             data_url = f"data:image/png;base64,{img_data}"
-            
+
             # Close the figure to free memory
             plt.close(fig)
-            
-            # Create ReportLab Image - let ReportLab determine height from image
-            rl_image = Image(data_url, width=width*inch)
+
+            # Auto-scale to fit within max bounds (if configured)
+            scaled_w, scaled_h = self._scale_dimensions(
+                width, height, max_width=max_width, max_height=max_height,
+            )
+
+            if scaled_w != width or scaled_h != height:
+                # Scaling occurred — set both dimensions explicitly
+                rl_image = Image(data_url, width=scaled_w * inch,
+                                 height=scaled_h * inch)
+            else:
+                # No scaling — let ReportLab determine height from image
+                rl_image = Image(data_url, width=width * inch)
+
             return rl_image
-            
+
         except Exception as e:
             log.error(f"Error converting matplotlib figure to ReportLab Image: {e}")
             return self._create_placeholder_chart(width, height, "Image Conversion Error")
@@ -1831,18 +1909,20 @@ class ChartGenerator:
                 ax.set_xlim(0, 1)
                 ax.set_ylim(0, 1)
                 ax.axis('off')
-                
-                # Convert to ReportLab Image
+
+                # Convert to ReportLab Image (inherits auto-scaling)
                 return self._matplotlib_to_reportlab_image(fig, width, height)
             else:
-                # Fallback to simple text
+                # Fallback to simple text — still honour auto-scaling
+                sw, sh = self._scale_dimensions(width, height)
                 return Image("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-                           width=width*inch, height=height*inch)
+                           width=sw*inch, height=sh*inch)
         except Exception as e:
             log.error(f"Error creating placeholder chart: {e}")
-            # Return a minimal image
+            # Return a minimal image — still honour auto-scaling
+            sw, sh = self._scale_dimensions(width, height)
             return Image("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-                       width=width*inch, height=height*inch)
+                       width=sw*inch, height=sh*inch)
 
     def create_chart_with_caption(self, chart: Image, caption: str, 
                                 caption_style: Optional[str] = None) -> List:

@@ -60,7 +60,10 @@ class ReportGenerator:
             log.warning(f"No branding configuration found for {client_name}, using defaults")
             self.branding_config = {}
         
-        self.chart_generator = ChartGenerator(self.branding_config, output_dir=self.output_dir)
+        self.chart_generator = ChartGenerator(
+            self.branding_config, output_dir=self.output_dir,
+            max_chart_width=6.0, max_chart_height=8.5,
+        )
 
     def create_analytics_report(self, title: str, charts: List[ImageType], 
                                data_summary: str = "", insights: List[str] = None,
