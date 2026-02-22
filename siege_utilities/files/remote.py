@@ -123,8 +123,10 @@ def download_file(url: str, local_filename: FilePath,
         
         # Make the request with streaming, using smart SSL verification
         ssl_verify = _get_ssl_verify_path() if verify_ssl else False
-        with requests.get(url, stream=True, allow_redirects=True, 
-                         timeout=timeout, verify=ssl_verify) as response:
+        headers = {'User-Agent': 'siege_utilities/1.0 (Census/GIS data client)'}
+        with requests.get(url, stream=True, allow_redirects=True,
+                         timeout=timeout, verify=ssl_verify,
+                         headers=headers) as response:
             
             if not response.ok:
                 log.error(f'Download failed: HTTP {response.status_code} - {response.reason}')
@@ -161,8 +163,10 @@ def download_file(url: str, local_filename: FilePath,
         log.warning(f'SSL verification failed for {url}, retrying without verification: {e}')
         # Retry without SSL verification
         try:
-            with requests.get(url, stream=True, allow_redirects=True, 
-                           timeout=timeout, verify=False) as response:
+            headers = {'User-Agent': 'siege_utilities/1.0 (Census/GIS data client)'}
+            with requests.get(url, stream=True, allow_redirects=True,
+                           timeout=timeout, verify=False,
+                           headers=headers) as response:
                 
                 if not response.ok:
                     log.error(f'Download failed without SSL: HTTP {response.status_code} - {response.reason}')

@@ -508,14 +508,22 @@ class CensusDirectoryDiscovery:
                 )
     
     def validate_download_url(self, url: str) -> bool:
-        """Check if a download URL is actually accessible."""
+        """Check if a download URL is actually accessible.
+
+        Uses GET with stream=True instead of HEAD because CDNs like Cloudflare
+        often block or throttle HEAD requests from non-browser User-Agents.
+        """
+        headers = {'User-Agent': 'siege_utilities/1.0 (Census data client)'}
         try:
-            response = requests.head(url, timeout=self.timeout)
+            response = requests.get(url, timeout=self.timeout, stream=True, headers=headers)
+            response.close()
             return response.status_code == 200
         except requests.exceptions.SSLError:
             log.debug(f"SSL verification failed for {url}, trying without verification...")
             try:
-                response = requests.head(url, timeout=self.timeout, verify=False)
+                response = requests.get(url, timeout=self.timeout, stream=True,
+                                        headers=headers, verify=False)
+                response.close()
                 return response.status_code == 200
             except Exception as e:
                 log.debug(f"URL validation failed for {url} (with SSL bypass): {e}")

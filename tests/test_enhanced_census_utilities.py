@@ -311,37 +311,37 @@ class TestCensusDirectoryDiscovery:
         optimal = self.discovery.get_optimal_year(2025, 'county')
         assert optimal == 2024
     
-    @patch('requests.head')
-    def test_validate_download_url_success(self, mock_head):
+    @patch('requests.get')
+    def test_validate_download_url_success(self, mock_get):
         """Test successful URL validation."""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_head.return_value = mock_response
-        
+        mock_get.return_value = mock_response
+
         is_valid = self.discovery.validate_download_url("https://example.com/test.zip")
         assert is_valid is True
-    
-    @patch('requests.head')
-    def test_validate_download_url_ssl_fallback(self, mock_head):
+
+    @patch('requests.get')
+    def test_validate_download_url_ssl_fallback(self, mock_get):
         """Test SSL fallback for URL validation."""
         # First call fails with SSL error
         from requests.exceptions import SSLError
         ssl_error = SSLError("SSL error")
-        
+
         # Second call succeeds
         success_response = Mock()
         success_response.status_code = 200
-        
-        mock_head.side_effect = [ssl_error, success_response]
-        
+
+        mock_get.side_effect = [ssl_error, success_response]
+
         is_valid = self.discovery.validate_download_url("https://example.com/test.zip")
         assert is_valid is True
-    
-    @patch('requests.head')
-    def test_validate_download_url_failure(self, mock_head):
+
+    @patch('requests.get')
+    def test_validate_download_url_failure(self, mock_get):
         """Test failed URL validation."""
-        mock_head.side_effect = Exception("Network error")
-        
+        mock_get.side_effect = Exception("Network error")
+
         is_valid = self.discovery.validate_download_url("https://example.com/test.zip")
         assert is_valid is False
 
