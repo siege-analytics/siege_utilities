@@ -16,7 +16,19 @@ try:
 except ImportError:
     ImageType = Any
 
-from .base_template import BaseReportTemplate
+# ReportLab imports for PDF generation
+try:
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, PageBreak
+    from reportlab.platypus import Image as RLImage
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+    PageBreak = None  # Define for type hints
+
+from .templates.base_template import BaseReportTemplate
 from .chart_generator import ChartGenerator
 from .client_branding import ClientBrandingManager
 
@@ -48,7 +60,10 @@ class ReportGenerator:
             log.warning(f"No branding configuration found for {client_name}, using defaults")
             self.branding_config = {}
         
-        self.chart_generator = ChartGenerator(self.branding_config)
+        self.chart_generator = ChartGenerator(
+            self.branding_config, output_dir=self.output_dir,
+            max_chart_width=6.0, max_chart_height=8.5,
+        )
 
     def create_analytics_report(self, title: str, charts: List[ImageType], 
                                data_summary: str = "", insights: List[str] = None,
@@ -411,7 +426,26 @@ class ReportGenerator:
         
         return self.add_section(report_content, 'appendix', title, appendix_section, level)
 
-    def generate_pdf_report(self, report_content: Dict[str, Any], 
+    def _get_template(self, output_path: str, template_config: Optional[str] = None) -> 'BaseReportTemplate':
+        """
+        Create a report template for PDF generation.
+
+        Args:
+            output_path: Output PDF file path
+            template_config: Optional path to template configuration file
+
+        Returns:
+            BaseReportTemplate instance
+        """
+        from .templates.base_template import BaseReportTemplate
+
+        config_path = Path(template_config) if template_config else None
+        return BaseReportTemplate(
+            output_filename=output_path,
+            branding_config_path=config_path
+        )
+
+    def generate_pdf_report(self, report_content: Dict[str, Any],
                            output_path: str, template_config: str = None) -> bool:
         """
         Generate a comprehensive PDF report with full document structure.
@@ -425,70 +459,251 @@ class ReportGenerator:
             True if successful, False otherwise
         """
         try:
-            # Initialize template
-            template = self._get_template(template_config)
-            
-            # Create PDF document
-            doc = template.create_document(report_content)
-            
+            # Initialize template with output path
+            template = self._get_template(output_path, template_config)
+
             # Build document content
             story = []
-            
+
+            # Add title page if metadata present
+            metadata = report_content.get('metadata', {})
+            if metadata.get('title'):
+                title_flowables = template.add_title_page(
+                    title=metadata.get('title', 'Report'),
+                    subtitle=metadata.get('subtitle', ''),
+                    author=metadata.get('author', ''),
+                    date=metadata.get('date', '')
+                )
+                story.extend(title_flowables)
+
             # Process each section
             for section in report_content.get('sections', []):
                 section_story = self._build_section_content(section, template)
                 story.extend(section_story)
-                
+
                 # Add page breaks if requested
                 if section.get('page_break_after', False):
                     story.append(PageBreak())
-            
-            # Build PDF
-            doc.build(story)
-            
+
+            # Build PDF using the template's build_document method
+            template.build_document(story)
+
             log.info(f"PDF report generated successfully: {output_path}")
             return True
-            
+
         except Exception as e:
             log.error(f"Error generating PDF report: {e}")
             return False
 
-    def _build_section_content(self, section: Dict[str, Any], 
+    def _process_chart_list(self, charts: List[Any], width: float = 6,
+                             height: float = 4) -> List:
+        """
+        Process a list of charts in various formats into ReportLab Image objects.
+
+        Supported formats:
+        - File path (str or Path)
+        - matplotlib Figure object
+        - PIL Image object
+        - BytesIO object containing image data
+        - ReportLab Flowable (passed through)
+
+        Args:
+            charts: List of chart objects in various formats
+            width: Image width in inches
+            height: Image height in inches
+
+        Returns:
+            List of ReportLab Image flowables
+        """
+        if not REPORTLAB_AVAILABLE:
+            return []
+
+        import io
+        import tempfile
+
+        result = []
+
+        for chart in charts:
+            try:
+                # Handle ReportLab flowables (pass through)
+                if hasattr(chart, 'drawOn'):
+                    result.append(chart)
+                    continue
+
+                # Handle file paths
+                if isinstance(chart, (str, Path)):
+                    chart_path = Path(chart)
+                    if chart_path.exists():
+                        img = RLImage(str(chart_path), width=width*inch, height=height*inch)
+                        result.append(img)
+                    continue
+
+                # Handle matplotlib Figure
+                if hasattr(chart, 'savefig'):
+                    # matplotlib Figure
+                    buf = io.BytesIO()
+                    chart.savefig(buf, format='png', dpi=150, bbox_inches='tight')
+                    buf.seek(0)
+                    img = RLImage(buf, width=width*inch, height=height*inch)
+                    result.append(img)
+                    # Close the figure to free memory
+                    try:
+                        import matplotlib.pyplot as plt
+                        plt.close(chart)
+                    except:
+                        pass
+                    continue
+
+                # Handle PIL Image
+                if hasattr(chart, 'save') and hasattr(chart, 'mode'):
+                    # PIL Image
+                    buf = io.BytesIO()
+                    chart.save(buf, format='PNG')
+                    buf.seek(0)
+                    img = RLImage(buf, width=width*inch, height=height*inch)
+                    result.append(img)
+                    continue
+
+                # Handle BytesIO
+                if isinstance(chart, io.BytesIO):
+                    chart.seek(0)
+                    img = RLImage(chart, width=width*inch, height=height*inch)
+                    result.append(img)
+                    continue
+
+                # Handle dict with image_path
+                if isinstance(chart, dict):
+                    image_path = chart.get('image_path') or chart.get('path')
+                    if image_path and Path(image_path).exists():
+                        chart_width = chart.get('width', width)
+                        chart_height = chart.get('height', height)
+                        img = RLImage(str(image_path), width=chart_width*inch,
+                                     height=chart_height*inch)
+                        result.append(img)
+                    continue
+
+                log.warning(f"Unknown chart type: {type(chart)}")
+
+            except Exception as e:
+                log.error(f"Error processing chart: {e}")
+
+        return result
+
+    def _build_section_content(self, section: Dict[str, Any],
                               template) -> List:
         """
         Build ReportLab content for a section.
-        
+
         Args:
             section: Section dictionary
-            template: Report template
-            
+            template: Report template (BaseReportTemplate with styles)
+
         Returns:
             List of ReportLab flowables
         """
+        if not REPORTLAB_AVAILABLE:
+            log.error("ReportLab not available - cannot build section content")
+            return []
+
         story = []
         section_type = section.get('type', 'text')
-        
+        styles = template.styles
+
         # Add page break if requested
         if section.get('page_break_before', False):
             story.append(PageBreak())
-        
+
+        # Add section title
+        title = section.get('title', '')
+        level = section.get('level', 1)
+        if title:
+            heading_style = styles.get(f'Heading{level}', styles['Heading1'])
+            story.append(Paragraph(title, heading_style))
+            story.append(Spacer(1, 12))
+
         # Handle different section types
-        if section_type == 'title_page':
-            story.extend(template.create_title_page(section))
-        elif section_type == 'table_of_contents':
-            story.extend(template.create_table_of_contents(section))
+        if section_type == 'text':
+            content = section.get('content', '')
+            if isinstance(content, str):
+                story.append(Paragraph(content, styles['Normal']))
+            story.append(Spacer(1, 12))
+
         elif section_type == 'table':
-            story.extend(template.create_table_section(section))
-        elif section_type == 'charts':
-            story.extend(template.create_chart_section(section))
-        elif section_type == 'maps':
-            story.extend(template.create_map_section(section))
-        elif section_type == 'text':
-            story.extend(template.create_text_section(section))
-        elif section_type == 'appendix':
-            story.extend(template.create_appendix_section(section))
+            table_data = section.get('content', {}).get('data', [])
+            headers = section.get('content', {}).get('headers')
+
+            if isinstance(table_data, pd.DataFrame):
+                headers = headers or table_data.columns.tolist()
+                table_data = [headers] + table_data.values.tolist()
+            elif headers:
+                table_data = [headers] + table_data
+
+            if table_data:
+                table = Table(table_data)
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                    ('FONTSIZE', (0, 1), (-1, -1), 9),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ]))
+                story.append(table)
+                story.append(Spacer(1, 12))
+
+        elif section_type == 'chart' or section_type == 'charts':
+            content = section.get('content', {})
+            charts = content.get('charts', [])
+            image_path = content.get('image_path')
+            description = content.get('description', '')
+            layout = content.get('layout', 'vertical')
+
+            # Add description if provided
+            if description:
+                story.append(Paragraph(description, styles['Normal']))
+                story.append(Spacer(1, 8))
+
+            # Handle single image path (legacy support)
+            if image_path and Path(image_path).exists():
+                img = RLImage(str(image_path), width=6*inch, height=4*inch)
+                story.append(img)
+                story.append(Spacer(1, 12))
+
+            # Handle list of charts (new enhanced support)
+            if charts:
+                chart_images = self._process_chart_list(charts)
+                for chart_img in chart_images:
+                    story.append(chart_img)
+                    story.append(Spacer(1, 12))
+
+        elif section_type == 'maps' or section_type == 'map':
+            content = section.get('content', {})
+            maps = content.get('maps', [])
+            description = content.get('description', '')
+
+            if description:
+                story.append(Paragraph(description, styles['Normal']))
+                story.append(Spacer(1, 8))
+
+            if maps:
+                map_images = self._process_chart_list(maps)
+                for map_img in map_images:
+                    story.append(map_img)
+                    story.append(Spacer(1, 12))
+
         else:
-            # Default text section
-            story.extend(template.create_text_section(section))
-        
+            # Default: treat as text
+            content = section.get('content', '')
+            if isinstance(content, str):
+                story.append(Paragraph(content, styles['Normal']))
+            elif isinstance(content, dict) and 'text' in content:
+                story.append(Paragraph(content['text'], styles['Normal']))
+            story.append(Spacer(1, 12))
+
         return story

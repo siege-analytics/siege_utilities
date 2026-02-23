@@ -41,9 +41,9 @@ class MultiEngineLoggingManager:
             self.spark_available = False
         
         # Initialize logging components
-        self._setup_logging_components()
+        self._init_logger_components()
     
-    def _setup_logging_components(self):
+    def _init_logger_components(self):
         """Setup logging components based on configuration"""
         
         # Create main logger

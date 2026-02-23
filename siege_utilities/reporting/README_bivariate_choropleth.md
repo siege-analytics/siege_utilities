@@ -2,6 +2,14 @@
 
 This document describes the enhanced bivariate choropleth map functionality added to the `ChartGenerator` class in siege_utilities. Bivariate choropleth maps visualize the relationship between two variables across geographic regions using a sophisticated two-dimensional color scheme.
 
+## ✅ Recent Fixes (v1.0.2)
+- **Fixed import chain issues**: Geo utilities now import correctly without dependency wrapper fallbacks
+- **Enhanced FIPS data**: State names and abbreviations working perfectly (e.g., '01': Alabama (AL))
+- **Real Census data**: TIGER/Line boundary downloads working with 3,234+ county boundaries
+- **State normalization**: CA/California/06 all resolve correctly
+- **Core geospatial functions**: All working with live Census.gov data
+- **Enhanced scoring system**: Dataset selection now shows detailed suitability scores and breakdowns
+
 ## Overview
 
 Bivariate choropleth maps are powerful visualization tools that show how two different variables relate to each other across geographic areas. Unlike traditional choropleth maps that only show one variable, bivariate maps reveal patterns and relationships that might not be apparent when viewing variables separately.

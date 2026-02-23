@@ -15,6 +15,8 @@ from .census_dataset_mapper import (
     get_census_dataset_mapper
 )
 
+from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+
 class CensusDataSelector:
     """
     Intelligent selector for Census data based on analysis requirements.
@@ -104,7 +106,9 @@ class CensusDataSelector:
             reliability_requirement: Reliability requirement ("low", "medium", "high")
         
         Returns:
-            Dictionary with dataset recommendations and rationale
+            Dictionary with dataset recommendations and rationale.
+            Suitability scores use 0-5 scale: 0-2.0 (poor), 2.1-3.0 (moderate), 
+            3.1-4.0 (good), 4.1-5.0 (excellent match)
         """
         
         # Convert geography level to enum if string
@@ -195,20 +199,43 @@ class CensusDataSelector:
                                     pattern: Dict,
                                     geography_level: GeographyLevel,
                                     time_period: Optional[str]) -> List[Tuple]:
-        """Rank datasets by suitability for the analysis."""
+        """
+        Rank datasets by suitability for the analysis.
+        
+        Suitability scores are calculated on a 0-5 scale:
+        - Geography match: +2.0 points (if dataset supports required geography level)
+        - Primary dataset: +1.5 points (if dataset is in pattern's primary_datasets list)
+        - Reliability match: +1.0 points (if dataset reliability meets requirement)
+        - Time period: +1.0 points (≤1 year diff), +0.5 points (≤3 years), +0.2 points (≤5 years)
+        - Variable coverage: Up to +1.0 points (based on variable overlap)
+        - Geography preference: +1.0 points (if geography level matches preferences)
+        
+        Score Interpretation:
+        - 0-2.0: Poor match
+        - 2.1-3.0: Moderate match
+        - 3.1-4.0: Good match
+        - 4.1-5.0: Excellent match
+        """
         
         ranked = []
         
         for dataset in datasets:
-            score = 0.0
+            score_breakdown = {
+                "geography_match": 0.0,
+                "primary_dataset": 0.0,
+                "reliability_match": 0.0,
+                "time_period": 0.0,
+                "variable_coverage": 0.0,
+                "geography_preference": 0.0
+            }
             
             # Geography preference scoring
             if geography_level.value in pattern.get("geography_preferences", []):
-                score += 2.0
+                score_breakdown["geography_match"] = 2.0
             
             # Pattern dataset preference
             if dataset.name in pattern.get("primary_datasets", []):
-                score += 1.5
+                score_breakdown["primary_dataset"] = 1.5
             
             # Reliability scoring
             reliability_order = ["low", "medium", "high", "estimated"]
@@ -216,7 +243,7 @@ class CensusDataSelector:
             pattern_idx = reliability_order.index(pattern["reliability_requirement"])
             
             if dataset_idx <= pattern_idx:
-                score += 1.0
+                score_breakdown["reliability_match"] = 1.0
             
             # Time period scoring
             if time_period:
@@ -226,18 +253,22 @@ class CensusDataSelector:
                     years_diff = abs((dataset_date - target_date).days / 365.25)
                     
                     if years_diff <= 1:
-                        score += 1.0
+                        score_breakdown["time_period"] = 1.0
                     elif years_diff <= 3:
-                        score += 0.5
+                        score_breakdown["time_period"] = 0.5
                     elif years_diff <= 5:
-                        score += 0.2
+                        score_breakdown["time_period"] = 0.2
                 except ValueError:
                     pass
             
-            ranked.append((dataset, score))
+            # Calculate total score
+            total_score = sum(score_breakdown.values())
+            score_breakdown["total"] = min(total_score, 5.0)  # Cap at 5.0
+            
+            ranked.append((dataset, score_breakdown))
         
-        # Sort by score (highest first)
-        ranked.sort(key=lambda x: x[1], reverse=True)
+        # Sort by total score (highest first)
+        ranked.sort(key=lambda x: x[1]["total"], reverse=True)
         return ranked
     
     def _generate_recommendations(self, ranked_datasets: List[Tuple],
@@ -249,7 +280,7 @@ class CensusDataSelector:
         if not ranked_datasets:
             return {"error": "No suitable datasets found after filtering"}
         
-        primary_dataset, primary_score = ranked_datasets[0]
+        primary_dataset, primary_score_breakdown = ranked_datasets[0]
         alternatives = ranked_datasets[1:3] if len(ranked_datasets) > 1 else []
         
         recommendations = {
@@ -260,7 +291,8 @@ class CensusDataSelector:
                 "survey_type": primary_dataset.survey_type.value,
                 "time_period": primary_dataset.time_period,
                 "reliability": primary_dataset.reliability.value,
-                "score": primary_score,
+                "suitability_score": primary_score_breakdown["total"],
+                "score_breakdown": primary_score_breakdown,
                 "rationale": self._generate_rationale(primary_dataset, pattern),
                 "variables": primary_dataset.variables,
                 "limitations": primary_dataset.limitations,
@@ -272,10 +304,11 @@ class CensusDataSelector:
                     "survey_type": alt_dataset.survey_type.value,
                     "time_period": alt_dataset.time_period,
                     "reliability": alt_dataset.reliability.value,
-                    "score": alt_score,
-                    "rationale": f"Alternative option with {alt_score:.1f} suitability score"
+                    "suitability_score": alt_score_breakdown["total"],
+                    "score_breakdown": alt_score_breakdown,
+                    "rationale": f"Alternative option with {alt_score_breakdown['total']:.1f} suitability score"
                 }
-                for alt_dataset, alt_score in alternatives
+                for alt_dataset, alt_score_breakdown in alternatives
             ],
             "data_quality_notes": primary_dataset.data_quality_notes,
             "considerations": [
@@ -532,6 +565,40 @@ def select_census_datasets(analysis_type: str,
         analysis_type, geography_level, time_period, variables
     )
 
+def select_datasets_for_analysis(analysis_type: str,
+                                geography_level: str,
+                                time_period: Optional[str] = None,
+                                variables: Optional[List[str]] = None) -> Dict[str, Any]:
+    """
+    Standalone function to select datasets for analysis.
+    
+    Args:
+        analysis_type: Type of analysis (e.g., "demographics", "housing", "business")
+        geography_level: Required geography level (e.g., "tract", "county", "state")
+        time_period: Time period preference (e.g., "latest", "comprehensive")
+        variables: List of required variables
+    
+    Returns:
+        Dataset recommendations and rationale
+    """
+    selector = get_census_data_selector()
+    return selector.select_datasets_for_analysis(
+        analysis_type, geography_level, time_period, variables
+    )
+
+def get_dataset_compatibility_matrix(analysis_types: Optional[List[str]] = None) -> 'pd.DataFrame':
+    """
+    Standalone function to get dataset compatibility matrix.
+    
+    Args:
+        analysis_types: List of analysis types to include (optional)
+    
+    Returns:
+        DataFrame with compatibility scores
+    """
+    selector = get_census_data_selector()
+    return selector.get_dataset_compatibility_matrix(analysis_types)
+
 def get_analysis_approach(analysis_type: str,
                          geography_level: str,
                          time_constraints: Optional[str] = None) -> Dict[str, Any]:
@@ -559,14 +626,34 @@ if __name__ == "__main__":
         geography_level="tract",
         variables=["population", "income", "education"]
     )
-    print("Dataset Recommendations:")
-    print(recommendations)
+    log_info("Dataset Recommendations:")
+    log_info(str(recommendations))
     
     # Example: Get analysis approach
+def suggest_analysis_approach(analysis_type: str,
+                             geography_level: Union[str, GeographyLevel],
+                             time_constraints: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Standalone function to suggest analysis approach.
+    
+    Args:
+        analysis_type: Type of analysis needed
+        geography_level: Required geography level
+        time_constraints: Time constraints ("quick", "standard", "comprehensive")
+    
+    Returns:
+        Dictionary with analysis approach recommendations
+    """
+    selector = get_census_data_selector()
+    return selector.suggest_analysis_approach(
+        analysis_type, geography_level, time_constraints
+    )
+
+if __name__ == "__main__":
     approach = get_analysis_approach(
         analysis_type="housing",
         geography_level="county",
         time_constraints="comprehensive"
     )
-    print("\nAnalysis Approach:")
-    print(approach)
+    log_info("Analysis Approach:")
+    log_info(str(approach))

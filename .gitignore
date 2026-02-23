@@ -1,3 +1,6 @@
+# Generated notebook artifacts (PDFs, reports)
+notebooks/*.pdf
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -109,6 +112,15 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+dataspell_venv/
+*_venv/
+
+# IDE settings
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
 
 # Spyder project settings
 .spyderproject
@@ -138,3 +150,24 @@ wiki_backup_*/
 
 # Release management logs
 release_logs/
+
+# User and client profiles (contains sensitive data)
+profiles/
+
+# Production notebooks with real credentials
+*_PRODUCTION.ipynb
+*_production.ipynb
+
+# Test artifacts and debug output
+overnight_results/
+overnight_test_results.json
+function_priority_list.json
+function_validation_log.txt
+recipe_test_results.json
+notebook_conversion_results.json
+
+# Session progress files (temporary)
+SESSION_*_PROGRESS.md
+
+# Claude artifacts
+.claude/

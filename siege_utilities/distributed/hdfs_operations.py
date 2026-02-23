@@ -80,41 +80,84 @@ class AbstractHDFSOperations:
             return False
 
     def create_spark_session(self):
-        """Create Spark session using configuration"""
+        """Create Spark session using configuration.
+
+        Supports local, standalone cluster, and YARN deployments based on
+        the master URL in the config.
+        """
         try:
             from pyspark.sql import SparkSession
             self.config.log_info(
                 f'Creating Spark session: {self.config.app_name}')
             self.config.log_info(
+                f'  Master: {self.config.master}')
+            self.config.log_info(
                 f'  Executors: {self.config.num_executors}, Cores: {self.config.executor_cores}, Memory: {self.config.executor_memory}'
                 )
-            builder = SparkSession.builder.appName(self.config.app_name
-                ).config('spark.sql.adaptive.enabled', 'true').config(
-                'spark.sql.adaptive.coalescePartitions.enabled', 'true'
+
+            # Start building the session
+            builder = SparkSession.builder.appName(self.config.app_name)
+
+            # Set master URL
+            builder = builder.master(self.config.master)
+
+            # YARN-specific configuration
+            if self.config.is_yarn:
+                builder = builder.config('spark.submit.deployMode',
+                    self.config.deploy_mode)
+                if self.config.yarn_queue:
+                    builder = builder.config('spark.yarn.queue',
+                        self.config.yarn_queue)
+                self.config.log_info(
+                    f'  YARN queue: {self.config.yarn_queue or "default"}, '
+                    f'Deploy mode: {self.config.deploy_mode}')
+
+            # Driver configuration
+            builder = builder.config('spark.driver.memory',
+                self.config.driver_memory)
+            builder = builder.config('spark.driver.cores',
+                str(self.config.driver_cores))
+
+            # Common Spark settings
+            builder = builder.config('spark.sql.adaptive.enabled', 'true'
+                ).config('spark.sql.adaptive.coalescePartitions.enabled', 'true'
                 ).config('spark.serializer',
-                'org.apache.spark.serializer.KryoSerializer').config(
-                'spark.executor.instances', str(self.config.num_executors)
-                ).config('spark.executor.cores', str(self.config.
-                executor_cores)).config('spark.executor.memory', self.
-                config.executor_memory).config('spark.network.timeout',
-                self.config.network_timeout).config(
-                'spark.executor.heartbeatInterval', self.config.
-                heartbeat_interval).config(
-                'spark.sql.execution.arrow.pyspark.enabled', 'true').config(
-                'spark.sql.shuffle.partitions', str(self.config.
-                get_optimal_partitions()))
+                'org.apache.spark.serializer.KryoSerializer'
+                ).config('spark.executor.instances', str(self.config.num_executors)
+                ).config('spark.executor.cores', str(self.config.executor_cores)
+                ).config('spark.executor.memory', self.config.executor_memory
+                ).config('spark.network.timeout', self.config.network_timeout
+                ).config('spark.executor.heartbeatInterval',
+                self.config.heartbeat_interval
+                ).config('spark.sql.execution.arrow.pyspark.enabled', 'true'
+                ).config('spark.sql.shuffle.partitions',
+                str(self.config.get_optimal_partitions()))
+
             spark = builder.getOrCreate()
             spark.sparkContext.setLogLevel(self.config.spark_log_level)
+
+            # Register Sedona if enabled
             if self.config.enable_sedona:
                 try:
                     from sedona.register import SedonaRegistrator
                     SedonaRegistrator.registerAll(spark)
+
+                    # Apply Sedona configuration
+                    spark.conf.set('sedona.global.index.type',
+                        self.config.sedona_global_index_type)
+                    spark.conf.set('sedona.join.autoBroadcastJoinThreshold',
+                        str(self.config.sedona_join_broadcast_threshold))
+
                     self.config.log_info('✓ Sedona registered successfully')
+                    self.config.log_info(
+                        f'  Index type: {self.config.sedona_global_index_type}, '
+                        f'Broadcast threshold: {self.config.sedona_join_broadcast_threshold // (1024*1024)}MB')
                 except ImportError:
                     self.config.log_info('⚠️  Sedona not available')
                 except Exception as e:
                     self.config.log_info(f'⚠️  Sedona registration failed: {e}'
                         )
+
             self.config.log_info('✓ Spark session created successfully')
             return spark
         except ImportError:

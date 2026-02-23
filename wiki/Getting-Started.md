@@ -45,6 +45,48 @@ pip install -e .
 pytest tests/ -v
 ```
 
+### Install with UV (Recommended for Modern Development)
+
+UV is a fast, modern Python package manager that provides better dependency resolution and faster installs:
+
+```bash
+# Install UV (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create a new project
+uv init my-siege-project
+cd my-siege-project
+
+# Add siege_utilities with all dependencies
+uv add --editable ../siege_utilities
+
+# Or install with specific extras
+uv add --extra geo ../siege_utilities
+uv add --extra distributed ../siege_utilities
+uv add --extra all ../siege_utilities
+
+# Verify installation
+uv run python -c "import siege_utilities; print('✅ UV installation successful!')"
+```
+
+### Package Format Generation
+
+The library includes powerful functions for modern package management:
+
+```python
+from siege_utilities.development.architecture import (
+    generate_requirements_txt,
+    generate_pyproject_toml,
+    generate_poetry_toml,
+    generate_uv_toml
+)
+
+# Generate modern package configuration files
+generate_requirements_txt("setup.py", "requirements.txt")
+generate_pyproject_toml("setup.py", "pyproject.toml")
+generate_poetry_toml("setup.py", "pyproject_poetry.toml")
+```
+
 ## Your First Steps
 
 ### 1. Basic Import and Verification
@@ -204,7 +246,7 @@ config = {
         'github': 'your_github_username'
     },
     'preferences': {
-        'default_download_dir': '~/Downloads',
+        'default_download_dir': '~/Downloads/siege_utilities',
         'log_level': 'INFO',
         'theme': 'dark'
     },
@@ -469,7 +511,7 @@ user_info:
   company: "Your Company"
 
 preferences:
-  default_download_dir: "~/Downloads"
+  default_download_dir: "~/Downloads/siege_utilities"
   log_level: "INFO"
   theme: "dark"
   language: "en"

@@ -1,0 +1,31 @@
+# Client A Branding Configuration Override
+defaults:
+  - /default/branding_config
+  - _self_
+
+# Override colors for Client A
+colors:
+  primary_color: "#2E86AB"    # Blue
+  secondary_color: "#A23B72"  # Pink
+  accent_color: "#F18F01"     # Orange
+  text_color: "#2D3436"       # Dark gray
+  background_color: "#FFFFFF" # White
+
+# Override typography for Client A
+typography:
+  primary_font: "Helvetica"
+  secondary_font: "Georgia"
+  title_font_size: 28
+  subtitle_font_size: 20
+
+# Override layout for Client A
+layout:
+  header_height: 50
+  footer_height: 25
+  margin_top: 25
+  margin_bottom: 25
+
+# Override chart styling for Client A
+charts:
+  chart_color_palette: "Blues"
+  chart_background_color: "#F8F9FA"

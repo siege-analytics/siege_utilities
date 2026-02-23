@@ -1,0 +1,31 @@
+# Client B Branding Configuration Override
+defaults:
+  - /default/branding_config
+  - _self_
+
+# Override colors for Client B
+colors:
+  primary_color: "#8B0000"    # Dark red
+  secondary_color: "#FFD700"  # Gold
+  accent_color: "#4169E1"     # Royal blue
+  text_color: "#1C1C1C"       # Very dark gray
+  background_color: "#F5F5F5" # Light gray
+
+# Override typography for Client B
+typography:
+  primary_font: "Times New Roman"
+  secondary_font: "Calibri"
+  title_font_size: 32
+  subtitle_font_size: 22
+
+# Override layout for Client B
+layout:
+  header_height: 60
+  footer_height: 30
+  margin_top: 30
+  margin_bottom: 30
+
+# Override chart styling for Client B
+charts:
+  chart_color_palette: "Reds"
+  chart_background_color: "#FFFFFF"

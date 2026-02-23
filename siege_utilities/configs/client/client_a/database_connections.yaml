@@ -1,0 +1,34 @@
+# Client A Database Connections Override
+defaults:
+  - /default/database_connections
+
+# Override connections for Client A
+connections:
+  - name: "client_a_prod"
+    connection_type: "postgresql"
+    host: "client-a-prod.company.com"
+    port: 5432
+    database: "client_a_production"
+    username: "client_a_user"
+    password: "SecurePassword123"
+    ssl_enabled: true
+    connection_timeout: 30
+    max_connections: 15
+  
+  - name: "client_a_analytics"
+    connection_type: "duckdb"
+    host: "localhost"
+    port: 0
+    database: "/data/client_a/analytics.duckdb"
+    username: ""
+    password: ""
+    ssl_enabled: false
+    connection_timeout: 30
+    max_connections: 1
+
+# Override preferences for Client A
+preferences:
+  default_connection: "client_a_prod"
+  auto_connect: true
+  retry_attempts: 5
+  retry_delay: 10

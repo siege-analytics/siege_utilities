@@ -8,6 +8,8 @@ import importlib
 import inspect
 import sys
 
+from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+
 # List to track exposed names
 __all__ = []
 
@@ -29,30 +31,24 @@ def _get_logging_functions():
     except:
         pass
 
-    # Fallback functions that accept any arguments
-    def make_fallback(level):
-        def fallback(*args, **kwargs):
-            message = args[0] if args else kwargs.get('message', 'No message')
-            print(f"{level}: {message}")
-        return fallback
-
+    # Use siege_utilities logging functions as fallback
     return {
-        'log_info': make_fallback('INFO'),
-        'log_error': make_fallback('ERROR'),
-        'log_debug': make_fallback('DEBUG'),
-        'log_warning': make_fallback('WARNING')
+        'log_info': log_info,
+        'log_error': log_error,
+        'log_debug': log_debug,
+        'log_warning': log_warning
     }
 # Get logging functions
 _log_funcs = _get_logging_functions()
-log_info = _log_funcs['log_info']
-log_error = _log_funcs['log_error']
+_pkg_log_info = _log_funcs['log_info']
+_pkg_log_error = _log_funcs['log_error']
 
 def import_module_with_fallbacks(module_name: str, full_module_name: str):
     """Import a module with proper error handling and logging."""
     imported_names = []
 
     try:
-        log_info(f"Importing {module_name} from {full_module_name}")
+        _pkg_log_info(f"Importing {module_name} from {full_module_name}")
         module = importlib.import_module(full_module_name)
 
         # Expose all public functions from the module
@@ -68,14 +64,14 @@ def import_module_with_fallbacks(module_name: str, full_module_name: str):
                         if not hasattr(func_module, log_name):
                             setattr(func_module, log_name, log_func)
 
-        log_info(f"Successfully imported {len(imported_names)} functions from {module_name}")
+        _pkg_log_info(f"Successfully imported {len(imported_names)} functions from {module_name}")
         return imported_names
 
     except ImportError as e:
-        log_error(f"Could not import {module_name}: {e}")
+        _pkg_log_error(f"Could not import {module_name}: {e}")
         return []
     except Exception as e:
-        log_error(f"Unexpected error importing {module_name}: {e}")
+        _pkg_log_error(f"Unexpected error importing {module_name}: {e}")
         return []
 
 # Import all modules in this package
@@ -87,4 +83,4 @@ for filename in os.listdir(package_dir):
         new_names = import_module_with_fallbacks(module_name, full_module_name)
         __all__.extend(new_names)
 
-log_info(f"{__name__}: Imported {len(__all__)} functions")
+_pkg_log_info(f"{__name__}: Imported {len(__all__)} functions")

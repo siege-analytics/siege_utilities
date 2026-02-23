@@ -2,7 +2,8 @@
 Geographic utilities for spatial data analysis, Census data access, and mapping.
 
 This package provides comprehensive tools for working with geographic data,
-including enhanced Census utilities, intelligent data selection, and spatial analysis.
+including enhanced Census utilities, intelligent data selection, spatial analysis,
+boundary crosswalks, and time-series analysis.
 """
 
 from .spatial_data import (
@@ -10,7 +11,16 @@ from .spatial_data import (
     CensusDataSource,
     SpatialDataSource,
     GovernmentDataSource,
-    OpenStreetMapDataSource
+    OpenStreetMapDataSource,
+    # Reference data
+    BOUNDARY_TYPE_CATALOG,
+    # Convenience functions
+    get_census_boundaries,
+    download_data,
+    normalize_state_identifier,
+    get_state_by_abbreviation,
+    get_state_by_name,
+    discover_boundary_types,
 )
 
 from .census_dataset_mapper import (
@@ -29,7 +39,10 @@ from .census_data_selector import (
     CensusDataSelector,
     get_census_data_selector,
     select_census_datasets,
-    get_analysis_approach
+    select_datasets_for_analysis,
+    get_dataset_compatibility_matrix,
+    get_analysis_approach,
+    suggest_analysis_approach
 )
 
 from .spatial_transformations import (
@@ -43,13 +56,138 @@ from .geocoding import (
     NominatimGeoClassifier
 )
 
+from .census_api_client import (
+    CensusAPIClient,
+    CensusAPIError,
+    CensusAPIKeyError,
+    CensusRateLimitError,
+    CensusVariableError,
+    CensusGeographyError,
+    VARIABLE_GROUPS,
+    VARIABLE_DESCRIPTIONS,
+    get_demographics,
+    get_population,
+    get_income_data,
+    get_education_data,
+    get_housing_data,
+    get_census_api_client,
+    get_census_data_with_geometry,
+    join_demographics_to_shapes,
+)
+
+from .geoid_utils import (
+    GEOID_LENGTHS,
+    GEOID_COMPONENT_LENGTHS,
+    normalize_geoid,
+    normalize_geoid_column,
+    construct_geoid,
+    construct_geoid_from_row,
+    parse_geoid,
+    extract_parent_geoid,
+    validate_geoid,
+    can_normalize_geoid,
+    validate_geoid_column,
+    prepare_geoid_for_join,
+    find_geoid_column,
+)
+
+# Canonical geographic level resolution
+from siege_utilities.config.census_constants import (
+    CANONICAL_GEOGRAPHIC_LEVELS,
+    resolve_geographic_level,
+)
+
+# Crosswalk support for boundary changes between Census years
+from .crosswalk import (
+    # Enums
+    RelationshipType,
+    WeightMethod,
+    # Data classes
+    CrosswalkRelationship,
+    CrosswalkMetadata,
+    GeographyChange,
+    # Client
+    CrosswalkClient,
+    get_crosswalk,
+    get_crosswalk_client,
+    get_crosswalk_metadata,
+    list_available_crosswalks,
+    # Processor
+    CrosswalkProcessor,
+    apply_crosswalk,
+    normalize_to_year,
+    # Analysis
+    identify_boundary_changes,
+    get_split_tracts,
+    get_merged_tracts,
+    # Constants
+    SUPPORTED_CROSSWALK_YEARS,
+)
+
+# Time-series analysis for longitudinal data
+from .timeseries import (
+    # Longitudinal data
+    get_longitudinal_data,
+    get_available_years,
+    validate_longitudinal_years,
+    # Change metrics
+    calculate_change_metrics,
+    calculate_multi_period_changes,
+    calculate_index,
+    get_change_summary,
+    # Trend classification
+    TrendCategory,
+    TrendThresholds,
+    classify_trends,
+    classify_by_zscore,
+    classify_by_quantiles,
+    get_trend_summary,
+    identify_outliers,
+    compare_trends,
+    THRESHOLD_PRESETS,
+)
+
+# PL 94-171 redistricting file downloads
+from .census_files import (
+    PLFileDownloader,
+    get_pl_data,
+    get_pl_blocks,
+    get_pl_tracts,
+    download_pl_file,
+    list_available_pl_files,
+    PL_FILE_TYPES,
+    PL_TABLES,
+)
+
+# Choropleth map creation
+from .choropleth import (
+    create_choropleth,
+    create_choropleth_comparison,
+    create_classified_comparison,
+    create_bivariate_choropleth,
+    create_bivariate_crosstab,
+    create_bivariate_companion_maps,
+    verify_bivariate_classification,
+    create_bivariate_analysis,
+    BivariateAnalysisResult,
+    save_map,
+    BIVARIATE_COLOR_SCHEMES,
+)
+
 __all__ = [
     # Core spatial data classes
     'CensusDirectoryDiscovery',
-    'CensusDataSource', 
+    'CensusDataSource',
     'SpatialDataSource',
     'GovernmentDataSource',
     'OpenStreetMapDataSource',
+    # Convenience functions for Census boundaries
+    'get_census_boundaries',
+    'download_data',
+    'normalize_state_identifier',
+    'get_state_by_abbreviation',
+    'get_state_by_name',
+    'discover_boundary_types',
     
     # Census dataset mapping and intelligence
     'CensusDatasetMapper',
@@ -66,7 +204,10 @@ __all__ = [
     'CensusDataSelector',
     'get_census_data_selector',
     'select_census_datasets',
+    'select_datasets_for_analysis',
+    'get_dataset_compatibility_matrix',
     'get_analysis_approach',
+    'suggest_analysis_approach',
     
     # Spatial transformations
     'SpatialDataTransformer',
@@ -75,7 +216,104 @@ __all__ = [
     # Geocoding
     'concatenate_addresses',
     'use_nominatim_geocoder',
-    'NominatimGeoClassifier'
+    'NominatimGeoClassifier',
+
+    # Census API client for demographic data
+    'CensusAPIClient',
+    'CensusAPIError',
+    'CensusAPIKeyError',
+    'CensusRateLimitError',
+    'CensusVariableError',
+    'CensusGeographyError',
+    'VARIABLE_GROUPS',
+    'VARIABLE_DESCRIPTIONS',
+    'get_demographics',
+    'get_population',
+    'get_income_data',
+    'get_education_data',
+    'get_housing_data',
+    'get_census_api_client',
+    'get_census_data_with_geometry',
+    'join_demographics_to_shapes',
+
+    # Geographic level resolution
+    'CANONICAL_GEOGRAPHIC_LEVELS',
+    'resolve_geographic_level',
+
+    # GEOID utilities
+    'GEOID_LENGTHS',
+    'GEOID_COMPONENT_LENGTHS',
+    'normalize_geoid',
+    'normalize_geoid_column',
+    'construct_geoid',
+    'construct_geoid_from_row',
+    'parse_geoid',
+    'extract_parent_geoid',
+    'validate_geoid',
+    'can_normalize_geoid',
+    'validate_geoid_column',
+    'prepare_geoid_for_join',
+    'find_geoid_column',
+
+    # Crosswalk support
+    'RelationshipType',
+    'WeightMethod',
+    'CrosswalkRelationship',
+    'CrosswalkMetadata',
+    'GeographyChange',
+    'CrosswalkClient',
+    'get_crosswalk',
+    'get_crosswalk_client',
+    'get_crosswalk_metadata',
+    'list_available_crosswalks',
+    'CrosswalkProcessor',
+    'apply_crosswalk',
+    'normalize_to_year',
+    'identify_boundary_changes',
+    'get_split_tracts',
+    'get_merged_tracts',
+    'SUPPORTED_CROSSWALK_YEARS',
+
+    # Time-series analysis
+    'get_longitudinal_data',
+    'get_available_years',
+    'validate_longitudinal_years',
+    'calculate_change_metrics',
+    'calculate_multi_period_changes',
+    'calculate_index',
+    'get_change_summary',
+    'TrendCategory',
+    'TrendThresholds',
+    'classify_trends',
+    'classify_by_zscore',
+    'classify_by_quantiles',
+    'get_trend_summary',
+    'identify_outliers',
+    'compare_trends',
+    'THRESHOLD_PRESETS',
+
+    # Choropleth mapping
+    'create_choropleth',
+    'create_choropleth_comparison',
+    'create_classified_comparison',
+    'create_bivariate_choropleth',
+    'create_bivariate_crosstab',
+    'create_bivariate_companion_maps',
+    'verify_bivariate_classification',
+    'create_bivariate_analysis',
+    'BivariateAnalysisResult',
+    'save_map',
+    'BIVARIATE_COLOR_SCHEMES',
+
+    # PL 94-171 redistricting files
+    'PLFileDownloader',
+    'get_pl_data',
+    'get_pl_blocks',
+    'get_pl_tracts',
+    'download_pl_file',
+    'list_available_pl_files',
+    'PL_FILE_TYPES',
+    'PL_TABLES',
 ]
 
 # Package metadata

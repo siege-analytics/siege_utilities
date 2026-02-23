@@ -34,62 +34,87 @@ try:
     SPARK_AVAILABLE = True
 except ImportError:
     SPARK_AVAILABLE = False
+    # Create dummy types for type hints when Spark is not available
+    SparkDataFrame = Any
+    SparkSession = Any
 
 # Import logging functions from main package
 try:
-    from siege_utilities import log_info, log_warning, log_error
+    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if main package not available yet
-    def log_info(message): print(f"INFO: {message}")
-    def log_warning(message): print(f"WARNING: {message}")
-    def log_error(message): print(f"ERROR: {message}")
+    def log_info(message): pass
+    def log_warning(message): pass
+    def log_error(message): pass
+    def log_debug(message): pass
 
 
 class GoogleAnalyticsConnector:
     """Google Analytics connection and data retrieval manager."""
-    
-    def __init__(self, client_id: str, client_secret: str, 
-                 redirect_uri: str = "urn:ietf:wg:oauth:2.0:oob"):
+
+    def __init__(self, client_id: str = None, client_secret: str = None,
+                 redirect_uri: str = "urn:ietf:wg:oauth:2.0:oob",
+                 auth_method: str = "oauth2",
+                 service_account_data: Dict[str, Any] = None):
         """
         Initialize Google Analytics connector.
-        
+
         Args:
-            client_id: OAuth2 client ID from Google Cloud Console
-            client_secret: OAuth2 client secret from Google Cloud Console
-            redirect_uri: OAuth2 redirect URI
+            client_id: OAuth2 client ID from Google Cloud Console (for OAuth2)
+            client_secret: OAuth2 client secret from Google Cloud Console (for OAuth2)
+            redirect_uri: OAuth2 redirect URI (for OAuth2)
+            auth_method: Authentication method ("oauth2" or "service_account")
+            service_account_data: Service account credentials dict (for service account auth)
         """
         if not GOOGLE_ANALYTICS_AVAILABLE:
             raise ImportError("Google Analytics libraries not available. Install: pip install google-auth-oauthlib google-auth-httplib2 google-api-python-client google-analytics-data")
-        
+
+        self.auth_method = auth_method
         self.client_id = client_id
         self.client_secret = client_secret
         self.redirect_uri = redirect_uri
+        self.service_account_data = service_account_data
         self.credentials = None
         self.analytics_service = None
         self.ga4_client = None
-        
-        log_info(f"Initialized Google Analytics connector for client: {client_id}")
-    
+
+        # Auto-authenticate with service account if provided
+        if auth_method == "service_account" and service_account_data:
+            self.authenticate_service_account()
+        elif auth_method == "service_account" and not service_account_data:
+            # Try to get service account from 1Password
+            try:
+                from ..config import get_google_service_account_from_1password
+                self.service_account_data = get_google_service_account_from_1password()
+                if self.service_account_data:
+                    self.authenticate_service_account()
+                else:
+                    log_warning("No service account data provided and could not retrieve from 1Password")
+            except ImportError:
+                log_warning("Could not import 1Password service account function")
+
+        log_info(f"Initialized Google Analytics connector with {auth_method} authentication")
+
     def authenticate(self, token_file: str = "ga_token.json") -> bool:
         """
         Authenticate with Google Analytics using OAuth2.
-        
+
         Args:
             token_file: Path to store/retrieve OAuth token
-            
+
         Returns:
             True if authentication successful
         """
         try:
             token_path = pathlib.Path(token_file)
-            
+
             # Try to load existing credentials
             if token_path.exists():
                 self.credentials = Credentials.from_authorized_user_file(
-                    str(token_path), 
+                    str(token_path),
                     ['https://www.googleapis.com/auth/analytics.readonly']
                 )
-                
+
                 # Refresh if expired
                 if self.credentials.expired and self.credentials.refresh_token:
                     self.credentials.refresh(Request())
@@ -111,33 +136,78 @@ class GoogleAnalyticsConnector:
                     },
                     ['https://www.googleapis.com/auth/analytics.readonly']
                 )
-                
+
                 self.credentials = flow.run_local_server(port=0)
                 self._save_credentials(token_path)
                 log_info("Completed new Google Analytics authentication")
-            
+
             # Build services
             self.analytics_service = build('analytics', 'v3', credentials=self.credentials)
             self.ga4_client = BetaAnalyticsDataClient(credentials=self.credentials)
-            
+
             return True
-            
+
         except Exception as e:
             log_error(f"Google Analytics authentication failed: {e}")
             return False
-    
+
     def _save_credentials(self, token_path: pathlib.Path):
         """Save OAuth credentials to file."""
         with open(token_path, 'w') as token:
             token.write(self.credentials.to_json())
         log_info(f"Saved credentials to: {token_path}")
-    
+
+    def authenticate_service_account(self) -> bool:
+        """
+        Authenticate with Google Analytics using service account.
+        Based on working implementation from GA project.
+
+        Returns:
+            True if authentication successful
+        """
+        try:
+            from google.oauth2 import service_account
+            from ..config import create_temporary_service_account_file
+            from pathlib import Path
+
+            if not self.service_account_data:
+                log_error("No service account data available for authentication")
+                return False
+
+            # Create temporary service account file
+            temp_file = create_temporary_service_account_file(self.service_account_data)
+            if not temp_file:
+                log_error("Failed to create temporary service account file")
+                return False
+
+            try:
+                # Create credentials from service account file
+                self.credentials = service_account.Credentials.from_service_account_file(
+                    temp_file,
+                    scopes=['https://www.googleapis.com/auth/analytics.readonly']
+                )
+
+                # Build services
+                self.analytics_service = build('analytics', 'v3', credentials=self.credentials)
+                self.ga4_client = BetaAnalyticsDataClient(credentials=self.credentials)
+
+                log_info(f"Service account authentication successful: {self.service_account_data['client_email']}")
+                return True
+
+            finally:
+                # Clean up temporary file
+                Path(temp_file).unlink(missing_ok=True)
+
+        except Exception as e:
+            log_error(f"Service account authentication failed: {e}")
+            return False
+
     def get_ga4_data(self, property_id: str, start_date: str, end_date: str,
                      metrics: List[str], dimensions: List[str] = None,
                      row_limit: int = 100000) -> pd.DataFrame:
         """
         Retrieve data from Google Analytics 4.
-        
+
         Args:
             property_id: GA4 property ID
             start_date: Start date (YYYY-MM-DD)
@@ -145,14 +215,14 @@ class GoogleAnalyticsConnector:
             metrics: List of metrics to retrieve
             dimensions: List of dimensions to retrieve
             row_limit: Maximum rows to retrieve
-            
+
         Returns:
             Pandas DataFrame with GA4 data
         """
         try:
             if not self.ga4_client:
                 raise ValueError("Not authenticated. Call authenticate() first.")
-            
+
             # Build request
             request = RunReportRequest(
                 property=f"properties/{property_id}",
@@ -161,10 +231,10 @@ class GoogleAnalyticsConnector:
                 dimensions=[Dimension(name=dim) for dim in (dimensions or [])],
                 limit=row_limit
             )
-            
+
             # Execute request
             response = self.ga4_client.run_report(request)
-            
+
             # Convert to DataFrame
             data = []
             for row in response.rows:
@@ -174,21 +244,21 @@ class GoogleAnalyticsConnector:
                 for i, metric in enumerate(row.metric_headers):
                     row_data[metric.name] = row.metric_values[i].value
                 data.append(row_data)
-            
+
             df = pd.DataFrame(data)
             log_info(f"Retrieved {len(df)} rows from GA4 property {property_id}")
             return df
-            
+
         except Exception as e:
             log_error(f"Failed to retrieve GA4 data: {e}")
             return pd.DataFrame()
-    
+
     def get_ua_data(self, view_id: str, start_date: str, end_date: str,
                     metrics: List[str], dimensions: List[str] = None,
                     max_results: int = 100000) -> pd.DataFrame:
         """
         Retrieve data from Universal Analytics.
-        
+
         Args:
             view_id: UA view ID
             start_date: Start date (YYYY-MM-DD)
@@ -196,14 +266,14 @@ class GoogleAnalyticsConnector:
             metrics: List of metrics to retrieve
             dimensions: List of dimensions to retrieve
             max_results: Maximum results to retrieve
-            
+
         Returns:
             Pandas DataFrame with UA data
         """
         try:
             if not self.analytics_service:
                 raise ValueError("Not authenticated. Call authenticate() first.")
-            
+
             # Build query
             query = self.analytics_service.data().ga().get(
                 ids=f'ga:{view_id}',
@@ -213,10 +283,10 @@ class GoogleAnalyticsConnector:
                 dimensions=','.join(dimensions) if dimensions else None,
                 max_results=max_results
             )
-            
+
             # Execute query
             response = query.execute()
-            
+
             # Convert to DataFrame
             if 'rows' in response:
                 columns = [header['name'] for header in response['columnHeaders']]
@@ -226,28 +296,28 @@ class GoogleAnalyticsConnector:
             else:
                 log_warning(f"No data returned from UA view {view_id}")
                 return pd.DataFrame()
-                
+
         except Exception as e:
             log_error(f"Failed to retrieve UA data: {e}")
             return pd.DataFrame()
-    
-    def save_as_pandas(self, df: pd.DataFrame, output_path: str, 
+
+    def save_as_pandas(self, df: pd.DataFrame, output_path: str,
                        format: str = 'parquet') -> bool:
         """
         Save DataFrame as Pandas format.
-        
+
         Args:
             df: Pandas DataFrame to save
             output_path: Output file path
             format: Output format (parquet, csv, excel, etc.)
-            
+
         Returns:
             True if save successful
         """
         try:
             output_path = pathlib.Path(output_path)
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             if format.lower() == 'parquet':
                 df.to_parquet(output_path, index=False)
             elif format.lower() == 'csv':
@@ -256,63 +326,63 @@ class GoogleAnalyticsConnector:
                 df.to_excel(output_path, index=False)
             else:
                 raise ValueError(f"Unsupported format: {format}")
-            
+
             log_info(f"Saved DataFrame to {output_path} ({format} format)")
             return True
-            
+
         except Exception as e:
             log_error(f"Failed to save DataFrame: {e}")
             return False
-    
+
     def save_as_spark(self, df: pd.DataFrame, output_path: str,
                       spark_session: Optional[SparkSession] = None) -> bool:
         """
         Save DataFrame as Spark DataFrame and optionally to storage.
-        
+
         Args:
             df: Pandas DataFrame to convert
             output_path: Output path for Spark DataFrame
             spark_session: Optional SparkSession (will create if not provided)
-            
+
         Returns:
             True if save successful
         """
         try:
             if not SPARK_AVAILABLE:
                 raise ImportError("PySpark not available. Install: pip install pyspark")
-            
+
             # Create Spark session if not provided
             if not spark_session:
                 spark_session = SparkSession.builder \
                     .appName("GoogleAnalyticsData") \
                     .getOrCreate()
-            
+
             # Convert to Spark DataFrame
             spark_df = spark_session.createDataFrame(df)
-            
+
             # Save to storage
             spark_df.write.mode('overwrite').parquet(output_path)
-            
+
             log_info(f"Saved DataFrame as Spark DataFrame to {output_path}")
             return True
-            
+
         except Exception as e:
             log_error(f"Failed to save as Spark DataFrame: {e}")
             return False
 
 
-def create_ga_account_profile(client_id: str, ga_property_id: str, 
+def create_ga_account_profile(client_id: str, ga_property_id: str,
                              account_type: str = 'ga4',
                              credentials_file: str = None) -> Dict[str, Any]:
     """
     Create a Google Analytics account profile linked to a client.
-    
+
     Args:
         client_id: Client ID from client management system
         ga_property_id: Google Analytics property ID
         account_type: Type of GA account (ga4, ua, or both)
         credentials_file: Path to OAuth credentials file
-        
+
     Returns:
         GA account profile dictionary
     """
@@ -331,95 +401,95 @@ def create_ga_account_profile(client_id: str, ga_property_id: str,
             'total_rows_retrieved': 0
         }
     }
-    
+
     log_info(f"Created GA account profile: {ga_property_id} for client: {client_id}")
     return profile
 
 
-def save_ga_account_profile(profile: Dict[str, Any], 
+def save_ga_account_profile(profile: Dict[str, Any],
                            config_directory: str = "config") -> str:
     """
     Save GA account profile to JSON file.
-    
+
     Args:
         profile: GA account profile dictionary
         config_directory: Directory to save config files
-        
+
     Returns:
         Path to saved config file
     """
     config_dir = pathlib.Path(config_directory) / "google_analytics"
     config_dir.mkdir(parents=True, exist_ok=True)
-    
+
     account_id = profile['ga_account_id']
     config_file = config_dir / f"ga_account_{account_id}.json"
-    
+
     with open(config_file, 'w') as f:
         json.dump(profile, f, indent=2)
-    
+
     log_info(f"Saved GA account profile to: {config_file}")
     return str(config_file)
 
 
-def load_ga_account_profile(account_id: str, 
+def load_ga_account_profile(account_id: str,
                            config_directory: str = "config") -> Optional[Dict[str, Any]]:
     """
     Load GA account profile from JSON file.
-    
+
     Args:
         account_id: GA account ID to load
         config_directory: Directory containing config files
-        
+
     Returns:
         GA account profile dictionary or None if not found
     """
     config_dir = pathlib.Path(config_directory) / "google_analytics"
     config_file = config_dir / f"ga_account_{account_id}.json"
-    
+
     if not config_file.exists():
         return None
-    
+
     try:
         with open(config_file, 'r') as f:
             profile = json.load(f)
-        
+
         log_info(f"Loaded GA account profile: {account_id}")
         return profile
-        
+
     except Exception as e:
         log_error(f"Failed to load GA account profile {account_id}: {e}")
         return None
 
 
-def list_ga_accounts_for_client(client_id: str, 
+def list_ga_accounts_for_client(client_id: str,
                                 config_directory: str = "config") -> List[Dict[str, Any]]:
     """
     List all GA accounts associated with a client.
-    
+
     Args:
         client_id: Client ID to search for
         config_directory: Directory containing config files
-        
+
     Returns:
         List of GA account profiles
     """
     config_dir = pathlib.Path(config_directory) / "google_analytics"
-    
+
     if not config_dir.exists():
         return []
-    
+
     accounts = []
     for config_file in config_dir.glob("ga_account_*.json"):
         try:
             with open(config_file, 'r') as f:
                 profile = json.load(f)
-            
+
             if profile.get('client_id') == client_id:
                 accounts.append(profile)
-                
+
         except Exception as e:
             log_error(f"Error reading GA account file {config_file}: {e}")
-    
+
     log_info(f"Found {len(accounts)} GA accounts for client: {client_id}")
     return accounts
 
@@ -430,7 +500,7 @@ def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
                           output_directory: str = "output/ga_data") -> Dict[str, Any]:
     """
     Batch retrieve GA data for all accounts associated with a client.
-    
+
     Args:
         client_id: Client ID to retrieve data for
         start_date: Start date for data retrieval
@@ -439,14 +509,14 @@ def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
         dimensions: List of dimensions to retrieve
         output_format: Output format (pandas, spark, or both)
         output_directory: Directory to save output files
-        
+
     Returns:
         Dictionary with retrieval results
     """
     try:
         # Get client's GA accounts
         accounts = list_ga_accounts_for_client(client_id)
-        
+
         if not accounts:
             return {
                 'success': False,
@@ -454,11 +524,11 @@ def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
                 'accounts_processed': 0,
                 'total_rows': 0
             }
-        
+
         # Setup output directory
         output_dir = pathlib.Path(output_directory)
         output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         results = {
             'success': True,
             'client_id': client_id,
@@ -469,7 +539,7 @@ def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
             'output_files': [],
             'errors': []
         }
-        
+
         # Process each account
         for account in accounts:
             try:
@@ -477,11 +547,11 @@ def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
                 if not account.get('credentials_file'):
                     results['errors'].append(f"No credentials for account: {account['ga_account_id']}")
                     continue
-                
+
                 # Create connector and retrieve data
                 # Note: In production, you'd load actual credentials from the file
                 connector = GoogleAnalyticsConnector("dummy_id", "dummy_secret")
-                
+
                 if account['account_type'] in ['ga4', 'both']:
                     df = connector.get_ga4_data(
                         account['ga_property_id'], start_date, end_date, metrics, dimensions
@@ -490,33 +560,33 @@ def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
                     df = connector.get_ua_data(
                         account['ga_property_id'], start_date, end_date, metrics, dimensions
                     )
-                
+
                 if not df.empty:
                     # Save data
                     output_file = output_dir / f"{account['ga_account_id']}_{start_date}_{end_date}.parquet"
-                    
+
                     if output_format in ['pandas', 'both']:
                         connector.save_as_pandas(df, str(output_file), 'parquet')
                         results['output_files'].append(str(output_file))
-                    
+
                     if output_format in ['spark', 'both'] and SPARK_AVAILABLE:
                         spark_output = output_dir / f"{account['ga_account_id']}_{start_date}_{end_date}_spark"
                         connector.save_as_spark(df, str(spark_output))
                         results['output_files'].append(str(spark_output))
-                    
+
                     results['total_rows'] += len(df)
                     results['accounts_processed'] += 1
-                    
+
                     log_info(f"Processed GA account: {account['ga_account_id']} - {len(df)} rows")
-                
+
             except Exception as e:
                 error_msg = f"Error processing account {account['ga_account_id']}: {e}"
                 results['errors'].append(error_msg)
                 log_error(error_msg)
-        
+
         log_info(f"Batch GA data retrieval completed: {results['accounts_processed']} accounts, {results['total_rows']} rows")
         return results
-        
+
     except Exception as e:
         log_error(f"Batch GA data retrieval failed: {e}")
         return {
@@ -525,3 +595,65 @@ def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
             'accounts_processed': 0,
             'total_rows': 0
         }
+
+
+def create_ga_connector_with_service_account(service_account_data: Dict[str, Any] = None) -> GoogleAnalyticsConnector:
+    """
+    Create a GoogleAnalyticsConnector using service account authentication.
+
+    Args:
+        service_account_data: Service account credentials dict (optional, will try 1Password if None)
+
+    Returns:
+        GoogleAnalyticsConnector instance configured for service account auth
+    """
+    return GoogleAnalyticsConnector(
+        auth_method="service_account",
+        service_account_data=service_account_data
+    )
+
+
+def create_ga_connector_from_1password(item_title: str = "Google Analytics Service Account - Multi-Client Reporter") -> Optional[GoogleAnalyticsConnector]:
+    """
+    Create a GoogleAnalyticsConnector using service account from 1Password.
+
+    Args:
+        item_title: Title of the 1Password item containing service account
+
+    Returns:
+        GoogleAnalyticsConnector instance or None if failed
+    """
+    try:
+        from ..config import get_google_service_account_from_1password
+        service_account_data = get_google_service_account_from_1password(item_title)
+
+        if service_account_data:
+            return create_ga_connector_with_service_account(service_account_data)
+        else:
+            log_error("Could not retrieve service account from 1Password")
+            return None
+
+    except ImportError as e:
+        log_error(f"Could not import 1Password function: {e}")
+        return None
+
+
+def create_ga_connector_with_oauth2(client_id: str, client_secret: str,
+                                   redirect_uri: str = "urn:ietf:wg:oauth:2.0:oob") -> GoogleAnalyticsConnector:
+    """
+    Create a GoogleAnalyticsConnector using OAuth2 authentication.
+
+    Args:
+        client_id: OAuth2 client ID from Google Cloud Console
+        client_secret: OAuth2 client secret from Google Cloud Console
+        redirect_uri: OAuth2 redirect URI
+
+    Returns:
+        GoogleAnalyticsConnector instance configured for OAuth2 auth
+    """
+    return GoogleAnalyticsConnector(
+        client_id=client_id,
+        client_secret=client_secret,
+        redirect_uri=redirect_uri,
+        auth_method="oauth2"
+    )

@@ -1,29 +1,34 @@
-# Enhanced Census utilities - Essential dependencies
-# These are the core requirements for the dynamic Census discovery system
+# Base dependencies for siege-utilities
+# Canonical source: pyproject.toml [project.dependencies]
+# This file is a mirror — edit pyproject.toml, then regenerate this file.
 
-# HTTP requests and HTML parsing (REQUIRED for Census discovery)
-requests>=2.31.0
+requests>=2.28.0
+tqdm>=4.60.0
+pandas>=1.5.0
+numpy>=1.21.0
+pyyaml>=6.0
+pydantic>=2.0.0
+hydra-core>=1.3.0
+hydra-zen>=0.12.0
+omegaconf>=2.3.0
 beautifulsoup4>=4.12.0
 lxml>=4.9.0
-
-# Core geospatial stack (REQUIRED for spatial data processing)
-geopandas>=0.12.0
-shapely>=1.8.0
-pyproj>=3.3.0
-fiona>=1.8.0
-
-# Data processing (REQUIRED)
-pandas>=1.5.0
-numpy>=1.23.5,<2.3.0
-
-# Synthetic data generation (REQUIRED for sample datasets)
-Faker>=19.0.0
-
-# Configuration (REQUIRED)
-pyyaml>=6.0
-
-# Note: DuckDB is NOT required for the enhanced Census utilities.
-# The system works with the standard geospatial stack (GeoPandas, 
-# Shapely, PyProj, Fiona) which is more than sufficient for most
-# spatial data operations. DuckDB is only needed if you want to use
-# the optional spatial_transformations module for DuckDB format conversion.
+openpyxl>=3.1.0
+geopandas>=0.13.2
+faker>=35.2.2
+google-auth>=2.40.3
+google-auth-oauthlib>=1.2.2
+google-auth-httplib2>=0.2.0
+google-api-python-client>=2.181.0
+google-analytics-data>=0.18.19
+google-analytics-admin>=0.25.0
+reportlab>=4.4.3
+matplotlib>=3.7.5
+seaborn>=0.13.2
+plotly>=6.3.0
+geopy>=2.4.1
+osmnx>=1.9.4
+folium>=0.18.0
+notebook>=7.3.3
+mapclassify>=2.5.0
+pysal>=24.1

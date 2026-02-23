@@ -63,6 +63,9 @@ from reportlab.platypus import Image, Paragraph, Spacer
 from reportlab.lib.units import inch
 from reportlab.lib.styles import getSampleStyleSheet
 
+# Legend management will be added later
+# from .legend_manager import LegendManager, LegendPosition, ColorScheme
+
 log = logging.getLogger(__name__)
 
 class ChartGenerator:
@@ -71,21 +74,40 @@ class ChartGenerator:
     Supports pandas DataFrames, Spark DataFrames, and various data sources.
     """
 
-    def __init__(self, branding_config: Optional[Dict[str, Any]] = None):
+    def __init__(self, branding_config: Optional[Dict[str, Any]] = None,
+                 output_dir: Optional[Path] = None,
+                 max_chart_width: Optional[float] = None,
+                 max_chart_height: Optional[float] = None):
         """
         Initialize the chart generator.
-        
+
         Args:
             branding_config: Branding configuration for chart colors and styling
+            output_dir: Directory for saving Folium HTML map files.
+                        Defaults to ``~/.siege_utilities`` for backward compatibility.
+            max_chart_width: Maximum chart width in inches for ReportLab output.
+                             When set, charts wider than this are uniformly scaled
+                             down to fit.  ``None`` disables width clamping.
+            max_chart_height: Maximum chart height in inches for ReportLab output.
+                              When set, charts taller than this are uniformly scaled
+                              down to fit.  ``None`` disables height clamping.
         """
         self.branding_config = branding_config or {}
+        self.output_dir = Path(output_dir) if output_dir is not None else Path.home() / ".siege_utilities"
+        self.max_chart_width = max_chart_width
+        self.max_chart_height = max_chart_height
         self.styles = getSampleStyleSheet()
         self._setup_default_colors()
         self._setup_plotting_style()
-        
-        # Set default figure size and DPI
-        self.default_figsize = (10, 6)
-        self.default_dpi = 300
+
+        # Set default figure size and DPI for professional quality
+        self.default_figsize = (8, 5)
+        self.default_dpi = 150
+
+        # Set matplotlib global DPI for consistency
+        if MATPLOTLIB_AVAILABLE:
+            plt.rcParams['figure.dpi'] = 150
+            plt.rcParams['savefig.dpi'] = 150
 
     def _setup_default_colors(self):
         """Setup default color scheme for charts."""
@@ -121,7 +143,8 @@ class ChartGenerator:
                 sns.set_palette(self.color_palette)
                 sns.set_style("whitegrid")
             
-            # Set default font sizes
+            # Set default font sizes and DPI
+            plt.rcParams['figure.dpi'] = 150
             plt.rcParams['font.size'] = 10
             plt.rcParams['axes.titlesize'] = 12
             plt.rcParams['axes.labelsize'] = 10
@@ -129,11 +152,96 @@ class ChartGenerator:
             plt.rcParams['ytick.labelsize'] = 9
             plt.rcParams['legend.fontsize'] = 9
             plt.rcParams['figure.titlesize'] = 14
+            
+            # Enhanced legend settings to prevent label collisions
+            plt.rcParams['legend.frameon'] = True
+            plt.rcParams['legend.fancybox'] = True
+            plt.rcParams['legend.shadow'] = True
+            plt.rcParams['legend.framealpha'] = 0.9
+            plt.rcParams['legend.edgecolor'] = 'black'
+            plt.rcParams['legend.facecolor'] = 'white'
 
-    def create_bar_chart(self, data: Union[pd.DataFrame, Dict[str, Any]], 
+    def _scale_dimensions(self, width: float, height: float,
+                          max_width: Optional[float] = None,
+                          max_height: Optional[float] = None) -> tuple:
+        """Return ``(width, height)`` uniformly scaled to fit within max bounds.
+
+        Resolves effective maximums from instance-level defaults
+        (``self.max_chart_width``/``self.max_chart_height``) and per-call
+        overrides.  When both are set the *tighter* (smaller) limit wins.
+
+        If no maximum is active, the original dimensions are returned
+        unchanged.  Aspect ratio is always preserved.
+
+        Args:
+            width: Original width in inches.
+            height: Original height in inches.
+            max_width: Per-call maximum width override (``None`` → use instance default).
+            max_height: Per-call maximum height override (``None`` → use instance default).
+
+        Returns:
+            ``(scaled_width, scaled_height)`` tuple.
+        """
+        # Resolve effective max — tighter of instance-level and per-call
+        eff_max_w = self.max_chart_width
+        if max_width is not None:
+            eff_max_w = min(max_width, eff_max_w) if eff_max_w is not None else max_width
+
+        eff_max_h = self.max_chart_height
+        if max_height is not None:
+            eff_max_h = min(max_height, eff_max_h) if eff_max_h is not None else max_height
+
+        # No limits → nothing to do
+        if eff_max_w is None and eff_max_h is None:
+            return width, height
+
+        scale = 1.0
+        if eff_max_w is not None and width > eff_max_w:
+            scale = min(scale, eff_max_w / width)
+        if eff_max_h is not None and height > eff_max_h:
+            scale = min(scale, eff_max_h / height)
+
+        if scale < 1.0:
+            new_w = width * scale
+            new_h = height * scale
+            log.info(
+                "Auto-scaling chart from %.2f×%.2f to %.2f×%.2f in "
+                "(max %.1s×%.1s, scale=%.3f)",
+                width, height, new_w, new_h,
+                eff_max_w, eff_max_h, scale,
+            )
+            return new_w, new_h
+
+        return width, height
+
+    def _save_folium_map(self, folium_map, filename: str, label: str,
+                         width: float, height: float) -> Image:
+        """Save a Folium map to *self.output_dir* and return a placeholder chart.
+
+        Consolidates the identical mkdir → save → log → placeholder pattern
+        used by every Folium-based method.
+
+        Args:
+            folium_map: A ``folium.Map`` instance.
+            filename: File name (e.g. ``"temp_choropleth_map.html"``).
+            label: Human-readable label shown in the placeholder image.
+            width: Placeholder chart width (inches).
+            height: Placeholder chart height (inches).
+
+        Returns:
+            ReportLab Image placeholder.
+        """
+        map_path = self.output_dir / filename
+        map_path.parent.mkdir(parents=True, exist_ok=True)
+        folium_map.save(str(map_path))
+        log.info(f"{label} saved to {map_path}")
+        return self._create_placeholder_chart(width, height, f"{label} — saved to {map_path}")
+
+    def create_bar_chart(self, data: Union[pd.DataFrame, Dict[str, Any]],
                         x_column: str = None, y_column: str = None,
                         title: str = "", width: float = 6.0, height: float = 4.0,
-                        chart_type: str = "bar", group_by: str = None) -> Image:
+                        chart_type: str = "bar", group_by: str = None,
+                        show_legend: bool = True, legend_position: str = "best") -> Image:
         """
         Create a bar chart from data.
         
@@ -179,8 +287,9 @@ class ChartGenerator:
                 else:
                     return self._create_placeholder_chart(width, height, "No numeric data found")
             
-            # Create figure
+            # Create figure with very conservative sizing to prevent ReportLab crashes
             fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
+            fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
             
             # Create chart
             if chart_type == "horizontal":
@@ -202,11 +311,18 @@ class ChartGenerator:
             
             # Add value labels on bars
             for bar in bars:
-                height = bar.get_height()
-                ax.text(bar.get_x() + bar.get_width()/2., height,
-                       f'{height:,.0f}', ha='center', va='bottom')
+                bar_height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., bar_height,
+                       f'{bar_height:,.0f}', ha='center', va='bottom')
             
-            plt.tight_layout()
+            # Add legend with better positioning
+            if show_legend and (group_by or len(y_values) > 1):
+                if legend_position == "outside":
+                    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+                elif legend_position == "bottom":
+                    ax.legend(bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=min(3, len(y_values) if len(y_values) > 1 else 1))
+                else:  # "best" or default
+                    ax.legend(loc='best')
             
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
@@ -217,7 +333,8 @@ class ChartGenerator:
 
     def create_line_chart(self, data: Union[pd.DataFrame, Dict[str, Any]],
                          x_column: str = None, y_columns: List[str] = None,
-                         title: str = "", width: float = 6.0, height: float = 4.0) -> Image:
+                         title: str = "", width: float = 6.0, height: float = 4.0,
+                         show_legend: bool = True, legend_position: str = "best") -> Image:
         """
         Create a line chart from data.
         
@@ -257,8 +374,9 @@ class ChartGenerator:
                     numeric_cols.remove(x_column)
                 y_columns = numeric_cols[:5]  # Limit to 5 columns
             
-            # Create figure
+            # Create figure with very conservative sizing to prevent ReportLab crashes
             fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
+            fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
             
             # Plot each line
             for i, col in enumerate(y_columns):
@@ -271,14 +389,25 @@ class ChartGenerator:
             ax.set_title(title or f"Trends over time")
             ax.set_xlabel(x_column if x_column != 'index' else 'Index')
             ax.set_ylabel('Value')
-            ax.legend()
+            
+            # Add legend with better positioning
+            if show_legend and len(y_columns) > 1:
+                if legend_position == "outside":
+                    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+                elif legend_position == "bottom":
+                    ax.legend(bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=min(len(y_columns), 3))
+                else:  # "best" or default
+                    ax.legend(loc='best')
+            elif show_legend and len(y_columns) == 1:
+                # Single line - add legend if title suggests it's needed
+                if "vs" in title.lower() or "comparison" in title.lower():
+                    ax.legend([y_columns[0]], loc='best')
+            
             ax.grid(True, alpha=0.3)
             
             # Rotate x-axis labels if needed
             if len(x_values) > 5:
                 plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
-            
-            plt.tight_layout()
             
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
@@ -289,7 +418,8 @@ class ChartGenerator:
 
     def create_pie_chart(self, data: Union[pd.DataFrame, Dict[str, Any]],
                         labels_column: str = None, values_column: str = None,
-                        title: str = "", width: float = 6.0, height: float = 4.0) -> Image:
+                        title: str = "", width: float = 6.0, height: float = 4.0,
+                        show_legend: bool = True, legend_position: str = "right") -> Image:
         """
         Create a pie chart from data.
         
@@ -327,21 +457,66 @@ class ChartGenerator:
                 else:
                     return self._create_placeholder_chart(width, height, "Need at least 2 columns for pie chart")
             
-            # Create figure
+            # Create figure with larger size for dominant appearance
             fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
             
-            # Create pie chart
-            wedges, texts, autotexts = ax.pie(values, labels=labels, autopct='%1.1f%%',
-                                             colors=self.color_palette[:len(values)],
-                                             startangle=90)
+            # Adjust subplot parameters to make room for legend table
+            fig.subplots_adjust(left=0.1, right=0.6, top=0.9, bottom=0.1)
+            
+            # Create clean pie chart with NO LABELS AT ALL
+            wedges = ax.pie(values, labels=None, autopct=None,
+                           colors=self.color_palette[:len(values)],
+                           startangle=90)[0]
             
             # Customize chart
             ax.set_title(title or "Data Distribution")
             
-            # Add legend
-            ax.legend(wedges, labels, title="Categories", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1))
-            
-            plt.tight_layout()
+            # Add legend with configurable positioning to avoid collisions
+            # Create legend table instead of matplotlib legend
+            if show_legend:
+                # Calculate percentages for the table
+                total = sum(values)
+                percentages = [(v/total)*100 for v in values]
+                
+                # Create legend table data
+                legend_data = []
+                for i, (label, value, pct) in enumerate(zip(labels, values, percentages)):
+                    legend_data.append([
+                        f"■",  # Color indicator
+                        label,
+                        f"{value:,}",
+                        f"{pct:.1f}%"
+                    ])
+                
+                # Create table — bbox is [left, bottom, width, height] in
+                # axes coordinates.  With subplots_adjust(right=0.6) the axes
+                # occupies ~50% of figure width, so 0.6 axes-widths ≈ 1.8in
+                # on a 6-inch figure — enough room for the four columns.
+                table = ax.table(cellText=legend_data,
+                               colLabels=['', 'Label', 'Value', 'Percent'],
+                               cellLoc='center',
+                               loc='center',
+                               bbox=[1.05, 0.0, 0.6, 0.9])
+
+                # Style the table
+                table.auto_set_font_size(False)
+                table.set_fontsize(8)
+                table.scale(1, 1.5)
+                
+                # Color the first column with the actual colors
+                for i, color in enumerate(self.color_palette[:len(values)]):
+                    table[(i+1, 0)].set_facecolor(color)
+                    table[(i+1, 0)].set_text_props(weight='bold')
+                
+                # Style header
+                for i in range(4):
+                    table[(0, i)].set_facecolor('#40466e')
+                    table[(0, i)].set_text_props(weight='bold', color='white')
+                
+                # Remove table borders
+                for i in range(len(legend_data) + 1):
+                    for j in range(4):
+                        table[(i, j)].set_edgecolor('none')
             
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
@@ -351,130 +526,89 @@ class ChartGenerator:
             return self._create_placeholder_chart(width, height, f"Chart Error: {str(e)}")
 
     def create_choropleth_map(self, data: Union[pd.DataFrame, Dict[str, Any]],
-                             location_column: str, value_column: str,
+                             geo_data: Union['gpd.GeoDataFrame', str, Path, Dict, None] = None,
+                             location_column: str = None, value_column: str = None,
                              title: str = "", width: float = 8.0, height: float = 6.0,
-                             map_type: str = "world") -> Image:
+                             map_type: str = "us",
+                             key_on: str = "feature.properties.geoid",
+                             fill_color: str = "YlOrRd") -> Image:
         """
-        Create a choropleth map from data.
-        
+        Create a choropleth map from data using Folium.
+
         Args:
             data: DataFrame or dictionary with data
-            location_column: Column name for locations (country codes, state names, etc.)
+            geo_data: GeoDataFrame, path to GeoJSON, GeoJSON dict, or None.
+                      If a GeoDataFrame is passed it is converted to GeoJSON automatically.
+            location_column: Column name for locations (must match geo_data features via key_on)
             value_column: Column name for values to color by
             title: Map title
             width: Map width in inches
             height: Map height in inches
-            map_type: Type of map ('world', 'us', 'europe', etc.)
-            
+            map_type: Type of map ('world', 'us', 'europe')
+            key_on: GeoJSON feature property to join on (e.g. 'feature.properties.geoid')
+            fill_color: Brewer color scheme name (e.g. 'YlOrRd', 'BuGn', 'Blues')
+
         Returns:
-            ReportLab Image object
+            ReportLab Image object (placeholder — HTML saved to output_dir)
         """
         if not FOLIUM_AVAILABLE:
             return self._create_placeholder_chart(width, height, "Folium not available")
-        
+
+        if geo_data is None:
+            return self._create_placeholder_chart(width, height, "geo_data is required for choropleth map")
+
         try:
             # Convert data to DataFrame if needed
             if isinstance(data, dict):
                 df = pd.DataFrame(data)
             else:
                 df = data.copy()
-            
+
+            # Convert GeoDataFrame to GeoJSON for Folium
+            geojson_data = self._resolve_geo_data(geo_data)
+
             # Create base map
             if map_type == "world":
                 m = folium.Map(location=[20, 0], zoom_start=2)
             elif map_type == "us":
                 m = folium.Map(location=[39.8283, -98.5795], zoom_start=4)
+            elif map_type == "europe":
+                m = folium.Map(location=[50, 10], zoom_start=4)
             else:
                 m = folium.Map(location=[20, 0], zoom_start=2)
-            
+
             # Add choropleth layer
             folium.Choropleth(
-                geo_data=None,  # You'll need to provide GeoJSON data
+                geo_data=geojson_data,
                 name="choropleth",
                 data=df,
                 columns=[location_column, value_column],
-                key_on="feature.id",
-                fill_color="YlOrRd",
+                key_on=key_on,
+                fill_color=fill_color,
                 fill_opacity=0.7,
                 line_opacity=0.2,
                 legend_name=value_column
             ).add_to(m)
-            
+
             # Add layer control
             folium.LayerControl().add_to(m)
-            
-            # Save map to temporary file
-            temp_map_path = Path.home() / ".siege_utilities" / "temp_map.html"
-            temp_map_path.parent.mkdir(parents=True, exist_ok=True)
-            m.save(str(temp_map_path))
-            
-            # Convert HTML to image (this is a simplified approach)
-            # In practice, you might want to use selenium or similar to render the HTML
-            return self._create_placeholder_chart(width, height, "Choropleth Map - HTML file saved")
-            
+
+            return self._save_folium_map(m, "temp_choropleth_map.html",
+                                        "Choropleth Map", width, height)
+
         except Exception as e:
             log.error(f"Error creating choropleth map: {e}")
             return self._create_placeholder_chart(width, height, f"Map Error: {str(e)}")
 
-    def create_bivariate_choropleth(self, data: Union[pd.DataFrame, Dict[str, Any]],
-                                   location_column: str, value_column1: str, value_column2: str,
-                                   title: str = "", width: float = 8.0, height: float = 6.0) -> Image:
-        """
-        Create a bivariate choropleth map from data using Folium.
-        
-        Args:
-            data: DataFrame or dictionary with data
-            location_column: Column name for locations (country codes, state names, etc.)
-            value_column1: Column name for the first value to color by
-            value_column2: Column name for the second value to color by
-            title: Map title
-            width: Map width in inches
-            height: Map height in inches
-            
-        Returns:
-            ReportLab Image object
-        """
-        if not FOLIUM_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Folium not available")
-        
-        try:
-            # Convert data to DataFrame if needed
-            if isinstance(data, dict):
-                df = pd.DataFrame(data)
-            else:
-                df = data.copy()
-            
-            # Create base map
-            m = folium.Map(location=[20, 0], zoom_start=2)
-            
-            # Add bivariate choropleth layer
-            folium.Choropleth(
-                geo_data=None,  # You'll need to provide GeoJSON data
-                name="bivariate_choropleth",
-                data=df,
-                columns=[location_column, value_column1, value_column2],
-                key_on="feature.id",
-                fill_color="YlOrRd",
-                fill_opacity=0.7,
-                line_opacity=0.2,
-                legend_name=f"{value_column1} vs {value_column2}"
-            ).add_to(m)
-            
-            # Add layer control
-            folium.LayerControl().add_to(m)
-            
-            # Save map to temporary file
-            temp_map_path = Path.home() / ".siege_utilities" / "temp_map.html"
-            temp_map_path.parent.mkdir(parents=True, exist_ok=True)
-            m.save(str(temp_map_path))
-            
-            # Convert HTML to image (this is a simplified approach)
-            # In practice, you might want to use selenium or similar to render the HTML
-            return self._create_placeholder_chart(width, height, "Bivariate Choropleth Map - HTML file saved")
-            
-        except Exception as e:
-            log.error(f"Error creating bivariate choropleth map: {e}")
-            return self._create_placeholder_chart(width, height, f"Bivariate Choropleth Map Error: {str(e)}")
+    def _resolve_geo_data(self, geo_data) -> Union[str, Dict]:
+        """Convert geo_data argument to a format Folium accepts (GeoJSON dict or path string)."""
+        if GEOPANDAS_AVAILABLE and isinstance(geo_data, gpd.GeoDataFrame):
+            return json.loads(geo_data.to_json())
+        if isinstance(geo_data, (str, Path)):
+            return str(geo_data)
+        if isinstance(geo_data, dict):
+            return geo_data
+        raise TypeError(f"Unsupported geo_data type: {type(geo_data)}")
 
     def create_bivariate_choropleth_matplotlib(self, data: Union[pd.DataFrame, Dict[str, Any]],
                                              geodata: Union[gpd.GeoDataFrame, str, Path],
@@ -518,30 +652,27 @@ class ChartGenerator:
             # Merge data with geodata
             merged = gdf.merge(df, left_on=location_column, right_on=location_column, how='left')
             
-            # Create bivariate color scheme
-            colors = self._create_bivariate_color_scheme(color_scheme)
+            # Create proper bivariate classification and coloring
+            color_matrix = self._create_bivariate_color_matrix(color_scheme)
+            merged_with_colors = self._apply_bivariate_colors(merged, value_column1, value_column2, color_matrix)
             
-            # Create figure and axes
+            # Create figure with very conservative sizing to prevent ReportLab crashes
             fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
             
-            # Create bivariate choropleth
-            merged.plot(
-                column=value_column1,  # Primary variable
-                cmap=colors,
+            # Create true bivariate choropleth
+            merged_with_colors.plot(
+                color=merged_with_colors['bivariate_color'],
                 linewidth=0.5,
                 edgecolor='black',
-                ax=ax,
-                legend=True,
-                legend_kwds={'label': f'{value_column1} vs {value_column2}',
-                            'orientation': 'vertical'}
+                ax=ax
             )
             
             # Add title and remove axes
             ax.set_title(title or f"Bivariate Choropleth: {value_column1} vs {value_column2}")
             ax.axis('off')
             
-            # Add bivariate legend
-            self._add_bivariate_legend(ax, value_column1, value_column2, colors)
+            # Add proper bivariate legend
+            self._add_bivariate_legend(ax, value_column1, value_column2, color_matrix)
             
             plt.tight_layout()
             
@@ -552,55 +683,103 @@ class ChartGenerator:
             log.error(f"Error creating bivariate choropleth with matplotlib: {e}")
             return self._create_placeholder_chart(width, height, f"Bivariate Choropleth Error: {str(e)}")
 
-    def _create_bivariate_color_scheme(self, scheme: str = "default") -> str:
+    def _create_bivariate_color_matrix(self, scheme: str = "default") -> np.ndarray:
         """
-        Create a bivariate color scheme for choropleth maps.
+        Create a proper 2D bivariate color matrix for choropleth maps.
         
         Args:
-            scheme: Color scheme type
+            scheme: Color scheme type ('default', 'blue_red', 'green_orange')
             
         Returns:
-            Color scheme name or custom colormap
+            3x3 numpy array of hex colors for bivariate classification
         """
-        if scheme == "default":
-            # Use a built-in colormap that works well for bivariate data
-            return "RdYlBu_r"
-        elif scheme == "diverging":
-            return "RdBu_r"
-        elif scheme == "custom":
-            # Create a custom bivariate colormap
-            from matplotlib.colors import LinearSegmentedColormap
+        if scheme == "blue_red":
+            # Blue-Red bivariate scheme (classic)
+            return np.array([
+                ['#e8e8e8', '#e4acac', '#c85a5a'],  # Low var1: gray to red
+                ['#b8d6be', '#90b4a6', '#627f8c'],  # Med var1: green-gray to blue-gray  
+                ['#7fc97f', '#5aae61', '#2d8a49']   # High var1: green spectrum
+            ])
+        elif scheme == "green_orange":
+            # Green-Orange bivariate scheme
+            return np.array([
+                ['#f7f7f7', '#fdd49e', '#fc8d59'],  # Low var1
+                ['#d9f0a3', '#addd8e', '#78c679'],  # Med var1
+                ['#41b6c4', '#225ea8', '#253494']   # High var1  
+            ])
+        else:  # default
+            # Default purple-blue bivariate scheme (Teuling et al.)
+            return np.array([
+                ['#e8e8e8', '#c1a5cc', '#9972af'],  # Low var1: gray to purple
+                ['#b8d6be', '#909eb1', '#6771a5'],  # Med var1: light blue-gray
+                ['#7fc97f', '#5db08a', '#3a9c95']   # High var1: green to teal
+            ])
+    
+    def _apply_bivariate_colors(self, gdf, var1_col: str, var2_col: str, color_matrix: np.ndarray):
+        """
+        Apply bivariate colors to geodataframe based on quantile classification.
+        
+        Args:
+            gdf: GeoDataFrame with data
+            var1_col: First variable column name
+            var2_col: Second variable column name  
+            color_matrix: 3x3 color matrix from _create_bivariate_color_matrix
             
-            # Define custom colors for bivariate visualization
-            colors = ['#e8e8e8', '#e4acac', '#c85a5a', '#9c2929', '#67001f',
-                     '#b8d6be', '#90b4a6', '#627f8c', '#3b738a', '#1a4f63',
-                     '#7fc97f', '#5aae61', '#2d8a49', '#0d5a1e', '#00441b',
-                     '#4d9221', '#7fbc41', '#a8dd35', '#c2e699', '#e6f5d0']
-            
-            return LinearSegmentedColormap.from_list('custom_bivariate', colors)
-        else:
-            return "viridis"
+        Returns:
+            GeoDataFrame with bivariate_color column added
+        """
+        gdf = gdf.copy()
+        
+        # Remove NaN values for classification
+        valid_mask = gdf[var1_col].notna() & gdf[var2_col].notna()
+        
+        if not valid_mask.any():
+            gdf['bivariate_color'] = '#cccccc'  # Gray for no data
+            return gdf
+        
+        # Classify variables into 3 quantile-based bins each
+        var1_bins = pd.qcut(gdf.loc[valid_mask, var1_col], 3, labels=[0, 1, 2], duplicates='drop')
+        var2_bins = pd.qcut(gdf.loc[valid_mask, var2_col], 3, labels=[0, 1, 2], duplicates='drop')
+        
+        # Initialize color column
+        gdf['bivariate_color'] = '#cccccc'  # Default gray for NaN/invalid
+        
+        # Assign colors based on bivariate classification
+        for i, (idx, row) in enumerate(gdf[valid_mask].iterrows()):
+            try:
+                bin1 = int(var1_bins.iloc[i]) if pd.notna(var1_bins.iloc[i]) else 1
+                bin2 = int(var2_bins.iloc[i]) if pd.notna(var2_bins.iloc[i]) else 1
+                color = color_matrix[bin2, bin1]  # Note: row=var2, col=var1
+                gdf.loc[idx, 'bivariate_color'] = color
+            except (ValueError, IndexError):
+                gdf.loc[idx, 'bivariate_color'] = '#cccccc'
+        
+        return gdf
 
-    def _add_bivariate_legend(self, ax, var1: str, var2: str, colors):
+    def _add_bivariate_legend(self, ax, var1: str, var2: str, color_matrix: np.ndarray):
         """
-        Add a bivariate legend to the map.
+        Add a proper 3x3 bivariate legend grid to the map.
         
         Args:
             ax: Matplotlib axes
-            var1: First variable name
-            var2: Second variable name
-            colors: Color scheme
+            var1: First variable name (horizontal axis)
+            var2: Second variable name (vertical axis)
+            color_matrix: 3x3 color matrix
         """
         try:
-            # Create a simple bivariate legend
-            legend_elements = [
-                plt.Rectangle((0, 0), 1, 1, facecolor='lightgray', edgecolor='black', label=f'{var1} (Low)'),
-                plt.Rectangle((0, 0), 1, 1, facecolor='darkred', edgecolor='black', label=f'{var1} (High)'),
-                plt.Rectangle((0, 0), 1, 1, facecolor='lightblue', edgecolor='black', label=f'{var2} (Low)'),
-                plt.Rectangle((0, 0), 1, 1, facecolor='darkblue', edgecolor='black', label=f'{var2} (High)')
-            ]
+            # Create inset axes for the bivariate legend
+            from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+            legend_ax = inset_axes(ax, width='20%', height='20%', loc='upper right')
             
-            ax.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(1.15, 1))
+            # Display the 3x3 color matrix as legend
+            legend_ax.imshow(color_matrix, aspect='equal')
+            legend_ax.set_xticks([0, 1, 2])
+            legend_ax.set_yticks([0, 1, 2])
+            legend_ax.set_xticklabels(['Low', 'Med', 'High'], fontsize=8)
+            legend_ax.set_yticklabels(['High', 'Med', 'Low'], fontsize=8)
+            legend_ax.set_xlabel(var1, fontsize=9, fontweight='bold')
+            legend_ax.set_ylabel(var2, fontsize=9, fontweight='bold')
+            legend_ax.tick_params(length=0, labelsize=8)
             
         except Exception as e:
             log.warning(f"Could not add bivariate legend: {e}")
@@ -645,9 +824,17 @@ class ChartGenerator:
             else:
                 gdf = geodata.copy()
             
-            # Merge data with geodata
-            merged = gdf.merge(df, left_on=location_column, right_on=location_column, how='left')
-            
+            # Merge data with geodata — only if gdf is missing the value column.
+            # When data and geodata are the same GeoDataFrame the merge would
+            # create suffixed duplicates (population_x / population_y) and the
+            # subsequent column lookup would fail with KeyError.
+            if value_column not in gdf.columns:
+                df_tabular = df.drop(columns='geometry', errors='ignore')
+                merged = gdf.merge(df_tabular, on=location_column, how='left',
+                                   suffixes=('', '_data'))
+            else:
+                merged = gdf
+
             # Apply classification
             if classification == "quantiles":
                 merged[f'{value_column}_classified'] = pd.qcut(merged[value_column], bins, labels=False, duplicates='drop')
@@ -659,7 +846,7 @@ class ChartGenerator:
             else:
                 merged[f'{value_column}_classified'] = pd.qcut(merged[value_column], bins, labels=False, duplicates='drop')
             
-            # Create figure and axes
+            # Create figure with very conservative sizing to prevent ReportLab crashes
             fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
             
             # Create choropleth
@@ -769,6 +956,7 @@ class ChartGenerator:
             if title:
                 folium.TileLayer(
                     tiles='',
+                    attr='',
                     name=title,
                     overlay=True,
                     control=False
@@ -777,12 +965,8 @@ class ChartGenerator:
             # Add layer control
             folium.LayerControl().add_to(m)
             
-            # Save map to temporary file
-            temp_map_path = Path.home() / ".siege_utilities" / "temp_marker_map.html"
-            temp_map_path.parent.mkdir(parents=True, exist_ok=True)
-            m.save(str(temp_map_path))
-            
-            return self._create_placeholder_chart(width, height, "Marker Map - HTML file saved")
+            return self._save_folium_map(m, "temp_marker_map.html",
+                                        "Marker Map", width, height)
             
         except Exception as e:
             log.error(f"Error creating marker map: {e}")
@@ -921,17 +1105,14 @@ class ChartGenerator:
             if title:
                 folium.TileLayer(
                     tiles='',
+                    attr='',
                     name=title,
                     overlay=True,
                     control=False
                 ).add_to(m)
             
-            # Save map to temporary file
-            temp_map_path = Path.home() / ".siege_utilities" / "temp_heatmap.html"
-            temp_map_path.parent.mkdir(parents=True, exist_ok=True)
-            m.save(str(temp_map_path))
-            
-            return self._create_placeholder_chart(width, height, "Heatmap - HTML file saved")
+            return self._save_folium_map(m, "temp_heatmap.html",
+                                        "Heatmap", width, height)
             
         except Exception as e:
             log.error(f"Error creating heatmap: {e}")
@@ -1017,6 +1198,7 @@ class ChartGenerator:
             if title:
                 folium.TileLayer(
                     tiles='',
+                    attr='',
                     name=title,
                     overlay=True,
                     control=False
@@ -1025,12 +1207,8 @@ class ChartGenerator:
             # Add layer control
             folium.LayerControl().add_to(m)
             
-            # Save map to temporary file
-            temp_map_path = Path.home() / ".siege_utilities" / "temp_cluster_map.html"
-            temp_map_path.parent.mkdir(parents=True, exist_ok=True)
-            m.save(str(temp_map_path))
-            
-            return self._create_placeholder_chart(width, height, "Cluster Map - HTML file saved")
+            return self._save_folium_map(m, "temp_cluster_map.html",
+                                        "Cluster Map", width, height)
             
         except Exception as e:
             log.error(f"Error creating cluster map: {e}")
@@ -1122,94 +1300,121 @@ class ChartGenerator:
             if title:
                 folium.TileLayer(
                     tiles='',
+                    attr='',
                     name=title,
                     overlay=True,
                     control=False
                 ).add_to(m)
             
-            # Save map to temporary file
-            temp_map_path = Path.home() / ".siege_utilities" / "temp_flow_map.html"
-            temp_map_path.parent.mkdir(parents=True, exist_ok=True)
-            m.save(str(temp_map_path))
-            
-            return self._create_placeholder_chart(width, height, "Flow Map - HTML file saved")
+            return self._save_folium_map(m, "temp_flow_map.html",
+                                        "Flow Map", width, height)
             
         except Exception as e:
             log.error(f"Error creating flow map: {e}")
             return self._create_placeholder_chart(width, height, f"Flow Map Error: {str(e)}")
 
     def create_bivariate_choropleth(self, data: Union[pd.DataFrame, Dict[str, Any]],
-                                  location_column: str, value_column1: str, value_column2: str,
-                                  title: str = "", width: float = 8.0, height: float = 6.0) -> Image:
+                                  geo_data: Union['gpd.GeoDataFrame', str, Path, Dict, None] = None,
+                                  location_column: str = None,
+                                  value_column1: str = None, value_column2: str = None,
+                                  title: str = "", width: float = 8.0, height: float = 6.0,
+                                  color_scheme: str = "default") -> Image:
         """
-        Create a bivariate choropleth map from data.
-        
+        Create a bivariate choropleth map from data using Folium.
+
+        Uses the same 3x3 bivariate color classification as
+        ``create_bivariate_choropleth_matplotlib`` but renders the result as an
+        interactive Folium map.
+
         Args:
-            data: DataFrame or dictionary with data
-            location_column: Column name for locations (country codes, state names, etc.)
-            value_column1: Column name for the first value to color by
-            value_column2: Column name for the second value to color by
+            data: DataFrame or dictionary with data (must include geometry if GeoDataFrame,
+                  or be joinable to *geo_data* via *location_column*)
+            geo_data: GeoDataFrame, path to GeoJSON, GeoJSON dict, or None.
+                      If *data* is already a GeoDataFrame this can be omitted.
+            location_column: Column to join data ↔ geo_data on
+            value_column1: First variable (X-axis in bivariate scheme)
+            value_column2: Second variable (Y-axis in bivariate scheme)
             title: Map title
             width: Map width in inches
             height: Map height in inches
-            
+            color_scheme: Bivariate color scheme ('default', 'blue_red', 'green_orange')
+
         Returns:
-            ReportLab Image object
+            ReportLab Image object (placeholder — HTML saved to output_dir)
         """
-        if not FOLIUM_AVAILABLE or not GEOPANDAS_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Folium or GeoPandas not available")
-        
+        if not FOLIUM_AVAILABLE:
+            return self._create_placeholder_chart(width, height, "Folium not available")
+        if not GEOPANDAS_AVAILABLE:
+            return self._create_placeholder_chart(width, height, "GeoPandas not available")
+
         try:
-            # Convert data to DataFrame if needed
+            # Convert data to DataFrame / GeoDataFrame
             if isinstance(data, dict):
                 df = pd.DataFrame(data)
             else:
                 df = data.copy()
-            
-            # Ensure location_column is a string
-            if not isinstance(location_column, str):
-                location_column = str(location_column)
-            
-            # Ensure value_column1 and value_column2 are strings
-            if not isinstance(value_column1, str):
-                value_column1 = str(value_column1)
-            if not isinstance(value_column2, str):
-                value_column2 = str(value_column2)
-            
-            # Create base map
-            m = folium.Map(location=[20, 0], zoom_start=2)
-            
-            # Add bivariate choropleth layer
-            folium.Choropleth(
-                geo_data=None,  # You'll need to provide GeoJSON data
-                name="bivariate_choropleth",
-                data=df,
-                columns=[location_column, value_column1, value_column2],
-                key_on="feature.id",
-                fill_color=["YlOrRd", "BuPu"], # Example color schemes
-                fill_opacity=0.7,
-                line_opacity=0.2,
-                legend_name=f"{value_column1} vs {value_column2}",
-                bins=[0, 10, 20, 30, 40, 50], # Example bins for bivariate
-                overlay=True,
-                highlight=True
+
+            # Resolve geodata
+            if geo_data is not None:
+                if isinstance(geo_data, (str, Path)):
+                    gdf = gpd.read_file(geo_data)
+                elif isinstance(geo_data, dict):
+                    gdf = gpd.GeoDataFrame.from_features(geo_data.get('features', geo_data))
+                else:
+                    gdf = geo_data.copy()
+                # Merge tabular data onto geometry — drop geometry from the
+                # tabular side first to avoid a duplicate geometry column
+                # (e.g. ``geometry_data``) that breaks JSON serialization.
+                if location_column and location_column in df.columns:
+                    df_tabular = df.drop(columns='geometry', errors='ignore')
+                    gdf = gdf.merge(df_tabular, on=location_column, how='left', suffixes=('', '_data'))
+            elif hasattr(df, 'geometry'):
+                gdf = df
+            else:
+                return self._create_placeholder_chart(width, height,
+                    "geo_data is required (GeoDataFrame, GeoJSON path, or dict)")
+
+            # Apply bivariate classification using existing helpers
+            color_matrix = self._create_bivariate_color_matrix(color_scheme)
+            gdf = self._apply_bivariate_colors(gdf, value_column1, value_column2, color_matrix)
+
+            # Build a color lookup keyed by index for the style_function
+            color_lookup = gdf['bivariate_color'].to_dict()
+
+            # Calculate map center from geometry bounds
+            bounds = gdf.total_bounds  # [minx, miny, maxx, maxy]
+            center_lat = (bounds[1] + bounds[3]) / 2
+            center_lon = (bounds[0] + bounds[2]) / 2
+
+            m = folium.Map(location=[center_lat, center_lon], zoom_start=6,
+                           tiles='cartodbpositron')
+
+            # Convert to GeoJSON and add styled layer
+            geojson_data = json.loads(gdf.to_json())
+
+            # Attach index to each feature so we can look up color
+            for i, feature in enumerate(geojson_data['features']):
+                feature['properties']['_idx'] = list(color_lookup.keys())[i]
+
+            folium.GeoJson(
+                geojson_data,
+                name=title or "Bivariate Choropleth",
+                style_function=lambda feature: {
+                    'fillColor': color_lookup.get(feature['properties'].get('_idx'), '#cccccc'),
+                    'color': 'black',
+                    'weight': 0.5,
+                    'fillOpacity': 0.7,
+                },
             ).add_to(m)
-            
-            # Add layer control
+
             folium.LayerControl().add_to(m)
-            
-            # Save map to temporary file
-            temp_map_path = Path.home() / ".siege_utilities" / "temp_map.html"
-            temp_map_path.parent.mkdir(parents=True, exist_ok=True)
-            m.save(str(temp_map_path))
-            
-            # Convert HTML to image (this is a simplified approach)
-            # In practice, you might want to use selenium or similar to render the HTML
-            return self._create_placeholder_chart(width, height, "Bivariate Choropleth Map - HTML file saved")
-            
+
+            return self._save_folium_map(m, "temp_bivariate_choropleth.html",
+                                        "Bivariate Choropleth", width, height)
+
         except Exception as e:
             log.error(f"Error creating bivariate choropleth map: {e}")
-            return self._create_placeholder_chart(width, height, f"Bivariate Choropleth Map Error: {str(e)}")
+            return self._create_placeholder_chart(width, height, f"Bivariate Choropleth Error: {str(e)}")
 
     def create_heatmap(self, data: Union[pd.DataFrame, Dict[str, Any]],
                       x_column: str = None, y_column: str = None, value_column: str = None,
@@ -1297,7 +1502,7 @@ class ChartGenerator:
             else:
                 df = data.copy()
             
-            # Create figure
+            # Create figure with very conservative sizing to prevent ReportLab crashes
             fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
             
             # Create scatter plot
@@ -1347,7 +1552,7 @@ class ChartGenerator:
             else:
                 cols, rows = 2, 2
             
-            # Create subplot grid
+            # Create subplot grid with very conservative sizing to prevent ReportLab crashes
             fig, axes = plt.subplots(rows, cols, figsize=(width, height), dpi=self.default_dpi)
             
             # Handle single subplot case
@@ -1499,39 +1704,206 @@ class ChartGenerator:
         except Exception as e:
             log.error(f"Error creating scatter subplot: {e}")
 
-    def _matplotlib_to_reportlab_image(self, fig, width: float, height: float) -> Image:
+    def _matplotlib_to_reportlab_image(self, fig, width: float, height: float,
+                                       max_width: Optional[float] = None,
+                                       max_height: Optional[float] = None) -> Image:
         """
-        Convert matplotlib figure to ReportLab Image.
-        
+        Convert matplotlib figure to ReportLab Image with size optimization.
+
         Args:
             fig: Matplotlib figure
             width: Image width in inches
             height: Image height in inches
-            
+            max_width: Per-call max width override for ``_scale_dimensions``.
+            max_height: Per-call max height override for ``_scale_dimensions``.
+
         Returns:
             ReportLab Image object
         """
         try:
-            # Save figure to bytes buffer
+            # Use high DPI for crisp, professional quality
+            optimal_dpi = self.default_dpi
+
+            # Save figure to bytes buffer with optimized settings
             img_buffer = io.BytesIO()
-            fig.savefig(img_buffer, format='png', dpi=self.default_dpi, bbox_inches='tight')
+            fig.savefig(img_buffer, format='png', dpi=optimal_dpi,
+                       facecolor='white', edgecolor='none', pad_inches=0.1)
             img_buffer.seek(0)
-            
+
+            # Check if image is still too large
+            img_size = len(img_buffer.getvalue())
+            if img_size > 5 * 1024 * 1024:  # 5MB limit
+                log.warning(f"Image size {img_size/1024/1024:.1f}MB exceeds limit, reducing quality")
+                img_buffer.seek(0)
+                fig.savefig(img_buffer, format='png', dpi=100,
+                           facecolor='white', edgecolor='none', pad_inches=0.1)
+                img_buffer.seek(0)
+
             # Encode as base64
             img_data = base64.b64encode(img_buffer.getvalue()).decode()
-            
+
             # Create data URL
             data_url = f"data:image/png;base64,{img_data}"
-            
+
             # Close the figure to free memory
             plt.close(fig)
-            
-            # Create ReportLab Image
-            return Image(data_url, width=width*inch, height=height*inch)
-            
+
+            # Auto-scale to fit within max bounds (if configured)
+            scaled_w, scaled_h = self._scale_dimensions(
+                width, height, max_width=max_width, max_height=max_height,
+            )
+
+            if scaled_w != width or scaled_h != height:
+                # Scaling occurred — set both dimensions explicitly
+                rl_image = Image(data_url, width=scaled_w * inch,
+                                 height=scaled_h * inch)
+            else:
+                # No scaling — let ReportLab determine height from image
+                rl_image = Image(data_url, width=width * inch)
+
+            return rl_image
+
         except Exception as e:
             log.error(f"Error converting matplotlib figure to ReportLab Image: {e}")
             return self._create_placeholder_chart(width, height, "Image Conversion Error")
+
+    def create_proportional_text_bar_chart(self, 
+                                         data: pd.DataFrame,
+                                         labels_column: str,
+                                         values_column: str,
+                                         title: str = "Proportional Text Bar Chart",
+                                         max_width: int = 50,
+                                         bar_char: str = "█",
+                                         show_values: bool = True,
+                                         sort_descending: bool = True) -> str:
+        """
+        Create a proportional text-based bar chart
+        
+        Args:
+            data: DataFrame containing the data
+            labels_column: Column name for labels
+            values_column: Column name for values
+            title: Chart title
+            max_width: Maximum width of bars in characters
+            bar_char: Character to use for bars
+            show_values: Whether to show actual values
+            sort_descending: Whether to sort by values descending
+            
+        Returns:
+            Formatted text chart string
+        """
+        try:
+            if data.empty:
+                return f"<i>No data available for {title}</i>"
+            
+            # Sort data if requested
+            if sort_descending:
+                data = data.sort_values(values_column, ascending=False)
+            
+            # Get max value for proportional scaling
+            max_value = data[values_column].max()
+            
+            # Create chart
+            chart_lines = [f"<b>{title}</b>", "=" * len(title), ""]
+            
+            for _, row in data.iterrows():
+                label = str(row[labels_column])
+                value = row[values_column]
+                
+                # Calculate proportional bar length
+                if max_value > 0:
+                    bar_length = int((value / max_value) * max_width)
+                else:
+                    bar_length = 0
+                
+                # Create bar
+                bar = bar_char * bar_length
+                
+                # Format the line
+                if show_values:
+                    chart_lines.append(f"{label:<20} {bar} {value:,}")
+                else:
+                    chart_lines.append(f"{label:<20} {bar}")
+            
+            return "<br/>".join(chart_lines)
+            
+        except Exception as e:
+            log.error(f"Error creating proportional text bar chart: {e}")
+            return f"<i>Error creating text bar chart: {str(e)}</i>"
+    
+    def create_heatmap_text_chart(self,
+                                data: pd.DataFrame,
+                                x_column: str,
+                                y_column: str,
+                                value_column: str,
+                                title: str = "Text Heatmap",
+                                max_width: int = 20,
+                                max_height: int = 10,
+                                heat_chars: str = " ░▒▓█") -> str:
+        """
+        Create a text-based heatmap visualization
+        
+        Args:
+            data: DataFrame containing the data
+            x_column: Column name for x-axis labels
+            y_column: Column name for y-axis labels
+            value_column: Column name for values
+            title: Chart title
+            max_width: Maximum width in characters
+            max_height: Maximum height in characters
+            heat_chars: Characters for heat intensity (light to dark)
+            
+        Returns:
+            Formatted text heatmap string
+        """
+        try:
+            if data.empty:
+                return f"<i>No data available for {title}</i>"
+            
+            # Create pivot table
+            pivot_data = data.pivot_table(
+                values=value_column, 
+                index=y_column, 
+                columns=x_column, 
+                fill_value=0
+            )
+            
+            # Normalize values to heat character indices
+            max_value = pivot_data.values.max()
+            min_value = pivot_data.values.min()
+            value_range = max_value - min_value if max_value > min_value else 1
+            
+            # Create heatmap
+            chart_lines = [f"<b>{title}</b>", "=" * len(title), ""]
+            
+            # Add column headers
+            col_headers = [f"{col:<8}" for col in pivot_data.columns]
+            chart_lines.append(" " * 12 + "".join(col_headers))
+            chart_lines.append(" " * 12 + "-" * len("".join(col_headers)))
+            
+            # Add rows
+            for idx, row in pivot_data.iterrows():
+                row_label = f"{str(idx):<10}"
+                heat_row = ""
+                
+                for value in row:
+                    # Normalize value to heat character index
+                    normalized = (value - min_value) / value_range
+                    char_index = int(normalized * (len(heat_chars) - 1))
+                    char_index = max(0, min(char_index, len(heat_chars) - 1))
+                    heat_row += heat_chars[char_index] * 2
+                
+                chart_lines.append(f"{row_label} {heat_row}")
+            
+            # Add legend
+            chart_lines.append("")
+            chart_lines.append("Legend: " + " ".join([f"{heat_chars[i]} {i/(len(heat_chars)-1)*100:.0f}%" for i in range(len(heat_chars))]))
+            
+            return "<br/>".join(chart_lines)
+            
+        except Exception as e:
+            log.error(f"Error creating text heatmap: {e}")
+            return f"<i>Error creating text heatmap: {str(e)}</i>"
 
     def _create_placeholder_chart(self, width: float, height: float, 
                                 text: str = "Chart Placeholder") -> Image:
@@ -1555,18 +1927,20 @@ class ChartGenerator:
                 ax.set_xlim(0, 1)
                 ax.set_ylim(0, 1)
                 ax.axis('off')
-                
-                # Convert to ReportLab Image
+
+                # Convert to ReportLab Image (inherits auto-scaling)
                 return self._matplotlib_to_reportlab_image(fig, width, height)
             else:
-                # Fallback to simple text
+                # Fallback to simple text — still honour auto-scaling
+                sw, sh = self._scale_dimensions(width, height)
                 return Image("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-                           width=width*inch, height=height*inch)
+                           width=sw*inch, height=sh*inch)
         except Exception as e:
             log.error(f"Error creating placeholder chart: {e}")
-            # Return a minimal image
+            # Return a minimal image — still honour auto-scaling
+            sw, sh = self._scale_dimensions(width, height)
             return Image("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-                       width=width*inch, height=height*inch)
+                       width=sw*inch, height=sh*inch)
 
     def create_chart_with_caption(self, chart: Image, caption: str, 
                                 caption_style: Optional[str] = None) -> List:
@@ -1648,7 +2022,7 @@ class ChartGenerator:
             elif chart_type == "scatter":
                 return self.create_scatter_plot(df, x_column, y_columns[0] if y_columns else None, title, width, height)
             elif chart_type == "heatmap":
-                return self.create_heatmap(df, x_column, y_columns[0] if y_columns else None, title, width, height)
+                return self.create_heatmap(df, title=title, width=width, height=height)
             elif chart_type == "choropleth":
                 return self.create_choropleth_map(df, x_column, y_columns[0] if y_columns else None, title, width, height)
             elif chart_type == "bivariate_choropleth":
@@ -1716,3 +2090,350 @@ class ChartGenerator:
         except Exception as e:
             log.error(f"Error creating custom chart: {e}")
             return self._create_placeholder_chart(width, height, "Custom Chart Error")
+
+
+# Standalone function wrappers for functional access
+def create_bar_chart(data: Union['pd.DataFrame', Dict[str, Any]], 
+                    x_column: Optional[str] = None,
+                    y_column: Optional[str] = None,
+                    title: str = "",
+                    width: int = 800,
+                    height: int = 600,
+                    **kwargs) -> Optional[Dict[str, Any]]:
+    """
+    Standalone function to create a bar chart.
+    
+    Args:
+        data: DataFrame or data dictionary
+        x_column: Column name for x-axis
+        y_column: Column name for y-axis  
+        title: Chart title
+        width: Chart width in pixels
+        height: Chart height in pixels
+        **kwargs: Additional chart parameters
+    
+    Returns:
+        Chart configuration dictionary or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_bar_chart(
+        data, x_column, y_column, title, width, height, **kwargs
+    )
+
+
+def create_line_chart(data: Union['pd.DataFrame', Dict[str, Any]], 
+                     x_column: Optional[str] = None,
+                     y_column: Optional[str] = None,
+                     title: str = "",
+                     width: int = 800,
+                     height: int = 600,
+                     **kwargs) -> Optional[Dict[str, Any]]:
+    """
+    Standalone function to create a line chart.
+    
+    Args:
+        data: DataFrame or data dictionary
+        x_column: Column name for x-axis
+        y_column: Column name for y-axis  
+        title: Chart title
+        width: Chart width in pixels
+        height: Chart height in pixels
+        **kwargs: Additional chart parameters
+    
+    Returns:
+        Chart configuration dictionary or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_line_chart(
+        data, x_column, y_column, title, width, height, **kwargs
+    )
+
+
+def create_scatter_plot(data: Union['pd.DataFrame', Dict[str, Any]], 
+                       x_column: Optional[str] = None,
+                       y_column: Optional[str] = None,
+                       title: str = "",
+                       width: int = 800,
+                       height: int = 600,
+                       **kwargs) -> Optional[Dict[str, Any]]:
+    """
+    Standalone function to create a scatter plot.
+    
+    Args:
+        data: DataFrame or data dictionary
+        x_column: Column name for x-axis
+        y_column: Column name for y-axis  
+        title: Chart title
+        width: Chart width in pixels
+        height: Chart height in pixels
+        **kwargs: Additional chart parameters
+    
+    Returns:
+        Chart configuration dictionary or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_scatter_plot(
+        data, x_column, y_column, title, width, height, **kwargs
+    )
+
+
+def create_pie_chart(data: Union['pd.DataFrame', Dict[str, Any]], 
+                    label_column: Optional[str] = None,
+                    value_column: Optional[str] = None,
+                    title: str = "",
+                    width: int = 800,
+                    height: int = 600,
+                    **kwargs) -> Optional[Dict[str, Any]]:
+    """
+    Standalone function to create a pie chart.
+    
+    Args:
+        data: DataFrame or data dictionary
+        label_column: Column name for labels
+        value_column: Column name for values
+        title: Chart title
+        width: Chart width in pixels
+        height: Chart height in pixels
+        **kwargs: Additional chart parameters
+    
+    Returns:
+        Chart configuration dictionary or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_pie_chart(
+        data, label_column, value_column, title, width, height, **kwargs
+    )
+
+def create_bivariate_choropleth(data: Union['pd.DataFrame', Dict[str, Any]],
+                               x_column: str = None,
+                               y_column: str = None,
+                               geoid_column: str = 'geoid',
+                               title: str = "Bivariate Choropleth Map",
+                               width: float = 12.0,
+                               height: float = 8.0,
+                               **kwargs) -> Optional['Image']:
+    """
+    Standalone function to create a bivariate choropleth map.
+    
+    Args:
+        data: DataFrame or dictionary with data
+        x_column: Column name for X-axis variable
+        y_column: Column name for Y-axis variable
+        geoid_column: Column name for geographic identifiers
+        title: Map title
+        width: Map width in inches
+        height: Map height in inches
+        **kwargs: Additional arguments
+    
+    Returns:
+        PIL Image object or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_bivariate_choropleth(
+        data, x_column, y_column, geoid_column, title, width, height, **kwargs
+    )
+
+def create_heatmap(data: Union['pd.DataFrame', Dict[str, Any]],
+                  x_column: str = None, 
+                  y_column: str = None, 
+                  value_column: str = None,
+                  title: str = "", 
+                  width: float = 8.0, 
+                  height: float = 6.0,
+                  **kwargs) -> Optional['Image']:
+    """
+    Standalone function to create a heatmap.
+    
+    Args:
+        data: DataFrame or dictionary with data
+        x_column: Column name for X-axis
+        y_column: Column name for Y-axis
+        value_column: Column name for values
+        title: Chart title
+        width: Chart width in inches
+        height: Chart height in inches
+        **kwargs: Additional arguments to pass to create_heatmap
+    
+    Returns:
+        PIL Image object or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_heatmap(
+        data, x_column, y_column, value_column, title, width, height, **kwargs
+    )
+
+
+def create_choropleth_map(data: Union['pd.DataFrame', Dict[str, Any]],
+                         location_column: str = None,
+                         value_column: str = None,
+                         title: str = "",
+                         width: float = 8.0,
+                         height: float = 6.0,
+                         map_type: str = "world",
+                         **kwargs) -> Optional['Image']:
+    """
+    Standalone function to create a choropleth map.
+
+    Args:
+        data: DataFrame or dictionary with data
+        location_column: Column name for locations (country codes, state names, etc.)
+        value_column: Column name for values to color by
+        title: Chart title
+        width: Chart width in inches
+        height: Chart height in inches
+        map_type: Type of map ("world", "usa", "europe", etc.)
+        **kwargs: Additional arguments
+
+    Returns:
+        PIL Image object or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_choropleth_map(
+        data, location_column, value_column, title, width, height, map_type, **kwargs
+    )
+
+
+def create_marker_map(data: Union['pd.DataFrame', Dict[str, Any]],
+                     latitude_column: str = None,
+                     longitude_column: str = None,
+                     value_column: str = None,
+                     label_column: str = None,
+                     title: str = "",
+                     width: float = 10.0,
+                     height: float = 8.0,
+                     map_style: str = "open-street-map",
+                     zoom_level: int = 10,
+                     **kwargs) -> Optional['Image']:
+    """
+    Standalone function to create a marker map.
+
+    Args:
+        data: DataFrame or dictionary with data
+        latitude_column: Column name for latitude values
+        longitude_column: Column name for longitude values
+        value_column: Column name for values (optional)
+        label_column: Column name for labels (optional)
+        title: Chart title
+        width: Chart width in inches
+        height: Chart height in inches
+        map_style: Map style
+        zoom_level: Initial zoom level
+        **kwargs: Additional arguments
+
+    Returns:
+        PIL Image object or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_marker_map(
+        data, latitude_column, longitude_column, value_column, label_column,
+        title, width, height, map_style, zoom_level, **kwargs
+    )
+
+
+def create_flow_map(data: Union['pd.DataFrame', Dict[str, Any]],
+                   origin_lat_column: str = None,
+                   origin_lon_column: str = None,
+                   dest_lat_column: str = None,
+                   dest_lon_column: str = None,
+                   flow_value_column: str = None,
+                   title: str = "",
+                   width: float = 12.0,
+                   height: float = 10.0,
+                   **kwargs) -> Optional['Image']:
+    """
+    Standalone function to create a flow map.
+
+    Args:
+        data: DataFrame or dictionary with data
+        origin_lat_column: Column name for origin latitude
+        origin_lon_column: Column name for origin longitude
+        dest_lat_column: Column name for destination latitude
+        dest_lon_column: Column name for destination longitude
+        flow_value_column: Column name for flow values (optional)
+        title: Chart title
+        width: Chart width in inches
+        height: Chart height in inches
+        **kwargs: Additional arguments
+
+    Returns:
+        PIL Image object or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_flow_map(
+        data, origin_lat_column, origin_lon_column, dest_lat_column, dest_lon_column,
+        flow_value_column, title, width, height, **kwargs
+    )
+
+
+def create_dashboard(charts: list,
+                    layout: str = "2x2",
+                    width: float = 12.0,
+                    height: float = 8.0,
+                    **kwargs) -> Optional['Image']:
+    """
+    Standalone function to create a dashboard with multiple charts.
+
+    Args:
+        charts: List of chart configurations
+        layout: Layout string (e.g., "2x2", "3x1")
+        width: Total dashboard width in inches
+        height: Total dashboard height in inches
+        **kwargs: Additional arguments
+
+    Returns:
+        PIL Image object or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_dashboard(charts, layout, width, height, **kwargs)
+
+
+def create_dataframe_summary_charts(df: 'pd.DataFrame',
+                                   title: str = "",
+                                   width: float = 8.0,
+                                   height: float = 6.0,
+                                   **kwargs) -> Optional['Image']:
+    """
+    Standalone function to create summary charts from a DataFrame.
+
+    Args:
+        df: Pandas DataFrame
+        title: Chart title
+        width: Chart width in inches
+        height: Chart height in inches
+        **kwargs: Additional arguments
+
+    Returns:
+        PIL Image object or None if error
+    """
+    generator = ChartGenerator()
+    return generator.create_dataframe_summary_charts(df, title, width, height, **kwargs)
+
+
+def generate_chart_from_dataframe(df: 'pd.DataFrame',
+                                 chart_type: str = "bar",
+                                 x_column: str = None,
+                                 y_columns: list = None,
+                                 title: str = "",
+                                 width: float = 6.0,
+                                 height: float = 4.0,
+                                 **kwargs) -> Optional['Image']:
+    """
+    Standalone function to generate a chart from a DataFrame.
+
+    Args:
+        df: Pandas DataFrame
+        chart_type: Type of chart to create
+        x_column: Column to use for X-axis labels
+        y_columns: Columns to plot
+        title: Chart title
+        width: Chart width in inches
+        height: Chart height in inches
+        **kwargs: Additional arguments
+
+    Returns:
+        PIL Image object or None if error
+    """
+    generator = ChartGenerator()
+    return generator.generate_chart_from_dataframe(
+        df, chart_type, x_column, y_columns, title, width, height, **kwargs
+    )

@@ -13,6 +13,8 @@ from enum import Enum
 import pandas as pd
 import warnings
 
+from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+
 class SurveyType(Enum):
     """Enumeration of Census survey types."""
     DECENNIAL = "decennial"           # Every 10 years (2020, 2010, etc.)
@@ -24,22 +26,47 @@ class SurveyType(Enum):
     HOUSING_ESTIMATES = "housing_estimates"  # Annual housing estimates
 
 class GeographyLevel(Enum):
-    """Enumeration of Census geography levels."""
+    """Enumeration of Census geography levels (canonical names)."""
     NATION = "nation"
     REGION = "region"
     DIVISION = "division"
     STATE = "state"
     COUNTY = "county"
-    COUNTY_SUBDIVISION = "county_subdivision"
+    COUSUB = "cousub"
     PLACE = "place"
-    CONGRESSIONAL_DISTRICT = "congressional_district"
-    STATE_LEGISLATIVE_DISTRICT = "state_legislative_district"
+    CD = "cd"
+    SLDU = "sldu"
+    SLDL = "sldl"
     TRACT = "tract"
     BLOCK_GROUP = "block_group"
     BLOCK = "block"
-    ZIP_CODE = "zip_code"
-    CBSA = "cbsa"  # Metropolitan/Micropolitan Statistical Areas
-    PUMA = "puma"  # Public Use Microdata Areas
+    ZCTA = "zcta"
+    CBSA = "cbsa"
+    PUMA = "puma"
+    VTD = "vtd"
+    VTD20 = "vtd20"
+    TABBLOCK20 = "tabblock20"
+    TABBLOCK10 = "tabblock10"
+
+    # Backward-compatible aliases (same value → Python Enum alias)
+    COUNTY_SUBDIVISION = "cousub"
+    CONGRESSIONAL_DISTRICT = "cd"
+    STATE_LEGISLATIVE_DISTRICT = "sldu"  # defaults to upper chamber
+    ZIP_CODE = "zcta"
+    VOTING_DISTRICT = "vtd"
+
+    @classmethod
+    def _missing_(cls, value):
+        """Resolve aliases like 'congressional_district' → CD."""
+        from siege_utilities.config.census_constants import resolve_geographic_level
+        try:
+            canonical = resolve_geographic_level(value)
+            for member in cls:
+                if member.value == canonical:
+                    return member
+        except ValueError:
+            pass
+        return None
 
 class DataReliability(Enum):
     """Enumeration of data reliability levels."""
@@ -608,8 +635,8 @@ class CensusDatasetMapper:
         
         with open(filepath, 'w') as f:
             json.dump(catalog, f, indent=2)
-        
-        print(f"Dataset catalog exported to {filepath}")
+
+        log_info(f"Dataset catalog exported to {filepath}")
 
 # Convenience functions
 def get_census_dataset_mapper() -> CensusDatasetMapper:
@@ -634,6 +661,50 @@ def get_best_dataset_for_analysis(analysis_type: str,
     geo_level = GeographyLevel(geography_level)
     return mapper.get_data_selection_guide(analysis_type, geo_level, time_sensitivity)
 
+def get_dataset_info(dataset_name: str) -> Optional[CensusDataset]:
+    """Convenience function to get information about a specific dataset."""
+    mapper = get_census_dataset_mapper()
+    return mapper.get_dataset_info(dataset_name)
+
+def list_datasets_by_type(survey_type: str) -> List[CensusDataset]:
+    """Convenience function to list all datasets of a specific survey type."""
+    mapper = get_census_dataset_mapper()
+    survey_type_enum = SurveyType(survey_type)
+    return mapper.list_datasets_by_type(survey_type_enum)
+
+def list_datasets_by_geography(geography_level: str) -> List[CensusDataset]:
+    """Convenience function to list all datasets for a specific geography level."""
+    mapper = get_census_dataset_mapper()
+    geo_level_enum = GeographyLevel(geography_level)
+    return mapper.list_datasets_by_geography(geo_level_enum)
+
+def get_dataset_relationships(dataset_name: str) -> List[DatasetRelationship]:
+    """Convenience function to get relationships for a dataset."""
+    mapper = get_census_dataset_mapper()
+    return mapper.get_dataset_relationships(dataset_name)
+
+def get_best_dataset_for_use_case(use_case: str, geography_level: str = "county", time_sensitivity: str = "medium") -> Dict[str, Any]:
+    """Convenience function to get the best dataset for a specific use case."""
+    mapper = get_census_dataset_mapper()
+    geo_level_enum = GeographyLevel(geography_level)
+    return mapper.get_best_dataset_for_use_case(use_case, geo_level_enum, time_sensitivity)
+
+def export_dataset_catalog(filepath: str):
+    """Convenience function to export the dataset catalog."""
+    mapper = get_census_dataset_mapper()
+    return mapper.export_dataset_catalog(filepath)
+
+def get_data_selection_guide(analysis_type: str, geography_level: str, time_sensitivity: str = "medium") -> Dict[str, Any]:
+    """Convenience function to get data selection guide."""
+    mapper = get_census_dataset_mapper()
+    geo_level_enum = GeographyLevel(geography_level)
+    return mapper.get_data_selection_guide(analysis_type, geo_level_enum, time_sensitivity)
+
+def compare_datasets(dataset1_name: str, dataset2_name: str) -> Dict[str, Any]:
+    """Convenience function to compare two datasets."""
+    mapper = get_census_dataset_mapper()
+    return mapper.compare_datasets(dataset1_name, dataset2_name)
+
 def compare_census_datasets(dataset1_name: str, dataset2_name: str) -> Dict[str, Any]:
     """Convenience function to compare two Census datasets."""
     mapper = get_census_dataset_mapper()
@@ -647,10 +718,10 @@ if __name__ == "__main__":
         geography_level="tract",
         time_sensitivity="medium"
     )
-    print("Data Selection Guide:")
-    print(json.dumps(guide, indent=2))
-    
+    log_info("Data Selection Guide:")
+    log_info(json.dumps(guide, indent=2))
+
     # Example: Compare decennial census with ACS
     comparison = compare_census_datasets("decennial_2020", "acs_5yr_2020")
-    print("\nDataset Comparison:")
-    print(json.dumps(comparison, indent=2))
+    log_info("Dataset Comparison:")
+    log_info(json.dumps(comparison, indent=2))

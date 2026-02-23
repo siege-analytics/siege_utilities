@@ -1,0 +1,41 @@
+# Default Branding Configuration
+defaults:
+  - _self_
+
+# Color scheme
+colors:
+  primary_color: "#1f77b4"
+  secondary_color: "#ff7f0e"
+  accent_color: "#2ca02c"
+  text_color: "#000000"
+  background_color: "#ffffff"
+
+# Typography
+typography:
+  primary_font: "Arial"
+  secondary_font: "Arial"
+  title_font_size: 24
+  subtitle_font_size: 18
+  body_font_size: 12
+  caption_font_size: 10
+
+# Logo settings
+logo:
+  logo_path: null
+  logo_width: null
+  logo_height: null
+
+# Layout settings
+layout:
+  header_height: 40
+  footer_height: 20
+  margin_top: 20
+  margin_bottom: 20
+  margin_left: 20
+  margin_right: 20
+
+# Chart styling
+charts:
+  chart_color_palette: "viridis"
+  chart_background_color: "#ffffff"
+  chart_grid_color: "#e0e0e0"

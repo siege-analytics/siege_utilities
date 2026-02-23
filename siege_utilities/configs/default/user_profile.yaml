@@ -1,0 +1,32 @@
+# Default User Profile Configuration
+defaults:
+  - _self_
+
+# Personal Information
+username: ""
+email: ""
+full_name: ""
+github_login: ""
+organization: ""
+
+# Preferences
+preferred_download_directory: "~/Downloads/siege_utilities"
+default_output_format: "pptx"
+preferred_map_style: "open-street-map"
+default_color_scheme: "YlOrRd"
+
+# Technical Preferences
+default_dpi: 300
+default_figure_size: [10, 8]
+enable_logging: true
+log_level: "INFO"
+
+# API Keys
+google_analytics_key: ""
+facebook_business_key: ""
+census_api_key: ""
+
+# Database Preferences
+default_database: "postgresql"
+postgresql_connection: ""
+duckdb_path: ""

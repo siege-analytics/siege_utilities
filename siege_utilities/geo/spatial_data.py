@@ -27,6 +27,26 @@ from ..files.remote import download_file, generate_local_path_from_url
 from ..files.paths import unzip_file_to_directory, ensure_path_exists
 from ..config.user_config import get_user_config, get_download_directory
 
+# Import centralized constants
+from ..config import (
+    CENSUS_BASE_URL,
+    CENSUS_TIMEOUT,
+    CENSUS_CACHE_TIMEOUT,
+    CENSUS_RETRY_ATTEMPTS,
+    DEFAULT_CENSUS_YEAR,
+    AVAILABLE_CENSUS_YEARS,
+    STATE_FIPS_CODES,
+    FIPS_TO_STATE,
+    STATE_NAMES,
+    GEOGRAPHIC_LEVELS,
+    TIGER_FILE_PATTERNS,
+    normalize_state_identifier,
+    get_tiger_url,
+    validate_geographic_level,
+    get_fips_info,
+    get_service_timeout
+)
+
 # Get logger for this module
 log = logging.getLogger(__name__)
 
@@ -34,110 +54,153 @@ log = logging.getLogger(__name__)
 FilePath = Union[str, Path]
 GeoDataFrame = gpd.GeoDataFrame
 
+# ---------------------------------------------------------------------------
+# Boundary Type Catalog
+# ---------------------------------------------------------------------------
+# Reference data for Census TIGER/Line boundary types.
+# Keys match the internal names returned by discover_boundary_types().
+# Each entry: category (redistricting | general), Census abbreviation, human name.
+
+BOUNDARY_TYPE_CATALOG = {
+    # --- Redistricting & Electoral ---
+    'state':        {'category': 'redistricting', 'abbrev': 'STATE',      'name': 'State Boundaries'},
+    'county':       {'category': 'redistricting', 'abbrev': 'COUNTY',     'name': 'County Boundaries'},
+    'cousub':       {'category': 'redistricting', 'abbrev': 'COUSUB',     'name': 'County Subdivisions (townships)'},
+    'tract':        {'category': 'redistricting', 'abbrev': 'TRACT',      'name': 'Census Tracts'},
+    'block_group':  {'category': 'redistricting', 'abbrev': 'BG',         'name': 'Block Groups'},
+    'block':        {'category': 'redistricting', 'abbrev': 'TABBLOCK',   'name': 'Census Blocks (atomic unit)'},
+    'tabblock20':   {'category': 'redistricting', 'abbrev': 'TABBLOCK20', 'name': 'Census Blocks (2020)'},
+    'tabblock10':   {'category': 'redistricting', 'abbrev': 'TABBLOCK10', 'name': 'Census Blocks (2010)'},
+    'place':        {'category': 'redistricting', 'abbrev': 'PLACE',      'name': 'Places (cities/towns)'},
+    'cd':           {'category': 'redistricting', 'abbrev': 'CD',         'name': 'Congressional Districts'},
+    'cd116':        {'category': 'redistricting', 'abbrev': 'CD116',      'name': 'Congressional Districts (116th)'},
+    'cd117':        {'category': 'redistricting', 'abbrev': 'CD117',      'name': 'Congressional Districts (117th)'},
+    'cd118':        {'category': 'redistricting', 'abbrev': 'CD118',      'name': 'Congressional Districts (118th)'},
+    'cd119':        {'category': 'redistricting', 'abbrev': 'CD119',      'name': 'Congressional Districts (119th)'},
+    'sldu':         {'category': 'redistricting', 'abbrev': 'SLDU',       'name': 'State Legislative Upper (Senate)'},
+    'sldl':         {'category': 'redistricting', 'abbrev': 'SLDL',       'name': 'State Legislative Lower (House)'},
+    'vtd':          {'category': 'redistricting', 'abbrev': 'VTD',        'name': 'Voting Districts / Precincts'},
+    'vtd20':        {'category': 'redistricting', 'abbrev': 'VTD20',      'name': 'Voting Districts (2020)'},
+    'zcta':         {'category': 'redistricting', 'abbrev': 'ZCTA5',      'name': 'ZIP Code Tabulation Areas'},
+    # --- General ---
+    'cbsa':         {'category': 'general', 'abbrev': 'CBSA',      'name': 'Core-Based Statistical Areas'},
+    'csa':          {'category': 'general', 'abbrev': 'CSA',       'name': 'Combined Statistical Areas'},
+    'metdiv':       {'category': 'general', 'abbrev': 'METDIV',    'name': 'Metropolitan Divisions'},
+    'micro':        {'category': 'general', 'abbrev': 'MICRO',     'name': 'Micropolitan Statistical Areas'},
+    'necta':        {'category': 'general', 'abbrev': 'NECTA',     'name': 'New England City & Town Areas'},
+    'nectadiv':     {'category': 'general', 'abbrev': 'NECTADIV',  'name': 'NECTA Divisions'},
+    'cnecta':       {'category': 'general', 'abbrev': 'CNECTA',    'name': 'Combined NECTAs'},
+    'aiannh':       {'category': 'general', 'abbrev': 'AIANNH',    'name': 'American Indian / Alaska Native Areas'},
+    'aitsce':       {'category': 'general', 'abbrev': 'AITSCE',    'name': 'Tribal Subdivisions'},
+    'ttract':       {'category': 'general', 'abbrev': 'TTRACT',    'name': 'Tribal Census Tracts'},
+    'tbg':          {'category': 'general', 'abbrev': 'TBG',       'name': 'Tribal Block Groups'},
+    'elsd':         {'category': 'general', 'abbrev': 'ELSD',      'name': 'Elementary School Districts'},
+    'scsd':         {'category': 'general', 'abbrev': 'SCSD',      'name': 'Secondary School Districts'},
+    'unsd':         {'category': 'general', 'abbrev': 'UNSD',      'name': 'Unified School Districts'},
+    'address_features': {'category': 'general', 'abbrev': 'ADDRFEAT',    'name': 'Address Features'},
+    'linear_water': {'category': 'general', 'abbrev': 'LINEARWATER', 'name': 'Linear Water Features'},
+    'area_water':   {'category': 'general', 'abbrev': 'AREAWATER',  'name': 'Area Water Features'},
+    'roads':        {'category': 'general', 'abbrev': 'ROADS',      'name': 'Roads'},
+    'rails':        {'category': 'general', 'abbrev': 'RAILS',      'name': 'Railroads'},
+    'edges':        {'category': 'general', 'abbrev': 'EDGES',      'name': 'All Edges (roads, hydro, etc.)'},
+    'anrc':         {'category': 'general', 'abbrev': 'ANRC',       'name': 'Alaska Native Regional Corps'},
+    'concity':      {'category': 'general', 'abbrev': 'CONCITY',    'name': 'Consolidated Cities'},
+    'submcd':       {'category': 'general', 'abbrev': 'SUBMCD',     'name': 'Sub-Minor Civil Divisions'},
+    'uac':          {'category': 'general', 'abbrev': 'UAC',        'name': 'Urban Areas'},
+    'uac20':        {'category': 'general', 'abbrev': 'UAC20',      'name': 'Urban Areas (2020)'},
+}
+
 
 class CensusDirectoryDiscovery:
     """Discovers available Census TIGER/Line data dynamically."""
     
-    def __init__(self, timeout: int = 30):
-        self.base_url = "https://www2.census.gov/geo/tiger"
-        self.timeout = timeout
+    def __init__(self, timeout: Optional[int] = None):
+        self.base_url = CENSUS_BASE_URL
+        self.timeout = timeout or get_service_timeout('census_api')
         self.cache = {}
-        self.cache_timeout = 3600  # 1 hour
+        self.cache_timeout = CENSUS_CACHE_TIMEOUT
         
+    def _parse_year_links(self, content: bytes) -> List[int]:
+        """Parse Census directory HTML to extract available years."""
+        soup = BeautifulSoup(content, 'html.parser')
+        year_patterns = [
+            re.compile(r'TIGER(\d{4})'),
+            re.compile(r'GENZ(\d{4})'),
+            re.compile(r'TGRGDB(\d{2})'),  # TGRGDB13, TGRGDB14, etc.
+            re.compile(r'TGRGPKG(\d{2})')  # TGRGPKG24, TGRGPKG25, etc.
+        ]
+
+        years = []
+        for link in soup.find_all('a'):
+            href = link.get('href', '')
+            for pattern in year_patterns:
+                match = pattern.search(href)
+                if match:
+                    if 'TGRGDB' in href or 'TGRGPKG' in href:
+                        year = 2000 + int(match.group(1))
+                    else:
+                        year = int(match.group(1))
+                    if 1990 <= year <= datetime.now().year + 1:
+                        years.append(year)
+                    break
+
+        return sorted(list(set(years)))
+
     def get_available_years(self, force_refresh: bool = False) -> List[int]:
-        """Get list of available Census years."""
+        """Get list of available Census years with retry and exponential backoff."""
         cache_key = "available_years"
-        
+
         if not force_refresh and cache_key in self.cache:
             cache_time, data = self.cache[cache_key]
             if time.time() - cache_time < self.cache_timeout:
                 return data
-        
-        try:
-            # Try with SSL verification first (increased timeout)
-            response = requests.get(self.base_url, timeout=30)
-            response.raise_for_status()
-            
-            # Parse HTML to find TIGER and GENZ year directories
-            soup = BeautifulSoup(response.content, 'html.parser')
-            # Handle both TIGER and GENZ patterns, plus other variations
-            year_patterns = [
-                re.compile(r'TIGER(\d{4})'),
-                re.compile(r'GENZ(\d{4})'),
-                re.compile(r'TGRGDB(\d{2})'),  # TGRGDB13, TGRGDB14, etc.
-                re.compile(r'TGRGPKG(\d{2})')  # TGRGPKG24, TGRGPKG25, etc.
-            ]
-            
-            years = []
-            for link in soup.find_all('a'):
-                href = link.get('href', '')
-                
-                # Try each pattern
-                for pattern in year_patterns:
-                    match = pattern.search(href)
-                    if match:
-                        if 'TGRGDB' in href or 'TGRGPKG' in href:
-                            # Convert 2-digit years to 4-digit (assume 20xx)
-                            year = 2000 + int(match.group(1))
-                        else:
-                            year = int(match.group(1))
-                        
-                        if 1990 <= year <= datetime.now().year + 1:
-                            years.append(year)
-                        break
-            
-            # Remove duplicates and sort
-            years = sorted(list(set(years)))
-            self.cache[cache_key] = (time.time(), years)
-            return years
-            
-        except requests.exceptions.SSLError:
-            log.warning("SSL verification failed, trying without verification...")
+
+        last_exception = None
+        for attempt in range(CENSUS_RETRY_ATTEMPTS):
+            verify_ssl = True
             try:
-                # Fallback: try without SSL verification (increased timeout)
-                response = requests.get(self.base_url, timeout=30, verify=False)
+                log.debug(f"Discovering Census years (attempt {attempt + 1}/{CENSUS_RETRY_ATTEMPTS})")
+                response = requests.get(self.base_url, timeout=self.timeout, verify=verify_ssl)
                 response.raise_for_status()
-                
-                # Parse HTML to find TIGER and GENZ year directories
-                soup = BeautifulSoup(response.content, 'html.parser')
-                year_patterns = [
-                    re.compile(r'TIGER(\d{4})'),
-                    re.compile(r'GENZ(\d{4})'),
-                    re.compile(r'TGRGDB(\d{2})'),
-                    re.compile(r'TGRGPKG(\d{2})')
-                ]
-                
-                years = []
-                for link in soup.find_all('a'):
-                    href = link.get('href', '')
-                    
-                    for pattern in year_patterns:
-                        match = pattern.search(href)
-                        if match:
-                            if 'TGRGDB' in href or 'TGRGPKG' in href:
-                                year = 2000 + int(match.group(1))
-                            else:
-                                year = int(match.group(1))
-                            
-                            if 1990 <= year <= datetime.now().year + 1:
-                                years.append(year)
-                            break
-                
-                years = sorted(list(set(years)))
+
+                years = self._parse_year_links(response.content)
                 self.cache[cache_key] = (time.time(), years)
                 return years
-                
+
+            except requests.exceptions.SSLError:
+                if verify_ssl:
+                    log.warning("SSL verification failed, retrying without verification...")
+                    verify_ssl = False
+                    try:
+                        response = requests.get(self.base_url, timeout=self.timeout, verify=False)
+                        response.raise_for_status()
+                        years = self._parse_year_links(response.content)
+                        self.cache[cache_key] = (time.time(), years)
+                        return years
+                    except Exception as e:
+                        last_exception = e
+
+            except requests.exceptions.Timeout as e:
+                last_exception = e
+                log.warning(f"Census directory request timed out (attempt {attempt + 1}/{CENSUS_RETRY_ATTEMPTS})")
+
+            except requests.exceptions.RequestException as e:
+                last_exception = e
+                log.warning(f"Census directory request failed (attempt {attempt + 1}/{CENSUS_RETRY_ATTEMPTS}): {e}")
+
             except Exception as e:
-                log.error(f"Failed to discover available years (with SSL bypass): {e}")
-                log.info("Using fallback years (2010-present)")
-                # Fallback to known years
-                return list(range(2010, datetime.now().year + 1))
-                
-        except Exception as e:
-            log.error(f"Failed to discover available years: {e}")
-            log.info("Using fallback years (2010-present)")
-            # Fallback to known years
-            return list(range(2010, datetime.now().year + 1))
+                last_exception = e
+                log.warning(f"Unexpected error during Census discovery (attempt {attempt + 1}/{CENSUS_RETRY_ATTEMPTS}): {e}")
+
+            # Exponential backoff before retry (1s, 2s, 4s, 8s, ...)
+            if attempt < CENSUS_RETRY_ATTEMPTS - 1:
+                sleep_time = 2 ** attempt
+                log.info(f"Retrying in {sleep_time}s...")
+                time.sleep(sleep_time)
+
+        log.error(f"Failed to discover available years after {CENSUS_RETRY_ATTEMPTS} attempts: {last_exception}")
+        log.info("Using fallback years (2010-present)")
+        return list(range(2010, datetime.now().year + 1))
     
     def get_year_directory_contents(self, year: int, force_refresh: bool = False) -> List[str]:
         """Get contents of a specific TIGER year directory."""
@@ -150,7 +213,7 @@ class CensusDirectoryDiscovery:
         
         try:
             year_url = f"{self.base_url}/TIGER{year}/"
-            response = requests.get(year_url, timeout=30)
+            response = requests.get(year_url, timeout=self.timeout)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.content, 'html.parser')
@@ -169,7 +232,7 @@ class CensusDirectoryDiscovery:
             try:
                 # Fallback: try without SSL verification
                 year_url = f"{self.base_url}/TIGER{year}/"
-                response = requests.get(year_url, timeout=30, verify=False)
+                response = requests.get(year_url, timeout=self.timeout, verify=False)
                 response.raise_for_status()
                 
                 soup = BeautifulSoup(response.content, 'html.parser')
@@ -281,87 +344,186 @@ class CensusDirectoryDiscovery:
         
         return available_types
     
+    def get_year_specific_url_patterns(self, year: int) -> Dict[str, Any]:
+        """Get year-specific URL patterns and directory structures."""
+        patterns = {
+            # Base patterns that work across most years
+            'base_url': f"{self.base_url}/TIGER{year}",
+            'filename_patterns': {
+                # National files (no state FIPS needed)
+                'national': 'tl_{year}_us_{boundary_type}.zip',
+                # State-specific files (state FIPS required)
+                'state': 'tl_{year}_{state_fips}_{boundary_type}.zip',
+                # Congressional districts with number
+                'congress': 'tl_{year}_us_cd{congress_num}.zip'
+            },
+            'directory_mappings': {}
+        }
+        
+        # Year-specific adjustments
+        if year >= 2020:
+            # 2020 and later have some different patterns
+            patterns['directory_mappings'].update({
+                'tabblock': 'TABBLOCK20',
+                'vtd': 'VTD20',
+                'uac': 'UAC20'
+            })
+        elif year >= 2010:
+            patterns['directory_mappings'].update({
+                'tabblock': 'TABBLOCK10',
+                'vtd': 'VTD10',
+                'uac': 'UAC10'
+            })
+        
+        return patterns
+    
     def construct_download_url(self, year: int, boundary_type: str, state_fips: Optional[str] = None, 
                               congress_number: Optional[int] = None) -> Optional[str]:
-        """Construct download URL based on discovered directory structure."""
+        """Construct download URL using FIPS validation and year-specific patterns."""
         try:
+            # Validate state_fips using centralized FIPS data
+            if state_fips:
+                if state_fips not in FIPS_TO_STATE:
+                    log.error(f"Invalid state FIPS code: {state_fips}. Valid codes: {list(FIPS_TO_STATE.keys())[:10]}...")
+                    return None
+                
+                state_info = get_fips_info(state_fips)
+                log.info(f"Constructing URL for {state_info['name']} ({state_info['abbreviation']})")
+            
+            # Get year-specific patterns
+            patterns = self.get_year_specific_url_patterns(year)
+            
             # Get available boundary types for this year
             available_types = self.discover_boundary_types(year)
             
             if boundary_type not in available_types:
                 log.warning(f"Boundary type '{boundary_type}' not available for year {year}")
+                log.info(f"Available types for {year}: {list(available_types.keys())[:10]}...")
                 return None
             
             directory = available_types[boundary_type]
-            base_url = f"{self.base_url}/TIGER{year}/{directory}"
+            base_url = f"{patterns['base_url']}/{directory}"
             
-            # Construct filename based on boundary type and parameters
-            if boundary_type in ['state', 'county']:
-                filename = f"tl_{year}_us_{boundary_type}.zip"
-            elif boundary_type.startswith('cd') and len(boundary_type) > 2:
-                # Handle specific congress numbers (cd108, cd109, etc.)
-                congress_num = boundary_type[2:]
-                filename = f"tl_{year}_us_cd{congress_num}.zip"
-            elif boundary_type == 'cd' and congress_number:
-                filename = f"tl_{year}_us_cd{congress_number}.zip"
-            elif boundary_type in ['tabblock20', 'tabblock10']:
-                if not state_fips:
-                    log.error(f"State FIPS required for {boundary_type}")
-                    return None
-                filename = f"tl_{year}_{state_fips}_{boundary_type}.zip"
-            elif boundary_type in ['sldu', 'sldl']:
-                if not state_fips:
-                    log.error(f"State FIPS required for {boundary_type}")
-                    return None
-                filename = f"tl_{year}_{state_fips}_{boundary_type}.zip"
-            elif boundary_type in ['tract', 'block_group', 'block']:
-                if not state_fips:
-                    log.error(f"State FIPS required for {boundary_type}")
-                    return None
-                filename = f"tl_{year}_{state_fips}_{boundary_type}.zip"
-            elif boundary_type in ['cbsa', 'csa', 'metdiv', 'micro', 'necta', 'nectadiv', 'cnecta']:
-                # Metropolitan and statistical areas are national
-                filename = f"tl_{year}_us_{boundary_type}.zip"
-            elif boundary_type in ['aiannh', 'aitsce', 'ttract', 'tbg']:
-                # Tribal boundaries are national
-                filename = f"tl_{year}_us_{boundary_type}.zip"
-            elif boundary_type in ['elsd', 'scsd', 'unsd']:
-                # School districts are national
-                filename = f"tl_{year}_us_{boundary_type}.zip"
-            elif boundary_type in ['uac', 'uac20']:
-                # Urban areas are national
-                filename = f"tl_{year}_us_{boundary_type}.zip"
-            elif boundary_type in ['vtd', 'vtd20']:
-                # Voting districts are national
-                filename = f"tl_{year}_us_{boundary_type}.zip"
-            elif boundary_type in ['place', 'zcta', 'anrc', 'concity', 'submcd', 'cousub']:
-                # These can be either national or state-specific
-                if state_fips:
-                    filename = f"tl_{year}_{state_fips}_{boundary_type}.zip"
-                else:
-                    filename = f"tl_{year}_us_{boundary_type}.zip"
-            else:
-                # Generic pattern for other types
-                if state_fips:
-                    filename = f"tl_{year}_{state_fips}_{boundary_type}.zip"
-                else:
-                    filename = f"tl_{year}_us_{boundary_type}.zip"
+            # Determine which filename pattern to use
+            filename = self._construct_filename_with_fips_validation(
+                year, boundary_type, state_fips, congress_number, patterns
+            )
             
-            return f"{base_url}/{filename}"
+            if not filename:
+                return None
+            
+            final_url = f"{base_url}/{filename}"
+            log.info(f"Constructed URL: {final_url}")
+            
+            return final_url
             
         except Exception as e:
             log.error(f"Failed to construct URL for {boundary_type} in year {year}: {e}")
             return None
     
+    def _construct_filename_with_fips_validation(self, year: int, boundary_type: str, 
+                                               state_fips: Optional[str], congress_number: Optional[int],
+                                               patterns: Dict[str, Any]) -> Optional[str]:
+        """Construct filename using FIPS validation and boundary type rules."""
+        
+        # Define which boundary types require state FIPS (canonical names)
+        state_required_types = {
+            'tabblock', 'tabblock10', 'tabblock20', 'tract', 'block_group', 'block',
+            'sldu', 'sldl', 'vtd', 'vtd10', 'vtd20', 'cousub', 'submcd'
+        }
+        
+        # Define national-only types (never use state FIPS in URL)
+        # Note: county is national-only but we filter results post-download
+        national_only_types = {
+            'state', 'county', 'cbsa', 'csa', 'metdiv', 'micro', 'necta',
+            'nectadiv', 'cnecta', 'aiannh', 'aitsce', 'ttract', 'tbg',
+            'elsd', 'scsd', 'unsd', 'uac', 'uac10', 'uac20'
+        }
+
+        # Define flexible types (can be national or state-specific)
+        flexible_types = {'place', 'zcta', 'anrc', 'concity'}
+        
+        # Handle congressional districts specially
+        if boundary_type.startswith('cd'):
+            if len(boundary_type) > 2:
+                # Specific congress number in boundary type (cd118, cd119, etc.)
+                congress_num = boundary_type[2:]
+                return patterns['filename_patterns']['congress'].format(
+                    year=year, congress_num=congress_num
+                )
+            elif congress_number:
+                # Congress number provided separately
+                return patterns['filename_patterns']['congress'].format(
+                    year=year, congress_num=congress_number
+                )
+            else:
+                log.error("Congressional district boundary type requires congress number")
+                return None
+        
+        # Handle state-required types
+        elif boundary_type in state_required_types:
+            if not state_fips:
+                log.error(f"State FIPS required for {boundary_type}. Available FIPS codes:")
+                for fips, state_abbrev in list(FIPS_TO_STATE.items())[:10]:
+                    state_name = STATE_NAMES[state_abbrev]
+                    log.error(f"  {fips}: {state_name} ({state_abbrev})")
+                return None
+            
+            return patterns['filename_patterns']['state'].format(
+                year=year, state_fips=state_fips, boundary_type=boundary_type
+            )
+        
+        # Handle national-only types
+        elif boundary_type in national_only_types:
+            return patterns['filename_patterns']['national'].format(
+                year=year, boundary_type=boundary_type
+            )
+        
+        # Handle flexible types
+        elif boundary_type in flexible_types:
+            if state_fips:
+                # User provided state FIPS, use state-specific version
+                state_info = get_fips_info(state_fips)
+                log.info(f"Using state-specific {boundary_type} for {state_info['name']}")
+                return patterns['filename_patterns']['state'].format(
+                    year=year, state_fips=state_fips, boundary_type=boundary_type
+                )
+            else:
+                # No state FIPS provided, use national version
+                log.info(f"Using national {boundary_type} file")
+                return patterns['filename_patterns']['national'].format(
+                    year=year, boundary_type=boundary_type
+                )
+        
+        # Default pattern for unknown types
+        else:
+            log.warning(f"Unknown boundary type: {boundary_type}, using default pattern")
+            if state_fips:
+                return patterns['filename_patterns']['state'].format(
+                    year=year, state_fips=state_fips, boundary_type=boundary_type
+                )
+            else:
+                return patterns['filename_patterns']['national'].format(
+                    year=year, boundary_type=boundary_type
+                )
+    
     def validate_download_url(self, url: str) -> bool:
-        """Check if a download URL is actually accessible."""
+        """Check if a download URL is actually accessible.
+
+        Uses GET with stream=True instead of HEAD because CDNs like Cloudflare
+        often block or throttle HEAD requests from non-browser User-Agents.
+        """
+        headers = {'User-Agent': 'siege_utilities/1.0 (Census data client)'}
         try:
-            response = requests.head(url, timeout=30)
+            response = requests.get(url, timeout=self.timeout, stream=True, headers=headers)
+            response.close()
             return response.status_code == 200
         except requests.exceptions.SSLError:
             log.debug(f"SSL verification failed for {url}, trying without verification...")
             try:
-                response = requests.head(url, timeout=30, verify=False)
+                response = requests.get(url, timeout=self.timeout, stream=True,
+                                        headers=headers, verify=False)
+                response.close()
                 return response.status_code == 200
             except Exception as e:
                 log.debug(f"URL validation failed for {url} (with SSL bypass): {e}")
@@ -418,11 +580,12 @@ class SpatialDataSource:
 class CensusDataSource(SpatialDataSource):
     """Enhanced Census data source with dynamic discovery."""
     
-    def __init__(self, api_key: Optional[str] = None, timeout: int = 30):
-        super().__init__("Census Bureau", "https://www2.census.gov/geo/tiger", api_key)
+    def __init__(self, api_key: Optional[str] = None, timeout: Optional[int] = None):
+        super().__init__("Census Bureau", CENSUS_BASE_URL, api_key)
         
         # Initialize discovery service with configurable timeout
-        self.discovery = CensusDirectoryDiscovery(timeout=timeout)
+        census_timeout = timeout or get_service_timeout('census_api')
+        self.discovery = CensusDirectoryDiscovery(timeout=census_timeout)
         
         # Get available years dynamically
         self.available_years = self.discovery.get_available_years()
@@ -432,11 +595,32 @@ class CensusDataSource(SpatialDataSource):
         
         # Geographic levels that don't require state FIPS
         self.national_levels = ['nation', 'state', 'county', 'place', 'zcta', 'cd']
-        
+
         log.info(f"Initialized Census data source with {len(self.available_years)} available years")
-    
+
+    def get_available_years(self, force_refresh: bool = False) -> List[int]:
+        """Get list of available Census years.
+
+        Args:
+            force_refresh: If True, re-discover years from Census server
+
+        Returns:
+            List of available years
+        """
+        if force_refresh:
+            self.available_years = self.discovery.get_available_years(force_refresh=True)
+        return self.available_years
+
+    def get_year_directory_contents(self, year: int) -> List[str]:
+        """Get directory contents for a specific year."""
+        return self.discovery.get_year_directory_contents(year)
+
+    def discover_boundary_types(self, year: int) -> List[str]:
+        """Discover available boundary types for a year."""
+        return self.discovery.discover_boundary_types(year)
+
     def get_geographic_boundaries(self, 
-                                year: int = 2020,
+                                year: int = DEFAULT_CENSUS_YEAR,
                                 geographic_level: str = 'county',
                                 state_fips: Optional[str] = None,
                                 county_fips: Optional[str] = None,
@@ -455,6 +639,21 @@ class CensusDataSource(SpatialDataSource):
             GeoDataFrame with boundaries or None if failed
         """
         try:
+            # Normalize state identifier to FIPS code using centralized function
+            normalized_fips = None
+            if state_fips:
+                try:
+                    normalized_fips = normalize_state_identifier(state_fips)
+                except ValueError as e:
+                    log.error(f"Invalid state identifier: '{state_fips}' - {e}")
+                    log.info("Valid examples: FIPS ('06'), abbreviation ('CA'), or name ('California')")
+                    return None
+                
+                # Get FIPS info for logging normalized state info using centralized function
+                state_info = get_fips_info(normalized_fips)
+                log.info(f"Normalized '{state_fips}' to FIPS {normalized_fips}: {state_info['name']} ({state_info['abbreviation']})")
+                state_fips = normalized_fips
+            
             # Validate parameters
             self._validate_census_parameters(year, geographic_level, state_fips)
             
@@ -499,43 +698,23 @@ class CensusDataSource(SpatialDataSource):
     
     def get_available_state_fips(self) -> Dict[str, str]:
         """Get mapping of state FIPS codes to state names."""
-        return {
-            '01': 'Alabama', '02': 'Alaska', '04': 'Arizona', '05': 'Arkansas',
-            '06': 'California', '08': 'Colorado', '09': 'Connecticut', '10': 'Delaware',
-            '11': 'District of Columbia', '12': 'Florida', '13': 'Georgia', '15': 'Hawaii',
-            '16': 'Idaho', '17': 'Illinois', '18': 'Indiana', '19': 'Iowa',
-            '20': 'Kansas', '21': 'Kentucky', '22': 'Louisiana', '23': 'Maine',
-            '24': 'Maryland', '25': 'Massachusetts', '26': 'Michigan', '27': 'Minnesota',
-            '28': 'Mississippi', '29': 'Missouri', '30': 'Montana', '31': 'Nebraska',
-            '32': 'Nevada', '33': 'New Hampshire', '34': 'New Jersey', '35': 'New Mexico',
-            '36': 'New York', '37': 'North Carolina', '38': 'North Dakota', '39': 'Ohio',
-            '40': 'Oklahoma', '41': 'Oregon', '42': 'Pennsylvania', '44': 'Rhode Island',
-            '45': 'South Carolina', '46': 'South Dakota', '47': 'Tennessee', '48': 'Texas',
-            '49': 'Utah', '50': 'Vermont', '51': 'Virginia', '53': 'Washington',
-            '54': 'West Virginia', '55': 'Wisconsin', '56': 'Wyoming',
-            '60': 'American Samoa', '66': 'Guam', '69': 'Northern Mariana Islands',
-            '72': 'Puerto Rico', '74': 'U.S. Minor Outlying Islands', '78': 'U.S. Virgin Islands'
-        }
+        # Use centralized FIPS data
+        return {fips: STATE_NAMES[abbrev] for fips, abbrev in FIPS_TO_STATE.items()}
+    
+    # DEPRECATED: Old FIPS data method removed - use centralized constants instead
     
     def get_state_abbreviations(self) -> Dict[str, str]:
         """Get mapping of state FIPS codes to state abbreviations."""
-        return {
-            '01': 'AL', '02': 'AK', '04': 'AZ', '05': 'AR',
-            '06': 'CA', '08': 'CO', '09': 'CT', '10': 'DE',
-            '11': 'DC', '12': 'FL', '13': 'GA', '15': 'HI',
-            '16': 'ID', '17': 'IL', '18': 'IN', '19': 'IA',
-            '20': 'KS', '21': 'KY', '22': 'LA', '23': 'ME',
-            '24': 'MD', '25': 'MA', '26': 'MI', '27': 'MN',
-            '28': 'MS', '29': 'MO', '30': 'MT', '31': 'NE',
-            '32': 'NV', '33': 'NH', '34': 'NJ', '35': 'NM',
-            '36': 'NY', '37': 'NC', '38': 'ND', '39': 'OH',
-            '40': 'OK', '41': 'OR', '42': 'PA', '44': 'RI',
-            '45': 'SC', '46': 'SD', '47': 'TN', '48': 'TX',
-            '49': 'UT', '50': 'VT', '51': 'VA', '53': 'WA',
-            '54': 'WV', '55': 'WI', '56': 'WY',
-            '60': 'AS', '66': 'GU', '69': 'MP',
-            '72': 'PR', '74': 'UM', '78': 'VI'
-        }
+        # Use centralized FIPS data
+        return FIPS_TO_STATE.copy()
+    
+    def normalize_state_identifier(self, state_input) -> Optional[str]:
+        """Convert any state identifier (FIPS, abbreviation, name) to FIPS code."""
+        # DEPRECATED: Use centralized normalize_state_identifier function instead
+        try:
+            return normalize_state_identifier(state_input)
+        except ValueError:
+            return None
     
     def get_comprehensive_state_info(self) -> Dict[str, Dict[str, str]]:
         """Get comprehensive state information including FIPS, name, and abbreviation."""
@@ -661,7 +840,22 @@ class CensusDataSource(SpatialDataSource):
             if not download_success:
                 log.error("Failed to download TIGER/Line data")
                 return None
-            
+
+            # Validate downloaded file is actually a zip (not an HTML challenge page)
+            import zipfile
+            zip_path = Path(zip_filename)
+            if not zipfile.is_zipfile(zip_path):
+                log.warning(f"Downloaded file is not a valid zip: {zip_path} "
+                            f"({zip_path.stat().st_size} bytes) — removing and retrying")
+                zip_path.unlink(missing_ok=True)
+                # Retry once — the first attempt may have been an anti-bot challenge
+                download_success = download_file(url, zip_filename)
+                if not download_success or not zipfile.is_zipfile(zip_path):
+                    log.error("Retry failed: downloaded file is still not a valid zip")
+                    zip_path.unlink(missing_ok=True)
+                    return None
+                log.info("Retry succeeded — valid zip file downloaded")
+
             # Unzip using existing function
             unzip_dir = unzip_file_to_directory(Path(zip_filename))
             if not unzip_dir:
@@ -780,7 +974,7 @@ class GovernmentDataSource(SpatialDataSource):
         try:
             import requests
             
-            response = requests.get(url, timeout=30)
+            response = requests.get(url, timeout=get_service_timeout('census_download'))
             if response.ok:
                 data = response.json()
                 return data.get('result', {})
@@ -899,7 +1093,7 @@ class OpenStreetMapDataSource(SpatialDataSource):
             response = requests.get(
                 self.base_url,
                 params={'data': full_query},
-                timeout=60
+                timeout=get_service_timeout('census_download')
             )
             
             if not response.ok:
@@ -921,31 +1115,284 @@ def get_census_data(api_key: Optional[str] = None) -> CensusDataSource:
     """Get Census data source instance."""
     return CensusDataSource(api_key)
 
-def get_census_boundaries(year: int = 2020, geographic_level: str = 'county',
-                         state_fips: Optional[str] = None) -> Optional[GeoDataFrame]:
-    """Convenience function to get Census boundaries."""
+def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str = 'county',
+                         state_fips: Optional[str] = None, state_identifier: Optional[str] = None) -> Optional[GeoDataFrame]:
+    """
+    Convenience function to get Census boundaries.
+
+    Args:
+        year: Census year
+        geographic_level: Geographic level (county, tract, etc.)
+        state_fips: State FIPS code (e.g., '06' for California)
+        state_identifier: State identifier - accepts FIPS code, abbreviation, or name
+                         (e.g., '06', 'CA', 'California' all work)
+
+    Note:
+        Provide either state_fips OR state_identifier, not both.
+        If both are provided, state_identifier takes precedence.
+
+    Returns:
+        GeoDataFrame with Census boundaries (filtered by state if specified)
+    """
     source = CensusDataSource()
-    return source.get_geographic_boundaries(year, geographic_level, state_fips)
+
+    # National-only boundary types (downloaded as national file, filtered post-download)
+    national_only_types = {'state', 'county', 'cbsa', 'csa', 'metdiv', 'micro', 'necta',
+                          'nectadiv', 'cnecta', 'aiannh', 'uac', 'uac10', 'uac20'}
+
+    # Handle both parameter names for backward compatibility
+    state_param = state_identifier or state_fips
+    normalized_fips = None
+
+    # If state_identifier is provided, normalize it to FIPS
+    if state_param:
+        try:
+            # First normalize the input format (trim, uppercase, pad FIPS)
+            normalized_input = normalize_state_input(state_param)
+            # Then convert to FIPS code
+            normalized_fips = normalize_state_identifier(normalized_input)
+        except ValueError as e:
+            log.error(f"Invalid state identifier: '{state_param}' - {e}")
+            return None
+
+    # Download boundaries
+    # For national-only types, don't pass state_fips to the download function
+    if geographic_level in national_only_types:
+        gdf = source.get_geographic_boundaries(year, geographic_level, None)
+    else:
+        gdf = source.get_geographic_boundaries(year, geographic_level, normalized_fips)
+
+    # Post-download filtering for national-only types when state is specified
+    if gdf is not None and normalized_fips and geographic_level in national_only_types:
+        # Filter by state FIPS column (statefp or STATEFP)
+        fips_col = None
+        for col in ['statefp', 'STATEFP', 'statefp20', 'STATEFP20', 'statefp10', 'STATEFP10']:
+            if col in gdf.columns:
+                fips_col = col
+                break
+
+        if fips_col:
+            original_count = len(gdf)
+            gdf = gdf[gdf[fips_col] == normalized_fips].copy()
+            log.info(f"Filtered {geographic_level} from {original_count} to {len(gdf)} features for state {normalized_fips}")
+        else:
+            log.warning(f"No state FIPS column found in {geographic_level} data - cannot filter by state")
+
+    return gdf
 
 def download_osm_data(query: str, bbox: Optional[List[float]] = None) -> Optional[GeoDataFrame]:
     """Convenience function to download OSM data."""
     source = OpenStreetMapDataSource()
     return source.download_osm_data(query, bbox)
 
+# Standalone convenience functions
+def get_available_years(force_refresh: bool = False) -> List[int]:
+    """Get available Census years."""
+    return census_source.get_available_years(force_refresh)
+
+def get_year_directory_contents(year: int) -> List[str]:
+    """Get directory contents for a specific year."""
+    return census_source.get_year_directory_contents(year)
+
+def discover_boundary_types(year: int) -> List[str]:
+    """Discover available boundary types for a year."""
+    return census_source.discover_boundary_types(year)
+
+def construct_download_url(year: int, geographic_level: str, state_fips: Optional[str] = None) -> str:
+    """Construct download URL for Census data."""
+    return census_source.construct_download_url(year, geographic_level, state_fips)
+
+def validate_download_url(url: str) -> bool:
+    """Validate a download URL."""
+    return census_source.validate_download_url(url)
+
+def get_optimal_year(geographic_level: str, preferred_year: Optional[int] = None) -> int:
+    """Get optimal year for geographic level.
+
+    Args:
+        geographic_level: Geographic level (county, tract, etc.)
+        preferred_year: Preferred year (defaults to current year if None)
+
+    Returns:
+        Best available year for the requested boundary type
+    """
+    from datetime import datetime
+    year = preferred_year if preferred_year is not None else datetime.now().year
+    return census_source.get_optimal_year(year, geographic_level)
+
+def download_data(year: int, geographic_level: str, state_fips: Optional[str] = None) -> Optional[GeoDataFrame]:
+    """Download Census data.
+
+    This is a convenience wrapper around get_geographic_boundaries().
+
+    Args:
+        year: Census year
+        geographic_level: Geographic level (state, county, tract, etc.)
+        state_fips: State FIPS code (required for tract, block_group, etc.)
+
+    Returns:
+        GeoDataFrame with boundaries or None if failed
+    """
+    return census_source.get_geographic_boundaries(year, geographic_level, state_fips)
+
+def get_geographic_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str = 'county', 
+                            state_fips: Optional[str] = None, state_identifier: Optional[str] = None) -> Optional[GeoDataFrame]:
+    """Get geographic boundaries."""
+    return census_source.get_geographic_boundaries(year, geographic_level, state_fips, state_identifier)
+
+def get_available_boundary_types(year: int) -> List[str]:
+    """Get available boundary types for a year."""
+    return census_source.get_available_boundary_types(year)
+
+def refresh_discovery_cache() -> None:
+    """Refresh the discovery cache."""
+    return census_source.refresh_discovery_cache()
+
+def get_unified_fips_data() -> Dict[str, Dict[str, Any]]:
+    """Get unified FIPS data with state names and abbreviations."""
+    return census_source.get_comprehensive_state_info()
+
+def normalize_state_identifier_standalone(identifier: str) -> str:
+    """Normalize state identifier - standalone function."""
+    return census_source.normalize_state_identifier(identifier)
+
+def normalize_state_input(raw_input: str) -> str:
+    """
+    Normalize state input to handle formatting and trivial errors.
+    
+    Args:
+        raw_input: Raw state input (name, abbreviation, or FIPS)
+    
+    Returns:
+        Normalized input (uppercase, trimmed, FIPS padded)
+    
+    Examples:
+        normalize_state_input("  ca  ") -> "CA"
+        normalize_state_input("CAlifornia") -> "CALIFORNIA" 
+        normalize_state_input("6") -> "06"
+    """
+    if not raw_input:
+        return raw_input
+    
+    # Trim whitespace and convert to uppercase
+    normalized = raw_input.strip().upper()
+    
+    # Handle numeric FIPS codes (6 -> 06)
+    if normalized.isdigit():
+        return normalized.zfill(2)
+    
+    return normalized
+
+def normalize_state_name(name: str) -> str:
+    """
+    Normalize state name input (e.g., "CAlifornia" -> "CALIFORNIA").
+    
+    Args:
+        name: State name input
+    
+    Returns:
+        Normalized state name in uppercase
+    """
+    return normalize_state_input(name)
+
+def normalize_state_abbreviation(abbrev: str) -> str:
+    """
+    Normalize state abbreviation input (e.g., " ca " -> "CA").
+    
+    Args:
+        abbrev: State abbreviation input
+    
+    Returns:
+        Normalized state abbreviation in uppercase
+    """
+    return normalize_state_input(abbrev)
+
+def normalize_fips_code(fips: Union[str, int]) -> str:
+    """
+    Normalize FIPS code input (e.g., 6 -> "06", "6" -> "06").
+    
+    Args:
+        fips: FIPS code as string or integer
+    
+    Returns:
+        Normalized FIPS code as 2-digit string
+    """
+    if isinstance(fips, int):
+        fips = str(fips)
+    
+    normalized = str(fips).strip()
+    if normalized.isdigit():
+        return normalized.zfill(2)
+    
+    return normalized.upper()
+
+def get_available_state_fips() -> List[str]:
+    """Get available state FIPS codes."""
+    return census_source.get_available_state_fips()
+
+def get_state_abbreviations() -> List[str]:
+    """Get state abbreviations."""
+    return census_source.get_state_abbreviations()
+
+def get_comprehensive_state_info() -> Dict[str, Dict[str, Any]]:
+    """Get comprehensive state information."""
+    return census_source.get_comprehensive_state_info()
+
+def get_state_by_abbreviation(abbreviation: str) -> Optional[Dict[str, Any]]:
+    """Get state info by abbreviation."""
+    return census_source.get_state_by_abbreviation(abbreviation)
+
+def get_state_by_name(name: str) -> Optional[Dict[str, Any]]:
+    """Get state info by name."""
+    return census_source.get_state_by_name(name)
+
+def validate_state_fips(fips: str) -> bool:
+    """Validate state FIPS code."""
+    return census_source.validate_state_fips(fips)
+
+def get_state_name(fips: str) -> Optional[str]:
+    """Get state name from FIPS code."""
+    return census_source.get_state_name(fips)
+
+def get_state_abbreviation(fips: str) -> Optional[str]:
+    """Get state abbreviation from FIPS code."""
+    return census_source.get_state_abbreviation(fips)
+
+def download_dataset(year: int, geographic_level: str, state_fips: Optional[str] = None) -> Optional[GeoDataFrame]:
+    """Download Census dataset."""
+    return census_source.download_dataset(year, geographic_level, state_fips)
+
 # Global instances for easy access
-census_source = CensusDataSource(timeout=45)  # Longer timeout for better reliability
+census_source = CensusDataSource()  # Uses centralized Census timeout settings
 government_source = GovernmentDataSource("https://data.gov")
 osm_source = OpenStreetMapDataSource()
 
 __all__ = [
+    # Classes
     'SpatialDataSource',
-    'CensusDataSource', 
+    'CensusDataSource',
     'GovernmentDataSource',
     'OpenStreetMapDataSource',
     'CensusDirectoryDiscovery',
+    # Census functions
     'get_census_data',
     'get_census_boundaries',
+    'get_available_years',
+    'get_year_directory_contents',
+    'discover_boundary_types',
+    'download_data',
+    'get_geographic_boundaries',
+    # State normalization
+    'normalize_state_identifier',
+    'normalize_state_input',
+    'normalize_state_name',
+    'normalize_state_abbreviation',
+    'normalize_fips_code',
+    'get_state_by_abbreviation',
+    'get_state_by_name',
+    # OSM
     'download_osm_data',
+    # Global instances
     'census_source',
     'government_source',
     'osm_source'

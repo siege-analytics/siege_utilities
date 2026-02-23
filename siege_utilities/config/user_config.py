@@ -1,10 +1,12 @@
 """
 User configuration management for siege_utilities.
 Handles user preferences, default settings, and personal information.
+Enhanced with Pydantic validation while maintaining backward compatibility.
 """
 
 import logging
 import json
+import warnings
 import yaml
 from pathlib import Path
 from typing import Dict, Any, Optional, Union
@@ -12,12 +14,26 @@ import os
 from dataclasses import dataclass, asdict
 import getpass
 
+# Import enhanced config for validation
+from .enhanced_config import UserProfile as EnhancedUserProfile, load_user_profile as enhanced_load_user_profile
+
 log = logging.getLogger(__name__)
 
 @dataclass
 class UserProfile:
-    """User profile information and preferences."""
-    
+    """User profile information and preferences.
+
+    .. deprecated::
+        Use ``User`` from ``siege_utilities.config.models.actor_types`` instead.
+    """
+
+    def __post_init__(self):
+        warnings.warn(
+            "UserProfile (dataclass) is deprecated. Use User from siege_utilities.config.models.actor_types instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
     # Personal Information
     username: str = ""
     email: str = ""
@@ -78,20 +94,36 @@ class UserConfigManager:
                 with open(self.user_config_file, 'r') as f:
                     config_data = yaml.safe_load(f)
                     if config_data:
+                        # Convert lists back to tuples for specific fields
+                        if 'default_figure_size' in config_data and isinstance(config_data['default_figure_size'], list):
+                            config_data['default_figure_size'] = tuple(config_data['default_figure_size'])
                         return UserProfile(**config_data)
             except Exception as e:
                 log.warning(f"Failed to load user config: {e}")
-        
+
         # Return default profile
         return UserProfile()
     
     def _save_user_profile(self):
         """Save user profile to configuration file."""
         try:
+            config_dict = asdict(self.user_profile)
+            # Convert tuples to lists for YAML compatibility
+            config_dict = self._convert_to_yaml_safe(config_dict)
             with open(self.user_config_file, 'w') as f:
-                yaml.dump(asdict(self.user_profile), f, default_flow_style=False)
+                yaml.dump(config_dict, f, default_flow_style=False)
         except Exception as e:
             log.error(f"Failed to save user config: {e}")
+
+    def _convert_to_yaml_safe(self, obj):
+        """Convert Python objects to YAML-safe types."""
+        if isinstance(obj, dict):
+            return {k: self._convert_to_yaml_safe(v) for k, v in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            return [self._convert_to_yaml_safe(item) for item in obj]
+        elif hasattr(obj, 'value'):  # Enum
+            return obj.value
+        return obj
     
     def get_user_profile(self) -> UserProfile:
         """Get the current user profile."""
@@ -133,8 +165,8 @@ class UserConfigManager:
     
     def setup_initial_profile(self):
         """Interactive setup for initial user profile."""
-        print("🚀 Welcome to Siege Utilities!")
-        print("Let's set up your user profile.\n")
+        log.info("Welcome to Siege Utilities!")
+        log.info("Let's set up your user profile.")
         
         # Get user information
         username = input("Username (for file naming): ").strip()
@@ -158,8 +190,8 @@ class UserConfigManager:
             preferred_download_directory=download_dir
         )
         
-        print(f"\n✅ User profile created successfully!")
-        print(f"Configuration saved to: {self.user_config_file}")
+        log.info("User profile created successfully!")
+        log.info(f"Configuration saved to: {self.user_config_file}")
     
     def get_api_key(self, service: str) -> str:
         """
@@ -255,7 +287,7 @@ class UserConfigManager:
             with open(output_path, 'w') as f:
                 yaml.dump(config_data, f, default_flow_style=False)
             
-            print(f"✅ Configuration exported to: {output_path}")
+            log.info(f"Configuration exported to: {output_path}")
         except Exception as e:
             log.error(f"Failed to export configuration: {e}")
     
@@ -276,7 +308,7 @@ class UserConfigManager:
                     setattr(self.user_profile, key, value)
             
             self._save_user_profile()
-            print(f"✅ Configuration imported from: {input_path}")
+            log.info(f"Configuration imported from: {input_path}")
         except Exception as e:
             log.error(f"Failed to import configuration: {e}")
 
@@ -287,6 +319,43 @@ def get_user_config() -> UserConfigManager:
     """Get the global user configuration manager."""
     return user_config
 
-def get_download_directory(specific_path: Optional[str] = None) -> Path:
-    """Get the appropriate download directory."""
-    return user_config.get_download_directory(specific_path)
+def get_download_directory(specific_path: Optional[str] = None, client_code: Optional[str] = None, config_dir: Optional[Path] = None) -> Path:
+    """
+    Get the appropriate download directory with hierarchical resolution.
+
+    Priority order:
+    1. specific_path if provided
+    2. Client-specific directory if client_code provided and client profile exists
+    3. User's preferred download directory from profile
+    4. Default fallback (~/.siege_utilities/downloads)
+
+    Args:
+        specific_path: Specific path override (highest priority)
+        client_code: Client code for client-specific directory
+        config_dir: Configuration directory (unused, kept for compatibility)
+
+    Returns:
+        Path object for download directory
+    """
+    # Priority 1: Specific path override
+    if specific_path:
+        download_dir = Path(specific_path)
+        download_dir.mkdir(parents=True, exist_ok=True)
+        return download_dir
+
+    # Priority 2: Client-specific directory
+    if client_code:
+        try:
+            from .enhanced_config import load_client_profile
+            client_profile = load_client_profile(client_code, config_dir)
+            if client_profile:
+                # Client profiles don't have download_directory anymore,
+                # use a client-specific subdirectory instead
+                client_dir = user_config.get_download_directory() / "clients" / client_code.lower()
+                client_dir.mkdir(parents=True, exist_ok=True)
+                return client_dir
+        except Exception as e:
+            log.debug(f"Could not load client profile for {client_code}: {e}")
+
+    # Priority 3 & 4: User's preferred directory or default
+    return user_config.get_download_directory()

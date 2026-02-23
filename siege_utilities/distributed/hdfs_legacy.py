@@ -9,49 +9,7 @@ import time
 import hashlib
 from typing import Optional, Tuple, Dict
 
-
-def log_info(msg):
-    """""\"
-Log a message using the info level.
-
-Part of Siege Utilities Logging module.
-Auto-discovered and available at package level.
-
-Returns:
-    Description needed
-
-Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.log_info()
-    >>> print(result)
-
-Note:
-    This function is auto-discovered and available without imports
-    across all siege_utilities modules.
-""\""""
-    print(f'INFO: {msg}')
-
-
-def log_error(msg):
-    """""\"
-Log a message using the error level.
-
-Part of Siege Utilities Logging module.
-Auto-discovered and available at package level.
-
-Returns:
-    Description needed
-
-Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.log_error()
-    >>> print(result)
-
-Note:
-    This function is auto-discovered and available without imports
-    across all siege_utilities modules.
-""\""""
-    print(f'ERROR: {msg}')
+from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
 
 
 def get_quick_file_signature(file_path):

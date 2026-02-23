@@ -1,0 +1,5 @@
+# Ignore generated notebook output (PNGs, PDFs, etc.)
+# These are produced by headless notebook execution and should not be tracked
+*
+!.gitignore
+!README.md

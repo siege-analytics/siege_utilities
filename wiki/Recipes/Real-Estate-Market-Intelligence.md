@@ -41,13 +41,13 @@ pip install plotly dash folium seaborn scikit-learn
 ```python
 from siege_utilities.geo.spatial_data import census_source
 from siege_utilities.analytics import search_datadotworld_datasets
-from siege_utilities.core.logging import setup_logging
+from siege_utilities.core.logging import init_logger
 import pandas as pd
 import geopandas as gpd
 import numpy as np
 
 # Setup logging
-setup_logging(level='INFO')
+init_logger('real_estate_analysis', level='INFO')
 
 # Define target markets (major metropolitan areas)
 target_metros = {
@@ -85,10 +85,11 @@ print(f"Available boundaries: {list(boundary_types.keys())}")
 
 ```python
 from siege_utilities.files import ensure_path_exists, get_download_directory
+import siege_utilities as su
 import time
 
-# Create data directory structure
-data_dir = get_download_directory() / "real_estate_intelligence" / str(analysis_year)
+# Create data directory structure using profile system
+data_dir = su.get_download_directory() / "real_estate_intelligence" / str(analysis_year)
 ensure_path_exists(data_dir)
 
 # Download boundaries and demographics for each target state

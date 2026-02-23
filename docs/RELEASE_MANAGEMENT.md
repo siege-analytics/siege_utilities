@@ -1,418 +1,264 @@
-# Release Management System
+# Release Management
 
-## Overview
+## Versioning Policy
 
-The Siege Utilities Release Management System provides automated, consistent releases across GitHub and PyPI. It ensures version consistency, automates the release process, and maintains proper documentation.
+siege_utilities follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html):
 
-## Features
+- **Major** (X.0.0) — breaking API changes
+- **Minor** (0.X.0) — new features, backward-compatible
+- **Patch** (0.0.X) — bug fixes only
 
-### 🔄 **Version Consistency**
-- **Cross-Platform Sync**: Ensures GitHub releases and PyPI packages have matching versions
-- **Automatic Detection**: Identifies version mismatches across platforms
-- **Semantic Versioning**: Supports major, minor, and patch version bumps
+Pre-release versions use the format `X.Y.Z-rc.N` (e.g., `2.0.0-rc.1`).
 
-### 🚀 **Automated Release Process**
-- **Full Automation**: Complete release pipeline from version bump to deployment
-- **Test Integration**: Runs test suite before release
-- **Documentation Updates**: Automatically updates CHANGELOG.md
-- **Git Operations**: Handles commits, tags, and pushes
+Version is tracked in **four** files, all kept in sync by `scripts/release_manager.py`:
 
-### 🛠️ **Flexible Operations**
-- **Individual Steps**: Run specific parts of the release process
-- **Skip Options**: Bypass tests or PyPI upload when needed
-- **Manual Override**: Force releases regardless of interval
+| File | Location |
+|------|----------|
+| `pyproject.toml` | `version = "X.Y.Z"` |
+| `setup.py` | `version="X.Y.Z"` |
+| `siege_utilities/__init__.py` | `__version__ = "X.Y.Z"` |
+| `siege_utilities/__init__.py` | `'version': 'X.Y.Z'` in `get_package_info()` |
 
-## Quick Start
+## Branch Naming Convention
 
-### 1. **Check Current Status**
-```bash
-# Check version consistency across platforms
-./scripts/release.sh check
+| Pattern | Purpose | Base | Merges to |
+|---------|---------|------|-----------|
+| `main` | Stable releases only | — | — |
+| `develop` | Integration branch | — | `main` (via release branch) |
+| `dheerajchand/<name>` | Feature development (author-prefixed) | `develop` | `develop` |
+| `feature/<name>` | Feature development (type-prefixed) | `develop` | `develop` |
+| `release/vX.Y.Z` | Release stabilization | `develop` | `main` AND `develop` |
+| `hotfix/vX.Y.Z` | Urgent production fixes | `main` | `main` AND `develop` |
 
-# Or use Python directly
-python scripts/release_manager.py --check
+**Rules:**
+- All feature work branches from and merges back to `develop`
+- Only release and hotfix branches touch `main`
+- Branch names use lowercase, hyphens, no spaces
+- The `dheerajchand/sketch/*` pattern is legacy; new branches use `dheerajchand/<name>`
+
+## Release Workflow
+
+### 1. Feature Development
+
+```
+develop ──── dheerajchand/my-feature ──── PR ──── develop
 ```
 
-### 2. **Bump Version**
-```bash
-# Bump minor version (1.0.0 → 1.1.0)
-./scripts/release.sh bump minor
+Features are developed on author-prefixed branches, tested via CI, and merged to `develop` via PR.
 
-# Bump patch version (1.0.0 → 1.0.1)
-./scripts/release.sh bump patch
+### 2. Release Stabilization
 
-# Bump major version (1.0.0 → 2.0.0)
-./scripts/release.sh bump major
-```
-
-### 3. **Build Package**
-```bash
-# Build Python package (source and wheel)
-./scripts/release.sh build
-```
-
-### 4. **Upload to PyPI**
-```bash
-# Upload built package to PyPI
-./scripts/release.sh upload-pypi
-```
-
-### 5. **Full Release**
-```bash
-# Complete release process
-./scripts/release.sh release minor "New features and improvements"
-```
-
-## Environment Setup
-
-### Required Environment Variables
+When `develop` is ready for release:
 
 ```bash
-# GitHub API token for creating releases
-export GITHUB_TOKEN="ghp_your_token_here"
+# Create release branch
+git checkout develop
+git pull origin develop
+git checkout -b release/v2.0.0
 
-# PyPI API token for uploading packages
-export PYPI_TOKEN="pypi_your_token_here"
+# Stabilize: fix last-minute bugs, update CHANGELOG.md
+# No new features — only fixes and documentation
 ```
 
-### Token Setup
+### 3. Execute Release
 
-#### GitHub Token
-1. Go to GitHub Settings → Developer settings → Personal access tokens
-2. Generate new token with `repo` scope
-3. Copy token and set environment variable
+```bash
+# Full release with PyPI upload
+python scripts/release_manager.py --release \
+    --bump-type major \
+    --changelog \
+    --pypi \
+    --repository pypi
 
-#### PyPI Token
-1. Go to PyPI Account Settings → API tokens
-2. Create new token with upload permissions
-3. Copy token and set environment variable
+# Or dry-run first
+python scripts/release_manager.py --release \
+    --bump-type major \
+    --changelog \
+    --dry-run
+```
 
-## Detailed Usage
+The release manager executes a 10-step workflow:
 
-### Command Line Interface
+1. Check version consistency across all 4 files
+2. Run test suite (unless `--skip-tests`)
+3. Bump version
+4. Verify package imports correctly
+5. Clean build artifacts
+6. Build package (`python -m build`)
+7. Validate package (`twine check dist/*`)
+8. Upload to PyPI (if `--pypi`)
+9. Git commit + annotated tag + push
+10. Create GitHub release (unless `--skip-github`)
 
-#### Check Commands
+### 4. Merge Release Branch
+
+After the release succeeds:
+
+```bash
+# Merge to main
+git checkout main
+git merge release/v2.0.0
+git push origin main
+
+# Merge back to develop
+git checkout develop
+git merge release/v2.0.0
+git push origin develop
+
+# Clean up
+git branch -d release/v2.0.0
+git push origin --delete release/v2.0.0
+```
+
+## Hotfix Workflow
+
+For urgent fixes to a released version:
+
+```bash
+# Branch from main
+git checkout main
+git checkout -b hotfix/v2.0.1
+
+# Fix the issue, then release
+python scripts/release_manager.py --release \
+    --bump-type patch \
+    --release-notes "Fix critical bug in X" \
+    --pypi
+
+# Merge to main AND develop
+git checkout main
+git merge hotfix/v2.0.1
+git push origin main
+
+git checkout develop
+git merge hotfix/v2.0.1
+git push origin develop
+
+# Clean up
+git branch -d hotfix/v2.0.1
+git push origin --delete hotfix/v2.0.1
+```
+
+## Tool Reference
+
+### `scripts/release_manager.py`
+
+The single CLI tool for all release operations.
+
+#### Commands
+
 ```bash
 # Check version consistency
-./scripts/release.sh check
-
-# Show current configuration
-python scripts/release_manager.py --config
-```
-
-#### Version Management
-```bash
-# Bump version in setup.py
-./scripts/release.sh bump [major|minor|patch]
-
-# Check current version
 python scripts/release_manager.py --check
-```
-
-#### Package Operations
-```bash
-# Build package only
-./scripts/release.sh build
-
-# Upload to PyPI only
-./scripts/release.sh upload-pypi
-```
-
-#### Full Release
-```bash
-# Complete release with notes
-./scripts/release.sh release [type] "Release notes"
-
-# Examples:
-./scripts/release.sh release patch "Bug fixes and improvements"
-./scripts/release.sh release minor "New features added"
-./scripts/release.sh release major "Breaking changes and major updates"
-```
-
-### Python API
-
-```python
-from scripts.release_manager import ReleaseManager
-
-# Initialize manager
-manager = ReleaseManager()
-
-# Check versions
-status = manager.check_version_consistency()
-print(f"Versions consistent: {status['consistent']}")
 
 # Bump version
-new_version = manager.bump_version("minor")
-print(f"New version: {new_version}")
+python scripts/release_manager.py --bump [major|minor|patch]
 
-# Build package
-success = manager.build_package()
+# Set explicit version
+python scripts/release_manager.py --set-version 2.0.0
 
-# Create release
-success = manager.full_release(
-    "minor",
-    "New features and improvements"
-)
+# Build package (clean + build + validate)
+python scripts/release_manager.py --build --clean
+
+# Build and upload to PyPI
+python scripts/release_manager.py --build --clean --pypi --token $PYPI_API_TOKEN
+
+# Run tests
+python scripts/release_manager.py --test
+
+# Verify import
+python scripts/release_manager.py --verify
+
+# Full release
+python scripts/release_manager.py --release \
+    --bump-type minor \
+    --release-notes "New features" \
+    --pypi
+
+# Full release using CHANGELOG.md for notes
+python scripts/release_manager.py --release \
+    --bump-type major \
+    --changelog \
+    --pypi
+
+# Dry-run release (no side effects)
+python scripts/release_manager.py --release \
+    --bump-type patch \
+    --changelog \
+    --dry-run
 ```
 
-## Release Process Flow
+#### Flags
 
-### 1. **Pre-Release Checks**
-- Verify version consistency across platforms
-- Run test suite (unless skipped)
-- Check environment variables
+| Flag | Description |
+|------|-------------|
+| `--check` | Check version consistency across all files |
+| `--bump TYPE` | Bump version (major, minor, patch) |
+| `--set-version VER` | Set explicit version string |
+| `--build` | Build sdist + wheel, validate with twine |
+| `--test` | Run pytest suite |
+| `--verify` | Verify package import + version |
+| `--release` | Full 10-step release workflow |
+| `--bump-type TYPE` | Bump type for `--release` |
+| `--release-notes TEXT` | Release notes text |
+| `--changelog` | Use CHANGELOG.md for release notes |
+| `--skip-tests` | Skip test suite during release |
+| `--skip-github` | Skip GitHub release creation |
+| `--pypi` | Upload to PyPI after build |
+| `--repository REPO` | `pypi` (default) or `testpypi` |
+| `--token TOKEN` | PyPI API token (or `PYPI_API_TOKEN` env var) |
+| `--dry-run` | Show actions without executing |
+| `--clean` | Clean build artifacts before building |
 
-### 2. **Version Management**
-- Bump version according to semantic versioning
-- Update setup.py with new version
-- Update CHANGELOG.md with release notes
+### Deprecated: `siege_utilities.hygiene.pypi_release`
 
-### 3. **Package Building**
-- Clean previous builds
-- Build source distribution (sdist)
-- Build wheel distribution (bdist_wheel)
+This module is deprecated as of v2.0.0. All public functions emit `DeprecationWarning` and will be removed in v3.0.0. Use `scripts/release_manager.py` instead.
 
-### 4. **Distribution**
-- Upload to PyPI (unless skipped)
-- Create GitHub release with notes
-- Commit changes and create git tag
+## CI/CD Integration
 
-### 5. **Finalization**
-- Push changes to remote repository
-- Push tags to remote repository
-- Update sync logs and configuration
+### How It Works
 
-## Configuration
+The CI pipeline in `.github/workflows/ci.yml` has four build stages:
 
-### Wiki Sync Configuration
-```json
-{
-  "last_sync": "2024-08-16T14:30:00",
-  "sync_interval_hours": 24,
-  "auto_commit": true,
-  "auto_push": false,
-  "backup_enabled": true,
-  "excluded_files": [".git", ".gitignore", "*.tmp"],
-  "included_directories": ["Recipes", "Architecture", "Examples"]
-}
-```
+1. **test** — runs on every push to `main`, `develop`, `dheerajchand/**`, `release/**`, `hotfix/**`
+2. **battle-test** — comprehensive stress testing (after test passes)
+3. **build** — builds package, validates with twine (after test + battle-test)
+4. **release** — publishes to PyPI (only on GitHub Release events)
 
-### Release Configuration
-The release manager uses environment variables and project structure:
-- `GITHUB_TOKEN`: For GitHub API access
-- `PYPI_TOKEN`: For PyPI uploads
-- `setup.py`: For version information
-- `CHANGELOG.md`: For release history
+### PyPI Publishing
 
-## GitHub Actions Integration
+The `release` job fires when a GitHub Release is published. It downloads the build artifact and uploads to PyPI using the `PYPI_API_TOKEN` secret.
 
-### Automated Wiki Updates
-```yaml
-name: Update Wiki
-on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'wiki_fresh/**'
-      - 'scripts/update_wiki.py'
-  workflow_dispatch:
-    inputs:
-      force_update:
-        description: 'Force update regardless of interval'
-        required: false
-        default: false
-        type: boolean
+To trigger a release:
+1. Run `scripts/release_manager.py --release` locally (creates the tag + GitHub Release)
+2. CI detects the `release: published` event
+3. CI publishes to PyPI automatically
 
-jobs:
-  update-wiki:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    - name: Update Wiki
-      run: python scripts/update_wiki.py --force --auto-push
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
+Or use `--pypi` flag to upload directly from local machine.
 
-### Automated Releases
-```yaml
-name: Release
-on:
-  push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
+### Required Secrets
 
-jobs:
-  release:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    - name: Build and Release
-      run: |
-        python scripts/release_manager.py --release \
-          --bump-type patch \
-          --release-notes "Automated release"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-```
+| Secret | Purpose |
+|--------|---------|
+| `PYPI_API_TOKEN` | PyPI upload token (API token, not password) |
+| `GITHUB_TOKEN` | Automatic — provided by GitHub Actions |
 
-## Best Practices
+## Stale Tag Cleanup
 
-### 1. **Version Management**
-- Use semantic versioning consistently
-- Bump major version for breaking changes
-- Bump minor version for new features
-- Bump patch version for bug fixes
+A premature `v2.0.0` tag exists pointing to old code on `main` (before the restoration). Before the real 2.0.0 release, delete it:
 
-### 2. **Release Notes**
-- Write clear, descriptive release notes
-- Include breaking changes prominently
-- List new features and improvements
-- Mention bug fixes and security updates
-
-### 3. **Testing**
-- Always run tests before release
-- Use `--skip-tests` only for emergency releases
-- Verify functionality in staging environment
-
-### 4. **Documentation**
-- Update CHANGELOG.md with each release
-- Keep release notes in sync with code changes
-- Document breaking changes clearly
-
-### 5. **Security**
-- Never commit tokens to version control
-- Use environment variables for sensitive data
-- Rotate tokens regularly
-
-## Troubleshooting
-
-### Common Issues
-
-#### Version Mismatch
 ```bash
-# Check current versions
-./scripts/release.sh check
+# Delete local tag
+git tag -d v2.0.0
 
-# Manually sync versions if needed
-./scripts/release.sh bump patch
+# Delete remote tag
+git push origin :refs/tags/v2.0.0
 ```
 
-#### Build Failures
-```bash
-# Clean previous builds
-python setup.py clean --all
+This must happen before running `release_manager.py` for the 2.0.0 release, otherwise git will refuse to create the tag.
 
-# Check dependencies
-pip install -r requirements.txt
+## Changelog
 
-# Try building again
-./scripts/release.sh build
-```
+Release notes are maintained in `CHANGELOG.md` at the repo root, following the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format. The `--changelog` flag reads from this file automatically.
 
-#### Upload Failures
-```bash
-# Verify PyPI token
-echo $PYPI_TOKEN
-
-# Check package format
-python -m twine check dist/*
-
-# Try upload again
-./scripts/release.sh upload-pypi
-```
-
-#### Git Issues
-```bash
-# Check git status
-git status
-
-# Verify remote configuration
-git remote -v
-
-# Check authentication
-git push origin main --dry-run
-```
-
-### Debug Mode
-```bash
-# Enable debug logging
-export PYTHONPATH=.
-python -c "
-import logging
-logging.basicConfig(level=logging.DEBUG)
-from scripts.release_manager import ReleaseManager
-manager = ReleaseManager()
-manager.check_version_consistency()
-"
-```
-
-## Integration with Other Systems
-
-### Wiki Synchronization
-The release system integrates with the wiki update system:
-- Automatic wiki updates after releases
-- Synchronized documentation across platforms
-- Backup and version control for wiki content
-
-### CI/CD Integration
-- GitHub Actions for automated workflows
-- Automated testing and deployment
-- Continuous integration with release process
-
-### Documentation Systems
-- Sphinx documentation generation
-- Wiki content management
-- Changelog maintenance
-
-## Future Enhancements
-
-### Planned Features
-- **Multi-Platform Support**: Support for additional package managers
-- **Release Templates**: Predefined release note templates
-- **Rollback Support**: Ability to rollback releases
-- **Metrics Dashboard**: Release analytics and reporting
-
-### Integration Opportunities
-- **Slack Notifications**: Release notifications to team channels
-- **Jira Integration**: Automatic ticket updates
-- **Docker Support**: Container image releases
-- **Helm Charts**: Kubernetes chart releases
-
-## Support and Maintenance
-
-### Getting Help
-- Check this documentation first
-- Review error logs and debug output
-- Test with minimal configuration
-- Verify environment setup
-
-### Contributing
-- Report bugs and issues
-- Suggest improvements
-- Submit pull requests
-- Update documentation
-
-### Maintenance
-- Regular token rotation
-- Dependency updates
-- Security audits
-- Performance monitoring
-
-## Conclusion
-
-The Release Management System provides a robust, automated approach to managing releases across multiple platforms. By following the best practices and using the provided tools, you can ensure consistent, reliable releases that maintain quality and documentation standards.
-
-For additional support or questions, please refer to the project documentation or create an issue in the repository.
+Update `CHANGELOG.md` as part of the release branch stabilization, before running the release manager.

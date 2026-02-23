@@ -4,12 +4,26 @@ Provides clean, type-safe file download utilities.
 """
 
 import pathlib
-import requests
 import logging
+import os
+import platform
 from pathlib import Path
 from typing import Union, Optional
+
+try:
+    import requests
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    REQUESTS_AVAILABLE = False
+    requests = None
 from urllib.parse import urlparse
-import tqdm
+
+try:
+    import tqdm
+    TQDM_AVAILABLE = True
+except ImportError:
+    TQDM_AVAILABLE = False
+    tqdm = None
 
 # Get logger for this module
 log = logging.getLogger(__name__)
@@ -17,38 +31,102 @@ log = logging.getLogger(__name__)
 # Type aliases
 FilePath = Union[str, Path]
 
-def download_file(url: str, local_filename: FilePath, 
+def _get_ssl_verify_path():
+    """Get the appropriate SSL certificate verification path for the current platform."""
+    # macOS system CA bundle path (works better than certifi for some sites)
+    if platform.system() == 'Darwin' and os.path.exists('/etc/ssl/cert.pem'):
+        return '/etc/ssl/cert.pem'
+    
+    # Try certifi bundle if available
+    try:
+        import certifi
+        return certifi.where()
+    except ImportError:
+        pass
+    
+    # Default to True (use system default)
+    return True
+
+def _check_requests_dependency():
+    """Check if requests is available and raise informative error if not."""
+    if not REQUESTS_AVAILABLE:
+        raise ImportError(
+            "requests library is required for remote file operations. "
+            "Install with: pip install requests"
+        )
+
+class _DummyProgressBar:
+    """Dummy progress bar when tqdm is not available."""
+    def __init__(self, *args, **kwargs):
+        pass
+    def __enter__(self):
+        return self
+    def __exit__(self, *args):
+        pass
+    def update(self, n=1):
+        pass
+
+def _get_progress_bar(*args, **kwargs):
+    """Get progress bar, using tqdm if available, dummy otherwise."""
+    if TQDM_AVAILABLE:
+        return tqdm.tqdm(*args, **kwargs)
+    else:
+        return _DummyProgressBar(*args, **kwargs)
+
+def download_file(url: str, local_filename: FilePath,
                  chunk_size: int = 8192,
                  timeout: int = 30,
                  verify_ssl: bool = True) -> Union[str, bool]:
     """
     Download a file from a URL to a local file with progress bar.
-    
+
+    SECURITY: Validates local file path to prevent path traversal attacks.
+
     Args:
         url: The URL to download from
         local_filename: The local path where the file should be saved
         chunk_size: Size of chunks to download at once
         timeout: Request timeout in seconds
         verify_ssl: Whether to verify SSL certificates
-        
+
     Returns:
         The local filename if successful, False otherwise
-        
+
+    Raises:
+        PathSecurityError: If local path fails security validation
+
     Example:
         >>> result = download_file("https://example.com/file.zip", "downloads/file.zip")
         >>> if result:
         ...     print(f"Downloaded to {result}")
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> download_file("https://example.com/file.zip", "../../../etc/passwd")  # Path traversal blocked
+
+    Security Changes:
+        - Now validates local file paths to block path traversal
+        - Blocks writing to sensitive system locations
     """
+    _check_requests_dependency()
+
     try:
         log.info(f'Downloading {url} to {local_filename}')
-        
-        # Ensure local filename is a Path object
-        local_path = Path(local_filename)
+
+        # Validate local file path
+        try:
+            from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+            local_path = validate_safe_path(local_filename, allow_absolute=True)
+        except ImportError:
+            local_path = Path(local_filename)
+
         local_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Make the request with streaming
-        with requests.get(url, stream=True, allow_redirects=True, 
-                         timeout=timeout, verify=verify_ssl) as response:
+        # Make the request with streaming, using smart SSL verification
+        ssl_verify = _get_ssl_verify_path() if verify_ssl else False
+        headers = {'User-Agent': 'siege_utilities/1.0 (Census/GIS data client)'}
+        with requests.get(url, stream=True, allow_redirects=True,
+                         timeout=timeout, verify=ssl_verify,
+                         headers=headers) as response:
             
             if not response.ok:
                 log.error(f'Download failed: HTTP {response.status_code} - {response.reason}')
@@ -64,7 +142,7 @@ def download_file(url: str, local_filename: FilePath,
             
             # Download with progress bar
             with open(local_path, 'wb') as file:
-                with tqdm.tqdm(
+                with _get_progress_bar(
                     total=total_size,
                     unit='B',
                     unit_scale=True,
@@ -79,13 +157,16 @@ def download_file(url: str, local_filename: FilePath,
             
             log.info(f'Successfully downloaded {url} to {local_path}')
             return str(local_path)
-            
+    except PathSecurityError:
+        raise
     except requests.exceptions.SSLError as e:
         log.warning(f'SSL verification failed for {url}, retrying without verification: {e}')
         # Retry without SSL verification
         try:
-            with requests.get(url, stream=True, allow_redirects=True, 
-                           timeout=timeout, verify=False) as response:
+            headers = {'User-Agent': 'siege_utilities/1.0 (Census/GIS data client)'}
+            with requests.get(url, stream=True, allow_redirects=True,
+                           timeout=timeout, verify=False,
+                           headers=headers) as response:
                 
                 if not response.ok:
                     log.error(f'Download failed without SSL: HTTP {response.status_code} - {response.reason}')
@@ -101,7 +182,7 @@ def download_file(url: str, local_filename: FilePath,
                 
                 # Download with progress bar
                 with open(local_path, 'wb') as file:
-                    with tqdm.tqdm(
+                    with _get_progress_bar(
                         total=total_size,
                         unit='B',
                         unit_scale=True,
@@ -135,30 +216,47 @@ def generate_local_path_from_url(url: str, directory_path: FilePath,
                                 as_string: bool = True) -> Union[Path, str, bool]:
     """
     Generate a local file path from a URL.
-    
+
+    SECURITY: Validates directory path to prevent path traversal attacks.
+
     Args:
         url: URL to extract filename from
         directory_path: Directory where the file should be saved
         as_string: Whether to return the result as a string
-        
+
     Returns:
         Path object, string, or False if failed
-        
+
+    Raises:
+        PathSecurityError: If directory path fails security validation
+
     Example:
         >>> path = generate_local_path_from_url("https://example.com/file.zip", "downloads")
         >>> print(f"Local path: {path}")
+        >>>
+        >>> # This will raise PathSecurityError
+        >>> generate_local_path_from_url("https://example.com/file.zip", "../../../etc")  # Path traversal blocked
+
+    Security Changes:
+        - Now validates directory paths to block path traversal
+        - Blocks writing to sensitive system locations
     """
     try:
         # Parse URL to get filename
         parsed_url = urlparse(url)
         remote_filename = parsed_url.path.split('/')[-1]
-        
+
         if not remote_filename:
             log.warning(f'Could not extract filename from URL: {url}')
             return False
-        
-        # Ensure directory path is a Path object
-        dir_path = Path(directory_path)
+
+        # Validate directory path
+        try:
+            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            dir_path = validate_directory_path(directory_path, must_exist=False)
+        except ImportError:
+            dir_path = Path(directory_path)
+
         dir_path.mkdir(parents=True, exist_ok=True)
         
         # Create full local path
@@ -170,7 +268,8 @@ def generate_local_path_from_url(url: str, directory_path: FilePath,
             return str(local_path)
         else:
             return local_path
-            
+    except PathSecurityError:
+        raise
     except Exception as e:
         log.error(f'Error generating local path from {url}: {e}')
         return False

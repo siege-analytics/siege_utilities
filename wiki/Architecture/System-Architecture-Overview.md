@@ -288,6 +288,113 @@ def _score_dataset_for_use_case(self, dataset, use_case, time_period):
 - **Caching**: Safe caching with configurable timeouts
 - **Cleanup**: Automatic cleanup of temporary files
 
+## 🛠️ **Development Module Architecture**
+
+### **Package Format Generation System**
+
+The development module provides a comprehensive package modernization system that converts traditional `setup.py` files to modern package management formats.
+
+#### **Supported Formats**
+- **requirements.txt**: Traditional pip dependency format
+- **pyproject.toml (UV/Setuptools)**: Modern PEP 621 standard format
+- **pyproject.toml (Poetry)**: Poetry-specific configuration format
+- **pyproject.toml (UV)**: UV-compatible format (same as standard)
+
+#### **Architecture Design**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                Package Format Generation                    │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
+│  │   AST Parser    │  │  Dependency     │  │  Format         │ │
+│  │                 │  │  Extractor      │  │  Generator      │ │
+│  │ • Parse setup.py│  │ • install_requires│ • requirements.txt│ │
+│  │ • Extract deps  │  │ • extras_require│ • pyproject.toml │ │
+│  │ • Handle errors │  │ • metadata      │ • Poetry format  │ │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+                    ┌─────────────────────────┐
+                    │   Error Handling &      │
+                    │   Validation Layer      │
+                    │                         │
+                    │ • File existence checks│
+                    │ • Syntax validation    │
+                    │ • Dependency resolution│
+                    │ • Output validation    │
+                    └─────────────────────────┘
+```
+
+#### **Key Functions**
+
+1. **`generate_requirements_txt()`**
+   - Extracts `install_requires` from setup.py
+   - Generates clean requirements.txt format
+   - Handles version constraints properly
+
+2. **`generate_pyproject_toml()`**
+   - Creates PEP 621 compliant pyproject.toml
+   - Supports UV and Setuptools backends
+   - Includes all metadata and dependencies
+
+3. **`generate_poetry_toml()`**
+   - Creates Poetry-specific configuration
+   - Uses `[tool.poetry]` sections
+   - Includes build system configuration
+
+4. **`generate_uv_toml()`**
+   - Wrapper for standard pyproject.toml
+   - Ensures UV compatibility
+   - Delegates to standard generator
+
+#### **Dependency Management Architecture**
+
+The system supports comprehensive dependency organization:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                Dependency Organization                      │
+├─────────────────────────────────────────────────────────────┤
+│  Core Dependencies (install_requires)                      │
+│  ├── requests>=2.28.0                                      │
+│  ├── pandas>=1.5.0                                         │
+│  ├── numpy>=1.21.0                                         │
+│  └── pyyaml>=6.0                                           │
+│                                                             │
+│  Optional Dependencies (extras_require)                    │
+│  ├── [geo] → geopandas, shapely, folium                   │
+│  ├── [distributed] → pyspark                              │
+│  ├── [analytics] → scipy, scikit-learn                    │
+│  ├── [reporting] → matplotlib, seaborn                    │
+│  ├── [streamlit] → streamlit, altair                      │
+│  ├── [export] → openpyxl, xlsxwriter                      │
+│  ├── [performance] → duckdb, psutil                       │
+│  ├── [dev] → pytest, black, flake8                        │
+│  └── [all] → Everything included                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### **Error Handling & Validation**
+
+The development module includes robust error handling:
+
+- **File Validation**: Checks for setup.py existence and readability
+- **Syntax Validation**: Validates Python syntax using AST parsing
+- **Dependency Validation**: Ensures all dependencies are properly formatted
+- **Output Validation**: Verifies generated files are valid
+- **Graceful Degradation**: Provides clear error messages and suggestions
+
+#### **Integration with Modern Package Managers**
+
+The generated files work seamlessly with:
+
+- **UV**: Fast, modern Python package manager
+- **Poetry**: Dependency management and packaging
+- **Pip**: Traditional package installation
+- **Setuptools**: Standard Python packaging
+
 ## 🚀 **Future Architecture Directions**
 
 ### **Planned Enhancements**

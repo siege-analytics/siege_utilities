@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 import json
 
+from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+
 def run_git_command(*args, repo_path: str = ".", check: bool = True) -> str:
     """Run a git command and return the output."""
     try:
@@ -30,12 +32,12 @@ def run_git_command(*args, repo_path: str = ".", check: bool = True) -> str:
 def analyze_branch_status(repo_path: str = ".") -> Dict[str, str]:
     """Analyze the current branch status."""
     repo_path = Path(repo_path).resolve()
-    
+
     if not (repo_path / ".git").exists():
         raise ValueError(f"Not a git repository: {repo_path}")
-    
+
     current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
-    
+
     # Get commits ahead/behind main
     try:
         status_output = run_git_command("rev-list", "--count", "--left-right", "main...HEAD", repo_path=repo_path)
@@ -45,12 +47,12 @@ def analyze_branch_status(repo_path: str = ".") -> Dict[str, str]:
             behind, ahead = "0", "0"
     except:
         behind, ahead = "0", "0"
-    
+
     # Get last commit info
     last_commit_hash = run_git_command("rev-parse", "HEAD", repo_path=repo_path)[:7]
     last_commit_date = run_git_command("log", "-1", "--format=%cd", "--date=short", repo_path=repo_path)
     last_commit_msg = run_git_command("log", "-1", "--format=%s", repo_path=repo_path)
-    
+
     return {
         "branch": current_branch,
         "ahead": ahead,
@@ -64,7 +66,7 @@ def analyze_branch_status(repo_path: str = ".") -> Dict[str, str]:
 def get_commit_history(limit: int = 20, repo_path: str = ".") -> List[Dict[str, str]]:
     """Get recent commit history with details."""
     commits = []
-    
+
     # Get commit log with hash, date, author, and message
     log_output = run_git_command(
         "log", f"--max-count={limit}",
@@ -72,7 +74,7 @@ def get_commit_history(limit: int = 20, repo_path: str = ".") -> List[Dict[str, 
         "--date=short",
         repo_path=repo_path
     )
-    
+
     for line in log_output.split('\n'):
         if line.strip():
             parts = line.split('|', 3)
@@ -85,7 +87,7 @@ def get_commit_history(limit: int = 20, repo_path: str = ".") -> List[Dict[str, 
                     "author": author,
                     "message": message
                 })
-    
+
     return commits
 
 def categorize_commits(commits: List[Dict[str, str]]) -> Dict[str, List[Dict[str, str]]]:
@@ -98,10 +100,10 @@ def categorize_commits(commits: List[Dict[str, str]]) -> Dict[str, List[Dict[str
         "infrastructure": [],
         "other": []
     }
-    
+
     for commit in commits:
         message = commit["message"].lower()
-        
+
         if any(word in message for word in ["feat", "feature", "add", "implement"]):
             categories["features"].append(commit)
         elif any(word in message for word in ["fix", "bug", "resolve", "correct"]):
@@ -114,7 +116,7 @@ def categorize_commits(commits: List[Dict[str, str]]) -> Dict[str, List[Dict[str
             categories["infrastructure"].append(commit)
         else:
             categories["other"].append(commit)
-    
+
     return categories
 
 def get_file_changes(repo_path: str = ".") -> Dict[str, List[str]]:
@@ -122,11 +124,11 @@ def get_file_changes(repo_path: str = ".") -> Dict[str, List[str]]:
     try:
         # Get list of changed files
         changed_files = run_git_command("diff", "--name-status", "main...HEAD", repo_path=repo_path)
-        
+
         added = []
         modified = []
         deleted = []
-        
+
         for line in changed_files.split('\n'):
             if line.strip():
                 status, filepath = line.split('\t', 1)
@@ -136,7 +138,7 @@ def get_file_changes(repo_path: str = ".") -> Dict[str, List[str]]:
                     modified.append(filepath)
                 elif status == 'D':
                     deleted.append(filepath)
-        
+
         return {
             "added": added,
             "modified": modified,
@@ -148,11 +150,11 @@ def get_file_changes(repo_path: str = ".") -> Dict[str, List[str]]:
 def get_file_stats(repo_path: str = ".") -> Dict[str, int]:
     """Get statistics about file changes."""
     diff_stats = run_git_command("diff", "--stat", "main...HEAD", repo_path=repo_path)
-    
+
     # Parse the stat output to get line counts
     lines_added = 0
     lines_deleted = 0
-    
+
     for line in diff_stats.split('\n'):
         if '|' in line and 'insertions' in line:
             # Extract numbers from lines like " 3 files changed, 45 insertions(+), 12 deletions(-)"
@@ -161,7 +163,7 @@ def get_file_stats(repo_path: str = ".") -> Dict[str, int]:
                 lines_added = int(match.group(1))
                 lines_deleted = int(match.group(2))
             break
-    
+
     return {
         "lines_added": lines_added,
         "lines_deleted": lines_deleted
@@ -173,41 +175,39 @@ def generate_branch_report(
     include_commits: int = 20
 ) -> str:
     """Generate a comprehensive branch status report."""
-    
+
     # Get all the data
     status = analyze_branch_status(repo_path)
     commits = get_commit_history(include_commits, repo_path)
     categories = categorize_commits(commits)
     diff_info = get_file_changes(repo_path)
     file_stats = get_file_stats(repo_path)
-    
+
     # Generate the report
     current_date = datetime.now().strftime("%B %d, %Y")
-    
-    # Determine status emoji and text
+
+    # Determine status text (emojis removed)
     if int(status["ahead"]) > 0:
-        status_emoji = "🚀"
         status_text = "IN DEVELOPMENT"
     else:
-        status_emoji = "✅"
         status_text = "READY FOR MERGE"
-    
+
     # Header
     report = f"""# Feature Branch Status: `{status['branch']}`
 
-**Branch**: `{status['branch']}`  
-**Last Updated**: {current_date}  
-**Status**: {status_emoji} **{status_text}**  
-**Ahead of main**: {status['ahead']} commits  
-**Behind main**: {status['behind']} commits  
+**Branch**: `{status['branch']}`
+**Last Updated**: {current_date}
+**Status**: **{status_text}**
+**Ahead of main**: {status['ahead']} commits
+**Behind main**: {status['behind']} commits
 
-**Last Commit**: `{status['last_commit_hash']}` on {status['last_commit_date']}  
+**Last Commit**: `{status['last_commit_hash']}` on {status['last_commit_date']}
 **Message**: {status['last_commit_msg']}"""
 
     # Overview
     report += f"""
 
-## 🎯 **Branch Overview**
+## **Branch Overview**
 
 This branch represents ongoing development work with **{status['ahead']} commits ahead** of the main branch.
 
@@ -219,7 +219,7 @@ This branch represents ongoing development work with **{status['ahead']} commits
     # Commit History
     report += """
 
-## 📋 **Complete Commit History**
+## **Complete Commit History**
 
 ### **Latest Commits (Most Recent First)**
 
@@ -232,7 +232,7 @@ This branch represents ongoing development work with **{status['ahead']} commits
 | `{commit['hash']}` | {commit['date']} | {commit['author']} | {commit['message']} |"""
 
     report += "\n\n### **Commit Categories**\n"
-    
+
     # Show categorized commits
     for category, category_commits in categories.items():
         if category_commits:
@@ -245,34 +245,34 @@ This branch represents ongoing development work with **{status['ahead']} commits
     # File Changes
     report += """
 
-## 📁 **File Changes**
+## **File Changes**
 
 ### **Files Added**"""
-    
+
     if diff_info["added"]:
         for file_path in sorted(diff_info["added"]):
             report += f"\n- `{file_path}`"
     else:
         report += "\n- No new files added"
-    
+
     report += "\n\n### **Files Modified**"
     if diff_info["modified"]:
         for file_path in sorted(diff_info["modified"]):
             report += f"\n- `{file_path}`"
     else:
         report += "\n- No files modified"
-    
+
     report += "\n\n### **Files Deleted**"
     if diff_info["deleted"]:
         for file_path in sorted(diff_info["deleted"]):
             report += f"\n- `{file_path}`"
     else:
         report += "\n- No files deleted"
-    
+
     # Next Steps
     report += """
 
-## 📚 **Next Steps**
+## **Next Steps**
 
 ### **Immediate Actions**
 1. **Code Review** - Review changes and ensure quality
@@ -289,21 +289,21 @@ This branch represents ongoing development work with **{status['ahead']} commits
     # Footer
     report += f"""
 
-## 🔗 **Related Resources**
+## **Related Resources**
 
 - **Local Repository**: `{status['repo_path']}`
 - **Branch Status**: `git status` in repository directory
 
 ---
 
-**Branch Maintainer**: Development Team  
-**Last Generated**: {datetime.now().strftime("%B %d, %Y at %I:%M %p")}  
-**Status**: {'🚀 IN DEVELOPMENT' if int(status['ahead']) > 0 else '✅ READY FOR MERGE'}"""
+**Branch Maintainer**: Development Team
+**Last Generated**: {datetime.now().strftime("%B %d, %Y at %I:%M %p")}
+**Status**: {'IN DEVELOPMENT' if int(status['ahead']) > 0 else 'READY FOR MERGE'}"""
 
     # Save to file if specified
     if output_file:
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(report)
-        print(f"✅ Branch report saved to: {output_file}")
-    
+        log_info(f"Branch report saved to: {output_file}")
+
     return report

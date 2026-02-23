@@ -11,18 +11,100 @@ from typing import Dict, List, Optional, Tuple
 
 # Import logging functions from main package
 try:
-    from siege_utilities import log_info, log_warning, log_error
+    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if main package not available yet
-    def log_info(message): print(f"INFO: {message}")
-    def log_warning(message): print(f"WARNING: {message}")
-    def log_error(message): print(f"ERROR: {message}")
+    def log_info(message): pass
+    def log_warning(message): pass
+    def log_error(message): pass
+    def log_debug(message): pass
+
+
+def _get_sdkman_root() -> Optional[str]:
+    """
+    Find SDKMAN installation directory across platforms.
+
+    Checks multiple locations:
+    - Standard Linux/macOS: ~/.sdkman/candidates
+    - macOS Homebrew: /opt/homebrew/opt/sdkman-cli/libexec/candidates
+    - Custom SDKMAN_DIR environment variable
+
+    Returns:
+        Path to SDKMAN candidates directory or None if not found
+    """
+    candidates = [
+        os.path.expanduser("~/.sdkman/candidates"),  # Linux/macOS standard
+        "/opt/homebrew/opt/sdkman-cli/libexec/candidates",  # macOS Homebrew
+        "/usr/local/sdkman/candidates",  # Alternative install location
+    ]
+
+    # Check custom SDKMAN_DIR first
+    sdkman_dir = os.environ.get("SDKMAN_DIR")
+    if sdkman_dir:
+        custom_path = os.path.join(sdkman_dir, "candidates")
+        candidates.insert(0, custom_path)
+
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+
+    return None
+
+
+def _get_system_java_paths() -> List[str]:
+    """
+    Get common system Java installation paths for Linux.
+
+    Returns:
+        List of paths to check for Java installations
+    """
+    return [
+        "/usr/lib/jvm/java-17-openjdk-amd64",
+        "/usr/lib/jvm/java-17-openjdk",
+        "/usr/lib/jvm/java-11-openjdk-amd64",
+        "/usr/lib/jvm/java-11-openjdk",
+        "/usr/lib/jvm/java-8-openjdk-amd64",
+        "/usr/lib/jvm/java-8-openjdk",
+        "/usr/lib/jvm/default-java",
+        "/usr/java/latest",
+        "/usr/java/default",
+    ]
+
+
+def _get_system_spark_paths() -> List[str]:
+    """
+    Get common system Spark installation paths.
+
+    Returns:
+        List of paths to check for Spark installations
+    """
+    return [
+        "/opt/spark",
+        "/usr/local/spark",
+        "/usr/share/spark",
+        os.path.expanduser("~/spark"),
+    ]
+
+
+def _get_system_hadoop_paths() -> List[str]:
+    """
+    Get common system Hadoop installation paths.
+
+    Returns:
+        List of paths to check for Hadoop installations
+    """
+    return [
+        "/opt/hadoop",
+        "/usr/local/hadoop",
+        "/usr/share/hadoop",
+        os.path.expanduser("~/hadoop"),
+    ]
 
 
 def ensure_env_vars(required_vars: List[str]) -> Dict[str, Optional[str]]:
     """
     Ensure required environment variables are set.
-    If missing, use default values for SDKMAN-managed tools on macOS.
+    Checks SDKMAN on Linux and macOS, falls back to system paths.
 
     Args:
         required_vars: List of environment variable names to check/set
@@ -35,59 +117,101 @@ def ensure_env_vars(required_vars: List[str]) -> Dict[str, Optional[str]]:
         >>> resolved = siege_utilities.ensure_env_vars(["JAVA_HOME", "SPARK_HOME"])
         >>> print(f"Java: {resolved['JAVA_HOME']}")
     """
-    sdk_root = "/opt/homebrew/opt/sdkman-cli/libexec/candidates"
+    sdk_root = _get_sdkman_root()
     resolved = {}
 
     for var in required_vars:
         if os.environ.get(var):
             resolved[var] = os.environ[var]
-            log_info(f"✅ {var} already set: {os.environ[var]}")
+            log_info(f"{var} already set: {os.environ[var]}")
             continue
 
         # Try to auto-detect common tools
         if var == "JAVA_HOME":
-            java_home = os.path.join(sdk_root, "java", "current")
-            if os.path.exists(java_home):
+            java_home = None
+            # Try SDKMAN first
+            if sdk_root:
+                sdkman_java = os.path.join(sdk_root, "java", "current")
+                if os.path.exists(sdkman_java):
+                    java_home = sdkman_java
+            # Fall back to system paths
+            if not java_home:
+                for sys_path in _get_system_java_paths():
+                    if os.path.exists(sys_path):
+                        java_home = sys_path
+                        break
+
+            if java_home:
                 os.environ[var] = java_home
                 resolved[var] = java_home
-                log_info(f"🔍 Auto-detected {var}: {java_home}")
+                log_info(f"Auto-detected {var}: {java_home}")
             else:
                 resolved[var] = None
-                log_warning(f"⚠️  {var} not found")
+                log_warning(f"{var} not found")
 
         elif var == "SPARK_HOME":
-            spark_home = os.path.join(sdk_root, "spark", "current")
-            if os.path.exists(spark_home):
+            spark_home = None
+            # Try SDKMAN first
+            if sdk_root:
+                sdkman_spark = os.path.join(sdk_root, "spark", "current")
+                if os.path.exists(sdkman_spark):
+                    spark_home = sdkman_spark
+            # Fall back to system paths
+            if not spark_home:
+                for sys_path in _get_system_spark_paths():
+                    if os.path.exists(sys_path):
+                        spark_home = sys_path
+                        break
+
+            if spark_home:
                 os.environ[var] = spark_home
                 resolved[var] = spark_home
-                log_info(f"🔍 Auto-detected {var}: {spark_home}")
+                log_info(f"Auto-detected {var}: {spark_home}")
             else:
                 resolved[var] = None
-                log_warning(f"⚠️  {var} not found")
+                log_warning(f"{var} not found")
 
         elif var == "HADOOP_HOME":
-            hadoop_home = os.path.join(sdk_root, "hadoop", "current")
-            if os.path.exists(hadoop_home):
+            hadoop_home = None
+            # Try SDKMAN first
+            if sdk_root:
+                sdkman_hadoop = os.path.join(sdk_root, "hadoop", "current")
+                if os.path.exists(sdkman_hadoop):
+                    hadoop_home = sdkman_hadoop
+            # Fall back to system paths
+            if not hadoop_home:
+                for sys_path in _get_system_hadoop_paths():
+                    if os.path.exists(sys_path):
+                        hadoop_home = sys_path
+                        break
+
+            if hadoop_home:
                 os.environ[var] = hadoop_home
                 resolved[var] = hadoop_home
-                log_info(f"🔍 Auto-detected {var}: {hadoop_home}")
+                log_info(f"Auto-detected {var}: {hadoop_home}")
             else:
                 resolved[var] = None
-                log_warning(f"⚠️  {var} not found")
+                log_warning(f"{var} not found")
 
         elif var == "SCALA_HOME":
-            scala_home = os.path.join(sdk_root, "scala", "current")
-            if os.path.exists(scala_home):
-                os.environ[var] = scala_home
-                resolved[var] = scala_home
-                log_info(f"🔍 Auto-detected {var}: {scala_home}")
+            scala_home = None
+            if sdk_root:
+                sdkman_scala = os.path.join(sdk_root, "scala", "current")
+                if os.path.exists(sdkman_scala):
+                    scala_home = sdkman_scala
+                    os.environ[var] = scala_home
+                    resolved[var] = scala_home
+                    log_info(f"Auto-detected {var}: {scala_home}")
+                else:
+                    resolved[var] = None
+                    log_warning(f"{var} not found")
             else:
                 resolved[var] = None
-                log_warning(f"⚠️  {var} not found")
+                log_warning(f"{var} not found (SDKMAN not available)")
 
         else:
             resolved[var] = None  # Unknown env var
-            log_warning(f"⚠️  Unknown environment variable: {var}")
+            log_warning(f"Unknown environment variable: {var}")
 
     return resolved
 
@@ -140,7 +264,7 @@ def setup_spark_environment() -> bool:
         >>> if siege_utilities.setup_spark_environment():
         >>>     print("Spark environment ready!")
     """
-    log_info("🚀 Setting up Spark environment...")
+    log_info("Setting up Spark environment...")
 
     # Ensure required environment variables
     required_vars = ["JAVA_HOME", "SPARK_HOME"]
@@ -150,10 +274,10 @@ def setup_spark_environment() -> bool:
     java_version, java_compatible = check_java_version()
     if not java_compatible:
         log_error(f"Java version {java_version} may not be compatible with Spark")
-        log_info("💡 Try switching to Java 11 or 17: sdk use java 11.0.27.fx-zulu")
+        log_info("Try switching to Java 11 or 17: sdk use java 11.0.27.fx-zulu")
         return False
 
-    log_info(f"✅ Java {java_version} is compatible")
+    log_info(f"Java {java_version} is compatible")
 
     # Check dependencies
     try:
@@ -162,21 +286,21 @@ def setup_spark_environment() -> bool:
 
         if not deps['pyspark']:
             log_error("PySpark not available")
-            log_info("💡 Install with: pip install pyspark")
+            log_info("Install with: pip install pyspark")
             return False
 
-        log_info("✅ PySpark is available")
+        log_info("PySpark is available")
 
         if deps['apache-sedona']:
-            log_info("✅ Apache Sedona is available")
+            log_info("Apache Sedona is available")
         else:
-            log_warning("⚠️  Apache Sedona not available (optional)")
+            log_warning("Apache Sedona not available (optional)")
 
     except Exception as e:
         log_error(f"Could not check dependencies: {e}")
         return False
 
-    log_info("🎉 Spark environment setup complete!")
+    log_info("Spark environment setup complete!")
     return True
 
 
@@ -235,7 +359,7 @@ def diagnose_environment() -> bool:
         >>> else:
         >>>     print("Issues found - check logs")
     """
-    log_info("🔍 Running environment diagnostics...")
+    log_info("Running environment diagnostics...")
 
     issues_found = []
 
@@ -284,18 +408,18 @@ def diagnose_environment() -> bool:
 
     # Report results
     if issues_found:
-        log_error(f"🔍 Environment diagnostics found {len(issues_found)} issues:")
+        log_error(f"Environment diagnostics found {len(issues_found)} issues:")
         for issue in issues_found:
-            log_error(f"   ❌ {issue}")
+            log_error(f"   {issue}")
 
-        log_info("\n💡 Suggested fixes:")
-        log_info("   • Ensure Java 11 or 17 is installed: sdk list java")
-        log_info("   • Install missing dependencies: pip install pyspark")
-        log_info("   • Set environment variables manually if auto-detection fails")
+        log_info("\nSuggested fixes:")
+        log_info("   - Ensure Java 11 or 17 is installed: sdk list java")
+        log_info("   - Install missing dependencies: pip install pyspark")
+        log_info("   - Set environment variables manually if auto-detection fails")
 
         return False
     else:
-        log_info("✅ Environment diagnostics passed - no issues found!")
+        log_info("Environment diagnostics passed - no issues found!")
         return True
 
 
@@ -311,7 +435,7 @@ def quick_environment_setup() -> bool:
         >>> if siege_utilities.quick_environment_setup():
         >>>     print("Ready to go!")
     """
-    log_info("⚡ Quick environment setup...")
+    log_info("Quick environment setup...")
 
     try:
         # Step 1: Environment variables
@@ -319,23 +443,23 @@ def quick_environment_setup() -> bool:
             return False
 
         # Step 2: Test basic functionality
-        log_info("🧪 Testing basic functionality...")
+        log_info("Testing basic functionality...")
         import siege_utilities
 
         # Test package import
         info = siege_utilities.get_package_info()
-        log_info(f"✅ Package loaded: {info['total_functions']} functions available")
+        log_info(f"Package loaded: {info['total_functions']} functions available")
 
         # Test logging
         siege_utilities.log_info("Environment setup test message")
-        log_info("✅ Logging system working")
+        log_info("Logging system working")
 
         # Test string utilities
         result = siege_utilities.remove_wrapping_quotes_and_trim('"test"')
         assert result == "test"
-        log_info("✅ String utilities working")
+        log_info("String utilities working")
 
-        log_info("🎉 Quick environment setup complete!")
+        log_info("Quick environment setup complete!")
         return True
 
     except Exception as e:
