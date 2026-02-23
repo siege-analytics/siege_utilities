@@ -90,11 +90,12 @@ jobs:
     - name: Run Battle Testing Suite
       run: |
         # Run our comprehensive battle testing system
-        chmod +x run_overnight_comprehensive.sh
-        timeout 1800 ./run_overnight_comprehensive.sh || true
-    
+        chmod +x scripts/run_overnight_comprehensive.sh
+        timeout 1800 scripts/run_overnight_comprehensive.sh || true
+
     - name: Upload Battle Test Results
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: battle-test-results
         path: overnight_results/
