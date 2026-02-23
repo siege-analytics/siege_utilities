@@ -53,14 +53,20 @@ Siege Utilities is a comprehensive Python utilities package with **enhanced auto
 
 .. note::
 
-   **New in v1.0**: Client and Connection Configuration Management
-   
-   - 👥 **Client Profiles**: Manage client information, contact details, and design artifacts
-   - 🔌 **Connection Persistence**: Notebook, Spark, and database connection management
-   - 🔗 **Project Association**: Link clients with projects for better organization
-   - 🧪 **Comprehensive Testing**: Full test suite with coverage reporting
+   **v2.0.0** (February 2026) — Released to `PyPI <https://pypi.org/project/siege-utilities/2.0.0/>`_.
 
-   See :doc:`testing_guide` for complete testing information.
+   Key capabilities:
+
+   - **Auto-Discovery**: 500+ functions automatically imported and mutually available
+   - **Person/Actor Models**: Pydantic-based identity and contact management
+   - **Geographic Data**: Census boundaries, TIGER/Line, spatial queries, choropleths
+   - **Analytics Connectors**: Google Analytics (GA4), with OAuth2 and service account support
+   - **Report Generation**: PDF (ReportLab), PowerPoint, branded multi-client reports
+   - **Distributed Computing**: Spark utilities, HDFS operations
+   - **Client Profiles**: Client information, contact details, and design artifacts
+   - **724 tests passing**, 30% coverage
+
+   Install: ``pip install siege-utilities==2.0.0``
 
 Indices and tables
 ==================
