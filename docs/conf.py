@@ -3,9 +3,9 @@ import sys
 sys.path.insert(0, os.path.abspath('../'))
 
 project = 'Siege Utilities'
-copyright = '2025, Dheeraj Chand'
+copyright = '2025-2026, Dheeraj Chand'
 author = 'Dheeraj Chand'
-release = '1.0.0'
+release = '2.0.0'
 
 extensions = [
     'sphinx.ext.autodoc',
