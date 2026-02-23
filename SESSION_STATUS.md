@@ -1,7 +1,38 @@
 # Siege Utilities - Session Status
 
-**Last Updated:** February 18, 2026
-**Branch:** `dheerajchand/sketch/siege-utilities-restoration`
+**Last Updated:** February 23, 2026
+**Branch:** `main` (v2.0.0 released), `develop` (integration branch)
+
+---
+
+## Session 21 Progress (February 23, 2026)
+
+### v2.0.0 Released to PyPI — Epic A #38 CLOSED
+
+Merged restoration branch to main (207 commits), released v2.0.0, established gitflow.
+
+**Commits:**
+- `fb91fd5` — Release infrastructure (release_manager.py, CI, CHANGELOG, docs)
+- `cfe8d50` — Merge restoration branch to main
+- `60b0d00` — Version bump to 2.0.0, CHANGELOG finalized
+
+**Release:**
+- PyPI: https://pypi.org/project/siege-utilities/2.0.0/
+- GitHub: https://github.com/siege-analytics/siege_utilities/releases/tag/v2.0.0
+- Verified: `pip install siege-utilities==2.0.0` works in clean venv
+
+**Branch setup (gitflow):**
+- `main` — stable releases
+- `develop` — integration branch
+- Feature branches: `dheerajchand/<name>` from develop
+- Release branches: `release/vX.Y.Z` from develop → merge to main + develop
+
+**Infrastructure:**
+- `scripts/release_manager.py` — 10-step release workflow
+- `PYPI_API_TOKEN` in GitHub Actions secrets + 1Password
+- CI `release` job auto-triggers on GitHub Release publish
+
+**Issues closed:** #38 (Epic A — merge readiness), #42 (merge + tag v2.0.0)
 
 ---
 
