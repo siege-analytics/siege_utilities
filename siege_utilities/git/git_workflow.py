@@ -35,11 +35,12 @@ def validate_branch_naming(branch_name: str) -> Dict[str, Union[bool, str, List[
     patterns = {
         "feature": r"^feature/[a-z0-9-]+$",
         "bugfix": r"^bugfix/[a-z0-9-]+$",
-        "hotfix": r"^hotfix/[a-z0-9-]+$",
-        "release": r"^release/\d+\.\d+\.\d+$",
+        "hotfix": r"^hotfix/(v?\d+\.\d+\.\d+|[a-z0-9-]+)$",
+        "release": r"^release/v?\d+\.\d+\.\d+(-rc\.\d+)?$",
         "chore": r"^chore/[a-z0-9-]+$",
         "docs": r"^docs/[a-z0-9-]+$",
-        "test": r"^test/[a-z0-9-]+$"
+        "test": r"^test/[a-z0-9-]+$",
+        "developer": r"^[a-z]+/[a-z0-9-]+$",
     }
 
     validation_results = {}
@@ -65,14 +66,15 @@ def validate_branch_naming(branch_name: str) -> Dict[str, Union[bool, str, List[
     if re.search(r'[A-Z]', branch_name):
         issues.append("Branch name contains uppercase letters (use lowercase)")
 
-    if re.search(r'[^a-z0-9/-]', branch_name):
+    if re.search(r'[^a-z0-9/.\-]', branch_name):
         issues.append("Branch name contains invalid characters")
 
     # Check for common prefixes
     valid_prefixes = ["feature", "bugfix", "hotfix", "release", "chore", "docs", "test"]
     prefix = branch_name.split('/')[0] if '/' in branch_name else ""
 
-    if prefix and prefix not in valid_prefixes:
+    # Developer-prefixed branches (e.g., dheerajchand/feature-name) are valid
+    if prefix and prefix not in valid_prefixes and not matched_pattern:
         issues.append(f"Unknown branch prefix: {prefix}")
 
     is_valid = len(issues) == 0
@@ -81,10 +83,10 @@ def validate_branch_naming(branch_name: str) -> Dict[str, Union[bool, str, List[
         "is_valid": is_valid,
         "matched_pattern": matched_pattern,
         "issues": issues,
-        "suggestions": _generate_branch_suggestions(branch_name, issues)
+        "suggestions": _generate_branch_suggestions(branch_name, issues, matched_pattern)
     }
 
-def _generate_branch_suggestions(branch_name: str, issues: List[str]) -> List[str]:
+def _generate_branch_suggestions(branch_name: str, issues: List[str], matched_pattern: Optional[str] = None) -> List[str]:
     """Generate suggestions for improving branch naming."""
 
     suggestions = []
@@ -102,7 +104,7 @@ def _generate_branch_suggestions(branch_name: str, issues: List[str]) -> List[st
         suggestions.append("Use standard prefixes: feature/, bugfix/, hotfix/, release/, chore/, docs/, test/")
 
     # Suggest a better name if possible
-    if not branch_name.startswith(('feature/', 'bugfix/', 'hotfix/', 'release/', 'chore/', 'docs/', 'test/')):
+    if not branch_name.startswith(('feature/', 'bugfix/', 'hotfix/', 'release/', 'chore/', 'docs/', 'test/')) and not matched_pattern:
         if 'feature' in branch_name.lower():
             suggestions.append(f"feature/{branch_name.lower().replace('feature', '').strip('-/')}")
         elif 'bug' in branch_name.lower() or 'fix' in branch_name.lower():
@@ -363,9 +365,9 @@ def release_workflow(
 ) -> Dict[str, Union[str, bool, Dict[str, str]]]:
     """Start a release workflow for version releases."""
 
-    # Validate version format (semantic versioning)
-    if not re.match(r'^\d+\.\d+\.\d+$', version):
-        raise ValueError(f"Invalid version format. Use semantic versioning (e.g., 1.0.0)")
+    # Validate version format (semantic versioning, with optional v prefix and pre-release)
+    if not re.match(r'^v?\d+\.\d+\.\d+(-rc\.\d+)?$', version):
+        raise ValueError(f"Invalid version format. Use semantic versioning (e.g., 1.0.0 or v2.0.0-rc.1)")
 
     branch_name = f"release/{version}"
 

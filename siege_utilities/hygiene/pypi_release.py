@@ -1,19 +1,27 @@
 """
 PyPI Release Management for siege_utilities package.
 
-This module provides comprehensive functions for releasing packages to PyPI,
-including version management, build validation, and automated release workflows.
+.. deprecated:: 2.0.0
+    This module is deprecated. Use ``scripts/release_manager.py`` instead,
+    which consolidates version management, PyPI uploads, GitHub releases,
+    and git tagging into a single CLI tool.
 """
 
 import os
 import sys
 import subprocess
 import shutil
+import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import json
 import re
 from datetime import datetime
+
+_DEPRECATION_MSG = (
+    "siege_utilities.hygiene.pypi_release is deprecated and will be removed in v3.0.0. "
+    "Use scripts/release_manager.py instead."
+)
 
 # Import logging functions from main package
 try:
@@ -30,16 +38,10 @@ def get_current_version(setup_py_path: str = "setup.py") -> str:
     """
     Extract current version from setup.py.
 
-    Args:
-        setup_py_path: Path to setup.py file
-
-    Returns:
-        str: Current version string
-
-    Raises:
-        FileNotFoundError: If setup.py doesn't exist
-        ValueError: If version cannot be extracted
+    .. deprecated:: 2.0.0
+        Use ``scripts/release_manager.py --check`` instead.
     """
+    warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
     try:
         with open(setup_py_path, 'r') as f:
             content = f.read()
@@ -64,16 +66,10 @@ def increment_version(version: str, increment_type: str = "patch") -> str:
     """
     Increment version number.
 
-    Args:
-        version: Current version string (e.g., "1.2.3")
-        increment_type: Type of increment ("major", "minor", "patch")
-
-    Returns:
-        str: New version string
-
-    Raises:
-        ValueError: If version format is invalid or increment_type is unknown
+    .. deprecated:: 2.0.0
+        Use ``scripts/release_manager.py --bump <type>`` instead.
     """
+    warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
     try:
         parts = version.split('.')
         if len(parts) != 3:
@@ -98,13 +94,10 @@ def update_version_in_setup_py(setup_py_path: str, new_version: str) -> bool:
     """
     Update version in setup.py file.
 
-    Args:
-        setup_py_path: Path to setup.py file
-        new_version: New version string
-
-    Returns:
-        bool: True if successful, False otherwise
+    .. deprecated:: 2.0.0
+        Use ``scripts/release_manager.py --set-version <ver>`` instead.
     """
+    warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
     try:
         with open(setup_py_path, 'r') as f:
             content = f.read()
@@ -137,13 +130,10 @@ def update_version_in_pyproject_toml(pyproject_toml_path: str, new_version: str)
     """
     Update version in pyproject.toml file.
 
-    Args:
-        pyproject_toml_path: Path to pyproject.toml file
-        new_version: New version string
-
-    Returns:
-        bool: True if successful, False otherwise
+    .. deprecated:: 2.0.0
+        Use ``scripts/release_manager.py --set-version <ver>`` instead.
     """
+    warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
     try:
         with open(pyproject_toml_path, 'r') as f:
             content = f.read()
@@ -169,9 +159,10 @@ def clean_build_artifacts() -> bool:
     """
     Clean build artifacts and temporary files.
 
-    Returns:
-        bool: True if successful, False otherwise
+    .. deprecated:: 2.0.0
+        Use ``scripts/release_manager.py --build --clean`` instead.
     """
+    warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
     try:
         # Directories to clean
         dirs_to_clean = ['build', 'dist', '*.egg-info', '__pycache__']
@@ -202,9 +193,10 @@ def build_package() -> Tuple[bool, str]:
     """
     Build the package for distribution.
 
-    Returns:
-        Tuple[bool, str]: (success, output_message)
+    .. deprecated:: 2.0.0
+        Use ``scripts/release_manager.py --build`` instead.
     """
+    warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
     try:
         # Clean first
         clean_build_artifacts()
@@ -230,9 +222,10 @@ def validate_package() -> Tuple[bool, List[str]]:
     """
     Validate the built package.
 
-    Returns:
-        Tuple[bool, List[str]]: (is_valid, list_of_issues)
+    .. deprecated:: 2.0.0
+        Use ``scripts/release_manager.py --build`` (includes validation) instead.
     """
+    warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
     issues = []
 
     try:
@@ -281,15 +274,10 @@ def upload_to_pypi(
     """
     Upload package to PyPI.
 
-    Args:
-        repository: Repository to upload to ("pypi" or "testpypi")
-        username: PyPI username (if not using token)
-        password: PyPI password (if not using token)
-        token: PyPI API token (preferred)
-
-    Returns:
-        Tuple[bool, str]: (success, output_message)
+    .. deprecated:: 2.0.0
+        Use ``scripts/release_manager.py --build --pypi`` instead.
     """
+    warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
     try:
         # Check if dist directory exists
         dist_dir = Path('dist')
@@ -328,13 +316,10 @@ def create_release_notes(version: str, changes: List[str]) -> str:
     """
     Create release notes for the version.
 
-    Args:
-        version: Version string
-        changes: List of changes/features
-
-    Returns:
-        str: Formatted release notes
+    .. deprecated:: 2.0.0
+        Use CHANGELOG.md with ``scripts/release_manager.py --changelog`` instead.
     """
+    warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
     notes = f"# Siege Utilities v{version}\n\n"
     notes += f"Released on {datetime.now().strftime('%Y-%m-%d')}\n\n"
 
@@ -367,16 +352,10 @@ def full_release_workflow(
     """
     Execute full release workflow.
 
-    Args:
-        increment_type: Type of version increment ("major", "minor", "patch")
-        changes: List of changes for release notes
-        repository: Repository to upload to ("pypi" or "testpypi")
-        token: PyPI API token
-        dry_run: If True, don't actually upload
-
-    Returns:
-        Tuple[bool, str]: (success, output_message)
+    .. deprecated:: 2.0.0
+        Use ``scripts/release_manager.py --release --bump-type <type> --pypi`` instead.
     """
+    warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
     try:
         log_info("Starting full release workflow...")
 
@@ -438,9 +417,10 @@ def check_release_readiness() -> Tuple[bool, List[str]]:
     """
     Check if the package is ready for release.
 
-    Returns:
-        Tuple[bool, List[str]]: (is_ready, list_of_issues)
+    .. deprecated:: 2.0.0
+        Use ``scripts/release_manager.py --check`` instead.
     """
+    warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
     issues = []
 
     try:

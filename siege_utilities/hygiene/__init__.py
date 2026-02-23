@@ -37,6 +37,9 @@ Example Usage:
 """
 
 from .generate_docstrings import main as generate_docstrings
+# DEPRECATED: pypi_release functions are deprecated as of v2.0.0.
+# Use scripts/release_manager.py instead. These re-exports are kept
+# for backward compatibility and will be removed in v3.0.0.
 from .pypi_release import (
     get_current_version,
     increment_version,
