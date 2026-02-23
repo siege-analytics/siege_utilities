@@ -1,0 +1,970 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mapping and Reporting System &mdash; Siege Utilities 2.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=db988ed8"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Testing Guide" href="testing_guide.html" />
+    <link rel="prev" title="Analytics" href="analytics.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Siege Utilities
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#core-capabilities">Core Capabilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#core-utilities-16-functions">🔧 <strong>Core Utilities (16 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#file-operations-22-functions">📁 <strong>File Operations (22 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#distributed-computing-503-functions">🚀 <strong>Distributed Computing (503+ functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#geospatial-2-functions">🌍 <strong>Geospatial (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#configuration-management-15-functions">⚙️ <strong>Configuration Management (15 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#analytics-integration-6-functions">📊 <strong>Analytics Integration (6 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#code-hygiene-2-functions">🧹 <strong>Code Hygiene (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#testing-development-2-functions">🧪 <strong>Testing &amp; Development (2 functions)</strong></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#real-world-workflow-examples">Real-World Workflow Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#installation-and-dependencies">Installation and Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#performance-and-scalability">Performance and Scalability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="architecture_diagram.html">Library Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#core-architecture">Core Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#function-distribution">Function Distribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#key-features">Key Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#integration-points">Integration Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#usage-patterns">Usage Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="autodiscovery.html">Enhanced Auto-Discovery System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#how-it-works">How It Works</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#the-five-phase-discovery-process">The Five-Phase Discovery Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#benefits">Benefits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#monitoring-your-package">Monitoring Your Package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#adding-new-functions">Adding New Functions</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Core Utilities:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="core_utilities.html">Core Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="core_utilities.html#package-discovery">Package Discovery</a></li>
+<li class="toctree-l2"><a class="reference internal" href="core_utilities.html#functions">Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="core_utilities.html#siege_utilities.core.__init__"><code class="docutils literal notranslate"><span class="pre">__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="core_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="core_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="string_utilities.html">String Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="string_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="string_utilities.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="string_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="string_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="logging_utilities.html">Logging Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="logging_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="logging_utilities.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="logging_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="logging_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Distributed Computing:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="distributed_computing.html">Distributed Computing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#hdfs-configuration">HDFS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#hdfs-operations">HDFS Operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#id1">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#hdfs-legacy-operations">HDFS Legacy Operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#id2">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#id3">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="hdfs_operations.html">HDFS Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="hdfs_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hdfs_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hdfs_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hdfs_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="spark_utilities.html">Spark Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="spark_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spark_utilities.html#functions-by-category">Functions by Category</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="spark_utilities.html#mathematical-functions">Mathematical Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="spark_utilities.html#array-functions">Array Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="spark_utilities.html#aggregation-functions">Aggregation Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="spark_utilities.html#cryptographic-functions">Cryptographic Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="spark_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spark_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">File Operations:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="file_operations.html">File Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="file_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="file_hashing.html">File Hashing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="file_hashing.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_hashing.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_hashing.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_hashing.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="remote_operations.html">Remote Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="remote_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="remote_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="remote_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="remote_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="shell_operations.html">Shell Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="shell_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="shell_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="shell_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="shell_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Geographic &amp; Analytics:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="geo.html">Geographic Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="geocoding.html">Geocoding</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="geocoding.html#module-overview">Module Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="geocoding.html#functions">Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="geocoding.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="geocoding.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html">Enhanced Census Utilities and Spatial Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#census-directory-discovery">Census Directory Discovery</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#census-data-source">Census Data Source</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#state-information-methods">State Information Methods</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#spatial-data-source">Spatial Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#government-data-source">Government Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#openstreetmap-data-source">OpenStreetMap Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#convenience-functions">Convenience Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#global-instances">Global Instances</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#census_source"><code class="docutils literal notranslate"><span class="pre">census_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#government_source"><code class="docutils literal notranslate"><span class="pre">government_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#osm_source"><code class="docutils literal notranslate"><span class="pre">osm_source</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#basic-census-data-access">Basic Census Data Access</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#state-information-lookup">State Information Lookup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#dynamic-discovery">Dynamic Discovery</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#error-handling">Error Handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#performance-optimization">Performance Optimization</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#integration-with-other-tools">Integration with Other Tools</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html">Census Dataset Mapper</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#classes">Classes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#censusdatasetmapper">CensusDatasetMapper</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#censusdataset">CensusDataset</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#datasetrelationship">DatasetRelationship</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#enums">Enums</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#surveytype">SurveyType</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#geographylevel">GeographyLevel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#datareliability">DataReliability</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#get-census-dataset-mapper">get_census_dataset_mapper</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#get-best-dataset-for-analysis">get_best_dataset_for_analysis</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#compare-census-datasets">compare_census_datasets</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#basic-dataset-information">Basic Dataset Information</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#dataset-comparison">Dataset Comparison</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#data-selection-guide">Data Selection Guide</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#export-dataset-catalog">Export Dataset Catalog</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html">Census Data Selector</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#classes">Classes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#censusdataselector">CensusDataSelector</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#get-census-data-selector">get_census_data_selector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#select-census-datasets">select_census_datasets</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#get-analysis-approach">get_analysis_approach</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#basic-dataset-selection">Basic Dataset Selection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#analysis-approach-recommendations">Analysis Approach Recommendations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#compatibility-matrix">Compatibility Matrix</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#quick-selection">Quick Selection</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#advanced-usage">Advanced Usage</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#custom-reliability-requirements">Custom Reliability Requirements</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#time-sensitive-analysis">Time-Sensitive Analysis</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#variable-specific-selection">Variable-Specific Selection</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#analysis-types-supported">Analysis Types Supported</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#geography-levels-supported">Geography Levels Supported</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#reliability-levels">Reliability Levels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#output-format">Output Format</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#key-features">Key Features</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="geo.html#census-data-intelligence">Census Data Intelligence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="geo.html#enhanced-census-utilities">Enhanced Census Utilities</a></li>
+<li class="toctree-l3"><a class="reference internal" href="geo.html#spatial-data-processing">Spatial Data Processing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="geo.html#geocoding-services">Geocoding Services</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#analysis-types-supported">Analysis Types Supported</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#geography-levels-supported">Geography Levels Supported</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#census-survey-types">Census Survey Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#data-quality-and-reliability">Data Quality and Reliability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="analytics.html">Analytics</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#facebook-business-analytics">Facebook Business Analytics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#google-analytics">Google Analytics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#id1">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#id2">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Mapping and Reporting System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#key-features">Key Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#quick-start">Quick Start</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#basic-bivariate-choropleth-map">Basic Bivariate Choropleth Map</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#marker-map-with-geographic-data">Marker Map with Geographic Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#d-elevation-visualization">3D Elevation Visualization</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#comprehensive-report-generation">Comprehensive Report Generation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#creating-professional-pdf-reports">Creating Professional PDF Reports</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#powerpoint-presentation-creation">PowerPoint Presentation Creation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#map-types-reference">Map Types Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#bivariate-choropleth-maps">Bivariate Choropleth Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#marker-maps">Marker Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#d-maps">3D Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#heatmap-maps">Heatmap Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#cluster-maps">Cluster Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#flow-maps">Flow Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#advanced-choropleth-maps">Advanced Choropleth Maps</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#report-structure">Report Structure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pdf-report-components">PDF Report Components</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#powerpoint-structure">PowerPoint Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#section-types">Section Types</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#integration-examples">Integration Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#google-analytics-integration">Google Analytics Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#database-integration">Database Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#custom-api-integration">Custom API Integration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#data-preparation">Data Preparation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#map-design">Map Design</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#report-organization">Report Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#performance-optimization">Performance Optimization</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#common-issues">Common Issues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#performance-issues">Performance Issues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#error-handling">Error Handling</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#examples-and-recipes">Examples and Recipes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#additional-resources">Additional Resources</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development &amp; Testing:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="testing_guide.html">Testing Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-structure">Test Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#running-tests">Running Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#basic-test-execution">Basic Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#coverage-and-reporting">Coverage and Reporting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#parallel-execution">Parallel Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-markers">Test Markers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#writing-new-tests">Writing New Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-file-structure">Test File Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-naming-conventions">Test Naming Conventions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#example-test-patterns">Example Test Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-fixtures">Test Fixtures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-configuration">Test Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#pytest-configuration">Pytest Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#coverage-configuration">Coverage Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#continuous-integration">Continuous Integration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#ci-pipeline">CI Pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#debugging-tests">Debugging Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#verbose-output">Verbose Output</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#debug-mode">Debug Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#single-test-execution">Single Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-isolation">Test Isolation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#performance-testing">Performance Testing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#benchmark-tests">Benchmark Tests</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#load-testing">Load Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-data-management">Test Data Management</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-data-generation">Test Data Generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#data-cleanup">Data Cleanup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-organization">Test Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-independence">Test Independence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-coverage">Test Coverage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#performance-considerations">Performance Considerations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#common-patterns">Common Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#configuration-testing">Configuration Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#file-operation-testing">File Operation Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#api-testing">API Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#common-issues">Common Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#getting-help">Getting Help</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Siege Utilities</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Mapping and Reporting System</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="mapping-and-reporting-system">
+<h1>Mapping and Reporting System<a class="headerlink" href="#mapping-and-reporting-system" title="Link to this heading"></a></h1>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>The siege_utilities mapping and reporting system provides enterprise-grade capabilities for geographic data visualization and professional document generation. This system goes far beyond basic mapping to offer multiple visualization types, sophisticated document structures, and professional output formats.</p>
+</section>
+<section id="key-features">
+<h2>Key Features<a class="headerlink" href="#key-features" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>7+ Map Types</strong>: Choropleth, marker, 3D, heatmap, cluster, and flow maps</p></li>
+<li><p><strong>Professional Reports</strong>: PDF generation with TOC, sections, and appendices</p></li>
+<li><p><strong>PowerPoint Integration</strong>: Automated presentation creation with various slide types</p></li>
+<li><p><strong>Client Branding</strong>: Custom styling and professional appearance</p></li>
+<li><p><strong>Multiple Data Sources</strong>: Integration with external APIs and databases</p></li>
+</ul>
+</section>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
+<p>Install the required dependencies:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>siege_utilities/reporting/requirements_bivariate_choropleth.txt
+</pre></div>
+</div>
+<p>Required packages include:
+- geopandas
+- shapely
+- folium
+- matplotlib
+- seaborn
+- pandas
+- numpy
+- scipy</p>
+</section>
+<section id="quick-start">
+<h2>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading"></a></h2>
+<section id="basic-bivariate-choropleth-map">
+<h3>Basic Bivariate Choropleth Map<a class="headerlink" href="#basic-bivariate-choropleth-map" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.reporting.chart_generator</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChartGenerator</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+<span class="c1"># Initialize chart generator</span>
+<span class="n">chart_gen</span> <span class="o">=</span> <span class="n">ChartGenerator</span><span class="p">()</span>
+
+<span class="c1"># Sample data</span>
+<span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;California&#39;</span><span class="p">,</span> <span class="s1">&#39;Texas&#39;</span><span class="p">,</span> <span class="s1">&#39;New York&#39;</span><span class="p">,</span> <span class="s1">&#39;Florida&#39;</span><span class="p">],</span>
+    <span class="s1">&#39;population&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">39512223</span><span class="p">,</span> <span class="mi">28995881</span><span class="p">,</span> <span class="mi">19453561</span><span class="p">,</span> <span class="mi">21477737</span><span class="p">],</span>
+    <span class="s1">&#39;income&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">75235</span><span class="p">,</span> <span class="mi">64034</span><span class="p">,</span> <span class="mi">72741</span><span class="p">,</span> <span class="mi">59227</span><span class="p">]</span>
+<span class="p">}</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+<span class="c1"># Create bivariate choropleth</span>
+<span class="n">chart</span> <span class="o">=</span> <span class="n">chart_gen</span><span class="o">.</span><span class="n">create_bivariate_choropleth_matplotlib</span><span class="p">(</span>
+    <span class="n">data</span><span class="o">=</span><span class="n">df</span><span class="p">,</span>
+    <span class="n">location_column</span><span class="o">=</span><span class="s1">&#39;state&#39;</span><span class="p">,</span>
+    <span class="n">value_column1</span><span class="o">=</span><span class="s1">&#39;population&#39;</span><span class="p">,</span>
+    <span class="n">value_column2</span><span class="o">=</span><span class="s1">&#39;income&#39;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Population vs Income by State&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="marker-map-with-geographic-data">
+<h3>Marker Map with Geographic Data<a class="headerlink" href="#marker-map-with-geographic-data" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create marker map</span>
+<span class="n">marker_map</span> <span class="o">=</span> <span class="n">chart_gen</span><span class="o">.</span><span class="n">create_marker_map</span><span class="p">(</span>
+    <span class="n">data</span><span class="o">=</span><span class="n">cities_df</span><span class="p">,</span>
+    <span class="n">latitude_column</span><span class="o">=</span><span class="s1">&#39;latitude&#39;</span><span class="p">,</span>
+    <span class="n">longitude_column</span><span class="o">=</span><span class="s1">&#39;longitude&#39;</span><span class="p">,</span>
+    <span class="n">value_column</span><span class="o">=</span><span class="s1">&#39;population&#39;</span><span class="p">,</span>
+    <span class="n">label_column</span><span class="o">=</span><span class="s1">&#39;city&#39;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;US Cities Population Map&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="d-elevation-visualization">
+<h3>3D Elevation Visualization<a class="headerlink" href="#d-elevation-visualization" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create 3D elevation map</span>
+<span class="n">elevation_map</span> <span class="o">=</span> <span class="n">chart_gen</span><span class="o">.</span><span class="n">create_3d_map</span><span class="p">(</span>
+    <span class="n">data</span><span class="o">=</span><span class="n">cities_df</span><span class="p">,</span>
+    <span class="n">latitude_column</span><span class="o">=</span><span class="s1">&#39;latitude&#39;</span><span class="p">,</span>
+    <span class="n">longitude_column</span><span class="o">=</span><span class="s1">&#39;longitude&#39;</span><span class="p">,</span>
+    <span class="n">elevation_column</span><span class="o">=</span><span class="s1">&#39;elevation&#39;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;City Elevation 3D Visualization&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="comprehensive-report-generation">
+<h2>Comprehensive Report Generation<a class="headerlink" href="#comprehensive-report-generation" title="Link to this heading"></a></h2>
+<section id="creating-professional-pdf-reports">
+<h3>Creating Professional PDF Reports<a class="headerlink" href="#creating-professional-pdf-reports" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.reporting.report_generator</span><span class="w"> </span><span class="kn">import</span> <span class="n">ReportGenerator</span>
+
+<span class="c1"># Initialize report generator</span>
+<span class="n">report_gen</span> <span class="o">=</span> <span class="n">ReportGenerator</span><span class="p">()</span>
+
+<span class="c1"># Create comprehensive report</span>
+<span class="n">report_content</span> <span class="o">=</span> <span class="n">report_gen</span><span class="o">.</span><span class="n">create_comprehensive_report</span><span class="p">(</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Geographic Analysis Report&quot;</span><span class="p">,</span>
+    <span class="n">author</span><span class="o">=</span><span class="s2">&quot;Analytics Team&quot;</span><span class="p">,</span>
+    <span class="n">client</span><span class="o">=</span><span class="s2">&quot;Research Institute&quot;</span><span class="p">,</span>
+    <span class="n">table_of_contents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">page_numbers</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+
+<span class="c1"># Add sections</span>
+<span class="n">report_content</span> <span class="o">=</span> <span class="n">report_gen</span><span class="o">.</span><span class="n">add_map_section</span><span class="p">(</span>
+    <span class="n">report_content</span><span class="p">,</span>
+    <span class="s2">&quot;Regional Analysis&quot;</span><span class="p">,</span>
+    <span class="p">[</span><span class="n">bivariate_map</span><span class="p">],</span>
+    <span class="n">map_type</span><span class="o">=</span><span class="s2">&quot;bivariate_choropleth&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># Generate PDF</span>
+<span class="n">report_gen</span><span class="o">.</span><span class="n">generate_pdf_report</span><span class="p">(</span><span class="n">report_content</span><span class="p">,</span> <span class="s2">&quot;report.pdf&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="powerpoint-presentation-creation">
+<h3>PowerPoint Presentation Creation<a class="headerlink" href="#powerpoint-presentation-creation" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.reporting.powerpoint_generator</span><span class="w"> </span><span class="kn">import</span> <span class="n">PowerPointGenerator</span>
+
+<span class="c1"># Initialize PowerPoint generator</span>
+<span class="n">ppt_gen</span> <span class="o">=</span> <span class="n">PowerPointGenerator</span><span class="p">()</span>
+
+<span class="c1"># Create presentation</span>
+<span class="n">presentation</span> <span class="o">=</span> <span class="n">ppt_gen</span><span class="o">.</span><span class="n">create_comprehensive_presentation</span><span class="p">(</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Geographic Analysis&quot;</span><span class="p">,</span>
+    <span class="n">include_toc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_agenda</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+
+<span class="c1"># Add slides</span>
+<span class="n">presentation</span> <span class="o">=</span> <span class="n">ppt_gen</span><span class="o">.</span><span class="n">add_map_slide</span><span class="p">(</span>
+    <span class="n">presentation</span><span class="p">,</span>
+    <span class="s2">&quot;Regional Overview&quot;</span><span class="p">,</span>
+    <span class="p">[</span><span class="n">bivariate_map</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="c1"># Generate PowerPoint</span>
+<span class="n">ppt_gen</span><span class="o">.</span><span class="n">generate_powerpoint_presentation</span><span class="p">(</span><span class="n">presentation</span><span class="p">,</span> <span class="s2">&quot;presentation.pptx&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="map-types-reference">
+<h2>Map Types Reference<a class="headerlink" href="#map-types-reference" title="Link to this heading"></a></h2>
+<section id="bivariate-choropleth-maps">
+<h3>Bivariate Choropleth Maps<a class="headerlink" href="#bivariate-choropleth-maps" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">chart_gen</span><span class="o">.</span><span class="n">create_bivariate_choropleth_matplotlib</span><span class="p">(</span>
+    <span class="n">data</span><span class="o">=</span><span class="n">dataframe</span><span class="p">,</span>
+    <span class="n">geodata</span><span class="o">=</span><span class="n">geodataframe</span><span class="p">,</span>
+    <span class="n">location_column</span><span class="o">=</span><span class="s1">&#39;region&#39;</span><span class="p">,</span>
+    <span class="n">value_column1</span><span class="o">=</span><span class="s1">&#39;metric1&#39;</span><span class="p">,</span>
+    <span class="n">value_column2</span><span class="o">=</span><span class="s1">&#39;metric2&#39;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Bivariate Analysis&quot;</span><span class="p">,</span>
+    <span class="n">width</span><span class="o">=</span><span class="mf">12.0</span><span class="p">,</span>
+    <span class="n">height</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span>
+    <span class="n">color_scheme</span><span class="o">=</span><span class="s1">&#39;custom&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Parameters:</strong>
+- <code class="docutils literal notranslate"><span class="pre">data</span></code>: DataFrame with location and value data
+- <code class="docutils literal notranslate"><span class="pre">geodata</span></code>: GeoDataFrame or path to geographic file
+- <code class="docutils literal notranslate"><span class="pre">location_column</span></code>: Column name for geographic locations
+- <code class="docutils literal notranslate"><span class="pre">value_column1</span></code>: First variable for analysis
+- <code class="docutils literal notranslate"><span class="pre">value_column2</span></code>: Second variable for analysis
+- <code class="docutils literal notranslate"><span class="pre">title</span></code>: Map title
+- <code class="docutils literal notranslate"><span class="pre">width/height</span></code>: Dimensions in inches
+- <code class="docutils literal notranslate"><span class="pre">color_scheme</span></code>: Color palette selection</p>
+</section>
+<section id="marker-maps">
+<h3>Marker Maps<a class="headerlink" href="#marker-maps" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">chart_gen</span><span class="o">.</span><span class="n">create_marker_map</span><span class="p">(</span>
+    <span class="n">data</span><span class="o">=</span><span class="n">dataframe</span><span class="p">,</span>
+    <span class="n">latitude_column</span><span class="o">=</span><span class="s1">&#39;lat&#39;</span><span class="p">,</span>
+    <span class="n">longitude_column</span><span class="o">=</span><span class="s1">&#39;lon&#39;</span><span class="p">,</span>
+    <span class="n">value_column</span><span class="o">=</span><span class="s1">&#39;population&#39;</span><span class="p">,</span>
+    <span class="n">label_column</span><span class="o">=</span><span class="s1">&#39;city&#39;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Location Map&quot;</span><span class="p">,</span>
+    <span class="n">map_style</span><span class="o">=</span><span class="s1">&#39;open-street-map&#39;</span><span class="p">,</span>
+    <span class="n">zoom_level</span><span class="o">=</span><span class="mi">10</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Parameters:</strong>
+- <code class="docutils literal notranslate"><span class="pre">latitude_column</span></code>: Column containing latitude values
+- <code class="docutils literal notranslate"><span class="pre">longitude_column</span></code>: Column containing longitude values
+- <code class="docutils literal notranslate"><span class="pre">value_column</span></code>: Column for marker size encoding
+- <code class="docutils literal notranslate"><span class="pre">label_column</span></code>: Column for popup labels
+- <code class="docutils literal notranslate"><span class="pre">map_style</span></code>: Map tile style selection
+- <code class="docutils literal notranslate"><span class="pre">zoom_level</span></code>: Initial zoom level</p>
+</section>
+<section id="d-maps">
+<h3>3D Maps<a class="headerlink" href="#d-maps" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">chart_gen</span><span class="o">.</span><span class="n">create_3d_map</span><span class="p">(</span>
+    <span class="n">data</span><span class="o">=</span><span class="n">dataframe</span><span class="p">,</span>
+    <span class="n">latitude_column</span><span class="o">=</span><span class="s1">&#39;lat&#39;</span><span class="p">,</span>
+    <span class="n">longitude_column</span><span class="o">=</span><span class="s1">&#39;lon&#39;</span><span class="p">,</span>
+    <span class="n">elevation_column</span><span class="o">=</span><span class="s1">&#39;elevation&#39;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;3D Visualization&quot;</span><span class="p">,</span>
+    <span class="n">view_angle</span><span class="o">=</span><span class="mi">45</span><span class="p">,</span>
+    <span class="n">elevation_scale</span><span class="o">=</span><span class="mf">1.0</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Parameters:</strong>
+- <code class="docutils literal notranslate"><span class="pre">elevation_column</span></code>: Column containing elevation/height data
+- <code class="docutils literal notranslate"><span class="pre">view_angle</span></code>: 3D viewing angle in degrees
+- <code class="docutils literal notranslate"><span class="pre">elevation_scale</span></code>: Scale factor for elevation values</p>
+</section>
+<section id="heatmap-maps">
+<h3>Heatmap Maps<a class="headerlink" href="#heatmap-maps" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">chart_gen</span><span class="o">.</span><span class="n">create_heatmap_map</span><span class="p">(</span>
+    <span class="n">data</span><span class="o">=</span><span class="n">dataframe</span><span class="p">,</span>
+    <span class="n">latitude_column</span><span class="o">=</span><span class="s1">&#39;lat&#39;</span><span class="p">,</span>
+    <span class="n">longitude_column</span><span class="o">=</span><span class="s1">&#39;lon&#39;</span><span class="p">,</span>
+    <span class="n">value_column</span><span class="o">=</span><span class="s1">&#39;intensity&#39;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Density Heatmap&quot;</span><span class="p">,</span>
+    <span class="n">grid_size</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+    <span class="n">blur_radius</span><span class="o">=</span><span class="mf">0.5</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Parameters:</strong>
+- <code class="docutils literal notranslate"><span class="pre">grid_size</span></code>: Number of grid cells for heatmap
+- <code class="docutils literal notranslate"><span class="pre">blur_radius</span></code>: Blur radius for smoothing</p>
+</section>
+<section id="cluster-maps">
+<h3>Cluster Maps<a class="headerlink" href="#cluster-maps" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">chart_gen</span><span class="o">.</span><span class="n">create_cluster_map</span><span class="p">(</span>
+    <span class="n">data</span><span class="o">=</span><span class="n">dataframe</span><span class="p">,</span>
+    <span class="n">latitude_column</span><span class="o">=</span><span class="s1">&#39;lat&#39;</span><span class="p">,</span>
+    <span class="n">longitude_column</span><span class="o">=</span><span class="s1">&#39;lon&#39;</span><span class="p">,</span>
+    <span class="n">cluster_column</span><span class="o">=</span><span class="s1">&#39;region&#39;</span><span class="p">,</span>
+    <span class="n">label_column</span><span class="o">=</span><span class="s1">&#39;city&#39;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Clustered Locations&quot;</span><span class="p">,</span>
+    <span class="n">max_cluster_radius</span><span class="o">=</span><span class="mi">80</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Parameters:</strong>
+- <code class="docutils literal notranslate"><span class="pre">cluster_column</span></code>: Column for clustering values
+- <code class="docutils literal notranslate"><span class="pre">max_cluster_radius</span></code>: Maximum radius for clustering</p>
+</section>
+<section id="flow-maps">
+<h3>Flow Maps<a class="headerlink" href="#flow-maps" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">chart_gen</span><span class="o">.</span><span class="n">create_flow_map</span><span class="p">(</span>
+    <span class="n">data</span><span class="o">=</span><span class="n">dataframe</span><span class="p">,</span>
+    <span class="n">origin_lat_column</span><span class="o">=</span><span class="s1">&#39;origin_lat&#39;</span><span class="p">,</span>
+    <span class="n">origin_lon_column</span><span class="o">=</span><span class="s1">&#39;origin_lon&#39;</span><span class="p">,</span>
+    <span class="n">dest_lat_column</span><span class="o">=</span><span class="s1">&#39;dest_lat&#39;</span><span class="p">,</span>
+    <span class="n">dest_lon_column</span><span class="o">=</span><span class="s1">&#39;dest_lon&#39;</span><span class="p">,</span>
+    <span class="n">flow_value_column</span><span class="o">=</span><span class="s1">&#39;volume&#39;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Flow Patterns&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Parameters:</strong>
+- <code class="docutils literal notranslate"><span class="pre">origin_lat_column</span></code>: Origin latitude column
+- <code class="docutils literal notranslate"><span class="pre">origin_lon_column</span></code>: Origin longitude column
+- <code class="docutils literal notranslate"><span class="pre">dest_lat_column</span></code>: Destination latitude column
+- <code class="docutils literal notranslate"><span class="pre">dest_lon_column</span></code>: Destination longitude column
+- <code class="docutils literal notranslate"><span class="pre">flow_value_column</span></code>: Flow intensity values</p>
+</section>
+<section id="advanced-choropleth-maps">
+<h3>Advanced Choropleth Maps<a class="headerlink" href="#advanced-choropleth-maps" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">chart_gen</span><span class="o">.</span><span class="n">create_advanced_choropleth</span><span class="p">(</span>
+    <span class="n">data</span><span class="o">=</span><span class="n">dataframe</span><span class="p">,</span>
+    <span class="n">geodata</span><span class="o">=</span><span class="n">geodataframe</span><span class="p">,</span>
+    <span class="n">location_column</span><span class="o">=</span><span class="s1">&#39;region&#39;</span><span class="p">,</span>
+    <span class="n">value_column</span><span class="o">=</span><span class="s1">&#39;metric&#39;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Advanced Analysis&quot;</span><span class="p">,</span>
+    <span class="n">classification</span><span class="o">=</span><span class="s1">&#39;natural_breaks&#39;</span><span class="p">,</span>
+    <span class="n">bins</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">color_scheme</span><span class="o">=</span><span class="s1">&#39;YlOrRd&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Classification Methods:</strong>
+- <code class="docutils literal notranslate"><span class="pre">quantiles</span></code>: Equal number of observations per bin
+- <code class="docutils literal notranslate"><span class="pre">equal_interval</span></code>: Equal width bins
+- <code class="docutils literal notranslate"><span class="pre">natural_breaks</span></code>: Natural grouping of data</p>
+</section>
+</section>
+<section id="report-structure">
+<h2>Report Structure<a class="headerlink" href="#report-structure" title="Link to this heading"></a></h2>
+<section id="pdf-report-components">
+<h3>PDF Report Components<a class="headerlink" href="#pdf-report-components" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>Title Page</strong>: Cover with metadata and branding</p></li>
+<li><p><strong>Table of Contents</strong>: Automated with page numbers</p></li>
+<li><p><strong>Executive Summary</strong>: High-level overview</p></li>
+<li><p><strong>Methodology</strong>: Technical approach</p></li>
+<li><p><strong>Content Sections</strong>: Maps, charts, tables, text</p></li>
+<li><p><strong>Appendices</strong>: Supporting materials</p></li>
+<li><p><strong>Professional Features</strong>: Page numbering, headers, footers</p></li>
+</ol>
+</section>
+<section id="powerpoint-structure">
+<h3>PowerPoint Structure<a class="headerlink" href="#powerpoint-structure" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>Title Slide</strong>: Presentation header</p></li>
+<li><p><strong>Table of Contents</strong>: Navigation overview</p></li>
+<li><p><strong>Agenda</strong>: Meeting structure</p></li>
+<li><p><strong>Content Slides</strong>: Various types and layouts</p></li>
+<li><p><strong>Summary</strong>: Key points and next steps</p></li>
+</ol>
+</section>
+<section id="section-types">
+<h3>Section Types<a class="headerlink" href="#section-types" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>Text Sections</strong>: Rich text with formatting</p></li>
+<li><p><strong>Chart Sections</strong>: Multiple chart layouts</p></li>
+<li><p><strong>Map Sections</strong>: Geographic visualizations</p></li>
+<li><p><strong>Table Sections</strong>: Data tables with styling</p></li>
+<li><p><strong>Appendix Sections</strong>: Supporting materials</p></li>
+</ul>
+</section>
+</section>
+<section id="integration-examples">
+<h2>Integration Examples<a class="headerlink" href="#integration-examples" title="Link to this heading"></a></h2>
+<section id="google-analytics-integration">
+<h3>Google Analytics Integration<a class="headerlink" href="#google-analytics-integration" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.analytics.google_analytics</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleAnalyticsConnector</span>
+
+<span class="c1"># Initialize connector</span>
+<span class="n">ga_connector</span> <span class="o">=</span> <span class="n">GoogleAnalyticsConnector</span><span class="p">(</span>
+    <span class="n">credentials_path</span><span class="o">=</span><span class="s1">&#39;credentials.json&#39;</span><span class="p">,</span>
+    <span class="n">property_id</span><span class="o">=</span><span class="s1">&#39;your_property_id&#39;</span>
+<span class="p">)</span>
+
+<span class="c1"># Retrieve geographic data</span>
+<span class="n">ga_data</span> <span class="o">=</span> <span class="n">ga_connector</span><span class="o">.</span><span class="n">batch_retrieve_ga_data</span><span class="p">(</span>
+    <span class="n">metrics</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;sessions&#39;</span><span class="p">,</span> <span class="s1">&#39;bounce_rate&#39;</span><span class="p">],</span>
+    <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;country&#39;</span><span class="p">,</span> <span class="s1">&#39;region&#39;</span><span class="p">],</span>
+    <span class="n">date_range</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;2023-01-01&#39;</span><span class="p">,</span> <span class="s1">&#39;2023-12-31&#39;</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="c1"># Create geographic visualization</span>
+<span class="n">chart</span> <span class="o">=</span> <span class="n">chart_gen</span><span class="o">.</span><span class="n">create_bivariate_choropleth_matplotlib</span><span class="p">(</span>
+    <span class="n">data</span><span class="o">=</span><span class="n">ga_data</span><span class="p">,</span>
+    <span class="n">location_column</span><span class="o">=</span><span class="s1">&#39;region&#39;</span><span class="p">,</span>
+    <span class="n">value_column1</span><span class="o">=</span><span class="s1">&#39;sessions&#39;</span><span class="p">,</span>
+    <span class="n">value_column2</span><span class="o">=</span><span class="s1">&#39;bounce_rate&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="database-integration">
+<h3>Database Integration<a class="headerlink" href="#database-integration" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.config.databases</span><span class="w"> </span><span class="kn">import</span> <span class="n">DatabaseConnector</span>
+
+<span class="c1"># Initialize database connector</span>
+<span class="n">db_connector</span> <span class="o">=</span> <span class="n">DatabaseConnector</span><span class="p">(</span>
+    <span class="n">connection_string</span><span class="o">=</span><span class="s1">&#39;postgresql://user:password@localhost/dbname&#39;</span>
+<span class="p">)</span>
+
+<span class="c1"># Query customer data</span>
+<span class="n">customer_data</span> <span class="o">=</span> <span class="n">db_connector</span><span class="o">.</span><span class="n">execute_query</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    SELECT state, COUNT(*) as customers, AVG(revenue) as avg_revenue</span>
+<span class="s2">    FROM customers GROUP BY state</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+
+<span class="c1"># Create customer analysis map</span>
+<span class="n">chart</span> <span class="o">=</span> <span class="n">chart_gen</span><span class="o">.</span><span class="n">create_bivariate_choropleth_matplotlib</span><span class="p">(</span>
+    <span class="n">data</span><span class="o">=</span><span class="n">customer_data</span><span class="p">,</span>
+    <span class="n">location_column</span><span class="o">=</span><span class="s1">&#39;state&#39;</span><span class="p">,</span>
+    <span class="n">value_column1</span><span class="o">=</span><span class="s1">&#39;customers&#39;</span><span class="p">,</span>
+    <span class="n">value_column2</span><span class="o">=</span><span class="s1">&#39;avg_revenue&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="custom-api-integration">
+<h3>Custom API Integration<a class="headerlink" href="#custom-api-integration" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">fetch_api_data</span><span class="p">(</span><span class="n">endpoint</span><span class="p">,</span> <span class="n">api_key</span><span class="p">):</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">endpoint</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;Authorization&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;Bearer </span><span class="si">{</span><span class="n">api_key</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">})</span>
+    <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+
+<span class="c1"># Fetch custom data</span>
+<span class="n">custom_data</span> <span class="o">=</span> <span class="n">fetch_api_data</span><span class="p">(</span>
+    <span class="s1">&#39;https://api.example.com/geographic-metrics&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;your_api_key&#39;</span>
+<span class="p">)</span>
+
+<span class="c1"># Process and visualize</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">custom_data</span><span class="p">)</span>
+<span class="n">chart</span> <span class="o">=</span> <span class="n">chart_gen</span><span class="o">.</span><span class="n">create_marker_map</span><span class="p">(</span>
+    <span class="n">data</span><span class="o">=</span><span class="n">df</span><span class="p">,</span>
+    <span class="n">latitude_column</span><span class="o">=</span><span class="s1">&#39;lat&#39;</span><span class="p">,</span>
+    <span class="n">longitude_column</span><span class="o">=</span><span class="s1">&#39;lon&#39;</span><span class="p">,</span>
+    <span class="n">value_column</span><span class="o">=</span><span class="s1">&#39;metric&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="best-practices">
+<h2>Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading"></a></h2>
+<section id="data-preparation">
+<h3>Data Preparation<a class="headerlink" href="#data-preparation" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>Clean Data</strong>: Remove duplicates and handle missing values</p></li>
+<li><p><strong>Coordinate Systems</strong>: Ensure consistent geographic projections</p></li>
+<li><p><strong>Data Types</strong>: Use appropriate numeric and string types</p></li>
+<li><p><strong>Validation</strong>: Verify geographic identifier matches</p></li>
+</ol>
+</section>
+<section id="map-design">
+<h3>Map Design<a class="headerlink" href="#map-design" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>Color Schemes</strong>: Choose appropriate palettes for data characteristics</p></li>
+<li><p><strong>Legend Design</strong>: Clear and informative legends</p></li>
+<li><p><strong>Title and Labels</strong>: Descriptive and concise</p></li>
+<li><p><strong>Scale and Projection</strong>: Appropriate for geographic scope</p></li>
+</ol>
+</section>
+<section id="report-organization">
+<h3>Report Organization<a class="headerlink" href="#report-organization" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>Logical Flow</strong>: Organize content in logical sequence</p></li>
+<li><p><strong>Consistent Formatting</strong>: Maintain professional appearance</p></li>
+<li><p><strong>Clear Sections</strong>: Well-defined section boundaries</p></li>
+<li><p><strong>Appropriate Detail</strong>: Match detail level to audience</p></li>
+</ol>
+</section>
+<section id="performance-optimization">
+<h3>Performance Optimization<a class="headerlink" href="#performance-optimization" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>Data Sampling</strong>: Use sampling for large datasets</p></li>
+<li><p><strong>Caching</strong>: Cache frequently used geographic data</p></li>
+<li><p><strong>Parallel Processing</strong>: Use multi-core processing when available</p></li>
+<li><p><strong>Memory Management</strong>: Optimize data structures</p></li>
+</ol>
+</section>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h2>
+<section id="common-issues">
+<h3>Common Issues<a class="headerlink" href="#common-issues" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>“GeoPandas not available”</strong>: Install required dependencies</p></li>
+<li><p><strong>“Location column not found”</strong>: Check column names in data</p></li>
+<li><p><strong>“No numeric data found”</strong>: Ensure value columns contain numbers</p></li>
+<li><p><strong>Memory issues</strong>: Use data sampling or optimization</p></li>
+</ol>
+</section>
+<section id="performance-issues">
+<h3>Performance Issues<a class="headerlink" href="#performance-issues" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>Large Datasets</strong>: Implement data aggregation</p></li>
+<li><p><strong>Complex Geometries</strong>: Simplify geographic boundaries</p></li>
+<li><p><strong>Multiple Maps</strong>: Use batch processing</p></li>
+<li><p><strong>Rendering Quality</strong>: Adjust DPI and figure sizes</p></li>
+</ol>
+</section>
+<section id="error-handling">
+<h3>Error Handling<a class="headerlink" href="#error-handling" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>API Failures</strong>: Implement retry logic</p></li>
+<li><p><strong>Data Mismatches</strong>: Validate geographic identifiers</p></li>
+<li><p><strong>File Errors</strong>: Check file paths and permissions</p></li>
+<li><p><strong>Memory Errors</strong>: Monitor resource usage</p></li>
+</ol>
+</section>
+</section>
+<section id="examples-and-recipes">
+<h2>Examples and Recipes<a class="headerlink" href="#examples-and-recipes" title="Link to this heading"></a></h2>
+<p>For comprehensive examples, see:
+- <cite>comprehensive_mapping_example.py</cite> - Full demonstration
+- <cite>bivariate_choropleth_example.py</cite> - Basic choropleth usage
+- Recipe guides in <cite>docs/recipes/reporting/</cite></p>
+</section>
+<section id="additional-resources">
+<h2>Additional Resources<a class="headerlink" href="#additional-resources" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>API Reference</strong>: Complete method documentation</p></li>
+<li><p><strong>Recipe Guides</strong>: Step-by-step implementation</p></li>
+<li><p><strong>Best Practices</strong>: Professional usage recommendations</p></li>
+<li><p><strong>Troubleshooting</strong>: Common issues and solutions</p></li>
+<li><p><strong>Community Support</strong>: GitHub issues and discussions</p></li>
+</ul>
+<p>The mapping and reporting system provides enterprise-grade capabilities for geographic data visualization and professional document generation, making it easy to create publication-quality outputs for business intelligence and client reporting needs.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="analytics.html" class="btn btn-neutral float-left" title="Analytics" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="testing_guide.html" class="btn btn-neutral float-right" title="Testing Guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025-2026, Dheeraj Chand.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

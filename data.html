@@ -1,0 +1,685 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sample Data and Testing Utilities &mdash; Siege Utilities 2.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=db988ed8"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Siege Utilities
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#core-capabilities">Core Capabilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#core-utilities-16-functions">🔧 <strong>Core Utilities (16 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#file-operations-22-functions">📁 <strong>File Operations (22 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#distributed-computing-503-functions">🚀 <strong>Distributed Computing (503+ functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#geospatial-2-functions">🌍 <strong>Geospatial (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#configuration-management-15-functions">⚙️ <strong>Configuration Management (15 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#analytics-integration-6-functions">📊 <strong>Analytics Integration (6 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#code-hygiene-2-functions">🧹 <strong>Code Hygiene (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#testing-development-2-functions">🧪 <strong>Testing &amp; Development (2 functions)</strong></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#real-world-workflow-examples">Real-World Workflow Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#installation-and-dependencies">Installation and Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#performance-and-scalability">Performance and Scalability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="architecture_diagram.html">Library Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#core-architecture">Core Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#function-distribution">Function Distribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#key-features">Key Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#integration-points">Integration Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#usage-patterns">Usage Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="autodiscovery.html">Enhanced Auto-Discovery System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#how-it-works">How It Works</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#the-five-phase-discovery-process">The Five-Phase Discovery Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#benefits">Benefits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#monitoring-your-package">Monitoring Your Package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#adding-new-functions">Adding New Functions</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Core Utilities:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="core_utilities.html">Core Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="core_utilities.html#package-discovery">Package Discovery</a></li>
+<li class="toctree-l2"><a class="reference internal" href="core_utilities.html#functions">Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="core_utilities.html#siege_utilities.core.__init__"><code class="docutils literal notranslate"><span class="pre">__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="core_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="core_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="string_utilities.html">String Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="string_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="string_utilities.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="string_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="string_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="logging_utilities.html">Logging Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="logging_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="logging_utilities.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="logging_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="logging_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Distributed Computing:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="distributed_computing.html">Distributed Computing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#hdfs-configuration">HDFS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#hdfs-operations">HDFS Operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#id1">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#hdfs-legacy-operations">HDFS Legacy Operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#id2">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#id3">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="hdfs_operations.html">HDFS Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="hdfs_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hdfs_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hdfs_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hdfs_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="spark_utilities.html">Spark Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="spark_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spark_utilities.html#functions-by-category">Functions by Category</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="spark_utilities.html#mathematical-functions">Mathematical Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="spark_utilities.html#array-functions">Array Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="spark_utilities.html#aggregation-functions">Aggregation Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="spark_utilities.html#cryptographic-functions">Cryptographic Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="spark_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spark_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">File Operations:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="file_operations.html">File Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="file_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="file_hashing.html">File Hashing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="file_hashing.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_hashing.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_hashing.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_hashing.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="remote_operations.html">Remote Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="remote_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="remote_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="remote_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="remote_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="shell_operations.html">Shell Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="shell_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="shell_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="shell_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="shell_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Geographic &amp; Analytics:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="geo.html">Geographic Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="geocoding.html">Geocoding</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="geocoding.html#module-overview">Module Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="geocoding.html#functions">Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="geocoding.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="geocoding.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html">Enhanced Census Utilities and Spatial Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#census-directory-discovery">Census Directory Discovery</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#census-data-source">Census Data Source</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#state-information-methods">State Information Methods</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#spatial-data-source">Spatial Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#government-data-source">Government Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#openstreetmap-data-source">OpenStreetMap Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#convenience-functions">Convenience Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#global-instances">Global Instances</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#census_source"><code class="docutils literal notranslate"><span class="pre">census_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#government_source"><code class="docutils literal notranslate"><span class="pre">government_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#osm_source"><code class="docutils literal notranslate"><span class="pre">osm_source</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#basic-census-data-access">Basic Census Data Access</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#state-information-lookup">State Information Lookup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#dynamic-discovery">Dynamic Discovery</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#error-handling">Error Handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#performance-optimization">Performance Optimization</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html#integration-with-other-tools">Integration with Other Tools</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html">Census Dataset Mapper</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#classes">Classes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#censusdatasetmapper">CensusDatasetMapper</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#censusdataset">CensusDataset</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#datasetrelationship">DatasetRelationship</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#enums">Enums</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#surveytype">SurveyType</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#geographylevel">GeographyLevel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#datareliability">DataReliability</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#get-census-dataset-mapper">get_census_dataset_mapper</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#get-best-dataset-for-analysis">get_best_dataset_for_analysis</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#compare-census-datasets">compare_census_datasets</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#basic-dataset-information">Basic Dataset Information</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#dataset-comparison">Dataset Comparison</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#data-selection-guide">Data Selection Guide</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html#export-dataset-catalog">Export Dataset Catalog</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html">Census Data Selector</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#classes">Classes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#censusdataselector">CensusDataSelector</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#get-census-data-selector">get_census_data_selector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#select-census-datasets">select_census_datasets</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#get-analysis-approach">get_analysis_approach</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#basic-dataset-selection">Basic Dataset Selection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#analysis-approach-recommendations">Analysis Approach Recommendations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#compatibility-matrix">Compatibility Matrix</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#quick-selection">Quick Selection</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#advanced-usage">Advanced Usage</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#custom-reliability-requirements">Custom Reliability Requirements</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#time-sensitive-analysis">Time-Sensitive Analysis</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#variable-specific-selection">Variable-Specific Selection</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#analysis-types-supported">Analysis Types Supported</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#geography-levels-supported">Geography Levels Supported</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#reliability-levels">Reliability Levels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#output-format">Output Format</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#key-features">Key Features</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="geo.html#census-data-intelligence">Census Data Intelligence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="geo.html#enhanced-census-utilities">Enhanced Census Utilities</a></li>
+<li class="toctree-l3"><a class="reference internal" href="geo.html#spatial-data-processing">Spatial Data Processing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="geo.html#geocoding-services">Geocoding Services</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#analysis-types-supported">Analysis Types Supported</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#geography-levels-supported">Geography Levels Supported</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#census-survey-types">Census Survey Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#data-quality-and-reliability">Data Quality and Reliability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="analytics.html">Analytics</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#facebook-business-analytics">Facebook Business Analytics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#google-analytics">Google Analytics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#id1">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#id2">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="mapping_and_reporting.html">Mapping and Reporting System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#key-features">Key Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#quick-start">Quick Start</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#basic-bivariate-choropleth-map">Basic Bivariate Choropleth Map</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#marker-map-with-geographic-data">Marker Map with Geographic Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#d-elevation-visualization">3D Elevation Visualization</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#comprehensive-report-generation">Comprehensive Report Generation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#creating-professional-pdf-reports">Creating Professional PDF Reports</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#powerpoint-presentation-creation">PowerPoint Presentation Creation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#map-types-reference">Map Types Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#bivariate-choropleth-maps">Bivariate Choropleth Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#marker-maps">Marker Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#d-maps">3D Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#heatmap-maps">Heatmap Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#cluster-maps">Cluster Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#flow-maps">Flow Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#advanced-choropleth-maps">Advanced Choropleth Maps</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#report-structure">Report Structure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#pdf-report-components">PDF Report Components</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#powerpoint-structure">PowerPoint Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#section-types">Section Types</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#integration-examples">Integration Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#google-analytics-integration">Google Analytics Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#database-integration">Database Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#custom-api-integration">Custom API Integration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#data-preparation">Data Preparation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#map-design">Map Design</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#report-organization">Report Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#performance-optimization">Performance Optimization</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#common-issues">Common Issues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#performance-issues">Performance Issues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mapping_and_reporting.html#error-handling">Error Handling</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#examples-and-recipes">Examples and Recipes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#additional-resources">Additional Resources</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development &amp; Testing:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="testing_guide.html">Testing Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-structure">Test Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#running-tests">Running Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#basic-test-execution">Basic Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#coverage-and-reporting">Coverage and Reporting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#parallel-execution">Parallel Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-markers">Test Markers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#writing-new-tests">Writing New Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-file-structure">Test File Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-naming-conventions">Test Naming Conventions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#example-test-patterns">Example Test Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-fixtures">Test Fixtures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-configuration">Test Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#pytest-configuration">Pytest Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#coverage-configuration">Coverage Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#continuous-integration">Continuous Integration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#ci-pipeline">CI Pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#debugging-tests">Debugging Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#verbose-output">Verbose Output</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#debug-mode">Debug Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#single-test-execution">Single Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-isolation">Test Isolation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#performance-testing">Performance Testing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#benchmark-tests">Benchmark Tests</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#load-testing">Load Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-data-management">Test Data Management</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-data-generation">Test Data Generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#data-cleanup">Data Cleanup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-organization">Test Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-independence">Test Independence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-coverage">Test Coverage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#performance-considerations">Performance Considerations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#common-patterns">Common Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#configuration-testing">Configuration Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#file-operation-testing">File Operation Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#api-testing">API Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#common-issues">Common Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#getting-help">Getting Help</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Siege Utilities</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Sample Data and Testing Utilities</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="sample-data-and-testing-utilities">
+<h1>Sample Data and Testing Utilities<a class="headerlink" href="#sample-data-and-testing-utilities" title="Link to this heading"></a></h1>
+<p>The sample data module provides built-in datasets and synthetic data generation capabilities for testing, learning, and development purposes.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>The sample data utilities combine real Census boundaries with synthetic personal data to create realistic, privacy-safe datasets for development and testing:</p>
+<ul class="simple">
+<li><p><strong>Real Geographic Boundaries</strong>: Actual Census tract, county, and metropolitan area boundaries</p></li>
+<li><p><strong>Synthetic Personal Data</strong>: Generated names, demographics, and characteristics using Faker</p></li>
+<li><p><strong>Privacy Safe</strong>: No real personal information, perfect for development environments</p></li>
+<li><p><strong>Multiple Scales</strong>: Data available at tract, county, and metropolitan levels</p></li>
+</ul>
+</section>
+<section id="key-features">
+<h2>Key Features<a class="headerlink" href="#key-features" title="Link to this heading"></a></h2>
+<section id="built-in-sample-datasets">
+<h3>Built-in Sample Datasets<a class="headerlink" href="#built-in-sample-datasets" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>census_tract_sample</strong>: Sample Census tract with synthetic population</p></li>
+<li><p><strong>census_county_sample</strong>: County with multiple tracts and synthetic data</p></li>
+<li><p><strong>metropolitan_sample</strong>: Metropolitan area with comprehensive data</p></li>
+<li><p><strong>synthetic_population</strong>: Customizable population data</p></li>
+<li><p><strong>synthetic_businesses</strong>: Business data with industry patterns</p></li>
+<li><p><strong>synthetic_housing</strong>: Property data with realistic characteristics</p></li>
+</ul>
+</section>
+<section id="synthetic-data-generation">
+<h3>Synthetic Data Generation<a class="headerlink" href="#synthetic-data-generation" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>Demographic Matching</strong>: Generate data that matches real demographic patterns</p></li>
+<li><p><strong>Locale-Aware Names</strong>: Ethnicity-appropriate names using Faker locales</p></li>
+<li><p><strong>Realistic Distributions</strong>: Age, income, and education patterns that reflect real data</p></li>
+<li><p><strong>Geographic Integration</strong>: Addresses and coordinates within actual boundaries</p></li>
+</ul>
+</section>
+</section>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
+<p>Install with sample data support:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>siege-utilities<span class="o">[</span>data<span class="o">]</span>
+</pre></div>
+</div>
+<p>For full functionality including geospatial features:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>siege-utilities<span class="o">[</span>data,geo<span class="o">]</span>
+</pre></div>
+</div>
+</section>
+<section id="quick-start">
+<h2>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading"></a></h2>
+<ol class="arabic">
+<li><p><strong>List Available Datasets</strong>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">list_available_datasets</span>
+
+<span class="n">datasets</span> <span class="o">=</span> <span class="n">list_available_datasets</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">datasets</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Load Pre-built Samples</strong>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_sample_data</span>
+
+<span class="c1"># Load Census tract sample</span>
+<span class="n">tract_data</span> <span class="o">=</span> <span class="n">load_sample_data</span><span class="p">(</span><span class="s2">&quot;census_tract_sample&quot;</span><span class="p">,</span> <span class="n">population_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Generated </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">tract_data</span><span class="p">)</span><span class="si">}</span><span class="s2"> synthetic people&quot;</span><span class="p">)</span>
+
+<span class="c1"># Load county sample</span>
+<span class="n">county_data</span> <span class="o">=</span> <span class="n">load_sample_data</span><span class="p">(</span><span class="s2">&quot;census_county_sample&quot;</span><span class="p">,</span> <span class="n">tract_count</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Generated </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">county_data</span><span class="p">)</span><span class="si">}</span><span class="s2"> people across </span><span class="si">{</span><span class="n">county_data</span><span class="p">[</span><span class="s1">&#39;tract_fips&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span><span class="si">}</span><span class="s2"> tracts&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Generate Custom Synthetic Data</strong>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_synthetic_population</span>
+
+<span class="c1"># Create population matching specific demographics</span>
+</pre></div>
+</div>
+</li>
+</ol>
+<dl class="simple">
+<dt>population = generate_synthetic_population(</dt><dd><p>demographics={“Hispanic or Latino”: 0.35, “White alone, not Hispanic or Latino”: 0.30, “Asian alone, not Hispanic or Latino”: 0.25, “Black or African American alone, not Hispanic or Latino”: 0.10},
+size=500,
+include_names=True,
+include_income=True,
+include_education=True</p>
+</dd>
+</dl>
+<p>)</p>
+<blockquote>
+<div><p>print(f”Generated {len(population)} people”)
+print(f”Columns: {list(population.columns)}”)</p>
+</div></blockquote>
+</section>
+<section id="dataset-types">
+<h2>Dataset Types<a class="headerlink" href="#dataset-types" title="Link to this heading"></a></h2>
+<section id="census-based-samples">
+<h3>Census-based Samples<a class="headerlink" href="#census-based-samples" title="Link to this heading"></a></h3>
+<p>These datasets combine real Census boundaries with synthetic population data:</p>
+<ul class="simple">
+<li><p><strong>census_tract_sample</strong>: Single tract with configurable population size</p></li>
+<li><p><strong>census_county_sample</strong>: Multiple tracts within a county</p></li>
+<li><p><strong>metropolitan_sample</strong>: Multiple counties within a metropolitan area</p></li>
+</ul>
+<p><strong>Parameters</strong>:
+* <strong>state_fips</strong>: State FIPS code (default: “06” for California)
+* <strong>county_fips</strong>: County FIPS code (default: “037” for Los Angeles)
+* <strong>population_size</strong>: Number of synthetic people to generate
+* <strong>include_geometry</strong>: Whether to include geographic boundaries</p>
+</section>
+<section id="synthetic-only-datasets">
+<h3>Synthetic-only Datasets<a class="headerlink" href="#synthetic-only-datasets" title="Link to this heading"></a></h3>
+<p>These generate purely synthetic data without geographic boundaries:</p>
+<ul class="simple">
+<li><p><strong>synthetic_population</strong>: Customizable demographic data</p></li>
+<li><p><strong>synthetic_businesses</strong>: Business data with industry patterns</p></li>
+<li><p><strong>synthetic_housing</strong>: Property data with realistic characteristics</p></li>
+</ul>
+<p><strong>Parameters</strong>:
+* <strong>size/count</strong>: Number of records to generate
+* <strong>demographics</strong>: Ethnicity distribution dictionary
+* <strong>include_*</strong>: Boolean flags for optional fields</p>
+</section>
+</section>
+<section id="integration-with-spark">
+<h2>Integration with Spark<a class="headerlink" href="#integration-with-spark" title="Link to this heading"></a></h2>
+<p>Sample data works seamlessly with Spark functions:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">SparkSession</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_synthetic_population</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.distributed.spark_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_row_count</span><span class="p">,</span> <span class="n">sanitise_dataframe_column_names</span>
+
+<span class="c1"># Initialize Spark</span>
+<span class="n">spark</span> <span class="o">=</span> <span class="n">SparkSession</span><span class="o">.</span><span class="n">builder</span><span class="o">.</span><span class="n">appName</span><span class="p">(</span><span class="s2">&quot;SampleDataTest&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">getOrCreate</span><span class="p">()</span>
+
+<span class="c1"># Generate synthetic data</span>
+<span class="n">population</span> <span class="o">=</span> <span class="n">generate_synthetic_population</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+
+<span class="c1"># Convert to Spark DataFrame</span>
+<span class="n">spark_df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">(</span><span class="n">population</span><span class="p">)</span>
+
+<span class="c1"># Test Spark functions</span>
+<span class="n">row_count</span> <span class="o">=</span> <span class="n">get_row_count</span><span class="p">(</span><span class="n">spark_df</span><span class="p">)</span>
+<span class="n">clean_df</span> <span class="o">=</span> <span class="n">sanitise_dataframe_column_names</span><span class="p">(</span><span class="n">spark_df</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Spark DataFrame: </span><span class="si">{</span><span class="n">row_count</span><span class="si">}</span><span class="s2"> rows&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cleaned columns: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">clean_df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="testing-and-development">
+<h2>Testing and Development<a class="headerlink" href="#testing-and-development" title="Link to this heading"></a></h2>
+<p>Perfect for function testing without external dependencies:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Test file operations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.operations</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_file_size</span><span class="p">,</span> <span class="n">count_lines</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_synthetic_businesses</span>
+
+<span class="c1"># Generate test data</span>
+<span class="n">businesses</span> <span class="o">=</span> <span class="n">generate_synthetic_businesses</span><span class="p">(</span><span class="n">business_count</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+
+<span class="c1"># Save to test file</span>
+<span class="n">businesses</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s2">&quot;test_businesses.csv&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># Test file functions</span>
+<span class="n">file_size</span> <span class="o">=</span> <span class="n">get_file_size</span><span class="p">(</span><span class="s2">&quot;test_businesses.csv&quot;</span><span class="p">)</span>
+<span class="n">line_count</span> <span class="o">=</span> <span class="n">count_lines</span><span class="p">(</span><span class="s2">&quot;test_businesses.csv&quot;</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Test file: </span><span class="si">{</span><span class="n">file_size</span><span class="si">}</span><span class="s2"> bytes, </span><span class="si">{</span><span class="n">line_count</span><span class="si">}</span><span class="s2"> lines&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="census-standards-compliance">
+<h2>Census Standards Compliance<a class="headerlink" href="#census-standards-compliance" title="Link to this heading"></a></h2>
+<p>The synthetic data follows US Census Bureau standards:</p>
+<ul class="simple">
+<li><p><strong>Race Categories</strong>: “White alone, not Hispanic or Latino”, “Black or African American alone, not Hispanic or Latino”, “Asian alone, not Hispanic or Latino”, “American Indian and Alaska Native alone, not Hispanic or Latino”, “Native Hawaiian and Other Pacific Islander alone, not Hispanic or Latino”, “Some Other Race alone, not Hispanic or Latino”</p></li>
+<li><p><strong>Hispanic Origin</strong>: “Hispanic or Latino” vs “Not Hispanic or Latino” (separate from race)</p></li>
+<li><p><strong>Age Groups</strong>: Census-standard age brackets (e.g., “18 to 24 years”, “25 to 34 years”)</p></li>
+<li><p><strong>Income Brackets</strong>: Census income categories (e.g., “$50,000 to $59,999”, “$100,000 to $124,999”)</p></li>
+<li><p><strong>Education Attainment</strong>: Census education levels (e.g., “High school graduate (includes equivalency)”, “Bachelor’s degree”)</p></li>
+</ul>
+</section>
+<section id="data-quality-features">
+<h2>Data Quality Features<a class="headerlink" href="#data-quality-features" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Realistic Patterns</strong>: Demographics match actual Census distributions</p></li>
+<li><p><strong>Consistent Relationships</strong>: Age, income, and education correlations</p></li>
+<li><p><strong>Geographic Accuracy</strong>: Addresses within actual boundary constraints</p></li>
+<li><p><strong>Privacy Compliance</strong>: No real personal information</p></li>
+<li><p><strong>Scalable Generation</strong>: Generate datasets of any size</p></li>
+</ul>
+</section>
+<section id="best-practices">
+<h2>Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Use sample data for development and testing</p></li>
+<li><p>Generate appropriate sizes for your testing needs</p></li>
+<li><p>Customize demographics to match your use case</p></li>
+<li><p>Combine with real boundaries for geographic testing</p></li>
+<li><p>Document your synthetic data generation parameters</p></li>
+</ul>
+</section>
+<section id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Link to this heading"></a></h2>
+<p>See the <a class="reference external" href="../examples.html">examples/</a> directory for working examples:</p>
+<ul class="simple">
+<li><p><strong>test_sample_data.py</strong> - Complete demonstration of sample data functionality</p></li>
+<li><p><strong>census_intelligence_demo.py</strong> - Integration with Census utilities</p></li>
+</ul>
+<p>For detailed API documentation, see the sample data module functions.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025-2026, Dheeraj Chand.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
