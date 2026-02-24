@@ -174,6 +174,13 @@ from .choropleth import (
     BIVARIATE_COLOR_SCHEMES,
 )
 
+from .databricks_fallback import (
+    SpatialLoaderPlan,
+    select_spatial_loader,
+    build_census_table_name,
+    build_census_ingest_targets,
+)
+
 __all__ = [
     # Core spatial data classes
     'CensusDirectoryDiscovery',
@@ -304,6 +311,12 @@ __all__ = [
     'BivariateAnalysisResult',
     'save_map',
     'BIVARIATE_COLOR_SCHEMES',
+
+    # Databricks fallback planning
+    'SpatialLoaderPlan',
+    'select_spatial_loader',
+    'build_census_table_name',
+    'build_census_ingest_targets',
 
     # PL 94-171 redistricting files
     'PLFileDownloader',
