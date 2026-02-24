@@ -312,6 +312,20 @@ def log_critical(message: str, logger_name: Optional[LoggerName] = None) -> None
     """Log a critical message."""
     get_logger(logger_name).critical(message)
 
+
+def parse_log_level(level: LogLevel) -> int:
+    """
+    Convert a string or numeric level into a logging level constant.
+
+    Args:
+        level: String ('DEBUG', 'INFO', etc.) or int (10, 20, etc.)
+
+    Returns:
+        Logging level constant
+    """
+    return LoggerManager._parse_log_level(level)
+
+
 # Context manager for temporary logging configuration
 @contextmanager
 def temporary_logging_config(config: LoggingConfig) -> Generator[None, None, None]:
@@ -340,5 +354,6 @@ __all__ = [
     'log_warning',
     'log_error',
     'log_critical',
-    'temporary_logging_config'
+    'parse_log_level',
+    'temporary_logging_config',
 ]

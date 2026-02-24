@@ -36,6 +36,13 @@ from .operations import (
     list_directory,
     run_command,
     delete_existing_file_and_replace_it_with_an_empty_file,
+    ensure_directory_exists,
+    safe_file_write,
+    safe_file_read,
+    safe_json_write,
+    safe_json_read,
+    get_file_size_mb,
+    list_files_recursive,
 )
 
 from .remote import (
@@ -106,6 +113,13 @@ __all__ = [
     'list_directory',
     'run_command',
     'delete_existing_file_and_replace_it_with_an_empty_file',
+    'ensure_directory_exists',
+    'safe_file_write',
+    'safe_file_read',
+    'safe_json_write',
+    'safe_json_read',
+    'get_file_size_mb',
+    'list_files_recursive',
     
     # Remote functions
     'download_file',
