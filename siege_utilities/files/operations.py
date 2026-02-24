@@ -3,6 +3,7 @@ Modern file operations for siege_utilities.
 Provides clean, type-safe file manipulation utilities.
 """
 
+import json
 import pathlib
 import subprocess
 import shutil
@@ -623,9 +624,187 @@ def delete_existing_file_and_replace_it_with_an_empty_file(file_path: FilePath, 
 
 count_total_rows_in_file_pythonically = count_lines
 
+
+def ensure_directory_exists(directory: Union[str, Path]) -> Path:
+    """
+    Ensure a directory exists, creating it if necessary.
+
+    Args:
+        directory: Path to directory
+
+    Returns:
+        Path object for the directory
+    """
+    dir_path = Path(directory)
+    dir_path.mkdir(parents=True, exist_ok=True)
+    return dir_path
+
+
+def safe_file_write(
+    file_path: Union[str, Path],
+    content: str,
+    encoding: str = "utf-8",
+    create_dirs: bool = True,
+) -> bool:
+    """
+    Safely write content to a file, optionally creating parent directories.
+
+    Args:
+        file_path: Path to file
+        content: Content to write
+        encoding: File encoding (default: utf-8)
+        create_dirs: Create parent directories if they don't exist
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        file_path = Path(file_path)
+        if create_dirs:
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(file_path, "w", encoding=encoding) as f:
+            f.write(content)
+        return True
+    except Exception as e:
+        log.error(f"Error writing to {file_path}: {e}")
+        return False
+
+
+def safe_file_read(
+    file_path: Union[str, Path],
+    encoding: str = "utf-8",
+    default: Optional[str] = None,
+) -> Optional[str]:
+    """
+    Safely read content from a file.
+
+    Args:
+        file_path: Path to file
+        encoding: File encoding (default: utf-8)
+        default: Default value to return if file doesn't exist or error occurs
+
+    Returns:
+        File content or default value
+    """
+    try:
+        file_path = Path(file_path)
+        if not file_path.exists():
+            return default
+        with open(file_path, "r", encoding=encoding) as f:
+            return f.read()
+    except Exception as e:
+        log.error(f"Error reading {file_path}: {e}")
+        return default
+
+
+def safe_json_write(
+    file_path: Union[str, Path],
+    data: Any,
+    indent: int = 2,
+    create_dirs: bool = True,
+) -> bool:
+    """
+    Safely write data to a JSON file.
+
+    Args:
+        file_path: Path to JSON file
+        data: Data to write (must be JSON serializable)
+        indent: JSON indentation (default: 2)
+        create_dirs: Create parent directories if they don't exist
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        file_path = Path(file_path)
+        if create_dirs:
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=indent, ensure_ascii=False)
+        return True
+    except Exception as e:
+        log.error(f"Error writing JSON to {file_path}: {e}")
+        return False
+
+
+def safe_json_read(
+    file_path: Union[str, Path],
+    default: Optional[Any] = None,
+) -> Optional[Any]:
+    """
+    Safely read data from a JSON file.
+
+    Args:
+        file_path: Path to JSON file
+        default: Default value to return if file doesn't exist or error occurs
+
+    Returns:
+        Parsed JSON data or default value
+    """
+    try:
+        file_path = Path(file_path)
+        if not file_path.exists():
+            return default
+        with open(file_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        log.error(f"Error reading JSON from {file_path}: {e}")
+        return default
+
+
+def get_file_size_mb(file_path: Union[str, Path]) -> float:
+    """
+    Get file size in megabytes.
+
+    Args:
+        file_path: Path to file
+
+    Returns:
+        File size in MB (0.0 if file doesn't exist)
+    """
+    try:
+        file_path = Path(file_path)
+        if not file_path.exists():
+            return 0.0
+        size_bytes = file_path.stat().st_size
+        return round(size_bytes / (1024 * 1024), 2)
+    except Exception as e:
+        log.error(f"Error getting file size for {file_path}: {e}")
+        return 0.0
+
+
+def list_files_recursive(
+    directory: Union[str, Path],
+    pattern: str = "*",
+    exclude_dirs: bool = True,
+) -> list[Path]:
+    """
+    List all files in a directory recursively.
+
+    Args:
+        directory: Directory to search
+        pattern: Glob pattern (default: "*" for all files)
+        exclude_dirs: Exclude directories from results
+
+    Returns:
+        List of Path objects
+    """
+    try:
+        directory = Path(directory)
+        if not directory.exists():
+            return []
+        if exclude_dirs:
+            return [p for p in directory.rglob(pattern) if p.is_file()]
+        else:
+            return list(directory.rglob(pattern))
+    except Exception as e:
+        log.error(f"Error listing files in {directory}: {e}")
+        return []
+
+
 __all__ = [
     'remove_tree',
-    'file_exists', 
+    'file_exists',
     'touch_file',
     'count_lines',
     'copy_file',
@@ -633,9 +812,17 @@ __all__ = [
     'get_file_size',
     'list_directory',
     'run_command',
+    # Safe file operations
+    'ensure_directory_exists',
+    'safe_file_write',
+    'safe_file_read',
+    'safe_json_write',
+    'safe_json_read',
+    'get_file_size_mb',
+    'list_files_recursive',
     # Backward compatibility
     'rmtree',
     'check_if_file_exists_at_path',
     'delete_existing_file_and_replace_it_with_an_empty_file',
-    'count_total_rows_in_file_pythonically'
+    'count_total_rows_in_file_pythonically',
 ]
