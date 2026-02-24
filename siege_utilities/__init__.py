@@ -386,6 +386,17 @@ except ImportError as e:
     create_dataframe_summary_charts = _create_dependency_wrapper('create_dataframe_summary_charts', ['matplotlib', 'seaborn', 'pandas'])
     generate_chart_from_dataframe = _create_dependency_wrapper('generate_chart_from_dataframe', ['matplotlib', 'seaborn', 'pandas'])
 
+# Databricks / LakeBase helpers (pure-Python, always available)
+from .databricks import (
+    build_databricks_run_url,
+    build_jdbc_url,
+    build_lakebase_psql_command,
+    build_pgpass_entry,
+    parse_conninfo,
+    build_foreign_table_sql,
+    quote_ident,
+)
+
 # Import testing utilities
 from .testing.environment import (
     setup_spark_environment, get_system_info, ensure_env_vars,
@@ -436,7 +447,8 @@ def get_package_info() -> Dict[str, Any]:
             'analytics': [],
             'reporting': [],
             'git': [],
-            'development': []
+            'development': [],
+            'databricks': [],
         }
     }
     
@@ -518,6 +530,15 @@ def get_package_info() -> Dict[str, Any]:
         
         # Development functions
         'generate_architecture_diagram': 'development', 'analyze_package_structure': 'development',
+
+        # Databricks functions
+        'build_databricks_run_url': 'databricks',
+        'build_jdbc_url': 'databricks',
+        'build_lakebase_psql_command': 'databricks',
+        'build_pgpass_entry': 'databricks',
+        'parse_conninfo': 'databricks',
+        'build_foreign_table_sql': 'databricks',
+        'quote_ident': 'databricks',
         
         # Git functions
         'analyze_branch_status': 'git', 'generate_branch_report': 'git',
