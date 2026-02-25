@@ -25,4 +25,9 @@ DEFAULTS: dict = {
     # ── Spatial Engine ──
     "SPATIAL_BACKEND": "geopandas",
     "TABULAR_ENGINE": "pandas",     # pandas | polars | spark
+
+    # ── Databricks / LakeBase ──
+    "DATABRICKS_SECRET_SCOPE": "siege",
+    "LAKEBASE_PORT": 5432,
+    "LAKEBASE_SSLMODE": "require",
 }
