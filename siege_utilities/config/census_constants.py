@@ -200,9 +200,18 @@ ACS_AVAILABLE_YEARS = list(range(2009, _CURRENT_YEAR + 1))  # ACS available from
 
 # File naming patterns for TIGER/Line files (keyed by canonical level name)
 TIGER_FILE_PATTERNS = {
+    # National-scope files (no state FIPS required)
     "nation": "tl_{year}_us_nation.zip",
     "state": "tl_{year}_us_state.zip",
     "county": "tl_{year}_us_county.zip",
+    "cbsa": "tl_{year}_us_cbsa.zip",
+    "zcta": "tl_{year}_us_zcta520.zip",
+    "cd": "tl_{year}_us_cd{congress_number}.zip",
+    "uac": "tl_{year}_us_uac20.zip",
+    "uac20": "tl_{year}_us_uac20.zip",
+    "rails": "tl_{year}_us_rails.zip",
+    "aiannh": "tl_{year}_us_aiannh.zip",
+    # State-scope files (require state FIPS)
     "cousub": "tl_{year}_{state_fips}_cousub.zip",
     "tract": "tl_{year}_{state_fips}_tract.zip",
     "block_group": "tl_{year}_{state_fips}_bg.zip",
@@ -210,14 +219,21 @@ TIGER_FILE_PATTERNS = {
     "tabblock20": "tl_{year}_{state_fips}_tabblock20.zip",
     "tabblock10": "tl_{year}_{state_fips}_tabblock10.zip",
     "place": "tl_{year}_{state_fips}_place.zip",
-    "cd": "tl_{year}_us_cd{congress_number}.zip",
     "sldu": "tl_{year}_{state_fips}_sldu.zip",
     "sldl": "tl_{year}_{state_fips}_sldl.zip",
     "vtd": "tl_{year}_{state_fips}_vtd.zip",
     "vtd20": "tl_{year}_{state_fips}_vtd20.zip",
-    "zcta": "tl_{year}_us_zcta520.zip",
-    "cbsa": "tl_{year}_us_cbsa.zip",
     "puma": "tl_{year}_{state_fips}_puma20.zip",
+    "roads": "tl_{year}_{state_fips}_roads.zip",
+    "linear_water": "tl_{year}_{state_fips}_linearwater.zip",
+    "area_water": "tl_{year}_{state_fips}_areawater.zip",
+    "edges": "tl_{year}_{state_fips}_edges.zip",
+    "address_features": "tl_{year}_{state_fips}_addrfeat.zip",
+    "pointlm": "tl_{year}_{state_fips}_pointlm.zip",
+    "arealm": "tl_{year}_{state_fips}_arealm.zip",
+    "elsd": "tl_{year}_{state_fips}_elsd.zip",
+    "scsd": "tl_{year}_{state_fips}_scsd.zip",
+    "unsd": "tl_{year}_{state_fips}_unsd.zip",
 }
 
 # =============================================================================
