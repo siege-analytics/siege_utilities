@@ -400,3 +400,117 @@ class TestSettingsOverride:
             projection_crs=3338,  # Alaska Albers
         )
         assert classifier._projection_crs == 3338
+
+
+# ─── Regression: from_census_year-style inputs cover all 4 categories ────
+
+class TestFromCensusYearCategoryCoverage:
+    """Regression tests: a classifier built with from_census_year-style data
+    (UC-equivalent derivation, population-filtered principal cities) can
+    produce all 4 NCES category families: City, Suburb, Town, Rural.
+
+    These tests simulate the data that from_census_year() constructs:
+    - UAs derived from urban areas with pop >= 50,000
+    - UC-equivalents derived from urban areas with pop < 50,000
+    - Principal cities filtered by population >= 25,000 (small_city threshold)
+    - Place populations extracted from shapefile attributes
+    """
+
+    @pytest.fixture
+    def census_style_classifier(self):
+        """Build a classifier mimicking from_census_year(year=2020) output.
+
+        Layout (Washington DC area, all in EPSG:4269):
+        - Large UA (pop 500k): covers (-78, 38) to (-76, 40) — contains DC
+        - UC-equivalent (pop 10k): covers (-80, 38) to (-79, 39) — small town
+        - Principal city: covers (-77.5, 38.5) to (-76.5, 39.5) — subset of UA
+        """
+        # Urbanized Area — large, pop >= 50k threshold
+        ua = gpd.GeoDataFrame(
+            {"UACE20": ["00001"], "POP20": [500_000]},
+            geometry=[box(-78, 38, -76, 40)],
+            crs="EPSG:4269",
+        )
+        # UC-equivalent — small urban area, pop < 50k threshold
+        uc = gpd.GeoDataFrame(
+            {"UACE20": ["99001"], "POP20": [10_000]},
+            geometry=[box(-80, 38, -79, 39)],
+            crs="EPSG:4269",
+        )
+        # Principal city — filtered by population >= 25k
+        pc = gpd.GeoDataFrame(
+            {"PLACEFP": ["00100"], "POP20": [300_000]},
+            geometry=[box(-77.5, 38.5, -76.5, 39.5)],
+            crs="EPSG:4269",
+        )
+        return NCESLocaleClassifier(
+            urbanized_areas=ua,
+            urban_clusters=uc,
+            principal_cities=pc,
+            place_populations={"00100": 300_000},
+            ua_populations={"00001": 500_000},
+        )
+
+    def test_city_reachable(self, census_style_classifier):
+        """Point inside UA and principal city → City category."""
+        result = census_style_classifier.classify_point(-77.0, 39.0)
+        assert result.category == "city"
+        assert result.code == 11  # City-Large (pop 300k >= 250k)
+
+    def test_suburb_reachable(self, census_style_classifier):
+        """Point inside UA but outside principal city → Suburb category."""
+        # (-77.9, 38.1) is inside the UA but outside the PC box
+        result = census_style_classifier.classify_point(-77.9, 38.1)
+        assert result.category == "suburban"
+
+    def test_town_reachable(self, census_style_classifier):
+        """Point inside UC-equivalent → Town category."""
+        # (-79.5, 38.5) is inside the UC-equivalent
+        result = census_style_classifier.classify_point(-79.5, 38.5)
+        assert result.category == "town"
+
+    def test_rural_reachable(self, census_style_classifier):
+        """Point outside both UA and UC → Rural category."""
+        # (-105, 42) is in Wyoming, far from any urban area
+        result = census_style_classifier.classify_point(-105.0, 42.0)
+        assert result.category == "rural"
+
+    def test_all_four_categories_covered(self, census_style_classifier):
+        """A single classifier can produce all 4 categories."""
+        categories = set()
+        test_points = [
+            (-77.0, 39.0),    # inside UA + PC → city
+            (-77.9, 38.1),    # inside UA, outside PC → suburb
+            (-79.5, 38.5),    # inside UC → town
+            (-105.0, 42.0),   # far from everything → rural
+        ]
+        for lon, lat in test_points:
+            result = census_style_classifier.classify_point(lon, lat)
+            categories.add(result.category)
+        assert categories == {"city", "suburban", "town", "rural"}
+
+
+class TestFromCensusYearHelpers:
+    """Tests for the helper constants and _find_column function."""
+
+    def test_find_column_returns_first_match(self):
+        """_find_column returns the first matching column name."""
+        from siege_utilities.geo.locale import _find_column
+        gdf = gpd.GeoDataFrame({"POP20": [100], "GEOID": ["01"]})
+        assert _find_column(gdf, ("POPULATION", "POP20", "POP10")) == "POP20"
+
+    def test_find_column_returns_none_for_no_match(self):
+        """_find_column returns None when no candidate matches."""
+        from siege_utilities.geo.locale import _find_column
+        gdf = gpd.GeoDataFrame({"NAME": ["test"]})
+        assert _find_column(gdf, ("POP20", "POP10")) is None
+
+    def test_find_column_handles_none_input(self):
+        """_find_column returns None for None input."""
+        from siege_utilities.geo.locale import _find_column
+        assert _find_column(None, ("POP20",)) is None
+
+    def test_ua_pop_threshold_value(self):
+        """_UA_POP_THRESHOLD should be 50,000."""
+        from siege_utilities.geo.locale import _UA_POP_THRESHOLD
+        assert _UA_POP_THRESHOLD == 50_000

@@ -33,6 +33,37 @@ log = logging.getLogger(__name__)
 # Meters per mile — used for distance conversion after CRS projection
 _METERS_PER_MILE = 1_609.344
 
+# Population threshold separating Urbanized Areas (>= 50k) from Urban Clusters (< 50k)
+_UA_POP_THRESHOLD = 50_000
+
+# Column name candidates for population fields on Census shapefiles
+_POPULATION_COLUMNS = (
+    "POP20", "POP10", "POP", "POPULATION", "pop20", "pop10", "pop",
+    "population", "ALAND_SQMI",
+)
+
+# Column name candidates for UA/UC identifier fields
+_UA_ID_COLUMNS = (
+    "UACE20", "UACE10", "GEOID20", "GEOID10", "GEOID",
+    "uace20", "uace10", "geoid20", "geoid10", "geoid",
+)
+
+# Column name candidates for Place identifier fields
+_PLACE_ID_COLUMNS = (
+    "PLACEFP", "PLACEFP20", "PLACEFP10", "GEOID20", "GEOID10", "GEOID",
+    "placefp", "placefp20", "placefp10", "geoid20", "geoid10", "geoid",
+)
+
+
+def _find_column(gdf: Any, candidates: tuple) -> Optional[str]:
+    """Return the first column name from *candidates* found in *gdf*, or None."""
+    if gdf is None or not hasattr(gdf, "columns"):
+        return None
+    for col in candidates:
+        if col in gdf.columns:
+            return col
+    return None
+
 
 # ---------------------------------------------------------------------------
 # LocaleType enum
@@ -457,8 +488,18 @@ class NCESLocaleClassifier:
         """Construct a classifier from Census TIGER downloads.
 
         Downloads UA/UC (uac), Place, and CBSA shapefiles for the given year,
-        identifies principal cities from CBSA metadata, and loads population
-        estimates from the UAC attributes.
+        identifies principal cities from population thresholds, and loads
+        population estimates from shapefile attributes.
+
+        For 2020+ Census data where Urban Clusters were eliminated, this
+        method derives a UC-equivalent set by filtering urban areas with
+        population < 50,000 (the original UC threshold). This ensures Town
+        codes (31-33) remain reachable.
+
+        Principal cities are identified by population threshold (>= 25,000),
+        not from the OMB CBSA delineation file. This is a best-effort
+        approximation. For precise NCES-matching classification, use
+        ``from_nces_boundaries()`` when available.
 
         Args:
             year: Census year for boundary data (2010 or 2020 recommended).
@@ -490,33 +531,42 @@ class NCESLocaleClassifier:
                 ua_col = col
                 break
 
+        # Find population column on the UAC layer
+        uac_pop_col = _find_column(uac_gdf, _POPULATION_COLUMNS)
+
         if ua_col is not None:
             urbanized_areas = uac_gdf[uac_gdf[ua_col] == "U"].copy()
             urban_clusters = uac_gdf[uac_gdf[ua_col] == "C"].copy()
         else:
-            # 2020+: all entries are urbanized areas
-            urbanized_areas = uac_gdf.copy()
-            urban_clusters = None
+            # 2020+: UCs were eliminated. Derive a UC-equivalent set from
+            # urban areas with population < 50,000 (the original UC threshold).
+            if uac_pop_col is not None:
+                urbanized_areas = uac_gdf[uac_gdf[uac_pop_col] >= _UA_POP_THRESHOLD].copy()
+                urban_clusters = uac_gdf[uac_gdf[uac_pop_col] < _UA_POP_THRESHOLD].copy()
+                log.info(
+                    f"2020+ Census: derived UC-equivalent set from urban areas "
+                    f"with pop < {_UA_POP_THRESHOLD:,} "
+                    f"({len(urbanized_areas)} UAs, {len(urban_clusters)} UC-equivalents)"
+                )
+            else:
+                # No population column — can't split. Treat all as UA and
+                # warn that Town codes will be unreachable.
+                urbanized_areas = uac_gdf.copy()
+                urban_clusters = None
+                log.warning(
+                    "2020+ Census UAC data has no population column; "
+                    "cannot derive UC-equivalent set. Town codes (31-33) "
+                    "will be unreachable."
+                )
 
-        # Extract UA populations from shapefile attributes
+        # Extract UA/UC populations from shapefile attributes
+        uac_id_col = _find_column(uac_gdf, _UA_ID_COLUMNS)
         ua_populations: Dict[str, int] = {}
-        pop_col = None
-        for col in ("POP20", "POP10", "POP", "pop20", "pop10"):
-            if col in urbanized_areas.columns:
-                pop_col = col
-                break
-        id_col = None
-        for col in ("UACE20", "UACE10", "GEOID", "uace20", "uace10", "geoid"):
-            if col in urbanized_areas.columns:
-                id_col = col
-                break
-        if pop_col and id_col:
+        if uac_pop_col and uac_id_col:
             for _, row in urbanized_areas.iterrows():
-                ua_populations[str(row[id_col])] = int(row[pop_col])
+                ua_populations[str(row[uac_id_col])] = int(row[uac_pop_col])
 
-        # Download Place boundaries (use first available state for testing,
-        # or concatenate all states for production use)
-        # For now: load all places via national file if available
+        # Download Place boundaries
         try:
             places_gdf = census.get_geographic_boundaries(
                 year=year, geographic_level="place",
@@ -526,12 +576,41 @@ class NCESLocaleClassifier:
             import geopandas as gpd
             places_gdf = gpd.GeoDataFrame()
 
-        # Simple principal city identification:
-        # Places with population >= small_city threshold are treated as
-        # potential principal cities. A full implementation would cross-reference
-        # with the OMB CBSA delineation file.
+        # Extract place populations from shapefile attributes
         place_populations: Dict[str, int] = {}
-        principal_cities = places_gdf  # Simplified: use all places
+        place_pop_col = _find_column(places_gdf, _POPULATION_COLUMNS)
+        place_id_col = _find_column(places_gdf, _PLACE_ID_COLUMNS)
+
+        if place_pop_col and place_id_col:
+            for _, row in places_gdf.iterrows():
+                try:
+                    place_populations[str(row[place_id_col])] = int(row[place_pop_col])
+                except (ValueError, TypeError):
+                    continue
+
+        # Filter principal cities: places meeting the small_city population
+        # threshold. This is a best-effort approximation of the OMB CBSA
+        # principal city designation. A full implementation would cross-
+        # reference with the OMB CBSA delineation file.
+        small_city_threshold = POPULATION_THRESHOLDS["small_city"]
+        if place_pop_col is not None and len(places_gdf) > 0:
+            principal_cities = places_gdf[
+                places_gdf[place_pop_col] >= small_city_threshold
+            ].copy()
+            log.info(
+                f"Identified {len(principal_cities)} principal cities "
+                f"(places with pop >= {small_city_threshold:,})"
+            )
+        else:
+            # Degraded mode: no population data to filter on.
+            # Use all places and warn.
+            principal_cities = places_gdf
+            if len(places_gdf) > 0:
+                log.warning(
+                    "No population column found on Places layer; using all "
+                    f"places ({len(places_gdf)}) as potential principal cities. "
+                    "City/Suburb size classification may be inaccurate."
+                )
 
         return cls(
             urbanized_areas=urbanized_areas,
