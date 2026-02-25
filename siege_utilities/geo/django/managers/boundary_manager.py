@@ -6,6 +6,8 @@ from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Point, Polygon, GEOSGeometry
 from django.db import models
 
+from siege_utilities.conf import settings
+
 
 class BoundaryQuerySet(gis_models.QuerySet):
     """
@@ -31,7 +33,7 @@ class BoundaryQuerySet(gis_models.QuerySet):
             QuerySet filtered to boundaries containing the point
         """
         if isinstance(point, tuple):
-            point = Point(point[0], point[1], srid=4326)
+            point = Point(point[0], point[1], srid=settings.STORAGE_CRS)
         return self.filter(geometry__contains=point)
 
     def intersecting(self, geometry: GEOSGeometry):
@@ -225,13 +227,13 @@ class BoundaryManager(gis_models.Manager):
 
         objects = []
         for _, row in gdf.iterrows():
-            geom = GEOSGeometry(row.geometry.wkt, srid=4326)
+            geom = GEOSGeometry(row.geometry.wkt, srid=settings.STORAGE_CRS)
 
             # Ensure MultiPolygon
             if geom.geom_type == "Polygon":
                 from django.contrib.gis.geos import MultiPolygon
 
-                geom = MultiPolygon(geom, srid=4326)
+                geom = MultiPolygon(geom, srid=settings.STORAGE_CRS)
 
             # Build object kwargs
             kwargs = {

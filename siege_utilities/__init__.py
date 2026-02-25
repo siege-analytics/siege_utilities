@@ -26,6 +26,9 @@ def _create_dependency_wrapper(func_name: str, required_deps: list):
     wrapper.__doc__ = f"Function requires dependencies: {', '.join(required_deps)}"
     return wrapper
 
+# Import settings singleton
+from .conf import settings
+
 # Import core logging functions for package-level access
 from .core.logging import (
     log_info, log_warning, log_error, log_debug, log_critical,

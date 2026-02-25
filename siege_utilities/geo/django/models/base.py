@@ -3,6 +3,8 @@
 from django.contrib.gis.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
+from siege_utilities.conf import settings
+
 
 class CensusBoundary(models.Model):
     """
@@ -11,7 +13,7 @@ class CensusBoundary(models.Model):
     All Census boundary types share these common fields:
     - geoid: The full GEOID that uniquely identifies this geography
     - name: Human-readable name
-    - geometry: MultiPolygon boundary (SRID 4326)
+    - geometry: MultiPolygon boundary (SRID from settings.STORAGE_CRS, default NAD83/4269)
     - census_year: The Census/ACS year this boundary represents
     - aland: Land area in square meters
     - awater: Water area in square meters
@@ -36,9 +38,11 @@ class CensusBoundary(models.Model):
         max_length=255,
         help_text="Human-readable name of this geography",
     )
+    # SRID resolves at class-definition time via settings.__getattr__.
+    # Django model metaclass needs a concrete int for migrations.
     geometry = models.MultiPolygonField(
-        srid=4326,
-        help_text="Boundary geometry in WGS84 (EPSG:4326)",
+        srid=settings.STORAGE_CRS,
+        help_text="Boundary geometry (SRID from siege_utilities.conf.settings.STORAGE_CRS)",
     )
     census_year = models.PositiveSmallIntegerField(
         db_index=True,

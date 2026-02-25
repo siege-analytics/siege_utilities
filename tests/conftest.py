@@ -61,11 +61,15 @@ def pytest_configure(config):
 
 
 def pytest_unconfigure(config):
-    """Clean up the temp directory tree after the session."""
+    """Clean up the temp directory tree and reset singletons after the session."""
     global _TEMP_BASE
     if _TEMP_BASE and os.path.isdir(_TEMP_BASE):
         shutil.rmtree(_TEMP_BASE, ignore_errors=True)
     _TEMP_BASE = None
+
+    # Reset Settings singleton so it doesn't leak between test runs
+    from siege_utilities.conf import Settings
+    Settings._reset()
 
 
 @pytest.fixture(autouse=True, scope='session')
