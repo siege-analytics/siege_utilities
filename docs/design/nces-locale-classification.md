@@ -1,7 +1,7 @@
 # NCES Urban-Centric Locale Classification + Project Settings Layer
 
 **Date**: 2026-02-25
-**Status**: Section 0 IMPLEMENTED; remainder Design Draft
+**Status**: Sections 0-4 IMPLEMENTED; Sections 5-10 Design Draft
 **Affects**: siege_utilities.conf (settings layer — implemented), siege_utilities.geo.locale (new),
 siege_utilities.geo.spatial_data (modifications)
 **Epic**: 13 (SW/DSTK Foundation) — su#136-139
