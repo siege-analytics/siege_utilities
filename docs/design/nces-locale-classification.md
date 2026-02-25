@@ -142,13 +142,20 @@ classify_point(lon, lat):
 ### Distance Computation
 
 Distances are Euclidean (straight-line) measured in **miles**. For geographic
-coordinates, this requires projecting to an equal-distance CRS or using the
-geodesic formula. The practical approach:
+coordinates (NAD83/4269 or WGS84/4326), this requires projecting to an
+equal-area/equal-distance CRS. You **cannot** compute meaningful distances
+in a geodetic CRS — the units are degrees, not meters.
 
-1. Project both point and boundary polygons to a local equal-area/equal-distance
-   projection (e.g., US National Atlas Equal Area, EPSG:2163)
+The practical approach:
+
+1. Project both point and boundary polygons to the configured projection CRS
+   (default: US National Atlas Equal Area, EPSG:2163; override for AK/HI)
 2. Compute `point.distance(polygon_boundary)` in meters
 3. Convert meters to miles (/ 1609.344)
+
+The projection CRS is not hardcoded — it's read from `DEFAULT_PROJECTION_CRS`
+in `siege_utilities.config.geo_constants` and can be overridden per-classifier
+instance or via the `SU_PROJECTION_CRS` environment variable.
 
 For bulk operations, `geopandas.sjoin_nearest()` with `distance_col` handles
 this efficiently. For simple containment checks (Steps 1-3), `geopandas.sjoin()`
@@ -214,9 +221,67 @@ For maximum flexibility, we support both:
 
 ---
 
-## 4. Required Changes to Spatial Data Downloader
+## 4. Required Changes to Spatial Data Stack
 
-### Problem: Geometry Type Blindness
+### Problem A: Hardcoded CRS (EPSG:4326 Everywhere)
+
+Six locations across four files hardcode `srid=4326` (WGS84). This is wrong
+for two reasons:
+
+1. **Census TIGER data is NAD83 (EPSG:4269)**, not WGS84. The two are
+   practically identical for positioning (~1-2m difference in CONUS) but
+   they're different datums. Storing NAD83 data tagged as WGS84 is
+   technically incorrect and creates confusion when data from other sources
+   (with real WGS84 coordinates) is mixed in.
+
+2. **Distance and area computations in 4326/4269 are meaningless** — the
+   units are degrees, not meters. Any operation that needs distance or area
+   must project to an appropriate CRS first. The current code doesn't
+   enforce or facilitate this.
+
+Hardcoded locations:
+
+| File | Line(s) | Usage |
+|------|---------|-------|
+| `spatial_transformations.py` | 388 | `GEOMETRY(POLYGON, 4326)` in PostGIS DDL |
+| `django/models/base.py` | 40-41 | `srid=4326` on MultiPolygonField |
+| `django/managers/boundary_manager.py` | 34, 228, 234 | `Point(..., srid=4326)`, `GEOSGeometry(..., srid=4326)` |
+| `django/services/population_service.py` | 212-213, 292, 294 | Force-reproject to 4326, `GEOSGeometry(..., srid=4326)` |
+
+`distributed/spark_utils.py` already does this correctly — `reproject_geom_columns()`
+takes `source_srid` and `target_srid` as parameters.
+
+### Proposed CRS Architecture
+
+Centralize CRS configuration in `siege_utilities.config.geo_constants`:
+
+```python
+# siege_utilities/config/geo_constants.py
+
+# Storage CRS — what gets written to PostGIS/Django models.
+# NAD83 is the native datum for Census TIGER data and most US government
+# spatial products. Using 4269 instead of 4326 avoids datum mismatch.
+DEFAULT_STORAGE_CRS = 4269  # NAD83
+
+# Projection CRS — for distance and area computations on CONUS data.
+# US National Atlas Equal Area (EPSG:2163) works for all of CONUS.
+# For Alaska/Hawaii, use state-specific projections.
+DEFAULT_PROJECTION_CRS = 2163  # US National Atlas Equal Area
+
+# Input CRS — assumed CRS for data that arrives without CRS metadata.
+# Census TIGER files include CRS in the .prj file so this is rarely needed.
+DEFAULT_INPUT_CRS = 4269  # NAD83 (matches Census TIGER)
+
+# Override via environment variables for non-US deployments
+# SU_STORAGE_CRS=4326 SU_PROJECTION_CRS=3857 for global/web-map use cases
+```
+
+Every current `4326` literal becomes a reference to these constants. The Django
+model field becomes `srid=settings.DEFAULT_STORAGE_CRS` or reads from the
+siege_utilities config. The PostGIS connector detects CRS from the GeoDataFrame
+and falls back to `DEFAULT_STORAGE_CRS`.
+
+### Problem B: Geometry Type Blindness
 
 The current `BOUNDARY_TYPE_CATALOG` and `TIGER_FILE_PATTERNS` don't track
 geometry type. The `PostGISConnector._create_spatial_table` hardcodes
@@ -297,13 +362,15 @@ The following are in `BOUNDARY_TYPE_CATALOG` (for discovery) but missing from
 "unsd":             "tl_{year}_{state_fips}_unsd.zip",
 ```
 
-#### 4c. Fix `PostGISConnector._create_spatial_table` to detect geometry type
+#### 4c. Fix `PostGISConnector._create_spatial_table` to detect geometry type and CRS
 
 Instead of hardcoding `GEOMETRY(POLYGON, 4326)`:
 
 ```python
+from siege_utilities.config.geo_constants import DEFAULT_STORAGE_CRS
+
 def _create_spatial_table(self, table_name: str, gdf: GeoDataFrame):
-    """Create a spatial table in PostGIS with correct geometry type."""
+    """Create a spatial table in PostGIS with correct geometry type and CRS."""
     # Detect geometry type from the data
     geom_type = gdf.geometry.geom_type.unique()
     if len(geom_type) == 1:
@@ -311,7 +378,8 @@ def _create_spatial_table(self, table_name: str, gdf: GeoDataFrame):
     else:
         pg_geom_type = "GEOMETRY"  # mixed types — use generic
 
-    srid = gdf.crs.to_epsg() if gdf.crs else 4326
+    # Detect CRS from data, fall back to configured default (NAD83)
+    srid = gdf.crs.to_epsg() if gdf.crs else DEFAULT_STORAGE_CRS
 
     cursor = self.connection.cursor()
     create_sql = f"""
@@ -384,6 +452,7 @@ class NCESLocaleClassifier:
         census_year: int = 2020,
         mode: str = "precomputed",  # "precomputed" or "computed"
         cache_dir: Optional[Path] = None,
+        projection_crs: Optional[int] = None,
     ):
         """Initialize classifier and load spatial data.
 
@@ -392,6 +461,10 @@ class NCESLocaleClassifier:
             mode: "precomputed" uses NCES shapefiles, "computed" uses
                   Census UA/UC/Place inputs
             cache_dir: Directory for caching downloaded shapefiles
+            projection_crs: EPSG code for distance/area computations.
+                If None, uses DEFAULT_PROJECTION_CRS from config
+                (EPSG:2163 US National Atlas Equal Area).
+                Override for Alaska (EPSG:3338) or Hawaii (EPSG:26963).
         """
         ...
 
@@ -515,8 +588,11 @@ class NCESLocaleClassifier:
         # Filter to principal cities only
         self._principal_cities = self._identify_principal_cities()
 
-        # Project to equal-distance CRS for distance computations
-        self._crs_proj = "EPSG:2163"  # US National Atlas Equal Area
+        # Project to equal-area CRS for distance computations
+        # Uses configured default (EPSG:2163 US National Atlas Equal Area)
+        # but caller can override for Alaska/Hawaii/non-US data
+        from siege_utilities.config.geo_constants import DEFAULT_PROJECTION_CRS
+        self._crs_proj = f"EPSG:{DEFAULT_PROJECTION_CRS}"
         self._ua_proj = self._urbanized_areas.to_crs(self._crs_proj)
         self._uc_proj = self._urban_clusters.to_crs(self._crs_proj)
 
@@ -623,18 +699,22 @@ and would reveal their approach.
 
 | Order | Task | Size | Depends On |
 |-------|------|------|------------|
-| 1 | Add `geometry_type` to `BOUNDARY_TYPE_CATALOG` | XS | None |
-| 2 | Add missing entries to `TIGER_FILE_PATTERNS` | S | None |
-| 3 | Fix `PostGISConnector._create_spatial_table` geometry detection | S | None |
-| 4 | Add `pointlm`, `arealm` to catalog + patterns | XS | #1, #2 |
-| 5 | Create `siege_utilities/geo/locale.py` with `LocaleCode` dataclass | S | None |
-| 6 | Implement `NCESLocaleClassifier` precomputed mode | M | #5 |
-| 7 | Implement `NCESLocaleClassifier` computed mode | L | #2, #5 |
-| 8 | Implement `classify_polygon` / `classify_polygons` | M | #6 or #7 |
-| 9 | Unit tests (1-12) | M | #5-#8 |
-| 10 | Integration tests (13-16) | M | #6-#8 |
+| 1 | Create `config/geo_constants.py` with CRS defaults + env var overrides | S | None |
+| 2 | Replace all hardcoded `4326` with config references (6 locations, 4 files) | M | #1 |
+| 3 | Add `geometry_type` to `BOUNDARY_TYPE_CATALOG` | XS | None |
+| 4 | Add missing entries to `TIGER_FILE_PATTERNS` | S | None |
+| 5 | Fix `PostGISConnector._create_spatial_table` geometry + CRS detection | S | #1, #3 |
+| 6 | Add `pointlm`, `arealm` to catalog + patterns | XS | #3, #4 |
+| 7 | Create `siege_utilities/geo/locale.py` with `LocaleCode` dataclass | S | None |
+| 8 | Implement `NCESLocaleClassifier` precomputed mode | M | #1, #7 |
+| 9 | Implement `NCESLocaleClassifier` computed mode | L | #1, #4, #7 |
+| 10 | Implement `classify_polygon` / `classify_polygons` | M | #8 or #9 |
+| 11 | Unit tests (1-12) | M | #7-#10 |
+| 12 | Integration tests (13-16) | M | #8-#10 |
 
-Tasks 1-4 (spatial data fixes) can proceed independently of tasks 5-10 (locale module).
+Tasks 1-2 (CRS centralization) should go first — they affect the entire geo stack.
+Tasks 3-6 (spatial data fixes) can proceed in parallel with tasks 7-12 (locale module),
+but both depend on #1.
 
 ---
 
