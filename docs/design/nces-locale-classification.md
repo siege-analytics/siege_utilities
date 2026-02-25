@@ -1,10 +1,236 @@
-# NCES Urban-Centric Locale Classification
+# NCES Urban-Centric Locale Classification + Project Settings Layer
 
 **Date**: 2026-02-25
 **Status**: Design Draft
-**Affects**: siege_utilities.geo.locale (new), siege_utilities.geo.spatial_data (modifications)
+**Affects**: siege_utilities.config (new settings layer), siege_utilities.geo.locale (new),
+siege_utilities.geo.spatial_data (modifications)
 **Epic**: 13 (SW/DSTK Foundation) — su#136-139
 **Tickets**: TBD (will create after design approval)
+
+---
+
+## 0. The Missing Settings Layer
+
+### Problem
+
+siege_utilities has models for *who* (UserProfile, ClientProfile — name, email,
+API keys, branding) and constants for *what's available* (Census URLs, FIPS codes,
+TIGER patterns, chart sizes). But there is no layer that controls *how the library
+behaves* — the operational defaults that a project needs to override.
+
+When we tried to fix the hardcoded `EPSG:4326`, the question immediately became:
+"where does the correct default live?" The answer today is: nowhere configurable.
+Every module either hardcodes a literal or reads from `constants.py`, which is
+immutable. A project can't say "use NAD83 for storage, Albers for projection,
+PostGIS as my spatial backend, and Spark as my tabular engine."
+
+This is the Django `settings.py` problem. Django solved it with a module-level
+settings object that every component reads from, overridable per-project.
+
+### What Exists Today
+
+| Module | What It Configures | Scope |
+|--------|-------------------|-------|
+| `config/constants.py` | Timeouts, chart sizes, file thresholds | Library-wide, immutable |
+| `config/census_constants.py` | Census URLs, FIPS, TIGER patterns | Library-wide, immutable |
+| `config/nces_constants.py` | NCES URLs, locale codes, thresholds | Library-wide, immutable |
+| `config/user_config.py` | User prefs in `~/.siege_utilities/config/` | Per-user |
+| `config/enhanced_config.py` | Pydantic-validated user/client profiles | Per-user/client |
+| `config/projects.py` | Project dirs and metadata | Per-project (but only paths) |
+| `config/clients.py` | Client branding, report prefs | Per-client |
+| `config/databases.py` | Database connection definitions | Per-environment |
+
+### What's Missing
+
+A **project-level settings** layer that controls operational behavior:
+
+- **Geo settings**: Storage CRS, projection CRS, input CRS, distance units
+- **Engine settings**: Default tabular engine (Spark/Pandas/Polars), spatial
+  backend (PostGIS/Sedona/GeoPandas), fallback chain
+- **Data settings**: Default Census year, default ACS vintage, TIGER cache dir
+- **Pipeline settings**: Provenance tracking, quality checks, logging verbosity
+- **Feature flags**: Enable/disable optional modules (DuckDB, Databricks, etc.)
+
+### Proposed: `siege_utilities.conf` Settings Object
+
+Like Django's `settings`, siege_utilities needs a singleton settings object that
+modules read from. Resolution order (highest priority first):
+
+1. **Function/method parameter** — explicit override in code
+2. **Environment variable** — `SU_STORAGE_CRS=4269`, `SU_TABULAR_ENGINE=spark`
+3. **Project settings file** — `siege_utilities.yaml` in project root (or path
+   set by `SU_SETTINGS_FILE` env var)
+4. **Library defaults** — `config/defaults.py` (replaces scattering across
+   `constants.py`, `census_constants.py`, etc.)
+
+```python
+# siege_utilities/conf/__init__.py
+
+class Settings:
+    """Lazy-loaded settings object, Django-style.
+
+    Reads from (in priority order):
+    1. Environment variables (SU_* prefix)
+    2. Project settings file (siege_utilities.yaml)
+    3. Library defaults
+    """
+
+    # --- Geo ---
+    STORAGE_CRS: int = 4269       # NAD83 — native Census/TIGER datum
+    PROJECTION_CRS: int = 2163    # US National Atlas Equal Area
+    INPUT_CRS: int = 4269         # Assumed when data has no .prj
+    DISTANCE_UNITS: str = "miles" # "miles", "km", "meters"
+
+    # --- Engine ---
+    TABULAR_ENGINE: str = "pandas"   # "pandas", "spark", "polars", "databricks"
+    SPATIAL_BACKEND: str = "geopandas"  # "geopandas", "postgis", "sedona"
+    SPATIAL_FALLBACK_CHAIN: list = ["sedona", "geopandas", "pandas"]
+
+    # --- Data ---
+    DEFAULT_CENSUS_YEAR: int = 2020
+    TIGER_CACHE_DIR: str = "~/.siege_utilities/cache/tiger"
+
+    # --- Pipeline ---
+    ENABLE_PROVENANCE: bool = True
+    ENABLE_QUALITY_CHECKS: bool = True
+
+    def __init__(self):
+        self._loaded = False
+
+    def _load(self):
+        """Load settings from env vars and project file."""
+        if self._loaded:
+            return
+        # 1. Set library defaults (already done via class attributes)
+        # 2. Override from project settings file
+        self._load_from_file()
+        # 3. Override from environment variables
+        self._load_from_env()
+        self._loaded = True
+
+    def _load_from_file(self):
+        """Load from siege_utilities.yaml if present."""
+        import os, yaml
+        settings_file = os.environ.get(
+            "SU_SETTINGS_FILE",
+            "siege_utilities.yaml"
+        )
+        # Walk up from CWD looking for the file (like pyproject.toml)
+        ...
+
+    def _load_from_env(self):
+        """Override from SU_* environment variables."""
+        import os
+        prefix = "SU_"
+        for attr in dir(self):
+            if attr.startswith("_") or not attr.isupper():
+                continue
+            env_key = f"{prefix}{attr}"
+            env_val = os.environ.get(env_key)
+            if env_val is not None:
+                # Coerce to the attribute's current type
+                current = getattr(self, attr)
+                if isinstance(current, bool):
+                    setattr(self, attr, env_val.lower() in ("1", "true", "yes"))
+                elif isinstance(current, int):
+                    setattr(self, attr, int(env_val))
+                elif isinstance(current, list):
+                    setattr(self, attr, [s.strip() for s in env_val.split(",")])
+                else:
+                    setattr(self, attr, env_val)
+
+    def __getattr__(self, name):
+        if not name.startswith("_"):
+            self._load()
+            return object.__getattribute__(self, name)
+        raise AttributeError(name)
+
+
+# Module-level singleton — every module imports this
+settings = Settings()
+```
+
+### Usage
+
+```python
+# In any siege_utilities module:
+from siege_utilities.conf import settings
+
+srid = gdf.crs.to_epsg() if gdf.crs else settings.STORAGE_CRS
+
+# In PostGISConnector:
+create_sql = f"... GEOMETRY({pg_geom_type}, {settings.STORAGE_CRS})"
+
+# In Django model:
+geometry = models.MultiPolygonField(srid=settings.STORAGE_CRS)
+
+# In NCESLocaleClassifier:
+proj_crs = projection_crs or settings.PROJECTION_CRS
+```
+
+### Project Settings File
+
+```yaml
+# siege_utilities.yaml (in project root)
+
+geo:
+  storage_crs: 4269
+  projection_crs: 2163
+  input_crs: 4269
+  distance_units: miles
+
+engine:
+  tabular: spark
+  spatial: geopandas
+  spatial_fallback:
+    - sedona
+    - geopandas
+    - pandas
+
+data:
+  default_census_year: 2020
+  tiger_cache_dir: /data/cache/tiger
+
+pipeline:
+  enable_provenance: true
+  enable_quality_checks: true
+```
+
+### Why Not Just Environment Variables
+
+Environment variables work for single values (`SU_STORAGE_CRS=4269`) but:
+- They don't express structure (the fallback chain is a list)
+- They can't be checked into a repo (unlike `siege_utilities.yaml`)
+- They're invisible — you can't `cat` the complete configuration
+- They conflict across projects in the same shell session
+
+The settings file is the canonical configuration; env vars are the override
+mechanism for CI, containers, and one-off adjustments.
+
+### Relationship to Existing Config
+
+The existing config modules don't go away:
+- `constants.py` stays — it holds truly immutable library metadata and
+  computation constants (chart sizes, timeout multipliers)
+- `census_constants.py` stays — FIPS codes, geographic hierarchies, API URLs
+- `nces_constants.py` stays — locale code mappings, NCES data URLs
+- `user_config.py` stays — personal preferences (download dir, color scheme)
+- `clients.py` stays — client branding and report preferences
+
+The new `conf/settings.py` is the **operational defaults layer** between them:
+
+```
+constants.py         ← immutable library facts (FIPS, URLs, chart sizes)
+conf/settings.py     ← operational defaults (CRS, engine, pipeline behavior)  ← NEW
+user_config.py       ← personal preferences (download dir, color scheme)
+clients.py           ← client-specific (branding, report format)
+projects.py          ← project-specific (directories, metadata)
+```
+
+Every module that currently reads from `constants.py` for an operational default
+should instead read from `settings`. Constants are for things that never change
+(a FIPS code is a FIPS code). Settings are for things that *could* change per
+project but have sensible defaults.
 
 ---
 
@@ -253,33 +479,22 @@ takes `source_srid` and `target_srid` as parameters.
 
 ### Proposed CRS Architecture
 
-Centralize CRS configuration in `siege_utilities.config.geo_constants`:
+CRS defaults live in the settings layer described in Section 0:
 
 ```python
-# siege_utilities/config/geo_constants.py
+from siege_utilities.conf import settings
 
-# Storage CRS — what gets written to PostGIS/Django models.
-# NAD83 is the native datum for Census TIGER data and most US government
-# spatial products. Using 4269 instead of 4326 avoids datum mismatch.
-DEFAULT_STORAGE_CRS = 4269  # NAD83
-
-# Projection CRS — for distance and area computations on CONUS data.
-# US National Atlas Equal Area (EPSG:2163) works for all of CONUS.
-# For Alaska/Hawaii, use state-specific projections.
-DEFAULT_PROJECTION_CRS = 2163  # US National Atlas Equal Area
-
-# Input CRS — assumed CRS for data that arrives without CRS metadata.
-# Census TIGER files include CRS in the .prj file so this is rarely needed.
-DEFAULT_INPUT_CRS = 4269  # NAD83 (matches Census TIGER)
-
-# Override via environment variables for non-US deployments
-# SU_STORAGE_CRS=4326 SU_PROJECTION_CRS=3857 for global/web-map use cases
+settings.STORAGE_CRS       # 4269 (NAD83) — what gets written to PostGIS/Django
+settings.PROJECTION_CRS    # 2163 (US Natl Atlas Equal Area) — distance/area ops
+settings.INPUT_CRS         # 4269 (NAD83) — assumed when data has no .prj
 ```
 
-Every current `4326` literal becomes a reference to these constants. The Django
-model field becomes `srid=settings.DEFAULT_STORAGE_CRS` or reads from the
-siege_utilities config. The PostGIS connector detects CRS from the GeoDataFrame
-and falls back to `DEFAULT_STORAGE_CRS`.
+These are overridable per-project (`siege_utilities.yaml`), per-environment
+(`SU_STORAGE_CRS=4326`), or per-call (function parameters).
+
+Every current `4326` literal becomes `settings.STORAGE_CRS`. The Django model
+field becomes `srid=settings.STORAGE_CRS`. The PostGIS connector detects CRS
+from the GeoDataFrame and falls back to `settings.STORAGE_CRS`.
 
 ### Problem B: Geometry Type Blindness
 
@@ -367,7 +582,7 @@ The following are in `BOUNDARY_TYPE_CATALOG` (for discovery) but missing from
 Instead of hardcoding `GEOMETRY(POLYGON, 4326)`:
 
 ```python
-from siege_utilities.config.geo_constants import DEFAULT_STORAGE_CRS
+from siege_utilities.conf import settings
 
 def _create_spatial_table(self, table_name: str, gdf: GeoDataFrame):
     """Create a spatial table in PostGIS with correct geometry type and CRS."""
@@ -379,7 +594,7 @@ def _create_spatial_table(self, table_name: str, gdf: GeoDataFrame):
         pg_geom_type = "GEOMETRY"  # mixed types — use generic
 
     # Detect CRS from data, fall back to configured default (NAD83)
-    srid = gdf.crs.to_epsg() if gdf.crs else DEFAULT_STORAGE_CRS
+    srid = gdf.crs.to_epsg() if gdf.crs else settings.STORAGE_CRS
 
     cursor = self.connection.cursor()
     create_sql = f"""
@@ -589,10 +804,12 @@ class NCESLocaleClassifier:
         self._principal_cities = self._identify_principal_cities()
 
         # Project to equal-area CRS for distance computations
-        # Uses configured default (EPSG:2163 US National Atlas Equal Area)
-        # but caller can override for Alaska/Hawaii/non-US data
-        from siege_utilities.config.geo_constants import DEFAULT_PROJECTION_CRS
-        self._crs_proj = f"EPSG:{DEFAULT_PROJECTION_CRS}"
+        # Uses configured default from settings (EPSG:2163 US National Atlas
+        # Equal Area), but caller can override via projection_crs parameter
+        # for Alaska (3338), Hawaii (26963), or non-US data
+        from siege_utilities.conf import settings
+        proj = projection_crs or settings.PROJECTION_CRS
+        self._crs_proj = f"EPSG:{proj}"
         self._ua_proj = self._urbanized_areas.to_crs(self._crs_proj)
         self._uc_proj = self._urban_clusters.to_crs(self._crs_proj)
 
@@ -699,8 +916,8 @@ and would reveal their approach.
 
 | Order | Task | Size | Depends On |
 |-------|------|------|------------|
-| 1 | Create `config/geo_constants.py` with CRS defaults + env var overrides | S | None |
-| 2 | Replace all hardcoded `4326` with config references (6 locations, 4 files) | M | #1 |
+| 1 | Create `siege_utilities/conf/` settings layer with defaults + env + YAML | M | None |
+| 2 | Replace all hardcoded `4326` with `settings.STORAGE_CRS` (6 locations, 4 files) | M | #1 |
 | 3 | Add `geometry_type` to `BOUNDARY_TYPE_CATALOG` | XS | None |
 | 4 | Add missing entries to `TIGER_FILE_PATTERNS` | S | None |
 | 5 | Fix `PostGISConnector._create_spatial_table` geometry + CRS detection | S | #1, #3 |
@@ -712,9 +929,13 @@ and would reveal their approach.
 | 11 | Unit tests (1-12) | M | #7-#10 |
 | 12 | Integration tests (13-16) | M | #8-#10 |
 
-Tasks 1-2 (CRS centralization) should go first — they affect the entire geo stack.
-Tasks 3-6 (spatial data fixes) can proceed in parallel with tasks 7-12 (locale module),
-but both depend on #1.
+**Task #1 is the keystone.** The settings layer is not just a CRS fix — it's the
+foundation for engine selection, pipeline behavior, and every other operational
+default. Once `siege_utilities.conf.settings` exists, every module has a single,
+consistent way to read configurable defaults.
+
+Tasks 3-6 (spatial data fixes) can proceed in parallel with tasks 7-12 (locale
+module), but both depend on #1 for CRS awareness.
 
 ---
 
