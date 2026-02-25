@@ -1,15 +1,27 @@
 # NCES Urban-Centric Locale Classification + Project Settings Layer
 
 **Date**: 2026-02-25
-**Status**: Design Draft
-**Affects**: siege_utilities.config (new settings layer), siege_utilities.geo.locale (new),
+**Status**: Section 0 IMPLEMENTED; remainder Design Draft
+**Affects**: siege_utilities.conf (settings layer — implemented), siege_utilities.geo.locale (new),
 siege_utilities.geo.spatial_data (modifications)
 **Epic**: 13 (SW/DSTK Foundation) — su#136-139
-**Tickets**: TBD (will create after design approval)
+**Tickets**: su#144 (settings + CRS fix), remainder TBD
 
 ---
 
-## 0. The Missing Settings Layer
+## 0. The Missing Settings Layer — IMPLEMENTED
+
+> **Status**: Implemented in `siege_utilities.conf` package. All 8 hardcoded
+> `srid=4326` references replaced with `settings.STORAGE_CRS`. Default is now
+> NAD83 (EPSG:4269). See `siege_utilities/conf/__init__.py` and
+> `siege_utilities/conf/defaults.py`.
+>
+> ```python
+> from siege_utilities.conf import settings
+> settings.STORAGE_CRS      # 4269 (NAD83)
+> settings.PROJECTION_CRS   # 2163 (US National Atlas Equal Area)
+> settings.WEB_CRS          # 4326 (WGS84)
+> ```
 
 ### Problem
 

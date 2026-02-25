@@ -18,6 +18,7 @@ import shutil
 from ..files.remote import download_file, generate_local_path_from_url
 from ..files.paths import unzip_file_to_directory, ensure_path_exists
 from ..config.user_config import get_user_config, get_download_directory
+from ..conf import settings
 
 # Get logger for this module
 log = logging.getLogger(__name__)
@@ -380,15 +381,23 @@ class PostGISConnector:
     def _create_spatial_table(self, table_name: str, gdf: GeoDataFrame):
         """Create a spatial table in PostGIS."""
         cursor = self.connection.cursor()
-        
-        # Basic table creation - in practice you'd want more sophisticated handling
+
+        # Detect geometry type from the GeoDataFrame
+        geom_types = gdf.geometry.geom_type.unique()
+        if len(geom_types) == 1:
+            pg_geom_type = geom_types[0].upper()
+        else:
+            pg_geom_type = "GEOMETRY"
+
+        srid = settings.STORAGE_CRS
+
         create_sql = f"""
         CREATE TABLE IF NOT EXISTS {table_name} (
             id SERIAL PRIMARY KEY,
-            geom GEOMETRY(POLYGON, 4326)
+            geom GEOMETRY({pg_geom_type}, {srid})
         );
         """
-        
+
         cursor.execute(create_sql)
         self.connection.commit()
 

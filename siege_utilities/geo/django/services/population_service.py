@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Optional
 
 from django.db import transaction
 
+from siege_utilities.conf import settings
+
 if TYPE_CHECKING:
     import geopandas as gpd
 
@@ -208,9 +210,9 @@ class BoundaryPopulationService:
         # Rename columns
         gdf = gdf.rename(columns=column_mappings)
 
-        # Ensure geometry is in WGS84
-        if gdf.crs and gdf.crs.to_epsg() != 4326:
-            gdf = gdf.to_crs(epsg=4326)
+        # Ensure geometry matches storage CRS
+        if gdf.crs and gdf.crs.to_epsg() != settings.STORAGE_CRS:
+            gdf = gdf.to_crs(epsg=settings.STORAGE_CRS)
 
         return gdf
 
@@ -289,9 +291,9 @@ class BoundaryPopulationService:
                     continue
 
                 # Build geometry
-                geom = GEOSGeometry(row.geometry.wkt, srid=4326)
+                geom = GEOSGeometry(row.geometry.wkt, srid=settings.STORAGE_CRS)
                 if geom.geom_type == "Polygon":
-                    geom = MultiPolygon(geom, srid=4326)
+                    geom = MultiPolygon(geom, srid=settings.STORAGE_CRS)
 
                 # Parse GEOID
                 parsed = model.parse_geoid(geoid)

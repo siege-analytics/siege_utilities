@@ -3,6 +3,9 @@ Configuration module for siege_utilities.
 Centralized constants and configuration management.
 """
 
+# Re-export settings singleton for discoverability
+from siege_utilities.conf import settings
+
 # Import all constants for easy access
 from .constants import (
     # Library metadata
@@ -312,6 +315,9 @@ from .credential_manager import (
 
 # Export all for easy importing
 __all__ = [
+    # Settings singleton
+    'settings',
+
     # Library metadata
     'LIBRARY_NAME', 'LIBRARY_VERSION', 'LIBRARY_AUTHOR', 'LIBRARY_URL',
     
