@@ -389,7 +389,14 @@ class PostGISConnector:
         else:
             pg_geom_type = "GEOMETRY"
 
-        srid = settings.STORAGE_CRS
+        # Prefer the GeoDataFrame's declared CRS, fall back to configured storage CRS.
+        srid = None
+        if gdf.crs is not None:
+            try:
+                srid = gdf.crs.to_epsg()
+            except Exception:
+                srid = None
+        srid = srid or settings.STORAGE_CRS
 
         create_sql = f"""
         CREATE TABLE IF NOT EXISTS {table_name} (

@@ -69,9 +69,9 @@ Like Django's `settings`, siege_utilities needs a singleton settings object that
 modules read from. Resolution order (highest priority first):
 
 1. **Function/method parameter** — explicit override in code
-2. **Environment variable** — `SU_STORAGE_CRS=4269`, `SU_TABULAR_ENGINE=spark`
+2. **Environment variable** — `SIEGE_STORAGE_CRS=4269`, `SIEGE_TABULAR_ENGINE=spark`
 3. **Project settings file** — `siege_utilities.yaml` in project root (or path
-   set by `SU_SETTINGS_FILE` env var)
+   set by `SIEGE_SETTINGS_FILE` env var)
 4. **Library defaults** — `config/defaults.py` (replaces scattering across
    `constants.py`, `census_constants.py`, etc.)
 
@@ -82,7 +82,7 @@ class Settings:
     """Lazy-loaded settings object, Django-style.
 
     Reads from (in priority order):
-    1. Environment variables (SU_* prefix)
+    1. Environment variables (SIEGE_* prefix)
     2. Project settings file (siege_utilities.yaml)
     3. Library defaults
     """
@@ -124,16 +124,16 @@ class Settings:
         """Load from siege_utilities.yaml if present."""
         import os, yaml
         settings_file = os.environ.get(
-            "SU_SETTINGS_FILE",
+            "SIEGE_SETTINGS_FILE",
             "siege_utilities.yaml"
         )
         # Walk up from CWD looking for the file (like pyproject.toml)
         ...
 
     def _load_from_env(self):
-        """Override from SU_* environment variables."""
+        """Override from SIEGE_* environment variables."""
         import os
-        prefix = "SU_"
+        prefix = "SIEGE_"
         for attr in dir(self):
             if attr.startswith("_") or not attr.isupper():
                 continue
@@ -210,7 +210,7 @@ pipeline:
 
 ### Why Not Just Environment Variables
 
-Environment variables work for single values (`SU_STORAGE_CRS=4269`) but:
+Environment variables work for single values (`SIEGE_STORAGE_CRS=4269`) but:
 - They don't express structure (the fallback chain is a list)
 - They can't be checked into a repo (unlike `siege_utilities.yaml`)
 - They're invisible — you can't `cat` the complete configuration
@@ -393,7 +393,7 @@ The practical approach:
 
 The projection CRS is not hardcoded — it's read from `DEFAULT_PROJECTION_CRS`
 in `siege_utilities.config.geo_constants` and can be overridden per-classifier
-instance or via the `SU_PROJECTION_CRS` environment variable.
+instance or via the `SIEGE_PROJECTION_CRS` environment variable.
 
 For bulk operations, `geopandas.sjoin_nearest()` with `distance_col` handles
 this efficiently. For simple containment checks (Steps 1-3), `geopandas.sjoin()`
@@ -502,7 +502,7 @@ settings.INPUT_CRS         # 4269 (NAD83) — assumed when data has no .prj
 ```
 
 These are overridable per-project (`siege_utilities.yaml`), per-environment
-(`SU_STORAGE_CRS=4326`), or per-call (function parameters).
+(`SIEGE_STORAGE_CRS=4326`), or per-call (function parameters).
 
 Every current `4326` literal becomes `settings.STORAGE_CRS`. The Django model
 field becomes `srid=settings.STORAGE_CRS`. The PostGIS connector detects CRS

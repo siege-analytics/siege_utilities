@@ -37,9 +37,9 @@ class Settings:
             with cls._lock:
                 if cls._instance is None:
                     obj = super().__new__(cls)
-                    obj._overrides = {}
+                    obj._local = threading.local()
                     obj._yaml_cache = None
-                    obj._yaml_searched = False
+                    obj._yaml_path = None
                     cls._instance = obj
         return cls._instance
 
@@ -47,9 +47,10 @@ class Settings:
         if name.startswith("_"):
             raise AttributeError(name)
 
-        # 1. Override context
-        if name in self._overrides:
-            return self._overrides[name]
+        # 1. Override context (thread-local)
+        overrides = getattr(self._local, "overrides", {})
+        if name in overrides:
+            return overrides[name]
 
         # 2. Env var: SIEGE_<NAME>
         env_val = os.environ.get(f"SIEGE_{name}")
@@ -88,36 +89,48 @@ class Settings:
         return val
 
     def _load_yaml(self) -> dict | None:
-        if self._yaml_searched:
-            return self._yaml_cache
-        self._yaml_searched = True
         cwd = Path.cwd()
         for directory in [cwd, *cwd.parents]:
             candidate = directory / "siege_utilities.yaml"
             if candidate.is_file():
+                # Return cached result if same file
+                if self._yaml_path == candidate and self._yaml_cache is not None:
+                    return self._yaml_cache
                 try:
                     import yaml
 
                     with open(candidate) as f:
                         self._yaml_cache = yaml.safe_load(f) or {}
+                        self._yaml_path = candidate
                 except ImportError:
                     pass
                 return self._yaml_cache
+        self._yaml_path = None
+        self._yaml_cache = None
         return None
+
+    def reload(self):
+        """Clear cached project settings and force fresh resolution."""
+        self._yaml_cache = None
+        self._yaml_path = None
 
     @contextmanager
     def override(self, **kwargs):
-        """Temporarily override settings (for tests)."""
-        previous = {k: self._overrides.get(k, _SENTINEL) for k in kwargs}
-        self._overrides.update(kwargs)
+        """Temporarily override settings (thread-local, safe for concurrent use)."""
+        overrides = getattr(self._local, "overrides", {})
+        previous = {k: overrides.get(k, _SENTINEL) for k in kwargs}
+        overrides = {**overrides, **kwargs}
+        self._local.overrides = overrides
         try:
             yield self
         finally:
+            current = getattr(self._local, "overrides", {})
             for k, v in previous.items():
                 if v is _SENTINEL:
-                    self._overrides.pop(k, None)
+                    current.pop(k, None)
                 else:
-                    self._overrides[k] = v
+                    current[k] = v
+            self._local.overrides = current
 
     @classmethod
     def _reset(cls):

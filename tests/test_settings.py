@@ -271,6 +271,31 @@ class TestThreadSafety:
         # All threads should get the same instance
         assert all(inst is instances[0] for inst in instances)
 
+    def test_override_is_thread_local(self):
+        """Overrides in one thread must not leak into another."""
+        s = Settings()
+        barrier = threading.Barrier(2)
+        results = {}
+
+        def thread_with_override():
+            with s.override(STORAGE_CRS=9999):
+                barrier.wait(timeout=5)
+                results["overriding"] = s.STORAGE_CRS
+
+        def thread_without_override():
+            barrier.wait(timeout=5)
+            results["plain"] = s.STORAGE_CRS
+
+        t1 = threading.Thread(target=thread_with_override)
+        t2 = threading.Thread(target=thread_without_override)
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+
+        assert results["overriding"] == 9999
+        assert results["plain"] == 4269  # default, not leaked
+
 
 # ── 10. Singleton reset ────────────────────────────────────────
 
@@ -281,6 +306,24 @@ class TestReset:
         Settings._reset()
         s2 = Settings()
         assert s1 is not s2
+
+    def test_reload_clears_yaml_cache(self, tmp_path):
+        yaml_file = tmp_path / "siege_utilities.yaml"
+        yaml_file.write_text("STORAGE_CRS: 5070\n")
+
+        with patch("siege_utilities.conf.Path.cwd", return_value=tmp_path):
+            s = Settings()
+            assert s.STORAGE_CRS == 5070
+
+            # Change file content
+            yaml_file.write_text("STORAGE_CRS: 3857\n")
+
+            # Still cached
+            assert s.STORAGE_CRS == 5070
+
+            # After reload, picks up new value
+            s.reload()
+            assert s.STORAGE_CRS == 3857
 
     def test_reset_clears_yaml_cache(self, tmp_path):
         yaml_file = tmp_path / "siege_utilities.yaml"
