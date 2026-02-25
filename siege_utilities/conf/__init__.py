@@ -89,6 +89,27 @@ class Settings:
         return val
 
     def _load_yaml(self) -> dict | None:
+        # SIEGE_SETTINGS_FILE overrides CWD discovery
+        explicit = os.environ.get("SIEGE_SETTINGS_FILE")
+        if explicit:
+            candidate = Path(explicit)
+            if candidate.is_file():
+                if self._yaml_path == candidate and self._yaml_cache is not None:
+                    return self._yaml_cache
+                try:
+                    import yaml
+
+                    with open(candidate) as f:
+                        self._yaml_cache = yaml.safe_load(f) or {}
+                        self._yaml_path = candidate
+                except ImportError:
+                    pass
+                return self._yaml_cache
+            # Explicit path set but file missing — don't fall through to CWD walk
+            self._yaml_path = None
+            self._yaml_cache = None
+            return None
+
         cwd = Path.cwd()
         for directory in [cwd, *cwd.parents]:
             candidate = directory / "siege_utilities.yaml"

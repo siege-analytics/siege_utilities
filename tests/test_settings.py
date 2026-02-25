@@ -146,6 +146,21 @@ class TestYAMLLoading:
             s = Settings()
             assert s.STORAGE_CRS == 4269  # default
 
+    def test_siege_settings_file_env(self, tmp_path):
+        """SIEGE_SETTINGS_FILE overrides CWD discovery."""
+        yaml_file = tmp_path / "custom_settings.yaml"
+        yaml_file.write_text("STORAGE_CRS: 3857\n")
+
+        with patch.dict(os.environ, {"SIEGE_SETTINGS_FILE": str(yaml_file)}):
+            s = Settings()
+            assert s.STORAGE_CRS == 3857
+
+    def test_siege_settings_file_missing(self, tmp_path):
+        """SIEGE_SETTINGS_FILE pointing to missing file falls back to defaults."""
+        with patch.dict(os.environ, {"SIEGE_SETTINGS_FILE": str(tmp_path / "nope.yaml")}):
+            s = Settings()
+            assert s.STORAGE_CRS == 4269  # default, no CWD walk
+
     def test_yaml_missing_pyyaml(self, tmp_path):
         """If pyyaml is missing, YAML loading is skipped gracefully."""
         yaml_file = tmp_path / "siege_utilities.yaml"
