@@ -39,7 +39,7 @@ _UA_POP_THRESHOLD = 50_000
 # Column name candidates for population fields on Census shapefiles
 _POPULATION_COLUMNS = (
     "POP20", "POP10", "POP", "POPULATION", "pop20", "pop10", "pop",
-    "population", "ALAND_SQMI",
+    "population",
 )
 
 # Column name candidates for UA/UC identifier fields
