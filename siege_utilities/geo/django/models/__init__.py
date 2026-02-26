@@ -1,19 +1,33 @@
 """
-Census boundary Django models.
+Geographic boundary Django models.
 
-This module provides GeoDjango models for storing Census geographic boundaries
-at multiple levels (state, county, tract, block group, block, place, ZCTA, CD).
+Provides GeoDjango models for storing temporal geographic features at
+multiple levels — Census TIGER/Line, GADM, political, education, federal,
+and intersection/crosswalk relationships.
 
-Each model includes:
-- GEOID (unique identifier)
-- Name
-- Geometry (MultiPolygon)
-- Census year
-- Land and water area
-- Parent relationships (where applicable)
+Model hierarchy:
+    TemporalGeographicFeature (root abstract — no geometry)
+    ├── TemporalBoundary (abstract — MultiPolygon)
+    │   ├── CensusTIGERBoundary (abstract — GEOID + TIGER metadata)
+    │   │   ├── State, County, Tract, BlockGroup, Block, Place, ZCTA, CD
+    │   │   ├── StateLegislativeUpper, StateLegislativeLower, VTD, Precinct
+    │   │   └── SchoolDistrictElementary, Secondary, Unified
+    │   ├── GADMBoundary (abstract)
+    │   │   └── GADMCountry, GADMAdmin1-5
+    │   ├── NLRBRegion, FederalJudicialDistrict
+    │   └── (intersections — 14.7)
+    ├── TemporalLinearFeature (abstract — MultiLineString)
+    └── TemporalPointFeature (abstract — Point)
 """
 
-from .base import CensusBoundary
+from .base import (
+    TemporalGeographicFeature,
+    TemporalBoundary,
+    CensusTIGERBoundary,
+    TemporalLinearFeature,
+    TemporalPointFeature,
+    CensusBoundary,  # deprecated alias
+)
 from .boundaries import (
     State,
     County,
@@ -24,13 +38,61 @@ from .boundaries import (
     ZCTA,
     CongressionalDistrict,
 )
-from .demographics import DemographicSnapshot, DemographicVariable
-from .crosswalks import BoundaryCrosswalk
+from .political import (
+    StateLegislativeUpper,
+    StateLegislativeLower,
+    VTD,
+    Precinct,
+)
+from .gadm import (
+    GADMBoundary,
+    GADMCountry,
+    GADMAdmin1,
+    GADMAdmin2,
+    GADMAdmin3,
+    GADMAdmin4,
+    GADMAdmin5,
+)
+from .education import (
+    SchoolDistrictBase,
+    SchoolDistrictElementary,
+    SchoolDistrictSecondary,
+    SchoolDistrictUnified,
+)
+from .federal import (
+    NLRBRegion,
+    FederalJudicialDistrict,
+)
+from .census_extended import (
+    CBSA,
+    UrbanArea,
+)
+from .intersections import (
+    BoundaryIntersection,
+    CountyCDIntersection,
+    VTDCDIntersection,
+    TractCDIntersection,
+)
+from .demographics import (
+    DemographicVariable,
+    DemographicSnapshot,
+    DemographicTimeSeries,
+)
+from .crosswalks import (
+    TemporalCrosswalk,
+    BoundaryCrosswalk,  # deprecated alias
+    CrosswalkDataset,
+)
 
 __all__ = [
-    # Base
-    "CensusBoundary",
-    # Boundaries
+    # Base abstracts
+    "TemporalGeographicFeature",
+    "TemporalBoundary",
+    "CensusTIGERBoundary",
+    "TemporalLinearFeature",
+    "TemporalPointFeature",
+    "CensusBoundary",  # deprecated alias
+    # Census TIGER boundaries
     "State",
     "County",
     "Tract",
@@ -39,9 +101,41 @@ __all__ = [
     "Place",
     "ZCTA",
     "CongressionalDistrict",
+    # Political
+    "StateLegislativeUpper",
+    "StateLegislativeLower",
+    "VTD",
+    "Precinct",
+    # GADM
+    "GADMBoundary",
+    "GADMCountry",
+    "GADMAdmin1",
+    "GADMAdmin2",
+    "GADMAdmin3",
+    "GADMAdmin4",
+    "GADMAdmin5",
+    # Education (NCES)
+    "SchoolDistrictBase",
+    "SchoolDistrictElementary",
+    "SchoolDistrictSecondary",
+    "SchoolDistrictUnified",
+    # Federal
+    "NLRBRegion",
+    "FederalJudicialDistrict",
+    # Census Extended
+    "CBSA",
+    "UrbanArea",
+    # Intersections
+    "BoundaryIntersection",
+    "CountyCDIntersection",
+    "VTDCDIntersection",
+    "TractCDIntersection",
     # Demographics
-    "DemographicSnapshot",
     "DemographicVariable",
+    "DemographicSnapshot",
+    "DemographicTimeSeries",
     # Crosswalks
-    "BoundaryCrosswalk",
+    "TemporalCrosswalk",
+    "BoundaryCrosswalk",  # deprecated alias
+    "CrosswalkDataset",
 ]

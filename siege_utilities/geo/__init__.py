@@ -355,7 +355,7 @@ __all__ = [
 ]
 
 # Package metadata
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 __author__ = "Siege Analytics"
 __description__ = "Enhanced geographic utilities with intelligent Census data selection"
 

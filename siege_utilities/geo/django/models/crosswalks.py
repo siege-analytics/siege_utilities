@@ -1,39 +1,44 @@
 """
-Census boundary crosswalk model.
+Temporal crosswalk and crosswalk dataset models.
 
-Stores relationships between Census boundaries across different years,
-enabling longitudinal analysis when boundaries change.
+TemporalCrosswalk stores relationships between geographic boundaries across
+different vintage years, enabling longitudinal analysis when boundaries change.
+
+BoundaryCrosswalk is kept as a deprecated alias for backwards compatibility.
 """
 
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
+import warnings
+
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
 
-class BoundaryCrosswalk(models.Model):
+class TemporalCrosswalk(models.Model):
     """
-    Crosswalk between Census boundaries across different years.
+    Crosswalk between geographic boundaries across different vintage years.
 
-    When Census boundaries change between decennial censuses, this model
-    stores the relationships needed to compare data across time.
+    When boundaries change between Census releases, this model stores the
+    relationships needed to compare data across time.  Supports both Census
+    and non-Census geographies via source_type/target_type fields.
 
     Relationship Types:
     - IDENTICAL: Boundary unchanged (weight=1.0, both directions)
     - SPLIT: Source split into multiple targets (source -> multiple targets)
     - MERGED: Multiple sources merged into target (multiple sources -> target)
     - PARTIAL: Partial overlap with weight indicating fraction
+    - RENAMED: GEOID changed but boundary geometry unchanged
 
     Example:
         >>> # Tract 1001.00 in 2010 split into 1001.01 and 1001.02 in 2020
-        >>> crosswalk1 = BoundaryCrosswalk.objects.create(
-        ...     source_geoid='06037100100',
-        ...     target_geoid='06037100101',
-        ...     source_year=2010,
-        ...     target_year=2020,
-        ...     geography_type='tract',
+        >>> crosswalk = TemporalCrosswalk.objects.create(
+        ...     source_boundary_id='06037100100',
+        ...     target_boundary_id='06037100101',
+        ...     source_vintage_year=2010,
+        ...     target_vintage_year=2020,
+        ...     source_type='tract',
+        ...     target_type='tract',
         ...     relationship='SPLIT',
-        ...     weight=0.6,  # 60% of source population in this target
+        ...     weight=0.6,
         ...     weight_type='population'
         ... )
     """
@@ -43,7 +48,7 @@ class BoundaryCrosswalk(models.Model):
         ("SPLIT", "Split (one-to-many)"),
         ("MERGED", "Merged (many-to-one)"),
         ("PARTIAL", "Partial overlap"),
-        ("RENAMED", "Renamed (GEOID changed, boundary same)"),
+        ("RENAMED", "Renamed (ID changed, boundary same)"),
     ]
 
     WEIGHT_TYPE_CHOICES = [
@@ -53,48 +58,45 @@ class BoundaryCrosswalk(models.Model):
         ("land_area", "Land area-weighted"),
     ]
 
-    GEOGRAPHY_TYPE_CHOICES = [
-        ("state", "State"),
-        ("county", "County"),
-        ("tract", "Census Tract"),
-        ("blockgroup", "Block Group"),
-        ("block", "Census Block"),
-        ("place", "Place"),
-        ("zcta", "ZCTA"),
-        ("cd", "Congressional District"),
-    ]
-
     # Source boundary
-    source_geoid = models.CharField(
-        max_length=20,
+    source_boundary_id = models.CharField(
+        max_length=60,
         db_index=True,
-        help_text="GEOID of the source (earlier year) boundary",
+        help_text="Identifier of the source (earlier vintage) boundary",
     )
-    source_year = models.PositiveSmallIntegerField(
+    source_vintage_year = models.PositiveSmallIntegerField(
         db_index=True,
-        validators=[MinValueValidator(1990), MaxValueValidator(2050)],
-        help_text="Census year of the source boundary",
+        validators=[MinValueValidator(1790), MaxValueValidator(2100)],
+        help_text="Vintage year of the source boundary",
+    )
+    source_type = models.CharField(
+        max_length=50,
+        db_index=True,
+        blank=True,
+        default="",
+        help_text="Geography type of source (e.g. tract, county, gadm_admin1)",
     )
 
     # Target boundary
-    target_geoid = models.CharField(
-        max_length=20,
+    target_boundary_id = models.CharField(
+        max_length=60,
         db_index=True,
-        help_text="GEOID of the target (later year) boundary",
+        help_text="Identifier of the target (later vintage) boundary",
     )
-    target_year = models.PositiveSmallIntegerField(
+    target_vintage_year = models.PositiveSmallIntegerField(
         db_index=True,
-        validators=[MinValueValidator(1990), MaxValueValidator(2050)],
-        help_text="Census year of the target boundary",
+        validators=[MinValueValidator(1790), MaxValueValidator(2100)],
+        help_text="Vintage year of the target boundary",
+    )
+    target_type = models.CharField(
+        max_length=50,
+        db_index=True,
+        blank=True,
+        default="",
+        help_text="Geography type of target (e.g. tract, county, gadm_admin1)",
     )
 
     # Relationship metadata
-    geography_type = models.CharField(
-        max_length=20,
-        choices=GEOGRAPHY_TYPE_CHOICES,
-        db_index=True,
-        help_text="Type of geography",
-    )
     relationship = models.CharField(
         max_length=20,
         choices=RELATIONSHIP_CHOICES,
@@ -156,25 +158,35 @@ class BoundaryCrosswalk(models.Model):
     )
 
     class Meta:
-        verbose_name = "Boundary Crosswalk"
-        verbose_name_plural = "Boundary Crosswalks"
+        verbose_name = "Temporal Crosswalk"
+        verbose_name_plural = "Temporal Crosswalks"
         unique_together = [
-            ("source_geoid", "target_geoid", "source_year", "target_year", "weight_type")
+            (
+                "source_boundary_id",
+                "target_boundary_id",
+                "source_vintage_year",
+                "target_vintage_year",
+                "weight_type",
+            )
         ]
         indexes = [
-            models.Index(fields=["source_geoid", "source_year"]),
-            models.Index(fields=["target_geoid", "target_year"]),
-            models.Index(fields=["geography_type", "source_year", "target_year"]),
-            models.Index(fields=["state_fips", "geography_type"]),
+            models.Index(fields=["source_boundary_id", "source_vintage_year"]),
+            models.Index(fields=["target_boundary_id", "target_vintage_year"]),
+            models.Index(fields=["source_type", "source_vintage_year", "target_vintage_year"]),
+            models.Index(fields=["state_fips", "source_type"]),
             models.Index(fields=["relationship"]),
         ]
 
     def __str__(self):
-        return f"{self.source_geoid} ({self.source_year}) -> {self.target_geoid} ({self.target_year}): {self.weight:.4f}"
+        return (
+            f"{self.source_boundary_id} ({self.source_vintage_year}) -> "
+            f"{self.target_boundary_id} ({self.target_vintage_year}): "
+            f"{self.weight:.4f}"
+        )
 
     @property
     def is_unchanged(self) -> bool:
-        """True if boundary is unchanged between years."""
+        """True if boundary is unchanged between vintages."""
         return self.relationship == "IDENTICAL" and self.weight == 1.0
 
     @property
@@ -182,28 +194,54 @@ class BoundaryCrosswalk(models.Model):
         """True if this is a one-to-one mapping."""
         return self.relationship in ("IDENTICAL", "RENAMED")
 
+    # --- Convenience aliases for old field names (backwards compat) ---
+
+    @property
+    def source_geoid(self) -> str:
+        return self.source_boundary_id
+
+    @property
+    def target_geoid(self) -> str:
+        return self.target_boundary_id
+
+    @property
+    def source_year(self) -> int:
+        return self.source_vintage_year
+
+    @property
+    def target_year(self) -> int:
+        return self.target_vintage_year
+
+    @property
+    def geography_type(self) -> str:
+        return self.source_type
+
     @classmethod
-    def get_forward_mappings(cls, geoid: str, source_year: int, target_year: int):
+    def get_forward_mappings(cls, boundary_id: str, source_year: int, target_year: int):
         """
-        Get all target boundaries for a source GEOID.
+        Get all target boundaries for a source boundary.
 
         Returns:
             QuerySet of crosswalk records mapping source to targets
         """
         return cls.objects.filter(
-            source_geoid=geoid, source_year=source_year, target_year=target_year
+            source_boundary_id=boundary_id,
+            source_vintage_year=source_year,
+            target_vintage_year=target_year,
         ).order_by("-weight")
 
     @classmethod
-    def get_reverse_mappings(cls, geoid: str, source_year: int, target_year: int):
+    def get_reverse_mappings(cls, boundary_id: str, source_year: int, target_year: int):
         """
-        Get all source boundaries for a target GEOID.
+        Get all source boundaries for a target boundary.
 
         Returns:
             QuerySet of crosswalk records mapping sources to target
         """
         return cls.objects.filter(
-            target_geoid=geoid, source_year=source_year, target_year=target_year
+            target_boundary_id=boundary_id,
+            source_vintage_year=source_year,
+            target_vintage_year=target_year,
         ).order_by("-weight")
 
     def allocate_value(self, value: float) -> float:
@@ -217,6 +255,12 @@ class BoundaryCrosswalk(models.Model):
             Allocated value = value * weight
         """
         return float(value) * float(self.weight)
+
+
+# ---------------------------------------------------------------------------
+# Deprecated alias
+# ---------------------------------------------------------------------------
+BoundaryCrosswalk = TemporalCrosswalk
 
 
 class CrosswalkDataset(models.Model):

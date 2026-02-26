@@ -46,7 +46,7 @@ class CrosswalkPopulationService:
     Service for populating boundary crosswalk data.
 
     This service integrates with the existing siege_utilities.geo.crosswalk
-    module to load crosswalk relationships into BoundaryCrosswalk models.
+    module to load crosswalk relationships into TemporalCrosswalk models.
 
     Example:
         >>> service = CrosswalkPopulationService()
@@ -157,7 +157,7 @@ class CrosswalkPopulationService:
         Returns:
             CrosswalkPopulationResult with statistics
         """
-        from ..models import BoundaryCrosswalk, CrosswalkDataset
+        from ..models.crosswalks import TemporalCrosswalk, CrosswalkDataset
 
         # Load crosswalk data
         try:
@@ -226,11 +226,11 @@ class CrosswalkPopulationService:
                 row_state_fips = source_geoid[:2] if len(source_geoid) >= 2 else ""
 
                 # Check if exists
-                existing = BoundaryCrosswalk.objects.filter(
-                    source_geoid=source_geoid,
-                    target_geoid=target_geoid,
-                    source_year=source_year,
-                    target_year=target_year,
+                existing = TemporalCrosswalk.objects.filter(
+                    source_boundary_id=source_geoid,
+                    target_boundary_id=target_geoid,
+                    source_vintage_year=source_year,
+                    target_vintage_year=target_year,
                     weight_type=weight_type,
                 ).first()
 
@@ -250,11 +250,12 @@ class CrosswalkPopulationService:
                     weight = 0.0
 
                 kwargs = {
-                    "source_geoid": source_geoid,
-                    "target_geoid": target_geoid,
-                    "source_year": source_year,
-                    "target_year": target_year,
-                    "geography_type": geography_type,
+                    "source_boundary_id": source_geoid,
+                    "target_boundary_id": target_geoid,
+                    "source_vintage_year": source_year,
+                    "target_vintage_year": target_year,
+                    "source_type": geography_type,
+                    "target_type": geography_type,
                     "relationship": relationship,
                     "weight": weight,
                     "weight_type": weight_type,
@@ -271,10 +272,10 @@ class CrosswalkPopulationService:
                     existing.save()
                     updated += 1
                 else:
-                    objects_to_create.append(BoundaryCrosswalk(**kwargs))
+                    objects_to_create.append(TemporalCrosswalk(**kwargs))
 
                     if len(objects_to_create) >= batch_size:
-                        BoundaryCrosswalk.objects.bulk_create(
+                        TemporalCrosswalk.objects.bulk_create(
                             objects_to_create, ignore_conflicts=True
                         )
                         created += len(objects_to_create)
@@ -288,7 +289,7 @@ class CrosswalkPopulationService:
 
         # Create remaining
         if objects_to_create:
-            BoundaryCrosswalk.objects.bulk_create(
+            TemporalCrosswalk.objects.bulk_create(
                 objects_to_create, ignore_conflicts=True
             )
             created += len(objects_to_create)

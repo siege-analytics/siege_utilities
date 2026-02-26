@@ -1,17 +1,19 @@
 """
-Concrete Census boundary models.
+Concrete Census TIGER/Line boundary models.
 
 Each model represents a specific Census geography type with appropriate
-parent relationships and GEOID parsing.
+parent relationships and GEOID parsing.  All inherit from CensusTIGERBoundary,
+which provides: geoid, state_fips, lsad, mtfcc, funcstat, vintage_year,
+valid_from/valid_to, geometry, area_land, area_water, internal_point, source.
 """
 
 from django.contrib.gis.db import models as gis_models
 from django.db import models
 
-from .base import CensusBoundary
+from .base import CensusTIGERBoundary
 
 
-class State(CensusBoundary):
+class State(CensusTIGERBoundary):
     """
     US State or Territory boundary.
 
@@ -19,29 +21,30 @@ class State(CensusBoundary):
     Example: "06" for California
     """
 
-    state_fips = models.CharField(
-        max_length=2,
-        unique=True,
-        db_index=True,
-        help_text="2-digit state FIPS code",
-    )
     abbreviation = models.CharField(
         max_length=2,
         db_index=True,
         help_text="2-letter state abbreviation (e.g., CA)",
     )
-    functional_status = models.CharField(
-        max_length=1,
+    region = models.CharField(
+        max_length=20,
         blank=True,
-        help_text="Functional status code from TIGER/Line",
+        default="",
+        help_text="Census region (e.g., West, South, Northeast, Midwest)",
+    )
+    division = models.CharField(
+        max_length=30,
+        blank=True,
+        default="",
+        help_text="Census division (e.g., Pacific, Mountain, East South Central)",
     )
 
     class Meta:
         verbose_name = "State"
         verbose_name_plural = "States"
-        unique_together = [("geoid", "census_year")]
+        unique_together = [("geoid", "vintage_year")]
         indexes = [
-            models.Index(fields=["state_fips", "census_year"]),
+            models.Index(fields=["state_fips", "vintage_year"]),
             models.Index(fields=["abbreviation"]),
         ]
 
@@ -54,7 +57,7 @@ class State(CensusBoundary):
         return {"state_fips": geoid[:2]}
 
 
-class County(CensusBoundary):
+class County(CensusTIGERBoundary):
     """
     County or county-equivalent boundary.
 
@@ -69,11 +72,6 @@ class County(CensusBoundary):
         null=True,
         help_text="Parent state",
     )
-    state_fips = models.CharField(
-        max_length=2,
-        db_index=True,
-        help_text="2-digit state FIPS code",
-    )
     county_fips = models.CharField(
         max_length=3,
         db_index=True,
@@ -84,19 +82,14 @@ class County(CensusBoundary):
         blank=True,
         help_text="County name without 'County' suffix",
     )
-    legal_statistical_area = models.CharField(
-        max_length=2,
-        blank=True,
-        help_text="Legal/Statistical Area Description code",
-    )
 
     class Meta:
         verbose_name = "County"
         verbose_name_plural = "Counties"
-        unique_together = [("geoid", "census_year")]
+        unique_together = [("geoid", "vintage_year")]
         indexes = [
             models.Index(fields=["state_fips", "county_fips"]),
-            models.Index(fields=["state_fips", "census_year"]),
+            models.Index(fields=["state_fips", "vintage_year"]),
         ]
 
     @classmethod
@@ -111,7 +104,7 @@ class County(CensusBoundary):
         }
 
 
-class Tract(CensusBoundary):
+class Tract(CensusTIGERBoundary):
     """
     Census Tract boundary.
 
@@ -133,11 +126,6 @@ class Tract(CensusBoundary):
         null=True,
         help_text="Parent county",
     )
-    state_fips = models.CharField(
-        max_length=2,
-        db_index=True,
-        help_text="2-digit state FIPS code",
-    )
     county_fips = models.CharField(
         max_length=3,
         db_index=True,
@@ -152,10 +140,10 @@ class Tract(CensusBoundary):
     class Meta:
         verbose_name = "Census Tract"
         verbose_name_plural = "Census Tracts"
-        unique_together = [("geoid", "census_year")]
+        unique_together = [("geoid", "vintage_year")]
         indexes = [
             models.Index(fields=["state_fips", "county_fips", "tract_code"]),
-            models.Index(fields=["state_fips", "census_year"]),
+            models.Index(fields=["state_fips", "vintage_year"]),
         ]
 
     @classmethod
@@ -177,7 +165,7 @@ class Tract(CensusBoundary):
         return f"{int(code[:4])}.{code[4:]}"
 
 
-class BlockGroup(CensusBoundary):
+class BlockGroup(CensusTIGERBoundary):
     """
     Census Block Group boundary.
 
@@ -206,11 +194,6 @@ class BlockGroup(CensusBoundary):
         null=True,
         help_text="Parent tract",
     )
-    state_fips = models.CharField(
-        max_length=2,
-        db_index=True,
-        help_text="2-digit state FIPS code",
-    )
     county_fips = models.CharField(
         max_length=3,
         db_index=True,
@@ -230,10 +213,10 @@ class BlockGroup(CensusBoundary):
     class Meta:
         verbose_name = "Block Group"
         verbose_name_plural = "Block Groups"
-        unique_together = [("geoid", "census_year")]
+        unique_together = [("geoid", "vintage_year")]
         indexes = [
             models.Index(fields=["state_fips", "county_fips", "tract_code"]),
-            models.Index(fields=["state_fips", "census_year"]),
+            models.Index(fields=["state_fips", "vintage_year"]),
         ]
 
     @classmethod
@@ -250,7 +233,7 @@ class BlockGroup(CensusBoundary):
         }
 
 
-class Block(CensusBoundary):
+class Block(CensusTIGERBoundary):
     """
     Census Block boundary.
 
@@ -289,11 +272,6 @@ class Block(CensusBoundary):
         null=True,
         help_text="Parent block group",
     )
-    state_fips = models.CharField(
-        max_length=2,
-        db_index=True,
-        help_text="2-digit state FIPS code",
-    )
     county_fips = models.CharField(
         max_length=3,
         db_index=True,
@@ -313,10 +291,10 @@ class Block(CensusBoundary):
     class Meta:
         verbose_name = "Census Block"
         verbose_name_plural = "Census Blocks"
-        unique_together = [("geoid", "census_year")]
+        unique_together = [("geoid", "vintage_year")]
         indexes = [
             models.Index(fields=["state_fips", "county_fips", "tract_code"]),
-            models.Index(fields=["state_fips", "census_year"]),
+            models.Index(fields=["state_fips", "vintage_year"]),
         ]
 
     @classmethod
@@ -338,7 +316,7 @@ class Block(CensusBoundary):
         return self.block_code[0]
 
 
-class Place(CensusBoundary):
+class Place(CensusTIGERBoundary):
     """
     Census Place (city, town, CDP) boundary.
 
@@ -353,11 +331,6 @@ class Place(CensusBoundary):
         null=True,
         help_text="Parent state",
     )
-    state_fips = models.CharField(
-        max_length=2,
-        db_index=True,
-        help_text="2-digit state FIPS code",
-    )
     place_fips = models.CharField(
         max_length=5,
         db_index=True,
@@ -368,19 +341,14 @@ class Place(CensusBoundary):
         blank=True,
         help_text="Place type code (e.g., C1=incorporated place)",
     )
-    functional_status = models.CharField(
-        max_length=1,
-        blank=True,
-        help_text="Functional status code",
-    )
 
     class Meta:
         verbose_name = "Place"
         verbose_name_plural = "Places"
-        unique_together = [("geoid", "census_year")]
+        unique_together = [("geoid", "vintage_year")]
         indexes = [
             models.Index(fields=["state_fips", "place_fips"]),
-            models.Index(fields=["state_fips", "census_year"]),
+            models.Index(fields=["state_fips", "vintage_year"]),
         ]
 
     @classmethod
@@ -395,7 +363,7 @@ class Place(CensusBoundary):
         }
 
 
-class ZCTA(CensusBoundary):
+class ZCTA(CensusTIGERBoundary):
     """
     ZIP Code Tabulation Area boundary.
 
@@ -415,10 +383,10 @@ class ZCTA(CensusBoundary):
     class Meta:
         verbose_name = "ZCTA"
         verbose_name_plural = "ZCTAs"
-        unique_together = [("geoid", "census_year")]
+        unique_together = [("geoid", "vintage_year")]
         indexes = [
             models.Index(fields=["zcta5"]),
-            models.Index(fields=["census_year"]),
+            models.Index(fields=["vintage_year"]),
         ]
 
     @classmethod
@@ -430,7 +398,7 @@ class ZCTA(CensusBoundary):
         return {"zcta5": geoid[:5]}
 
 
-class CongressionalDistrict(CensusBoundary):
+class CongressionalDistrict(CensusTIGERBoundary):
     """
     Congressional District boundary.
 
@@ -438,7 +406,7 @@ class CongressionalDistrict(CensusBoundary):
     Example: "0614" for California's 14th district
 
     Note: District numbers change after reapportionment (every 10 years).
-    Use census_year to track which Congress the districts represent.
+    Use vintage_year to track which Congress the districts represent.
     """
 
     state = models.ForeignKey(
@@ -447,11 +415,6 @@ class CongressionalDistrict(CensusBoundary):
         related_name="congressional_districts",
         null=True,
         help_text="Parent state",
-    )
-    state_fips = models.CharField(
-        max_length=2,
-        db_index=True,
-        help_text="2-digit state FIPS code",
     )
     district_number = models.CharField(
         max_length=2,
@@ -472,10 +435,10 @@ class CongressionalDistrict(CensusBoundary):
     class Meta:
         verbose_name = "Congressional District"
         verbose_name_plural = "Congressional Districts"
-        unique_together = [("geoid", "census_year")]
+        unique_together = [("geoid", "vintage_year")]
         indexes = [
             models.Index(fields=["state_fips", "district_number"]),
-            models.Index(fields=["state_fips", "census_year"]),
+            models.Index(fields=["state_fips", "vintage_year"]),
             models.Index(fields=["congress_number"]),
         ]
 

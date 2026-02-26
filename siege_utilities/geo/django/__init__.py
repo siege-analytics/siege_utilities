@@ -1,8 +1,8 @@
 """
-GeoDjango integration for Census boundary data.
+GeoDjango integration for temporal geographic feature data.
 
-This module provides Django models for storing and querying Census geographic
-boundaries with full GeoDjango spatial support.
+This module provides Django models for storing and querying geographic
+boundaries with full GeoDjango spatial support and temporal validity tracking.
 
 Requirements:
     - Django >= 4.2
@@ -45,6 +45,11 @@ if _django_available:
 # Lazy imports to avoid import errors when Django is not installed
 if TYPE_CHECKING:
     from .models import (
+        TemporalGeographicFeature,
+        TemporalBoundary,
+        CensusTIGERBoundary,
+        TemporalLinearFeature,
+        TemporalPointFeature,
         CensusBoundary,
         State,
         County,
@@ -54,9 +59,35 @@ if TYPE_CHECKING:
         Place,
         ZCTA,
         CongressionalDistrict,
+        StateLegislativeUpper,
+        StateLegislativeLower,
+        VTD,
+        Precinct,
+        GADMBoundary,
+        GADMCountry,
+        GADMAdmin1,
+        GADMAdmin2,
+        GADMAdmin3,
+        GADMAdmin4,
+        GADMAdmin5,
+        SchoolDistrictBase,
+        SchoolDistrictElementary,
+        SchoolDistrictSecondary,
+        SchoolDistrictUnified,
+        NLRBRegion,
+        FederalJudicialDistrict,
+        CBSA,
+        UrbanArea,
+        BoundaryIntersection,
+        CountyCDIntersection,
+        VTDCDIntersection,
+        TractCDIntersection,
+        TemporalCrosswalk,
+        BoundaryCrosswalk,
+        CrosswalkDataset,
         DemographicSnapshot,
         DemographicVariable,
-        BoundaryCrosswalk,
+        DemographicTimeSeries,
     )
     from .services import (
         BoundaryPopulationService,
@@ -64,6 +95,8 @@ if TYPE_CHECKING:
         CrosswalkPopulationService,
     )
     from .serializers import (
+        TemporalBoundarySerializer,
+        CensusTIGERSerializer,
         StateSerializer,
         CountySerializer,
         TractSerializer,
@@ -127,8 +160,8 @@ def get_service(service_name: str):
     return getattr(services_module, service_name)
 
 
-# Version info
-__version__ = "0.1.0"
+# Version info — matches package version
+__version__ = "3.0.0"
 
 __all__ = [
     # Models (lazy)
