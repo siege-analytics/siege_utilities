@@ -1,6 +1,8 @@
-"""Tests for NCES population service."""
+"""Tests for NCES population service.
 
-from unittest.mock import MagicMock, patch
+Tests focus on the result dataclass and service construction.
+Django-dependent tests (populate methods) require Django setup.
+"""
 
 import pytest
 
@@ -9,7 +11,10 @@ class TestNCESPopulationResult:
     """Tests for the result dataclass."""
 
     def test_total_processed(self):
-        from siege_utilities.geo.django.services.nces_service import NCESPopulationResult
+        # Import directly to avoid Django dependency from services/__init__.py
+        import importlib
+        mod = importlib.import_module("siege_utilities.geo.django.services.nces_service")
+        NCESPopulationResult = mod.NCESPopulationResult
 
         result = NCESPopulationResult(
             action="test", year=2023,
@@ -18,13 +23,17 @@ class TestNCESPopulationResult:
         assert result.total_processed == 18
 
     def test_success_no_errors(self):
-        from siege_utilities.geo.django.services.nces_service import NCESPopulationResult
+        import importlib
+        mod = importlib.import_module("siege_utilities.geo.django.services.nces_service")
+        NCESPopulationResult = mod.NCESPopulationResult
 
         result = NCESPopulationResult(action="test", year=2023)
         assert result.success is True
 
     def test_success_with_errors(self):
-        from siege_utilities.geo.django.services.nces_service import NCESPopulationResult
+        import importlib
+        mod = importlib.import_module("siege_utilities.geo.django.services.nces_service")
+        NCESPopulationResult = mod.NCESPopulationResult
 
         result = NCESPopulationResult(
             action="test", year=2023, errors=["something failed"]
@@ -36,19 +45,26 @@ class TestNCESPopulationService:
     """Tests for the NCESPopulationService class."""
 
     def test_init_default(self):
-        from siege_utilities.geo.django.services.nces_service import NCESPopulationService
+        import importlib
+        mod = importlib.import_module("siege_utilities.geo.django.services.nces_service")
+        NCESPopulationService = mod.NCESPopulationService
 
         service = NCESPopulationService()
         assert service.cache_dir is None
 
     def test_init_with_cache(self, tmp_path):
-        from siege_utilities.geo.django.services.nces_service import NCESPopulationService
+        import importlib
+        mod = importlib.import_module("siege_utilities.geo.django.services.nces_service")
+        NCESPopulationService = mod.NCESPopulationService
 
         service = NCESPopulationService(cache_dir=str(tmp_path))
         assert service.cache_dir == str(tmp_path)
 
     def test_get_downloader(self):
-        from siege_utilities.geo.django.services.nces_service import NCESPopulationService
+        import importlib
+        mod = importlib.import_module("siege_utilities.geo.django.services.nces_service")
+        NCESPopulationService = mod.NCESPopulationService
+
         from siege_utilities.geo.nces_download import NCESDownloader
 
         service = NCESPopulationService(cache_dir="/tmp/test")
@@ -60,9 +76,11 @@ class TestPopulateNCESCommand:
     """Tests for the management command argument parsing."""
 
     def test_valid_actions(self):
-        from siege_utilities.geo.django.management.commands.populate_nces import VALID_ACTIONS
-
-        assert "locale_boundaries" in VALID_ACTIONS
-        assert "school_locations" in VALID_ACTIONS
-        assert "enrich_districts" in VALID_ACTIONS
-        assert "all" in VALID_ACTIONS
+        import importlib
+        mod = importlib.import_module(
+            "siege_utilities.geo.django.management.commands.populate_nces"
+        )
+        assert "locale_boundaries" in mod.VALID_ACTIONS
+        assert "school_locations" in mod.VALID_ACTIONS
+        assert "enrich_districts" in mod.VALID_ACTIONS
+        assert "all" in mod.VALID_ACTIONS

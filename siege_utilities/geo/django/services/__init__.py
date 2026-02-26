@@ -1,14 +1,29 @@
 """
 Services for populating Census boundary and NCES education data.
+
+Imports are deferred to avoid requiring Django setup at import time.
+Use: ``from siege_utilities.geo.django.services.nces_service import NCESPopulationService``
 """
 
-from .population_service import BoundaryPopulationService
-from .demographic_service import DemographicPopulationService
-from .crosswalk_service import CrosswalkPopulationService
-from .timeseries_service import TimeseriesService
-from .rollup_service import DemographicRollupService
-from .urbanicity_service import UrbanicityClassificationService
-from .nces_service import NCESPopulationService
+
+def __getattr__(name):
+    """Lazy imports — avoids Django setup requirement at package import time."""
+    _map = {
+        "BoundaryPopulationService": ".population_service",
+        "DemographicPopulationService": ".demographic_service",
+        "CrosswalkPopulationService": ".crosswalk_service",
+        "TimeseriesService": ".timeseries_service",
+        "DemographicRollupService": ".rollup_service",
+        "UrbanicityClassificationService": ".urbanicity_service",
+        "NCESPopulationService": ".nces_service",
+    }
+    if name in _map:
+        import importlib
+
+        mod = importlib.import_module(_map[name], __package__)
+        return getattr(mod, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "BoundaryPopulationService",
