@@ -1,7 +1,41 @@
 # Siege Utilities - Session Status
 
-**Last Updated:** February 23, 2026
-**Branch:** `main` (v2.0.0 released), `develop` (integration branch)
+**Last Updated:** February 25, 2026
+**Branch:** `main` (v2.2.0), `feature/epic-14-unified-geo-model` (v3.0.0 — PR #147)
+
+---
+
+## Session 22 Progress (February 25, 2026)
+
+### Epic 14: Unified Geographic Model — v3.0.0 (PR #147, In Review)
+
+Complete rewrite of the GeoDjango model hierarchy for temporal geographic features.
+
+**Branch:** `feature/epic-14-unified-geo-model` (6 commits)
+**PR:** siege-analytics/siege_utilities#147
+**Issues:** #148 (parent) + #149-#158 (10 sub-issues, all closed → In Review)
+
+**Commits:**
+- `a0f2ff9` — 14.1+14.2: TemporalGeographicFeature hierarchy + Census model updates
+- `9ae7c77` — 14.3: Manager/serializer/service field renames
+- `d16609b` — 14.4+14.5+14.6+14.8: Political, GADM, education, federal, crosswalk models
+- `1cadc39` — 14.7: CBSA, UrbanArea, intersection models
+- `b567cc3` — 14.9: Pydantic schema layer (12 files in geo/schemas/)
+- `2a0b726` — 14.10: Version bump 2.2.0 → 3.0.0, final integration
+
+**What changed:**
+- `CensusBoundary` → `TemporalGeographicFeature` → `TemporalBoundary` → `CensusTIGERBoundary` abstract hierarchy
+- `TemporalLinearFeature` + `TemporalPointFeature` abstracts for future road/address models
+- 25+ new concrete models: political (SLDU/SLDL/VTD/Precinct), GADM (6 levels), education (3 school districts), federal (NLRB/FJD), census extended (CBSA/UrbanArea), intersections (generic + 3 typed), TemporalCrosswalk
+- Full Pydantic schema layer with GeoDataFrame ↔ Schema ↔ ORM converters
+- Field renames: census_year → vintage_year, aland → area_land, awater → area_water
+- SRID standardized to 4326 (WGS 84)
+- Deprecated aliases preserved (CensusBoundary, BoundaryCrosswalk, CensusBoundarySerializer)
+- 54 tests (35 model + 19 schema), all 6 verification checks pass
+
+**Still needed before merge:**
+- Migration generation test on PostGIS database
+- Enterprise downstream import check
 
 ---
 
