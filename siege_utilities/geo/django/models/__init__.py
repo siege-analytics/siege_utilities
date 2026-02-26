@@ -8,10 +8,14 @@ and intersection/crosswalk relationships.
 Model hierarchy:
     TemporalGeographicFeature (root abstract — no geometry)
     ├── TemporalBoundary (abstract — MultiPolygon)
-    │   └── CensusTIGERBoundary (abstract — GEOID + TIGER metadata)
-    │       ├── State, County, Tract, BlockGroup, Block
-    │       ├── Place, ZCTA, CongressionalDistrict
-    │       └── (political, education, census_extended models)
+    │   ├── CensusTIGERBoundary (abstract — GEOID + TIGER metadata)
+    │   │   ├── State, County, Tract, BlockGroup, Block, Place, ZCTA, CD
+    │   │   ├── StateLegislativeUpper, StateLegislativeLower, VTD, Precinct
+    │   │   └── SchoolDistrictElementary, Secondary, Unified
+    │   ├── GADMBoundary (abstract)
+    │   │   └── GADMCountry, GADMAdmin1-5
+    │   ├── NLRBRegion, FederalJudicialDistrict
+    │   └── (intersections — 14.7)
     ├── TemporalLinearFeature (abstract — MultiLineString)
     └── TemporalPointFeature (abstract — Point)
 """
@@ -34,13 +38,39 @@ from .boundaries import (
     ZCTA,
     CongressionalDistrict,
 )
+from .political import (
+    StateLegislativeUpper,
+    StateLegislativeLower,
+    VTD,
+    Precinct,
+)
+from .gadm import (
+    GADMBoundary,
+    GADMCountry,
+    GADMAdmin1,
+    GADMAdmin2,
+    GADMAdmin3,
+    GADMAdmin4,
+    GADMAdmin5,
+)
+from .education import (
+    SchoolDistrictBase,
+    SchoolDistrictElementary,
+    SchoolDistrictSecondary,
+    SchoolDistrictUnified,
+)
+from .federal import (
+    NLRBRegion,
+    FederalJudicialDistrict,
+)
 from .demographics import (
     DemographicVariable,
     DemographicSnapshot,
     DemographicTimeSeries,
 )
 from .crosswalks import (
-    BoundaryCrosswalk,
+    TemporalCrosswalk,
+    BoundaryCrosswalk,  # deprecated alias
     CrosswalkDataset,
 )
 
@@ -51,8 +81,7 @@ __all__ = [
     "CensusTIGERBoundary",
     "TemporalLinearFeature",
     "TemporalPointFeature",
-    # Deprecated alias
-    "CensusBoundary",
+    "CensusBoundary",  # deprecated alias
     # Census TIGER boundaries
     "State",
     "County",
@@ -62,11 +91,33 @@ __all__ = [
     "Place",
     "ZCTA",
     "CongressionalDistrict",
+    # Political
+    "StateLegislativeUpper",
+    "StateLegislativeLower",
+    "VTD",
+    "Precinct",
+    # GADM
+    "GADMBoundary",
+    "GADMCountry",
+    "GADMAdmin1",
+    "GADMAdmin2",
+    "GADMAdmin3",
+    "GADMAdmin4",
+    "GADMAdmin5",
+    # Education (NCES)
+    "SchoolDistrictBase",
+    "SchoolDistrictElementary",
+    "SchoolDistrictSecondary",
+    "SchoolDistrictUnified",
+    # Federal
+    "NLRBRegion",
+    "FederalJudicialDistrict",
     # Demographics
     "DemographicVariable",
     "DemographicSnapshot",
     "DemographicTimeSeries",
     # Crosswalks
-    "BoundaryCrosswalk",
+    "TemporalCrosswalk",
+    "BoundaryCrosswalk",  # deprecated alias
     "CrosswalkDataset",
 ]
