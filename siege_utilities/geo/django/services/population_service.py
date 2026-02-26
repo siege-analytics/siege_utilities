@@ -284,7 +284,7 @@ class BoundaryPopulationService:
                     continue
 
                 # Check if exists
-                existing = model.objects.filter(geoid=geoid, census_year=year).first()
+                existing = model.objects.filter(geoid=geoid, vintage_year=year).first()
 
                 if existing and not update_existing:
                     skipped += 1
@@ -303,9 +303,9 @@ class BoundaryPopulationService:
                     "geoid": geoid,
                     "name": str(row.get("NAME", "")),
                     "geometry": geom,
-                    "census_year": year,
-                    "aland": row.get("ALAND"),
-                    "awater": row.get("AWATER"),
+                    "vintage_year": year,
+                    "area_land": row.get("ALAND"),
+                    "area_water": row.get("AWATER"),
                 }
                 kwargs.update(parsed)
 
@@ -314,10 +314,10 @@ class BoundaryPopulationService:
                     kwargs["abbreviation"] = row["abbreviation"]
                 if hasattr(model, "county_name") and "county_name" in row:
                     kwargs["county_name"] = row["county_name"]
-                if hasattr(model, "functional_status") and "functional_status" in row:
-                    kwargs["functional_status"] = row.get("functional_status", "")
-                if hasattr(model, "legal_statistical_area") and "legal_statistical_area" in row:
-                    kwargs["legal_statistical_area"] = row.get("legal_statistical_area", "")
+                if "functional_status" in row:
+                    kwargs["funcstat"] = row.get("functional_status", "")
+                if "legal_statistical_area" in row:
+                    kwargs["lsad"] = row.get("legal_statistical_area", "")
 
                 if existing:
                     # Update
@@ -447,14 +447,14 @@ class BoundaryPopulationService:
             return 0
 
         # Get all child records
-        qs = model.objects.filter(census_year=year)
+        qs = model.objects.filter(vintage_year=year)
         if state_fips:
             qs = qs.filter(state_fips=state_fips)
 
         linked = 0
         for child in qs.filter(**{f"{parent_field}__isnull": True}):
             # Build parent lookup
-            lookup = {"census_year": year}
+            lookup = {"vintage_year": year}
             for field in key_fields:
                 lookup[field] = getattr(child, field)
 

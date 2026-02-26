@@ -1,5 +1,5 @@
 """
-Django REST Framework GeoJSON serializers for Census boundary models.
+Django REST Framework GeoJSON serializers for geographic boundary models.
 
 Requires djangorestframework-gis for GeoJSON serialization.
 """
@@ -22,69 +22,91 @@ except ImportError:
     CongressionalDistrict = DemographicSnapshot = BoundaryCrosswalk = None
 
 
-class CensusBoundarySerializer(GeoFeatureModelSerializer):
-    """Base serializer for Census boundary models."""
+class TemporalBoundarySerializer(GeoFeatureModelSerializer):
+    """Base serializer for all temporal boundary models."""
 
     total_area = serializers.ReadOnlyField()
     land_percentage = serializers.ReadOnlyField()
+    is_current = serializers.ReadOnlyField()
 
     class Meta:
         abstract = True
         geo_field = "geometry"
         fields = [
             "id",
-            "geoid",
+            "feature_id",
+            "boundary_id",
             "name",
-            "census_year",
-            "aland",
-            "awater",
+            "vintage_year",
+            "valid_from",
+            "valid_to",
+            "source",
+            "area_land",
+            "area_water",
+            "internal_point",
             "total_area",
             "land_percentage",
+            "is_current",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
 
-class StateSerializer(CensusBoundarySerializer):
-    """Serializer for State boundaries."""
+class CensusTIGERSerializer(TemporalBoundarySerializer):
+    """Base serializer for Census TIGER/Line boundary models."""
 
-    class Meta(CensusBoundarySerializer.Meta):
-        model = State
-        fields = CensusBoundarySerializer.Meta.fields + [
+    class Meta(TemporalBoundarySerializer.Meta):
+        abstract = True
+        fields = TemporalBoundarySerializer.Meta.fields + [
+            "geoid",
             "state_fips",
-            "abbreviation",
-            "functional_status",
+            "lsad",
+            "mtfcc",
+            "funcstat",
         ]
 
 
-class CountySerializer(CensusBoundarySerializer):
+# Keep old name as alias for backwards compatibility
+CensusBoundarySerializer = CensusTIGERSerializer
+
+
+class StateSerializer(CensusTIGERSerializer):
+    """Serializer for State boundaries."""
+
+    class Meta(CensusTIGERSerializer.Meta):
+        model = State
+        fields = CensusTIGERSerializer.Meta.fields + [
+            "abbreviation",
+            "region",
+            "division",
+        ]
+
+
+class CountySerializer(CensusTIGERSerializer):
     """Serializer for County boundaries."""
 
     state_name = serializers.CharField(source="state.name", read_only=True)
 
-    class Meta(CensusBoundarySerializer.Meta):
+    class Meta(CensusTIGERSerializer.Meta):
         model = County
-        fields = CensusBoundarySerializer.Meta.fields + [
-            "state_fips",
+        fields = CensusTIGERSerializer.Meta.fields + [
             "county_fips",
             "county_name",
-            "legal_statistical_area",
             "state_name",
         ]
 
 
-class TractSerializer(CensusBoundarySerializer):
+class TractSerializer(CensusTIGERSerializer):
     """Serializer for Census Tract boundaries."""
 
     tract_number = serializers.ReadOnlyField()
     county_name = serializers.CharField(source="county.name", read_only=True)
     state_name = serializers.CharField(source="state.name", read_only=True)
 
-    class Meta(CensusBoundarySerializer.Meta):
+    class Meta(CensusTIGERSerializer.Meta):
         model = Tract
-        fields = CensusBoundarySerializer.Meta.fields + [
-            "state_fips",
+        fields = CensusTIGERSerializer.Meta.fields + [
             "county_fips",
             "tract_code",
             "tract_number",
@@ -93,15 +115,14 @@ class TractSerializer(CensusBoundarySerializer):
         ]
 
 
-class BlockGroupSerializer(CensusBoundarySerializer):
+class BlockGroupSerializer(CensusTIGERSerializer):
     """Serializer for Block Group boundaries."""
 
     tract_number = serializers.CharField(source="tract.tract_number", read_only=True)
 
-    class Meta(CensusBoundarySerializer.Meta):
+    class Meta(CensusTIGERSerializer.Meta):
         model = BlockGroup
-        fields = CensusBoundarySerializer.Meta.fields + [
-            "state_fips",
+        fields = CensusTIGERSerializer.Meta.fields + [
             "county_fips",
             "tract_code",
             "block_group",
@@ -109,40 +130,37 @@ class BlockGroupSerializer(CensusBoundarySerializer):
         ]
 
 
-class PlaceSerializer(CensusBoundarySerializer):
+class PlaceSerializer(CensusTIGERSerializer):
     """Serializer for Place boundaries."""
 
     state_name = serializers.CharField(source="state.name", read_only=True)
 
-    class Meta(CensusBoundarySerializer.Meta):
+    class Meta(CensusTIGERSerializer.Meta):
         model = Place
-        fields = CensusBoundarySerializer.Meta.fields + [
-            "state_fips",
+        fields = CensusTIGERSerializer.Meta.fields + [
             "place_fips",
             "place_type",
-            "functional_status",
             "state_name",
         ]
 
 
-class ZCTASerializer(CensusBoundarySerializer):
+class ZCTASerializer(CensusTIGERSerializer):
     """Serializer for ZCTA boundaries."""
 
-    class Meta(CensusBoundarySerializer.Meta):
+    class Meta(CensusTIGERSerializer.Meta):
         model = ZCTA
-        fields = CensusBoundarySerializer.Meta.fields + ["zcta5"]
+        fields = CensusTIGERSerializer.Meta.fields + ["zcta5"]
 
 
-class CongressionalDistrictSerializer(CensusBoundarySerializer):
+class CongressionalDistrictSerializer(CensusTIGERSerializer):
     """Serializer for Congressional District boundaries."""
 
     is_at_large = serializers.ReadOnlyField()
     state_name = serializers.CharField(source="state.name", read_only=True)
 
-    class Meta(CensusBoundarySerializer.Meta):
+    class Meta(CensusTIGERSerializer.Meta):
         model = CongressionalDistrict
-        fields = CensusBoundarySerializer.Meta.fields + [
-            "state_fips",
+        fields = CensusTIGERSerializer.Meta.fields + [
             "district_number",
             "congress_number",
             "session",
@@ -182,17 +200,17 @@ class BoundaryWithDemographicsSerializer(serializers.Serializer):
     """
     Combined serializer for boundary with demographic data.
 
-    This serializer combines boundary geometry with demographic values
+    Combines boundary geometry with demographic values
     into a single GeoJSON response.
     """
 
-    # Boundary fields
+    # Boundary fields (v3 names)
     geoid = serializers.CharField()
     name = serializers.CharField()
     geometry = serializers.SerializerMethodField()
-    census_year = serializers.IntegerField()
-    aland = serializers.IntegerField()
-    awater = serializers.IntegerField()
+    vintage_year = serializers.IntegerField()
+    area_land = serializers.IntegerField()
+    area_water = serializers.IntegerField()
 
     # Demographic fields
     demographics = DemographicSnapshotSerializer(many=True, read_only=True)
@@ -212,9 +230,9 @@ class BoundaryWithDemographicsSerializer(serializers.Serializer):
             "geoid",
             "name",
             "geometry",
-            "census_year",
-            "aland",
-            "awater",
+            "vintage_year",
+            "area_land",
+            "area_water",
             "demographics",
             "total_population",
             "median_household_income",

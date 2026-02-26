@@ -1,8 +1,11 @@
 """
-Django REST Framework serializers for Census boundary data.
+Django REST Framework serializers for geographic boundary data.
 """
 
 from .boundary_serializers import (
+    TemporalBoundarySerializer,
+    CensusTIGERSerializer,
+    CensusBoundarySerializer,  # deprecated alias
     StateSerializer,
     CountySerializer,
     TractSerializer,
@@ -13,9 +16,13 @@ from .boundary_serializers import (
     BoundaryWithDemographicsSerializer,
     DemographicSnapshotSerializer,
     BoundaryCrosswalkSerializer,
+    get_boundary_serializer,
 )
 
 __all__ = [
+    "TemporalBoundarySerializer",
+    "CensusTIGERSerializer",
+    "CensusBoundarySerializer",
     "StateSerializer",
     "CountySerializer",
     "TractSerializer",
@@ -26,4 +33,5 @@ __all__ = [
     "BoundaryWithDemographicsSerializer",
     "DemographicSnapshotSerializer",
     "BoundaryCrosswalkSerializer",
+    "get_boundary_serializer",
 ]

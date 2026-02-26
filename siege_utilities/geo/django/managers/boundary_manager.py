@@ -1,26 +1,35 @@
 """
-Custom manager for Census boundary models with spatial query helpers.
+Custom manager for temporal boundary models with spatial query helpers.
 """
 
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Point, Polygon, GEOSGeometry
 from django.db import models
 
-from siege_utilities.conf import settings
-
 
 class BoundaryQuerySet(gis_models.QuerySet):
     """
-    Custom QuerySet for Census boundary models with spatial queries.
+    Custom QuerySet for boundary models with spatial queries.
     """
 
     def for_year(self, year: int):
-        """Filter boundaries by Census year."""
-        return self.filter(census_year=year)
+        """Filter boundaries by vintage year."""
+        return self.filter(vintage_year=year)
 
     def for_state(self, state_fips: str):
         """Filter boundaries by state FIPS code."""
         return self.filter(state_fips=state_fips)
+
+    def current(self):
+        """Filter to currently-valid boundaries (valid_to is NULL)."""
+        return self.filter(valid_to__isnull=True)
+
+    def valid_on(self, date):
+        """Filter to boundaries valid on a specific date."""
+        return self.filter(
+            models.Q(valid_from__isnull=True) | models.Q(valid_from__lte=date),
+            models.Q(valid_to__isnull=True) | models.Q(valid_to__gte=date),
+        )
 
     def containing_point(self, point: Point):
         """
@@ -33,7 +42,7 @@ class BoundaryQuerySet(gis_models.QuerySet):
             QuerySet filtered to boundaries containing the point
         """
         if isinstance(point, tuple):
-            point = Point(point[0], point[1], srid=settings.STORAGE_CRS)
+            point = Point(point[0], point[1], srid=4326)
         return self.filter(geometry__contains=point)
 
     def intersecting(self, geometry: GEOSGeometry):
@@ -83,7 +92,7 @@ class BoundaryQuerySet(gis_models.QuerySet):
         Returns:
             Ordered QuerySet
         """
-        order = "aland" if ascending else "-aland"
+        order = "area_land" if ascending else "-area_land"
         return self.order_by(order)
 
     def by_population(self, year: int = None, ascending: bool = False):
@@ -118,7 +127,7 @@ class BoundaryQuerySet(gis_models.QuerySet):
         Return boundaries as GeoJSON Feature dicts.
 
         Returns:
-            List of GeoJSON Feature dictionaries
+            GeoJSON FeatureCollection dict
         """
         features = []
         for boundary in self.all():
@@ -127,11 +136,11 @@ class BoundaryQuerySet(gis_models.QuerySet):
                     "type": "Feature",
                     "geometry": boundary.geometry.json,
                     "properties": {
-                        "geoid": boundary.geoid,
+                        "geoid": getattr(boundary, "geoid", boundary.feature_id),
                         "name": boundary.name,
-                        "census_year": boundary.census_year,
-                        "aland": boundary.aland,
-                        "awater": boundary.awater,
+                        "vintage_year": boundary.vintage_year,
+                        "area_land": boundary.area_land,
+                        "area_water": boundary.area_water,
                     },
                 }
             )
@@ -140,7 +149,7 @@ class BoundaryQuerySet(gis_models.QuerySet):
 
 class BoundaryManager(gis_models.Manager):
     """
-    Custom manager for Census boundary models.
+    Custom manager for temporal boundary models.
 
     Provides convenient methods for common spatial queries.
 
@@ -154,12 +163,20 @@ class BoundaryManager(gis_models.Manager):
         return BoundaryQuerySet(self.model, using=self._db)
 
     def for_year(self, year: int):
-        """Filter boundaries by Census year."""
+        """Filter boundaries by vintage year."""
         return self.get_queryset().for_year(year)
 
     def for_state(self, state_fips: str):
         """Filter boundaries by state FIPS code."""
         return self.get_queryset().for_state(state_fips)
+
+    def current(self):
+        """Filter to currently-valid boundaries."""
+        return self.get_queryset().current()
+
+    def valid_on(self, date):
+        """Filter to boundaries valid on a specific date."""
+        return self.get_queryset().valid_on(date)
 
     def containing_point(self, point):
         """Find boundaries containing a point."""
@@ -179,7 +196,7 @@ class BoundaryManager(gis_models.Manager):
 
         Args:
             geoid: The full GEOID
-            year: Optional Census year (returns most recent if not specified)
+            year: Optional vintage year (returns most recent if not specified)
 
         Returns:
             The boundary object
@@ -189,9 +206,9 @@ class BoundaryManager(gis_models.Manager):
         """
         qs = self.filter(geoid=geoid)
         if year:
-            qs = qs.filter(census_year=year)
+            qs = qs.filter(vintage_year=year)
         else:
-            qs = qs.order_by("-census_year")
+            qs = qs.order_by("-vintage_year")
         return qs.first()
 
     def get_children(self, parent_geoid: str, year: int):
@@ -202,12 +219,12 @@ class BoundaryManager(gis_models.Manager):
 
         Args:
             parent_geoid: GEOID of the parent boundary
-            year: Census year
+            year: Vintage year
 
         Returns:
             QuerySet of child boundaries
         """
-        return self.filter(geoid__startswith=parent_geoid, census_year=year).exclude(
+        return self.filter(geoid__startswith=parent_geoid, vintage_year=year).exclude(
             geoid=parent_geoid
         )
 
@@ -217,7 +234,7 @@ class BoundaryManager(gis_models.Manager):
 
         Args:
             gdf: GeoDataFrame with GEOID, NAME, geometry, and optionally ALAND/AWATER
-            year: Census year for these boundaries
+            year: Vintage year for these boundaries
             batch_size: Number of records per batch
 
         Returns:
@@ -227,22 +244,22 @@ class BoundaryManager(gis_models.Manager):
 
         objects = []
         for _, row in gdf.iterrows():
-            geom = GEOSGeometry(row.geometry.wkt, srid=settings.STORAGE_CRS)
+            geom = GEOSGeometry(row.geometry.wkt, srid=4326)
 
             # Ensure MultiPolygon
             if geom.geom_type == "Polygon":
                 from django.contrib.gis.geos import MultiPolygon
 
-                geom = MultiPolygon(geom, srid=settings.STORAGE_CRS)
+                geom = MultiPolygon(geom, srid=4326)
 
             # Build object kwargs
             kwargs = {
                 "geoid": str(row.get("GEOID", row.get("geoid", ""))),
                 "name": str(row.get("NAME", row.get("name", ""))),
                 "geometry": geom,
-                "census_year": year,
-                "aland": row.get("ALAND", row.get("aland")),
-                "awater": row.get("AWATER", row.get("awater")),
+                "vintage_year": year,
+                "area_land": row.get("ALAND", row.get("aland", row.get("area_land"))),
+                "area_water": row.get("AWATER", row.get("awater", row.get("area_water"))),
             }
 
             # Parse GEOID into component fields
