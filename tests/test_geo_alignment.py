@@ -151,11 +151,20 @@ class TestGeographyLevelEnumAlignment:
 class TestTigerPatternsAlignment:
     """Verify TIGER_FILE_PATTERNS keys and patterns are consistent."""
 
-    def test_all_keys_are_canonical(self):
-        """Every TIGER pattern key must be a canonical level name."""
+    # Keys in TIGER_FILE_PATTERNS that are feature layers, not geographic levels.
+    # These have valid TIGER download URLs but no GEOID structure.
+    _FEATURE_LAYER_KEYS = {
+        'uac', 'uac20', 'rails', 'aiannh',
+        'roads', 'linear_water', 'area_water', 'edges',
+        'address_features', 'pointlm', 'arealm',
+        'elsd', 'scsd', 'unsd',
+    }
+
+    def test_all_keys_are_canonical_or_feature(self):
+        """Every TIGER pattern key must be a canonical level or a known feature layer."""
         for key in TIGER_FILE_PATTERNS:
-            assert key in CANONICAL_GEOGRAPHIC_LEVELS, (
-                f"TIGER_FILE_PATTERNS key '{key}' is not a canonical level"
+            assert key in CANONICAL_GEOGRAPHIC_LEVELS or key in self._FEATURE_LAYER_KEYS, (
+                f"TIGER_FILE_PATTERNS key '{key}' is not a canonical level or feature layer"
             )
 
     def test_all_patterns_have_year_placeholder(self):

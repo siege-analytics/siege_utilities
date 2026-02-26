@@ -381,11 +381,20 @@ class TestBoundaryTypeCatalogConsistency:
 class TestTigerFilePatternsConsistency:
     """Tests that TIGER_FILE_PATTERNS keys are valid canonical names."""
 
+    # Keys in TIGER_FILE_PATTERNS that are feature layers, not geographic levels.
+    # These have valid TIGER download URLs but no GEOID structure.
+    _FEATURE_LAYER_KEYS = {
+        'uac', 'uac20', 'rails', 'aiannh',
+        'roads', 'linear_water', 'area_water', 'edges',
+        'address_features', 'pointlm', 'arealm',
+        'elsd', 'scsd', 'unsd',
+    }
+
     def test_all_keys_are_canonical(self):
-        """Every key in TIGER_FILE_PATTERNS is a canonical geographic level."""
+        """Every key in TIGER_FILE_PATTERNS is a canonical level or feature layer."""
         for key in TIGER_FILE_PATTERNS:
-            assert key in CANONICAL_GEOGRAPHIC_LEVELS, (
-                f"TIGER pattern key '{key}' is not a canonical geographic level"
+            assert key in CANONICAL_GEOGRAPHIC_LEVELS or key in self._FEATURE_LAYER_KEYS, (
+                f"TIGER pattern key '{key}' is not a canonical geographic level or feature layer"
             )
 
     def test_core_levels_have_patterns(self):

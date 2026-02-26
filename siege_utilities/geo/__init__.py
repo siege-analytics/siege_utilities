@@ -147,6 +147,27 @@ from .timeseries import (
     THRESHOLD_PRESETS,
 )
 
+# NCES locale classification
+from .locale import (
+    LocaleCode,
+    LocaleType,
+    NCESLocaleClassifier,
+    ALL_LOCALE_CODES,
+    locale_from_code,
+    CITY_LARGE, CITY_MIDSIZE, CITY_SMALL,
+    SUBURB_LARGE, SUBURB_MIDSIZE, SUBURB_SMALL,
+    TOWN_FRINGE, TOWN_DISTANT, TOWN_REMOTE,
+    RURAL_FRINGE, RURAL_DISTANT, RURAL_REMOTE,
+)
+
+# Databricks spatial fallback planning
+from .databricks_fallback import (
+    SpatialLoaderPlan,
+    select_spatial_loader,
+    build_census_table_name,
+    build_census_ingest_targets,
+)
+
 # PL 94-171 redistricting file downloads
 from .census_files import (
     PLFileDownloader,
@@ -304,6 +325,23 @@ __all__ = [
     'BivariateAnalysisResult',
     'save_map',
     'BIVARIATE_COLOR_SCHEMES',
+
+    # NCES locale classification
+    'LocaleCode',
+    'LocaleType',
+    'NCESLocaleClassifier',
+    'ALL_LOCALE_CODES',
+    'locale_from_code',
+    'CITY_LARGE', 'CITY_MIDSIZE', 'CITY_SMALL',
+    'SUBURB_LARGE', 'SUBURB_MIDSIZE', 'SUBURB_SMALL',
+    'TOWN_FRINGE', 'TOWN_DISTANT', 'TOWN_REMOTE',
+    'RURAL_FRINGE', 'RURAL_DISTANT', 'RURAL_REMOTE',
+
+    # Databricks spatial fallback
+    'SpatialLoaderPlan',
+    'select_spatial_loader',
+    'build_census_table_name',
+    'build_census_ingest_targets',
 
     # PL 94-171 redistricting files
     'PLFileDownloader',

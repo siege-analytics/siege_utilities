@@ -199,7 +199,50 @@ except ImportError as e:
     normalize_state_abbreviation = _create_dependency_wrapper('normalize_state_abbreviation', ['pandas'])
     normalize_fips_code = _create_dependency_wrapper('normalize_fips_code', ['pandas'])
 
-# Spatial utilities are now consolidated in the geo module  
+# Databricks helpers — optional (requires databricks-sdk, pyspark)
+try:
+    from .databricks import (
+        build_databricks_run_url,
+        build_foreign_table_sql,
+        build_jdbc_url,
+        build_lakebase_psql_command,
+        build_pgpass_entry,
+        build_schema_and_table_sync_sql,
+        ensure_secret_scope,
+        geopandas_to_spark,
+        get_active_spark_session,
+        get_dbutils,
+        get_runtime_secret,
+        get_workspace_client,
+        pandas_to_spark,
+        parse_conninfo,
+        put_secret,
+        runtime_secret_exists,
+        spark_to_geopandas,
+        spark_to_pandas,
+    )
+except ImportError as e:
+    logger.warning(f"Could not import Databricks utilities: {e}")
+    build_databricks_run_url = _create_dependency_wrapper('build_databricks_run_url', ['databricks-sdk'])
+    build_foreign_table_sql = _create_dependency_wrapper('build_foreign_table_sql', ['databricks-sdk'])
+    build_jdbc_url = _create_dependency_wrapper('build_jdbc_url', ['databricks-sdk'])
+    build_lakebase_psql_command = _create_dependency_wrapper('build_lakebase_psql_command', ['databricks-sdk'])
+    build_pgpass_entry = _create_dependency_wrapper('build_pgpass_entry', ['databricks-sdk'])
+    build_schema_and_table_sync_sql = _create_dependency_wrapper('build_schema_and_table_sync_sql', ['databricks-sdk'])
+    ensure_secret_scope = _create_dependency_wrapper('ensure_secret_scope', ['databricks-sdk'])
+    geopandas_to_spark = _create_dependency_wrapper('geopandas_to_spark', ['pyspark', 'geopandas'])
+    get_active_spark_session = _create_dependency_wrapper('get_active_spark_session', ['pyspark'])
+    get_dbutils = _create_dependency_wrapper('get_dbutils', ['pyspark'])
+    get_runtime_secret = _create_dependency_wrapper('get_runtime_secret', ['pyspark'])
+    get_workspace_client = _create_dependency_wrapper('get_workspace_client', ['databricks-sdk'])
+    pandas_to_spark = _create_dependency_wrapper('pandas_to_spark', ['pyspark'])
+    parse_conninfo = _create_dependency_wrapper('parse_conninfo', ['databricks-sdk'])
+    put_secret = _create_dependency_wrapper('put_secret', ['databricks-sdk'])
+    runtime_secret_exists = _create_dependency_wrapper('runtime_secret_exists', ['pyspark'])
+    spark_to_geopandas = _create_dependency_wrapper('spark_to_geopandas', ['pyspark', 'geopandas'])
+    spark_to_pandas = _create_dependency_wrapper('spark_to_pandas', ['pyspark'])
+
+# Spatial utilities are now consolidated in the geo module
 # All spatial functions are available through the geo module
 
 # Import user configuration
