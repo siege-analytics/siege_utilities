@@ -62,7 +62,7 @@ class BoundaryPopulationService:
         ... )
     """
 
-    # Mapping from geography type to model class
+    # Mapping from geography type to model class name
     GEOGRAPHY_MODELS = {
         "state": "State",
         "county": "County",
@@ -72,6 +72,15 @@ class BoundaryPopulationService:
         "place": "Place",
         "zcta": "ZCTA",
         "cd": "CongressionalDistrict",
+        "sldu": "StateLegislativeUpper",
+        "sldl": "StateLegislativeLower",
+        "vtd": "VTD",
+        "precinct": "Precinct",
+        "cbsa": "CBSA",
+        "urbanarea": "UrbanArea",
+        "elsd": "SchoolDistrictElementary",
+        "scsd": "SchoolDistrictSecondary",
+        "unsd": "SchoolDistrictUnified",
     }
 
     # TIGER/Line geography type names
@@ -84,6 +93,14 @@ class BoundaryPopulationService:
         "place": "PLACE",
         "zcta": "ZCTA5",
         "cd": "CD",
+        "sldu": "SLDU",
+        "sldl": "SLDL",
+        "vtd": "VTD",
+        "cbsa": "CBSA",
+        "urbanarea": "UA",
+        "elsd": "ELSD",
+        "scsd": "SCSD",
+        "unsd": "UNSD",
     }
 
     def __init__(self, cache_dir: Optional[str] = None):
@@ -97,28 +114,12 @@ class BoundaryPopulationService:
 
     def _get_model(self, geography_type: str):
         """Get the Django model class for a geography type."""
-        from ..models import (
-            State,
-            County,
-            Tract,
-            BlockGroup,
-            Block,
-            Place,
-            ZCTA,
-            CongressionalDistrict,
-        )
+        from .. import models as model_module
 
-        models = {
-            "state": State,
-            "county": County,
-            "tract": Tract,
-            "blockgroup": BlockGroup,
-            "block": Block,
-            "place": Place,
-            "zcta": ZCTA,
-            "cd": CongressionalDistrict,
-        }
-        return models.get(geography_type.lower())
+        model_name = self.GEOGRAPHY_MODELS.get(geography_type.lower())
+        if model_name:
+            return getattr(model_module, model_name, None)
+        return None
 
     def _download_boundaries(
         self, geography_type: str, year: int, state_fips: Optional[str] = None

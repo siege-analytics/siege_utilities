@@ -443,7 +443,7 @@ from .testing.runner import (
 )
 
 # Package version and metadata
-__version__ = "2.2.0"
+__version__ = "3.0.0"
 __author__ = "Siege Analytics"
 __description__ = "Comprehensive utilities for data engineering, analytics, and distributed computing"
 

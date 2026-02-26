@@ -27,6 +27,14 @@ class Command(BaseCommand):
         "place",
         "zcta",
         "cd",
+        "sldu",
+        "sldl",
+        "vtd",
+        "cbsa",
+        "urbanarea",
+        "elsd",
+        "scsd",
+        "unsd",
     ]
 
     def add_arguments(self, parser):
