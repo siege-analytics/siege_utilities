@@ -1,19 +1,29 @@
 """
-Census boundary Django models.
+Geographic boundary Django models.
 
-This module provides GeoDjango models for storing Census geographic boundaries
-at multiple levels (state, county, tract, block group, block, place, ZCTA, CD).
+Provides GeoDjango models for storing temporal geographic features at
+multiple levels — Census TIGER/Line, GADM, political, education, federal,
+and intersection/crosswalk relationships.
 
-Each model includes:
-- GEOID (unique identifier)
-- Name
-- Geometry (MultiPolygon)
-- Census year
-- Land and water area
-- Parent relationships (where applicable)
+Model hierarchy:
+    TemporalGeographicFeature (root abstract — no geometry)
+    ├── TemporalBoundary (abstract — MultiPolygon)
+    │   └── CensusTIGERBoundary (abstract — GEOID + TIGER metadata)
+    │       ├── State, County, Tract, BlockGroup, Block
+    │       ├── Place, ZCTA, CongressionalDistrict
+    │       └── (political, education, census_extended models)
+    ├── TemporalLinearFeature (abstract — MultiLineString)
+    └── TemporalPointFeature (abstract — Point)
 """
 
-from .base import CensusBoundary
+from .base import (
+    TemporalGeographicFeature,
+    TemporalBoundary,
+    CensusTIGERBoundary,
+    TemporalLinearFeature,
+    TemporalPointFeature,
+    CensusBoundary,  # deprecated alias
+)
 from .boundaries import (
     State,
     County,
@@ -24,13 +34,26 @@ from .boundaries import (
     ZCTA,
     CongressionalDistrict,
 )
-from .demographics import DemographicSnapshot, DemographicVariable
-from .crosswalks import BoundaryCrosswalk
+from .demographics import (
+    DemographicVariable,
+    DemographicSnapshot,
+    DemographicTimeSeries,
+)
+from .crosswalks import (
+    BoundaryCrosswalk,
+    CrosswalkDataset,
+)
 
 __all__ = [
-    # Base
+    # Base abstracts
+    "TemporalGeographicFeature",
+    "TemporalBoundary",
+    "CensusTIGERBoundary",
+    "TemporalLinearFeature",
+    "TemporalPointFeature",
+    # Deprecated alias
     "CensusBoundary",
-    # Boundaries
+    # Census TIGER boundaries
     "State",
     "County",
     "Tract",
@@ -40,8 +63,10 @@ __all__ = [
     "ZCTA",
     "CongressionalDistrict",
     # Demographics
-    "DemographicSnapshot",
     "DemographicVariable",
+    "DemographicSnapshot",
+    "DemographicTimeSeries",
     # Crosswalks
     "BoundaryCrosswalk",
+    "CrosswalkDataset",
 ]

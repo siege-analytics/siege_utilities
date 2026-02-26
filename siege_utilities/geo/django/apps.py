@@ -8,7 +8,7 @@ class SiegeGeoConfig(AppConfig):
 
     name = "siege_utilities.geo.django"
     label = "siege_geo"
-    verbose_name = "Siege Utilities - Census Geography"
+    verbose_name = "Siege Utilities - Geography"
     default_auto_field = "django.db.models.BigAutoField"
 
     def ready(self):
