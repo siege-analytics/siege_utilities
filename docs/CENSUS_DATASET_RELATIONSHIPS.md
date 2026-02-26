@@ -32,14 +32,16 @@ The Census Bureau publishes data through several distinct survey programs.
 
 ### Year Availability
 
-These ranges are derived from `census_constants.py` and
-`DimensionLoader.KNOWN_SURVEYS`:
+These ranges are derived from `siege_utilities.config.census_constants`
+(`DECENNIAL_YEARS`, `ACS_AVAILABLE_YEARS`, `AVAILABLE_CENSUS_YEARS`) and
+`siege_utilities.geo.timeseries` constants where applicable. They are dynamic
+and depend on the current runtime year.
 
 | Program | Available Years | Notes |
 |---|---|---|
-| Decennial | 2000, 2010, 2020 | PL 94-171 redistricting data also available for 2010, 2020 |
-| ACS 5-Year | 2009-2023 | Each release covers prior 5 calendar years (e.g., 2020 release = 2016-2020) |
-| ACS 1-Year | 2005-2023 | Skipped 2020 due to COVID-19 data collection disruption |
+| Decennial | 2000, 2010, 2020 (and future decennial years as released) | PL 94-171 redistricting data available for 2010 and 2020 |
+| ACS 5-Year | 2009-current year (data release dependent) | Each release covers prior 5 calendar years (e.g., 2020 release = 2016-2020) |
+| ACS 1-Year | 2005-current year (data release dependent) | Standard 2020 ACS 1-year was not released on data.census.gov/API; Census released experimental 2020 ACS 1-year products |
 | TIGER/Line | 2010-present | Boundary shapefiles, updated annually |
 
 ---
@@ -226,22 +228,11 @@ df = client.fetch_data(variables='income', year=2020, geography='tract', state_f
 | `pl_h1_housing` | H1 | 3 variables | Housing occupancy |
 | `pl_redistricting_core` | P1-P4, H1 | 17 variables | Combined core redistricting set |
 
-### Default Tables for Variable Metadata Loading
+### Notes on Variable Metadata Loading
 
-The `DimensionLoader.load_variable_dimension()` method fetches metadata for
-these commonly-used ACS tables by default:
-
-| Table ID | Subject |
-|---|---|
-| B01001 | Sex by Age |
-| B01003 | Total Population |
-| B02001 | Race |
-| B03003 | Hispanic Origin |
-| B19013 | Median Household Income |
-| B19001 | Household Income (distribution) |
-| B25001 | Housing Units |
-| B25003 | Tenure |
-| B15003 | Educational Attainment |
+This branch does not currently expose a `DimensionLoader` class in
+`siege_utilities`. Variable-group usage for API fetches is defined directly in
+`siege_utilities.geo.census_api_client.VARIABLE_GROUPS`.
 
 ---
 
@@ -271,12 +262,12 @@ on a 0-5 scale:
 
 | Score Component | Points | Condition |
 |---|---|---|
-| Geography match | +2.0 | Dataset supports the requested geography level |
-| Primary dataset bonus | +1.5 | Dataset is in the pattern's primary list |
+| Geography match | +2.0 | Requested geography is in the analysis pattern's geography preferences |
+| Primary dataset bonus | +1.5 | Intended when dataset matches the pattern's primary list (see open issue on ID/name mismatch) |
 | Reliability match | +1.0 | Dataset meets or exceeds reliability requirement |
 | Time period recency | +0.2 to +1.0 | Within 5 years (+0.2), 3 years (+0.5), or 1 year (+1.0) |
-| Variable coverage | up to +1.0 | Proportion of requested variables available |
-| Geography preference | +1.0 | Geography level is in pattern's preferred list |
+| Variable coverage | up to +1.0 | Documented intent; currently not added to score in this implementation |
+| Geography preference | +1.0 | Documented intent; currently not added to score in this implementation |
 
 **Score interpretation:** 0-2.0 (poor), 2.1-3.0 (moderate), 3.1-4.0 (good), 4.1-5.0 (excellent).
 
@@ -297,10 +288,11 @@ Each dataset carries a reliability classification:
 
 ## Time Series and Roll-Up Support
 
-### Time Series (`TimeseriesService`)
+### Time Series (`siege_utilities.geo.timeseries`)
 
-The `TimeseriesService` fetches `DemographicSnapshot` records across
-multiple years and computes:
+The timeseries module fetches Census data across multiple years and computes
+change metrics and trend classes (it does not currently expose a Django
+`TimeseriesService` under `geo.django.services`):
 
 - **CAGR** (Compound Annual Growth Rate): `(end/start)^(1/n) - 1`
 - **Standard deviation** across the time series
@@ -310,20 +302,21 @@ Valid dataset/year combinations for time series:
 
 | Dataset | Typical Year Range | Geography Levels |
 |---|---|---|
-| acs5 | 2009-2023 (annual) | state, county, tract, block_group |
-| acs1 | 2005-2023 (skip 2020) | state, county, place, CBSA |
+| acs5 | 2009-current year (release dependent) | state, county, tract, block_group |
+| acs1 | 2005-current year (release dependent; standard 2020 not released) | state, county, place, CBSA |
 | decennial | 2000, 2010, 2020 | state through block |
 
-### Demographic Roll-Up (`DemographicRollupService`)
+### Demographic Roll-Up (Current State)
 
-The `DemographicRollupService` aggregates data from finer to coarser
-geographies using GEOID prefix matching. Supported operations:
+This branch does not currently include a concrete
+`DemographicRollupService` in `geo.django.services`. GEOID hierarchy and
+prefix behavior can be implemented using `geoid_utils` + Census canonical
+geography definitions.
 
-| Operation | Description | Use Case |
-|---|---|---|
-| `sum` | Sum values across child geographies | Extensive variables (population, counts) |
-| `avg` | Simple average | General-purpose averaging |
-| `weighted_avg` | Population-weighted average | Intensive variables (median income, rates) |
+Typical aggregation semantics for future roll-up services:
+- `sum`: extensive variables (population/counts)
+- `avg`: simple averages
+- `weighted_avg`: intensive variables (median/rate-like measures)
 
 **Valid roll-up paths** (source → target):
 
@@ -344,5 +337,15 @@ Any source level can roll up to any coarser target level via GEOID prefix trunca
 | `siege_utilities.geo.census_dataset_mapper` | Dataset catalog, relationships, comparison, selection guide |
 | `siege_utilities.geo.census_data_selector` | Analysis patterns, suitability scoring, compatibility matrix |
 | `siege_utilities.geo.census_api_client` | Variable groups, API fetch, caching (parquet/Django) |
-| `siege_utilities.geo.django.services.timeseries_service` | Time series population and statistics |
-| `siege_utilities.geo.django.services.rollup_service` | Demographic aggregation via GEOID hierarchy |
+| `siege_utilities.geo.timeseries.longitudinal_data` | Multi-year fetch and year/boundary normalization helpers |
+| `siege_utilities.geo.timeseries.change_metrics` | Change metric calculations (absolute, percent, CAGR, etc.) |
+| `siege_utilities.geo.timeseries.trend_classifier` | Trend classification and distribution-based labels |
+
+---
+
+## External Census Notes
+
+- Census Developers: Notes on 2020 ACS 1-year data  
+  https://www.census.gov/data/developers/data-sets/acs-1year/notes-on-2020-acs-1-year-data.html
+- Census Newsroom: 2020 ACS 1-year experimental data products  
+  https://www.census.gov/newsroom/press-releases/2021/2020-acs-1-year-experimental-data-products.html
