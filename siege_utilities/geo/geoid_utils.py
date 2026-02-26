@@ -66,6 +66,59 @@ GEOID_COMPONENT_LENGTHS = {
 
 
 # =============================================================================
+# GEOID VALIDATOR (for Django model field validation)
+# =============================================================================
+
+class GEOIDValidator:
+    """
+    Callable validator for GEOID fields.
+
+    Validates that a GEOID is digits-only and the correct length for the
+    given geography level.
+
+    Usage in Django models:
+        geoid = CharField(validators=[GEOIDValidator('tract')])
+    """
+
+    def __init__(self, geography_level: str):
+        self.geography_level = geography_level
+        self.expected_length = GEOID_LENGTHS.get(geography_level)
+
+    def __call__(self, value: str):
+        from django.core.exceptions import ValidationError
+
+        if not value or not isinstance(value, str):
+            raise ValidationError(
+                f"GEOID must be a non-empty string, got {type(value).__name__}"
+            )
+        if not value.isdigit():
+            raise ValidationError(
+                f"GEOID must contain only digits, got '{value}'"
+            )
+        if self.expected_length and len(value) != self.expected_length:
+            raise ValidationError(
+                f"GEOID for {self.geography_level} must be {self.expected_length} "
+                f"digits, got {len(value)}"
+            )
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, GEOIDValidator)
+            and self.geography_level == other.geography_level
+        )
+
+    def __repr__(self):
+        return f"GEOIDValidator('{self.geography_level}')"
+
+    def deconstruct(self):
+        return (
+            f"{self.__class__.__module__}.{self.__class__.__qualname__}",
+            (self.geography_level,),
+            {},
+        )
+
+
+# =============================================================================
 # GEOID NORMALIZATION
 # =============================================================================
 

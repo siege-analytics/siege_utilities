@@ -40,6 +40,12 @@ class StateLegislativeUpper(CensusTIGERBoundary):
             models.Index(fields=["state_fips", "district_number"]),
             models.Index(fields=["state_fips", "vintage_year"]),
         ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(geoid__regex=r"^\d{5}$"),
+                name="sldu_geoid_5_digits",
+            ),
+        ]
 
     @classmethod
     def get_geoid_length(cls) -> int:
@@ -81,6 +87,12 @@ class StateLegislativeLower(CensusTIGERBoundary):
         indexes = [
             models.Index(fields=["state_fips", "district_number"]),
             models.Index(fields=["state_fips", "vintage_year"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(geoid__regex=r"^\d{5}$"),
+                name="sldl_geoid_5_digits",
+            ),
         ]
 
     @classmethod
@@ -179,6 +191,12 @@ class VTD(CensusTIGERBoundary):
             models.Index(fields=["state_fips", "county_fips", "vtd_code"]),
             models.Index(fields=["state_fips", "vintage_year"]),
             models.Index(fields=["precinct_code"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(geoid__regex=r"^\d{8}$"),
+                name="vtd_geoid_8_digits",
+            ),
         ]
 
     @classmethod

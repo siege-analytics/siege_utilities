@@ -47,6 +47,12 @@ class State(CensusTIGERBoundary):
             models.Index(fields=["state_fips", "vintage_year"]),
             models.Index(fields=["abbreviation"]),
         ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(geoid__regex=r"^\d{2}$"),
+                name="state_geoid_2_digits",
+            ),
+        ]
 
     @classmethod
     def get_geoid_length(cls) -> int:
@@ -90,6 +96,12 @@ class County(CensusTIGERBoundary):
         indexes = [
             models.Index(fields=["state_fips", "county_fips"]),
             models.Index(fields=["state_fips", "vintage_year"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(geoid__regex=r"^\d{5}$"),
+                name="county_geoid_5_digits",
+            ),
         ]
 
     @classmethod
@@ -136,6 +148,12 @@ class Tract(CensusTIGERBoundary):
         db_index=True,
         help_text="6-digit tract code",
     )
+    urbanicity_code = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="NCES locale code (11-43)",
+    )
 
     class Meta:
         verbose_name = "Census Tract"
@@ -144,6 +162,13 @@ class Tract(CensusTIGERBoundary):
         indexes = [
             models.Index(fields=["state_fips", "county_fips", "tract_code"]),
             models.Index(fields=["state_fips", "vintage_year"]),
+            models.Index(fields=["urbanicity_code"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(geoid__regex=r"^\d{11}$"),
+                name="tract_geoid_11_digits",
+            ),
         ]
 
     @classmethod
@@ -163,6 +188,24 @@ class Tract(CensusTIGERBoundary):
         """Human-readable tract number (e.g., '1011.00')."""
         code = self.tract_code
         return f"{int(code[:4])}.{code[4:]}"
+
+    @property
+    def urbanicity_category(self):
+        """NCES locale category (city, suburban, town, rural) or None."""
+        if self.urbanicity_code is None:
+            return None
+        from siege_utilities.config.nces_constants import get_locale_category
+
+        return get_locale_category(self.urbanicity_code)
+
+    @property
+    def urbanicity_subcategory(self):
+        """NCES locale subcategory (e.g., city_large, rural_remote) or None."""
+        if self.urbanicity_code is None:
+            return None
+        from siege_utilities.config.nces_constants import get_locale_subcategory
+
+        return get_locale_subcategory(self.urbanicity_code)
 
 
 class BlockGroup(CensusTIGERBoundary):
@@ -217,6 +260,12 @@ class BlockGroup(CensusTIGERBoundary):
         indexes = [
             models.Index(fields=["state_fips", "county_fips", "tract_code"]),
             models.Index(fields=["state_fips", "vintage_year"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(geoid__regex=r"^\d{12}$"),
+                name="blockgroup_geoid_12_digits",
+            ),
         ]
 
     @classmethod
@@ -296,6 +345,12 @@ class Block(CensusTIGERBoundary):
             models.Index(fields=["state_fips", "county_fips", "tract_code"]),
             models.Index(fields=["state_fips", "vintage_year"]),
         ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(geoid__regex=r"^\d{15}$"),
+                name="block_geoid_15_digits",
+            ),
+        ]
 
     @classmethod
     def get_geoid_length(cls) -> int:
@@ -350,6 +405,12 @@ class Place(CensusTIGERBoundary):
             models.Index(fields=["state_fips", "place_fips"]),
             models.Index(fields=["state_fips", "vintage_year"]),
         ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(geoid__regex=r"^\d{7}$"),
+                name="place_geoid_7_digits",
+            ),
+        ]
 
     @classmethod
     def get_geoid_length(cls) -> int:
@@ -387,6 +448,12 @@ class ZCTA(CensusTIGERBoundary):
         indexes = [
             models.Index(fields=["zcta5"]),
             models.Index(fields=["vintage_year"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(geoid__regex=r"^\d{5}$"),
+                name="zcta_geoid_5_digits",
+            ),
         ]
 
     @classmethod
@@ -440,6 +507,12 @@ class CongressionalDistrict(CensusTIGERBoundary):
             models.Index(fields=["state_fips", "district_number"]),
             models.Index(fields=["state_fips", "vintage_year"]),
             models.Index(fields=["congress_number"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(geoid__regex=r"^\d{4}$"),
+                name="cd_geoid_4_digits",
+            ),
         ]
 
     @classmethod
