@@ -423,7 +423,9 @@ class CensusAPIClient:
         self,
         api_key: Optional[str] = None,
         timeout: Optional[int] = None,
-        cache_dir: Optional[Union[str, Path]] = None
+        cache_dir: Optional[Union[str, Path]] = None,
+        cache_backend: str = 'parquet',
+        cache_ttl: int = CENSUS_API_CACHE_TIMEOUT,
     ):
         """
         Initialize the Census API client.
@@ -435,20 +437,32 @@ class CensusAPIClient:
                 3. CENSUS_API_KEY environment variable
                 4. None (API works without key but is rate-limited)
             timeout: Request timeout in seconds
-            cache_dir: Directory for caching responses
+            cache_dir: Directory for caching responses (parquet backend only)
+            cache_backend: Cache backend — 'parquet' (file-based, default) or
+                'django' (uses django.core.cache framework)
+            cache_ttl: Cache time-to-live in seconds (default: 86400 = 24h)
         """
         self.api_key = self._resolve_api_key(api_key)
         self.timeout = timeout or get_service_timeout('census_api') or CENSUS_API_DEFAULT_TIMEOUT
         self.base_url = CENSUS_API_BASE_URL
+        self.cache_backend = cache_backend
+        self.cache_ttl = cache_ttl
 
-        # Setup cache directory
-        if cache_dir:
-            self.cache_dir = Path(cache_dir)
+        # Setup cache directory (parquet backend only)
+        if cache_backend == 'parquet':
+            if cache_dir:
+                self.cache_dir = Path(cache_dir)
+            else:
+                self.cache_dir = Path.home() / '.siege_utilities' / 'cache' / 'census_api'
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
         else:
-            self.cache_dir = Path.home() / '.siege_utilities' / 'cache' / 'census_api'
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
+            self.cache_dir = None
 
-        log.info(f"Initialized CensusAPIClient (API key: {'provided' if self.api_key else 'not set'})")
+        log.info(
+            f"Initialized CensusAPIClient "
+            f"(API key: {'provided' if self.api_key else 'not set'}, "
+            f"cache: {cache_backend})"
+        )
 
     def _resolve_api_key(self, explicit_key: Optional[str]) -> Optional[str]:
         """
@@ -856,6 +870,18 @@ class CensusAPIClient:
 
     def _get_from_cache(self, cache_key: str) -> Optional[pd.DataFrame]:
         """Get cached data if available and not expired."""
+        if self.cache_backend == 'django':
+            return self._django_cache_get(cache_key)
+        return self._parquet_cache_get(cache_key)
+
+    def _save_to_cache(self, cache_key: str, df: pd.DataFrame) -> None:
+        """Save data to cache."""
+        if self.cache_backend == 'django':
+            return self._django_cache_set(cache_key, df)
+        return self._parquet_cache_set(cache_key, df)
+
+    def _parquet_cache_get(self, cache_key: str) -> Optional[pd.DataFrame]:
+        """Get cached data from parquet file backend."""
         cache_file = self.cache_dir / f"{cache_key}.parquet"
 
         if not cache_file.exists():
@@ -863,7 +889,7 @@ class CensusAPIClient:
 
         # Check if cache is expired
         file_mtime = datetime.fromtimestamp(cache_file.stat().st_mtime)
-        if datetime.now() - file_mtime > timedelta(seconds=CENSUS_API_CACHE_TIMEOUT):
+        if datetime.now() - file_mtime > timedelta(seconds=self.cache_ttl):
             log.debug(f"Cache expired for {cache_key}")
             cache_file.unlink()  # Delete expired cache
             return None
@@ -874,8 +900,8 @@ class CensusAPIClient:
             log.warning(f"Failed to read cache file: {e}")
             return None
 
-    def _save_to_cache(self, cache_key: str, df: pd.DataFrame) -> None:
-        """Save data to cache."""
+    def _parquet_cache_set(self, cache_key: str, df: pd.DataFrame) -> None:
+        """Save data to parquet file backend."""
         cache_file = self.cache_dir / f"{cache_key}.parquet"
 
         try:
@@ -883,6 +909,32 @@ class CensusAPIClient:
             log.debug(f"Cached data to {cache_file}")
         except Exception as e:
             log.warning(f"Failed to cache data: {e}")
+
+    def _django_cache_get(self, cache_key: str) -> Optional[pd.DataFrame]:
+        """Get cached data from Django cache framework."""
+        try:
+            from django.core.cache import cache
+            data = cache.get(f"census_api:{cache_key}")
+            if data is not None:
+                log.debug(f"Django cache hit for {cache_key}")
+                return pd.DataFrame(data)
+            return None
+        except Exception as e:
+            log.warning(f"Django cache get failed: {e}")
+            return None
+
+    def _django_cache_set(self, cache_key: str, df: pd.DataFrame) -> None:
+        """Save data to Django cache framework."""
+        try:
+            from django.core.cache import cache
+            cache.set(
+                f"census_api:{cache_key}",
+                df.to_dict(orient='list'),
+                timeout=self.cache_ttl,
+            )
+            log.debug(f"Django cache set for {cache_key}")
+        except Exception as e:
+            log.warning(f"Django cache set failed: {e}")
 
     def get_variable_metadata(
         self,

@@ -596,6 +596,193 @@ def prepare_geoid_for_join(
     return df
 
 
+# =============================================================================
+# GEOID ↔ SLUG CONVERSION
+# =============================================================================
+
+# Slug-friendly geography labels
+_SLUG_LEVEL_LABELS = {
+    'state': 'state',
+    'county': 'county',
+    'tract': 'tract',
+    'block_group': 'bg',
+    'block': 'block',
+    'place': 'place',
+    'zcta': 'zcta',
+    'cd': 'cd',
+    'sldu': 'sldu',
+    'sldl': 'sldl',
+    'vtd': 'vtd',
+}
+
+# Reverse: slug label → canonical level
+_SLUG_LABEL_TO_LEVEL = {v: k for k, v in _SLUG_LEVEL_LABELS.items()}
+
+
+def geoid_to_slug(geoid: str, geography_level: str) -> str:
+    """
+    Convert a GEOID to a URL-friendly slug.
+
+    Encodes the state FIPS as a lowercase abbreviation and appends
+    the remaining GEOID components separated by hyphens.
+
+    Args:
+        geoid: Full GEOID string
+        geography_level: Geography level of the GEOID
+
+    Returns:
+        URL-friendly slug string
+
+    Example:
+        >>> geoid_to_slug("06037101100", "tract")
+        "ca-037-tract-101100"
+        >>> geoid_to_slug("06", "state")
+        "ca"
+        >>> geoid_to_slug("0614", "cd")
+        "ca-cd-14"
+    """
+    from siege_utilities.config.census_constants import FIPS_TO_STATE
+
+    geography_lower = resolve_geographic_level(geography_level)
+    geoid = normalize_geoid(geoid, geography_level)
+    level_label = _SLUG_LEVEL_LABELS.get(geography_lower, geography_lower)
+
+    state_fips = geoid[:2]
+    state_abbr = FIPS_TO_STATE.get(state_fips, state_fips).lower()
+
+    if geography_lower == 'state':
+        return state_abbr
+
+    if geography_lower == 'zcta':
+        return f"zcta-{geoid}"
+
+    # Parse the remaining components after state
+    remainder = geoid[2:]
+
+    if geography_lower == 'county':
+        return f"{state_abbr}-{level_label}-{remainder}"
+    elif geography_lower == 'tract':
+        county = remainder[:3]
+        tract = remainder[3:]
+        return f"{state_abbr}-{county}-{level_label}-{tract}"
+    elif geography_lower == 'block_group':
+        county = remainder[:3]
+        tract = remainder[3:9]
+        bg = remainder[9:]
+        return f"{state_abbr}-{county}-{tract}-{level_label}-{bg}"
+    elif geography_lower == 'block':
+        county = remainder[:3]
+        tract = remainder[3:9]
+        block = remainder[9:]
+        return f"{state_abbr}-{county}-{tract}-{level_label}-{block}"
+    elif geography_lower == 'place':
+        return f"{state_abbr}-{level_label}-{remainder}"
+    elif geography_lower in ('cd', 'sldu', 'sldl'):
+        return f"{state_abbr}-{level_label}-{remainder}"
+    elif geography_lower == 'vtd':
+        county = remainder[:3]
+        vtd = remainder[3:]
+        return f"{state_abbr}-{county}-{level_label}-{vtd}"
+    else:
+        return f"{state_abbr}-{level_label}-{remainder}"
+
+
+def slug_to_geoid(slug: str) -> str:
+    """
+    Convert a slug back to a GEOID.
+
+    Inverse of geoid_to_slug(). Parses the state abbreviation and
+    component parts from the slug.
+
+    Args:
+        slug: URL-friendly slug string
+
+    Returns:
+        Full GEOID string
+
+    Raises:
+        ValueError: If slug cannot be parsed
+
+    Example:
+        >>> slug_to_geoid("ca-037-tract-101100")
+        "06037101100"
+        >>> slug_to_geoid("ca")
+        "06"
+    """
+    from siege_utilities.config.census_constants import STATE_FIPS_CODES
+
+    parts = slug.lower().split("-")
+
+    if not parts:
+        raise ValueError(f"Empty slug: '{slug}'")
+
+    # ZCTA: "zcta-90210"
+    if parts[0] == "zcta":
+        return "".join(parts[1:])
+
+    # State abbreviation is always first
+    state_abbr = parts[0].upper()
+    state_fips = STATE_FIPS_CODES.get(state_abbr)
+    if state_fips is None:
+        raise ValueError(f"Unknown state abbreviation in slug: '{parts[0]}'")
+
+    # Just state: "ca"
+    if len(parts) == 1:
+        return state_fips
+
+    # Find the level label in the parts
+    level_label = None
+    level_idx = None
+    for i, part in enumerate(parts[1:], 1):
+        if part in _SLUG_LABEL_TO_LEVEL:
+            level_label = part
+            level_idx = i
+            break
+
+    if level_label is None:
+        raise ValueError(f"No geography level found in slug: '{slug}'")
+
+    geography_lower = _SLUG_LABEL_TO_LEVEL[level_label]
+
+    if geography_lower == 'county':
+        # "ca-county-037"
+        county = parts[level_idx + 1]
+        return state_fips + county
+    elif geography_lower == 'tract':
+        # "ca-037-tract-101100"
+        county = parts[level_idx - 1]
+        tract = parts[level_idx + 1]
+        return state_fips + county + tract
+    elif geography_lower == 'block_group':
+        # "ca-037-101100-bg-1"
+        county = parts[1]
+        tract = parts[2]
+        bg = parts[level_idx + 1]
+        return state_fips + county + tract + bg
+    elif geography_lower == 'block':
+        # "ca-037-101100-block-1001"
+        county = parts[1]
+        tract = parts[2]
+        block = parts[level_idx + 1]
+        return state_fips + county + tract + block
+    elif geography_lower == 'place':
+        # "ca-place-44000"
+        place = parts[level_idx + 1]
+        return state_fips + place
+    elif geography_lower in ('cd', 'sldu', 'sldl'):
+        # "ca-cd-14"
+        district = parts[level_idx + 1]
+        return state_fips + district
+    elif geography_lower == 'vtd':
+        # "ca-037-vtd-001"
+        county = parts[level_idx - 1]
+        vtd = parts[level_idx + 1]
+        return state_fips + county + vtd
+    else:
+        remainder = "".join(parts[level_idx + 1:])
+        return state_fips + remainder
+
+
 def find_geoid_column(df: pd.DataFrame) -> Optional[str]:
     """
     Find the GEOID column in a DataFrame.
