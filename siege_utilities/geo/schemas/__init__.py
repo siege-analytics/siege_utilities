@@ -47,6 +47,8 @@ from .education import (
     SchoolDistrictElementarySchema,
     SchoolDistrictSecondarySchema,
     SchoolDistrictUnifiedSchema,
+    NCESLocaleBoundarySchema,
+    SchoolLocationSchema,
 )
 from .federal import (
     NLRBRegionSchema,
@@ -99,6 +101,8 @@ __all__ = [
     "SchoolDistrictElementarySchema",
     "SchoolDistrictSecondarySchema",
     "SchoolDistrictUnifiedSchema",
+    "NCESLocaleBoundarySchema",
+    "SchoolLocationSchema",
     # Federal
     "NLRBRegionSchema",
     "FederalJudicialDistrictSchema",
