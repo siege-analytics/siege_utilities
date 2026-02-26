@@ -63,6 +63,16 @@ from .federal import (
     NLRBRegion,
     FederalJudicialDistrict,
 )
+from .census_extended import (
+    CBSA,
+    UrbanArea,
+)
+from .intersections import (
+    BoundaryIntersection,
+    CountyCDIntersection,
+    VTDCDIntersection,
+    TractCDIntersection,
+)
 from .demographics import (
     DemographicVariable,
     DemographicSnapshot,
@@ -112,6 +122,14 @@ __all__ = [
     # Federal
     "NLRBRegion",
     "FederalJudicialDistrict",
+    # Census Extended
+    "CBSA",
+    "UrbanArea",
+    # Intersections
+    "BoundaryIntersection",
+    "CountyCDIntersection",
+    "VTDCDIntersection",
+    "TractCDIntersection",
     # Demographics
     "DemographicVariable",
     "DemographicSnapshot",
