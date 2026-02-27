@@ -32,15 +32,15 @@ The Census Bureau publishes data through several distinct survey programs.
 
 ### Year Availability
 
-These ranges are derived from `census_constants.py` and
-`DimensionLoader.KNOWN_SURVEYS`:
+These ranges are derived dynamically from `census_constants.py`
+(using `_CURRENT_YEAR = datetime.now().year`):
 
 | Program | Available Years | Notes |
 |---|---|---|
-| Decennial | 2000, 2010, 2020 | PL 94-171 redistricting data also available for 2010, 2020 |
-| ACS 5-Year | 2009-2023 | Each release covers prior 5 calendar years (e.g., 2020 release = 2016-2020) |
-| ACS 1-Year | 2005-2023 | Skipped 2020 due to COVID-19 data collection disruption |
-| TIGER/Line | 2010-present | Boundary shapefiles, updated annually |
+| Decennial | 2000, 2010, 2020 | PL 94-171 redistricting data also available for 2010, 2020. `DECENNIAL_YEARS` filters to `<= _CURRENT_YEAR`. |
+| ACS 5-Year | 2009-present | `ACS_AVAILABLE_YEARS = range(2009, _CURRENT_YEAR+1)`. Each release covers prior 5 calendar years (e.g., 2020 release = 2016-2020). |
+| ACS 1-Year | 2005-present | Standard 2020 ACS 1-year was **not released** on api.census.gov due to COVID-19 data collection disruption. Experimental 2020 ACS 1-year products were released separately by Census (Nov 2021) with comparison caveats. |
+| TIGER/Line | 2010-present | Boundary shapefiles, updated annually. `AVAILABLE_CENSUS_YEARS = range(2010, _CURRENT_YEAR+1)`. |
 
 ---
 
@@ -228,8 +228,9 @@ df = client.fetch_data(variables='income', year=2020, geography='tract', state_f
 
 ### Default Tables for Variable Metadata Loading
 
-The `DimensionLoader.load_variable_dimension()` method fetches metadata for
-these commonly-used ACS tables by default:
+The `CensusAPIClient.VARIABLE_GROUPS` dictionary (in
+`siege_utilities.geo.census_api_client`) defines curated sets of commonly-used
+ACS table variables. The following tables are referenced across variable groups:
 
 | Table ID | Subject |
 |---|---|
@@ -310,9 +311,9 @@ Valid dataset/year combinations for time series:
 
 | Dataset | Typical Year Range | Geography Levels |
 |---|---|---|
-| acs5 | 2009-2023 (annual) | state, county, tract, block_group |
-| acs1 | 2005-2023 (skip 2020) | state, county, place, CBSA |
-| decennial | 2000, 2010, 2020 | state through block |
+| acs5 | 2009-present (annual, per `ACS_AVAILABLE_YEARS`) | state, county, tract, block_group |
+| acs1 | 2005-present (standard 2020 not released; experimental only) | state, county, place, CBSA |
+| decennial | 2000, 2010, 2020 (per `DECENNIAL_YEARS`) | state through block |
 
 ### Demographic Roll-Up (`DemographicRollupService`)
 
