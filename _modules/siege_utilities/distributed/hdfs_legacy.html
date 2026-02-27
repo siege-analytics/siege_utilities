@@ -3,10 +3,9 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" data-content_root="../../../">
 <head>
-  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.files &mdash; Siege Utilities 3.0.1 documentation</title>
+  <title>siege_utilities.distributed.hdfs_legacy &mdash; Siege Utilities 3.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
@@ -182,89 +181,89 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../geocoding.html#unit-tests">Unit Tests</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../geo/spatial_data.html">Enhanced Census Utilities and Spatial Data</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../geo/spatial_data.html#census-directory-discovery">Census Directory Discovery</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../geo/spatial_data.html#census-data-source">Census Data Source</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../geo/spatial_data.html#state-information-methods">State Information Methods</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html">Enhanced Census Utilities and Spatial Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#census-directory-discovery">Census Directory Discovery</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#census-data-source">Census Data Source</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#state-information-methods">State Information Methods</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="../geo/spatial_data.html#spatial-data-source">Spatial Data Source</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../geo/spatial_data.html#government-data-source">Government Data Source</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../geo/spatial_data.html#openstreetmap-data-source">OpenStreetMap Data Source</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../geo/spatial_data.html#convenience-functions">Convenience Functions</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../geo/spatial_data.html#global-instances">Global Instances</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../geo/spatial_data.html#census_source"><code class="docutils literal notranslate"><span class="pre">census_source</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/spatial_data.html#government_source"><code class="docutils literal notranslate"><span class="pre">government_source</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/spatial_data.html#osm_source"><code class="docutils literal notranslate"><span class="pre">osm_source</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#spatial-data-source">Spatial Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#government-data-source">Government Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#openstreetmap-data-source">OpenStreetMap Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#convenience-functions">Convenience Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#global-instances">Global Instances</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#census_source"><code class="docutils literal notranslate"><span class="pre">census_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#government_source"><code class="docutils literal notranslate"><span class="pre">government_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#osm_source"><code class="docutils literal notranslate"><span class="pre">osm_source</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="../geo/spatial_data.html#usage-examples">Usage Examples</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../geo/spatial_data.html#basic-census-data-access">Basic Census Data Access</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/spatial_data.html#state-information-lookup">State Information Lookup</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/spatial_data.html#dynamic-discovery">Dynamic Discovery</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/spatial_data.html#error-handling">Error Handling</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/spatial_data.html#performance-optimization">Performance Optimization</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/spatial_data.html#integration-with-other-tools">Integration with Other Tools</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="../geo/census_dataset_mapper.html">Census Dataset Mapper</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../geo/census_dataset_mapper.html#classes">Classes</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_dataset_mapper.html#censusdatasetmapper">CensusDatasetMapper</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_dataset_mapper.html#censusdataset">CensusDataset</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_dataset_mapper.html#datasetrelationship">DatasetRelationship</a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="../geo/census_dataset_mapper.html#enums">Enums</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_dataset_mapper.html#surveytype">SurveyType</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_dataset_mapper.html#geographylevel">GeographyLevel</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_dataset_mapper.html#datareliability">DataReliability</a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="../geo/census_dataset_mapper.html#functions">Functions</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_dataset_mapper.html#get-census-dataset-mapper">get_census_dataset_mapper</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_dataset_mapper.html#get-best-dataset-for-analysis">get_best_dataset_for_analysis</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_dataset_mapper.html#compare-census-datasets">compare_census_datasets</a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="../geo/census_dataset_mapper.html#usage-examples">Usage Examples</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_dataset_mapper.html#basic-dataset-information">Basic Dataset Information</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_dataset_mapper.html#dataset-comparison">Dataset Comparison</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_dataset_mapper.html#data-selection-guide">Data Selection Guide</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_dataset_mapper.html#export-dataset-catalog">Export Dataset Catalog</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#basic-census-data-access">Basic Census Data Access</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#state-information-lookup">State Information Lookup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#dynamic-discovery">Dynamic Discovery</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#error-handling">Error Handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#performance-optimization">Performance Optimization</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#integration-with-other-tools">Integration with Other Tools</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../geo/census_data_selector.html">Census Data Selector</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../geo/census_data_selector.html#classes">Classes</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_data_selector.html#censusdataselector">CensusDataSelector</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html">Census Dataset Mapper</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#classes">Classes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#censusdatasetmapper">CensusDatasetMapper</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#censusdataset">CensusDataset</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#datasetrelationship">DatasetRelationship</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="../geo/census_data_selector.html#functions">Functions</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_data_selector.html#get-census-data-selector">get_census_data_selector</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_data_selector.html#select-census-datasets">select_census_datasets</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_data_selector.html#get-analysis-approach">get_analysis_approach</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#enums">Enums</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#surveytype">SurveyType</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#geographylevel">GeographyLevel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#datareliability">DataReliability</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="../geo/census_data_selector.html#usage-examples">Usage Examples</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_data_selector.html#basic-dataset-selection">Basic Dataset Selection</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_data_selector.html#analysis-approach-recommendations">Analysis Approach Recommendations</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_data_selector.html#compatibility-matrix">Compatibility Matrix</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_data_selector.html#quick-selection">Quick Selection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#get-census-dataset-mapper">get_census_dataset_mapper</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#get-best-dataset-for-analysis">get_best_dataset_for_analysis</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#compare-census-datasets">compare_census_datasets</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="../geo/census_data_selector.html#advanced-usage">Advanced Usage</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_data_selector.html#custom-reliability-requirements">Custom Reliability Requirements</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_data_selector.html#time-sensitive-analysis">Time-Sensitive Analysis</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../geo/census_data_selector.html#variable-specific-selection">Variable-Specific Selection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#basic-dataset-information">Basic Dataset Information</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#dataset-comparison">Dataset Comparison</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#data-selection-guide">Data Selection Guide</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#export-dataset-catalog">Export Dataset Catalog</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="../geo/census_data_selector.html#analysis-types-supported">Analysis Types Supported</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../geo/census_data_selector.html#geography-levels-supported">Geography Levels Supported</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../geo/census_data_selector.html#reliability-levels">Reliability Levels</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../geo/census_data_selector.html#output-format">Output Format</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html">Census Data Selector</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#classes">Classes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#censusdataselector">CensusDataSelector</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#get-census-data-selector">get_census_data_selector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#select-census-datasets">select_census_datasets</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#get-analysis-approach">get_analysis_approach</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#basic-dataset-selection">Basic Dataset Selection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#analysis-approach-recommendations">Analysis Approach Recommendations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#compatibility-matrix">Compatibility Matrix</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#quick-selection">Quick Selection</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#advanced-usage">Advanced Usage</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#custom-reliability-requirements">Custom Reliability Requirements</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#time-sensitive-analysis">Time-Sensitive Analysis</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#variable-specific-selection">Variable-Specific Selection</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#analysis-types-supported">Analysis Types Supported</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#geography-levels-supported">Geography Levels Supported</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#reliability-levels">Reliability Levels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#output-format">Output Format</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../../../geo.html#overview">Overview</a></li>
@@ -433,7 +432,8 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">siege_utilities.files</li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">siege_utilities.distributed.hdfs_legacy</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -442,22 +442,62 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="module-siege_utilities.files">
-<span id="siege-utilities-files"></span><h1>siege_utilities.files<a class="headerlink" href="#module-siege_utilities.files" title="Link to this heading"></a></h1>
-<section id="submodules">
-<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
-<div class="toctree-wrapper compound">
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="hashing/index.html">siege_utilities.files.hashing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="operations/index.html">siege_utilities.files.operations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="paths/index.html">siege_utilities.files.paths</a></li>
-<li class="toctree-l1"><a class="reference internal" href="remote/index.html">siege_utilities.files.remote</a></li>
-<li class="toctree-l1"><a class="reference internal" href="shell/index.html">siege_utilities.files.shell</a></li>
-</ul>
-</div>
-</section>
-</section>
+  <h1>Source code for siege_utilities.distributed.hdfs_legacy</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Fixed HDFS Operations - Minimal working version</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Dict</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.core.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_logger</span><span class="p">,</span> <span class="n">log_info</span><span class="p">,</span> <span class="n">log_warning</span><span class="p">,</span> <span class="n">log_error</span><span class="p">,</span> <span class="n">log_debug</span>
+
+
+<div class="viewcode-block" id="get_quick_file_signature">
+<a class="viewcode-back" href="../../../distributed_computing.html#siege_utilities.get_quick_file_signature">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_quick_file_signature</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
+<span class="sd">Perform file operations: get quick file signature.</span>
+
+<span class="sd">Part of Siege Utilities File Operations module.</span>
+<span class="sd">Auto-discovered and available at package level.</span>
+
+<span class="sd">Returns:</span>
+<span class="sd">    Description needed</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
+<span class="sd">    &gt;&gt;&gt; result = siege_utilities.get_quick_file_signature()</span>
+<span class="sd">    &gt;&gt;&gt; print(result)</span>
+
+<span class="sd">Note:</span>
+<span class="sd">    This function is auto-discovered and available without imports</span>
+<span class="sd">    across all siege_utilities modules.</span>
+<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">stat</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_mtime</span><span class="si">}</span><span class="s1">&#39;</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;error&#39;</span></div>
+
+
+
+<div class="viewcode-block" id="check_hdfs_status">
+<a class="viewcode-back" href="../../../distributed_computing.html#siege_utilities.check_hdfs_status">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">check_hdfs_status</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if HDFS is accessible&quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="s1">&#39;hdfs&#39;</span><span class="p">,</span> <span class="s1">&#39;dfs&#39;</span><span class="p">,</span> <span class="s1">&#39;-ls&#39;</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span><span class="p">],</span> <span class="n">capture_output</span>
+            <span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span><span class="o">.</span><span class="n">returncode</span> <span class="o">==</span> <span class="mi">0</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+</pre></div>
 
            </div>
           </div>

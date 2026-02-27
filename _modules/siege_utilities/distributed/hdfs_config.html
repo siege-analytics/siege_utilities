@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.files.hashing &mdash; Siege Utilities 3.0.1 documentation</title>
+  <title>siege_utilities.distributed.hdfs_config &mdash; Siege Utilities 3.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
@@ -433,7 +433,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
-      <li class="breadcrumb-item active">siege_utilities.files.hashing</li>
+      <li class="breadcrumb-item active">siege_utilities.distributed.hdfs_config</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -442,276 +442,259 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <h1>Source code for siege_utilities.files.hashing</h1><div class="highlight"><pre>
+  <h1>Source code for siege_utilities.distributed.hdfs_config</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Hash Management Functions - Fixed Version</span>
-<span class="sd">Provides standardized hash functions that actually exist and work properly</span>
+<span class="sd">Abstract HDFS Configuration</span>
+<span class="sd">Configurable settings for HDFS operations - no hard-coded project dependencies</span>
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Callable</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.core.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_logger</span><span class="p">,</span> <span class="n">log_info</span><span class="p">,</span> <span class="n">log_warning</span><span class="p">,</span> <span class="n">log_error</span><span class="p">,</span> <span class="n">log_debug</span>
 
 
-<div class="viewcode-block" id="generate_sha256_hash_for_file">
-<a class="viewcode-back" href="../../../api/siege_utilities/files/hashing/index.html#siege_utilities.generate_sha256_hash_for_file">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">generate_sha256_hash_for_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Generate SHA256 hash for a file - chunked reading for large files</span>
+<div class="viewcode-block" id="HDFSConfig">
+<a class="viewcode-back" href="../../../api/siege_utilities/distributed/hdfs_config/index.html#siege_utilities.HDFSConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">HDFSConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration class for HDFS and Spark operations.</span>
 
-<span class="sd">    SECURITY: This function validates paths to prevent path traversal attacks</span>
-<span class="sd">    and access to sensitive system files.</span>
+<span class="sd">    Supports local, standalone cluster, and YARN deployments.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        master: Spark master URL (&#39;local[*]&#39;, &#39;yarn&#39;, &#39;spark://host:7077&#39;)</span>
+<span class="sd">        deploy_mode: Deployment mode for YARN (&#39;client&#39; or &#39;cluster&#39;)</span>
+<span class="sd">        yarn_queue: YARN queue name for resource allocation</span>
+<span class="sd">        driver_memory: Memory allocated to driver process</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">data_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">hdfs_base_directory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;/data/&#39;</span>
+    <span class="n">cache_directory</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">app_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;SparkDistributedProcessing&#39;</span>
+    <span class="n">spark_log_level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;WARN&#39;</span>
+
+    <span class="c1"># Spark master configuration</span>
+    <span class="n">master</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;local[*]&#39;</span>
+    <span class="n">deploy_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;client&#39;</span>  <span class="c1"># &#39;client&#39; or &#39;cluster&#39;</span>
+    <span class="n">yarn_queue</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># Sedona configuration</span>
+    <span class="n">enable_sedona</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">sedona_global_index_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;rtree&#39;</span>  <span class="c1"># &#39;rtree&#39; or &#39;quadtree&#39;</span>
+    <span class="n">sedona_join_broadcast_threshold</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span>  <span class="c1"># 10MB</span>
+
+    <span class="c1"># Resource allocation</span>
+    <span class="n">num_executors</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">executor_cores</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">executor_memory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;2g&#39;</span>
+    <span class="n">driver_memory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;2g&#39;</span>
+    <span class="n">driver_cores</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="c1"># Timeouts and networking</span>
+    <span class="n">network_timeout</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;800s&#39;</span>
+    <span class="n">heartbeat_interval</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;60s&#39;</span>
+    <span class="n">hdfs_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">hdfs_copy_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span>
+
+    <span class="c1"># Sync behavior</span>
+    <span class="n">force_sync</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="c1"># Logging and hashing functions</span>
+    <span class="n">log_info_func</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">log_error_func</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">hash_func</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">quick_signature_func</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="HDFSConfig.__post_init__">
+<a class="viewcode-back" href="../../../api/siege_utilities/distributed/hdfs_config/index.html#siege_utilities.HDFSConfig.__post_init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set up defaults after initialization&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache_directory</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cache_directory</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span>
+                <span class="s1">&#39;.spark_hdfs_cache&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_executors</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">num_executors</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="s1">&#39;SPARK_EXECUTOR_INSTANCES&#39;</span><span class="p">,</span> <span class="s1">&#39;4&#39;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">executor_cores</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">executor_cores</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;SPARK_EXECUTOR_CORES&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;2&#39;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="s1">&#39;SPARK_EXECUTOR_MEMORY&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">executor_memory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;SPARK_EXECUTOR_MEMORY&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;SPARK_DRIVER_MEMORY&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">driver_memory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;SPARK_DRIVER_MEMORY&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;SPARK_MASTER&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">master</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;SPARK_MASTER&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;YARN_QUEUE&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">yarn_queue</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;YARN_QUEUE&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_info_func</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log_info_func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">msg</span><span class="p">:</span> <span class="n">log_info</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_error_func</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log_error_func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">msg</span><span class="p">:</span> <span class="n">log_error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HDFSConfig.get_cache_path">
+<a class="viewcode-back" href="../../../api/siege_utilities/distributed/hdfs_config/index.html#siege_utilities.HDFSConfig.get_cache_path">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_cache_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get path for cache files&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cache_directory</span><span class="p">)</span> <span class="o">/</span> <span class="n">filename</span></div>
+
+
+<div class="viewcode-block" id="HDFSConfig.get_optimal_partitions">
+<a class="viewcode-back" href="../../../api/siege_utilities/distributed/hdfs_config/index.html#siege_utilities.HDFSConfig.get_optimal_partitions">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_optimal_partitions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span><span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate optimal partitions for I/O heavy workloads&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_executors</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">executor_cores</span> <span class="o">*</span> <span class="mi">3</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_yarn</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if this config targets a YARN cluster.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">master</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;yarn&#39;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_local</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if this config targets local mode.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">master</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;local&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="HDFSConfig.log_info">
+<a class="viewcode-back" href="../../../api/siege_utilities/distributed/hdfs_config/index.html#siege_utilities.HDFSConfig.log_info">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Log info message using configured function&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_info_func</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log_info_func</span><span class="p">(</span><span class="n">message</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HDFSConfig.log_error">
+<a class="viewcode-back" href="../../../api/siege_utilities/distributed/hdfs_config/index.html#siege_utilities.HDFSConfig.log_error">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Log error message using configured function&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_error_func</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log_error_func</span><span class="p">(</span><span class="n">message</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="create_hdfs_config">
+<a class="viewcode-back" href="../../../distributed_computing.html#siege_utilities.create_hdfs_config">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_hdfs_config</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">HDFSConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Factory function to create HDFS configuration&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">HDFSConfig</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="create_local_config">
+<a class="viewcode-back" href="../../../distributed_computing.html#siege_utilities.create_local_config">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_local_config</span><span class="p">(</span><span class="n">data_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">HDFSConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create config optimized for local development&quot;&quot;&quot;</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;data_path&#39;</span><span class="p">:</span> <span class="n">data_path</span><span class="p">,</span> <span class="s1">&#39;num_executors&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="s1">&#39;executor_cores&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;executor_memory&#39;</span><span class="p">:</span> <span class="s1">&#39;1g&#39;</span><span class="p">,</span> <span class="s1">&#39;enable_sedona&#39;</span><span class="p">:</span> 
+        <span class="kc">False</span><span class="p">,</span> <span class="s1">&#39;spark_log_level&#39;</span><span class="p">:</span> <span class="s1">&#39;WARN&#39;</span><span class="p">}</span>
+    <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">HDFSConfig</span><span class="p">(</span><span class="o">**</span><span class="n">defaults</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="create_cluster_config">
+<a class="viewcode-back" href="../../../distributed_computing.html#siege_utilities.create_cluster_config">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_cluster_config</span><span class="p">(</span><span class="n">data_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">HDFSConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create config optimized for cluster deployment&quot;&quot;&quot;</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;data_path&#39;</span><span class="p">:</span> <span class="n">data_path</span><span class="p">,</span> <span class="s1">&#39;num_executors&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+        <span class="s1">&#39;executor_cores&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;executor_memory&#39;</span><span class="p">:</span> <span class="s1">&#39;4g&#39;</span><span class="p">,</span> <span class="s1">&#39;enable_sedona&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="s1">&#39;spark_log_level&#39;</span><span class="p">:</span> <span class="s1">&#39;WARN&#39;</span><span class="p">}</span>
+    <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">HDFSConfig</span><span class="p">(</span><span class="o">**</span><span class="n">defaults</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="create_geocoding_config">
+<a class="viewcode-back" href="../../../distributed_computing.html#siege_utilities.create_geocoding_config">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_geocoding_config</span><span class="p">(</span><span class="n">data_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">HDFSConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create config optimized for geocoding workloads&quot;&quot;&quot;</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;data_path&#39;</span><span class="p">:</span> <span class="n">data_path</span><span class="p">,</span> <span class="s1">&#39;app_name&#39;</span><span class="p">:</span> <span class="s1">&#39;GeocodingPipeline&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;num_executors&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;executor_cores&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;executor_memory&#39;</span><span class="p">:</span> <span class="s1">&#39;2g&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;enable_sedona&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;network_timeout&#39;</span><span class="p">:</span> <span class="s1">&#39;1200s&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;spark_log_level&#39;</span><span class="p">:</span> <span class="s1">&#39;WARN&#39;</span><span class="p">}</span>
+    <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">HDFSConfig</span><span class="p">(</span><span class="o">**</span><span class="n">defaults</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">create_yarn_config</span><span class="p">(</span><span class="n">data_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HDFSConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create config optimized for YARN cluster deployment.</span>
+
+<span class="sd">    This configuration is designed for production YARN clusters with:</span>
+<span class="sd">    - YARN as the resource manager</span>
+<span class="sd">    - Client deploy mode (driver runs locally)</span>
+<span class="sd">    - Higher resource allocation for executors</span>
+<span class="sd">    - Sedona enabled for spatial operations</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        file_path: Path to the file (str or Path object)</span>
+<span class="sd">        data_path: Path to data (local or HDFS)</span>
+<span class="sd">        **kwargs: Override any default settings</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        SHA256 hash as hexadecimal string, or None if error</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        PathSecurityError: If path fails security validation</span>
+<span class="sd">        HDFSConfig configured for YARN deployment</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; hash_val = generate_sha256_hash_for_file(&quot;data.txt&quot;)</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; # This will raise PathSecurityError</span>
-<span class="sd">        &gt;&gt;&gt; generate_sha256_hash_for_file(&quot;/etc/shadow&quot;)  # Sensitive file blocked</span>
-
-<span class="sd">    Security Changes:</span>
-<span class="sd">        - Now validates paths to block path traversal</span>
-<span class="sd">        - Blocks access to sensitive system files</span>
+<span class="sd">        &gt;&gt;&gt; config = create_yarn_config(&#39;/data/census&#39;, yarn_queue=&#39;analytics&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; spark, path, _ = setup_distributed_environment(config)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="c1"># Import validation function</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
-        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-            <span class="c1"># Fallback: use basic Path validation without security checks</span>
-            <span class="n">path_obj</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Validate path with security checks</span>
-            <span class="n">path_obj</span> <span class="o">=</span> <span class="n">validate_file_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
-            <span class="k">return</span> <span class="kc">None</span>
-        <span class="n">sha256_hash</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">()</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path_obj</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="k">lambda</span> <span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">65536</span><span class="p">),</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
-                <span class="n">sha256_hash</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">sha256_hash</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error generating SHA256 hash for </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">None</span></div>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;data_path&#39;</span><span class="p">:</span> <span class="n">data_path</span><span class="p">,</span>
+        <span class="s1">&#39;app_name&#39;</span><span class="p">:</span> <span class="s1">&#39;SiegeAnalyticsYARN&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;master&#39;</span><span class="p">:</span> <span class="s1">&#39;yarn&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;deploy_mode&#39;</span><span class="p">:</span> <span class="s1">&#39;client&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;num_executors&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="s1">&#39;executor_cores&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="s1">&#39;executor_memory&#39;</span><span class="p">:</span> <span class="s1">&#39;8g&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;driver_memory&#39;</span><span class="p">:</span> <span class="s1">&#39;4g&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;driver_cores&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="s1">&#39;enable_sedona&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="s1">&#39;sedona_global_index_type&#39;</span><span class="p">:</span> <span class="s1">&#39;rtree&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;network_timeout&#39;</span><span class="p">:</span> <span class="s1">&#39;600s&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;heartbeat_interval&#39;</span><span class="p">:</span> <span class="s1">&#39;60s&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;spark_log_level&#39;</span><span class="p">:</span> <span class="s1">&#39;WARN&#39;</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">HDFSConfig</span><span class="p">(</span><span class="o">**</span><span class="n">defaults</span><span class="p">)</span>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">create_census_analysis_config</span><span class="p">(</span><span class="n">data_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HDFSConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create config optimized for Census longitudinal analysis.</span>
 
-<div class="viewcode-block" id="get_file_hash">
-<a class="viewcode-back" href="../../../api/siege_utilities/files/hashing/index.html#siege_utilities.get_file_hash">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">get_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="s1">&#39;sha256&#39;</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Generate hash for a file using specified algorithm</span>
-
-<span class="sd">    SECURITY: This function validates paths to prevent path traversal attacks</span>
-<span class="sd">    and access to sensitive system files.</span>
+<span class="sd">    Designed for processing large Census datasets with:</span>
+<span class="sd">    - Sedona for spatial operations (boundary crosswalks)</span>
+<span class="sd">    - Optimized partitioning for Census tract-level data</span>
+<span class="sd">    - Memory settings for time-series joins</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        file_path: Path to the file (str or Path object)</span>
-<span class="sd">        algorithm: Hash algorithm to use (&#39;sha256&#39;, &#39;md5&#39;, &#39;sha1&#39;, etc.)</span>
+<span class="sd">        data_path: Path to Census data</span>
+<span class="sd">        **kwargs: Override any default settings</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        Hash as hexadecimal string, or None if error</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        PathSecurityError: If path fails security validation</span>
+<span class="sd">        HDFSConfig optimized for Census analysis</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; hash_val = get_file_hash(&quot;data.txt&quot;, &quot;sha256&quot;)</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; # This will raise PathSecurityError</span>
-<span class="sd">        &gt;&gt;&gt; get_file_hash(&quot;../../../etc/passwd&quot;)  # Path traversal blocked</span>
-
-<span class="sd">    Security Changes:</span>
-<span class="sd">        - Now validates paths to block path traversal</span>
-<span class="sd">        - Blocks access to sensitive system files</span>
+<span class="sd">        &gt;&gt;&gt; config = create_census_analysis_config(&#39;/data/census/acs&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; spark, path, _ = setup_distributed_environment(config)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="c1"># Import validation function</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
-        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-            <span class="c1"># Fallback: use basic Path validation without security checks</span>
-            <span class="n">path_obj</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Validate path with security checks</span>
-            <span class="n">path_obj</span> <span class="o">=</span> <span class="n">validate_file_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
-            <span class="k">return</span> <span class="kc">None</span>
-        <span class="k">if</span> <span class="n">algorithm</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;sha256&#39;</span><span class="p">:</span>
-            <span class="n">hash_func</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">()</span>
-        <span class="k">elif</span> <span class="n">algorithm</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;md5&#39;</span><span class="p">:</span>
-            <span class="n">hash_func</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">()</span>
-        <span class="k">elif</span> <span class="n">algorithm</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;sha1&#39;</span><span class="p">:</span>
-            <span class="n">hash_func</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha1</span><span class="p">()</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">hash_func</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">algorithm</span><span class="p">)</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path_obj</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="k">lambda</span> <span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">65536</span><span class="p">),</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
-                <span class="n">hash_func</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">hash_func</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error generating </span><span class="si">{</span><span class="n">algorithm</span><span class="si">}</span><span class="s1"> hash for </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">None</span></div>
-
-
-
-<div class="viewcode-block" id="calculate_file_hash">
-<a class="viewcode-back" href="../../../file_hashing.html#siege_utilities.calculate_file_hash">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">calculate_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Alias for get_file_hash with SHA256 - for backward compatibility</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">get_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;sha256&#39;</span><span class="p">)</span></div>
-
-
-
-<div class="viewcode-block" id="get_quick_file_signature">
-<a class="viewcode-back" href="../../../api/siege_utilities/files/hashing/index.html#siege_utilities.get_quick_file_signature">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">get_quick_file_signature</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span> <span class="o">-&gt;</span><span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Generate a quick file signature using file stats + partial hash</span>
-<span class="sd">    Faster for change detection, not cryptographically secure</span>
-
-<span class="sd">    SECURITY: This function validates paths to prevent path traversal attacks</span>
-<span class="sd">    and access to sensitive system files.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        file_path: Path to the file</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Quick signature string (&#39;missing&#39;, &#39;error&#39;, or hash)</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        PathSecurityError: If path fails security validation</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; sig = get_quick_file_signature(&quot;data.txt&quot;)</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; # This will raise PathSecurityError</span>
-<span class="sd">        &gt;&gt;&gt; get_quick_file_signature(&quot;/etc/passwd&quot;)  # Sensitive file blocked</span>
-
-<span class="sd">    Security Changes:</span>
-<span class="sd">        - Now validates paths to block path traversal</span>
-<span class="sd">        - Blocks access to sensitive system files</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="c1"># Validate path</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
-            <span class="n">path_obj</span> <span class="o">=</span> <span class="n">validate_file_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-            <span class="n">path_obj</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-            <span class="k">return</span> <span class="s1">&#39;missing&#39;</span>
-        <span class="n">stat</span> <span class="o">=</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span>
-        <span class="k">if</span> <span class="n">stat</span><span class="o">.</span><span class="n">st_size</span> <span class="o">&lt;=</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">get_file_hash</span><span class="p">(</span><span class="n">file_path</span>
-                <span class="p">)</span> <span class="ow">or</span> <span class="sa">f</span><span class="s1">&#39;stat_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_mtime</span><span class="si">}</span><span class="s1">&#39;</span>
-        <span class="n">hash_obj</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">()</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path_obj</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">first_chunk</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">65536</span><span class="p">)</span>
-            <span class="n">hash_obj</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">first_chunk</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">stat</span><span class="o">.</span><span class="n">st_size</span> <span class="o">&gt;</span> <span class="mi">131072</span><span class="p">:</span>
-                <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="o">-</span><span class="mi">65536</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-                <span class="n">last_chunk</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">65536</span><span class="p">)</span>
-                <span class="n">hash_obj</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">last_chunk</span><span class="p">)</span>
-        <span class="n">stat_string</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_mtime</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">first_chunk</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
-        <span class="n">hash_obj</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">stat_string</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span>
-        <span class="k">return</span> <span class="n">hash_obj</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
-    <span class="k">except</span> <span class="n">PathSecurityError</span><span class="p">:</span>
-        <span class="k">raise</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error generating quick signature for </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">stat</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span>
-            <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;fallback_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_mtime</span><span class="si">}</span><span class="s1">&#39;</span>
-        <span class="k">except</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;error&#39;</span></div>
-
-
-
-<div class="viewcode-block" id="verify_file_integrity">
-<a class="viewcode-back" href="../../../file_hashing.html#siege_utilities.verify_file_integrity">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">verify_file_integrity</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">expected_hash</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="s1">&#39;sha256&#39;</span><span class="p">)</span> <span class="o">-&gt;</span><span class="nb">bool</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Verify file integrity by comparing with expected hash</span>
-
-<span class="sd">    SECURITY: This function validates paths to prevent path traversal attacks</span>
-<span class="sd">    and access to sensitive system files (through get_file_hash).</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        file_path: Path to the file</span>
-<span class="sd">        expected_hash: Expected hash value</span>
-<span class="sd">        algorithm: Hash algorithm used</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        True if file matches expected hash, False otherwise</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        PathSecurityError: If path fails security validation</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; expected = &quot;abc123...&quot;</span>
-<span class="sd">        &gt;&gt;&gt; if verify_file_integrity(&quot;data.txt&quot;, expected):</span>
-<span class="sd">        ...     print(&quot;File integrity verified&quot;)</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; # This will raise PathSecurityError</span>
-<span class="sd">        &gt;&gt;&gt; verify_file_integrity(&quot;/etc/shadow&quot;, expected)  # Sensitive file blocked</span>
-
-<span class="sd">    Security Changes:</span>
-<span class="sd">        - Now validates paths via get_file_hash() to block path traversal</span>
-<span class="sd">        - Blocks access to sensitive system files</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">current_hash</span> <span class="o">=</span> <span class="n">get_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">algorithm</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">current_hash</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">current_hash</span><span class="o">.</span><span class="n">lower</span><span class="p">(</span>
-            <span class="p">)</span> <span class="o">==</span> <span class="n">expected_hash</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-        <span class="k">return</span> <span class="kc">False</span></div>
-
-
-
-<div class="viewcode-block" id="test_hash_functions">
-<a class="viewcode-back" href="../../../api/siege_utilities/files/hashing/index.html#siege_utilities.test_hash_functions">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">test_hash_functions</span><span class="p">():</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test the hash functions with a temporary file&quot;&quot;&quot;</span>
-    <span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
-    <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
-    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;.txt&#39;</span>
-        <span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;Hello, World! This is a test file for hashing.&#39;</span><span class="p">)</span>
-        <span class="n">test_file</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;Testing hash functions...&#39;</span><span class="p">)</span>
-        <span class="n">sha256_hash</span> <span class="o">=</span> <span class="n">generate_sha256_hash_for_file</span><span class="p">(</span><span class="n">test_file</span><span class="p">)</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;SHA256: </span><span class="si">{</span><span class="n">sha256_hash</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="n">md5_hash</span> <span class="o">=</span> <span class="n">get_file_hash</span><span class="p">(</span><span class="n">test_file</span><span class="p">,</span> <span class="s1">&#39;md5&#39;</span><span class="p">)</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;MD5: </span><span class="si">{</span><span class="n">md5_hash</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="n">quick_sig</span> <span class="o">=</span> <span class="n">get_quick_file_signature</span><span class="p">(</span><span class="n">test_file</span><span class="p">)</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Quick signature: </span><span class="si">{</span><span class="n">quick_sig</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">sha256_hash</span><span class="p">:</span>
-            <span class="n">verification</span> <span class="o">=</span> <span class="n">verify_file_integrity</span><span class="p">(</span><span class="n">test_file</span><span class="p">,</span> <span class="n">sha256_hash</span><span class="p">)</span>
-            <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Verification: </span><span class="si">{</span><span class="n">verification</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;All hash functions working!&#39;</span><span class="p">)</span>
-    <span class="k">finally</span><span class="p">:</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">test_file</span><span class="p">)</span></div>
-
-
-
-<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
-    <span class="n">test_hash_functions</span><span class="p">()</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;data_path&#39;</span><span class="p">:</span> <span class="n">data_path</span><span class="p">,</span>
+        <span class="s1">&#39;app_name&#39;</span><span class="p">:</span> <span class="s1">&#39;CensusLongitudinalAnalysis&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;num_executors&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+        <span class="s1">&#39;executor_cores&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="s1">&#39;executor_memory&#39;</span><span class="p">:</span> <span class="s1">&#39;4g&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;driver_memory&#39;</span><span class="p">:</span> <span class="s1">&#39;4g&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;enable_sedona&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="s1">&#39;sedona_global_index_type&#39;</span><span class="p">:</span> <span class="s1">&#39;rtree&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;sedona_join_broadcast_threshold&#39;</span><span class="p">:</span> <span class="mi">50</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">,</span>  <span class="c1"># 50MB for Census shapes</span>
+        <span class="s1">&#39;network_timeout&#39;</span><span class="p">:</span> <span class="s1">&#39;900s&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;spark_log_level&#39;</span><span class="p">:</span> <span class="s1">&#39;WARN&#39;</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">HDFSConfig</span><span class="p">(</span><span class="o">**</span><span class="n">defaults</span><span class="p">)</span>
 </pre></div>
 
            </div>

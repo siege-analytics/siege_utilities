@@ -6,14 +6,14 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.hygiene.generate_docstrings &mdash; Siege Utilities 3.0.0 documentation</title>
+  <title>siege_utilities.hygiene.generate_docstrings &mdash; Siege Utilities 3.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../../_static/documentation_options.js?v=44da1a42"></script>
+      <script src="../../../../_static/documentation_options.js?v=2015ca06"></script>
       <script src="../../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../../_static/js/theme.js"></script>
@@ -457,12 +457,12 @@
 <h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="siege_utilities.hygiene.generate_docstrings.DocstringAdder">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.hygiene.generate_docstrings.</span></span><span class="sig-name descname"><span class="pre">DocstringAdder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'unknown'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.hygiene.generate_docstrings.DocstringAdder" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.hygiene.generate_docstrings.</span></span><span class="sig-name descname"><span class="pre">DocstringAdder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'unknown'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/siege_utilities/hygiene/generate_docstrings.html#DocstringAdder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.hygiene.generate_docstrings.DocstringAdder" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">ast.NodeTransformer</span></code></p>
 <p>AST transformer to add docstrings to functions.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_FunctionDef">
-<span class="sig-name descname"><span class="pre">visit_FunctionDef</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_FunctionDef" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">visit_FunctionDef</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/siege_utilities/hygiene/generate_docstrings.html#DocstringAdder.visit_FunctionDef"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_FunctionDef" title="Link to this definition"></a></dt>
 <dd><p>Visit Functiondef.</p>
 <p>General utility functions.
 Auto-discovered function available at package level.</p>
@@ -506,43 +506,43 @@ across all siege_utilities modules.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.hygiene.generate_docstrings.analyze_function_signature">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.hygiene.generate_docstrings.</span></span><span class="sig-name descname"><span class="pre">analyze_function_signature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.hygiene.generate_docstrings.analyze_function_signature" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.hygiene.generate_docstrings.</span></span><span class="sig-name descname"><span class="pre">analyze_function_signature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/siege_utilities/hygiene/generate_docstrings.html#analyze_function_signature"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.hygiene.generate_docstrings.analyze_function_signature" title="Link to this definition"></a></dt>
 <dd><p>Analyze a function to generate parameter and return type info.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.hygiene.generate_docstrings.categorize_function">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.hygiene.generate_docstrings.</span></span><span class="sig-name descname"><span class="pre">categorize_function</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.hygiene.generate_docstrings.categorize_function" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.hygiene.generate_docstrings.</span></span><span class="sig-name descname"><span class="pre">categorize_function</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/siege_utilities/hygiene/generate_docstrings.html#categorize_function"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.hygiene.generate_docstrings.categorize_function" title="Link to this definition"></a></dt>
 <dd><p>Categorize function based on name patterns.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.hygiene.generate_docstrings.cli">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.hygiene.generate_docstrings.</span></span><span class="sig-name descname"><span class="pre">cli</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.hygiene.generate_docstrings.cli" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.hygiene.generate_docstrings.</span></span><span class="sig-name descname"><span class="pre">cli</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/siege_utilities/hygiene/generate_docstrings.html#cli"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.hygiene.generate_docstrings.cli" title="Link to this definition"></a></dt>
 <dd><p>Command line interface.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.hygiene.generate_docstrings.find_python_files">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.hygiene.generate_docstrings.</span></span><span class="sig-name descname"><span class="pre">find_python_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">base_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.hygiene.generate_docstrings.find_python_files" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.hygiene.generate_docstrings.</span></span><span class="sig-name descname"><span class="pre">find_python_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">base_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/siege_utilities/hygiene/generate_docstrings.html#find_python_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.hygiene.generate_docstrings.find_python_files" title="Link to this definition"></a></dt>
 <dd><p>Find all Python files to process.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.hygiene.generate_docstrings.generate_docstring_template">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.hygiene.generate_docstrings.</span></span><span class="sig-name descname"><span class="pre">generate_docstring_template</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">func_obj</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.hygiene.generate_docstrings.generate_docstring_template" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.hygiene.generate_docstrings.</span></span><span class="sig-name descname"><span class="pre">generate_docstring_template</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">func_obj</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/siege_utilities/hygiene/generate_docstrings.html#generate_docstring_template"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.hygiene.generate_docstrings.generate_docstring_template" title="Link to this definition"></a></dt>
 <dd><p>Generate a comprehensive docstring template.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.hygiene.generate_docstrings.main">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.hygiene.generate_docstrings.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.hygiene.generate_docstrings.main" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.hygiene.generate_docstrings.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/siege_utilities/hygiene/generate_docstrings.html#main"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.hygiene.generate_docstrings.main" title="Link to this definition"></a></dt>
 <dd><p>Main function to process all Python files in siege_utilities.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.hygiene.generate_docstrings.process_python_file">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.hygiene.generate_docstrings.</span></span><span class="sig-name descname"><span class="pre">process_python_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.hygiene.generate_docstrings.process_python_file" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.hygiene.generate_docstrings.</span></span><span class="sig-name descname"><span class="pre">process_python_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/siege_utilities/hygiene/generate_docstrings.html#process_python_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.hygiene.generate_docstrings.process_python_file" title="Link to this definition"></a></dt>
 <dd><p>Process a single Python file to add missing docstrings.</p>
 </dd></dl>
 

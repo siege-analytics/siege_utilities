@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.core.logging &mdash; Siege Utilities 3.0.0 documentation</title>
+  <title>siege_utilities.core.logging &mdash; Siege Utilities 3.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=44da1a42"></script>
+      <script src="../../../_static/documentation_options.js?v=2015ca06"></script>
       <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -691,14 +691,14 @@
     <span class="n">_logger_manager</span><span class="o">.</span><span class="n">configure_shared_logging</span><span class="p">(</span><span class="n">log_file_path</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="n">max_bytes</span><span class="p">,</span> <span class="n">backup_count</span><span class="p">)</span>
 
 <div class="viewcode-block" id="get_logger">
-<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.core.logging.get_logger">[docs]</a>
+<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.get_logger">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_logger</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">LoggerName</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Get a logger instance.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">_logger_manager</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="init_logger">
-<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.core.logging.init_logger">[docs]</a>
+<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.init_logger">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">init_logger</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="n">LoggerName</span><span class="p">,</span>
                 <span class="n">log_to_file</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                 <span class="n">log_dir</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;logs&quot;</span><span class="p">,</span>
@@ -744,35 +744,35 @@
 
 <span class="c1"># Convenience logging functions</span>
 <div class="viewcode-block" id="log_debug">
-<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.core.logging.log_debug">[docs]</a>
+<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.log_debug">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">log_debug</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">logger_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">LoggerName</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Log a debug message.&quot;&quot;&quot;</span>
     <span class="n">get_logger</span><span class="p">(</span><span class="n">logger_name</span><span class="p">)</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">message</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="log_info">
-<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.core.logging.log_info">[docs]</a>
+<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.log_info">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">log_info</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">logger_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">LoggerName</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Log an info message.&quot;&quot;&quot;</span>
     <span class="n">get_logger</span><span class="p">(</span><span class="n">logger_name</span><span class="p">)</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">message</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="log_warning">
-<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.core.logging.log_warning">[docs]</a>
+<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.log_warning">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">log_warning</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">logger_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">LoggerName</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Log a warning message.&quot;&quot;&quot;</span>
     <span class="n">get_logger</span><span class="p">(</span><span class="n">logger_name</span><span class="p">)</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">message</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="log_error">
-<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.core.logging.log_error">[docs]</a>
+<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.log_error">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">log_error</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">logger_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">LoggerName</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Log an error message.&quot;&quot;&quot;</span>
     <span class="n">get_logger</span><span class="p">(</span><span class="n">logger_name</span><span class="p">)</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">message</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="log_critical">
-<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.core.logging.log_critical">[docs]</a>
+<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.log_critical">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">log_critical</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">logger_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">LoggerName</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Log a critical message.&quot;&quot;&quot;</span>
     <span class="n">get_logger</span><span class="p">(</span><span class="n">logger_name</span><span class="p">)</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="n">message</span><span class="p">)</span></div>
@@ -780,7 +780,7 @@
 
 
 <div class="viewcode-block" id="parse_log_level">
-<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.core.logging.parse_log_level">[docs]</a>
+<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.parse_log_level">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">parse_log_level</span><span class="p">(</span><span class="n">level</span><span class="p">:</span> <span class="n">LogLevel</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Convert a string or numeric level into a logging level constant.</span>
