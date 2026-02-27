@@ -4,6 +4,7 @@ Custom manager for temporal boundary models with spatial query helpers.
 
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Point, Polygon, GEOSGeometry
+from django.contrib.gis.measure import D
 from django.db import models
 
 
@@ -31,18 +32,19 @@ class BoundaryQuerySet(gis_models.QuerySet):
             models.Q(valid_to__isnull=True) | models.Q(valid_to__gte=date),
         )
 
-    def containing_point(self, point: Point):
+    def containing_point(self, point: Point, srid: int = 4326):
         """
         Find boundaries containing a point.
 
         Args:
             point: A GEOS Point object or (lon, lat) tuple
+            srid: Spatial reference ID (default: 4326 WGS 84)
 
         Returns:
             QuerySet filtered to boundaries containing the point
         """
         if isinstance(point, tuple):
-            point = Point(point[0], point[1], srid=4326)
+            point = Point(point[0], point[1], srid=srid)
         return self.filter(geometry__contains=point)
 
     def intersecting(self, geometry: GEOSGeometry):
@@ -61,6 +63,8 @@ class BoundaryQuerySet(gis_models.QuerySet):
         """
         Find boundaries within a distance of a point.
 
+        Uses geodesic distance via PostGIS ST_DWithin(geography).
+
         Args:
             point: A GEOS Point object
             distance_meters: Distance in meters
@@ -68,8 +72,30 @@ class BoundaryQuerySet(gis_models.QuerySet):
         Returns:
             QuerySet filtered to boundaries within distance
         """
-        # Use dwithin for spherical distance on geographic coordinates
-        return self.filter(geometry__dwithin=(point, distance_meters / 1000 / 111))
+        return self.filter(geometry__dwithin=(point, D(m=distance_meters)))
+
+    def nearest(self, point, max_distance_m=None, srid: int = 4326):
+        """
+        Find boundaries ordered by distance from a point (nearest first).
+
+        Uses geodesic distance via PostGIS ST_Distance(geography).
+
+        Args:
+            point: A GEOS Point object or (lon, lat) tuple
+            max_distance_m: Optional max distance in meters to filter results
+            srid: Spatial reference ID for tuple input (default: 4326 WGS 84)
+
+        Returns:
+            QuerySet annotated with 'distance' and ordered nearest-first
+        """
+        from django.contrib.gis.db.models.functions import Distance
+
+        if isinstance(point, tuple):
+            point = Point(point[0], point[1], srid=srid)
+        qs = self.annotate(distance=Distance("geometry", point)).order_by("distance")
+        if max_distance_m is not None:
+            qs = qs.filter(geometry__dwithin=(point, D(m=max_distance_m)))
+        return qs
 
     def with_area(self):
         """
@@ -178,9 +204,9 @@ class BoundaryManager(gis_models.Manager):
         """Filter to boundaries valid on a specific date."""
         return self.get_queryset().valid_on(date)
 
-    def containing_point(self, point):
+    def containing_point(self, point, srid: int = 4326):
         """Find boundaries containing a point."""
-        return self.get_queryset().containing_point(point)
+        return self.get_queryset().containing_point(point, srid=srid)
 
     def intersecting(self, geometry):
         """Find boundaries intersecting a geometry."""
@@ -189,6 +215,10 @@ class BoundaryManager(gis_models.Manager):
     def within_distance(self, point, distance_meters: float):
         """Find boundaries within a distance of a point."""
         return self.get_queryset().within_distance(point, distance_meters)
+
+    def nearest(self, point, max_distance_m=None, srid: int = 4326):
+        """Find boundaries ordered by distance from a point."""
+        return self.get_queryset().nearest(point, max_distance_m, srid=srid)
 
     def get_by_geoid(self, geoid: str, year: int = None):
         """
@@ -228,7 +258,9 @@ class BoundaryManager(gis_models.Manager):
             geoid=parent_geoid
         )
 
-    def bulk_create_from_geodataframe(self, gdf, year: int, batch_size: int = 1000):
+    def bulk_create_from_geodataframe(
+        self, gdf, year: int, batch_size: int = 1000, srid: int = 4326
+    ):
         """
         Bulk create boundaries from a GeoPandas GeoDataFrame.
 
@@ -236,6 +268,7 @@ class BoundaryManager(gis_models.Manager):
             gdf: GeoDataFrame with GEOID, NAME, geometry, and optionally ALAND/AWATER
             year: Vintage year for these boundaries
             batch_size: Number of records per batch
+            srid: Spatial reference ID for the geometry (default: 4326 WGS 84)
 
         Returns:
             List of created boundary objects
@@ -244,13 +277,13 @@ class BoundaryManager(gis_models.Manager):
 
         objects = []
         for _, row in gdf.iterrows():
-            geom = GEOSGeometry(row.geometry.wkt, srid=4326)
+            geom = GEOSGeometry(row.geometry.wkt, srid=srid)
 
             # Ensure MultiPolygon
             if geom.geom_type == "Polygon":
                 from django.contrib.gis.geos import MultiPolygon
 
-                geom = MultiPolygon(geom, srid=4326)
+                geom = MultiPolygon(geom, srid=srid)
 
             # Build object kwargs
             kwargs = {
