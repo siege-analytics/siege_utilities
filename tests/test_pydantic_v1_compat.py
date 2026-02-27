@@ -111,6 +111,34 @@ class TestPydanticV1Fallback:
         assert user_config is None
 
 
+class TestConfigDirectImportFallback:
+    """Direct imports from siege_utilities.config must also degrade gracefully."""
+
+    @pytest.mark.skipif(_HAS_PYDANTIC_V2, reason="pydantic v2 is available")
+    def test_config_get_user_config_raises_helpful_error(self):
+        from siege_utilities.config import get_user_config
+        with pytest.raises(ImportError, match="pydantic"):
+            get_user_config()
+
+    @pytest.mark.skipif(_HAS_PYDANTIC_V2, reason="pydantic v2 is available")
+    def test_config_load_user_profile_raises_helpful_error(self):
+        from siege_utilities.config import load_user_profile
+        with pytest.raises(ImportError, match="pydantic"):
+            load_user_profile("test")
+
+    @pytest.mark.skipif(_HAS_PYDANTIC_V2, reason="pydantic v2 is available")
+    def test_config_migrate_configurations_raises_helpful_error(self):
+        from siege_utilities.config import migrate_configurations
+        with pytest.raises(ImportError, match="pydantic"):
+            migrate_configurations()
+
+    @pytest.mark.skipif(not _HAS_PYDANTIC_V2, reason="pydantic v2 not available")
+    def test_config_direct_import_works_with_v2(self):
+        from siege_utilities.config import get_user_config, load_user_profile
+        assert callable(get_user_config)
+        assert callable(load_user_profile)
+
+
 class TestPackageIntrospection:
     """Package introspection functions must work regardless of pydantic."""
 
