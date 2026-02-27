@@ -42,7 +42,7 @@ class StateLegislativeUpper(CensusTIGERBoundary):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(geoid__regex=r"^\d{5}$"),
+                condition=models.Q(geoid__regex=r"^\d{5}$"),
                 name="sldu_geoid_5_digits",
             ),
         ]
@@ -90,7 +90,7 @@ class StateLegislativeLower(CensusTIGERBoundary):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(geoid__regex=r"^\d{5}$"),
+                condition=models.Q(geoid__regex=r"^\d{5}$"),
                 name="sldl_geoid_5_digits",
             ),
         ]
@@ -194,7 +194,7 @@ class VTD(CensusTIGERBoundary):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(geoid__regex=r"^\d{8}$"),
+                condition=models.Q(geoid__regex=r"^\d{8}$"),
                 name="vtd_geoid_8_digits",
             ),
         ]

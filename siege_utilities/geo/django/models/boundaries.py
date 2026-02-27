@@ -49,7 +49,7 @@ class State(CensusTIGERBoundary):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(geoid__regex=r"^\d{2}$"),
+                condition=models.Q(geoid__regex=r"^\d{2}$"),
                 name="state_geoid_2_digits",
             ),
         ]
@@ -99,7 +99,7 @@ class County(CensusTIGERBoundary):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(geoid__regex=r"^\d{5}$"),
+                condition=models.Q(geoid__regex=r"^\d{5}$"),
                 name="county_geoid_5_digits",
             ),
         ]
@@ -166,7 +166,7 @@ class Tract(CensusTIGERBoundary):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(geoid__regex=r"^\d{11}$"),
+                condition=models.Q(geoid__regex=r"^\d{11}$"),
                 name="tract_geoid_11_digits",
             ),
         ]
@@ -263,7 +263,7 @@ class BlockGroup(CensusTIGERBoundary):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(geoid__regex=r"^\d{12}$"),
+                condition=models.Q(geoid__regex=r"^\d{12}$"),
                 name="blockgroup_geoid_12_digits",
             ),
         ]
@@ -347,7 +347,7 @@ class Block(CensusTIGERBoundary):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(geoid__regex=r"^\d{15}$"),
+                condition=models.Q(geoid__regex=r"^\d{15}$"),
                 name="block_geoid_15_digits",
             ),
         ]
@@ -407,7 +407,7 @@ class Place(CensusTIGERBoundary):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(geoid__regex=r"^\d{7}$"),
+                condition=models.Q(geoid__regex=r"^\d{7}$"),
                 name="place_geoid_7_digits",
             ),
         ]
@@ -451,7 +451,7 @@ class ZCTA(CensusTIGERBoundary):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(geoid__regex=r"^\d{5}$"),
+                condition=models.Q(geoid__regex=r"^\d{5}$"),
                 name="zcta_geoid_5_digits",
             ),
         ]
@@ -510,7 +510,7 @@ class CongressionalDistrict(CensusTIGERBoundary):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(geoid__regex=r"^\d{4}$"),
+                condition=models.Q(geoid__regex=r"^\d{4}$"),
                 name="cd_geoid_4_digits",
             ),
         ]
