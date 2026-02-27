@@ -235,52 +235,99 @@ from .paths import (
     initialize_siege_directories,
 )
 
-# Import existing config modules for backward compatibility
-from .user_config import (
-    UserProfile,
-    UserConfigManager,
-    get_user_config,
-    get_download_directory,
-)
+# Pydantic-validated config system — requires pydantic>=2.0
+import logging as _logging
+_config_logger = _logging.getLogger(__name__)
 
-# Enhanced config system with Pydantic validation
-from .enhanced_config import (
-    UserProfile as EnhancedUserProfile,
-    ClientProfile,
-    SiegeConfig,
-    load_user_profile,
-    save_user_profile,
-    load_client_profile,
-    save_client_profile,
-    list_client_profiles,
-    export_config_yaml,
-    import_config_yaml,
-)
 
-# Hydra + Pydantic configuration system
-from .hydra_manager import HydraConfigManager
-from .models import (
-    UserProfile as PydanticUserProfile,
-    ClientProfile as PydanticClientProfile,
-    ContactInfo,
-    BrandingConfig,
-    ReportPreferences,
-    SocialMediaAccount,
-)
+def _config_dependency_wrapper(func_name, required_deps):
+    """Create a callable that raises ImportError with a helpful message."""
+    def wrapper(*args, **kwargs):
+        raise ImportError(
+            f"Function '{func_name}' requires: {', '.join(required_deps)}. "
+            f"Install with: pip install {' '.join(required_deps)}"
+        )
+    wrapper.__name__ = func_name
+    wrapper.__qualname__ = func_name
+    return wrapper
 
-# Import Person/Actor architecture models
-from .models.person import Person
-from .models.actor_types import User, Client, Collaborator, Organization, Collaboration
-from .models.credential import Credential, OnePasswordCredential
-from .models.oauth_integration import OAuthIntegration, OAuthScope
-from .models.database_connection import DatabaseConnection
 
-# Migration utilities
-from .migration import (
-    ConfigurationMigrator,
-    migrate_configurations,
-    backup_and_migrate,
-)
+try:
+    from .user_config import (
+        UserProfile,
+        UserConfigManager,
+        get_user_config,
+        get_download_directory,
+    )
+    from .enhanced_config import (
+        UserProfile as EnhancedUserProfile,
+        ClientProfile,
+        SiegeConfig,
+        load_user_profile,
+        save_user_profile,
+        load_client_profile,
+        save_client_profile,
+        list_client_profiles,
+        export_config_yaml,
+        import_config_yaml,
+    )
+    from .hydra_manager import HydraConfigManager
+    from .models import (
+        UserProfile as PydanticUserProfile,
+        ClientProfile as PydanticClientProfile,
+        ContactInfo,
+        BrandingConfig,
+        ReportPreferences,
+        SocialMediaAccount,
+    )
+    from .models.person import Person
+    from .models.actor_types import User, Client, Collaborator, Organization, Collaboration
+    from .models.credential import Credential, OnePasswordCredential
+    from .models.oauth_integration import OAuthIntegration, OAuthScope
+    from .models.database_connection import DatabaseConnection
+    from .migration import (
+        ConfigurationMigrator,
+        migrate_configurations,
+        backup_and_migrate,
+    )
+except ImportError as e:
+    _config_logger.warning(f"Could not import Pydantic config system: {e}")
+    _pd = ['pydantic>=2.0']
+    UserProfile = _config_dependency_wrapper('UserProfile', _pd)
+    UserConfigManager = _config_dependency_wrapper('UserConfigManager', _pd)
+    get_user_config = _config_dependency_wrapper('get_user_config', _pd)
+    get_download_directory = _config_dependency_wrapper('get_download_directory', _pd)
+    EnhancedUserProfile = _config_dependency_wrapper('EnhancedUserProfile', _pd)
+    ClientProfile = _config_dependency_wrapper('ClientProfile', _pd)
+    SiegeConfig = _config_dependency_wrapper('SiegeConfig', _pd)
+    load_user_profile = _config_dependency_wrapper('load_user_profile', _pd)
+    save_user_profile = _config_dependency_wrapper('save_user_profile', _pd)
+    load_client_profile = _config_dependency_wrapper('load_client_profile', _pd)
+    save_client_profile = _config_dependency_wrapper('save_client_profile', _pd)
+    list_client_profiles = _config_dependency_wrapper('list_client_profiles', _pd)
+    export_config_yaml = _config_dependency_wrapper('export_config_yaml', _pd)
+    import_config_yaml = _config_dependency_wrapper('import_config_yaml', _pd)
+    HydraConfigManager = _config_dependency_wrapper('HydraConfigManager', _pd)
+    PydanticUserProfile = _config_dependency_wrapper('PydanticUserProfile', _pd)
+    PydanticClientProfile = _config_dependency_wrapper('PydanticClientProfile', _pd)
+    ContactInfo = _config_dependency_wrapper('ContactInfo', _pd)
+    BrandingConfig = _config_dependency_wrapper('BrandingConfig', _pd)
+    ReportPreferences = _config_dependency_wrapper('ReportPreferences', _pd)
+    SocialMediaAccount = _config_dependency_wrapper('SocialMediaAccount', _pd)
+    Person = _config_dependency_wrapper('Person', _pd)
+    User = _config_dependency_wrapper('User', _pd)
+    Client = _config_dependency_wrapper('Client', _pd)
+    Collaborator = _config_dependency_wrapper('Collaborator', _pd)
+    Organization = _config_dependency_wrapper('Organization', _pd)
+    Collaboration = _config_dependency_wrapper('Collaboration', _pd)
+    Credential = _config_dependency_wrapper('Credential', _pd)
+    OnePasswordCredential = _config_dependency_wrapper('OnePasswordCredential', _pd)
+    OAuthIntegration = _config_dependency_wrapper('OAuthIntegration', _pd)
+    OAuthScope = _config_dependency_wrapper('OAuthScope', _pd)
+    DatabaseConnection = _config_dependency_wrapper('DatabaseConnection', _pd)
+    ConfigurationMigrator = _config_dependency_wrapper('ConfigurationMigrator', _pd)
+    migrate_configurations = _config_dependency_wrapper('migrate_configurations', _pd)
+    backup_and_migrate = _config_dependency_wrapper('backup_and_migrate', _pd)
 
 from .databases import (
     create_database_config,
