@@ -78,7 +78,8 @@ class DataReliability(Enum):
 @dataclass
 class CensusDataset:
     """Represents a Census dataset with metadata."""
-    
+
+    dataset_id: str
     name: str
     survey_type: SurveyType
     geography_levels: List[GeographyLevel]
@@ -130,6 +131,7 @@ class CensusDatasetMapper:
         
         # Decennial Census (2020)
         self.datasets["decennial_2020"] = CensusDataset(
+            dataset_id="decennial_2020",
             name="2020 Decennial Census",
             survey_type=SurveyType.DECENNIAL,
             geography_levels=[
@@ -167,6 +169,7 @@ class CensusDatasetMapper:
         
         # ACS 5-Year Estimates (2020)
         self.datasets["acs_5yr_2020"] = CensusDataset(
+            dataset_id="acs_5yr_2020",
             name="ACS 5-Year Estimates (2020)",
             survey_type=SurveyType.ACS_5YR,
             geography_levels=[
@@ -203,6 +206,7 @@ class CensusDatasetMapper:
         
         # ACS 1-Year Estimates (2020)
         self.datasets["acs_1yr_2020"] = CensusDataset(
+            dataset_id="acs_1yr_2020",
             name="ACS 1-Year Estimates (2020)",
             survey_type=SurveyType.ACS_1YR,
             geography_levels=[
@@ -239,6 +243,7 @@ class CensusDatasetMapper:
         
         # Population Estimates (2023)
         self.datasets["population_estimates_2023"] = CensusDataset(
+            dataset_id="population_estimates_2023",
             name="Population Estimates (2023)",
             survey_type=SurveyType.POPULATION_ESTIMATES,
             geography_levels=[
@@ -275,6 +280,7 @@ class CensusDatasetMapper:
         
         # Economic Census (2017)
         self.datasets["economic_census_2017"] = CensusDataset(
+            dataset_id="economic_census_2017",
             name="Economic Census (2017)",
             survey_type=SurveyType.CENSUS_BUSINESS,
             geography_levels=[

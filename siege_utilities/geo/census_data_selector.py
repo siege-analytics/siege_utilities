@@ -234,7 +234,7 @@ class CensusDataSelector:
                 score_breakdown["geography_match"] = 2.0
             
             # Pattern dataset preference
-            if dataset.name in pattern.get("primary_datasets", []):
+            if dataset.dataset_id in pattern.get("primary_datasets", []):
                 score_breakdown["primary_dataset"] = 1.5
             
             # Reliability scoring
@@ -332,7 +332,7 @@ class CensusDataSelector:
         
         rationales = []
         
-        if dataset.name in pattern.get("primary_datasets", []):
+        if dataset.dataset_id in pattern.get("primary_datasets", []):
             rationales.append("Matches primary dataset pattern for this analysis type")
         
         if dataset.reliability.value == pattern.get("reliability_requirement", "medium"):
@@ -394,7 +394,7 @@ class CensusDataSelector:
         score = 0.0
         
         # Dataset preference
-        if dataset.name in pattern.get("primary_datasets", []):
+        if dataset.dataset_id in pattern.get("primary_datasets", []):
             score += 2.0
         
         # Variable coverage
