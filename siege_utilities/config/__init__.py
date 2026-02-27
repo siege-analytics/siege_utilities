@@ -235,52 +235,86 @@ from .paths import (
     initialize_siege_directories,
 )
 
-# Import existing config modules for backward compatibility
-from .user_config import (
-    UserProfile,
-    UserConfigManager,
-    get_user_config,
-    get_download_directory,
-)
+# Pydantic-validated config system — requires pydantic>=2.0
+import logging as _logging
+_config_logger = _logging.getLogger(__name__)
 
-# Enhanced config system with Pydantic validation
-from .enhanced_config import (
-    UserProfile as EnhancedUserProfile,
-    ClientProfile,
-    SiegeConfig,
-    load_user_profile,
-    save_user_profile,
-    load_client_profile,
-    save_client_profile,
-    list_client_profiles,
-    export_config_yaml,
-    import_config_yaml,
-)
-
-# Hydra + Pydantic configuration system
-from .hydra_manager import HydraConfigManager
-from .models import (
-    UserProfile as PydanticUserProfile,
-    ClientProfile as PydanticClientProfile,
-    ContactInfo,
-    BrandingConfig,
-    ReportPreferences,
-    SocialMediaAccount,
-)
-
-# Import Person/Actor architecture models
-from .models.person import Person
-from .models.actor_types import User, Client, Collaborator, Organization, Collaboration
-from .models.credential import Credential, OnePasswordCredential
-from .models.oauth_integration import OAuthIntegration, OAuthScope
-from .models.database_connection import DatabaseConnection
-
-# Migration utilities
-from .migration import (
-    ConfigurationMigrator,
-    migrate_configurations,
-    backup_and_migrate,
-)
+try:
+    from .user_config import (
+        UserProfile,
+        UserConfigManager,
+        get_user_config,
+        get_download_directory,
+    )
+    from .enhanced_config import (
+        UserProfile as EnhancedUserProfile,
+        ClientProfile,
+        SiegeConfig,
+        load_user_profile,
+        save_user_profile,
+        load_client_profile,
+        save_client_profile,
+        list_client_profiles,
+        export_config_yaml,
+        import_config_yaml,
+    )
+    from .hydra_manager import HydraConfigManager
+    from .models import (
+        UserProfile as PydanticUserProfile,
+        ClientProfile as PydanticClientProfile,
+        ContactInfo,
+        BrandingConfig,
+        ReportPreferences,
+        SocialMediaAccount,
+    )
+    from .models.person import Person
+    from .models.actor_types import User, Client, Collaborator, Organization, Collaboration
+    from .models.credential import Credential, OnePasswordCredential
+    from .models.oauth_integration import OAuthIntegration, OAuthScope
+    from .models.database_connection import DatabaseConnection
+    from .migration import (
+        ConfigurationMigrator,
+        migrate_configurations,
+        backup_and_migrate,
+    )
+except ImportError as e:
+    _config_logger.warning(f"Could not import Pydantic config system: {e}")
+    # These symbols are unavailable without pydantic>=2.0
+    UserProfile = None
+    UserConfigManager = None
+    get_user_config = None
+    get_download_directory = None
+    EnhancedUserProfile = None
+    ClientProfile = None
+    SiegeConfig = None
+    load_user_profile = None
+    save_user_profile = None
+    load_client_profile = None
+    save_client_profile = None
+    list_client_profiles = None
+    export_config_yaml = None
+    import_config_yaml = None
+    HydraConfigManager = None
+    PydanticUserProfile = None
+    PydanticClientProfile = None
+    ContactInfo = None
+    BrandingConfig = None
+    ReportPreferences = None
+    SocialMediaAccount = None
+    Person = None
+    User = None
+    Client = None
+    Collaborator = None
+    Organization = None
+    Collaboration = None
+    Credential = None
+    OnePasswordCredential = None
+    OAuthIntegration = None
+    OAuthScope = None
+    DatabaseConnection = None
+    ConfigurationMigrator = None
+    migrate_configurations = None
+    backup_and_migrate = None
 
 from .databases import (
     create_database_config,
