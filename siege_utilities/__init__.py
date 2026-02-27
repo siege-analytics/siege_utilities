@@ -245,37 +245,60 @@ except ImportError as e:
 # Spatial utilities are now consolidated in the geo module
 # All spatial functions are available through the geo module
 
-# Import user configuration
-from .config.user_config import (
-    UserConfigManager, UserProfile, user_config,
-    get_user_config, get_download_directory
-)
-
-# Enhanced config system with Pydantic validation
-from .config.enhanced_config import (
-    UserProfile as EnhancedUserProfile,
-    ClientProfile,
-    SiegeConfig,
-    load_user_profile,
-    save_user_profile,
-    load_client_profile,
-    save_client_profile,
-    list_client_profiles,
-    export_config_yaml,
-    import_config_yaml,
-)
-
-# Admin utilities for profile management
-from .admin.profile_manager import (
-    get_default_profile_location,
-    set_profile_location,
-    get_profile_location,
-    list_profile_locations,
-    migrate_profiles,
-    create_default_profiles,
-    validate_profile_location,
-    get_profile_summary
-)
+# Pydantic-validated config system — requires pydantic>=2.0
+try:
+    from .config.user_config import (
+        UserConfigManager, UserProfile, user_config,
+        get_user_config, get_download_directory
+    )
+    from .config.enhanced_config import (
+        UserProfile as EnhancedUserProfile,
+        ClientProfile,
+        SiegeConfig,
+        load_user_profile,
+        save_user_profile,
+        load_client_profile,
+        save_client_profile,
+        list_client_profiles,
+        export_config_yaml,
+        import_config_yaml,
+    )
+    from .admin.profile_manager import (
+        get_default_profile_location,
+        set_profile_location,
+        get_profile_location,
+        list_profile_locations,
+        migrate_profiles,
+        create_default_profiles,
+        validate_profile_location,
+        get_profile_summary
+    )
+except ImportError as e:
+    logger.warning(f"Could not import Pydantic config system: {e}")
+    _pydantic_deps = ['pydantic>=2.0']
+    UserConfigManager = _create_dependency_wrapper('UserConfigManager', _pydantic_deps)
+    UserProfile = _create_dependency_wrapper('UserProfile', _pydantic_deps)
+    user_config = None
+    get_user_config = _create_dependency_wrapper('get_user_config', _pydantic_deps)
+    get_download_directory = _create_dependency_wrapper('get_download_directory', _pydantic_deps)
+    EnhancedUserProfile = _create_dependency_wrapper('EnhancedUserProfile', _pydantic_deps)
+    ClientProfile = _create_dependency_wrapper('ClientProfile', _pydantic_deps)
+    SiegeConfig = _create_dependency_wrapper('SiegeConfig', _pydantic_deps)
+    load_user_profile = _create_dependency_wrapper('load_user_profile', _pydantic_deps)
+    save_user_profile = _create_dependency_wrapper('save_user_profile', _pydantic_deps)
+    load_client_profile = _create_dependency_wrapper('load_client_profile', _pydantic_deps)
+    save_client_profile = _create_dependency_wrapper('save_client_profile', _pydantic_deps)
+    list_client_profiles = _create_dependency_wrapper('list_client_profiles', _pydantic_deps)
+    export_config_yaml = _create_dependency_wrapper('export_config_yaml', _pydantic_deps)
+    import_config_yaml = _create_dependency_wrapper('import_config_yaml', _pydantic_deps)
+    get_default_profile_location = _create_dependency_wrapper('get_default_profile_location', _pydantic_deps)
+    set_profile_location = _create_dependency_wrapper('set_profile_location', _pydantic_deps)
+    get_profile_location = _create_dependency_wrapper('get_profile_location', _pydantic_deps)
+    list_profile_locations = _create_dependency_wrapper('list_profile_locations', _pydantic_deps)
+    migrate_profiles = _create_dependency_wrapper('migrate_profiles', _pydantic_deps)
+    create_default_profiles = _create_dependency_wrapper('create_default_profiles', _pydantic_deps)
+    validate_profile_location = _create_dependency_wrapper('validate_profile_location', _pydantic_deps)
+    get_profile_summary = _create_dependency_wrapper('get_profile_summary', _pydantic_deps)
 
 # Import hygiene utilities (expanded)
 from .hygiene.generate_docstrings import (
@@ -443,7 +466,7 @@ from .testing.runner import (
 )
 
 # Package version and metadata
-__version__ = "3.0.0"
+__version__ = "3.0.1"
 __author__ = "Siege Analytics"
 __description__ = "Comprehensive utilities for data engineering, analytics, and distributed computing"
 
@@ -460,7 +483,7 @@ def get_package_info() -> Dict[str, Any]:
     
     package_info = {
         'package_name': 'siege_utilities',
-        'version': '2.2.0',
+        'version': '3.0.1',
         'description': 'Comprehensive utilities for data engineering, analytics, and distributed computing',
         'total_functions': 0,
         'total_modules': 0,
