@@ -7,6 +7,7 @@ from .demographic_service import DemographicPopulationService
 from .crosswalk_service import CrosswalkPopulationService
 from .timeseries_service import TimeseriesService
 from .rollup_service import DemographicRollupService
+from .urbanicity_service import UrbanicityClassificationService
 
 __all__ = [
     "BoundaryPopulationService",
@@ -14,4 +15,5 @@ __all__ = [
     "CrosswalkPopulationService",
     "TimeseriesService",
     "DemographicRollupService",
+    "UrbanicityClassificationService",
 ]
