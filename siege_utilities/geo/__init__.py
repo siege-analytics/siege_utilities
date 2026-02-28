@@ -186,6 +186,15 @@ from .census_files import (
     PL_TABLES,
 )
 
+# Areal interpolation for boundary data transfer
+from .interpolation import (
+    ArealInterpolationResult,
+    interpolate_areal,
+    interpolate_extensive,
+    interpolate_intensive,
+    compute_area_weights,
+)
+
 # Choropleth map creation
 from .choropleth import (
     create_choropleth,
@@ -331,6 +340,13 @@ __all__ = [
     'BivariateAnalysisResult',
     'save_map',
     'BIVARIATE_COLOR_SCHEMES',
+
+    # Areal interpolation
+    'ArealInterpolationResult',
+    'interpolate_areal',
+    'interpolate_extensive',
+    'interpolate_intensive',
+    'compute_area_weights',
 
     # NCES locale classification
     'LocaleCode',

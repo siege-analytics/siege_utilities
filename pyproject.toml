@@ -58,6 +58,7 @@ geo = [
     "geopy>=2.3.0",
     "rtree>=1.0.0",
     "mapclassify>=2.5.0",
+    "tobler>=0.11.0",
 ]
 reporting = [
     "matplotlib>=3.5.0",
