@@ -104,9 +104,11 @@ class TestCensusAPIClientInit:
 
     def test_init_without_api_key(self, temp_cache_dir):
         """Test client initialization without an API key."""
-        client = CensusAPIClient(cache_dir=temp_cache_dir)
-        assert client.api_key is None
-        assert client.cache_dir == temp_cache_dir
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("CENSUS_API_KEY", None)
+            client = CensusAPIClient(cache_dir=temp_cache_dir)
+            assert client.api_key is None
+            assert client.cache_dir == temp_cache_dir
 
     def test_init_with_explicit_api_key(self, temp_cache_dir):
         """Test client initialization with an explicit API key."""

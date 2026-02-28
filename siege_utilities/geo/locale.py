@@ -624,15 +624,22 @@ class NCESLocaleClassifier:
     @classmethod
     def from_nces_boundaries(
         cls,
-        year: int = 2024,
+        year: int = 2023,
         cache_dir: Optional[str] = None,
         projection_crs: Optional[int] = None,
     ) -> "NCESLocaleClassifier":
         """Construct a classifier from NCES pre-computed locale boundary shapefiles.
 
-        NCES publishes locale territory polygons that are already classified.
-        This is faster than computing from Census inputs but limited to years
-        NCES has published.
+        NCES publishes locale territory polygons that are already classified
+        with locale codes (11-43). This is faster than computing from Census
+        inputs but limited to years NCES has published.
+
+        The downloaded boundaries are split into:
+        - Urbanized Area proxies: City (11-13) + Suburb (21-23) territories
+        - Urban Cluster proxies: Town (31-33) territories
+        - Principal city proxies: City (11-13) territories only
+
+        The classifier then works identically to the Census-based one.
 
         Args:
             year: NCES publication year.
@@ -641,13 +648,48 @@ class NCESLocaleClassifier:
 
         Returns:
             An initialized ``NCESLocaleClassifier``.
-
-        Raises:
-            NotImplementedError: NCES boundary download not yet implemented.
         """
-        raise NotImplementedError(
-            "NCES boundary download not yet implemented. "
-            "Use from_census_year() for computed classification."
+        import geopandas as gpd
+
+        from .nces_download import NCESDownloader
+
+        downloader = NCESDownloader(cache_dir=cache_dir)
+        boundaries = downloader.download_locale_boundaries(year)
+
+        proj = projection_crs or settings.PROJECTION_CRS
+
+        # Split boundaries into UA-like and UC-like territories.
+        # City + Suburb codes (11-23) approximate Urbanized Areas.
+        # Town codes (31-33) approximate Urban Clusters.
+        city_mask = boundaries["locale_code"].between(11, 13)
+        suburb_mask = boundaries["locale_code"].between(21, 23)
+        town_mask = boundaries["locale_code"].between(31, 33)
+
+        ua_gdf = boundaries[city_mask | suburb_mask].copy()
+        uc_gdf = boundaries[town_mask].copy()
+        pc_gdf = boundaries[city_mask].copy()
+
+        # Build synthetic population dicts keyed by index.
+        # City-Large (11) → 250k+, City-Midsize (12) → 100k+, etc.
+        _pop_map = {
+            11: 500_000, 12: 150_000, 13: 50_000,
+            21: 500_000, 22: 150_000, 23: 50_000,
+        }
+        place_pops = {}
+        for idx, row in pc_gdf.iterrows():
+            place_pops[str(idx)] = _pop_map.get(row["locale_code"], 50_000)
+
+        ua_pops = {}
+        for idx, row in ua_gdf.iterrows():
+            ua_pops[str(idx)] = _pop_map.get(row["locale_code"], 100_000)
+
+        return cls(
+            urbanized_areas=ua_gdf,
+            urban_clusters=uc_gdf,
+            principal_cities=pc_gdf,
+            place_populations=place_pops,
+            ua_populations=ua_pops,
+            projection_crs=proj,
         )
 
     # ------------------------------------------------------------------

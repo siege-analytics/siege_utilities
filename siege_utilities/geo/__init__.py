@@ -160,6 +160,12 @@ from .locale import (
     RURAL_FRINGE, RURAL_DISTANT, RURAL_REMOTE,
 )
 
+# NCES data download
+from .nces_download import (
+    NCESDownloader,
+    NCESDownloadError,
+)
+
 # Databricks spatial fallback planning
 from .databricks_fallback import (
     SpatialLoaderPlan,
@@ -336,6 +342,10 @@ __all__ = [
     'SUBURB_LARGE', 'SUBURB_MIDSIZE', 'SUBURB_SMALL',
     'TOWN_FRINGE', 'TOWN_DISTANT', 'TOWN_REMOTE',
     'RURAL_FRINGE', 'RURAL_DISTANT', 'RURAL_REMOTE',
+
+    # NCES data download
+    'NCESDownloader',
+    'NCESDownloadError',
 
     # Databricks spatial fallback
     'SpatialLoaderPlan',
