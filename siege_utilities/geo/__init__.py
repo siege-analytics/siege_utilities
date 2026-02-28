@@ -126,6 +126,16 @@ from .crosswalk import (
 
 # Time-series analysis for longitudinal data
 from .timeseries import (
+    # Crosswalk analytics
+    BoundaryStabilityMetrics,
+    AllocationEfficiencyMetrics,
+    ChainLink,
+    ReallocationChain,
+    compute_boundary_stability,
+    compute_allocation_efficiency,
+    build_reallocation_chain,
+    compare_vintage_stability,
+    identify_volatile_boundaries,
     # Longitudinal data
     get_longitudinal_data,
     get_available_years,
@@ -310,6 +320,16 @@ __all__ = [
     'get_merged_tracts',
     'SUPPORTED_CROSSWALK_YEARS',
 
+    # Crosswalk analytics
+    'BoundaryStabilityMetrics',
+    'AllocationEfficiencyMetrics',
+    'ChainLink',
+    'ReallocationChain',
+    'compute_boundary_stability',
+    'compute_allocation_efficiency',
+    'build_reallocation_chain',
+    'compare_vintage_stability',
+    'identify_volatile_boundaries',
     # Time-series analysis
     'get_longitudinal_data',
     'get_available_years',
