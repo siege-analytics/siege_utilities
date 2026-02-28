@@ -79,6 +79,20 @@ from .trend_classifier import (
     DEFAULT_THRESHOLDS,
 )
 
+from .crosswalk_analytics import (
+    # Data classes
+    BoundaryStabilityMetrics,
+    AllocationEfficiencyMetrics,
+    ChainLink,
+    ReallocationChain,
+    # Analysis functions
+    compute_boundary_stability,
+    compute_allocation_efficiency,
+    build_reallocation_chain,
+    compare_vintage_stability,
+    identify_volatile_boundaries,
+)
+
 __all__ = [
     # Longitudinal data
     'get_longitudinal_data',
@@ -103,4 +117,14 @@ __all__ = [
     'compare_trends',
     'THRESHOLD_PRESETS',
     'DEFAULT_THRESHOLDS',
+    # Crosswalk analytics
+    'BoundaryStabilityMetrics',
+    'AllocationEfficiencyMetrics',
+    'ChainLink',
+    'ReallocationChain',
+    'compute_boundary_stability',
+    'compute_allocation_efficiency',
+    'build_reallocation_chain',
+    'compare_vintage_stability',
+    'identify_volatile_boundaries',
 ]
