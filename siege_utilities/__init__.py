@@ -25,7 +25,7 @@ from .core.string_utils import remove_wrapping_quotes_and_trim  # noqa: F401
 
 # ── Package metadata ─────────────────────────────────────────────────
 
-__version__ = "3.1.0"
+__version__ = "3.2.0"
 __author__ = "Siege Analytics"
 __description__ = "Comprehensive utilities for data engineering, analytics, and distributed computing"
 

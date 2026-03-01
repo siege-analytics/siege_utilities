@@ -5,6 +5,27 @@ All notable changes to siege_utilities will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-03-01
+
+### Changed
+- **Lazy imports** — `import siege_utilities` is now lazy-loaded via PEP 562 `__getattr__`. Import time reduced from ~29s to ~0.02s. All public API names remain accessible via `from siege_utilities import X` (su#183)
+- **Optional dependencies** — Core install (`pip install siege-utilities`) now pulls only 4 packages: pyyaml, requests, tqdm, pydantic. All heavy packages (geopandas, matplotlib, pyspark, etc.) moved to optional extras. Use `pip install siege-utilities[all]` for previous behavior (su#181, su#182)
+- All subsystem `__init__.py` files converted from eager imports to lazy `__getattr__` registries: distributed, core, geo, reporting, analytics, testing
+- `release_manager.py` tracks 5 version locations (removed hardcoded `get_package_info` version, now uses `__version__` dynamically)
+
+### Added
+- **New dependency extras**: `data`, `config-extras`, `web`, `database` (joins existing `geo`, `reporting`, `analytics`, `distributed`, `geodjango`, etc.)
+- **CI lanes**: `test-core` (core-only install), `test-geo-no-gdal` (geo without GDAL system libs) (su#184)
+- **Pytest markers**: `core`, `geo`, `requires_gdal`, `requires_spark`, `integration`
+- **`check_ci_status()`** in `release_manager.py` — queries GitHub Actions before release
+- **`tests/test_backward_compat.py`** — 202-test regression gate verifying all critical names remain importable
+
+### Migration guide
+- `pip install siege-utilities` — only 4 core packages installed
+- `pip install siege-utilities[all]` — full install, identical to v3.1.0
+- `pip install siege-utilities[geo]` — geo functions only
+- `from siege_utilities import X` — works exactly as before (lazy loaded)
+
 ## [3.1.0] - 2026-03-01
 
 ### Added
