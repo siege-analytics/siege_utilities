@@ -153,6 +153,22 @@ _register([
     'BivariateAnalysisResult', 'save_map', 'BIVARIATE_COLOR_SCHEMES',
 ], '.choropleth')
 
+# --- schemas (demographics) ---
+_register([
+    'DemographicVariableSchema', 'DemographicSnapshotSchema',
+    'DemographicTimeSeriesSchema', 'schemas_to_gdf',
+], '.schemas')
+
+# --- temporal (pure-Python temporal data management) ---
+_register([
+    'TemporalDataStore', 'get_temporal_store',
+    'save_boundaries', 'load_boundaries', 'query_boundaries_at_date',
+    'save_demographics', 'load_demographics',
+    'TemporalTimeseriesBuilder', 'TemporalDemographicService',
+    'TimeseriesBuildResult',
+    'spatial_query', 'temporal_filter', 'point_in_boundary',
+], '.temporal')
+
 
 __all__ = list(_LAZY_IMPORTS.keys())
 
