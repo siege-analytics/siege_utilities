@@ -1,86 +1,82 @@
 """
-Distributed functions package initialization with enhanced auto-discovery.
-This package contains functions to help with distributed functions in Spark.
+Distributed functions package — lazy-loaded.
+
+Contains Spark utilities, HDFS configuration, and HDFS operations.
+All submodules load on first attribute access via PEP 562 __getattr__.
 """
 
-import os
 import importlib
-import inspect
 import sys
 
-from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+# Explicit map of public names to their source modules.
+# PySpark re-exports (col, lit, when, etc.) come through spark_utils
+# via its `from pyspark.sql.functions import *`.
+_LAZY_IMPORTS = {}
 
-# List to track exposed names
-__all__ = []
 
-# Get the directory of this package
-package_dir = os.path.dirname(__file__)
+def _register(names, module):
+    for name in names:
+        _LAZY_IMPORTS[name] = module
 
-# Get parent package logging functions
-def _get_logging_functions():
-    """Get logging functions from parent package."""
-    try:
-        parent_module = sys.modules.get(__name__.split('.')[0])
-        if parent_module:
-            return {
-                'log_info': getattr(parent_module, 'log_info', None),
-                'log_error': getattr(parent_module, 'log_error', None),
-                'log_debug': getattr(parent_module, 'log_debug', None),
-                'log_warning': getattr(parent_module, 'log_warning', None)
-            }
-    except:
-        pass
 
-    # Use siege_utilities logging functions as fallback
-    return {
-        'log_info': log_info,
-        'log_error': log_error,
-        'log_debug': log_debug,
-        'log_warning': log_warning
-    }
-# Get logging functions
-_log_funcs = _get_logging_functions()
-_pkg_log_info = _log_funcs['log_info']
-_pkg_log_error = _log_funcs['log_error']
+# --- spark_utils: custom siege_utilities functions ---
+_register([
+    'sanitise_dataframe_column_names', 'tabulate_null_vs_not_null',
+    'get_row_count', 'repartition_and_cache', 'register_temp_table',
+    'move_column_to_front_of_dataframe', 'write_df_to_parquet', 'read_parquet_to_df',
+    'flatten_json_column_and_join_back_to_df',
+    'validate_geocode_data', 'mark_valid_geocode_data', 'clean_and_reorder_bbox',
+    'ensure_literal', 'reproject_geom_columns',
+    'prepare_dataframe_for_export', 'prepare_summary_dataframe',
+    'export_pyspark_df_to_excel', 'pivot_summary_table_for_bools',
+    'pivot_summary_with_metrics', 'export_prepared_df_as_csv_to_path_using_delimiter',
+    'print_debug_table', 'compute_walkability', 'validate_geometry',
+    'backup_full_dataframe', 'atomic_write_with_staging', 'create_unique_staging_directory',
+    'walkability_config', 'py_round', 'PYSPARK_AVAILABLE',
+], '.spark_utils')
 
-def import_module_with_fallbacks(module_name: str, full_module_name: str):
-    """Import a module with proper error handling and logging."""
-    imported_names = []
+# --- hdfs_config ---
+_register([
+    'HDFSConfig', 'create_hdfs_config', 'create_local_config',
+    'create_cluster_config', 'create_geocoding_config',
+    'create_yarn_config', 'create_census_analysis_config',
+], '.hdfs_config')
 
-    try:
-        _pkg_log_info(f"Importing {module_name} from {full_module_name}")
-        module = importlib.import_module(full_module_name)
+# --- hdfs_operations ---
+_register([
+    'AbstractHDFSOperations', 'setup_distributed_environment', 'create_hdfs_operations',
+], '.hdfs_operations')
 
-        # Expose all public functions from the module
-        for name, obj in inspect.getmembers(module):
-            if inspect.isfunction(obj) and not name.startswith("_"):
-                globals()[name] = obj
-                imported_names.append(name)
+__all__ = list(_LAZY_IMPORTS.keys())
 
-                # Also inject logging functions into the function's module
-                func_module = sys.modules.get(obj.__module__)
-                if func_module:
-                    for log_name, log_func in _log_funcs.items():
-                        if not hasattr(func_module, log_name):
-                            setattr(func_module, log_name, log_func)
+# Track whether spark_utils has been fully loaded (for PySpark re-exports)
+_spark_utils_module = None  # cached module or False (import failed)
 
-        _pkg_log_info(f"Successfully imported {len(imported_names)} functions from {module_name}")
-        return imported_names
 
-    except ImportError as e:
-        _pkg_log_error(f"Could not import {module_name}: {e}")
-        return []
-    except Exception as e:
-        _pkg_log_error(f"Unexpected error importing {module_name}: {e}")
-        return []
+def __getattr__(name):
+    global _spark_utils_module
 
-# Import all modules in this package
-for filename in os.listdir(package_dir):
-    if filename.endswith(".py") and filename != "__init__.py":
-        module_name = filename[:-3]  # Remove .py
-        full_module_name = f"{__name__}.{module_name}"
+    # 1. Check explicit registry
+    if name in _LAZY_IMPORTS:
+        mod = importlib.import_module(_LAZY_IMPORTS[name], __package__)
+        val = getattr(mod, name)
+        setattr(sys.modules[__name__], name, val)
+        return val
 
-        new_names = import_module_with_fallbacks(module_name, full_module_name)
-        __all__.extend(new_names)
+    # 2. Fallback: try spark_utils for PySpark re-exports (col, lit, when, etc.)
+    if _spark_utils_module is None:
+        try:
+            _spark_utils_module = importlib.import_module('.spark_utils', __package__)
+        except ImportError:
+            _spark_utils_module = False  # Don't retry import on failure
 
-_pkg_log_info(f"{__name__}: Imported {len(__all__)} functions")
+    if _spark_utils_module and hasattr(_spark_utils_module, name):
+        val = getattr(_spark_utils_module, name)
+        setattr(sys.modules[__name__], name, val)
+        return val
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    return sorted(set(list(globals().keys()) + list(_LAZY_IMPORTS.keys())))

@@ -1,191 +1,137 @@
 """
-Reporting utilities for siege_utilities package.
+Reporting utilities — lazy-loaded.
+
 Comprehensive PDF and PowerPoint report generation with client branding.
+All submodules load on first attribute access via PEP 562 __getattr__.
 """
 
+import importlib
 import logging
+import sys
 from pathlib import Path
 
 log = logging.getLogger(__name__)
-from .templates.base_template import BaseReportTemplate
-from .report_generator import ReportGenerator
-from .chart_generator import ChartGenerator, create_bar_chart, create_line_chart, create_scatter_plot, create_pie_chart, create_heatmap
-from .client_branding import ClientBrandingManager
-from .analytics.analytics_reports import AnalyticsReportGenerator
-from .powerpoint_generator import PowerPointGenerator
-from .image_utils import decode_rl_image, show_rl_image, save_rl_image
 
-# Profile-integrated reporting functions
+_LAZY_IMPORTS = {}
+
+
+def _register(names, module):
+    for name in names:
+        _LAZY_IMPORTS[name] = module
+
+
+_register(['BaseReportTemplate'], '.templates.base_template')
+_register(['ReportGenerator'], '.report_generator')
+_register([
+    'ChartGenerator', 'create_bar_chart', 'create_line_chart',
+    'create_scatter_plot', 'create_pie_chart', 'create_heatmap',
+    'create_choropleth_map', 'create_bivariate_choropleth',
+    'create_marker_map', 'create_flow_map', 'create_dashboard',
+    'create_dataframe_summary_charts', 'generate_chart_from_dataframe',
+], '.chart_generator')
+_register(['ClientBrandingManager'], '.client_branding')
+_register(['AnalyticsReportGenerator'], '.analytics.analytics_reports')
+_register(['PowerPointGenerator'], '.powerpoint_generator')
+_register(['decode_rl_image', 'show_rl_image', 'save_rl_image'], '.image_utils')
+_register(['ChartTypeRegistry'], '.chart_types')
+_register(['PollingAnalyzer'], '.analytics.polling_analyzer')
+
+# Professional page templates
+_register(['TitlePageTemplate', 'create_title_page'], '.templates.title_page_template')
+_register([
+    'TableOfContentsTemplate', 'create_table_of_contents',
+    'generate_sections_from_report_structure',
+], '.templates.table_of_contents_template')
+_register(['ContentPageTemplate', 'create_content_page'], '.templates.content_page_template')
+
+__all__ = [
+    'BaseReportTemplate', 'ReportGenerator', 'ChartGenerator',
+    'create_bar_chart', 'create_line_chart', 'create_scatter_plot',
+    'create_pie_chart', 'create_heatmap',
+    'ClientBrandingManager', 'AnalyticsReportGenerator', 'PowerPointGenerator',
+    'get_report_output_directory', 'create_report_generator', 'create_powerpoint_generator',
+    'export_branding_config', 'import_branding_config', 'export_chart_type_config',
+    'decode_rl_image', 'show_rl_image', 'save_rl_image',
+    'TitlePageTemplate', 'create_title_page',
+    'TableOfContentsTemplate', 'create_table_of_contents',
+    'generate_sections_from_report_structure',
+    'ContentPageTemplate', 'create_content_page',
+]
+
+
+def __getattr__(name):
+    if name in _LAZY_IMPORTS:
+        mod = importlib.import_module(_LAZY_IMPORTS[name], __package__)
+        val = getattr(mod, name)
+        setattr(sys.modules[__name__], name, val)
+        return val
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    return sorted(set(list(globals().keys()) + list(_LAZY_IMPORTS.keys())))
+
+
+# Profile-integrated reporting functions (defined here, use lazy internal imports)
+
 def get_report_output_directory(client_code: str = None) -> Path:
-    """
-    Get the appropriate output directory for reports based on profile system.
-    
-    Args:
-        client_code: Client code for client-specific directory
-        
-    Returns:
-        Path to the report output directory
-    """
-    from pathlib import Path
+    """Get the appropriate output directory for reports based on profile system."""
     try:
         from ..config.enhanced_config import get_download_directory
         base_dir = get_download_directory(client_code)
         return base_dir / "reports"
     except ImportError:
-        # Fallback to default
         return Path.cwd() / "reports"
 
-def create_report_generator(client_name: str, client_code: str = None) -> ReportGenerator:
-    """
-    Create a ReportGenerator with profile-based output directory.
-    
-    Args:
-        client_name: Name of the client
-        client_code: Client code for profile-based directory
-        
-    Returns:
-        Configured ReportGenerator instance
-    """
-    output_dir = get_report_output_directory(client_code)
-    return ReportGenerator(client_name, output_dir)
 
-def create_powerpoint_generator(client_name: str, client_code: str = None) -> PowerPointGenerator:
-    """
-    Create a PowerPointGenerator with profile-based output directory.
-    
-    Args:
-        client_name: Name of the client
-        client_code: Client code for profile-based directory
-        
-    Returns:
-        Configured PowerPointGenerator instance
-    """
-    from pathlib import Path
+def create_report_generator(client_name: str, client_code: str = None):
+    """Create a ReportGenerator with profile-based output directory."""
+    from .report_generator import ReportGenerator as _RG
+    output_dir = get_report_output_directory(client_code)
+    return _RG(client_name, output_dir)
+
+
+def create_powerpoint_generator(client_name: str, client_code: str = None):
+    """Create a PowerPointGenerator with profile-based output directory."""
+    from .powerpoint_generator import PowerPointGenerator as _PG
     try:
         from ..config.enhanced_config import get_download_directory
         base_dir = get_download_directory(client_code)
         output_dir = base_dir / "presentations"
     except ImportError:
-        # Fallback to default
         output_dir = Path.cwd() / "presentations"
-    
-    return PowerPointGenerator(client_name, output_dir)
+    return _PG(client_name, output_dir)
+
 
 def export_branding_config(client_name: str, export_path: str) -> bool:
-    """
-    Export client branding configuration to a file.
-    
-    Args:
-        client_name: Name of the client
-        export_path: Path to export the configuration
-        
-    Returns:
-        True if successful, False otherwise
-    """
+    """Export client branding configuration to a file."""
     try:
-        from .client_branding import ClientBrandingManager
-        from pathlib import Path
-        
-        branding_manager = ClientBrandingManager()
+        from .client_branding import ClientBrandingManager as _CBM
+        branding_manager = _CBM()
         return branding_manager.export_branding_config(client_name, Path(export_path))
     except Exception as e:
         log.error(f"Failed to export branding config: {e}")
         return False
 
+
 def import_branding_config(import_path: str, client_name: str = None) -> bool:
-    """
-    Import client branding configuration from a file.
-    
-    Args:
-        import_path: Path to the configuration file
-        client_name: Name for the client (if not specified in config)
-        
-    Returns:
-        True if successful, False otherwise
-    """
+    """Import client branding configuration from a file."""
     try:
-        from .client_branding import ClientBrandingManager
-        from pathlib import Path
-        
-        branding_manager = ClientBrandingManager()
+        from .client_branding import ClientBrandingManager as _CBM
+        branding_manager = _CBM()
         return branding_manager.import_branding_config(Path(import_path), client_name)
     except Exception as e:
         log.error(f"Failed to import branding config: {e}")
         return False
 
+
 def export_chart_type_config(chart_type_name: str, output_path: str) -> bool:
-    """
-    Export chart type configuration to a file.
-    
-    Args:
-        chart_type_name: Name of the chart type
-        output_path: Path to export the configuration
-        
-    Returns:
-        True if successful, False otherwise
-    """
+    """Export chart type configuration to a file."""
     try:
-        from .chart_types import ChartTypeRegistry
-        
-        chart_registry = ChartTypeRegistry()
+        from .chart_types import ChartTypeRegistry as _CTR
+        chart_registry = _CTR()
         chart_registry.export_chart_type_config(chart_type_name, output_path)
         return True
     except Exception as e:
         log.error(f"Failed to export chart type config: {e}")
         return False
-
-# Professional page templates from GA project
-from .templates.title_page_template import TitlePageTemplate, create_title_page
-from .templates.table_of_contents_template import (
-    TableOfContentsTemplate,
-    create_table_of_contents,
-    generate_sections_from_report_structure
-)
-from .templates.content_page_template import ContentPageTemplate, create_content_page
-
-__all__ = [
-    # Base Template
-    'BaseReportTemplate',
-    
-    # Report Generation
-    'ReportGenerator',
-    'ChartGenerator',
-    
-    # Chart Functions
-    'create_bar_chart',
-    'create_line_chart',
-    'create_scatter_plot',
-    'create_pie_chart',
-    'create_heatmap',
-    
-    # Branding and Customization
-    'ClientBrandingManager',
-    
-    # Specialized Reports
-    'AnalyticsReportGenerator',
-    'PowerPointGenerator',
-    
-    # Profile-integrated functions
-    'get_report_output_directory',
-    'create_report_generator',
-    'create_powerpoint_generator',
-    
-    # Export/Import functions
-    'export_branding_config',
-    'import_branding_config',
-    'export_chart_type_config',
-
-    # Image utilities
-    'decode_rl_image',
-    'show_rl_image',
-    'save_rl_image',
-    
-    # Professional Page Templates
-    'TitlePageTemplate',
-    'create_title_page',
-    'TableOfContentsTemplate',
-    'create_table_of_contents',
-    'generate_sections_from_report_structure',
-    'ContentPageTemplate',
-    'create_content_page'
-]

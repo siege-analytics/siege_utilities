@@ -1,34 +1,15 @@
-# Base dependencies for siege-utilities
+# Core dependencies for siege-utilities
 # Canonical source: pyproject.toml [project.dependencies]
-# This file is a mirror — edit pyproject.toml, then regenerate this file.
+#
+# This file lists CORE deps only. For optional extras, use:
+#   pip install siege-utilities[all]     # everything
+#   pip install siege-utilities[geo]     # geospatial
+#   pip install siege-utilities[data]    # pandas/numpy
+#   pip install siege-utilities[reporting]  # matplotlib/plotly
+#   pip install siege-utilities[analytics] # GA4/Facebook/Snowflake
+# See pyproject.toml [project.optional-dependencies] for full list.
 
+pyyaml>=6.0
 requests>=2.28.0
 tqdm>=4.60.0
-pandas>=1.5.0
-numpy>=1.21.0
-pyyaml>=6.0
 pydantic>=2.0.0
-hydra-core>=1.3.0
-hydra-zen>=0.12.0
-omegaconf>=2.3.0
-beautifulsoup4>=4.12.0
-lxml>=4.9.0
-openpyxl>=3.1.0
-geopandas>=0.13.2
-faker>=35.2.2
-google-auth>=2.40.3
-google-auth-oauthlib>=1.2.2
-google-auth-httplib2>=0.2.0
-google-api-python-client>=2.181.0
-google-analytics-data>=0.18.19
-google-analytics-admin>=0.25.0
-reportlab>=4.4.3
-matplotlib>=3.7.5
-seaborn>=0.13.2
-plotly>=6.3.0
-geopy>=2.4.1
-osmnx>=1.9.4
-folium>=0.18.0
-notebook>=7.3.3
-mapclassify>=2.5.0
-pysal>=24.1

@@ -1,61 +1,49 @@
 """
-Core package initialization with enhanced auto-discovery.
-This package contains core functions.
+Core package — lazy-loaded.
+
+Contains logging, string utilities, SQL safety, and other core functions.
+All submodules load on first attribute access via PEP 562 __getattr__.
 """
 
-import os
 import importlib
-import inspect
 import sys
-from typing import List
 
-# Import logging functions from main package
-try:
-    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
-except ImportError:
-    # Fallback if main package not available yet
-    def log_info(message): pass
-    def log_warning(message): pass
-    def log_error(message): pass
-    def log_debug(message): pass
+_LAZY_IMPORTS = {}
 
-# List to track exposed names
-__all__ = []
 
-# Get the directory of this package
-package_dir = os.path.dirname(__file__)
+def _register(names, module):
+    for name in names:
+        _LAZY_IMPORTS[name] = module
 
-def import_module_with_fallbacks(module_name: str, full_module_name: str) -> List[str]:
-    """Import a module with proper error handling."""
-    imported_names = []
 
-    try:
-        log_debug(f"Importing {module_name} from {full_module_name}")
-        module = importlib.import_module(full_module_name)
+# --- logging ---
+_register([
+    'get_logger', 'log_info', 'log_warning', 'log_error', 'log_debug',
+    'log_critical', 'init_logger', 'configure_shared_logging',
+], '.logging')
 
-        # Expose all public functions from the module
-        for name, obj in inspect.getmembers(module):
-            if inspect.isfunction(obj) and not name.startswith("_"):
-                globals()[name] = obj
-                imported_names.append(name)
+# --- string_utils ---
+_register([
+    'remove_wrapping_quotes_and_trim', 'clean_string', 'normalize_whitespace',
+    'to_snake_case', 'remove_non_alphanumeric',
+], '.string_utils')
 
-        log_debug(f"Successfully imported {len(imported_names)} functions from {module_name}")
-        return imported_names
+# --- sql_safety ---
+_register([
+    'validate_sql_identifier',
+], '.sql_safety')
 
-    except ImportError as e:
-        log_error(f"Could not import {module_name}: {e}")
-        return []
-    except Exception as e:
-        log_error(f"Unexpected error importing {module_name}: {e}")
-        return []
+__all__ = list(_LAZY_IMPORTS.keys())
 
-# Import all modules in this package
-for filename in os.listdir(package_dir):
-    if filename.endswith(".py") and filename != "__init__.py":
-        module_name = filename[:-3]  # Remove .py
-        full_module_name = f"{__name__}.{module_name}"
 
-        new_names = import_module_with_fallbacks(module_name, full_module_name)
-        __all__.extend(new_names)
+def __getattr__(name):
+    if name in _LAZY_IMPORTS:
+        mod = importlib.import_module(_LAZY_IMPORTS[name], __package__)
+        val = getattr(mod, name)
+        setattr(sys.modules[__name__], name, val)
+        return val
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-log_debug(f"{__name__}: Imported {len(__all__)} functions")
+
+def __dir__():
+    return sorted(set(list(globals().keys()) + list(_LAZY_IMPORTS.keys())))

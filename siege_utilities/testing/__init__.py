@@ -1,93 +1,41 @@
 """
-Testing utilities package initialization.
-This package contains utilities for testing siege_utilities and environment management.
+Testing utilities package — lazy-loaded.
+
+Contains environment management and test runner utilities.
 """
 
-import os
 import importlib
-import inspect
 import sys
-from typing import List
 
-# List to track exposed names
-__all__ = []
-
-# Get the directory of this package
-package_dir = os.path.dirname(__file__)
-
-# Get parent package logging functions
-def _get_logging_functions():
-    """Get logging functions from parent package."""
-    try:
-        from siege_utilities.core.logging import log_info, log_error, log_debug, log_warning
-        return {
-            'log_info': log_info,
-            'log_error': log_error,
-            'log_debug': log_debug,
-            'log_warning': log_warning
-        }
-    except ImportError:
-        pass
-
-    try:
-        parent_module = sys.modules.get(__name__.split('.')[0])
-        if parent_module:
-            return {
-                'log_info': getattr(parent_module, 'log_info', None),
-                'log_error': getattr(parent_module, 'log_error', None),
-                'log_debug': getattr(parent_module, 'log_debug', None),
-                'log_warning': getattr(parent_module, 'log_warning', None)
-            }
-    except:
-        pass
-
-    # Fallback functions that do nothing
-    def make_fallback(level):
-        def fallback(*args, **kwargs):
-            pass
-        return fallback
-
-    return {
-        'log_info': make_fallback('INFO'),
-        'log_error': make_fallback('ERROR'),
-        'log_debug': make_fallback('DEBUG'),
-        'log_warning': make_fallback('WARNING')
-    }
-
-# Get logging functions
-_log_funcs = _get_logging_functions()
-log_info = _log_funcs['log_info']
-log_error = _log_funcs['log_error']
-
-def import_module_with_fallbacks(module_name: str, full_module_name: str) -> List[str]:
-    """Import a module with proper error handling and logging."""
-    imported_names = []
-
-    try:
-        log_info(f"Importing {module_name} from {full_module_name}")
-        module = importlib.import_module(full_module_name)
-
-        # Expose all public functions from the module
-        for name, obj in inspect.getmembers(module):
-            if inspect.isfunction(obj) and not name.startswith("_"):
-                globals()[name] = obj
-                imported_names.append(name)
-
-                # Also inject logging functions into the function's module
-                func_module = sys.modules.get(obj.__module__)
-                if func_module:
-                    for log_name, log_func in _log_funcs.items():
-                        if not hasattr(func_module, log_name):
-                            setattr(func_module, log_name, log_func)
-
-        log_info(f"Successfully imported {len(imported_names)} functions from {module_name}")
-
-    except ImportError as e:
-        log_error(f"Could not import {module_name}: {e}")
-
-    return imported_names
+_LAZY_IMPORTS = {}
 
 
-# Import testing modules
-import_module_with_fallbacks("environment", "siege_utilities.testing.environment")
-import_module_with_fallbacks("runner", "siege_utilities.testing.runner")
+def _register(names, module):
+    for name in names:
+        _LAZY_IMPORTS[name] = module
+
+
+_register([
+    'setup_spark_environment', 'get_system_info', 'ensure_env_vars',
+    'check_java_version', 'diagnose_environment', 'quick_environment_setup',
+], '.environment')
+
+_register([
+    'run_test_suite', 'get_test_report', 'run_comprehensive_test',
+    'quick_smoke_test', 'build_pytest_command',
+], '.runner')
+
+__all__ = list(_LAZY_IMPORTS.keys())
+
+
+def __getattr__(name):
+    if name in _LAZY_IMPORTS:
+        mod = importlib.import_module(_LAZY_IMPORTS[name], __package__)
+        val = getattr(mod, name)
+        setattr(sys.modules[__name__], name, val)
+        return val
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    return sorted(set(list(globals().keys()) + list(_LAZY_IMPORTS.keys())))

@@ -48,7 +48,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --extra dev --extra distributed --extra geodjango
+        uv sync --extra all --extra dev
 
     - name: Lint with flake8
       run: |
@@ -98,12 +98,75 @@ jobs:
 
     - name: Install with pydantic v1
       run: |
-        uv sync --extra dev --extra distributed
+        uv sync --extra all --extra dev
         uv pip install 'pydantic>=1.10,<2.0' --force-reinstall
 
     - name: Test pydantic v1 compatibility
       run: |
         uv run pytest tests/test_pydantic_v1_compat.py -v --no-cov
+
+  test-core:
+    runs-on: ubuntu-latest
+    name: "core-only (no heavy deps)"
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install UV
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install core + dev only
+      run: |
+        uv sync --extra dev
+
+    - name: Verify core import works
+      run: |
+        uv run python -c "import siege_utilities; print(siege_utilities.__version__)"
+
+    - name: Test core modules
+      run: |
+        uv run pytest tests/test_backward_compat.py tests/test_pydantic_v1_compat.py tests/test_sql_safety.py -v --no-cov
+
+  test-geo-no-gdal:
+    runs-on: ubuntu-latest
+    name: "geo without GDAL"
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install UV
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install data + geo + dev (no GDAL system libs)
+      run: |
+        uv sync --extra data --extra geo --extra dev --extra config-extras --extra web
+
+    - name: Test geo without GDAL
+      run: |
+        uv run pytest tests/ -v --no-cov \
+          --ignore=tests/test_nces_service.py \
+          --ignore=tests/test_nces_download.py \
+          --ignore=tests/test_chart_generator.py \
+          --ignore=tests/test_choropleth.py \
+          --ignore=tests/test_boundary_manager.py \
+          --ignore=tests/test_temporal_boundary.py \
+          --ignore=tests/test_urbanicity_service.py \
+          --ignore=tests/test_timeseries_rollup_services.py \
+          --ignore=tests/test_credential_manager.py
 
   battle-test:
     runs-on: ubuntu-latest
@@ -130,8 +193,8 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --extra dev --extra distributed
-    
+        uv sync --extra all --extra dev
+
     - name: Run Battle Testing Suite
       run: |
         # Run our comprehensive battle testing system
