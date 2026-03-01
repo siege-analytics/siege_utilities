@@ -157,7 +157,10 @@ jobs:
 
     - name: Test geo without GDAL
       run: |
-        uv run pytest tests/ -v --no-cov -k "not nces_service and not django" --ignore=tests/test_nces_service.py
+        uv run pytest tests/ -v --no-cov -k "not nces_service and not django" \
+          --ignore=tests/test_nces_service.py \
+          --ignore=tests/test_chart_generator.py \
+          --ignore=tests/test_choropleth.py
 
   battle-test:
     runs-on: ubuntu-latest
