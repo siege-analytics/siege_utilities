@@ -13,6 +13,7 @@ Usage:
     python scripts/release_manager.py --build --clean  # Clean + build
     python scripts/release_manager.py --release --bump-type minor --release-notes "..."
     python scripts/release_manager.py --release --bump-type major --changelog --pypi
+    python scripts/release_manager.py --release --target-version 3.1.0 --changelog --pypi
     python scripts/release_manager.py --release --bump-type patch --dry-run
 """
 
@@ -110,6 +111,39 @@ def set_version(new_version: str):
         else:
             path.write_text(new_content)
             logger.info(f"Updated {name} -> {new_version}")
+
+
+def validate_target_version(target: str) -> str:
+    """Validate an explicit target version string.
+
+    Checks:
+      1. Format is X.Y.Z (three non-negative integers)
+      2. Target is strictly greater than the current version
+
+    Returns the validated version string, or raises ValueError.
+    """
+    parts = target.split('.')
+    if len(parts) != 3:
+        raise ValueError(f"Version must be X.Y.Z format, got: {target}")
+
+    try:
+        target_tuple = tuple(int(p) for p in parts)
+    except ValueError:
+        raise ValueError(f"Version components must be integers, got: {target}")
+
+    if any(p < 0 for p in target_tuple):
+        raise ValueError(f"Version components must be non-negative, got: {target}")
+
+    current = get_current_version()
+    current_tuple = tuple(int(p) for p in current.split('.'))
+
+    if target_tuple <= current_tuple:
+        raise ValueError(
+            f"Target version {target} must be greater than current version {current}"
+        )
+
+    logger.info(f"Target version {target} validated (current: {current})")
+    return target
 
 
 def bump_version(bump_type: str) -> str:
@@ -363,7 +397,9 @@ def main():
     parser.add_argument('--verify', action='store_true', help='Verify import + version')
     parser.add_argument('--release', action='store_true', help='Full release workflow')
     parser.add_argument('--bump-type', choices=['major', 'minor', 'patch'],
-                        help='Bump type for --release')
+                        help='Bump type for --release (mutually exclusive with --target-version)')
+    parser.add_argument('--target-version', type=str,
+                        help='Explicit target version X.Y.Z for --release (validated against current)')
     parser.add_argument('--release-notes', type=str, help='Release notes for --release')
     parser.add_argument('--changelog', action='store_true',
                         help='Use CHANGELOG.md for release notes (instead of --release-notes)')
@@ -412,8 +448,10 @@ def main():
         sys.exit(0 if verify_import() else 1)
 
     elif args.release:
-        if not args.bump_type:
-            parser.error("--release requires --bump-type")
+        if not args.bump_type and not args.target_version:
+            parser.error("--release requires --bump-type or --target-version")
+        if args.bump_type and args.target_version:
+            parser.error("--bump-type and --target-version are mutually exclusive")
         if not args.release_notes and not args.changelog:
             parser.error("--release requires --release-notes or --changelog")
 
@@ -424,6 +462,14 @@ def main():
             logger.error(f"Version inconsistency: {status['versions']}")
             sys.exit(1)
 
+        # 1b. Validate target version (if provided)
+        if args.target_version:
+            try:
+                validate_target_version(args.target_version)
+            except ValueError as e:
+                logger.error(str(e))
+                sys.exit(1)
+
         # 2. Tests
         logger.info("Step 2/10: Running tests...")
         if not args.skip_tests:
@@ -433,22 +479,30 @@ def main():
         else:
             logger.info("Tests skipped (--skip-tests)")
 
-        # 3. Bump
-        logger.info("Step 3/10: Bumping version...")
-        if args.dry_run:
-            current = get_current_version()
-            parts = current.split('.')
-            major, minor, patch = int(parts[0]), int(parts[1]), int(parts[2])
-            if args.bump_type == 'major':
-                new_ver = f"{major + 1}.0.0"
-            elif args.bump_type == 'minor':
-                new_ver = f"{major}.{minor + 1}.0"
+        # 3. Set version
+        logger.info("Step 3/10: Setting version...")
+        if args.target_version:
+            new_ver = args.target_version
+            if args.dry_run:
+                logger.info(f"[DRY RUN] Would set version to {new_ver}")
             else:
-                new_ver = f"{major}.{minor}.{patch + 1}"
-            logger.info(f"[DRY RUN] Would bump {current} -> {new_ver}")
+                set_version(new_ver)
+                logger.info(f"Version set to {new_ver}")
         else:
-            new_ver = bump_version(args.bump_type)
-            logger.info(f"Version bumped to {new_ver}")
+            if args.dry_run:
+                current = get_current_version()
+                parts = current.split('.')
+                major, minor, patch = int(parts[0]), int(parts[1]), int(parts[2])
+                if args.bump_type == 'major':
+                    new_ver = f"{major + 1}.0.0"
+                elif args.bump_type == 'minor':
+                    new_ver = f"{major}.{minor + 1}.0"
+                else:
+                    new_ver = f"{major}.{minor}.{patch + 1}"
+                logger.info(f"[DRY RUN] Would bump {current} -> {new_ver}")
+            else:
+                new_ver = bump_version(args.bump_type)
+                logger.info(f"Version bumped to {new_ver}")
 
         # 4. Verify import
         logger.info("Step 4/10: Verifying import...")
