@@ -207,3 +207,12 @@ Homepage = "https://github.com/siege-analytics/siege_utilities"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["*"]
+
+[tool.pytest.ini_options]
+markers = [
+    "core: tests for core modules (logging, strings, files, config)",
+    "geo: tests requiring geopandas/shapely",
+    "requires_gdal: tests requiring GDAL libraries",
+    "requires_spark: tests requiring PySpark",
+    "integration: tests requiring network/API access",
+]

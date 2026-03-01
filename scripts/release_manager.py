@@ -85,6 +85,46 @@ def get_current_version() -> str:
     raise ValueError("Could not find version in pyproject.toml")
 
 
+def check_ci_status() -> bool:
+    """Check that the latest CI run on the current branch passed.
+
+    Returns True if all required jobs succeeded, False otherwise.
+    Requires `gh` CLI to be authenticated.
+    """
+    try:
+        branch = subprocess.run(
+            ['git', 'branch', '--show-current'],
+            capture_output=True, text=True, check=True,
+            cwd=PROJECT_ROOT,
+        ).stdout.strip()
+
+        result = subprocess.run(
+            ['gh', 'run', 'list', '--branch', branch, '--limit', '1', '--json',
+             'conclusion,status,name'],
+            capture_output=True, text=True, check=True,
+            cwd=PROJECT_ROOT,
+        )
+        runs = json.loads(result.stdout)
+        if not runs:
+            logger.warning(f"No CI runs found for branch {branch}")
+            return False
+
+        run = runs[0]
+        if run.get('status') != 'completed':
+            logger.warning(f"Latest CI run is {run.get('status')}, not completed")
+            return False
+
+        if run.get('conclusion') != 'success':
+            logger.warning(f"Latest CI run conclusion: {run.get('conclusion')}")
+            return False
+
+        logger.info(f"CI check passed: {run.get('name')} on {branch}")
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        logger.warning(f"Could not check CI status: {e}")
+        return False
+
+
 def check_consistency() -> Dict:
     """Check version consistency across all files."""
     versions = read_versions()
