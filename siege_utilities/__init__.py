@@ -73,7 +73,6 @@ from .config.connections import (
 from .distributed.spark_utils import *
 from .distributed.hdfs_config import *
 from .distributed.hdfs_operations import *
-from .distributed.hdfs_legacy import *
 
 # Import file utilities
 from .files.hashing import (

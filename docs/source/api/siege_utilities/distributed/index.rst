@@ -17,7 +17,6 @@ Submodules
    :maxdepth: 1
 
    /api/siege_utilities/distributed/hdfs_config/index
-   /api/siege_utilities/distributed/hdfs_legacy/index
    /api/siege_utilities/distributed/hdfs_operations/index
    /api/siege_utilities/distributed/spark_utils/index
 

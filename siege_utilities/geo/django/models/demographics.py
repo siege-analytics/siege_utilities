@@ -148,6 +148,8 @@ class DemographicSnapshot(models.Model):
                 "gadmadmin5",
                 "nlrbregion",
                 "federaljudicialdistrict",
+                "ncesLocaleboundary",
+                "schoollocation",
             ],
         },
         help_text="Type of boundary this snapshot is for",

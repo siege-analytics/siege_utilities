@@ -5,6 +5,59 @@ All notable changes to siege_utilities will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-03-01
+
+### Added
+- **NCES urbanicity download** — `NcesDownloadService`, Django models (`NcesSchool`, `NcesDistrict`, `NcesLocale`), and `populate_nces` management command (PR#173, su#136-138)
+- **Areal interpolation** — `ArealInterpolationService` wrapping PySAL Tobler for area-weighted and dasymetric interpolation between geographic boundaries (PR#174, su#140)
+- **Crosswalk time series analytics** — `CrosswalkTimeSeriesService` for temporal analysis across geographic boundary changes, with rollup and trend detection (PR#175, su#139)
+
+### Fixed
+- `county_fips` threading issue in geography services (su#176)
+- Geography alias normalization for Census boundary lookups (su#177)
+- GEOID preservation during geographic enrichment joins (su#178)
+- `strict_years` validation rejecting valid year ranges in time series queries (su#180)
+- Stale/missing source references in Census dataset documentation (su#163)
+
+### Changed
+- `run_tests.py` rewritten to match actual 41 test files in test suite
+
+### Removed
+- `hdfs_legacy.py` — broken duplicate stubs of HDFS utilities
+- Stale `__init__.py.backup` artifact
+
+## [3.0.1] - 2026-02-27
+
+### Added
+- **Census Django gaps** (su#116) — `nearest()` query, Tract urbanicity lookup, GEOID validators, GEOID slugs, Django cache layer, timeseries + rollup services
+- **Urbanicity classification** (su#131) — `UrbanicityClassificationService` and `populate_urbanicity` management command
+- Migration 0002: `urbanicity_code` field + GEOID check constraints
+- Census dataset relationships documentation (`docs/data-relationships/`)
+- Spatio-temporal events design doc for election cycles and races
+
+### Fixed
+- `CensusDataSelector` primary dataset bonus never applied (su#164, PR#169)
+- `CheckConstraint` API: `check=` → `condition=` for Django 5.2 compatibility
+- Pydantic v2 config system lazy-loaded for Databricks v1 compatibility (su#160, PR#170)
+
+## [3.0.0] - 2026-02-25
+
+### Added
+- **Unified Geographic Model** (Epic 14) — complete rearchitecture of spatial data layer:
+  - `TemporalGeographicFeature` → `TemporalBoundary` → `CensusTIGERBoundary` hierarchy replacing `CensusBoundary`
+  - `TemporalLinearFeature` + `TemporalPointFeature` abstract bases for roads/addresses
+  - 25+ new models: political districts, GADM administrative boundaries, education boundaries, federal boundaries, intersections, crosswalks
+  - 50+ geometry columns across 34 tables in initial migration (`0001_initial.py`)
+  - Full Pydantic schema layer (`geo/schemas/`) with GDF↔Schema↔ORM converters
+- Updated managers, serializers, and services for v3 field renames
+- CBSA, UrbanArea, and intersection models
+- Template architecture problem design doc
+- Sphinx `conf.py` files added to release manager version tracking
+
+### Changed
+- Version bump 2.2.0 → 3.0.0 (breaking: model renames and field changes)
+- CI updated to install GDAL/GEOS/PROJ for GeoDjango test jobs
+
 ## [2.0.0] - 2026-02-23
 
 ### Added

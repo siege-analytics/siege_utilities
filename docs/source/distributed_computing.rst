@@ -76,23 +76,6 @@ Functions
 .. autofunction:: siege_utilities.distributed.hdfs_operations.setup_distributed_environment
    :noindex:
 
-HDFS Legacy Operations
----------------------
-
-.. automodule:: siege_utilities.distributed.hdfs_legacy
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Functions
----------
-
-.. autofunction:: siege_utilities.distributed.hdfs_legacy.check_hdfs_status
-   :noindex:
-
-.. autofunction:: siege_utilities.distributed.hdfs_legacy.get_quick_file_signature
-   :noindex:
-
 Usage Examples
 -------------
 
@@ -106,11 +89,11 @@ HDFS operations:
    # Setup distributed environment
    siege_utilities.setup_distributed_environment()
    
-   # Check HDFS status
-   status = siege_utilities.check_hdfs_status()
+   # Check HDFS status (method on operations instance)
+   status = hdfs_ops.check_hdfs_status()
    print(f"HDFS Status: {status}")
-   
-   # Get file signature
+
+   # Get file signature (from files module)
    signature = siege_utilities.get_quick_file_signature('/path/to/file')
 
 Unit Tests

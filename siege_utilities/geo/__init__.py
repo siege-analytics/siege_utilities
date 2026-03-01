@@ -126,6 +126,16 @@ from .crosswalk import (
 
 # Time-series analysis for longitudinal data
 from .timeseries import (
+    # Crosswalk analytics
+    BoundaryStabilityMetrics,
+    AllocationEfficiencyMetrics,
+    ChainLink,
+    ReallocationChain,
+    compute_boundary_stability,
+    compute_allocation_efficiency,
+    build_reallocation_chain,
+    compare_vintage_stability,
+    identify_volatile_boundaries,
     # Longitudinal data
     get_longitudinal_data,
     get_available_years,
@@ -160,6 +170,12 @@ from .locale import (
     RURAL_FRINGE, RURAL_DISTANT, RURAL_REMOTE,
 )
 
+# NCES data download
+from .nces_download import (
+    NCESDownloader,
+    NCESDownloadError,
+)
+
 # Databricks spatial fallback planning
 from .databricks_fallback import (
     SpatialLoaderPlan,
@@ -178,6 +194,15 @@ from .census_files import (
     list_available_pl_files,
     PL_FILE_TYPES,
     PL_TABLES,
+)
+
+# Areal interpolation for boundary data transfer
+from .interpolation import (
+    ArealInterpolationResult,
+    interpolate_areal,
+    interpolate_extensive,
+    interpolate_intensive,
+    compute_area_weights,
 )
 
 # Choropleth map creation
@@ -295,6 +320,16 @@ __all__ = [
     'get_merged_tracts',
     'SUPPORTED_CROSSWALK_YEARS',
 
+    # Crosswalk analytics
+    'BoundaryStabilityMetrics',
+    'AllocationEfficiencyMetrics',
+    'ChainLink',
+    'ReallocationChain',
+    'compute_boundary_stability',
+    'compute_allocation_efficiency',
+    'build_reallocation_chain',
+    'compare_vintage_stability',
+    'identify_volatile_boundaries',
     # Time-series analysis
     'get_longitudinal_data',
     'get_available_years',
@@ -326,6 +361,13 @@ __all__ = [
     'save_map',
     'BIVARIATE_COLOR_SCHEMES',
 
+    # Areal interpolation
+    'ArealInterpolationResult',
+    'interpolate_areal',
+    'interpolate_extensive',
+    'interpolate_intensive',
+    'compute_area_weights',
+
     # NCES locale classification
     'LocaleCode',
     'LocaleType',
@@ -336,6 +378,10 @@ __all__ = [
     'SUBURB_LARGE', 'SUBURB_MIDSIZE', 'SUBURB_SMALL',
     'TOWN_FRINGE', 'TOWN_DISTANT', 'TOWN_REMOTE',
     'RURAL_FRINGE', 'RURAL_DISTANT', 'RURAL_REMOTE',
+
+    # NCES data download
+    'NCESDownloader',
+    'NCESDownloadError',
 
     # Databricks spatial fallback
     'SpatialLoaderPlan',

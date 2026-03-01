@@ -63,7 +63,8 @@ def get_longitudinal_data(
     normalize_boundaries: bool = True,
     include_moe: bool = False,
     include_geometry: bool = False,
-    dataset: str = 'acs5'
+    dataset: str = 'acs5',
+    strict_years: bool = True,
 ) -> pd.DataFrame:
     """
     Fetch Census data for multiple years and return in wide format.
@@ -86,6 +87,9 @@ def get_longitudinal_data(
         include_moe: Include margin of error columns
         include_geometry: If True, include geometry from target year
         dataset: Census dataset ('acs5', 'acs1')
+        strict_years: If True (default), raise ValueError when any requested year
+            is unavailable or fails to fetch. If False, log warnings and continue
+            with available years.
 
     Returns:
         Wide-format DataFrame with columns:
@@ -113,7 +117,17 @@ def get_longitudinal_data(
     if not years:
         raise ValueError("Must provide at least one year")
 
-    years = sorted(years)
+    # Validate requested years against dataset availability
+    valid_years = validate_longitudinal_years(years, dataset)
+    unavailable_years = set(years) - set(valid_years)
+    if unavailable_years and strict_years:
+        raise ValueError(
+            f"Years {sorted(unavailable_years)} are not available for dataset '{dataset}'. "
+            f"Available: {sorted(get_available_years(dataset))}. "
+            f"Pass strict_years=False to skip unavailable years."
+        )
+
+    years = sorted(valid_years)
 
     # Resolve variables
     if isinstance(variables, str):
@@ -158,6 +172,11 @@ def get_longitudinal_data(
                 log.warning(f"  No data returned for {year}")
 
         except Exception as e:
+            if strict_years:
+                raise ValueError(
+                    f"Failed to fetch data for year {year}: {e}. "
+                    f"Pass strict_years=False to skip failed years."
+                ) from e
             log.warning(f"  Failed to fetch data for {year}: {e}")
             continue
 
@@ -186,7 +205,8 @@ def get_longitudinal_data(
             df=result,
             geography=geography,
             state_fips=state_fips,
-            year=target_year
+            year=target_year,
+            county_fips=county_fips,
         )
 
     log.info(f"Longitudinal data complete: {len(result)} rows, {len(result.columns)} columns")
@@ -334,7 +354,8 @@ def _add_geometry(
     df: pd.DataFrame,
     geography: str,
     state_fips: Optional[str],
-    year: int
+    year: int,
+    county_fips: Optional[str] = None,
 ) -> 'gpd.GeoDataFrame':
     """
     Add geometry to the DataFrame.
@@ -344,9 +365,11 @@ def _add_geometry(
         geography: Geographic level
         state_fips: State FIPS code
         year: Year for geometry
+        county_fips: Optional county FIPS code to scope geometry to match
+            demographics scope (prevents state-wide geometry with county-filtered data)
 
     Returns:
-        GeoDataFrame with geometry
+        GeoDataFrame with geometry, preserving canonical GEOID from demographics
     """
     import geopandas as gpd
     from ..spatial_data import get_census_boundaries
@@ -364,6 +387,30 @@ def _add_geometry(
     if boundaries is None or boundaries.empty:
         log.warning("Could not fetch geometry, returning DataFrame without geometry")
         return df
+
+    # Filter boundaries by county if provided (TIGER files are per-state)
+    if county_fips and geography in ['tract', 'block_group']:
+        pre_filter_count = len(boundaries)
+        county_col = None
+        for col in ['COUNTYFP', 'COUNTYFP20', 'COUNTYFP10', 'countyfp']:
+            if col in boundaries.columns:
+                county_col = col
+                break
+
+        if county_col:
+            boundaries = boundaries[boundaries[county_col] == county_fips].copy()
+        else:
+            geoid_col_temp = find_geoid_column(boundaries) or 'GEOID'
+            if geoid_col_temp in boundaries.columns:
+                prefix = state_fips + county_fips
+                boundaries = boundaries[
+                    boundaries[geoid_col_temp].astype(str).str.startswith(prefix)
+                ].copy()
+
+        log.info(
+            f"Filtered geometry by county {county_fips}: "
+            f"{pre_filter_count} → {len(boundaries)} features"
+        )
 
     # Find GEOID column in boundaries
     boundary_geoid_col = find_geoid_column(boundaries)
@@ -392,14 +439,22 @@ def _add_geometry(
     df = df.copy()
     df['_join_geoid'] = df['GEOID'].astype(str)
 
-    # Merge
+    # Merge — preserve canonical GEOID from demographics side by renaming
+    # boundary GEOID to avoid collision, rather than dropping demographics GEOID
+    if boundary_geoid_col == 'GEOID':
+        boundaries = boundaries.rename(columns={'GEOID': 'GEOID_boundary'})
+
     merged = boundaries.merge(
-        df.drop(columns=['GEOID'] if 'GEOID' in df.columns else []),
+        df,
         on='_join_geoid',
         how='right'
     )
 
-    merged = merged.drop(columns=['_join_geoid'])
+    # Clean up join key and redundant boundary GEOID
+    cols_to_drop = ['_join_geoid']
+    if 'GEOID_boundary' in merged.columns:
+        cols_to_drop.append('GEOID_boundary')
+    merged = merged.drop(columns=cols_to_drop)
 
     if not isinstance(merged, gpd.GeoDataFrame):
         merged = gpd.GeoDataFrame(merged, geometry='geometry')

@@ -58,6 +58,8 @@ from .education import (
     SchoolDistrictElementary,
     SchoolDistrictSecondary,
     SchoolDistrictUnified,
+    NCESLocaleBoundary,
+    SchoolLocation,
 )
 from .federal import (
     NLRBRegion,
@@ -119,6 +121,8 @@ __all__ = [
     "SchoolDistrictElementary",
     "SchoolDistrictSecondary",
     "SchoolDistrictUnified",
+    "NCESLocaleBoundary",
+    "SchoolLocation",
     # Federal
     "NLRBRegion",
     "FederalJudicialDistrict",
