@@ -1,19 +1,37 @@
 """
-Simple database configuration management for siege_utilities.
-Handles database connection settings for Spark and other uses.
+siege_utilities — lazy-loaded package for data engineering, analytics, and distributed computing.
+
+Only core logging, settings, and string utilities are loaded eagerly.
+All other modules are loaded on first access via PEP 562 __getattr__.
 """
 
-import json
-import pathlib
-import logging
-from typing import Dict, Any, Optional
 import importlib
+import logging
 import sys
-import inspect
+from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
-# Helper function for graceful dependency failures
+# ── Eager imports: core-only, no heavy dependencies ──────────────────
+
+from .conf import settings  # noqa: F401
+
+from .core.logging import (  # noqa: F401
+    log_info, log_warning, log_error, log_debug, log_critical,
+    init_logger, get_logger, configure_shared_logging,
+)
+
+from .core.string_utils import remove_wrapping_quotes_and_trim  # noqa: F401
+
+# ── Package metadata ─────────────────────────────────────────────────
+
+__version__ = "3.1.0"
+__author__ = "Siege Analytics"
+__description__ = "Comprehensive utilities for data engineering, analytics, and distributed computing"
+
+# ── Dependency wrapper for graceful failures ─────────────────────────
+
+
 def _create_dependency_wrapper(func_name: str, required_deps: list):
     """Create a wrapper that gives helpful error messages for missing dependencies."""
     def wrapper(*args, **kwargs):
@@ -26,464 +44,352 @@ def _create_dependency_wrapper(func_name: str, required_deps: list):
     wrapper.__doc__ = f"Function requires dependencies: {', '.join(required_deps)}"
     return wrapper
 
-# Import settings singleton
-from .conf import settings
 
-# Import core logging functions for package-level access
-from .core.logging import (
-    log_info, log_warning, log_error, log_debug, log_critical,
-    init_logger, get_logger, configure_shared_logging
+# ── Lazy import registry ─────────────────────────────────────────────
+# Maps name -> (module_path, attr_name, [required_deps])
+#
+# When accessed via __getattr__, the module is imported and the attribute
+# is fetched and cached in the module namespace for subsequent accesses.
+
+_LAZY_IMPORTS = {}
+
+
+def _register_lazy(names, module, deps=None, renames=None):
+    """Register names for lazy import from a submodule.
+
+    Args:
+        names: List of attribute names to expose at package level.
+        module: Dotted module path relative to this package (e.g. '.geo.spatial_data').
+        deps: Optional list of pip packages required (for error messages).
+        renames: Optional dict mapping exposed_name -> source_name for aliases.
+    """
+    renames = renames or {}
+    for name in names:
+        source_name = renames.get(name, name)
+        _LAZY_IMPORTS[name] = (module, source_name, deps or [])
+
+
+# ── File utilities (stdlib-only) ─────────────────────────────────────
+
+_register_lazy([
+    'check_if_file_exists_at_path', 'file_exists', 'touch_file', 'count_lines',
+    'copy_file', 'move_file', 'get_file_size', 'list_directory', 'run_command',
+    'remove_tree', 'delete_existing_file_and_replace_it_with_an_empty_file',
+], '.files.operations')
+
+_register_lazy([
+    'calculate_file_hash', 'generate_sha256_hash_for_file',
+    'get_file_hash', 'get_quick_file_signature', 'verify_file_integrity',
+], '.files.hashing')
+
+_register_lazy([
+    'ensure_path_exists', 'unzip_file_to_directory', 'get_file_extension',
+    'get_file_name_without_extension', 'is_hidden_file', 'normalize_path',
+    'get_relative_path', 'create_backup_path', 'find_files_by_pattern',
+], '.files.paths')
+
+_register_lazy([
+    'generate_local_path_from_url', 'download_file', 'download_file_with_retry',
+    'get_file_info', 'is_downloadable',
+], '.files.remote')
+
+_register_lazy(['run_subprocess'], '.files.shell')
+
+# ── Config: databases, projects, directories, clients, connections ───
+
+_register_lazy([
+    'create_database_config', 'save_database_config', 'load_database_config',
+    'get_spark_database_options', 'test_database_connection', 'list_database_configs',
+    'create_spark_session_with_databases',
+], '.config.databases')
+
+_register_lazy([
+    'create_project_config', 'save_project_config', 'load_project_config',
+    'setup_project_directories', 'get_project_path', 'list_projects', 'update_project_config',
+], '.config.projects')
+
+_register_lazy([
+    'create_directory_structure', 'create_standard_project_structure',
+    'save_directory_config', 'load_directory_config', 'ensure_directories_exist',
+    'get_directory_info', 'clean_empty_directories', 'list_directory_configs',
+], '.config.directories')
+
+_register_lazy([
+    'create_client_profile', 'save_client_profile', 'load_client_profile',
+    'update_client_profile', 'list_client_profiles', 'search_client_profiles',
+    'associate_client_with_project', 'get_client_project_associations', 'validate_client_profile',
+], '.config.clients')
+
+_register_lazy([
+    'create_connection_profile', 'save_connection_profile', 'load_connection_profile',
+    'find_connection_by_name', 'list_connection_profiles', 'update_connection_profile',
+    'verify_connection_profile', 'get_connection_status', 'cleanup_old_connections',
+], '.config.connections')
+
+# ── Pydantic config system (requires pydantic>=2.0) ──────────────────
+
+_register_lazy([
+    'UserConfigManager', 'UserProfile', 'user_config',
+    'get_user_config', 'get_download_directory',
+], '.config.user_config', deps=['pydantic>=2.0'])
+
+_register_lazy([
+    'EnhancedUserProfile', 'ClientProfile', 'SiegeConfig',
+    'load_user_profile', 'save_user_profile',
+    'load_client_profile', 'save_client_profile',
+    'list_client_profiles',
+    'export_config_yaml', 'import_config_yaml',
+], '.config.enhanced_config', deps=['pydantic>=2.0'],
+    renames={'EnhancedUserProfile': 'UserProfile'})
+
+_register_lazy([
+    'get_default_profile_location', 'set_profile_location',
+    'get_profile_location', 'list_profile_locations',
+    'migrate_profiles', 'create_default_profiles',
+    'validate_profile_location', 'get_profile_summary',
+], '.admin.profile_manager', deps=['pydantic>=2.0'])
+
+# ── Distributed / Spark (custom functions only) ──────────────────────
+
+_register_lazy([
+    'sanitise_dataframe_column_names', 'tabulate_null_vs_not_null',
+    'get_row_count', 'repartition_and_cache', 'register_temp_table',
+    'move_column_to_front_of_dataframe', 'write_df_to_parquet', 'read_parquet_to_df',
+    'flatten_json_column_and_join_back_to_df',
+    'validate_geocode_data', 'mark_valid_geocode_data', 'clean_and_reorder_bbox',
+    'ensure_literal', 'reproject_geom_columns',
+    'prepare_dataframe_for_export', 'prepare_summary_dataframe',
+    'export_pyspark_df_to_excel', 'pivot_summary_table_for_bools',
+    'pivot_summary_with_metrics', 'export_prepared_df_as_csv_to_path_using_delimiter',
+    'print_debug_table', 'compute_walkability', 'validate_geometry',
+    'backup_full_dataframe', 'atomic_write_with_staging', 'create_unique_staging_directory',
+    'walkability_config',
+], '.distributed.spark_utils', deps=['pyspark'])
+
+_register_lazy([
+    'HDFSConfig', 'create_hdfs_config', 'create_local_config',
+    'create_cluster_config', 'create_geocoding_config',
+    'create_yarn_config', 'create_census_analysis_config',
+], '.distributed.hdfs_config', deps=['pyspark'])
+
+_register_lazy([
+    'AbstractHDFSOperations', 'setup_distributed_environment', 'create_hdfs_operations',
+], '.distributed.hdfs_operations', deps=['pyspark'])
+
+# ── Geo / Census / Spatial ───────────────────────────────────────────
+
+_register_lazy([
+    'get_census_intelligence', 'quick_census_selection',
+], '.geo', deps=['geopandas'])
+
+_register_lazy([
+    'concatenate_addresses', 'use_nominatim_geocoder',
+    'get_country_name', 'get_country_code', 'list_countries', 'get_coordinates',
+], '.geo.geocoding', deps=['geopandas'])
+
+_register_lazy([
+    'get_census_data_selector', 'select_census_datasets', 'get_analysis_approach',
+    'select_datasets_for_analysis', 'get_dataset_compatibility_matrix', 'suggest_analysis_approach',
+], '.geo.census_data_selector', deps=['geopandas'])
+
+_register_lazy([
+    'get_census_dataset_mapper', 'get_best_dataset_for_analysis', 'compare_census_datasets',
+    'get_dataset_info', 'list_datasets_by_type', 'list_datasets_by_geography',
+    'get_best_dataset_for_use_case', 'get_dataset_relationships', 'compare_datasets',
+    'get_data_selection_guide', 'export_dataset_catalog',
+], '.geo.census_dataset_mapper', deps=['geopandas'])
+
+_register_lazy([
+    'get_census_data', 'get_census_boundaries', 'download_osm_data',
+    'get_available_years', 'get_year_directory_contents', 'discover_boundary_types',
+    'construct_download_url', 'validate_download_url', 'get_optimal_year',
+    'download_data', 'get_geographic_boundaries', 'get_available_boundary_types',
+    'refresh_discovery_cache', 'get_available_state_fips', 'get_state_abbreviations',
+    'get_comprehensive_state_info', 'get_state_by_abbreviation', 'get_state_by_name',
+    'validate_state_fips', 'get_state_name', 'get_state_abbreviation', 'download_dataset',
+    'get_unified_fips_data',
+    'normalize_state_input', 'normalize_state_name', 'normalize_state_abbreviation',
+    'normalize_fips_code',
+], '.geo.spatial_data', deps=['geopandas'])
+
+# normalize_state_identifier is an alias for normalize_state_identifier_standalone
+_register_lazy(
+    ['normalize_state_identifier'],
+    '.geo.spatial_data', deps=['geopandas'],
+    renames={'normalize_state_identifier': 'normalize_state_identifier_standalone'},
 )
 
-# Import core utility functions
-from .core.string_utils import remove_wrapping_quotes_and_trim
-from .files.operations import check_if_file_exists_at_path
+# ── Databricks helpers (requires databricks-sdk, pyspark) ────────────
 
-# Import configuration functions
-from .config.databases import (
-    create_database_config, save_database_config, load_database_config,
-    get_spark_database_options, test_database_connection, list_database_configs,
-    create_spark_session_with_databases
-)
+_register_lazy([
+    'build_databricks_run_url', 'build_foreign_table_sql', 'build_jdbc_url',
+    'build_lakebase_psql_command', 'build_pgpass_entry',
+    'build_schema_and_table_sync_sql', 'ensure_secret_scope',
+    'geopandas_to_spark', 'get_active_spark_session', 'get_dbutils',
+    'get_runtime_secret', 'get_workspace_client', 'pandas_to_spark',
+    'parse_conninfo', 'put_secret', 'runtime_secret_exists',
+    'spark_to_geopandas', 'spark_to_pandas',
+], '.databricks', deps=['pyspark'])
 
-from .config.projects import (
-    create_project_config, save_project_config, load_project_config,
-    setup_project_directories, get_project_path, list_projects, update_project_config
-)
+# ── Sample data (requires pandas, faker) ─────────────────────────────
 
-from .config.directories import (
-    create_directory_structure, create_standard_project_structure,
-    save_directory_config, load_directory_config, ensure_directories_exist,
-    get_directory_info, clean_empty_directories, list_directory_configs
-)
+_register_lazy([
+    'load_sample_data', 'list_available_datasets', 'get_dataset_info',
+    'join_boundaries_and_data', 'create_sample_dataset',
+    'generate_synthetic_population', 'generate_synthetic_businesses',
+    'generate_synthetic_housing',
+    'SAMPLE_DATASETS', 'CENSUS_SAMPLES', 'SYNTHETIC_SAMPLES',
+], '.data.sample_data', deps=['pandas'])
 
-from .config.clients import (
-    create_client_profile, save_client_profile, load_client_profile,
-    update_client_profile, list_client_profiles, search_client_profiles,
-    associate_client_with_project, get_client_project_associations, validate_client_profile
-)
+# ── Analytics ────────────────────────────────────────────────────────
 
-from .config.connections import (
-    create_connection_profile, save_connection_profile, load_connection_profile,
-    find_connection_by_name, list_connection_profiles, update_connection_profile,
-    verify_connection_profile, get_connection_status, cleanup_old_connections
-)
+_register_lazy([
+    'GoogleAnalyticsConnector', 'create_ga_account_profile', 'save_ga_account_profile',
+    'load_ga_account_profile', 'list_ga_accounts_for_client', 'batch_retrieve_ga_data',
+], '.analytics.google_analytics', deps=['google-analytics-data'])
 
-# Import distributed utilities
-from .distributed.spark_utils import *
-from .distributed.hdfs_config import *
-from .distributed.hdfs_operations import *
+_register_lazy([
+    'get_datadotworld_connector', 'search_datadotworld_datasets',
+    'load_datadotworld_dataset', 'query_datadotworld_dataset',
+    'search_datasets', 'list_datasets',
+], '.analytics.datadotworld_connector', deps=['datadotworld'])
 
-# Import file utilities
-from .files.hashing import (
-    calculate_file_hash, generate_sha256_hash_for_file, 
-    get_file_hash, get_quick_file_signature, verify_file_integrity
-)
-from .files.paths import (
-    ensure_path_exists, unzip_file_to_directory, get_file_extension,
-    get_file_name_without_extension, is_hidden_file, normalize_path,
-    get_relative_path, create_backup_path, find_files_by_pattern
-)
-from .files.operations import (
-    file_exists, touch_file, count_lines, copy_file, move_file, 
-    get_file_size, list_directory, run_command, remove_tree,
-    delete_existing_file_and_replace_it_with_an_empty_file
-)
+_register_lazy([
+    'get_snowflake_connector', 'upload_to_snowflake',
+    'download_from_snowflake', 'execute_snowflake_query',
+], '.analytics.snowflake_connector', deps=['snowflake-connector-python'])
 
-# Import remote and shell utilities
-from .files.remote import (
-    generate_local_path_from_url, download_file, download_file_with_retry,
-    get_file_info, is_downloadable
-)
-from .files.shell import (
-    run_subprocess
-)
+_register_lazy([
+    'FacebookBusinessConnector', 'create_facebook_account_profile',
+    'save_facebook_account_profile', 'load_facebook_account_profile',
+    'list_facebook_accounts_for_client', 'batch_retrieve_facebook_data',
+], '.analytics.facebook_business', deps=['facebook-business'])
 
-# Import comprehensive Census functionality (the missing sophisticated functions!)
-try:
-    from .geo import get_census_intelligence, quick_census_selection
-    from .geo.geocoding import (
-        concatenate_addresses, use_nominatim_geocoder,
-        get_country_name, get_country_code, list_countries, get_coordinates
-    )
-    
-    # Census Data Selection Intelligence
-    from .geo.census_data_selector import (
-        get_census_data_selector, select_census_datasets, get_analysis_approach,
-        select_datasets_for_analysis, get_dataset_compatibility_matrix, suggest_analysis_approach
-    )
-    
-    # Census Dataset Mapping & Recommendations
-    from .geo.census_dataset_mapper import (
-        get_census_dataset_mapper, get_best_dataset_for_analysis, compare_census_datasets,
-        get_dataset_info, list_datasets_by_type, list_datasets_by_geography,
-        get_best_dataset_for_use_case, get_dataset_relationships, compare_datasets,
-        get_data_selection_guide, export_dataset_catalog
-    )
-    
-    # Spatial Data & Boundary Downloads
-    from .geo.spatial_data import (
-        get_census_data, get_census_boundaries, download_osm_data,
-        get_available_years, get_year_directory_contents, discover_boundary_types,
-        construct_download_url, validate_download_url, get_optimal_year,
-        download_data, get_geographic_boundaries, get_available_boundary_types,
-        refresh_discovery_cache, get_available_state_fips, get_state_abbreviations,
-        get_comprehensive_state_info, get_state_by_abbreviation, get_state_by_name,
-        validate_state_fips, get_state_name, get_state_abbreviation, download_dataset,
-        get_unified_fips_data, normalize_state_identifier_standalone as normalize_state_identifier,
-        normalize_state_input, normalize_state_name, normalize_state_abbreviation, normalize_fips_code
-    )
-    
-except ImportError as e:
-    logger.warning(f"Could not import geo utilities: {e}")
-    
-    # Basic geo functions
-    get_census_intelligence = _create_dependency_wrapper('get_census_intelligence', ['pandas', 'geopandas'])
-    quick_census_selection = _create_dependency_wrapper('quick_census_selection', ['pandas', 'geopandas'])
-    concatenate_addresses = _create_dependency_wrapper('concatenate_addresses', ['geopy'])
-    use_nominatim_geocoder = _create_dependency_wrapper('use_nominatim_geocoder', ['geopy'])
-    get_country_name = _create_dependency_wrapper('get_country_name', ['geopy'])
-    get_country_code = _create_dependency_wrapper('get_country_code', ['geopy'])
-    list_countries = _create_dependency_wrapper('list_countries', ['geopy'])
-    get_coordinates = _create_dependency_wrapper('get_coordinates', ['geopy', 'requests'])
-    
-    # Census Data Selection Intelligence
-    get_census_data_selector = _create_dependency_wrapper('get_census_data_selector', ['pandas', 'geopandas'])
-    select_census_datasets = _create_dependency_wrapper('select_census_datasets', ['pandas', 'geopandas'])
-    get_analysis_approach = _create_dependency_wrapper('get_analysis_approach', ['pandas', 'geopandas'])
-    select_datasets_for_analysis = _create_dependency_wrapper('select_datasets_for_analysis', ['pandas', 'geopandas'])
-    get_dataset_compatibility_matrix = _create_dependency_wrapper('get_dataset_compatibility_matrix', ['pandas', 'geopandas'])
-    suggest_analysis_approach = _create_dependency_wrapper('suggest_analysis_approach', ['pandas', 'geopandas'])
-    
-    # Census Dataset Mapping & Recommendations
-    get_census_dataset_mapper = _create_dependency_wrapper('get_census_dataset_mapper', ['pandas', 'geopandas'])
-    get_best_dataset_for_analysis = _create_dependency_wrapper('get_best_dataset_for_analysis', ['pandas', 'geopandas'])
-    compare_census_datasets = _create_dependency_wrapper('compare_census_datasets', ['pandas', 'geopandas'])
-    get_dataset_info = _create_dependency_wrapper('get_dataset_info', ['pandas', 'geopandas'])
-    list_datasets_by_type = _create_dependency_wrapper('list_datasets_by_type', ['pandas', 'geopandas'])
-    list_datasets_by_geography = _create_dependency_wrapper('list_datasets_by_geography', ['pandas', 'geopandas'])
-    get_best_dataset_for_use_case = _create_dependency_wrapper('get_best_dataset_for_use_case', ['pandas', 'geopandas'])
-    get_dataset_relationships = _create_dependency_wrapper('get_dataset_relationships', ['pandas', 'geopandas'])
-    compare_datasets = _create_dependency_wrapper('compare_datasets', ['pandas', 'geopandas'])
-    get_data_selection_guide = _create_dependency_wrapper('get_data_selection_guide', ['pandas', 'geopandas'])
-    export_dataset_catalog = _create_dependency_wrapper('export_dataset_catalog', ['pandas', 'geopandas'])
-    
-    # Spatial Data & Boundary Downloads
-    get_census_data = _create_dependency_wrapper('get_census_data', ['pandas', 'geopandas'])
-    get_census_boundaries = _create_dependency_wrapper('get_census_boundaries', ['pandas', 'geopandas'])
-    download_osm_data = _create_dependency_wrapper('download_osm_data', ['pandas', 'geopandas', 'osmnx'])
-    get_available_years = _create_dependency_wrapper('get_available_years', ['pandas', 'requests'])
-    get_year_directory_contents = _create_dependency_wrapper('get_year_directory_contents', ['pandas', 'requests'])
-    discover_boundary_types = _create_dependency_wrapper('discover_boundary_types', ['pandas', 'requests'])
-    construct_download_url = _create_dependency_wrapper('construct_download_url', ['pandas'])
-    validate_download_url = _create_dependency_wrapper('validate_download_url', ['requests'])
-    get_optimal_year = _create_dependency_wrapper('get_optimal_year', ['pandas'])
-    download_data = _create_dependency_wrapper('download_data', ['pandas', 'geopandas', 'requests'])
-    get_geographic_boundaries = _create_dependency_wrapper('get_geographic_boundaries', ['pandas', 'geopandas'])
-    get_available_boundary_types = _create_dependency_wrapper('get_available_boundary_types', ['pandas', 'requests'])
-    refresh_discovery_cache = _create_dependency_wrapper('refresh_discovery_cache', ['pandas', 'requests'])
-    get_available_state_fips = _create_dependency_wrapper('get_available_state_fips', ['pandas'])
-    get_state_abbreviations = _create_dependency_wrapper('get_state_abbreviations', ['pandas'])
-    get_comprehensive_state_info = _create_dependency_wrapper('get_comprehensive_state_info', ['pandas'])
-    get_state_by_abbreviation = _create_dependency_wrapper('get_state_by_abbreviation', ['pandas'])
-    get_state_by_name = _create_dependency_wrapper('get_state_by_name', ['pandas'])
-    validate_state_fips = _create_dependency_wrapper('validate_state_fips', ['pandas'])
-    get_state_name = _create_dependency_wrapper('get_state_name', ['pandas'])
-    get_state_abbreviation = _create_dependency_wrapper('get_state_abbreviation', ['pandas'])
-    download_dataset = _create_dependency_wrapper('download_dataset', ['pandas', 'geopandas', 'requests'])
-    get_unified_fips_data = _create_dependency_wrapper('get_unified_fips_data', ['pandas'])
-    normalize_state_identifier = _create_dependency_wrapper('normalize_state_identifier', ['pandas'])
-    normalize_state_input = _create_dependency_wrapper('normalize_state_input', ['pandas'])
-    normalize_state_name = _create_dependency_wrapper('normalize_state_name', ['pandas'])
-    normalize_state_abbreviation = _create_dependency_wrapper('normalize_state_abbreviation', ['pandas'])
-    normalize_fips_code = _create_dependency_wrapper('normalize_fips_code', ['pandas'])
+# ── Reporting (requires matplotlib, reportlab, etc.) ─────────────────
 
-# Databricks helpers — optional (requires databricks-sdk, pyspark)
-try:
-    from .databricks import (
-        build_databricks_run_url,
-        build_foreign_table_sql,
-        build_jdbc_url,
-        build_lakebase_psql_command,
-        build_pgpass_entry,
-        build_schema_and_table_sync_sql,
-        ensure_secret_scope,
-        geopandas_to_spark,
-        get_active_spark_session,
-        get_dbutils,
-        get_runtime_secret,
-        get_workspace_client,
-        pandas_to_spark,
-        parse_conninfo,
-        put_secret,
-        runtime_secret_exists,
-        spark_to_geopandas,
-        spark_to_pandas,
-    )
-except ImportError as e:
-    logger.warning(f"Could not import Databricks utilities: {e}")
-    build_databricks_run_url = _create_dependency_wrapper('build_databricks_run_url', ['databricks-sdk'])
-    build_foreign_table_sql = _create_dependency_wrapper('build_foreign_table_sql', ['databricks-sdk'])
-    build_jdbc_url = _create_dependency_wrapper('build_jdbc_url', ['databricks-sdk'])
-    build_lakebase_psql_command = _create_dependency_wrapper('build_lakebase_psql_command', ['databricks-sdk'])
-    build_pgpass_entry = _create_dependency_wrapper('build_pgpass_entry', ['databricks-sdk'])
-    build_schema_and_table_sync_sql = _create_dependency_wrapper('build_schema_and_table_sync_sql', ['databricks-sdk'])
-    ensure_secret_scope = _create_dependency_wrapper('ensure_secret_scope', ['databricks-sdk'])
-    geopandas_to_spark = _create_dependency_wrapper('geopandas_to_spark', ['pyspark', 'geopandas'])
-    get_active_spark_session = _create_dependency_wrapper('get_active_spark_session', ['pyspark'])
-    get_dbutils = _create_dependency_wrapper('get_dbutils', ['pyspark'])
-    get_runtime_secret = _create_dependency_wrapper('get_runtime_secret', ['pyspark'])
-    get_workspace_client = _create_dependency_wrapper('get_workspace_client', ['databricks-sdk'])
-    pandas_to_spark = _create_dependency_wrapper('pandas_to_spark', ['pyspark'])
-    parse_conninfo = _create_dependency_wrapper('parse_conninfo', ['databricks-sdk'])
-    put_secret = _create_dependency_wrapper('put_secret', ['databricks-sdk'])
-    runtime_secret_exists = _create_dependency_wrapper('runtime_secret_exists', ['pyspark'])
-    spark_to_geopandas = _create_dependency_wrapper('spark_to_geopandas', ['pyspark', 'geopandas'])
-    spark_to_pandas = _create_dependency_wrapper('spark_to_pandas', ['pyspark'])
+_register_lazy([
+    'BaseReportTemplate', 'ReportGenerator', 'ChartGenerator',
+    'ClientBrandingManager', 'AnalyticsReportGenerator', 'PowerPointGenerator',
+    'get_report_output_directory', 'create_report_generator', 'create_powerpoint_generator',
+    'export_branding_config', 'import_branding_config', 'export_chart_type_config',
+], '.reporting', deps=['matplotlib', 'reportlab'])
 
-# Spatial utilities are now consolidated in the geo module
-# All spatial functions are available through the geo module
+_register_lazy(['ChartTypeRegistry'], '.reporting.chart_types', deps=['matplotlib'])
+_register_lazy(['PollingAnalyzer'], '.reporting.analytics.polling_analyzer', deps=['matplotlib'])
 
-# Pydantic-validated config system — requires pydantic>=2.0
-try:
-    from .config.user_config import (
-        UserConfigManager, UserProfile, user_config,
-        get_user_config, get_download_directory
-    )
-    from .config.enhanced_config import (
-        UserProfile as EnhancedUserProfile,
-        ClientProfile,
-        SiegeConfig,
-        load_user_profile,
-        save_user_profile,
-        load_client_profile,
-        save_client_profile,
-        list_client_profiles,
-        export_config_yaml,
-        import_config_yaml,
-    )
-    from .admin.profile_manager import (
-        get_default_profile_location,
-        set_profile_location,
-        get_profile_location,
-        list_profile_locations,
-        migrate_profiles,
-        create_default_profiles,
-        validate_profile_location,
-        get_profile_summary
-    )
-except ImportError as e:
-    logger.warning(f"Could not import Pydantic config system: {e}")
-    _pydantic_deps = ['pydantic>=2.0']
-    UserConfigManager = _create_dependency_wrapper('UserConfigManager', _pydantic_deps)
-    UserProfile = _create_dependency_wrapper('UserProfile', _pydantic_deps)
-    user_config = None
-    get_user_config = _create_dependency_wrapper('get_user_config', _pydantic_deps)
-    get_download_directory = _create_dependency_wrapper('get_download_directory', _pydantic_deps)
-    EnhancedUserProfile = _create_dependency_wrapper('EnhancedUserProfile', _pydantic_deps)
-    ClientProfile = _create_dependency_wrapper('ClientProfile', _pydantic_deps)
-    SiegeConfig = _create_dependency_wrapper('SiegeConfig', _pydantic_deps)
-    load_user_profile = _create_dependency_wrapper('load_user_profile', _pydantic_deps)
-    save_user_profile = _create_dependency_wrapper('save_user_profile', _pydantic_deps)
-    load_client_profile = _create_dependency_wrapper('load_client_profile', _pydantic_deps)
-    save_client_profile = _create_dependency_wrapper('save_client_profile', _pydantic_deps)
-    list_client_profiles = _create_dependency_wrapper('list_client_profiles', _pydantic_deps)
-    export_config_yaml = _create_dependency_wrapper('export_config_yaml', _pydantic_deps)
-    import_config_yaml = _create_dependency_wrapper('import_config_yaml', _pydantic_deps)
-    get_default_profile_location = _create_dependency_wrapper('get_default_profile_location', _pydantic_deps)
-    set_profile_location = _create_dependency_wrapper('set_profile_location', _pydantic_deps)
-    get_profile_location = _create_dependency_wrapper('get_profile_location', _pydantic_deps)
-    list_profile_locations = _create_dependency_wrapper('list_profile_locations', _pydantic_deps)
-    migrate_profiles = _create_dependency_wrapper('migrate_profiles', _pydantic_deps)
-    create_default_profiles = _create_dependency_wrapper('create_default_profiles', _pydantic_deps)
-    validate_profile_location = _create_dependency_wrapper('validate_profile_location', _pydantic_deps)
-    get_profile_summary = _create_dependency_wrapper('get_profile_summary', _pydantic_deps)
+_register_lazy([
+    'create_bar_chart', 'create_line_chart', 'create_pie_chart', 'create_scatter_plot',
+    'create_heatmap', 'create_choropleth_map', 'create_bivariate_choropleth',
+    'create_marker_map', 'create_flow_map', 'create_dashboard',
+    'create_dataframe_summary_charts', 'generate_chart_from_dataframe',
+], '.reporting.chart_generator', deps=['matplotlib', 'seaborn'])
 
-# Import hygiene utilities (expanded)
-from .hygiene.generate_docstrings import (
-    generate_docstring_template, analyze_function_signature, categorize_function,
-    process_python_file, find_python_files
-)
+# ── Hygiene ──────────────────────────────────────────────────────────
 
-# Import development utilities (actual functions only)
-from .development.architecture import (
-    generate_architecture_diagram, analyze_package_structure, analyze_module,
-    analyze_function, analyze_class
-)
+_register_lazy([
+    'generate_docstring_template', 'analyze_function_signature',
+    'categorize_function', 'process_python_file', 'find_python_files',
+], '.hygiene.generate_docstrings')
 
-# Import git utilities (actual functions only)
-from .git.branch_analyzer import (
-    analyze_branch_status, generate_branch_report, get_commit_history,
-    categorize_commits, get_file_changes, get_file_stats
-)
-from .git.git_operations import (
-    create_feature_branch, switch_branch, merge_branch, rebase_branch,
-    stash_changes, apply_stash, clean_working_directory, reset_to_commit,
-    cherry_pick_commit, create_tag, push_branch, pull_branch
-)
-from .git.git_status import get_repository_status, get_branch_info
-from .git.git_workflow import start_feature_workflow, validate_branch_naming
+# ── Development ──────────────────────────────────────────────────────
 
-# Import sample data utilities - made optional due to pandas dependency
-try:
-    from .data.sample_data import (
-        load_sample_data, list_available_datasets, get_dataset_info,
-        join_boundaries_and_data, create_sample_dataset,
-        generate_synthetic_population, generate_synthetic_businesses, generate_synthetic_housing,
-        SAMPLE_DATASETS, CENSUS_SAMPLES, SYNTHETIC_SAMPLES
-    )
-except ImportError as e:
-    logger.warning(f"Could not import sample data utilities: {e}")
-    # Create helpful wrapper functions instead of None
-    load_sample_data = _create_dependency_wrapper('load_sample_data', ['pandas'])
-    list_available_datasets = _create_dependency_wrapper('list_available_datasets', ['pandas'])
-    get_dataset_info = _create_dependency_wrapper('get_dataset_info', ['pandas'])
-    get_census_data = _create_dependency_wrapper('get_census_data', ['pandas'])
-    join_boundaries_and_data = _create_dependency_wrapper('join_boundaries_and_data', ['pandas', 'geopandas'])
-    create_sample_dataset = _create_dependency_wrapper('create_sample_dataset', ['pandas'])
-    generate_synthetic_population = _create_dependency_wrapper('generate_synthetic_population', ['pandas', 'faker'])
-    generate_synthetic_businesses = _create_dependency_wrapper('generate_synthetic_businesses', ['pandas', 'faker'])
-    generate_synthetic_housing = _create_dependency_wrapper('generate_synthetic_housing', ['pandas', 'faker'])
-    SAMPLE_DATASETS = {}
-    CENSUS_SAMPLES = {}
-    SYNTHETIC_SAMPLES = {}
+_register_lazy([
+    'generate_architecture_diagram', 'analyze_package_structure',
+    'analyze_module', 'analyze_function', 'analyze_class',
+], '.development.architecture')
 
-# Import analytics utilities - made optional due to pandas dependency
-try:
-    from .analytics.google_analytics import (
-        GoogleAnalyticsConnector, create_ga_account_profile, save_ga_account_profile,
-        load_ga_account_profile, list_ga_accounts_for_client, batch_retrieve_ga_data
-    )
-except ImportError as e:
-    logger.warning(f"Could not import Google Analytics utilities: {e}")
-    GoogleAnalyticsConnector = _create_dependency_wrapper('GoogleAnalyticsConnector', ['pandas', 'google-analytics-data'])
-    create_ga_account_profile = _create_dependency_wrapper('create_ga_account_profile', ['pandas', 'google-analytics-data'])
-    save_ga_account_profile = _create_dependency_wrapper('save_ga_account_profile', ['pandas', 'google-analytics-data'])
-    load_ga_account_profile = _create_dependency_wrapper('load_ga_account_profile', ['pandas', 'google-analytics-data'])
-    list_ga_accounts_for_client = _create_dependency_wrapper('list_ga_accounts_for_client', ['pandas', 'google-analytics-data'])
-    batch_retrieve_ga_data = _create_dependency_wrapper('batch_retrieve_ga_data', ['pandas', 'google-analytics-data'])
+# ── Git ──────────────────────────────────────────────────────────────
 
-# Import additional analytics utilities
-try:
-    from .analytics.datadotworld_connector import (
-        get_datadotworld_connector, search_datadotworld_datasets, load_datadotworld_dataset,
-        query_datadotworld_dataset, search_datasets, list_datasets
-    )
-    from .analytics.snowflake_connector import (
-        get_snowflake_connector, upload_to_snowflake, download_from_snowflake,
-        execute_snowflake_query
-    )
-except ImportError as e:
-    logger.warning(f"Could not import additional analytics utilities: {e}")
-    # Data.world functions
-    get_datadotworld_connector = _create_dependency_wrapper('get_datadotworld_connector', ['pandas', 'datadotworld'])
-    search_datadotworld_datasets = _create_dependency_wrapper('search_datadotworld_datasets', ['pandas', 'datadotworld'])
-    load_datadotworld_dataset = _create_dependency_wrapper('load_datadotworld_dataset', ['pandas', 'datadotworld'])
-    query_datadotworld_dataset = _create_dependency_wrapper('query_datadotworld_dataset', ['pandas', 'datadotworld'])
-    search_datasets = _create_dependency_wrapper('search_datasets', ['pandas', 'datadotworld'])
-    list_datasets = _create_dependency_wrapper('list_datasets', ['pandas', 'datadotworld'])
-    # Snowflake functions
-    get_snowflake_connector = _create_dependency_wrapper('get_snowflake_connector', ['pandas', 'snowflake-connector-python'])
-    upload_to_snowflake = _create_dependency_wrapper('upload_to_snowflake', ['pandas', 'snowflake-connector-python'])
-    download_from_snowflake = _create_dependency_wrapper('download_from_snowflake', ['pandas', 'snowflake-connector-python'])
-    execute_snowflake_query = _create_dependency_wrapper('execute_snowflake_query', ['pandas', 'snowflake-connector-python'])
+_register_lazy([
+    'analyze_branch_status', 'generate_branch_report', 'get_commit_history',
+    'categorize_commits', 'get_file_changes', 'get_file_stats',
+], '.git.branch_analyzer')
 
-try:
-    from .analytics.facebook_business import (
-        FacebookBusinessConnector, create_facebook_account_profile, save_facebook_account_profile,
-        load_facebook_account_profile, list_facebook_accounts_for_client, batch_retrieve_facebook_data
-    )
-except ImportError as e:
-    logger.warning(f"Could not import Facebook Business utilities: {e}")
-    FacebookBusinessConnector = _create_dependency_wrapper('FacebookBusinessConnector', ['pandas', 'facebook-business'])
-    create_facebook_account_profile = _create_dependency_wrapper('create_facebook_account_profile', ['pandas', 'facebook-business'])
-    save_facebook_account_profile = _create_dependency_wrapper('save_facebook_account_profile', ['pandas', 'facebook-business'])
-    load_facebook_account_profile = _create_dependency_wrapper('load_facebook_account_profile', ['pandas', 'facebook-business'])
-    list_facebook_accounts_for_client = _create_dependency_wrapper('list_facebook_accounts_for_client', ['pandas', 'facebook-business'])
-    batch_retrieve_facebook_data = _create_dependency_wrapper('batch_retrieve_facebook_data', ['pandas', 'facebook-business'])
+_register_lazy([
+    'create_feature_branch', 'switch_branch', 'merge_branch', 'rebase_branch',
+    'stash_changes', 'apply_stash', 'clean_working_directory', 'reset_to_commit',
+    'cherry_pick_commit', 'create_tag', 'push_branch', 'pull_branch',
+], '.git.git_operations')
 
-# Import reporting utilities - made optional due to dependencies
-try:
-    from .reporting import (
-        BaseReportTemplate, ReportGenerator, ChartGenerator, 
-        ClientBrandingManager, AnalyticsReportGenerator, PowerPointGenerator,
-        get_report_output_directory, create_report_generator, create_powerpoint_generator,
-        export_branding_config, import_branding_config, export_chart_type_config
-    )
-    # Import branding export functions
-    from .reporting.client_branding import ClientBrandingManager
-    from .reporting.chart_types import ChartTypeRegistry
-    # Import polling analysis functions
-    from .reporting.analytics.polling_analyzer import PollingAnalyzer
-except ImportError as e:
-    logger.warning(f"Could not import reporting utilities: {e}")
-    BaseReportTemplate = _create_dependency_wrapper('BaseReportTemplate', ['requests', 'jinja2'])
-    ReportGenerator = _create_dependency_wrapper('ReportGenerator', ['requests', 'jinja2'])
-    ChartGenerator = _create_dependency_wrapper('ChartGenerator', ['pandas', 'matplotlib', 'seaborn'])
-    ClientBrandingManager = _create_dependency_wrapper('ClientBrandingManager', ['requests', 'pillow'])
-    AnalyticsReportGenerator = _create_dependency_wrapper('AnalyticsReportGenerator', ['pandas', 'matplotlib'])
-    PowerPointGenerator = _create_dependency_wrapper('PowerPointGenerator', ['python-pptx', 'pandas'])
-    get_report_output_directory = _create_dependency_wrapper('get_report_output_directory', ['requests', 'jinja2'])
-    create_report_generator = _create_dependency_wrapper('create_report_generator', ['requests', 'jinja2'])
-    create_powerpoint_generator = _create_dependency_wrapper('create_powerpoint_generator', ['python-pptx'])
-    export_branding_config = _create_dependency_wrapper('export_branding_config', ['requests', 'jinja2'])
-    import_branding_config = _create_dependency_wrapper('import_branding_config', ['requests', 'jinja2'])
-    export_chart_type_config = _create_dependency_wrapper('export_chart_type_config', ['requests', 'jinja2'])
-    PollingAnalyzer = _create_dependency_wrapper('PollingAnalyzer', ['pandas', 'matplotlib', 'seaborn'])
+_register_lazy(['get_repository_status', 'get_branch_info'], '.git.git_status')
+_register_lazy(['start_feature_workflow', 'validate_branch_naming'], '.git.git_workflow')
 
-# Import chart generation functions specifically (high value!)
-try:
-    from .reporting.chart_generator import (
-        create_bar_chart, create_line_chart, create_pie_chart, create_scatter_plot,
-        create_heatmap, create_choropleth_map, create_bivariate_choropleth,
-        create_marker_map, create_flow_map, create_dashboard,
-        create_dataframe_summary_charts, generate_chart_from_dataframe
-    )
-except ImportError as e:
-    logger.warning(f"Could not import chart generation functions: {e}")
-    create_bar_chart = _create_dependency_wrapper('create_bar_chart', ['matplotlib', 'seaborn', 'pandas'])
-    create_line_chart = _create_dependency_wrapper('create_line_chart', ['matplotlib', 'seaborn', 'pandas'])
-    create_pie_chart = _create_dependency_wrapper('create_pie_chart', ['matplotlib', 'seaborn', 'pandas'])
-    create_scatter_plot = _create_dependency_wrapper('create_scatter_plot', ['matplotlib', 'seaborn', 'pandas'])
-    create_heatmap = _create_dependency_wrapper('create_heatmap', ['matplotlib', 'seaborn', 'pandas'])
-    create_choropleth_map = _create_dependency_wrapper('create_choropleth_map', ['folium', 'geopandas', 'pandas'])
-    create_bivariate_choropleth = _create_dependency_wrapper('create_bivariate_choropleth', ['matplotlib', 'geopandas', 'pandas'])
-    create_marker_map = _create_dependency_wrapper('create_marker_map', ['folium', 'pandas'])
-    create_flow_map = _create_dependency_wrapper('create_flow_map', ['folium', 'pandas'])
-    create_dashboard = _create_dependency_wrapper('create_dashboard', ['matplotlib', 'seaborn', 'pandas'])
-    create_dataframe_summary_charts = _create_dependency_wrapper('create_dataframe_summary_charts', ['matplotlib', 'seaborn', 'pandas'])
-    generate_chart_from_dataframe = _create_dependency_wrapper('generate_chart_from_dataframe', ['matplotlib', 'seaborn', 'pandas'])
+# ── Testing ──────────────────────────────────────────────────────────
 
-# Import testing utilities
-from .testing.environment import (
-    setup_spark_environment, get_system_info, ensure_env_vars,
-    check_java_version, diagnose_environment, quick_environment_setup
-)
-from .testing.runner import (
-    run_test_suite, get_test_report, run_comprehensive_test,
-    quick_smoke_test, build_pytest_command
-)
+_register_lazy([
+    'setup_spark_environment', 'get_system_info', 'ensure_env_vars',
+    'check_java_version', 'diagnose_environment', 'quick_environment_setup',
+], '.testing.environment')
 
-# Package version and metadata
-__version__ = "3.1.0"
-__author__ = "Siege Analytics"
-__description__ = "Comprehensive utilities for data engineering, analytics, and distributed computing"
+_register_lazy([
+    'run_test_suite', 'get_test_report', 'run_comprehensive_test',
+    'quick_smoke_test', 'build_pytest_command',
+], '.testing.runner')
 
-# Package discovery and dependency checking - NOW WITH DYNAMIC DISCOVERY!
+
+# ── PEP 562 __getattr__ (lazy loading) ───────────────────────────────
+
+# Track which distributed module names we've already cached (avoid repeated lookups)
+_distributed_loaded = False
+
+
+def __getattr__(name):
+    global _distributed_loaded
+
+    # 1. Check the explicit lazy registry
+    if name in _LAZY_IMPORTS:
+        module_path, attr_name, deps = _LAZY_IMPORTS[name]
+        try:
+            mod = importlib.import_module(module_path, __package__)
+            val = getattr(mod, attr_name)
+            setattr(sys.modules[__name__], name, val)
+            return val
+        except ImportError:
+            if deps:
+                wrapper = _create_dependency_wrapper(attr_name, deps)
+                setattr(sys.modules[__name__], name, wrapper)
+                return wrapper
+            raise
+
+    # 2. Fallback: try the distributed module for PySpark re-exports
+    #    (col, lit, when, sum, etc. — ~524 functions from pyspark.sql.functions)
+    if not _distributed_loaded:
+        try:
+            dist_mod = importlib.import_module('.distributed', __package__)
+            _distributed_loaded = True
+            if hasattr(dist_mod, name):
+                val = getattr(dist_mod, name)
+                setattr(sys.modules[__name__], name, val)
+                return val
+        except ImportError:
+            _distributed_loaded = True  # Don't retry on failure
+
+    # 3. Not found
+    raise AttributeError(f"module 'siege_utilities' has no attribute {name!r}")
+
+
+def __dir__():
+    return sorted(set(list(globals().keys()) + list(_LAZY_IMPORTS.keys())))
+
+
+# ── Introspection functions (defined here, always available) ─────────
+
 def get_package_info() -> Dict[str, Any]:
     """
     Get comprehensive information about the siege_utilities package.
-    Uses DYNAMIC discovery to report only actually available functions (no more lies!).
-    
+    Uses DYNAMIC discovery to report only actually available functions.
+
     Returns:
         Dictionary containing package information, available functions, and module status
     """
+    import inspect as _inspect
+
     current_module = sys.modules[__name__]
-    
+
     package_info = {
         'package_name': 'siege_utilities',
-        'version': '3.1.0',
-        'description': 'Comprehensive utilities for data engineering, analytics, and distributed computing',
+        'version': __version__,
+        'description': __description__,
         'total_functions': 0,
         'total_modules': 0,
         'available_functions': [],
@@ -492,237 +398,214 @@ def get_package_info() -> Dict[str, Any]:
         'failed_imports': [],
         'subpackages': [],
         'categories': {
-            'core': [],
-            'files': [],
-            'distributed': [],
-            'geo': [],
-            'config': [],
-            'admin': [],
-            'hygiene': [],
-            'testing': [],
-            'data': [],
-            'analytics': [],
-            'reporting': [],
-            'git': [],
-            'development': []
+            'core': [], 'files': [], 'distributed': [], 'geo': [],
+            'config': [], 'admin': [], 'hygiene': [], 'testing': [],
+            'data': [], 'analytics': [], 'reporting': [], 'git': [],
+            'development': [],
         }
     }
-    
-    # Function name to category mapping (for organization)
+
+    # Function name to category mapping
     function_categories = {
-        # Core functions
-        'log_info': 'core', 'log_warning': 'core', 'log_error': 'core', 'log_debug': 'core', 'log_critical': 'core',
+        'log_info': 'core', 'log_warning': 'core', 'log_error': 'core',
+        'log_debug': 'core', 'log_critical': 'core',
         'init_logger': 'core', 'get_logger': 'core', 'configure_shared_logging': 'core',
         'remove_wrapping_quotes_and_trim': 'core',
-        
-        # File functions
-        'check_if_file_exists_at_path': 'files', 'calculate_file_hash': 'files', 'ensure_path_exists': 'files',
-        'generate_sha256_hash_for_file': 'files', 'get_file_hash': 'files', 'get_quick_file_signature': 'files',
+        'check_if_file_exists_at_path': 'files', 'calculate_file_hash': 'files',
+        'ensure_path_exists': 'files', 'generate_sha256_hash_for_file': 'files',
+        'get_file_hash': 'files', 'get_quick_file_signature': 'files',
         'verify_file_integrity': 'files', 'unzip_file_to_directory': 'files',
         'file_exists': 'files', 'touch_file': 'files', 'count_lines': 'files',
-        'copy_file': 'files', 'move_file': 'files', 'get_file_size': 'files', 'list_directory': 'files',
-        'run_command': 'files', 'remove_tree': 'files',
-        'generate_local_path_from_url': 'files', 'download_file': 'files', 'download_file_with_retry': 'files',
-        'get_file_info': 'files', 'is_downloadable': 'files', 'run_subprocess': 'files',
-        
-        # Distributed functions  
+        'copy_file': 'files', 'move_file': 'files', 'get_file_size': 'files',
+        'list_directory': 'files', 'run_command': 'files', 'remove_tree': 'files',
+        'generate_local_path_from_url': 'files', 'download_file': 'files',
+        'download_file_with_retry': 'files', 'get_file_info': 'files',
+        'is_downloadable': 'files', 'run_subprocess': 'files',
         'get_row_count': 'distributed', 'repartition_and_cache': 'distributed',
-        'register_temp_table': 'distributed', 'move_column_to_front_of_dataframe': 'distributed',
+        'register_temp_table': 'distributed',
+        'move_column_to_front_of_dataframe': 'distributed',
         'write_df_to_parquet': 'distributed', 'read_parquet_to_df': 'distributed',
-        
-        # Config functions
-        'create_database_config': 'config', 'save_database_config': 'config', 'load_database_config': 'config',
-        'get_spark_database_options': 'config', 'test_database_connection': 'config', 'list_database_configs': 'config',
+        'create_database_config': 'config', 'save_database_config': 'config',
+        'load_database_config': 'config', 'get_spark_database_options': 'config',
+        'test_database_connection': 'config', 'list_database_configs': 'config',
         'create_spark_session_with_databases': 'config',
-        'create_project_config': 'config', 'save_project_config': 'config', 'load_project_config': 'config',
-        'setup_project_directories': 'config', 'get_project_path': 'config', 'list_projects': 'config', 'update_project_config': 'config',
-        'create_directory_structure': 'config', 'create_standard_project_structure': 'config',
-        'save_directory_config': 'config', 'load_directory_config': 'config', 'ensure_directories_exist': 'config',
-        'get_directory_info': 'config', 'clean_empty_directories': 'config', 'list_directory_configs': 'config',
-        'create_client_profile': 'config', 'save_client_profile': 'config', 'load_client_profile': 'config',
-        'update_client_profile': 'config', 'list_client_profiles': 'config', 'search_client_profiles': 'config',
-        'associate_client_with_project': 'config', 'get_client_project_associations': 'config', 'validate_client_profile': 'config',
-        'create_connection_profile': 'config', 'save_connection_profile': 'config', 'load_connection_profile': 'config',
-        'find_connection_by_name': 'config', 'list_connection_profiles': 'config', 'update_connection_profile': 'config',
-        'verify_connection_profile': 'config', 'get_connection_status': 'config', 'cleanup_old_connections': 'config',
+        'create_project_config': 'config', 'save_project_config': 'config',
+        'load_project_config': 'config', 'setup_project_directories': 'config',
+        'get_project_path': 'config', 'list_projects': 'config',
+        'update_project_config': 'config',
+        'create_directory_structure': 'config',
+        'create_standard_project_structure': 'config',
+        'save_directory_config': 'config', 'load_directory_config': 'config',
+        'ensure_directories_exist': 'config', 'get_directory_info': 'config',
+        'clean_empty_directories': 'config', 'list_directory_configs': 'config',
+        'create_client_profile': 'config', 'save_client_profile': 'config',
+        'load_client_profile': 'config', 'update_client_profile': 'config',
+        'list_client_profiles': 'config', 'search_client_profiles': 'config',
+        'associate_client_with_project': 'config',
+        'get_client_project_associations': 'config',
+        'validate_client_profile': 'config',
+        'create_connection_profile': 'config', 'save_connection_profile': 'config',
+        'load_connection_profile': 'config', 'find_connection_by_name': 'config',
+        'list_connection_profiles': 'config', 'update_connection_profile': 'config',
+        'verify_connection_profile': 'config', 'get_connection_status': 'config',
+        'cleanup_old_connections': 'config',
         'get_user_config': 'config', 'get_download_directory': 'config',
         'load_user_profile': 'config', 'save_user_profile': 'config',
-        'load_client_profile': 'config', 'save_client_profile': 'config',
-        'list_client_profiles': 'config', 'export_config_yaml': 'config',
-        'import_config_yaml': 'config',
-        
-        # Admin functions
+        'export_config_yaml': 'config', 'import_config_yaml': 'config',
         'get_default_profile_location': 'admin', 'set_profile_location': 'admin',
         'get_profile_location': 'admin', 'list_profile_locations': 'admin',
         'migrate_profiles': 'admin', 'create_default_profiles': 'admin',
         'validate_profile_location': 'admin', 'get_profile_summary': 'admin',
-        
-        # Geo/Census functions (comprehensive!)
         'concatenate_addresses': 'geo', 'use_nominatim_geocoder': 'geo',
         'get_census_intelligence': 'geo', 'quick_census_selection': 'geo',
-        
-        # Census Data Selection Intelligence
-        'get_census_data_selector': 'geo', 'select_census_datasets': 'geo', 'get_analysis_approach': 'geo',
-        'select_datasets_for_analysis': 'geo', 'get_dataset_compatibility_matrix': 'geo', 'suggest_analysis_approach': 'geo',
-        
-        # Census Dataset Mapping & Recommendations
-        'get_census_dataset_mapper': 'geo', 'get_best_dataset_for_analysis': 'geo', 'compare_census_datasets': 'geo',
-        'get_dataset_info': 'geo', 'list_datasets_by_type': 'geo', 'list_datasets_by_geography': 'geo',
-        'get_best_dataset_for_use_case': 'geo', 'get_dataset_relationships': 'geo', 'compare_datasets': 'geo',
-        'get_data_selection_guide': 'geo', 'export_dataset_catalog': 'geo',
-        
-        # Spatial Data & Boundary Downloads
-        'get_census_data': 'geo', 'get_census_boundaries': 'geo', 'download_osm_data': 'geo',
-        'get_available_years': 'geo', 'get_year_directory_contents': 'geo', 'discover_boundary_types': 'geo',
-        'construct_download_url': 'geo', 'validate_download_url': 'geo', 'get_optimal_year': 'geo',
-        'download_data': 'geo', 'get_geographic_boundaries': 'geo', 'get_available_boundary_types': 'geo',
-        'refresh_discovery_cache': 'geo', 'get_available_state_fips': 'geo', 'get_state_abbreviations': 'geo',
-        'get_comprehensive_state_info': 'geo', 'get_state_by_abbreviation': 'geo', 'get_state_by_name': 'geo',
-        'validate_state_fips': 'geo', 'get_state_name': 'geo', 'get_state_abbreviation': 'geo', 'download_dataset': 'geo',
+        'get_census_data_selector': 'geo', 'select_census_datasets': 'geo',
+        'get_analysis_approach': 'geo', 'select_datasets_for_analysis': 'geo',
+        'get_dataset_compatibility_matrix': 'geo', 'suggest_analysis_approach': 'geo',
+        'get_census_dataset_mapper': 'geo', 'get_best_dataset_for_analysis': 'geo',
+        'compare_census_datasets': 'geo', 'get_dataset_info': 'geo',
+        'list_datasets_by_type': 'geo', 'list_datasets_by_geography': 'geo',
+        'get_best_dataset_for_use_case': 'geo', 'get_dataset_relationships': 'geo',
+        'compare_datasets': 'geo', 'get_data_selection_guide': 'geo',
+        'export_dataset_catalog': 'geo',
+        'get_census_data': 'geo', 'get_census_boundaries': 'geo',
+        'download_osm_data': 'geo', 'get_available_years': 'geo',
+        'get_year_directory_contents': 'geo', 'discover_boundary_types': 'geo',
+        'construct_download_url': 'geo', 'validate_download_url': 'geo',
+        'get_optimal_year': 'geo', 'download_data': 'geo',
+        'get_geographic_boundaries': 'geo', 'get_available_boundary_types': 'geo',
+        'refresh_discovery_cache': 'geo', 'get_available_state_fips': 'geo',
+        'get_state_abbreviations': 'geo', 'get_comprehensive_state_info': 'geo',
+        'get_state_by_abbreviation': 'geo', 'get_state_by_name': 'geo',
+        'validate_state_fips': 'geo', 'get_state_name': 'geo',
+        'get_state_abbreviation': 'geo', 'download_dataset': 'geo',
         'get_unified_fips_data': 'geo', 'normalize_state_identifier': 'geo',
-        
-        # Hygiene functions
-        'generate_docstring_template': 'hygiene', 'analyze_function_signature': 'hygiene',
-        
-        # Development functions
-        'generate_architecture_diagram': 'development', 'analyze_package_structure': 'development',
-        
-        # Git functions
+        'generate_docstring_template': 'hygiene',
+        'analyze_function_signature': 'hygiene',
+        'generate_architecture_diagram': 'development',
+        'analyze_package_structure': 'development',
         'analyze_branch_status': 'git', 'generate_branch_report': 'git',
-        'create_feature_branch': 'git', 'switch_branch': 'git', 'merge_branch': 'git',
-        'get_repository_status': 'git', 'get_branch_info': 'git',
-        'start_feature_workflow': 'git', 'validate_branch_naming': 'git',
-        
-        # Testing functions
+        'create_feature_branch': 'git', 'switch_branch': 'git',
+        'merge_branch': 'git', 'get_repository_status': 'git',
+        'get_branch_info': 'git', 'start_feature_workflow': 'git',
+        'validate_branch_naming': 'git',
         'setup_spark_environment': 'testing', 'get_system_info': 'testing',
-        
-        # Data functions
-        'load_sample_data': 'data', 'list_available_datasets': 'data', 'get_dataset_info': 'data',
-        'join_boundaries_and_data': 'data', 'create_sample_dataset': 'data',
-        'generate_synthetic_population': 'data', 'generate_synthetic_businesses': 'data', 'generate_synthetic_housing': 'data',
-        
-        # Analytics functions
+        'load_sample_data': 'data', 'list_available_datasets': 'data',
+        'get_dataset_info': 'data', 'join_boundaries_and_data': 'data',
+        'create_sample_dataset': 'data', 'generate_synthetic_population': 'data',
+        'generate_synthetic_businesses': 'data', 'generate_synthetic_housing': 'data',
         'create_ga_account_profile': 'analytics', 'save_ga_account_profile': 'analytics',
-        'load_ga_account_profile': 'analytics', 'list_ga_accounts_for_client': 'analytics', 'batch_retrieve_ga_data': 'analytics',
-        'create_facebook_account_profile': 'analytics', 'save_facebook_account_profile': 'analytics',
-        'load_facebook_account_profile': 'analytics', 'list_facebook_accounts_for_client': 'analytics', 'batch_retrieve_facebook_data': 'analytics',
-        # Data.world functions
-        'get_datadotworld_connector': 'analytics', 'search_datadotworld_datasets': 'analytics',
-        'load_datadotworld_dataset': 'analytics', 'query_datadotworld_dataset': 'analytics',
-        'search_datasets': 'analytics', 'list_datasets': 'analytics', 'get_dataset_metadata': 'analytics',
-        'download_dataset': 'analytics', 'upload_dataset': 'analytics', 'create_dataset': 'analytics',
-        # Snowflake functions
+        'load_ga_account_profile': 'analytics', 'list_ga_accounts_for_client': 'analytics',
+        'batch_retrieve_ga_data': 'analytics',
+        'create_facebook_account_profile': 'analytics',
+        'save_facebook_account_profile': 'analytics',
+        'load_facebook_account_profile': 'analytics',
+        'list_facebook_accounts_for_client': 'analytics',
+        'batch_retrieve_facebook_data': 'analytics',
+        'get_datadotworld_connector': 'analytics',
+        'search_datadotworld_datasets': 'analytics',
+        'load_datadotworld_dataset': 'analytics',
+        'query_datadotworld_dataset': 'analytics',
+        'search_datasets': 'analytics', 'list_datasets': 'analytics',
         'get_snowflake_connector': 'analytics', 'upload_to_snowflake': 'analytics',
         'download_from_snowflake': 'analytics', 'execute_snowflake_query': 'analytics',
-        'connect': 'analytics', 'disconnect': 'analytics', 'list_tables': 'analytics', 'get_table_schema': 'analytics',
-        
-        # Reporting functions  
-        'BaseReportTemplate': 'reporting', 'ReportGenerator': 'reporting', 'ChartGenerator': 'reporting',
-        'ClientBrandingManager': 'reporting', 'AnalyticsReportGenerator': 'reporting', 'PowerPointGenerator': 'reporting',
-        'get_report_output_directory': 'reporting', 'create_report_generator': 'reporting', 'create_powerpoint_generator': 'reporting',
-        'export_branding_config': 'reporting', 'import_branding_config': 'reporting', 'export_chart_type_config': 'reporting',
-        'PollingAnalyzer': 'reporting',
-        # Chart generation functions (high value!)
-        'create_bar_chart': 'reporting', 'create_line_chart': 'reporting', 'create_pie_chart': 'reporting',
-        'create_scatter_plot': 'reporting', 'create_heatmap': 'reporting', 'create_choropleth_map': 'reporting',
-        'create_bivariate_choropleth': 'reporting', 'create_marker_map': 'reporting', 'create_flow_map': 'reporting',
-        'create_dashboard': 'reporting', 'create_dataframe_summary_charts': 'reporting', 'generate_chart_from_dataframe': 'reporting'
+        'BaseReportTemplate': 'reporting', 'ReportGenerator': 'reporting',
+        'ChartGenerator': 'reporting', 'ClientBrandingManager': 'reporting',
+        'AnalyticsReportGenerator': 'reporting', 'PowerPointGenerator': 'reporting',
+        'get_report_output_directory': 'reporting',
+        'create_report_generator': 'reporting',
+        'create_powerpoint_generator': 'reporting',
+        'export_branding_config': 'reporting', 'import_branding_config': 'reporting',
+        'export_chart_type_config': 'reporting', 'PollingAnalyzer': 'reporting',
+        'create_bar_chart': 'reporting', 'create_line_chart': 'reporting',
+        'create_pie_chart': 'reporting', 'create_scatter_plot': 'reporting',
+        'create_heatmap': 'reporting', 'create_choropleth_map': 'reporting',
+        'create_bivariate_choropleth': 'reporting', 'create_marker_map': 'reporting',
+        'create_flow_map': 'reporting', 'create_dashboard': 'reporting',
+        'create_dataframe_summary_charts': 'reporting',
+        'generate_chart_from_dataframe': 'reporting',
     }
-    
-    # Dynamically discover what's actually available
+
     for name in dir(current_module):
-        if not name.startswith('_') and name not in ['sys', 'json', 'pathlib', 'logging', 'importlib', 'inspect']:
-            obj = getattr(current_module, name)
-            
-            # Check if this is a known function (in our category mapping)
-            if name in function_categories:
-                if obj is None:
-                    package_info['unavailable_functions'].append(name)
-                elif callable(obj) or inspect.isclass(obj):
-                    package_info['available_functions'].append(name)
-                    category = function_categories[name]
-                    package_info['categories'][category].append(name)
-                    package_info['total_functions'] += 1
-            # Also include other callable objects not in our mapping
-            elif callable(obj) or inspect.isclass(obj):
+        if name.startswith('_') or name in ('sys', 'json', 'pathlib', 'logging', 'importlib', 'inspect'):
+            continue
+        obj = getattr(current_module, name)
+        if name in function_categories:
+            if obj is None:
+                package_info['unavailable_functions'].append(name)
+            elif callable(obj) or _inspect.isclass(obj):
                 package_info['available_functions'].append(name)
+                package_info['categories'][function_categories[name]].append(name)
                 package_info['total_functions'] += 1
-    
-    # Count modules
-    package_info['total_modules'] = len([name for name in dir(current_module) if inspect.ismodule(getattr(current_module, name, None))])
-    
-    # Sort for consistent output
+        elif callable(obj) or _inspect.isclass(obj):
+            package_info['available_functions'].append(name)
+            package_info['total_functions'] += 1
+
+    package_info['total_modules'] = len([
+        n for n in dir(current_module)
+        if _inspect.ismodule(getattr(current_module, n, None))
+    ])
+
     package_info['available_functions'].sort()
     package_info['unavailable_functions'].sort()
-    for category in package_info['categories']:
-        package_info['categories'][category].sort()
-    
-    log_info(f"Package info generated: {package_info['total_functions']} available functions, {package_info['total_modules']} modules, {len(package_info['unavailable_functions'])} unavailable")
+    for cat in package_info['categories']:
+        package_info['categories'][cat].sort()
+
+    log_info(
+        f"Package info generated: {package_info['total_functions']} available functions, "
+        f"{package_info['total_modules']} modules, "
+        f"{len(package_info['unavailable_functions'])} unavailable"
+    )
     return package_info
 
 
 def check_dependencies() -> Dict[str, bool]:
     """
     Check the availability of optional dependencies.
-    
+
     Returns:
         Dictionary mapping dependency names to availability status
     """
     dependencies = {
-        'pandas': False,
-        'numpy': False,
-        'pyspark': False,
-        'sqlalchemy': False,
-        'psycopg2': False,
-        'pymysql': False,
-        'cx_oracle': False,
-        'pyodbc': False,
-        'requests': False,
-        'geopy': False,
-        'shapely': False,
-        'folium': False,
-        'geopandas': False,
-        'duckdb': False,
-        'fiona': False,
-        'pyproj': False,
-        'faker': False,
-        'tqdm': False
+        'pandas': False, 'numpy': False, 'pyspark': False,
+        'sqlalchemy': False, 'psycopg2': False, 'pymysql': False,
+        'cx_oracle': False, 'pyodbc': False, 'requests': False,
+        'geopy': False, 'shapely': False, 'folium': False,
+        'geopandas': False, 'duckdb': False, 'fiona': False,
+        'pyproj': False, 'faker': False, 'tqdm': False,
     }
-    
-    for dep_name in dependencies.keys():
+
+    for dep_name in dependencies:
         try:
             importlib.import_module(dep_name)
             dependencies[dep_name] = True
         except ImportError:
             pass
-    
-    # Use builtins.sum to avoid conflict with PySpark's sum function
+
     import builtins
     available_count = builtins.sum(dependencies.values())
     total_count = len(dependencies)
     log_info(f"Dependency check complete: {available_count}/{total_count} available")
-    
+
     return dependencies
 
 
 def get_available_functions() -> Dict[str, list]:
     """
     Get a categorized list of available functions.
-    
+
     Returns:
         Dictionary mapping categories to lists of function names
     """
-    package_info = get_package_info()
-    return package_info['categories']
+    return get_package_info()['categories']
 
 
 def get_function_help(function_name: str) -> Optional[str]:
     """
     Get help information for a specific function.
-    
+
     Args:
         function_name: Name of the function to get help for
-        
+
     Returns:
         Function help string or None if function not found
     """
@@ -730,5 +613,4 @@ def get_function_help(function_name: str) -> Optional[str]:
         func = getattr(sys.modules[__name__], function_name)
         if hasattr(func, '__doc__') and func.__doc__:
             return func.__doc__
-    
     return None
