@@ -114,9 +114,7 @@
 <li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#usage-examples">Usage Examples</a></li>
 <li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#hdfs-operations">HDFS Operations</a></li>
 <li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#id1">Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#hdfs-legacy-operations">HDFS Legacy Operations</a></li>
-<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#id2">Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#id3">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#id2">Usage Examples</a></li>
 <li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#unit-tests">Unit Tests</a></li>
 </ul>
 </li>
@@ -562,49 +560,6 @@ assigned to after instance creation. If match_args is true, the
 __match_args__ tuple is added. If kw_only is true, then by default
 all fields are keyword-only. If slots is true, a new class with a
 __slots__ attribute is returned.</p>
-</dd></dl>
-
-</section>
-<section id="siege-utilities-distributed-hdfs-legacy">
-<h2>siege_utilities.distributed.hdfs_legacy<a class="headerlink" href="#siege-utilities-distributed-hdfs-legacy" title="Link to this heading"></a></h2>
-<dl class="py function">
-<dt class="sig sig-object py" id="siege_utilities.check_hdfs_status">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">check_hdfs_status</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/hdfs_legacy.html#check_hdfs_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.check_hdfs_status" title="Link to this definition"></a></dt>
-<dd><p>Check if HDFS is accessible</p>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="siege_utilities.get_quick_file_signature">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">get_quick_file_signature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/files/hashing.html#get_quick_file_signature"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.get_quick_file_signature" title="Link to this definition"></a></dt>
-<dd><p>Generate a quick file signature using file stats + partial hash
-Faster for change detection, not cryptographically secure</p>
-<p>SECURITY: This function validates paths to prevent path traversal attacks
-and access to sensitive system files.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>file_path</strong> – Path to the file</p>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Quick signature string (‘missing’, ‘error’, or hash)</p>
-</dd>
-<dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>PathSecurityError</strong> – If path fails security validation</p>
-</dd>
-</dl>
-<p class="rubric">Example</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">sig</span> <span class="o">=</span> <span class="n">get_quick_file_signature</span><span class="p">(</span><span class="s2">&quot;data.txt&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># This will raise PathSecurityError</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">get_quick_file_signature</span><span class="p">(</span><span class="s2">&quot;/etc/passwd&quot;</span><span class="p">)</span>  <span class="c1"># Sensitive file blocked</span>
-</pre></div>
-</div>
-<dl class="simple">
-<dt>Security Changes:</dt><dd><ul class="simple">
-<li><p>Now validates paths to block path traversal</p></li>
-<li><p>Blocks access to sensitive system files</p></li>
-</ul>
-</dd>
-</dl>
 </dd></dl>
 
 </section>

@@ -116,9 +116,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#usage-examples">Usage Examples</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#hdfs-operations">HDFS Operations</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#id1">Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#hdfs-legacy-operations">HDFS Legacy Operations</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#id2">Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#id3">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id2">Usage Examples</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#unit-tests">Unit Tests</a></li>
 </ul>
 </li>
@@ -527,47 +525,8 @@ Zero hard-coded project dependencies</p>
 </dd></dl>
 
 </section>
-<section id="hdfs-legacy-operations">
-<h2>HDFS Legacy Operations<a class="headerlink" href="#hdfs-legacy-operations" title="Link to this heading"></a></h2>
-<p id="module-siege_utilities.distributed.hdfs_legacy">Fixed HDFS Operations - Minimal working version</p>
-</section>
 <section id="id2">
-<h2>Functions<a class="headerlink" href="#id2" title="Link to this heading"></a></h2>
-<dl class="py function">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.distributed.hdfs_legacy.</span></span><span class="sig-name descname"><span class="pre">check_hdfs_status</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/hdfs_legacy.html#check_hdfs_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
-<dd><p>Check if HDFS is accessible</p>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.distributed.hdfs_legacy.</span></span><span class="sig-name descname"><span class="pre">get_quick_file_signature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/hdfs_legacy.html#get_quick_file_signature"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
-<dd><p>“””
-Perform file operations: get quick file signature.</p>
-<p>Part of Siege Utilities File Operations module.
-Auto-discovered and available at package level.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Description needed</p>
-</dd>
-</dl>
-<p class="rubric">Example</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">siege_utilities</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">get_quick_file_signature</span><span class="p">()</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
-</pre></div>
-</div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>This function is auto-discovered and available without imports
-across all siege_utilities modules.</p>
-</div>
-<p>“””</p>
-</dd></dl>
-
-</section>
-<section id="id3">
-<h2>Usage Examples<a class="headerlink" href="#id3" title="Link to this heading"></a></h2>
+<h2>Usage Examples<a class="headerlink" href="#id2" title="Link to this heading"></a></h2>
 <p>HDFS operations:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create HDFS operations instance</span>
 <span class="n">hdfs_ops</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">create_hdfs_operations</span><span class="p">()</span>
@@ -575,11 +534,11 @@ across all siege_utilities modules.</p>
 <span class="c1"># Setup distributed environment</span>
 <span class="n">siege_utilities</span><span class="o">.</span><span class="n">setup_distributed_environment</span><span class="p">()</span>
 
-<span class="c1"># Check HDFS status</span>
-<span class="n">status</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">check_hdfs_status</span><span class="p">()</span>
+<span class="c1"># Check HDFS status (method on operations instance)</span>
+<span class="n">status</span> <span class="o">=</span> <span class="n">hdfs_ops</span><span class="o">.</span><span class="n">check_hdfs_status</span><span class="p">()</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;HDFS Status: </span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-<span class="c1"># Get file signature</span>
+<span class="c1"># Get file signature (from files module)</span>
 <span class="n">signature</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">get_quick_file_signature</span><span class="p">(</span><span class="s1">&#39;/path/to/file&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
