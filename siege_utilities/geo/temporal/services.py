@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     import pandas as pd
+    from .store import TemporalDataStore
 
 from ..schemas.demographics import (
     DemographicSnapshotSchema,

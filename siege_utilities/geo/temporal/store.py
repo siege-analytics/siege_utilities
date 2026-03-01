@@ -157,8 +157,6 @@ class TemporalDataStore:
         year: int | None = None,
     ) -> Path:
         """Persist demographic snapshot data as Parquet."""
-        import pandas as _pd
-
         if year is None:
             if "year" in snapshots.columns:
                 year = int(snapshots["year"].iloc[0])

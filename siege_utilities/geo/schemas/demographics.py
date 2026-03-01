@@ -8,7 +8,6 @@ foreign keys.  No Django dependency required.
 
 from __future__ import annotations
 
-import math
 from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
