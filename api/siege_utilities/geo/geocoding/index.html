@@ -181,19 +181,37 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../spatial_data.html">Enhanced Census Utilities and Spatial Data</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../spatial_data.html#census-directory-discovery">Census Directory Discovery</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../spatial_data.html#census-directory-discovery">Census Directory Discovery</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../spatial_data.html#siege_utilities.geo.spatial_data.CensusDirectoryDiscovery"><code class="docutils literal notranslate"><span class="pre">CensusDirectoryDiscovery</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../spatial_data.html#census-data-source">Census Data Source</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../spatial_data.html#siege_utilities.geo.spatial_data.CensusDataSource"><code class="docutils literal notranslate"><span class="pre">CensusDataSource</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../spatial_data.html#state-information-methods">State Information Methods</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="../spatial_data.html#spatial-data-source">Spatial Data Source</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../spatial_data.html#government-data-source">Government Data Source</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../spatial_data.html#openstreetmap-data-source">OpenStreetMap Data Source</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../spatial_data.html#convenience-functions">Convenience Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../spatial_data.html#spatial-data-source">Spatial Data Source</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../spatial_data.html#siege_utilities.geo.spatial_data.SpatialDataSource"><code class="docutils literal notranslate"><span class="pre">SpatialDataSource</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../spatial_data.html#government-data-source">Government Data Source</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../spatial_data.html#siege_utilities.geo.spatial_data.GovernmentDataSource"><code class="docutils literal notranslate"><span class="pre">GovernmentDataSource</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../spatial_data.html#openstreetmap-data-source">OpenStreetMap Data Source</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../spatial_data.html#siege_utilities.geo.spatial_data.OpenStreetMapDataSource"><code class="docutils literal notranslate"><span class="pre">OpenStreetMapDataSource</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../spatial_data.html#convenience-functions">Convenience Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../spatial_data.html#siege_utilities.geo.spatial_data.get_census_data"><code class="docutils literal notranslate"><span class="pre">get_census_data()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../spatial_data.html#siege_utilities.geo.spatial_data.get_census_boundaries"><code class="docutils literal notranslate"><span class="pre">get_census_boundaries()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../spatial_data.html#siege_utilities.geo.spatial_data.download_osm_data"><code class="docutils literal notranslate"><span class="pre">download_osm_data()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../spatial_data.html#global-instances">Global Instances</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../spatial_data.html#census_source"><code class="docutils literal notranslate"><span class="pre">census_source</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../spatial_data.html#government_source"><code class="docutils literal notranslate"><span class="pre">government_source</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../spatial_data.html#osm_source"><code class="docutils literal notranslate"><span class="pre">osm_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../spatial_data.html#siege_utilities.geo.spatial_data.census_source"><code class="docutils literal notranslate"><span class="pre">census_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../spatial_data.html#siege_utilities.geo.spatial_data.government_source"><code class="docutils literal notranslate"><span class="pre">government_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../spatial_data.html#siege_utilities.geo.spatial_data.osm_source"><code class="docutils literal notranslate"><span class="pre">osm_source</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../spatial_data.html#usage-examples">Usage Examples</a><ul>
@@ -490,7 +508,7 @@ across all siege_utilities modules.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.geocoding.NominatimGeoClassifier.get_importance_threshold_by_label">
-<span class="sig-name descname"><span class="pre">get_importance_threshold_by_label</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.geocoding.NominatimGeoClassifier.get_importance_threshold_by_label" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">get_importance_threshold_by_label</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/siege_utilities/geo/geocoding.html#NominatimGeoClassifier.get_importance_threshold_by_label"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.geocoding.NominatimGeoClassifier.get_importance_threshold_by_label" title="Link to this definition"></a></dt>
 <dd><p>“””
 Utility function: get importance threshold by label.</p>
 <p>Part of Siege Utilities Utilities module.
@@ -542,7 +560,7 @@ across all siege_utilities modules.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.geocoding.NominatimGeoClassifier.get_place_ranks_by_label">
-<span class="sig-name descname"><span class="pre">get_place_ranks_by_label</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.geocoding.NominatimGeoClassifier.get_place_ranks_by_label" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">get_place_ranks_by_label</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/siege_utilities/geo/geocoding.html#NominatimGeoClassifier.get_place_ranks_by_label"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.geocoding.NominatimGeoClassifier.get_place_ranks_by_label" title="Link to this definition"></a></dt>
 <dd><p>“””
 Utility function: get place ranks by label.</p>
 <p>Part of Siege Utilities Utilities module.
@@ -574,7 +592,7 @@ across all siege_utilities modules.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.geocoding.NominatimGeoClassifier.to_json">
-<span class="sig-name descname"><span class="pre">to_json</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.geocoding.NominatimGeoClassifier.to_json" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">to_json</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/siege_utilities/geo/geocoding.html#NominatimGeoClassifier.to_json"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.geocoding.NominatimGeoClassifier.to_json" title="Link to this definition"></a></dt>
 <dd><p>“””
 Utility function: to json.</p>
 <p>Part of Siege Utilities Utilities module.
@@ -612,14 +630,14 @@ across all siege_utilities modules.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.geo.geocoding.concatenate_addresses">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.geocoding.</span></span><span class="sig-name descname"><span class="pre">concatenate_addresses</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">street</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">city</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_province_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">postal_code</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">country</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.geocoding.concatenate_addresses" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.geocoding.</span></span><span class="sig-name descname"><span class="pre">concatenate_addresses</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">street</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">city</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_province_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">postal_code</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">country</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/siege_utilities/geo/geocoding.html#concatenate_addresses"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.geocoding.concatenate_addresses" title="Link to this definition"></a></dt>
 <dd><p>Concatenate address components into a single string suitable for geocoding.
 Returns a properly formatted address string.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.geo.geocoding.use_nominatim_geocoder">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.geocoding.</span></span><span class="sig-name descname"><span class="pre">use_nominatim_geocoder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query_address</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">country_codes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_retries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.geocoding.use_nominatim_geocoder" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.geocoding.</span></span><span class="sig-name descname"><span class="pre">use_nominatim_geocoder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query_address</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">country_codes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_retries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/siege_utilities/geo/geocoding.html#use_nominatim_geocoder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.geocoding.use_nominatim_geocoder" title="Link to this definition"></a></dt>
 <dd><p>Geocode an address using Nominatim with proper rate limiting and error handling.
 Returns the result as a JSON string for Spark UDF compatibility.</p>
 <dl class="field-list simple">

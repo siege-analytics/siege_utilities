@@ -180,19 +180,37 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html">Enhanced Census Utilities and Spatial Data</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#census-directory-discovery">Census Directory Discovery</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#census-directory-discovery">Census Directory Discovery</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#siege_utilities.geo.spatial_data.CensusDirectoryDiscovery"><code class="docutils literal notranslate"><span class="pre">CensusDirectoryDiscovery</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#census-data-source">Census Data Source</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#siege_utilities.geo.spatial_data.CensusDataSource"><code class="docutils literal notranslate"><span class="pre">CensusDataSource</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#state-information-methods">State Information Methods</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#spatial-data-source">Spatial Data Source</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#government-data-source">Government Data Source</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#openstreetmap-data-source">OpenStreetMap Data Source</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#convenience-functions">Convenience Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#spatial-data-source">Spatial Data Source</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#siege_utilities.geo.spatial_data.SpatialDataSource"><code class="docutils literal notranslate"><span class="pre">SpatialDataSource</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#government-data-source">Government Data Source</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#siege_utilities.geo.spatial_data.GovernmentDataSource"><code class="docutils literal notranslate"><span class="pre">GovernmentDataSource</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#openstreetmap-data-source">OpenStreetMap Data Source</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#siege_utilities.geo.spatial_data.OpenStreetMapDataSource"><code class="docutils literal notranslate"><span class="pre">OpenStreetMapDataSource</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#convenience-functions">Convenience Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#siege_utilities.geo.spatial_data.get_census_data"><code class="docutils literal notranslate"><span class="pre">get_census_data()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#siege_utilities.geo.spatial_data.get_census_boundaries"><code class="docutils literal notranslate"><span class="pre">get_census_boundaries()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#siege_utilities.geo.spatial_data.download_osm_data"><code class="docutils literal notranslate"><span class="pre">download_osm_data()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#global-instances">Global Instances</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#census_source"><code class="docutils literal notranslate"><span class="pre">census_source</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#government_source"><code class="docutils literal notranslate"><span class="pre">government_source</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#osm_source"><code class="docutils literal notranslate"><span class="pre">osm_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#siege_utilities.geo.spatial_data.census_source"><code class="docutils literal notranslate"><span class="pre">census_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#siege_utilities.geo.spatial_data.government_source"><code class="docutils literal notranslate"><span class="pre">government_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#siege_utilities.geo.spatial_data.osm_source"><code class="docutils literal notranslate"><span class="pre">osm_source</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#usage-examples">Usage Examples</a><ul>
@@ -689,14 +707,14 @@
     <span class="n">_logger_manager</span><span class="o">.</span><span class="n">configure_shared_logging</span><span class="p">(</span><span class="n">log_file_path</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="n">max_bytes</span><span class="p">,</span> <span class="n">backup_count</span><span class="p">)</span>
 
 <div class="viewcode-block" id="get_logger">
-<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.get_logger">[docs]</a>
+<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.core.logging.get_logger">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_logger</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">LoggerName</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Get a logger instance.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">_logger_manager</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="init_logger">
-<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.init_logger">[docs]</a>
+<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.core.logging.init_logger">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">init_logger</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="n">LoggerName</span><span class="p">,</span>
                 <span class="n">log_to_file</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                 <span class="n">log_dir</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;logs&quot;</span><span class="p">,</span>
@@ -742,35 +760,35 @@
 
 <span class="c1"># Convenience logging functions</span>
 <div class="viewcode-block" id="log_debug">
-<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.log_debug">[docs]</a>
+<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.core.logging.log_debug">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">log_debug</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">logger_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">LoggerName</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Log a debug message.&quot;&quot;&quot;</span>
     <span class="n">get_logger</span><span class="p">(</span><span class="n">logger_name</span><span class="p">)</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">message</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="log_info">
-<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.log_info">[docs]</a>
+<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.core.logging.log_info">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">log_info</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">logger_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">LoggerName</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Log an info message.&quot;&quot;&quot;</span>
     <span class="n">get_logger</span><span class="p">(</span><span class="n">logger_name</span><span class="p">)</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">message</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="log_warning">
-<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.log_warning">[docs]</a>
+<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.core.logging.log_warning">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">log_warning</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">logger_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">LoggerName</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Log a warning message.&quot;&quot;&quot;</span>
     <span class="n">get_logger</span><span class="p">(</span><span class="n">logger_name</span><span class="p">)</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">message</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="log_error">
-<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.log_error">[docs]</a>
+<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.core.logging.log_error">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">log_error</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">logger_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">LoggerName</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Log an error message.&quot;&quot;&quot;</span>
     <span class="n">get_logger</span><span class="p">(</span><span class="n">logger_name</span><span class="p">)</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">message</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="log_critical">
-<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.log_critical">[docs]</a>
+<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.core.logging.log_critical">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">log_critical</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">logger_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">LoggerName</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Log a critical message.&quot;&quot;&quot;</span>
     <span class="n">get_logger</span><span class="p">(</span><span class="n">logger_name</span><span class="p">)</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="n">message</span><span class="p">)</span></div>
@@ -778,7 +796,7 @@
 
 
 <div class="viewcode-block" id="parse_log_level">
-<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.parse_log_level">[docs]</a>
+<a class="viewcode-back" href="../../../logging_utilities.html#siege_utilities.core.logging.parse_log_level">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">parse_log_level</span><span class="p">(</span><span class="n">level</span><span class="p">:</span> <span class="n">LogLevel</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Convert a string or numeric level into a logging level constant.</span>
