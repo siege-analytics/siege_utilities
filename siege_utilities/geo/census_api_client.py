@@ -542,8 +542,8 @@ class CensusAPIClient:
         if include_moe and dataset.startswith('acs'):
             var_list = self._add_moe_variables(var_list)
 
-        # Validate geography
-        self._validate_geography(geography, state_fips, county_fips)
+        # Validate and normalize geography (e.g. 'bg' → 'block_group')
+        geography = self._validate_geography(geography, state_fips, county_fips)
 
         # Normalize state FIPS if provided
         if state_fips:
@@ -597,11 +597,15 @@ class CensusAPIClient:
         geography: str,
         state_fips: Optional[str],
         county_fips: Optional[str]
-    ) -> None:
-        """Validate geography parameters. Accepts any alias (e.g., 'bg', 'zip_code')."""
+    ) -> str:
+        """Validate and normalize geography to canonical form.
+
+        Accepts any alias (e.g., 'bg', 'zip_code') and returns the
+        canonical geography string for use in downstream URL/key construction.
+        """
         from siege_utilities.config.census_constants import resolve_geographic_level
         try:
-            geography = resolve_geographic_level(geography)
+            canonical = resolve_geographic_level(geography)
         except ValueError:
             raise CensusGeographyError(
                 f"Invalid geography '{geography}'. "
@@ -610,16 +614,17 @@ class CensusAPIClient:
         # Census API supports these levels
         api_supported = {'state', 'county', 'tract', 'block_group', 'place', 'zcta'}
 
-        if geography not in api_supported:
+        if canonical not in api_supported:
             raise CensusGeographyError(
-                f"Census API does not support geography '{geography}'. "
+                f"Census API does not support geography '{geography}' "
+                f"(resolved to '{canonical}'). "
                 f"Supported: {sorted(api_supported)}"
             )
 
         # Tract and block group require state FIPS
-        if geography in ['tract', 'block_group'] and not state_fips:
+        if canonical in ['tract', 'block_group'] and not state_fips:
             raise CensusGeographyError(
-                f"State FIPS code is required for {geography}-level data"
+                f"State FIPS code is required for {canonical}-level data"
             )
 
         # County FIPS only makes sense with state FIPS
@@ -627,6 +632,8 @@ class CensusAPIClient:
             raise CensusGeographyError(
                 "County FIPS requires state FIPS to be specified"
             )
+
+        return canonical
 
     def _normalize_state(self, state_input: str) -> str:
         """Normalize state identifier to FIPS code."""
@@ -1324,6 +1331,33 @@ def get_census_data_with_geometry(
 
     if shapes_gdf is None or shapes_gdf.empty:
         raise CensusAPIError(f"Failed to fetch boundaries for {geography}")
+
+    # Filter geometry to county scope when county_fips is provided.
+    # TIGER files are per-state, so we post-filter by COUNTYFP column
+    # or by GEOID prefix to match the demographics scope.
+    if county_fips and geography in ['tract', 'block_group']:
+        pre_filter_count = len(shapes_gdf)
+        county_col = None
+        for col in ['COUNTYFP', 'COUNTYFP20', 'COUNTYFP10', 'countyfp']:
+            if col in shapes_gdf.columns:
+                county_col = col
+                break
+
+        if county_col:
+            shapes_gdf = shapes_gdf[shapes_gdf[county_col] == county_fips].copy()
+        else:
+            # Fallback: filter by GEOID prefix (state_fips + county_fips)
+            geoid_col = find_geoid_column(shapes_gdf) or 'GEOID'
+            if geoid_col in shapes_gdf.columns:
+                prefix = state_fips + county_fips
+                shapes_gdf = shapes_gdf[
+                    shapes_gdf[geoid_col].astype(str).str.startswith(prefix)
+                ].copy()
+
+        log.info(
+            f"Filtered geometry by county {county_fips}: "
+            f"{pre_filter_count} → {len(shapes_gdf)} features"
+        )
 
     log.info(f"Retrieved {len(shapes_gdf)} boundary features")
 
