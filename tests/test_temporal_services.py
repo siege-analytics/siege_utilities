@@ -111,6 +111,46 @@ class TestTemporalTimeseriesBuilder:
         ts = results[0].series[0]
         assert len(ts.moe_values) > 0
 
+    def test_cagr_uses_elapsed_years_not_point_count(self):
+        """Sparse series (e.g., 2015 and 2020 only) should use 5 elapsed years."""
+        df = pd.DataFrame([
+            {"boundary_id": "T001", "year": 2015,
+             "values": {"B01001_001E": 100}, "moe_values": {}},
+            {"boundary_id": "T001", "year": 2020,
+             "values": {"B01001_001E": 200}, "moe_values": {}},
+        ])
+        builder = TemporalTimeseriesBuilder(dataset="acs5")
+        results = builder.build(
+            variables=["B01001_001E"], years=[2015, 2020],
+            geography_type="tract", snapshots_df=df,
+        )
+        ts = results[0].series[0]
+        # CAGR over 5 years: (200/100)^(1/5) - 1 ≈ 0.1487
+        assert ts.cagr is not None
+        assert abs(ts.cagr - 0.1487) < 0.001
+
+    def test_moe_values_preserve_alignment(self):
+        """MOE vector must stay index-aligned with years/values."""
+        df = pd.DataFrame([
+            {"boundary_id": "T001", "year": 2018,
+             "values": {"B01001_001E": 100},
+             "moe_values": {"B01001_001E": 10}},
+            {"boundary_id": "T001", "year": 2019,
+             "values": {"B01001_001E": 110},
+             "moe_values": {}},
+            {"boundary_id": "T001", "year": 2020,
+             "values": {"B01001_001E": 120},
+             "moe_values": {"B01001_001E": 12}},
+        ])
+        builder = TemporalTimeseriesBuilder(dataset="acs5")
+        results = builder.build(
+            variables=["B01001_001E"], years=[2018, 2019, 2020],
+            geography_type="tract", snapshots_df=df,
+        )
+        ts = results[0].series[0]
+        assert len(ts.moe_values) == len(ts.years)
+        assert ts.moe_values == [10, None, 12]
+
     def test_no_store_no_df_raises(self):
         builder = TemporalTimeseriesBuilder(dataset="acs5")
         with pytest.raises(ValueError, match="Either snapshots_df or a store"):

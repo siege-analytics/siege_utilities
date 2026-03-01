@@ -79,3 +79,13 @@ class TestSchemasToGdf:
         ]
         gdf = schemas_to_gdf(schemas, geometry_wkts=[None])
         assert len(gdf) == 1
+
+    def test_mismatched_geometry_wkts_length_raises(self):
+        schemas = [
+            StateSchema(
+                geoid="06", name="California", vintage_year=2020,
+                state_fips="06", abbreviation="CA",
+            ),
+        ]
+        with pytest.raises(ValueError, match="geometry_wkts length"):
+            schemas_to_gdf(schemas, geometry_wkts=[box(0, 0, 1, 1).wkt, box(2, 2, 3, 3).wkt])

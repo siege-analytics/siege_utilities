@@ -154,7 +154,8 @@ class TemporalTimeseriesBuilder:
 
                 mean_val = sum(s_values) / len(s_values)
                 std_dev = self._std_dev(s_values, mean_val)
-                cagr = self._cagr(s_values[0], s_values[-1], len(s_years) - 1)
+                elapsed_years = s_years[-1] - s_years[0]
+                cagr = self._cagr(s_values[0], s_values[-1], elapsed_years)
                 trend = self._trend_direction(s_values)
 
                 ts = DemographicTimeSeriesSchema(
@@ -166,7 +167,7 @@ class TemporalTimeseriesBuilder:
                     end_year=s_years[-1],
                     years=s_years,
                     values=s_values,
-                    moe_values=[m for m in s_moe if m is not None],
+                    moe_values=s_moe,
                     mean_value=mean_val,
                     std_dev=std_dev,
                     cagr=cagr,

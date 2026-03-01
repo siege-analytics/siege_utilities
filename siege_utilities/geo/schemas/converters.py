@@ -51,6 +51,11 @@ def schemas_to_gdf(
     df = pd.DataFrame(records)
 
     if geometry_wkts:
+        if len(geometry_wkts) != len(schemas):
+            raise ValueError(
+                f"geometry_wkts length ({len(geometry_wkts)}) must match "
+                f"schemas length ({len(schemas)})"
+            )
         from shapely import wkt
 
         geometries = []
