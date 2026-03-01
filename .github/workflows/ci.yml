@@ -48,7 +48,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --extra dev --extra distributed --extra geodjango
+        uv sync --extra all --extra dev
 
     - name: Lint with flake8
       run: |
@@ -98,7 +98,7 @@ jobs:
 
     - name: Install with pydantic v1
       run: |
-        uv sync --extra dev --extra distributed
+        uv sync --extra all --extra dev
         uv pip install 'pydantic>=1.10,<2.0' --force-reinstall
 
     - name: Test pydantic v1 compatibility
@@ -130,8 +130,8 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --extra dev --extra distributed
-    
+        uv sync --extra all --extra dev
+
     - name: Run Battle Testing Suite
       run: |
         # Run our comprehensive battle testing system

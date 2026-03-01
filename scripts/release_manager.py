@@ -2,7 +2,7 @@
 """
 Release Manager for Siege Utilities
 
-Updates version across all six locations (pyproject.toml, setup.py, __init__.py x2, docs/conf.py x2),
+Updates version across all five locations (pyproject.toml, setup.py, __init__.py, docs/conf.py x2),
 runs tests, builds the package, validates with twine, uploads to PyPI,
 and optionally creates GitHub releases.
 
@@ -48,10 +48,6 @@ VERSION_FILES = {
     '__init__.py __version__': {
         'path': PROJECT_ROOT / 'siege_utilities' / '__init__.py',
         'pattern': r'(__version__\s*=\s*")[^"]+(")',
-    },
-    '__init__.py get_package_info': {
-        'path': PROJECT_ROOT / 'siege_utilities' / '__init__.py',
-        'pattern': r"('version':\s*')[^']+(')",
     },
     'docs/conf.py': {
         'path': PROJECT_ROOT / 'docs' / 'conf.py',
