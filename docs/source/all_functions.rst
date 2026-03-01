@@ -40,13 +40,6 @@ siege_utilities.distributed.hdfs_config
 
 .. autofunction:: siege_utilities.dataclass
 
-siege_utilities.distributed.hdfs_legacy
----------------------------------------
-
-.. autofunction:: siege_utilities.check_hdfs_status
-
-.. autofunction:: siege_utilities.get_quick_file_signature
-
 siege_utilities.distributed.hdfs_operations
 -------------------------------------------
 
