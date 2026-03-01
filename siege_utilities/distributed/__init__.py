@@ -50,11 +50,11 @@ _register([
 __all__ = list(_LAZY_IMPORTS.keys())
 
 # Track whether spark_utils has been fully loaded (for PySpark re-exports)
-_spark_utils_loaded = False
+_spark_utils_module = None  # cached module or False (import failed)
 
 
 def __getattr__(name):
-    global _spark_utils_loaded
+    global _spark_utils_module
 
     # 1. Check explicit registry
     if name in _LAZY_IMPORTS:
@@ -64,16 +64,16 @@ def __getattr__(name):
         return val
 
     # 2. Fallback: try spark_utils for PySpark re-exports (col, lit, when, etc.)
-    if not _spark_utils_loaded:
+    if _spark_utils_module is None:
         try:
-            spark_mod = importlib.import_module('.spark_utils', __package__)
-            _spark_utils_loaded = True
-            if hasattr(spark_mod, name):
-                val = getattr(spark_mod, name)
-                setattr(sys.modules[__name__], name, val)
-                return val
+            _spark_utils_module = importlib.import_module('.spark_utils', __package__)
         except ImportError:
-            _spark_utils_loaded = True
+            _spark_utils_module = False  # Don't retry import on failure
+
+    if _spark_utils_module and hasattr(_spark_utils_module, name):
+        val = getattr(_spark_utils_module, name)
+        setattr(sys.modules[__name__], name, val)
+        return val
 
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 

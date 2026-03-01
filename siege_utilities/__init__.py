@@ -330,11 +330,11 @@ _register_lazy([
 # ── PEP 562 __getattr__ (lazy loading) ───────────────────────────────
 
 # Track which distributed module names we've already cached (avoid repeated lookups)
-_distributed_loaded = False
+_distributed_module = None  # cached module or False (import failed)
 
 
 def __getattr__(name):
-    global _distributed_loaded
+    global _distributed_module
 
     # 1. Check the explicit lazy registry
     if name in _LAZY_IMPORTS:
@@ -353,16 +353,16 @@ def __getattr__(name):
 
     # 2. Fallback: try the distributed module for PySpark re-exports
     #    (col, lit, when, sum, etc. — ~524 functions from pyspark.sql.functions)
-    if not _distributed_loaded:
+    if _distributed_module is None:
         try:
-            dist_mod = importlib.import_module('.distributed', __package__)
-            _distributed_loaded = True
-            if hasattr(dist_mod, name):
-                val = getattr(dist_mod, name)
-                setattr(sys.modules[__name__], name, val)
-                return val
+            _distributed_module = importlib.import_module('.distributed', __package__)
         except ImportError:
-            _distributed_loaded = True  # Don't retry on failure
+            _distributed_module = False  # Don't retry import on failure
+
+    if _distributed_module and hasattr(_distributed_module, name):
+        val = getattr(_distributed_module, name)
+        setattr(sys.modules[__name__], name, val)
+        return val
 
     # 3. Not found
     raise AttributeError(f"module 'siege_utilities' has no attribute {name!r}")

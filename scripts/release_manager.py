@@ -99,7 +99,8 @@ def check_ci_status() -> bool:
         ).stdout.strip()
 
         result = subprocess.run(
-            ['gh', 'run', 'list', '--branch', branch, '--limit', '1', '--json',
+            ['gh', 'run', 'list', '--branch', branch, '--limit', '1',
+             '--workflow', 'Siege Utilities CI/CD', '--json',
              'conclusion,status,name'],
             capture_output=True, text=True, check=True,
             cwd=PROJECT_ROOT,
