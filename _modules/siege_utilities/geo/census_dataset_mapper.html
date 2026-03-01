@@ -1,0 +1,1260 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>siege_utilities.geo.census_dataset_mapper &mdash; Siege Utilities 3.2.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=61566276"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Siege Utilities
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#core-capabilities">Core Capabilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#core-utilities-16-functions">🔧 <strong>Core Utilities (16 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#file-operations-22-functions">📁 <strong>File Operations (22 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#distributed-computing-503-functions">🚀 <strong>Distributed Computing (503+ functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#geospatial-2-functions">🌍 <strong>Geospatial (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#configuration-management-15-functions">⚙️ <strong>Configuration Management (15 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#analytics-integration-6-functions">📊 <strong>Analytics Integration (6 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#code-hygiene-2-functions">🧹 <strong>Code Hygiene (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#testing-development-2-functions">🧪 <strong>Testing &amp; Development (2 functions)</strong></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#real-world-workflow-examples">Real-World Workflow Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#installation-and-dependencies">Installation and Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#performance-and-scalability">Performance and Scalability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../architecture_diagram.html">Library Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#core-architecture">Core Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#function-distribution">Function Distribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#key-features">Key Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#integration-points">Integration Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#usage-patterns">Usage Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../autodiscovery.html">Enhanced Auto-Discovery System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#how-it-works">How It Works</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#the-five-phase-discovery-process">The Five-Phase Discovery Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#benefits">Benefits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#monitoring-your-package">Monitoring Your Package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#adding-new-functions">Adding New Functions</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Core Utilities:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../core_utilities.html">Core Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../core_utilities.html#package-discovery">Package Discovery</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../core_utilities.html#functions">Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../core_utilities.html#siege_utilities.core.__init__"><code class="docutils literal notranslate"><span class="pre">__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../core_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../core_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../string_utilities.html">String Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../string_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../string_utilities.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../string_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../string_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../logging_utilities.html">Logging Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../logging_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../logging_utilities.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../logging_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../logging_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Distributed Computing:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../distributed_computing.html">Distributed Computing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#hdfs-configuration">HDFS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#hdfs-operations">HDFS Operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#id1">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#id2">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../hdfs_operations.html">HDFS Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../hdfs_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../hdfs_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../hdfs_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../hdfs_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../spark_utilities.html">Spark Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../spark_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../spark_utilities.html#functions-by-category">Functions by Category</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../spark_utilities.html#mathematical-functions">Mathematical Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../spark_utilities.html#array-functions">Array Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../spark_utilities.html#aggregation-functions">Aggregation Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../spark_utilities.html#cryptographic-functions">Cryptographic Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../spark_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../spark_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">File Operations:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../file_operations.html">File Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../file_hashing.html">File Hashing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_hashing.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_hashing.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_hashing.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_hashing.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../remote_operations.html">Remote Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../remote_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../remote_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../remote_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../remote_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../shell_operations.html">Shell Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../shell_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../shell_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../shell_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../shell_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Geographic &amp; Analytics:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../geo.html">Geographic Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../geocoding.html">Geocoding</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../geocoding.html#module-overview">Module Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../geocoding.html#functions">Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../geocoding.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../geocoding.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html">Enhanced Census Utilities and Spatial Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#census-directory-discovery">Census Directory Discovery</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#census-data-source">Census Data Source</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#state-information-methods">State Information Methods</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#spatial-data-source">Spatial Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#government-data-source">Government Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#openstreetmap-data-source">OpenStreetMap Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#convenience-functions">Convenience Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#global-instances">Global Instances</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#census_source"><code class="docutils literal notranslate"><span class="pre">census_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#government_source"><code class="docutils literal notranslate"><span class="pre">government_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#osm_source"><code class="docutils literal notranslate"><span class="pre">osm_source</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#basic-census-data-access">Basic Census Data Access</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#state-information-lookup">State Information Lookup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#dynamic-discovery">Dynamic Discovery</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#error-handling">Error Handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#performance-optimization">Performance Optimization</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#integration-with-other-tools">Integration with Other Tools</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html">Census Dataset Mapper</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#classes">Classes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#censusdatasetmapper">CensusDatasetMapper</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#censusdataset">CensusDataset</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#datasetrelationship">DatasetRelationship</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#enums">Enums</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#surveytype">SurveyType</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#geographylevel">GeographyLevel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#datareliability">DataReliability</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#get-census-dataset-mapper">get_census_dataset_mapper</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#get-best-dataset-for-analysis">get_best_dataset_for_analysis</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#compare-census-datasets">compare_census_datasets</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#basic-dataset-information">Basic Dataset Information</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#dataset-comparison">Dataset Comparison</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#data-selection-guide">Data Selection Guide</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#export-dataset-catalog">Export Dataset Catalog</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html">Census Data Selector</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#classes">Classes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#censusdataselector">CensusDataSelector</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#get-census-data-selector">get_census_data_selector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#select-census-datasets">select_census_datasets</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#get-analysis-approach">get_analysis_approach</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#basic-dataset-selection">Basic Dataset Selection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#analysis-approach-recommendations">Analysis Approach Recommendations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#compatibility-matrix">Compatibility Matrix</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#quick-selection">Quick Selection</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#advanced-usage">Advanced Usage</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#custom-reliability-requirements">Custom Reliability Requirements</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#time-sensitive-analysis">Time-Sensitive Analysis</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#variable-specific-selection">Variable-Specific Selection</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#analysis-types-supported">Analysis Types Supported</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#geography-levels-supported">Geography Levels Supported</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#reliability-levels">Reliability Levels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#output-format">Output Format</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#key-features">Key Features</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../geo.html#census-data-intelligence">Census Data Intelligence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../geo.html#enhanced-census-utilities">Enhanced Census Utilities</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../geo.html#spatial-data-processing">Spatial Data Processing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../geo.html#geocoding-services">Geocoding Services</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#analysis-types-supported">Analysis Types Supported</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#geography-levels-supported">Geography Levels Supported</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#census-survey-types">Census Survey Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#data-quality-and-reliability">Data Quality and Reliability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../analytics.html">Analytics</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#facebook-business-analytics">Facebook Business Analytics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#google-analytics">Google Analytics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#id1">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#id2">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mapping_and_reporting.html">Mapping and Reporting System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#key-features">Key Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#quick-start">Quick Start</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#basic-bivariate-choropleth-map">Basic Bivariate Choropleth Map</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#marker-map-with-geographic-data">Marker Map with Geographic Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#d-elevation-visualization">3D Elevation Visualization</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#comprehensive-report-generation">Comprehensive Report Generation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#creating-professional-pdf-reports">Creating Professional PDF Reports</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#powerpoint-presentation-creation">PowerPoint Presentation Creation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#map-types-reference">Map Types Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#bivariate-choropleth-maps">Bivariate Choropleth Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#marker-maps">Marker Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#d-maps">3D Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#heatmap-maps">Heatmap Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#cluster-maps">Cluster Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#flow-maps">Flow Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#advanced-choropleth-maps">Advanced Choropleth Maps</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#report-structure">Report Structure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#pdf-report-components">PDF Report Components</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#powerpoint-structure">PowerPoint Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#section-types">Section Types</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#integration-examples">Integration Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#google-analytics-integration">Google Analytics Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#database-integration">Database Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#custom-api-integration">Custom API Integration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#data-preparation">Data Preparation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#map-design">Map Design</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#report-organization">Report Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#performance-optimization">Performance Optimization</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#common-issues">Common Issues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#performance-issues">Performance Issues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#error-handling">Error Handling</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#examples-and-recipes">Examples and Recipes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#additional-resources">Additional Resources</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development &amp; Testing:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../testing_guide.html">Testing Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-structure">Test Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#running-tests">Running Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#basic-test-execution">Basic Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#coverage-and-reporting">Coverage and Reporting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#parallel-execution">Parallel Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-markers">Test Markers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#writing-new-tests">Writing New Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-file-structure">Test File Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-naming-conventions">Test Naming Conventions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#example-test-patterns">Example Test Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-fixtures">Test Fixtures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-configuration">Test Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#pytest-configuration">Pytest Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#coverage-configuration">Coverage Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#continuous-integration">Continuous Integration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#ci-pipeline">CI Pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#debugging-tests">Debugging Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#verbose-output">Verbose Output</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#debug-mode">Debug Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#single-test-execution">Single Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-isolation">Test Isolation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#performance-testing">Performance Testing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#benchmark-tests">Benchmark Tests</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#load-testing">Load Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-data-management">Test Data Management</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-data-generation">Test Data Generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#data-cleanup">Data Cleanup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-organization">Test Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-independence">Test Independence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-coverage">Test Coverage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#performance-considerations">Performance Considerations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#common-patterns">Common Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#configuration-testing">Configuration Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#file-operation-testing">File Operation Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#api-testing">API Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#common-issues">Common Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#getting-help">Getting Help</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Siege Utilities</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">siege_utilities.geo.census_dataset_mapper</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for siege_utilities.geo.census_dataset_mapper</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Census Dataset Relationship Mapper</span>
+
+<span class="sd">This module provides comprehensive mapping and relationship information for Census datasets,</span>
+<span class="sd">making it easier to understand which datasets to use for different analysis needs.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Any</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.core.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_logger</span><span class="p">,</span> <span class="n">log_info</span><span class="p">,</span> <span class="n">log_warning</span><span class="p">,</span> <span class="n">log_error</span><span class="p">,</span> <span class="n">log_debug</span>
+
+<div class="viewcode-block" id="SurveyType">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.SurveyType">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SurveyType</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Enumeration of Census survey types.&quot;&quot;&quot;</span>
+    <span class="n">DECENNIAL</span> <span class="o">=</span> <span class="s2">&quot;decennial&quot;</span>           <span class="c1"># Every 10 years (2020, 2010, etc.)</span>
+    <span class="n">ACS_1YR</span> <span class="o">=</span> <span class="s2">&quot;acs_1yr&quot;</span>              <span class="c1"># American Community Survey 1-year estimates</span>
+    <span class="n">ACS_3YR</span> <span class="o">=</span> <span class="s2">&quot;acs_3yr&quot;</span>              <span class="c1"># American Community Survey 3-year estimates</span>
+    <span class="n">ACS_5YR</span> <span class="o">=</span> <span class="s2">&quot;acs_5yr&quot;</span>              <span class="c1"># American Community Survey 5-year estimates</span>
+    <span class="n">CENSUS_BUSINESS</span> <span class="o">=</span> <span class="s2">&quot;census_business&quot;</span>  <span class="c1"># Economic Census</span>
+    <span class="n">POPULATION_ESTIMATES</span> <span class="o">=</span> <span class="s2">&quot;population_estimates&quot;</span>  <span class="c1"># Annual population estimates</span>
+    <span class="n">HOUSING_ESTIMATES</span> <span class="o">=</span> <span class="s2">&quot;housing_estimates&quot;</span>  <span class="c1"># Annual housing estimates</span></div>
+
+
+<div class="viewcode-block" id="GeographyLevel">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.GeographyLevel">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GeographyLevel</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Enumeration of Census geography levels (canonical names).&quot;&quot;&quot;</span>
+    <span class="n">NATION</span> <span class="o">=</span> <span class="s2">&quot;nation&quot;</span>
+    <span class="n">REGION</span> <span class="o">=</span> <span class="s2">&quot;region&quot;</span>
+    <span class="n">DIVISION</span> <span class="o">=</span> <span class="s2">&quot;division&quot;</span>
+    <span class="n">STATE</span> <span class="o">=</span> <span class="s2">&quot;state&quot;</span>
+    <span class="n">COUNTY</span> <span class="o">=</span> <span class="s2">&quot;county&quot;</span>
+    <span class="n">COUSUB</span> <span class="o">=</span> <span class="s2">&quot;cousub&quot;</span>
+    <span class="n">PLACE</span> <span class="o">=</span> <span class="s2">&quot;place&quot;</span>
+    <span class="n">CD</span> <span class="o">=</span> <span class="s2">&quot;cd&quot;</span>
+    <span class="n">SLDU</span> <span class="o">=</span> <span class="s2">&quot;sldu&quot;</span>
+    <span class="n">SLDL</span> <span class="o">=</span> <span class="s2">&quot;sldl&quot;</span>
+    <span class="n">TRACT</span> <span class="o">=</span> <span class="s2">&quot;tract&quot;</span>
+    <span class="n">BLOCK_GROUP</span> <span class="o">=</span> <span class="s2">&quot;block_group&quot;</span>
+    <span class="n">BLOCK</span> <span class="o">=</span> <span class="s2">&quot;block&quot;</span>
+    <span class="n">ZCTA</span> <span class="o">=</span> <span class="s2">&quot;zcta&quot;</span>
+    <span class="n">CBSA</span> <span class="o">=</span> <span class="s2">&quot;cbsa&quot;</span>
+    <span class="n">PUMA</span> <span class="o">=</span> <span class="s2">&quot;puma&quot;</span>
+    <span class="n">VTD</span> <span class="o">=</span> <span class="s2">&quot;vtd&quot;</span>
+    <span class="n">VTD20</span> <span class="o">=</span> <span class="s2">&quot;vtd20&quot;</span>
+    <span class="n">TABBLOCK20</span> <span class="o">=</span> <span class="s2">&quot;tabblock20&quot;</span>
+    <span class="n">TABBLOCK10</span> <span class="o">=</span> <span class="s2">&quot;tabblock10&quot;</span>
+
+    <span class="c1"># Backward-compatible aliases (same value → Python Enum alias)</span>
+    <span class="n">COUNTY_SUBDIVISION</span> <span class="o">=</span> <span class="s2">&quot;cousub&quot;</span>
+    <span class="n">CONGRESSIONAL_DISTRICT</span> <span class="o">=</span> <span class="s2">&quot;cd&quot;</span>
+    <span class="n">STATE_LEGISLATIVE_DISTRICT</span> <span class="o">=</span> <span class="s2">&quot;sldu&quot;</span>  <span class="c1"># defaults to upper chamber</span>
+    <span class="n">ZIP_CODE</span> <span class="o">=</span> <span class="s2">&quot;zcta&quot;</span>
+    <span class="n">VOTING_DISTRICT</span> <span class="o">=</span> <span class="s2">&quot;vtd&quot;</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_missing_</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resolve aliases like &#39;congressional_district&#39; → CD.&quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.config.census_constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">resolve_geographic_level</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">canonical</span> <span class="o">=</span> <span class="n">resolve_geographic_level</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="bp">cls</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">member</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="n">canonical</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">member</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="DataReliability">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.DataReliability">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">DataReliability</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Enumeration of data reliability levels.&quot;&quot;&quot;</span>
+    <span class="n">HIGH</span> <span class="o">=</span> <span class="s2">&quot;high&quot;</span>           <span class="c1"># Most reliable (decennial, large geographies)</span>
+    <span class="n">MEDIUM</span> <span class="o">=</span> <span class="s2">&quot;medium&quot;</span>       <span class="c1"># Moderately reliable (ACS 5-year, medium geographies)</span>
+    <span class="n">LOW</span> <span class="o">=</span> <span class="s2">&quot;low&quot;</span>             <span class="c1"># Less reliable (ACS 1-year, small geographies)</span>
+    <span class="n">ESTIMATED</span> <span class="o">=</span> <span class="s2">&quot;estimated&quot;</span> <span class="c1"># Modeled estimates</span></div>
+
+
+<div class="viewcode-block" id="CensusDataset">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.CensusDataset">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CensusDataset</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Represents a Census dataset with metadata.&quot;&quot;&quot;</span>
+
+    <span class="n">dataset_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">survey_type</span><span class="p">:</span> <span class="n">SurveyType</span>
+    <span class="n">geography_levels</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">GeographyLevel</span><span class="p">]</span>
+    <span class="n">time_period</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">reliability</span><span class="p">:</span> <span class="n">DataReliability</span>
+    <span class="n">description</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">variables</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">limitations</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">best_for</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">alternatives</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">data_quality_notes</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">last_updated</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">next_update</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">api_endpoint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">download_url</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="DatasetRelationship">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.DatasetRelationship">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DatasetRelationship</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Represents a relationship between Census datasets.&quot;&quot;&quot;</span>
+    
+    <span class="n">primary_dataset</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">related_dataset</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">relationship_type</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># &quot;complements&quot;, &quot;replaces&quot;, &quot;supplements&quot;, &quot;conflicts&quot;</span>
+    <span class="n">description</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">when_to_use_primary</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">when_to_use_related</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">overlap_period</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">compatibility_score</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>  <span class="c1"># 0-1 scale</span></div>
+
+
+<div class="viewcode-block" id="CensusDatasetMapper">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.CensusDatasetMapper">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CensusDatasetMapper</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Maps relationships between Census datasets and provides intelligent data selection.</span>
+<span class="sd">    </span>
+<span class="sd">    This class helps users understand:</span>
+<span class="sd">    - Which datasets are available for different geography levels</span>
+<span class="sd">    - How different survey types relate to each other</span>
+<span class="sd">    - When to use different datasets based on analysis needs</span>
+<span class="sd">    - Data quality and reliability considerations</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+<div class="viewcode-block" id="CensusDatasetMapper.__init__">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.CensusDatasetMapper.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">CensusDataset</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relationships</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">DatasetRelationship</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initialize_datasets</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initialize_relationships</span><span class="p">()</span></div>
+
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_initialize_datasets</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the comprehensive Census dataset catalog.&quot;&quot;&quot;</span>
+        
+        <span class="c1"># Decennial Census (2020)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;decennial_2020&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">CensusDataset</span><span class="p">(</span>
+            <span class="n">dataset_id</span><span class="o">=</span><span class="s2">&quot;decennial_2020&quot;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;2020 Decennial Census&quot;</span><span class="p">,</span>
+            <span class="n">survey_type</span><span class="o">=</span><span class="n">SurveyType</span><span class="o">.</span><span class="n">DECENNIAL</span><span class="p">,</span>
+            <span class="n">geography_levels</span><span class="o">=</span><span class="p">[</span>
+                <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">NATION</span><span class="p">,</span> <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">STATE</span><span class="p">,</span> <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">COUNTY</span><span class="p">,</span>
+                <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">PLACE</span><span class="p">,</span> <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">TRACT</span><span class="p">,</span> <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">BLOCK_GROUP</span><span class="p">,</span>
+                <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">BLOCK</span>
+            <span class="p">],</span>
+            <span class="n">time_period</span><span class="o">=</span><span class="s2">&quot;2020-04-01&quot;</span><span class="p">,</span>
+            <span class="n">reliability</span><span class="o">=</span><span class="n">DataReliability</span><span class="o">.</span><span class="n">HIGH</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Complete count of population and housing units every 10 years&quot;</span><span class="p">,</span>
+            <span class="n">variables</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;total_population&quot;</span><span class="p">,</span> <span class="s2">&quot;race&quot;</span><span class="p">,</span> <span class="s2">&quot;ethnicity&quot;</span><span class="p">,</span> <span class="s2">&quot;age&quot;</span><span class="p">,</span> <span class="s2">&quot;sex&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;household_type&quot;</span><span class="p">,</span> <span class="s2">&quot;housing_tenure&quot;</span><span class="p">,</span> <span class="s2">&quot;vacancy_status&quot;</span>
+            <span class="p">],</span>
+            <span class="n">limitations</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;Only basic demographic questions&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Limited socioeconomic data&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;10-year intervals mean data can become outdated&quot;</span>
+            <span class="p">],</span>
+            <span class="n">best_for</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;Official population counts&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Redistricting&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Constitutional requirements&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;High-precision geography analysis&quot;</span>
+            <span class="p">],</span>
+            <span class="n">alternatives</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;acs_5yr_2020&quot;</span><span class="p">,</span> <span class="s2">&quot;population_estimates_2023&quot;</span>
+            <span class="p">],</span>
+            <span class="n">data_quality_notes</span><span class="o">=</span><span class="s2">&quot;100</span><span class="si">% c</span><span class="s2">ount of population and housing units&quot;</span><span class="p">,</span>
+            <span class="n">last_updated</span><span class="o">=</span><span class="s2">&quot;2021-08-12&quot;</span><span class="p">,</span>
+            <span class="n">next_update</span><span class="o">=</span><span class="s2">&quot;2030-04-01&quot;</span><span class="p">,</span>
+            <span class="n">api_endpoint</span><span class="o">=</span><span class="s2">&quot;https://api.census.gov/data/2020/dec/pl94&quot;</span><span class="p">,</span>
+            <span class="n">download_url</span><span class="o">=</span><span class="s2">&quot;https://www2.census.gov/census_2020/&quot;</span>
+        <span class="p">)</span>
+        
+        <span class="c1"># ACS 5-Year Estimates (2020)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;acs_5yr_2020&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">CensusDataset</span><span class="p">(</span>
+            <span class="n">dataset_id</span><span class="o">=</span><span class="s2">&quot;acs_5yr_2020&quot;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;ACS 5-Year Estimates (2020)&quot;</span><span class="p">,</span>
+            <span class="n">survey_type</span><span class="o">=</span><span class="n">SurveyType</span><span class="o">.</span><span class="n">ACS_5YR</span><span class="p">,</span>
+            <span class="n">geography_levels</span><span class="o">=</span><span class="p">[</span>
+                <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">NATION</span><span class="p">,</span> <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">STATE</span><span class="p">,</span> <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">COUNTY</span><span class="p">,</span>
+                <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">PLACE</span><span class="p">,</span> <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">TRACT</span><span class="p">,</span> <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">BLOCK_GROUP</span>
+            <span class="p">],</span>
+            <span class="n">time_period</span><span class="o">=</span><span class="s2">&quot;2016-2020&quot;</span><span class="p">,</span>
+            <span class="n">reliability</span><span class="o">=</span><span class="n">DataReliability</span><span class="o">.</span><span class="n">MEDIUM</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;5-year rolling average providing detailed socioeconomic data&quot;</span><span class="p">,</span>
+            <span class="n">variables</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;income&quot;</span><span class="p">,</span> <span class="s2">&quot;education&quot;</span><span class="p">,</span> <span class="s2">&quot;employment&quot;</span><span class="p">,</span> <span class="s2">&quot;housing_value&quot;</span><span class="p">,</span> <span class="s2">&quot;rent&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;commute_time&quot;</span><span class="p">,</span> <span class="s2">&quot;health_insurance&quot;</span><span class="p">,</span> <span class="s2">&quot;poverty_status&quot;</span>
+            <span class="p">],</span>
+            <span class="n">limitations</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;5-year period may mask recent changes&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Smaller geographies have higher margins of error&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Not suitable for very recent analysis&quot;</span>
+            <span class="p">],</span>
+            <span class="n">best_for</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;Detailed socioeconomic analysis&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Small geography analysis&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Trend analysis over 5-year periods&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Policy planning and research&quot;</span>
+            <span class="p">],</span>
+            <span class="n">alternatives</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;acs_3yr_2020&quot;</span><span class="p">,</span> <span class="s2">&quot;acs_1yr_2020&quot;</span><span class="p">,</span> <span class="s2">&quot;decennial_2020&quot;</span>
+            <span class="p">],</span>
+            <span class="n">data_quality_notes</span><span class="o">=</span><span class="s2">&quot;Sample-based estimates with margins of error&quot;</span><span class="p">,</span>
+            <span class="n">last_updated</span><span class="o">=</span><span class="s2">&quot;2021-12-09&quot;</span><span class="p">,</span>
+            <span class="n">next_update</span><span class="o">=</span><span class="s2">&quot;2022-12-09&quot;</span><span class="p">,</span>
+            <span class="n">api_endpoint</span><span class="o">=</span><span class="s2">&quot;https://api.census.gov/data/2020/acs/acs5&quot;</span><span class="p">,</span>
+            <span class="n">download_url</span><span class="o">=</span><span class="s2">&quot;https://www2.census.gov/programs-surveys/acs/data/pums/2020/&quot;</span>
+        <span class="p">)</span>
+        
+        <span class="c1"># ACS 1-Year Estimates (2020)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;acs_1yr_2020&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">CensusDataset</span><span class="p">(</span>
+            <span class="n">dataset_id</span><span class="o">=</span><span class="s2">&quot;acs_1yr_2020&quot;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;ACS 1-Year Estimates (2020)&quot;</span><span class="p">,</span>
+            <span class="n">survey_type</span><span class="o">=</span><span class="n">SurveyType</span><span class="o">.</span><span class="n">ACS_1YR</span><span class="p">,</span>
+            <span class="n">geography_levels</span><span class="o">=</span><span class="p">[</span>
+                <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">NATION</span><span class="p">,</span> <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">STATE</span><span class="p">,</span> <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">COUNTY</span><span class="p">,</span>
+                <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">PLACE</span><span class="p">,</span> <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">CBSA</span>
+            <span class="p">],</span>
+            <span class="n">time_period</span><span class="o">=</span><span class="s2">&quot;2020&quot;</span><span class="p">,</span>
+            <span class="n">reliability</span><span class="o">=</span><span class="n">DataReliability</span><span class="o">.</span><span class="n">LOW</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;1-year estimates for larger geographies&quot;</span><span class="p">,</span>
+            <span class="n">variables</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;income&quot;</span><span class="p">,</span> <span class="s2">&quot;education&quot;</span><span class="p">,</span> <span class="s2">&quot;employment&quot;</span><span class="p">,</span> <span class="s2">&quot;housing_value&quot;</span><span class="p">,</span> <span class="s2">&quot;rent&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;commute_time&quot;</span><span class="p">,</span> <span class="s2">&quot;health_insurance&quot;</span><span class="p">,</span> <span class="s2">&quot;poverty_status&quot;</span>
+            <span class="p">],</span>
+            <span class="n">limitations</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;Only available for geographies with 65,000+ people&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Higher margins of error than 5-year estimates&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;More sensitive to sampling fluctuations&quot;</span>
+            <span class="p">],</span>
+            <span class="n">best_for</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;Recent trend analysis&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Large geography analysis&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Annual comparisons&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Quick assessments&quot;</span>
+            <span class="p">],</span>
+            <span class="n">alternatives</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;acs_5yr_2020&quot;</span><span class="p">,</span> <span class="s2">&quot;population_estimates_2020&quot;</span>
+            <span class="p">],</span>
+            <span class="n">data_quality_notes</span><span class="o">=</span><span class="s2">&quot;Sample-based estimates with higher margins of error&quot;</span><span class="p">,</span>
+            <span class="n">last_updated</span><span class="o">=</span><span class="s2">&quot;2021-09-16&quot;</span><span class="p">,</span>
+            <span class="n">next_update</span><span class="o">=</span><span class="s2">&quot;2022-09-16&quot;</span><span class="p">,</span>
+            <span class="n">api_endpoint</span><span class="o">=</span><span class="s2">&quot;https://api.census.gov/data/2020/acs/acs1&quot;</span><span class="p">,</span>
+            <span class="n">download_url</span><span class="o">=</span><span class="s2">&quot;https://www2.census.gov/programs-surveys/acs/data/pums/2020/&quot;</span>
+        <span class="p">)</span>
+        
+        <span class="c1"># Population Estimates (2023)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;population_estimates_2023&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">CensusDataset</span><span class="p">(</span>
+            <span class="n">dataset_id</span><span class="o">=</span><span class="s2">&quot;population_estimates_2023&quot;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Population Estimates (2023)&quot;</span><span class="p">,</span>
+            <span class="n">survey_type</span><span class="o">=</span><span class="n">SurveyType</span><span class="o">.</span><span class="n">POPULATION_ESTIMATES</span><span class="p">,</span>
+            <span class="n">geography_levels</span><span class="o">=</span><span class="p">[</span>
+                <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">NATION</span><span class="p">,</span> <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">STATE</span><span class="p">,</span> <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">COUNTY</span><span class="p">,</span>
+                <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">PLACE</span><span class="p">,</span> <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">CBSA</span>
+            <span class="p">],</span>
+            <span class="n">time_period</span><span class="o">=</span><span class="s2">&quot;2023-07-01&quot;</span><span class="p">,</span>
+            <span class="n">reliability</span><span class="o">=</span><span class="n">DataReliability</span><span class="o">.</span><span class="n">ESTIMATED</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Annual population estimates based on administrative records&quot;</span><span class="p">,</span>
+            <span class="n">variables</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;total_population&quot;</span><span class="p">,</span> <span class="s2">&quot;age_sex_race&quot;</span><span class="p">,</span> <span class="s2">&quot;components_of_change&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;housing_units&quot;</span>
+            <span class="p">],</span>
+            <span class="n">limitations</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;Modeled estimates, not direct counts&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Limited demographic detail&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Subject to modeling assumptions&quot;</span>
+            <span class="p">],</span>
+            <span class="n">best_for</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;Current population estimates&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Annual population trends&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Intercensal estimates&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Quick population assessments&quot;</span>
+            <span class="p">],</span>
+            <span class="n">alternatives</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;decennial_2020&quot;</span><span class="p">,</span> <span class="s2">&quot;acs_5yr_2020&quot;</span>
+            <span class="p">],</span>
+            <span class="n">data_quality_notes</span><span class="o">=</span><span class="s2">&quot;Modeled estimates based on administrative records&quot;</span><span class="p">,</span>
+            <span class="n">last_updated</span><span class="o">=</span><span class="s2">&quot;2023-12-19&quot;</span><span class="p">,</span>
+            <span class="n">next_update</span><span class="o">=</span><span class="s2">&quot;2024-12-19&quot;</span><span class="p">,</span>
+            <span class="n">api_endpoint</span><span class="o">=</span><span class="s2">&quot;https://api.census.gov/data/2023/pep/population&quot;</span><span class="p">,</span>
+            <span class="n">download_url</span><span class="o">=</span><span class="s2">&quot;https://www2.census.gov/programs-surveys/popest/datasets/&quot;</span>
+        <span class="p">)</span>
+        
+        <span class="c1"># Economic Census (2017)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;economic_census_2017&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">CensusDataset</span><span class="p">(</span>
+            <span class="n">dataset_id</span><span class="o">=</span><span class="s2">&quot;economic_census_2017&quot;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Economic Census (2017)&quot;</span><span class="p">,</span>
+            <span class="n">survey_type</span><span class="o">=</span><span class="n">SurveyType</span><span class="o">.</span><span class="n">CENSUS_BUSINESS</span><span class="p">,</span>
+            <span class="n">geography_levels</span><span class="o">=</span><span class="p">[</span>
+                <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">NATION</span><span class="p">,</span> <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">STATE</span><span class="p">,</span> <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">COUNTY</span><span class="p">,</span>
+                <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">PLACE</span><span class="p">,</span> <span class="n">GeographyLevel</span><span class="o">.</span><span class="n">ZIP_CODE</span>
+            <span class="p">],</span>
+            <span class="n">time_period</span><span class="o">=</span><span class="s2">&quot;2017&quot;</span><span class="p">,</span>
+            <span class="n">reliability</span><span class="o">=</span><span class="n">DataReliability</span><span class="o">.</span><span class="n">HIGH</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Complete count of business establishments every 5 years&quot;</span><span class="p">,</span>
+            <span class="n">variables</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;business_count&quot;</span><span class="p">,</span> <span class="s2">&quot;employment&quot;</span><span class="p">,</span> <span class="s2">&quot;payroll&quot;</span><span class="p">,</span> <span class="s2">&quot;sales_receipts&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;industry_classification&quot;</span><span class="p">,</span> <span class="s2">&quot;business_size&quot;</span>
+            <span class="p">],</span>
+            <span class="n">limitations</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;5-year intervals&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Limited to business establishments&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Not all industries covered&quot;</span>
+            <span class="p">],</span>
+            <span class="n">best_for</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;Business analysis&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Economic development&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Industry analysis&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Employment studies&quot;</span>
+            <span class="p">],</span>
+            <span class="n">alternatives</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;acs_5yr_2020&quot;</span><span class="p">,</span> <span class="s2">&quot;business_patterns_2022&quot;</span>
+            <span class="p">],</span>
+            <span class="n">data_quality_notes</span><span class="o">=</span><span class="s2">&quot;Complete count of business establishments&quot;</span><span class="p">,</span>
+            <span class="n">last_updated</span><span class="o">=</span><span class="s2">&quot;2019-12-19&quot;</span><span class="p">,</span>
+            <span class="n">next_update</span><span class="o">=</span><span class="s2">&quot;2024-12-19&quot;</span><span class="p">,</span>
+            <span class="n">api_endpoint</span><span class="o">=</span><span class="s2">&quot;https://api.census.gov/data/2017/ecnbasic&quot;</span><span class="p">,</span>
+            <span class="n">download_url</span><span class="o">=</span><span class="s2">&quot;https://www2.census.gov/programs-surveys/economic-census/data/2017/&quot;</span>
+        <span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_initialize_relationships</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize relationships between Census datasets.&quot;&quot;&quot;</span>
+        
+        <span class="c1"># Decennial vs ACS relationships</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relationships</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">DatasetRelationship</span><span class="p">(</span>
+            <span class="n">primary_dataset</span><span class="o">=</span><span class="s2">&quot;decennial_2020&quot;</span><span class="p">,</span>
+            <span class="n">related_dataset</span><span class="o">=</span><span class="s2">&quot;acs_5yr_2020&quot;</span><span class="p">,</span>
+            <span class="n">relationship_type</span><span class="o">=</span><span class="s2">&quot;complements&quot;</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Decennial provides official counts, ACS provides detailed characteristics&quot;</span><span class="p">,</span>
+            <span class="n">when_to_use_primary</span><span class="o">=</span><span class="s2">&quot;Need official population counts or basic demographics&quot;</span><span class="p">,</span>
+            <span class="n">when_to_use_related</span><span class="o">=</span><span class="s2">&quot;Need detailed socioeconomic data or recent trends&quot;</span><span class="p">,</span>
+            <span class="n">overlap_period</span><span class="o">=</span><span class="s2">&quot;2020&quot;</span><span class="p">,</span>
+            <span class="n">compatibility_score</span><span class="o">=</span><span class="mf">0.9</span>
+        <span class="p">))</span>
+        
+        <span class="c1"># ACS 1-year vs 5-year relationships</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relationships</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">DatasetRelationship</span><span class="p">(</span>
+            <span class="n">primary_dataset</span><span class="o">=</span><span class="s2">&quot;acs_5yr_2020&quot;</span><span class="p">,</span>
+            <span class="n">related_dataset</span><span class="o">=</span><span class="s2">&quot;acs_1yr_2020&quot;</span><span class="p">,</span>
+            <span class="n">relationship_type</span><span class="o">=</span><span class="s2">&quot;supplements&quot;</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;5-year provides stability, 1-year provides recency&quot;</span><span class="p">,</span>
+            <span class="n">when_to_use_primary</span><span class="o">=</span><span class="s2">&quot;Need stable estimates for small geographies&quot;</span><span class="p">,</span>
+            <span class="n">when_to_use_related</span><span class="o">=</span><span class="s2">&quot;Need recent data for large geographies&quot;</span><span class="p">,</span>
+            <span class="n">overlap_period</span><span class="o">=</span><span class="s2">&quot;2020&quot;</span><span class="p">,</span>
+            <span class="n">compatibility_score</span><span class="o">=</span><span class="mf">0.8</span>
+        <span class="p">))</span>
+        
+        <span class="c1"># Population estimates vs Decennial</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relationships</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">DatasetRelationship</span><span class="p">(</span>
+            <span class="n">primary_dataset</span><span class="o">=</span><span class="s2">&quot;decennial_2020&quot;</span><span class="p">,</span>
+            <span class="n">related_dataset</span><span class="o">=</span><span class="s2">&quot;population_estimates_2023&quot;</span><span class="p">,</span>
+            <span class="n">relationship_type</span><span class="o">=</span><span class="s2">&quot;replaces&quot;</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Population estimates update decennial counts annually&quot;</span><span class="p">,</span>
+            <span class="n">when_to_use_primary</span><span class="o">=</span><span class="s2">&quot;Need official 2020 counts&quot;</span><span class="p">,</span>
+            <span class="n">when_to_use_related</span><span class="o">=</span><span class="s2">&quot;Need current population estimates&quot;</span><span class="p">,</span>
+            <span class="n">overlap_period</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">compatibility_score</span><span class="o">=</span><span class="mf">0.7</span>
+        <span class="p">))</span>
+        
+        <span class="c1"># Economic Census vs ACS</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relationships</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">DatasetRelationship</span><span class="p">(</span>
+            <span class="n">primary_dataset</span><span class="o">=</span><span class="s2">&quot;economic_census_2017&quot;</span><span class="p">,</span>
+            <span class="n">related_dataset</span><span class="o">=</span><span class="s2">&quot;acs_5yr_2020&quot;</span><span class="p">,</span>
+            <span class="n">relationship_type</span><span class="o">=</span><span class="s2">&quot;complements&quot;</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Economic Census provides business data, ACS provides demographic context&quot;</span><span class="p">,</span>
+            <span class="n">when_to_use_primary</span><span class="o">=</span><span class="s2">&quot;Need business establishment data&quot;</span><span class="p">,</span>
+            <span class="n">when_to_use_related</span><span class="o">=</span><span class="s2">&quot;Need demographic context for business analysis&quot;</span><span class="p">,</span>
+            <span class="n">overlap_period</span><span class="o">=</span><span class="s2">&quot;2017-2020&quot;</span><span class="p">,</span>
+            <span class="n">compatibility_score</span><span class="o">=</span><span class="mf">0.6</span>
+        <span class="p">))</span>
+    
+<div class="viewcode-block" id="CensusDatasetMapper.get_dataset_info">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.CensusDatasetMapper.get_dataset_info">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_dataset_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">CensusDataset</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get information about a specific dataset.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">dataset_name</span><span class="p">)</span></div>
+
+    
+<div class="viewcode-block" id="CensusDatasetMapper.list_datasets_by_type">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.CensusDatasetMapper.list_datasets_by_type">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">list_datasets_by_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">survey_type</span><span class="p">:</span> <span class="n">SurveyType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">CensusDataset</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;List all datasets of a specific survey type.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">dataset</span> <span class="k">for</span> <span class="n">dataset</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> 
+                <span class="k">if</span> <span class="n">dataset</span><span class="o">.</span><span class="n">survey_type</span> <span class="o">==</span> <span class="n">survey_type</span><span class="p">]</span></div>
+
+    
+<div class="viewcode-block" id="CensusDatasetMapper.list_datasets_by_geography">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.CensusDatasetMapper.list_datasets_by_geography">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">list_datasets_by_geography</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">geography_level</span><span class="p">:</span> <span class="n">GeographyLevel</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">CensusDataset</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;List all datasets available for a specific geography level.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">dataset</span> <span class="k">for</span> <span class="n">dataset</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> 
+                <span class="k">if</span> <span class="n">geography_level</span> <span class="ow">in</span> <span class="n">dataset</span><span class="o">.</span><span class="n">geography_levels</span><span class="p">]</span></div>
+
+    
+<div class="viewcode-block" id="CensusDatasetMapper.get_best_dataset_for_use_case">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.CensusDatasetMapper.get_best_dataset_for_use_case">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_best_dataset_for_use_case</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">use_case</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> 
+                                    <span class="n">geography_level</span><span class="p">:</span> <span class="n">GeographyLevel</span><span class="p">,</span>
+                                    <span class="n">time_period</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">CensusDataset</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the best dataset(s) for a specific use case.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            use_case: Description of what you&#39;re trying to analyze</span>
+<span class="sd">            geography_level: Required geography level</span>
+<span class="sd">            time_period: Specific time period (optional)</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            List of recommended datasets, ranked by suitability</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="n">suitable_datasets</span> <span class="o">=</span> <span class="p">[]</span>
+        
+        <span class="k">for</span> <span class="n">dataset</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">geography_level</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dataset</span><span class="o">.</span><span class="n">geography_levels</span><span class="p">:</span>
+                <span class="k">continue</span>
+            
+            <span class="c1"># Score dataset based on use case</span>
+            <span class="n">score</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_score_dataset_for_use_case</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">use_case</span><span class="p">,</span> <span class="n">time_period</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">score</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">suitable_datasets</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">dataset</span><span class="p">,</span> <span class="n">score</span><span class="p">))</span>
+        
+        <span class="c1"># Sort by score (highest first)</span>
+        <span class="n">suitable_datasets</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="p">[</span><span class="n">dataset</span> <span class="k">for</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">score</span> <span class="ow">in</span> <span class="n">suitable_datasets</span><span class="p">]</span></div>
+
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_score_dataset_for_use_case</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">CensusDataset</span><span class="p">,</span> 
+                                  <span class="n">use_case</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> 
+                                  <span class="n">time_period</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Score a dataset for a specific use case.&quot;&quot;&quot;</span>
+        
+        <span class="n">score</span> <span class="o">=</span> <span class="mf">0.0</span>
+        
+        <span class="c1"># Check if use case matches dataset&#39;s best_for categories</span>
+        <span class="n">use_case_lower</span> <span class="o">=</span> <span class="n">use_case</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">category</span> <span class="ow">in</span> <span class="n">dataset</span><span class="o">.</span><span class="n">best_for</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">category</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">use_case_lower</span><span class="p">:</span>
+                <span class="n">score</span> <span class="o">+=</span> <span class="mf">2.0</span>
+        
+        <span class="c1"># Reliability scoring</span>
+        <span class="k">if</span> <span class="n">dataset</span><span class="o">.</span><span class="n">reliability</span> <span class="o">==</span> <span class="n">DataReliability</span><span class="o">.</span><span class="n">HIGH</span><span class="p">:</span>
+            <span class="n">score</span> <span class="o">+=</span> <span class="mf">1.5</span>
+        <span class="k">elif</span> <span class="n">dataset</span><span class="o">.</span><span class="n">reliability</span> <span class="o">==</span> <span class="n">DataReliability</span><span class="o">.</span><span class="n">MEDIUM</span><span class="p">:</span>
+            <span class="n">score</span> <span class="o">+=</span> <span class="mf">1.0</span>
+        <span class="k">elif</span> <span class="n">dataset</span><span class="o">.</span><span class="n">reliability</span> <span class="o">==</span> <span class="n">DataReliability</span><span class="o">.</span><span class="n">LOW</span><span class="p">:</span>
+            <span class="n">score</span> <span class="o">+=</span> <span class="mf">0.5</span>
+        
+        <span class="c1"># Time period scoring</span>
+        <span class="k">if</span> <span class="n">time_period</span><span class="p">:</span>
+            <span class="c1"># Prefer more recent data</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">dataset_date</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">time_period</span><span class="p">,</span> <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">target_date</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">time_period</span><span class="p">,</span> <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">years_diff</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">((</span><span class="n">dataset_date</span> <span class="o">-</span> <span class="n">target_date</span><span class="p">)</span><span class="o">.</span><span class="n">days</span> <span class="o">/</span> <span class="mf">365.25</span><span class="p">)</span>
+                
+                <span class="k">if</span> <span class="n">years_diff</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">score</span> <span class="o">+=</span> <span class="mf">1.0</span>
+                <span class="k">elif</span> <span class="n">years_diff</span> <span class="o">&lt;=</span> <span class="mi">3</span><span class="p">:</span>
+                    <span class="n">score</span> <span class="o">+=</span> <span class="mf">0.5</span>
+                <span class="k">elif</span> <span class="n">years_diff</span> <span class="o">&lt;=</span> <span class="mi">5</span><span class="p">:</span>
+                    <span class="n">score</span> <span class="o">+=</span> <span class="mf">0.2</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="c1"># Handle different date formats</span>
+                <span class="k">pass</span>
+        
+        <span class="k">return</span> <span class="n">score</span>
+    
+<div class="viewcode-block" id="CensusDatasetMapper.get_dataset_relationships">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.CensusDatasetMapper.get_dataset_relationships">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_dataset_relationships</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">DatasetRelationship</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get all relationships for a specific dataset.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">rel</span> <span class="k">for</span> <span class="n">rel</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">relationships</span> 
+                <span class="k">if</span> <span class="n">rel</span><span class="o">.</span><span class="n">primary_dataset</span> <span class="o">==</span> <span class="n">dataset_name</span> <span class="ow">or</span> <span class="n">rel</span><span class="o">.</span><span class="n">related_dataset</span> <span class="o">==</span> <span class="n">dataset_name</span><span class="p">]</span></div>
+
+    
+<div class="viewcode-block" id="CensusDatasetMapper.compare_datasets">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.CensusDatasetMapper.compare_datasets">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">compare_datasets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset1_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dataset2_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compare two datasets side by side.&quot;&quot;&quot;</span>
+        
+        <span class="n">dataset1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">dataset1_name</span><span class="p">)</span>
+        <span class="n">dataset2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">dataset2_name</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dataset1</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">dataset2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;One or both datasets not found&quot;</span><span class="p">}</span>
+        
+        <span class="n">comparison</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;dataset1&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">dataset1</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="s2">&quot;survey_type&quot;</span><span class="p">:</span> <span class="n">dataset1</span><span class="o">.</span><span class="n">survey_type</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                <span class="s2">&quot;time_period&quot;</span><span class="p">:</span> <span class="n">dataset1</span><span class="o">.</span><span class="n">time_period</span><span class="p">,</span>
+                <span class="s2">&quot;reliability&quot;</span><span class="p">:</span> <span class="n">dataset1</span><span class="o">.</span><span class="n">reliability</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                <span class="s2">&quot;geography_levels&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">level</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="n">dataset1</span><span class="o">.</span><span class="n">geography_levels</span><span class="p">],</span>
+                <span class="s2">&quot;variables&quot;</span><span class="p">:</span> <span class="n">dataset1</span><span class="o">.</span><span class="n">variables</span><span class="p">,</span>
+                <span class="s2">&quot;limitations&quot;</span><span class="p">:</span> <span class="n">dataset1</span><span class="o">.</span><span class="n">limitations</span><span class="p">,</span>
+                <span class="s2">&quot;best_for&quot;</span><span class="p">:</span> <span class="n">dataset1</span><span class="o">.</span><span class="n">best_for</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;dataset2&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">dataset2</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="s2">&quot;survey_type&quot;</span><span class="p">:</span> <span class="n">dataset2</span><span class="o">.</span><span class="n">survey_type</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                <span class="s2">&quot;time_period&quot;</span><span class="p">:</span> <span class="n">dataset2</span><span class="o">.</span><span class="n">time_period</span><span class="p">,</span>
+                <span class="s2">&quot;reliability&quot;</span><span class="p">:</span> <span class="n">dataset2</span><span class="o">.</span><span class="n">reliability</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                <span class="s2">&quot;geography_levels&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">level</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="n">dataset2</span><span class="o">.</span><span class="n">geography_levels</span><span class="p">],</span>
+                <span class="s2">&quot;variables&quot;</span><span class="p">:</span> <span class="n">dataset2</span><span class="o">.</span><span class="n">variables</span><span class="p">,</span>
+                <span class="s2">&quot;limitations&quot;</span><span class="p">:</span> <span class="n">dataset2</span><span class="o">.</span><span class="n">limitations</span><span class="p">,</span>
+                <span class="s2">&quot;best_for&quot;</span><span class="p">:</span> <span class="n">dataset2</span><span class="o">.</span><span class="n">best_for</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;comparison&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;reliability_difference&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compare_reliability</span><span class="p">(</span><span class="n">dataset1</span><span class="o">.</span><span class="n">reliability</span><span class="p">,</span> <span class="n">dataset2</span><span class="o">.</span><span class="n">reliability</span><span class="p">),</span>
+                <span class="s2">&quot;geography_overlap&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_geography_overlap</span><span class="p">(</span><span class="n">dataset1</span><span class="o">.</span><span class="n">geography_levels</span><span class="p">,</span> <span class="n">dataset2</span><span class="o">.</span><span class="n">geography_levels</span><span class="p">),</span>
+                <span class="s2">&quot;variable_overlap&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_variable_overlap</span><span class="p">(</span><span class="n">dataset1</span><span class="o">.</span><span class="n">variables</span><span class="p">,</span> <span class="n">dataset2</span><span class="o">.</span><span class="n">variables</span><span class="p">),</span>
+                <span class="s2">&quot;when_to_use_dataset1&quot;</span><span class="p">:</span> <span class="n">dataset1</span><span class="o">.</span><span class="n">best_for</span><span class="p">,</span>
+                <span class="s2">&quot;when_to_use_dataset2&quot;</span><span class="p">:</span> <span class="n">dataset2</span><span class="o">.</span><span class="n">best_for</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+        
+        <span class="k">return</span> <span class="n">comparison</span></div>
+
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_compare_reliability</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reliability1</span><span class="p">:</span> <span class="n">DataReliability</span><span class="p">,</span> 
+                           <span class="n">reliability2</span><span class="p">:</span> <span class="n">DataReliability</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compare reliability levels between two datasets.&quot;&quot;&quot;</span>
+        
+        <span class="n">reliability_order</span> <span class="o">=</span> <span class="p">[</span><span class="n">DataReliability</span><span class="o">.</span><span class="n">HIGH</span><span class="p">,</span> <span class="n">DataReliability</span><span class="o">.</span><span class="n">MEDIUM</span><span class="p">,</span> 
+                           <span class="n">DataReliability</span><span class="o">.</span><span class="n">LOW</span><span class="p">,</span> <span class="n">DataReliability</span><span class="o">.</span><span class="n">ESTIMATED</span><span class="p">]</span>
+        
+        <span class="n">idx1</span> <span class="o">=</span> <span class="n">reliability_order</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">reliability1</span><span class="p">)</span>
+        <span class="n">idx2</span> <span class="o">=</span> <span class="n">reliability_order</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">reliability2</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">idx1</span> <span class="o">&lt;</span> <span class="n">idx2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">reliability1</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2"> is more reliable than </span><span class="si">{</span><span class="n">reliability2</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">elif</span> <span class="n">idx1</span> <span class="o">&gt;</span> <span class="n">idx2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">reliability2</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2"> is more reliable than </span><span class="si">{</span><span class="n">reliability1</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Both datasets have </span><span class="si">{</span><span class="n">reliability1</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2"> reliability&quot;</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_geography_overlap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">levels1</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">GeographyLevel</span><span class="p">],</span> 
+                              <span class="n">levels2</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">GeographyLevel</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get overlapping geography levels between two datasets.&quot;&quot;&quot;</span>
+        <span class="n">overlap</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">levels1</span><span class="p">)</span> <span class="o">&amp;</span> <span class="nb">set</span><span class="p">(</span><span class="n">levels2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">level</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="n">overlap</span><span class="p">]</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_variable_overlap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variables1</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> 
+                             <span class="n">variables2</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get overlapping variables between two datasets.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">variables1</span><span class="p">)</span> <span class="o">&amp;</span> <span class="nb">set</span><span class="p">(</span><span class="n">variables2</span><span class="p">))</span>
+    
+<div class="viewcode-block" id="CensusDatasetMapper.get_data_selection_guide">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.CensusDatasetMapper.get_data_selection_guide">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_data_selection_guide</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">analysis_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> 
+                                <span class="n">geography_level</span><span class="p">:</span> <span class="n">GeographyLevel</span><span class="p">,</span>
+                                <span class="n">time_sensitivity</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;medium&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get a comprehensive guide for selecting Census data.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            analysis_type: Type of analysis (e.g., &quot;demographics&quot;, &quot;business&quot;, &quot;housing&quot;)</span>
+<span class="sd">            geography_level: Required geography level</span>
+<span class="sd">            time_sensitivity: How time-sensitive the analysis is (&quot;low&quot;, &quot;medium&quot;, &quot;high&quot;)</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Dictionary with data selection recommendations</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Get suitable datasets</span>
+        <span class="n">suitable_datasets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_best_dataset_for_use_case</span><span class="p">(</span>
+            <span class="n">analysis_type</span><span class="p">,</span> <span class="n">geography_level</span>
+        <span class="p">)</span>
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">suitable_datasets</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;No suitable datasets found for the specified criteria&quot;</span><span class="p">}</span>
+        
+        <span class="c1"># Rank by time sensitivity</span>
+        <span class="k">if</span> <span class="n">time_sensitivity</span> <span class="o">==</span> <span class="s2">&quot;high&quot;</span><span class="p">:</span>
+            <span class="c1"># Prefer more recent data</span>
+            <span class="n">suitable_datasets</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">time_period</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">time_sensitivity</span> <span class="o">==</span> <span class="s2">&quot;low&quot;</span><span class="p">:</span>
+            <span class="c1"># Prefer more reliable data</span>
+            <span class="n">suitable_datasets</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">reliability</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        
+        <span class="n">primary_recommendation</span> <span class="o">=</span> <span class="n">suitable_datasets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">alternatives</span> <span class="o">=</span> <span class="n">suitable_datasets</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">suitable_datasets</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="p">[]</span>
+        
+        <span class="n">guide</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;analysis_type&quot;</span><span class="p">:</span> <span class="n">analysis_type</span><span class="p">,</span>
+            <span class="s2">&quot;geography_level&quot;</span><span class="p">:</span> <span class="n">geography_level</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+            <span class="s2">&quot;time_sensitivity&quot;</span><span class="p">:</span> <span class="n">time_sensitivity</span><span class="p">,</span>
+            <span class="s2">&quot;primary_recommendation&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="n">primary_recommendation</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="s2">&quot;reason&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Best balance of reliability, recency, and suitability for </span><span class="si">{</span><span class="n">analysis_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;survey_type&quot;</span><span class="p">:</span> <span class="n">primary_recommendation</span><span class="o">.</span><span class="n">survey_type</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                <span class="s2">&quot;time_period&quot;</span><span class="p">:</span> <span class="n">primary_recommendation</span><span class="o">.</span><span class="n">time_period</span><span class="p">,</span>
+                <span class="s2">&quot;reliability&quot;</span><span class="p">:</span> <span class="n">primary_recommendation</span><span class="o">.</span><span class="n">reliability</span><span class="o">.</span><span class="n">value</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;alternatives&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="n">alt</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                    <span class="s2">&quot;reason&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Alternative option for </span><span class="si">{</span><span class="n">analysis_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;survey_type&quot;</span><span class="p">:</span> <span class="n">alt</span><span class="o">.</span><span class="n">survey_type</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                    <span class="s2">&quot;time_period&quot;</span><span class="p">:</span> <span class="n">alt</span><span class="o">.</span><span class="n">time_period</span><span class="p">,</span>
+                    <span class="s2">&quot;reliability&quot;</span><span class="p">:</span> <span class="n">alt</span><span class="o">.</span><span class="n">reliability</span><span class="o">.</span><span class="n">value</span>
+                <span class="p">}</span>
+                <span class="k">for</span> <span class="n">alt</span> <span class="ow">in</span> <span class="n">alternatives</span>
+            <span class="p">],</span>
+            <span class="s2">&quot;considerations&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="s2">&quot;Check margins of error for small geographies&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Consider combining multiple datasets for comprehensive analysis&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Verify data availability for your specific geography&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Account for different survey methodologies&quot;</span>
+            <span class="p">],</span>
+            <span class="s2">&quot;api_endpoints&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="n">primary_recommendation</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">primary_recommendation</span><span class="o">.</span><span class="n">api_endpoint</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+        
+        <span class="k">return</span> <span class="n">guide</span></div>
+
+    
+<div class="viewcode-block" id="CensusDatasetMapper.export_dataset_catalog">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.CensusDatasetMapper.export_dataset_catalog">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">export_dataset_catalog</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filepath</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Export the complete dataset catalog to JSON.&quot;&quot;&quot;</span>
+        
+        <span class="n">catalog</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;datasets&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="n">name</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">dataset</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                    <span class="s2">&quot;survey_type&quot;</span><span class="p">:</span> <span class="n">dataset</span><span class="o">.</span><span class="n">survey_type</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                    <span class="s2">&quot;geography_levels&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">level</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="n">dataset</span><span class="o">.</span><span class="n">geography_levels</span><span class="p">],</span>
+                    <span class="s2">&quot;time_period&quot;</span><span class="p">:</span> <span class="n">dataset</span><span class="o">.</span><span class="n">time_period</span><span class="p">,</span>
+                    <span class="s2">&quot;reliability&quot;</span><span class="p">:</span> <span class="n">dataset</span><span class="o">.</span><span class="n">reliability</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                    <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="n">dataset</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
+                    <span class="s2">&quot;variables&quot;</span><span class="p">:</span> <span class="n">dataset</span><span class="o">.</span><span class="n">variables</span><span class="p">,</span>
+                    <span class="s2">&quot;limitations&quot;</span><span class="p">:</span> <span class="n">dataset</span><span class="o">.</span><span class="n">limitations</span><span class="p">,</span>
+                    <span class="s2">&quot;best_for&quot;</span><span class="p">:</span> <span class="n">dataset</span><span class="o">.</span><span class="n">best_for</span><span class="p">,</span>
+                    <span class="s2">&quot;alternatives&quot;</span><span class="p">:</span> <span class="n">dataset</span><span class="o">.</span><span class="n">alternatives</span><span class="p">,</span>
+                    <span class="s2">&quot;data_quality_notes&quot;</span><span class="p">:</span> <span class="n">dataset</span><span class="o">.</span><span class="n">data_quality_notes</span><span class="p">,</span>
+                    <span class="s2">&quot;last_updated&quot;</span><span class="p">:</span> <span class="n">dataset</span><span class="o">.</span><span class="n">last_updated</span><span class="p">,</span>
+                    <span class="s2">&quot;next_update&quot;</span><span class="p">:</span> <span class="n">dataset</span><span class="o">.</span><span class="n">next_update</span><span class="p">,</span>
+                    <span class="s2">&quot;api_endpoint&quot;</span><span class="p">:</span> <span class="n">dataset</span><span class="o">.</span><span class="n">api_endpoint</span><span class="p">,</span>
+                    <span class="s2">&quot;download_url&quot;</span><span class="p">:</span> <span class="n">dataset</span><span class="o">.</span><span class="n">download_url</span>
+                <span class="p">}</span>
+                <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">dataset</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;relationships&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;primary_dataset&quot;</span><span class="p">:</span> <span class="n">rel</span><span class="o">.</span><span class="n">primary_dataset</span><span class="p">,</span>
+                    <span class="s2">&quot;related_dataset&quot;</span><span class="p">:</span> <span class="n">rel</span><span class="o">.</span><span class="n">related_dataset</span><span class="p">,</span>
+                    <span class="s2">&quot;relationship_type&quot;</span><span class="p">:</span> <span class="n">rel</span><span class="o">.</span><span class="n">relationship_type</span><span class="p">,</span>
+                    <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="n">rel</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
+                    <span class="s2">&quot;when_to_use_primary&quot;</span><span class="p">:</span> <span class="n">rel</span><span class="o">.</span><span class="n">when_to_use_primary</span><span class="p">,</span>
+                    <span class="s2">&quot;when_to_use_related&quot;</span><span class="p">:</span> <span class="n">rel</span><span class="o">.</span><span class="n">when_to_use_related</span><span class="p">,</span>
+                    <span class="s2">&quot;overlap_period&quot;</span><span class="p">:</span> <span class="n">rel</span><span class="o">.</span><span class="n">overlap_period</span><span class="p">,</span>
+                    <span class="s2">&quot;compatibility_score&quot;</span><span class="p">:</span> <span class="n">rel</span><span class="o">.</span><span class="n">compatibility_score</span>
+                <span class="p">}</span>
+                <span class="k">for</span> <span class="n">rel</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">relationships</span>
+            <span class="p">],</span>
+            <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;last_updated&quot;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+                <span class="s2">&quot;total_datasets&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">),</span>
+                <span class="s2">&quot;total_relationships&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">relationships</span><span class="p">)</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+        
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">catalog</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Dataset catalog exported to </span><span class="si">{</span><span class="n">filepath</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+</div>
+
+
+<span class="c1"># Convenience functions</span>
+<div class="viewcode-block" id="get_census_dataset_mapper">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.get_census_dataset_mapper">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_census_dataset_mapper</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">CensusDatasetMapper</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get a configured Census dataset mapper instance.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">CensusDatasetMapper</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="get_best_dataset_for_analysis">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.get_best_dataset_for_analysis">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_best_dataset_for_analysis</span><span class="p">(</span><span class="n">analysis_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                                <span class="n">geography_level</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                                <span class="n">time_sensitivity</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;medium&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convenience function to get the best dataset for analysis.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        analysis_type: Type of analysis needed</span>
+<span class="sd">        geography_level: Required geography level</span>
+<span class="sd">        time_sensitivity: Time sensitivity level</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        Data selection guide</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">mapper</span> <span class="o">=</span> <span class="n">get_census_dataset_mapper</span><span class="p">()</span>
+    <span class="n">geo_level</span> <span class="o">=</span> <span class="n">GeographyLevel</span><span class="p">(</span><span class="n">geography_level</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mapper</span><span class="o">.</span><span class="n">get_data_selection_guide</span><span class="p">(</span><span class="n">analysis_type</span><span class="p">,</span> <span class="n">geo_level</span><span class="p">,</span> <span class="n">time_sensitivity</span><span class="p">)</span></div>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_dataset_info</span><span class="p">(</span><span class="n">dataset_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">CensusDataset</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convenience function to get information about a specific dataset.&quot;&quot;&quot;</span>
+    <span class="n">mapper</span> <span class="o">=</span> <span class="n">get_census_dataset_mapper</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">mapper</span><span class="o">.</span><span class="n">get_dataset_info</span><span class="p">(</span><span class="n">dataset_name</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">list_datasets_by_type</span><span class="p">(</span><span class="n">survey_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">CensusDataset</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convenience function to list all datasets of a specific survey type.&quot;&quot;&quot;</span>
+    <span class="n">mapper</span> <span class="o">=</span> <span class="n">get_census_dataset_mapper</span><span class="p">()</span>
+    <span class="n">survey_type_enum</span> <span class="o">=</span> <span class="n">SurveyType</span><span class="p">(</span><span class="n">survey_type</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mapper</span><span class="o">.</span><span class="n">list_datasets_by_type</span><span class="p">(</span><span class="n">survey_type_enum</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">list_datasets_by_geography</span><span class="p">(</span><span class="n">geography_level</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">CensusDataset</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convenience function to list all datasets for a specific geography level.&quot;&quot;&quot;</span>
+    <span class="n">mapper</span> <span class="o">=</span> <span class="n">get_census_dataset_mapper</span><span class="p">()</span>
+    <span class="n">geo_level_enum</span> <span class="o">=</span> <span class="n">GeographyLevel</span><span class="p">(</span><span class="n">geography_level</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mapper</span><span class="o">.</span><span class="n">list_datasets_by_geography</span><span class="p">(</span><span class="n">geo_level_enum</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_dataset_relationships</span><span class="p">(</span><span class="n">dataset_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">DatasetRelationship</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convenience function to get relationships for a dataset.&quot;&quot;&quot;</span>
+    <span class="n">mapper</span> <span class="o">=</span> <span class="n">get_census_dataset_mapper</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">mapper</span><span class="o">.</span><span class="n">get_dataset_relationships</span><span class="p">(</span><span class="n">dataset_name</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_best_dataset_for_use_case</span><span class="p">(</span><span class="n">use_case</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">geography_level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;county&quot;</span><span class="p">,</span> <span class="n">time_sensitivity</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;medium&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convenience function to get the best dataset for a specific use case.&quot;&quot;&quot;</span>
+    <span class="n">mapper</span> <span class="o">=</span> <span class="n">get_census_dataset_mapper</span><span class="p">()</span>
+    <span class="n">geo_level_enum</span> <span class="o">=</span> <span class="n">GeographyLevel</span><span class="p">(</span><span class="n">geography_level</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mapper</span><span class="o">.</span><span class="n">get_best_dataset_for_use_case</span><span class="p">(</span><span class="n">use_case</span><span class="p">,</span> <span class="n">geo_level_enum</span><span class="p">,</span> <span class="n">time_sensitivity</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">export_dataset_catalog</span><span class="p">(</span><span class="n">filepath</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convenience function to export the dataset catalog.&quot;&quot;&quot;</span>
+    <span class="n">mapper</span> <span class="o">=</span> <span class="n">get_census_dataset_mapper</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">mapper</span><span class="o">.</span><span class="n">export_dataset_catalog</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_data_selection_guide</span><span class="p">(</span><span class="n">analysis_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">geography_level</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">time_sensitivity</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;medium&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convenience function to get data selection guide.&quot;&quot;&quot;</span>
+    <span class="n">mapper</span> <span class="o">=</span> <span class="n">get_census_dataset_mapper</span><span class="p">()</span>
+    <span class="n">geo_level_enum</span> <span class="o">=</span> <span class="n">GeographyLevel</span><span class="p">(</span><span class="n">geography_level</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mapper</span><span class="o">.</span><span class="n">get_data_selection_guide</span><span class="p">(</span><span class="n">analysis_type</span><span class="p">,</span> <span class="n">geo_level_enum</span><span class="p">,</span> <span class="n">time_sensitivity</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">compare_datasets</span><span class="p">(</span><span class="n">dataset1_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dataset2_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convenience function to compare two datasets.&quot;&quot;&quot;</span>
+    <span class="n">mapper</span> <span class="o">=</span> <span class="n">get_census_dataset_mapper</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">mapper</span><span class="o">.</span><span class="n">compare_datasets</span><span class="p">(</span><span class="n">dataset1_name</span><span class="p">,</span> <span class="n">dataset2_name</span><span class="p">)</span>
+
+<div class="viewcode-block" id="compare_census_datasets">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.compare_census_datasets">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">compare_census_datasets</span><span class="p">(</span><span class="n">dataset1_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dataset2_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convenience function to compare two Census datasets.&quot;&quot;&quot;</span>
+    <span class="n">mapper</span> <span class="o">=</span> <span class="n">get_census_dataset_mapper</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">mapper</span><span class="o">.</span><span class="n">compare_datasets</span><span class="p">(</span><span class="n">dataset1_name</span><span class="p">,</span> <span class="n">dataset2_name</span><span class="p">)</span></div>
+
+
+<span class="c1"># Example usage and documentation</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="c1"># Example: Get the best dataset for demographic analysis at tract level</span>
+    <span class="n">guide</span> <span class="o">=</span> <span class="n">get_best_dataset_for_analysis</span><span class="p">(</span>
+        <span class="n">analysis_type</span><span class="o">=</span><span class="s2">&quot;demographics&quot;</span><span class="p">,</span>
+        <span class="n">geography_level</span><span class="o">=</span><span class="s2">&quot;tract&quot;</span><span class="p">,</span>
+        <span class="n">time_sensitivity</span><span class="o">=</span><span class="s2">&quot;medium&quot;</span>
+    <span class="p">)</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="s2">&quot;Data Selection Guide:&quot;</span><span class="p">)</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">guide</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+
+    <span class="c1"># Example: Compare decennial census with ACS</span>
+    <span class="n">comparison</span> <span class="o">=</span> <span class="n">compare_census_datasets</span><span class="p">(</span><span class="s2">&quot;decennial_2020&quot;</span><span class="p">,</span> <span class="s2">&quot;acs_5yr_2020&quot;</span><span class="p">)</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="s2">&quot;Dataset Comparison:&quot;</span><span class="p">)</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">comparison</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025-2026, Dheeraj Chand.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

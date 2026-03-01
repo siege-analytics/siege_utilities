@@ -6,14 +6,14 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Enhanced Census Utilities and Spatial Data &mdash; Siege Utilities 3.1.0 documentation</title>
+  <title>Enhanced Census Utilities and Spatial Data &mdash; Siege Utilities 3.2.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=561c2658"></script>
+      <script src="../../../_static/documentation_options.js?v=61566276"></script>
       <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -183,37 +183,19 @@
 </ul>
 </li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Enhanced Census Utilities and Spatial Data</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#census-directory-discovery">Census Directory Discovery</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.spatial_data.CensusDirectoryDiscovery"><code class="docutils literal notranslate"><span class="pre">CensusDirectoryDiscovery</span></code></a></li>
-</ul>
-</li>
+<li class="toctree-l3"><a class="reference internal" href="#census-directory-discovery">Census Directory Discovery</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#census-data-source">Census Data Source</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.spatial_data.CensusDataSource"><code class="docutils literal notranslate"><span class="pre">CensusDataSource</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#state-information-methods">State Information Methods</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#spatial-data-source">Spatial Data Source</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.spatial_data.SpatialDataSource"><code class="docutils literal notranslate"><span class="pre">SpatialDataSource</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="#government-data-source">Government Data Source</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.spatial_data.GovernmentDataSource"><code class="docutils literal notranslate"><span class="pre">GovernmentDataSource</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="#openstreetmap-data-source">OpenStreetMap Data Source</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.spatial_data.OpenStreetMapDataSource"><code class="docutils literal notranslate"><span class="pre">OpenStreetMapDataSource</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="#convenience-functions">Convenience Functions</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.spatial_data.get_census_data"><code class="docutils literal notranslate"><span class="pre">get_census_data()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.spatial_data.get_census_boundaries"><code class="docutils literal notranslate"><span class="pre">get_census_boundaries()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.spatial_data.download_osm_data"><code class="docutils literal notranslate"><span class="pre">download_osm_data()</span></code></a></li>
-</ul>
-</li>
+<li class="toctree-l3"><a class="reference internal" href="#spatial-data-source">Spatial Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#government-data-source">Government Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#openstreetmap-data-source">OpenStreetMap Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#convenience-functions">Convenience Functions</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#global-instances">Global Instances</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.spatial_data.census_source"><code class="docutils literal notranslate"><span class="pre">census_source</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.spatial_data.government_source"><code class="docutils literal notranslate"><span class="pre">government_source</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.spatial_data.osm_source"><code class="docutils literal notranslate"><span class="pre">osm_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#census_source"><code class="docutils literal notranslate"><span class="pre">census_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#government_source"><code class="docutils literal notranslate"><span class="pre">government_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#osm_source"><code class="docutils literal notranslate"><span class="pre">osm_source</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#usage-examples">Usage Examples</a><ul>
@@ -461,61 +443,15 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="module-siege_utilities.geo.spatial_data">
-<span id="enhanced-census-utilities-and-spatial-data"></span><h1>Enhanced Census Utilities and Spatial Data<a class="headerlink" href="#module-siege_utilities.geo.spatial_data" title="Link to this heading"></a></h1>
-<p>Modern spatial data sources for siege_utilities.
-Provides clean, type-safe access to Census, Government, and OpenStreetMap data.</p>
+  <section id="enhanced-census-utilities-and-spatial-data">
+<h1>Enhanced Census Utilities and Spatial Data<a class="headerlink" href="#enhanced-census-utilities-and-spatial-data" title="Link to this heading"></a></h1>
 <section id="census-directory-discovery">
 <h2>Census Directory Discovery<a class="headerlink" href="#census-directory-discovery" title="Link to this heading"></a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">CensusDirectoryDiscovery</span></code> class provides dynamic discovery of available Census TIGER/Line data.</p>
-<dl class="py class">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.CensusDirectoryDiscovery">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.spatial_data.</span></span><span class="sig-name descname"><span class="pre">CensusDirectoryDiscovery</span></span><a class="reference internal" href="../../../_modules/siege_utilities/geo/spatial_data.html#CensusDirectoryDiscovery"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.spatial_data.CensusDirectoryDiscovery" title="Link to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<p>Discovers available Census TIGER/Line data dynamically.</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.CensusDirectoryDiscovery.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/siege_utilities/geo/spatial_data.html#CensusDirectoryDiscovery.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.spatial_data.CensusDirectoryDiscovery.__init__" title="Link to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.CensusDirectoryDiscovery.__new__">
-<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.spatial_data.CensusDirectoryDiscovery.__new__" title="Link to this definition"></a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
 </section>
 <section id="census-data-source">
 <h2>Census Data Source<a class="headerlink" href="#census-data-source" title="Link to this heading"></a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">CensusDataSource</span></code> class provides a high-level interface for accessing Census geographic data.</p>
-<dl class="py class">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.CensusDataSource">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.spatial_data.</span></span><span class="sig-name descname"><span class="pre">CensusDataSource</span></span><a class="reference internal" href="../../../_modules/siege_utilities/geo/spatial_data.html#CensusDataSource"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.spatial_data.CensusDataSource" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference internal" href="#siege_utilities.geo.spatial_data.SpatialDataSource" title="siege_utilities.geo.spatial_data.SpatialDataSource"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpatialDataSource</span></code></a></p>
-<p>Enhanced Census data source with dynamic discovery.</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.CensusDataSource.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">api_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/siege_utilities/geo/spatial_data.html#CensusDataSource.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.spatial_data.CensusDataSource.__init__" title="Link to this definition"></a></dt>
-<dd><p>Initialize spatial data source.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>name</strong> – Name of the data source</p></li>
-<li><p><strong>base_url</strong> – Base URL for the data source</p></li>
-<li><p><strong>api_key</strong> – API key if required</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.CensusDataSource.__new__">
-<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.spatial_data.CensusDataSource.__new__" title="Link to this definition"></a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
 <section id="state-information-methods">
 <h3>State Information Methods<a class="headerlink" href="#state-information-methods" title="Link to this heading"></a></h3>
 <p>The Census data source provides comprehensive state information including FIPS codes, names, and abbreviations:</p>
@@ -547,145 +483,35 @@ Provides clean, type-safe access to Census, Government, and OpenStreetMap data.<
 <section id="spatial-data-source">
 <h2>Spatial Data Source<a class="headerlink" href="#spatial-data-source" title="Link to this heading"></a></h2>
 <p>Base class for spatial data sources.</p>
-<dl class="py class">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.SpatialDataSource">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.spatial_data.</span></span><span class="sig-name descname"><span class="pre">SpatialDataSource</span></span><a class="reference internal" href="../../../_modules/siege_utilities/geo/spatial_data.html#SpatialDataSource"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.spatial_data.SpatialDataSource" title="Link to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<p>Base class for spatial data sources.</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.SpatialDataSource.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">api_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/siege_utilities/geo/spatial_data.html#SpatialDataSource.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.spatial_data.SpatialDataSource.__init__" title="Link to this definition"></a></dt>
-<dd><p>Initialize spatial data source.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>name</strong> – Name of the data source</p></li>
-<li><p><strong>base_url</strong> – Base URL for the data source</p></li>
-<li><p><strong>api_key</strong> – API key if required</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.SpatialDataSource.__new__">
-<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.spatial_data.SpatialDataSource.__new__" title="Link to this definition"></a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
 </section>
 <section id="government-data-source">
 <h2>Government Data Source<a class="headerlink" href="#government-data-source" title="Link to this heading"></a></h2>
 <p>Data source for government open data.</p>
-<dl class="py class">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.GovernmentDataSource">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.spatial_data.</span></span><span class="sig-name descname"><span class="pre">GovernmentDataSource</span></span><a class="reference internal" href="../../../_modules/siege_utilities/geo/spatial_data.html#GovernmentDataSource"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.spatial_data.GovernmentDataSource" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference internal" href="#siege_utilities.geo.spatial_data.SpatialDataSource" title="siege_utilities.geo.spatial_data.SpatialDataSource"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpatialDataSource</span></code></a></p>
-<p>Government data portal spatial data source.</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.GovernmentDataSource.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">portal_url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">api_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/siege_utilities/geo/spatial_data.html#GovernmentDataSource.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.spatial_data.GovernmentDataSource.__init__" title="Link to this definition"></a></dt>
-<dd><p>Initialize government data source.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>portal_url</strong> – Base URL for the government data portal</p></li>
-<li><p><strong>api_key</strong> – API key if required</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.GovernmentDataSource.__new__">
-<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.spatial_data.GovernmentDataSource.__new__" title="Link to this definition"></a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
 </section>
 <section id="openstreetmap-data-source">
 <h2>OpenStreetMap Data Source<a class="headerlink" href="#openstreetmap-data-source" title="Link to this heading"></a></h2>
 <p>Data source for OpenStreetMap data using the Overpass API.</p>
-<dl class="py class">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.OpenStreetMapDataSource">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.spatial_data.</span></span><span class="sig-name descname"><span class="pre">OpenStreetMapDataSource</span></span><a class="reference internal" href="../../../_modules/siege_utilities/geo/spatial_data.html#OpenStreetMapDataSource"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.spatial_data.OpenStreetMapDataSource" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference internal" href="#siege_utilities.geo.spatial_data.SpatialDataSource" title="siege_utilities.geo.spatial_data.SpatialDataSource"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpatialDataSource</span></code></a></p>
-<p>OpenStreetMap data source using Overpass API.</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.OpenStreetMapDataSource.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/siege_utilities/geo/spatial_data.html#OpenStreetMapDataSource.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.spatial_data.OpenStreetMapDataSource.__init__" title="Link to this definition"></a></dt>
-<dd><p>Initialize OpenStreetMap data source.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.OpenStreetMapDataSource.__new__">
-<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.spatial_data.OpenStreetMapDataSource.__new__" title="Link to this definition"></a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
 </section>
 <section id="convenience-functions">
 <h2>Convenience Functions<a class="headerlink" href="#convenience-functions" title="Link to this heading"></a></h2>
-<dl class="py function">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.get_census_data">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.spatial_data.</span></span><span class="sig-name descname"><span class="pre">get_census_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">api_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/siege_utilities/geo/spatial_data.html#get_census_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.spatial_data.get_census_data" title="Link to this definition"></a></dt>
-<dd><p>Get Census data source instance.</p>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.get_census_boundaries">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.spatial_data.</span></span><span class="sig-name descname"><span class="pre">get_census_boundaries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2026</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geographic_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'county'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_fips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_identifier</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/siege_utilities/geo/spatial_data.html#get_census_boundaries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.spatial_data.get_census_boundaries" title="Link to this definition"></a></dt>
-<dd><p>Convenience function to get Census boundaries.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>year</strong> – Census year</p></li>
-<li><p><strong>geographic_level</strong> – Geographic level (county, tract, etc.)</p></li>
-<li><p><strong>state_fips</strong> – State FIPS code (e.g., ‘06’ for California)</p></li>
-<li><p><strong>state_identifier</strong> – State identifier - accepts FIPS code, abbreviation, or name
-(e.g., ‘06’, ‘CA’, ‘California’ all work)</p></li>
-</ul>
-</dd>
-</dl>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Provide either state_fips OR state_identifier, not both.
-If both are provided, state_identifier takes precedence.</p>
-</div>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>GeoDataFrame with Census boundaries (filtered by state if specified)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.download_osm_data">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.spatial_data.</span></span><span class="sig-name descname"><span class="pre">download_osm_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bbox</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/siege_utilities/geo/spatial_data.html#download_osm_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.spatial_data.download_osm_data" title="Link to this definition"></a></dt>
-<dd><p>Convenience function to download OSM data.</p>
-</dd></dl>
-
 </section>
 <section id="global-instances">
 <h2>Global Instances<a class="headerlink" href="#global-instances" title="Link to this heading"></a></h2>
 <dl class="py data">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.census_source">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.spatial_data.</span></span><span class="sig-name descname"><span class="pre">census_source</span></span><span class="property"><span class="w"> </span><span class="pre">CensusDataSource</span></span><a class="headerlink" href="#siege_utilities.geo.spatial_data.census_source" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="census_source">
+<span class="sig-name descname"><span class="pre">census_source</span></span><span class="property"><span class="w"> </span><span class="pre">CensusDataSource</span></span><a class="headerlink" href="#census_source" title="Link to this definition"></a></dt>
 <dd><p>Global instance of the Census data source.</p>
 </dd></dl>
 
 <dl class="py data">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.government_source">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.spatial_data.</span></span><span class="sig-name descname"><span class="pre">government_source</span></span><span class="property"><span class="w"> </span><span class="pre">GovernmentDataSource</span></span><a class="headerlink" href="#siege_utilities.geo.spatial_data.government_source" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="government_source">
+<span class="sig-name descname"><span class="pre">government_source</span></span><span class="property"><span class="w"> </span><span class="pre">GovernmentDataSource</span></span><a class="headerlink" href="#government_source" title="Link to this definition"></a></dt>
 <dd><p>Global instance of the government data source.</p>
 </dd></dl>
 
 <dl class="py data">
-<dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.osm_source">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.spatial_data.</span></span><span class="sig-name descname"><span class="pre">osm_source</span></span><span class="property"><span class="w"> </span><span class="pre">OpenStreetMapDataSource</span></span><a class="headerlink" href="#siege_utilities.geo.spatial_data.osm_source" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="osm_source">
+<span class="sig-name descname"><span class="pre">osm_source</span></span><span class="property"><span class="w"> </span><span class="pre">OpenStreetMapDataSource</span></span><a class="headerlink" href="#osm_source" title="Link to this definition"></a></dt>
 <dd><p>Global instance of the OpenStreetMap data source.</p>
 </dd></dl>
 
