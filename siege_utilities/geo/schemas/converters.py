@@ -21,6 +21,50 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
+def schemas_to_gdf(
+    schemas: list["BaseModel"],
+    geometry_wkts: list[str] | None = None,
+    geometry_column: str = "geometry",
+    srid: int = 4326,
+) -> "gpd.GeoDataFrame":
+    """
+    Convert a list of Pydantic schema instances to a GeoDataFrame.
+
+    Complement to gdf_to_schemas(). No Django required.
+
+    Args:
+        schemas: List of Pydantic schema instances
+        geometry_wkts: Optional list of WKT geometry strings (parallel to schemas)
+        geometry_column: Name for the geometry column
+        srid: SRID for the CRS (default 4326)
+
+    Returns:
+        GeoDataFrame with schema data and optional geometry
+    """
+    import geopandas as gpd
+    import pandas as pd
+
+    if not schemas:
+        return gpd.GeoDataFrame()
+
+    records = [s.model_dump() for s in schemas]
+    df = pd.DataFrame(records)
+
+    if geometry_wkts:
+        from shapely import wkt
+
+        geometries = []
+        for i, row_wkt in enumerate(geometry_wkts):
+            if row_wkt:
+                geometries.append(wkt.loads(row_wkt))
+            else:
+                geometries.append(None)
+        df[geometry_column] = geometries
+        return gpd.GeoDataFrame(df, geometry=geometry_column, crs=f"EPSG:{srid}")
+
+    return gpd.GeoDataFrame(df)
+
+
 def gdf_to_schemas(
     gdf: "gpd.GeoDataFrame",
     schema_class: type[T],

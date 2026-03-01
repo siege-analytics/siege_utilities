@@ -63,8 +63,14 @@ from .intersections import (
 from .crosswalks import (
     TemporalCrosswalkSchema,
 )
+from .demographics import (
+    DemographicVariableSchema,
+    DemographicSnapshotSchema,
+    DemographicTimeSeriesSchema,
+)
 from .converters import (
     gdf_to_schemas,
+    schemas_to_gdf,
     schemas_to_orm,
     orm_to_gdf,
 )
@@ -113,8 +119,13 @@ __all__ = [
     "TractCDIntersectionSchema",
     # Crosswalks
     "TemporalCrosswalkSchema",
+    # Demographics
+    "DemographicVariableSchema",
+    "DemographicSnapshotSchema",
+    "DemographicTimeSeriesSchema",
     # Converters
     "gdf_to_schemas",
+    "schemas_to_gdf",
     "schemas_to_orm",
     "orm_to_gdf",
 ]
