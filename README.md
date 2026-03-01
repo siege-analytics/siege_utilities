@@ -264,6 +264,11 @@ python -m pytest tests/ -v
 # Run specific test file
 python -m pytest tests/test_core_logging.py -v
 
+# Run by marker (v3.2.0+)
+python -m pytest tests/ -m core          # Core-only tests
+python -m pytest tests/ -m geo           # Geo tests
+python -m pytest tests/ -m "not requires_gdal"  # Skip GDAL-dependent tests
+
 # Run with coverage
 python -m pytest tests/ --cov=siege_utilities --cov-report=html
 
@@ -273,20 +278,18 @@ python -m pytest tests/ --tb=short -q
 
 ## ✨ **Key Features**
 
-- 🔄 **Auto-Discovery**: Automatically finds and imports all functions from new modules
-- 🌐 **Mutual Availability**: All 500+ functions accessible from any module without imports
+- ⚡ **Lazy Imports (v3.2.0)**: `import siege_utilities` loads in ~0.02s via PEP 562 `__getattr__` — no heavy packages loaded until first use
+- 📦 **Optional Dependencies (v3.2.0)**: Core install is 4 packages. Add `[geo]`, `[reporting]`, `[analytics]`, `[distributed]`, or `[all]` as needed
+- 🌐 **Mutual Availability**: All 260+ functions accessible via `from siege_utilities import X` — lazy loaded on first access
+- 🛡️ **Graceful Dependencies**: Missing optional packages give clear `ImportError` messages with install instructions
 - 📝 **Universal Logging**: Comprehensive logging system available everywhere
-- 🛡️ **Graceful Dependencies**: Optional features (PySpark, geospatial) fail gracefully
 - 📊 **Built-in Diagnostics**: Monitor package health and function availability
-- ⚡ **Zero Configuration**: Just `import siege_utilities` and everything works
 - 👥 **Client Management**: Comprehensive client profile management with contact info and design artifacts
 - 🔌 **Connection Persistence**: Notebook, Spark, and database connection management and testing
-- 🔗 **Project Association**: Link clients with projects for better organization
 - 🎨 **Modern Python**: Full type hints, modern patterns, and comprehensive testing
 - 🗺️ **Advanced Mapping**: 7+ map types with professional reporting capabilities
-- 🔧 **Extensible System**: Customizable page templates and chart types
-- 🧠 **NEW: Census Intelligence**: Intelligent Census data selection and relationship mapping
-- 📊 **NEW: Sample Datasets**: Built-in synthetic data for testing and development
+- 🧠 **Census Intelligence**: Intelligent Census data selection and relationship mapping
+- 📊 **Sample Datasets**: Built-in synthetic data for testing and development
 
 ## 🚀 **Census Data Intelligence System**
 
@@ -321,38 +324,33 @@ print(f"Recommended Approach: {approach['recommended_approach']}")
 ## 🚀 Quick Start
 
 ```bash
-pip install siege-utilities[geo]
+# Install with the extras you need
+pip install siege-utilities[data,geo]
 ```
 
 ```python
-import siege_utilities
+import siege_utilities  # ~0.02s (lazy loaded, no heavy imports)
 
-# All 500+ functions are immediately available
+# Core functions are always available
 siege_utilities.log_info("Package loaded successfully!")
 
-# NEW: Census Data Intelligence
+# String utilities (core — no extra deps needed)
+clean_text = siege_utilities.remove_wrapping_quotes_and_trim('  "hello"  ')
+
+# Geo functions load on first access (requires [geo] extra)
 from siege_utilities.geo import select_census_datasets
 recommendations = select_census_datasets("demographics", "tract")
 print(f"Use {recommendations['primary_recommendation']['dataset']}")
 
-# File operations
-hash_value = siege_utilities.get_file_hash("myfile.txt")
-siege_utilities.ensure_path_exists("data/processed")
-
-# String utilities
-clean_text = siege_utilities.remove_wrapping_quotes_and_trim('  "hello"  ')
-
-# Distributed computing (if PySpark available)
+# Missing extras give helpful errors instead of crashes
 try:
-    config = siege_utilities.create_hdfs_config("/data")
-    spark, data_path = siege_utilities.setup_distributed_environment()
-except NameError:
-    siege_utilities.log_warning("Distributed features not available")
+    from siege_utilities import ReportGenerator  # requires [reporting]
+except ImportError as e:
+    print(e)  # "ReportGenerator requires matplotlib. Install with: pip install siege-utilities[reporting]"
 
 # Package diagnostics
 info = siege_utilities.get_package_info()
 print(f"Available functions: {info['total_functions']}")
-print(f"Failed imports: {len(info['failed_imports'])}")
 ```
 
 ## 📚 **Documentation & Resources**
@@ -376,23 +374,49 @@ print(f"Failed imports: {len(info['failed_imports'])}")
 
 ## 🔧 Installation Options
 
+**v3.2.0+**: Core install is lightweight (4 packages). Add extras for the features you need.
+
 ```bash
-# Basic installation
+# Core only (pyyaml, requests, tqdm, pydantic) — fast, minimal
 pip install siege-utilities
 
-# With geospatial support (includes Census Data Intelligence)
+# With geospatial support (geopandas, shapely, pyproj, tobler, etc.)
 pip install siege-utilities[geo]
 
-# With distributed computing support
+# With data manipulation (pandas, numpy, openpyxl, faker)
+pip install siege-utilities[data]
+
+# With reporting/visualization (matplotlib, seaborn, folium, plotly, reportlab)
+pip install siege-utilities[reporting]
+
+# With analytics connectors (GA4, Facebook, Snowflake, scipy, scikit-learn)
+pip install siege-utilities[analytics]
+
+# With distributed computing (PySpark, Apache Sedona)
 pip install siege-utilities[distributed]
 
-# Full installation (all optional dependencies)
-pip install siege-utilities[distributed,geo,dev]
+# With GeoDjango (Django, DRF, PostGIS)
+pip install siege-utilities[geodjango]
+
+# With Hydra configuration framework
+pip install siege-utilities[config-extras]
+
+# With web scraping (BeautifulSoup, lxml)
+pip install siege-utilities[web]
+
+# With database connectivity (SQLAlchemy, psycopg2)
+pip install siege-utilities[database]
+
+# Full installation — everything (identical to pre-3.2.0 behavior)
+pip install siege-utilities[all]
+
+# Combine extras as needed
+pip install siege-utilities[data,geo,reporting]
 
 # Development installation
 git clone https://github.com/siege-analytics/siege_utilities.git
 cd siege_utilities
-pip install -e ".[distributed,geo,dev]"
+pip install -e ".[all,dev]"
 ```
 
 ## 🚀 **Modern Package Management with UV**
@@ -443,19 +467,26 @@ generate_poetry_toml("setup.py", "pyproject_poetry.toml")
 generate_uv_toml("setup.py", "pyproject.toml")
 ```
 
-### **Comprehensive Dependencies**
+### **Dependency Extras (v3.2.0)**
 
-The library now includes comprehensive dependency management with organized extras:
+Core install pulls only 4 packages. Add extras for the functionality you need:
 
-- **`[geo]`**: Geospatial libraries (geopandas, shapely, folium, etc.)
-- **`[distributed]`**: Big data processing (pyspark)
-- **`[analytics]`**: Data science (scipy, scikit-learn, sqlalchemy)
-- **`[reporting]`**: Visualization (matplotlib, seaborn, plotly)
-- **`[streamlit]`**: Interactive apps (streamlit, altair, bokeh)
-- **`[export]`**: Data export (openpyxl, xlsxwriter)
-- **`[performance]`**: Performance tools (duckdb, psutil)
-- **`[dev]`**: Development tools (pytest, black, flake8)
-- **`[all]`**: Everything included
+| Extra | Packages | Use Case |
+|-------|----------|----------|
+| `[data]` | pandas, numpy, openpyxl, faker | Data manipulation |
+| `[geo]` | geopandas, shapely, pyproj, fiona, tobler, pysal | Geospatial analysis |
+| `[reporting]` | matplotlib, seaborn, folium, plotly, reportlab | Visualization & reports |
+| `[analytics]` | google-analytics-data, scipy, scikit-learn, facebook-business | Analytics connectors |
+| `[distributed]` | pyspark, apache-sedona | Big data processing |
+| `[geodjango]` | django, djangorestframework-gis, psycopg2 | GeoDjango ORM |
+| `[config-extras]` | hydra-core, hydra-zen, omegaconf | Configuration framework |
+| `[web]` | beautifulsoup4, lxml | Web scraping |
+| `[database]` | sqlalchemy, psycopg2 | Database connectivity |
+| `[export]` | openpyxl, xlsxwriter, psutil, memory-profiler | Data export & profiling |
+| `[performance]` | duckdb | DuckDB backend |
+| `[streamlit]` | streamlit, altair, bokeh, pydeck, jupyter | Interactive apps |
+| `[dev]` | pytest, black, flake8 | Development tools |
+| `[all]` | Everything above | Full install |
 
 ## 🏗️ **Library Architecture**
 
