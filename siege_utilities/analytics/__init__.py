@@ -1,85 +1,54 @@
 """
-Analytics Module
+Analytics Module — lazy-loaded.
 
-This module provides analytics integration capabilities including:
-- Google Analytics data retrieval and processing
-- Facebook Business API integration
-- Snowflake data warehouse connectivity
-- Data.world data discovery and access
-- Client-associated analytics account management
-- Data export to Pandas and Spark formats
+Provides analytics integration: Google Analytics, Facebook Business,
+Snowflake, and Data.world connectors.
 """
 
-from .google_analytics import (
-    GoogleAnalyticsConnector,
-    create_ga_account_profile,
-    save_ga_account_profile,
-    load_ga_account_profile,
-    list_ga_accounts_for_client,
-    batch_retrieve_ga_data
-)
+import importlib
+import sys
 
-from .facebook_business import (
-    FacebookBusinessConnector,
-    create_facebook_account_profile,
-    save_facebook_account_profile,
-    load_facebook_account_profile,
-    list_facebook_accounts_for_client,
-    batch_retrieve_facebook_data
-)
+_LAZY_IMPORTS = {}
 
-from .snowflake_connector import (
-    SnowflakeConnector,
-    get_snowflake_connector,
-    upload_to_snowflake,
-    download_from_snowflake,
-    execute_snowflake_query,
-    SNOWFLAKE_AVAILABLE
-)
 
-from .datadotworld_connector import (
-    DataDotWorldConnector,
-    get_datadotworld_connector,
-    search_datasets,
-    list_datasets,
-    search_datadotworld_datasets,
-    load_datadotworld_dataset,
-    query_datadotworld_dataset,
-    DATADOTWORLD_AVAILABLE
-)
+def _register(names, module):
+    for name in names:
+        _LAZY_IMPORTS[name] = module
 
-__all__ = [
-    # Google Analytics
-    'GoogleAnalyticsConnector',
-    'create_ga_account_profile',
-    'save_ga_account_profile',
-    'load_ga_account_profile',
-    'list_ga_accounts_for_client',
-    'batch_retrieve_ga_data',
-    
-    # Facebook Business
-    'FacebookBusinessConnector',
-    'create_facebook_account_profile',
-    'save_facebook_account_profile',
-    'load_facebook_account_profile',
-    'list_facebook_accounts_for_client',
-    'batch_retrieve_facebook_data',
-    
-    # Snowflake
-    'SnowflakeConnector',
-    'get_snowflake_connector',
-    'upload_to_snowflake',
-    'download_from_snowflake',
-    'execute_snowflake_query',
-    'SNOWFLAKE_AVAILABLE',
-    
-    # Data.world
-    'DataDotWorldConnector',
-    'get_datadotworld_connector',
-    'search_datasets',
-    'list_datasets',
-    'search_datadotworld_datasets',
-    'load_datadotworld_dataset',
-    'query_datadotworld_dataset',
-    'DATADOTWORLD_AVAILABLE'
-]
+
+_register([
+    'GoogleAnalyticsConnector', 'create_ga_account_profile', 'save_ga_account_profile',
+    'load_ga_account_profile', 'list_ga_accounts_for_client', 'batch_retrieve_ga_data',
+], '.google_analytics')
+
+_register([
+    'FacebookBusinessConnector', 'create_facebook_account_profile',
+    'save_facebook_account_profile', 'load_facebook_account_profile',
+    'list_facebook_accounts_for_client', 'batch_retrieve_facebook_data',
+], '.facebook_business')
+
+_register([
+    'SnowflakeConnector', 'get_snowflake_connector', 'upload_to_snowflake',
+    'download_from_snowflake', 'execute_snowflake_query', 'SNOWFLAKE_AVAILABLE',
+], '.snowflake_connector')
+
+_register([
+    'DataDotWorldConnector', 'get_datadotworld_connector', 'search_datasets',
+    'list_datasets', 'search_datadotworld_datasets', 'load_datadotworld_dataset',
+    'query_datadotworld_dataset', 'DATADOTWORLD_AVAILABLE',
+], '.datadotworld_connector')
+
+__all__ = list(_LAZY_IMPORTS.keys())
+
+
+def __getattr__(name):
+    if name in _LAZY_IMPORTS:
+        mod = importlib.import_module(_LAZY_IMPORTS[name], __package__)
+        val = getattr(mod, name)
+        setattr(sys.modules[__name__], name, val)
+        return val
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    return sorted(set(list(globals().keys()) + list(_LAZY_IMPORTS.keys())))
