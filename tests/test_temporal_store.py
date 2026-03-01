@@ -9,6 +9,8 @@ import pandas as pd
 import pytest
 from shapely.geometry import box
 
+pyarrow = pytest.importorskip("pyarrow", reason="pyarrow required for Parquet tests")
+
 from siege_utilities.geo.temporal.store import TemporalDataStore, get_temporal_store
 
 
