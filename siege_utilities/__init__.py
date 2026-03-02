@@ -284,6 +284,13 @@ _register_lazy([
     'create_dataframe_summary_charts', 'generate_chart_from_dataframe',
 ], '.reporting.chart_generator', deps=['matplotlib', 'seaborn'])
 
+# ── Runtime guard (stdlib-only, always importable) ────────────────
+
+_register_lazy([
+    'ensure_compatible', 'diagnose_environment', 'purge_stale_modules',
+    'is_databricks_runtime', 'RuntimeGuardError',
+], '.runtime')
+
 # ── Hygiene ──────────────────────────────────────────────────────────
 
 _register_lazy([
