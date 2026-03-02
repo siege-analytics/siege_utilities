@@ -398,8 +398,27 @@ def get_download_directory(specific_path: Optional[str] = None, client_code: Opt
         download_dir = user_config.get_download_directory()
 
     # Ensure the directory exists and is writable
-    download_dir.mkdir(parents=True, exist_ok=True)
-    if not os.access(download_dir, os.W_OK):
+    try:
+        download_dir.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass  # will be caught by the writability check below
+
+    if not download_dir.is_dir() or not os.access(download_dir, os.W_OK):
+        # On Databricks, auto-remediate persisted legacy paths (e.g.
+        # /root/Downloads/siege_utilities) that are blocked by the cluster
+        # filesystem policy.  This covers users whose config was written
+        # before the Databricks-aware default was introduced.
+        if _is_databricks_runtime() and not specific_path:
+            safe_dir = Path("/tmp/siege_utilities/downloads")
+            log.warning(
+                "Download directory %s is not writable on Databricks; "
+                "auto-remediating to %s",
+                download_dir,
+                safe_dir,
+            )
+            safe_dir.mkdir(parents=True, exist_ok=True)
+            return safe_dir
+
         raise OSError(
             f"Download directory is not writable: {download_dir}. "
             f"Set a writable path via specific_path parameter or "

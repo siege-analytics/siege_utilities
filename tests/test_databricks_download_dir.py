@@ -88,3 +88,43 @@ class TestGetDownloadDirectory:
         with patch("siege_utilities.config.user_config._is_databricks_runtime", return_value=True):
             result = get_download_directory(specific_path=str(custom))
             assert result == custom
+
+    def test_auto_remediates_legacy_path_on_databricks(self, tmp_path, monkeypatch):
+        """On Databricks, if the profile-resolved path is unwritable,
+        auto-remediate to /tmp/siege_utilities/downloads instead of raising."""
+        from siege_utilities.config import user_config as uc_mod
+
+        # Make user_config.get_download_directory() return an unwritable path
+        unwritable = tmp_path / "root_downloads"
+        unwritable.mkdir()
+        monkeypatch.setattr(
+            uc_mod.user_config, "get_download_directory",
+            lambda specific_path=None: unwritable,
+        )
+        # Simulate unwritable directory
+        original_access = os.access
+        def fake_access(path, mode):
+            if str(path) == str(unwritable):
+                return False
+            return original_access(path, mode)
+        monkeypatch.setattr(os, "access", fake_access)
+
+        with patch.object(uc_mod, "_is_databricks_runtime", return_value=True):
+            result = get_download_directory()
+            assert result == Path("/tmp/siege_utilities/downloads")
+
+    def test_no_auto_remediation_off_databricks(self, tmp_path, monkeypatch):
+        """Off Databricks, unwritable directory should raise OSError."""
+        from siege_utilities.config import user_config as uc_mod
+
+        unwritable = tmp_path / "locked_dir"
+        unwritable.mkdir()
+        monkeypatch.setattr(
+            uc_mod.user_config, "get_download_directory",
+            lambda specific_path=None: unwritable,
+        )
+        monkeypatch.setattr(os, "access", lambda path, mode: False)
+
+        with patch.object(uc_mod, "_is_databricks_runtime", return_value=False):
+            with pytest.raises(OSError, match="not writable"):
+                get_download_directory()
