@@ -16,6 +16,13 @@ def _register(names, module):
         _LAZY_IMPORTS[name] = module
 
 
+# --- boundary_result (structured diagnostics) ---
+_register([
+    'BoundaryFetchResult',
+    'BoundaryRetrievalError', 'BoundaryInputError', 'BoundaryDiscoveryError',
+    'BoundaryUrlValidationError', 'BoundaryDownloadError', 'BoundaryParseError',
+], '.boundary_result')
+
 # --- spatial_data ---
 _register([
     'CensusDirectoryDiscovery', 'CensusDataSource', 'SpatialDataSource',
@@ -26,7 +33,8 @@ _register([
     'get_census_data', 'download_osm_data',
     'get_available_years', 'get_year_directory_contents',
     'construct_download_url', 'validate_download_url', 'get_optimal_year',
-    'get_geographic_boundaries', 'get_available_boundary_types',
+    'get_geographic_boundaries', 'fetch_geographic_boundaries',
+    'get_available_boundary_types',
     'refresh_discovery_cache', 'get_available_state_fips', 'get_state_abbreviations',
     'get_comprehensive_state_info', 'validate_state_fips',
     'get_state_name', 'get_state_abbreviation', 'download_dataset',
@@ -172,7 +180,7 @@ _register([
 
 __all__ = list(_LAZY_IMPORTS.keys())
 
-__version__ = "3.2.0"
+__version__ = "3.3.1"
 __author__ = "Siege Analytics"
 __description__ = "Enhanced geographic utilities with intelligent Census data selection"
 

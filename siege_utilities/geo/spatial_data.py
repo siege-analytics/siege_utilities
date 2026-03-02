@@ -13,6 +13,7 @@ import tempfile
 import os
 from urllib.parse import urljoin, urlparse
 import time
+import warnings as _warnings_mod
 from datetime import datetime, timedelta
 import requests
 from bs4 import BeautifulSoup
@@ -45,6 +46,17 @@ from ..config import (
     validate_geographic_level,
     get_fips_info,
     get_service_timeout
+)
+
+# Structured boundary diagnostics
+from .boundary_result import (
+    BoundaryFetchResult,
+    BoundaryRetrievalError,
+    BoundaryInputError,
+    BoundaryDiscoveryError,
+    BoundaryUrlValidationError,
+    BoundaryDownloadError,
+    BoundaryParseError,
 )
 
 # Get logger for this module
@@ -380,49 +392,69 @@ class CensusDirectoryDiscovery:
         
         return patterns
     
-    def construct_download_url(self, year: int, boundary_type: str, state_fips: Optional[str] = None, 
-                              congress_number: Optional[int] = None) -> Optional[str]:
-        """Construct download URL using FIPS validation and year-specific patterns."""
+    def construct_download_url(self, year: int, boundary_type: str, state_fips: Optional[str] = None,
+                              congress_number: Optional[int] = None) -> str:
+        """Construct download URL using FIPS validation and year-specific patterns.
+
+        Raises:
+            BoundaryInputError: If state_fips is invalid.
+            BoundaryDiscoveryError: If boundary_type is not available or URL cannot be constructed.
+        """
+        ctx = {"year": year, "boundary_type": boundary_type, "state_fips": state_fips}
         try:
             # Validate state_fips using centralized FIPS data
             if state_fips:
                 if state_fips not in FIPS_TO_STATE:
-                    log.error(f"Invalid state FIPS code: {state_fips}. Valid codes: {list(FIPS_TO_STATE.keys())[:10]}...")
-                    return None
-                
+                    raise BoundaryInputError(
+                        f"Invalid state FIPS code: {state_fips}. "
+                        f"Valid codes: {list(FIPS_TO_STATE.keys())[:10]}...",
+                        context=ctx,
+                    )
+
                 state_info = get_fips_info(state_fips)
                 log.info(f"Constructing URL for {state_info['name']} ({state_info['abbreviation']})")
-            
+
             # Get year-specific patterns
             patterns = self.get_year_specific_url_patterns(year)
-            
+
             # Get available boundary types for this year
             available_types = self.discover_boundary_types(year)
-            
+
             if boundary_type not in available_types:
-                log.warning(f"Boundary type '{boundary_type}' not available for year {year}")
-                log.info(f"Available types for {year}: {list(available_types.keys())[:10]}...")
-                return None
-            
+                available_list = list(available_types.keys())[:20]
+                raise BoundaryDiscoveryError(
+                    f"Boundary type '{boundary_type}' not available for year {year}. "
+                    f"Available: {available_list}",
+                    context={**ctx, "available_types": available_list},
+                )
+
             directory = available_types[boundary_type]
             base_url = f"{patterns['base_url']}/{directory}"
-            
+
             # Determine which filename pattern to use
             filename = self._construct_filename_with_fips_validation(
                 year, boundary_type, state_fips, congress_number, patterns
             )
-            
+
             if not filename:
-                return None
-            
+                raise BoundaryDiscoveryError(
+                    f"Could not construct filename for {boundary_type} year={year} "
+                    f"state_fips={state_fips} congress={congress_number}",
+                    context=ctx,
+                )
+
             final_url = f"{base_url}/{filename}"
             log.info(f"Constructed URL: {final_url}")
-            
+
             return final_url
-            
+
+        except (BoundaryInputError, BoundaryDiscoveryError):
+            raise
         except Exception as e:
-            log.error(f"Failed to construct URL for {boundary_type} in year {year}: {e}")
-            return None
+            raise BoundaryDiscoveryError(
+                f"Failed to construct URL for {boundary_type} in year {year}: {e}",
+                context={**ctx, "original_error": str(e)},
+            ) from e
     
     def _construct_filename_with_fips_validation(self, year: int, boundary_type: str, 
                                                state_fips: Optional[str], congress_number: Optional[int],
@@ -515,25 +547,58 @@ class CensusDirectoryDiscovery:
 
         Uses GET with stream=True instead of HEAD because CDNs like Cloudflare
         often block or throttle HEAD requests from non-browser User-Agents.
+
+        Raises:
+            BoundaryUrlValidationError: If the URL is not accessible.
         """
         headers = {'User-Agent': 'siege_utilities/1.0 (Census data client)'}
+        ctx: Dict[str, Any] = {"url": url}
         try:
             response = requests.get(url, timeout=self.timeout, stream=True, headers=headers)
             response.close()
-            return response.status_code == 200
-        except requests.exceptions.SSLError:
+            if response.status_code == 200:
+                return True
+            ctx["http_status"] = response.status_code
+            raise BoundaryUrlValidationError(
+                f"URL returned HTTP {response.status_code}: {url}",
+                context=ctx,
+            )
+        except BoundaryUrlValidationError:
+            raise
+        except requests.exceptions.SSLError as ssl_err:
             log.debug(f"SSL verification failed for {url}, trying without verification...")
+            ctx["ssl_error"] = str(ssl_err)
             try:
                 response = requests.get(url, timeout=self.timeout, stream=True,
                                         headers=headers, verify=False)
                 response.close()
-                return response.status_code == 200
+                if response.status_code == 200:
+                    return True
+                ctx["http_status"] = response.status_code
+                raise BoundaryUrlValidationError(
+                    f"URL returned HTTP {response.status_code} (SSL bypass): {url}",
+                    context=ctx,
+                )
+            except BoundaryUrlValidationError:
+                raise
             except Exception as e:
-                log.debug(f"URL validation failed for {url} (with SSL bypass): {e}")
-                return False
+                ctx["fallback_error"] = str(e)
+                raise BoundaryUrlValidationError(
+                    f"URL validation failed for {url} (with SSL bypass): {e}",
+                    context=ctx,
+                ) from e
+        except requests.exceptions.Timeout as e:
+            ctx["timeout_seconds"] = self.timeout
+            raise BoundaryUrlValidationError(
+                f"URL validation timed out after {self.timeout}s: {url}",
+                context=ctx,
+            ) from e
         except Exception as e:
-            log.debug(f"URL validation failed for {url}: {e}")
-            return False
+            ctx["error_type"] = type(e).__name__
+            raise BoundaryUrlValidationError(
+                f"URL validation failed for {url}: {e}",
+                context=ctx,
+            ) from e
     
     def get_optimal_year(self, requested_year: int, boundary_type: str) -> int:
         """Find the best available year for a requested boundary type."""
@@ -622,7 +687,7 @@ class CensusDataSource(SpatialDataSource):
         """Discover available boundary types for a year."""
         return self.discovery.discover_boundary_types(year)
 
-    def get_geographic_boundaries(self, 
+    def get_geographic_boundaries(self,
                                 year: int = DEFAULT_CENSUS_YEAR,
                                 geographic_level: str = 'county',
                                 state_fips: Optional[str] = None,
@@ -630,64 +695,171 @@ class CensusDataSource(SpatialDataSource):
                                 congress_number: Optional[int] = None) -> Optional[GeoDataFrame]:
         """
         Download geographic boundaries from Census TIGER/Line files with dynamic discovery.
-        
+
+        This method preserves the legacy ``Optional[GeoDataFrame]`` return type.
+        For structured diagnostics, use :meth:`fetch_geographic_boundaries` instead.
+
         Args:
             year: Census year (will find closest available if not available)
             geographic_level: Geographic level (state, county, tract, etc.)
             state_fips: State FIPS code for filtering (required for some levels)
             county_fips: County FIPS code for filtering
             congress_number: Congress number for congressional districts
-            
+
         Returns:
             GeoDataFrame with boundaries or None if failed
         """
+        _warnings_mod.warn(
+            "get_geographic_boundaries() returns None on failure with no diagnostics. "
+            "Use fetch_geographic_boundaries() for structured error reporting.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        result = self.fetch_geographic_boundaries(
+            year=year,
+            geographic_level=geographic_level,
+            state_fips=state_fips,
+            county_fips=county_fips,
+            congress_number=congress_number,
+        )
+        if result.success:
+            return result.geodataframe
+        log.error(f"Boundary retrieval failed at stage '{result.error_stage}': {result.message}")
+        return None
+
+    def fetch_geographic_boundaries(self,
+                                    year: int = DEFAULT_CENSUS_YEAR,
+                                    geographic_level: str = 'county',
+                                    state_fips: Optional[str] = None,
+                                    county_fips: Optional[str] = None,
+                                    congress_number: Optional[int] = None) -> BoundaryFetchResult:
+        """
+        Download geographic boundaries with structured diagnostics.
+
+        Returns a :class:`BoundaryFetchResult` that carries either the
+        GeoDataFrame on success or a machine-readable error code, stage, and
+        context dict on failure.
+
+        Args:
+            year: Census year (will find closest available if not available)
+            geographic_level: Geographic level (state, county, tract, etc.)
+            state_fips: State FIPS code for filtering (required for some levels)
+            county_fips: County FIPS code for filtering
+            congress_number: Congress number for congressional districts
+
+        Returns:
+            BoundaryFetchResult with .success, .geodataframe, .error_stage, etc.
+        """
+        base_ctx: Dict[str, Any] = {
+            "year": year,
+            "geographic_level": geographic_level,
+            "state_fips": state_fips,
+            "county_fips": county_fips,
+            "congress_number": congress_number,
+        }
         try:
-            # Normalize state identifier to FIPS code using centralized function
+            # --- Stage: input_validation ---
             normalized_fips = None
             if state_fips:
                 try:
                     normalized_fips = normalize_state_identifier(state_fips)
                 except ValueError as e:
-                    log.error(f"Invalid state identifier: '{state_fips}' - {e}")
-                    log.info("Valid examples: FIPS ('06'), abbreviation ('CA'), or name ('California')")
-                    return None
-                
-                # Get FIPS info for logging normalized state info using centralized function
+                    return BoundaryFetchResult.fail(
+                        error_code="INVALID_STATE_IDENTIFIER",
+                        error_stage="input_validation",
+                        message=f"Invalid state identifier: '{state_fips}' - {e}. "
+                                "Valid examples: FIPS ('06'), abbreviation ('CA'), or name ('California')",
+                        context=base_ctx,
+                    )
+
                 state_info = get_fips_info(normalized_fips)
-                log.info(f"Normalized '{state_fips}' to FIPS {normalized_fips}: {state_info['name']} ({state_info['abbreviation']})")
+                log.info(
+                    f"Normalized '{state_fips}' to FIPS {normalized_fips}: "
+                    f"{state_info['name']} ({state_info['abbreviation']})"
+                )
                 state_fips = normalized_fips
-            
-            # Validate parameters
-            self._validate_census_parameters(year, geographic_level, state_fips)
-            
-            # Find optimal year (closest available to requested)
+                base_ctx["normalized_fips"] = normalized_fips
+
+            try:
+                self._validate_census_parameters(year, geographic_level, state_fips)
+            except ValueError as e:
+                return BoundaryFetchResult.fail(
+                    error_code="INVALID_PARAMETERS",
+                    error_stage="input_validation",
+                    message=str(e),
+                    context=base_ctx,
+                )
+
+            # --- Stage: discovery ---
             optimal_year = self.discovery.get_optimal_year(year, geographic_level)
-            
-            # Construct URL using discovery service
-            url = self.discovery.construct_download_url(
-                optimal_year, geographic_level, state_fips, congress_number
-            )
-            
-            if not url:
-                log.error(f"Failed to construct URL for {geographic_level} in year {optimal_year}")
-                return None
-            
-            # Validate URL before attempting download
-            if not self.discovery.validate_download_url(url):
-                log.error(f"Download URL not accessible: {url}")
-                return None
-            
+            base_ctx["optimal_year"] = optimal_year
+
+            try:
+                url = self.discovery.construct_download_url(
+                    optimal_year, geographic_level, state_fips, congress_number
+                )
+            except BoundaryRetrievalError as e:
+                return BoundaryFetchResult.fail(
+                    error_code="URL_CONSTRUCTION_FAILED",
+                    error_stage=e.stage,
+                    message=str(e),
+                    context={**base_ctx, **e.context},
+                )
+
+            base_ctx["download_url"] = url
+
+            # --- Stage: url_validation ---
+            try:
+                self.discovery.validate_download_url(url)
+            except BoundaryUrlValidationError as e:
+                return BoundaryFetchResult.fail(
+                    error_code="URL_NOT_ACCESSIBLE",
+                    error_stage="url_validation",
+                    message=str(e),
+                    context={**base_ctx, **e.context},
+                )
+
             log.info(f"Downloading {geographic_level} boundaries for year {optimal_year}")
-            
-            # Download and process using existing library functions
-            return self._download_and_process_tiger(url, geographic_level)
-            
-        except ValueError as e:
-            log.error(f"Invalid parameters: {e}")
-            return None
+
+            # --- Stages: download + parse ---
+            try:
+                gdf = self._download_and_process_tiger(url, geographic_level)
+            except BoundaryRetrievalError as e:
+                return BoundaryFetchResult.fail(
+                    error_code=e.context.get("error_code", "DOWNLOAD_OR_PARSE_FAILED"),
+                    error_stage=e.stage,
+                    message=str(e),
+                    context={**base_ctx, **e.context},
+                )
+
+            if gdf is None:
+                return BoundaryFetchResult.fail(
+                    error_code="NO_DATA_RETURNED",
+                    error_stage="parse",
+                    message=f"_download_and_process_tiger returned None for {url}",
+                    context=base_ctx,
+                )
+
+            return BoundaryFetchResult.ok(
+                gdf,
+                message=f"Retrieved {len(gdf)} {geographic_level} features for year {optimal_year}",
+                context=base_ctx,
+            )
+
+        except BoundaryRetrievalError as e:
+            return BoundaryFetchResult.fail(
+                error_code="RETRIEVAL_ERROR",
+                error_stage=e.stage,
+                message=str(e),
+                context={**base_ctx, **e.context},
+            )
         except Exception as e:
-            log.error(f"Failed to download Census boundaries: {e}")
-            return None
+            return BoundaryFetchResult.fail(
+                error_code="UNEXPECTED_ERROR",
+                error_stage="unknown",
+                message=f"Unexpected error: {type(e).__name__}: {e}",
+                context={**base_ctx, "original_error": str(e)},
+            )
     
     def get_available_boundary_types(self, year: int) -> Dict[str, str]:
         """Get available boundary types for a specific year."""
@@ -810,91 +982,141 @@ class CensusDataSource(SpatialDataSource):
         """Construct TIGER/Line download URL using discovery service."""
         return self.discovery.construct_download_url(year, geographic_level, state_fips)
     
-    def _download_and_process_tiger(self, url: str, geographic_level: str) -> Optional[GeoDataFrame]:
-        """Download and process TIGER/Line shapefile using existing library functions."""
+    def _download_and_process_tiger(self, url: str, geographic_level: str) -> GeoDataFrame:
+        """Download and process TIGER/Line shapefile using existing library functions.
+
+        Raises:
+            BoundaryDownloadError: If the file cannot be downloaded or is not a valid zip.
+            BoundaryParseError: If the shapefile cannot be read by GeoPandas.
+        """
+        ctx: Dict[str, Any] = {"url": url, "geographic_level": geographic_level}
+        zip_filename = None
+        unzip_dir = None
+
         try:
             log.info(f"Downloading TIGER/Line data from: {url}")
-            
+
             # Get user's download directory
             download_dir = get_download_directory()
             ensure_path_exists(download_dir)
-            
+
             # Generate local path using existing function
             zip_filename = generate_local_path_from_url(url, download_dir)
             if not zip_filename:
-                log.error("Failed to generate local path for download")
-                return None
-            
+                raise BoundaryDownloadError(
+                    "Failed to generate local path for download",
+                    context={**ctx, "error_code": "LOCAL_PATH_FAILED"},
+                )
+
+            ctx["local_path"] = str(zip_filename)
+
             # Download file using existing function with SSL fallback
+            download_success = False
             try:
                 download_success = download_file(url, zip_filename)
             except Exception as ssl_error:
                 if "SSL" in str(ssl_error) or "certificate" in str(ssl_error).lower():
                     log.warning(f"SSL verification failed, retrying without verification: {ssl_error}")
-                    # Retry without SSL verification using the download_file function
                     download_success = download_file(url, zip_filename, verify_ssl=False)
                     if download_success:
                         log.info("Successfully downloaded without SSL verification")
-                    else:
-                        log.error("Download failed even without SSL verification")
-                else:
-                    download_success = False
-            
+
             if not download_success:
-                log.error("Failed to download TIGER/Line data")
-                return None
+                raise BoundaryDownloadError(
+                    f"Failed to download TIGER/Line data from {url}",
+                    context={**ctx, "error_code": "DOWNLOAD_FAILED"},
+                )
 
             # Validate downloaded file is actually a zip (not an HTML challenge page)
             import zipfile
             zip_path = Path(zip_filename)
             if not zipfile.is_zipfile(zip_path):
-                log.warning(f"Downloaded file is not a valid zip: {zip_path} "
-                            f"({zip_path.stat().st_size} bytes) — removing and retrying")
+                file_size = zip_path.stat().st_size if zip_path.exists() else 0
+                log.warning(
+                    f"Downloaded file is not a valid zip: {zip_path} "
+                    f"({file_size} bytes) — removing and retrying"
+                )
                 zip_path.unlink(missing_ok=True)
                 # Retry once — the first attempt may have been an anti-bot challenge
                 download_success = download_file(url, zip_filename)
                 if not download_success or not zipfile.is_zipfile(zip_path):
-                    log.error("Retry failed: downloaded file is still not a valid zip")
                     zip_path.unlink(missing_ok=True)
-                    return None
+                    raise BoundaryDownloadError(
+                        f"Downloaded file is not a valid zip after retry: {url}",
+                        context={
+                            **ctx,
+                            "error_code": "INVALID_ZIP",
+                            "file_size_bytes": file_size,
+                        },
+                    )
                 log.info("Retry succeeded — valid zip file downloaded")
 
             # Unzip using existing function
             unzip_dir = unzip_file_to_directory(Path(zip_filename))
             if not unzip_dir:
-                log.error("Failed to unzip TIGER/Line data")
-                return None
-            
+                raise BoundaryDownloadError(
+                    f"Failed to unzip TIGER/Line data from {zip_filename}",
+                    context={**ctx, "error_code": "UNZIP_FAILED"},
+                )
+
             # Find the shapefile
             shapefile_path = None
             for file_path in unzip_dir.rglob("*.shp"):
                 shapefile_path = file_path
                 break
-            
+
             if not shapefile_path:
-                log.error("No shapefile found in downloaded data")
-                return None
-            
+                raise BoundaryParseError(
+                    f"No shapefile (.shp) found in extracted archive from {url}",
+                    context={
+                        **ctx,
+                        "error_code": "NO_SHAPEFILE",
+                        "extracted_files": [str(f.name) for f in unzip_dir.rglob("*") if f.is_file()][:20],
+                    },
+                )
+
             # Read with GeoPandas
-            gdf = gpd.read_file(shapefile_path)
-            
+            try:
+                gdf = gpd.read_file(shapefile_path)
+            except Exception as read_err:
+                raise BoundaryParseError(
+                    f"GeoPandas failed to read shapefile {shapefile_path}: {read_err}",
+                    context={
+                        **ctx,
+                        "error_code": "GEOPANDAS_READ_FAILED",
+                        "shapefile": str(shapefile_path),
+                        "original_error": str(read_err),
+                    },
+                ) from read_err
+
             # Standardize columns
             gdf = self._standardize_census_columns(gdf, geographic_level)
-            
+
             # Cleanup temporary files
             self._cleanup_temp_files(zip_filename, unzip_dir)
-            
+
             log.info(f"Successfully processed {geographic_level} boundaries: {len(gdf)} features")
             return gdf
-            
+
+        except (BoundaryDownloadError, BoundaryParseError):
+            # Cleanup on structured failure
+            if zip_filename and unzip_dir:
+                try:
+                    self._cleanup_temp_files(zip_filename, unzip_dir)
+                except Exception:
+                    pass
+            raise
         except Exception as e:
-            log.error(f"Failed to download and process TIGER/Line data: {e}")
-            # Cleanup on failure
-            try:
-                self._cleanup_temp_files(zip_filename, unzip_dir)
-            except:
-                pass
-            return None
+            # Cleanup on unexpected failure
+            if zip_filename and unzip_dir:
+                try:
+                    self._cleanup_temp_files(zip_filename, unzip_dir)
+                except Exception:
+                    pass
+            raise BoundaryDownloadError(
+                f"Unexpected error downloading/processing TIGER data: {e}",
+                context={**ctx, "error_code": "UNEXPECTED_DOWNLOAD_ERROR", "original_error": str(e)},
+            ) from e
     
     def _standardize_census_columns(self, gdf: GeoDataFrame, geographic_level: str) -> GeoDataFrame:
         """Standardize Census column names and types."""
@@ -1238,10 +1460,39 @@ def download_data(year: int, geographic_level: str, state_fips: Optional[str] = 
     """
     return census_source.get_geographic_boundaries(year, geographic_level, state_fips)
 
-def get_geographic_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str = 'county', 
+def get_geographic_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str = 'county',
                             state_fips: Optional[str] = None, state_identifier: Optional[str] = None) -> Optional[GeoDataFrame]:
-    """Get geographic boundaries."""
+    """Get geographic boundaries (legacy, returns None on failure).
+
+    .. deprecated::
+        Use :func:`fetch_geographic_boundaries` for structured diagnostics.
+    """
     return census_source.get_geographic_boundaries(year, geographic_level, state_fips, state_identifier)
+
+
+def fetch_geographic_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str = 'county',
+                                state_fips: Optional[str] = None,
+                                congress_number: Optional[int] = None) -> BoundaryFetchResult:
+    """Get geographic boundaries with structured diagnostics.
+
+    Returns a :class:`BoundaryFetchResult` instead of ``Optional[GeoDataFrame]``.
+
+    Args:
+        year: Census year
+        geographic_level: Geographic level (state, county, tract, etc.)
+        state_fips: State FIPS code (required for tract, block_group, etc.)
+        congress_number: Congress number for congressional districts
+
+    Returns:
+        BoundaryFetchResult with .success, .geodataframe, .error_stage, etc.
+    """
+    return census_source.fetch_geographic_boundaries(
+        year=year,
+        geographic_level=geographic_level,
+        state_fips=state_fips,
+        congress_number=congress_number,
+    )
+
 
 def get_available_boundary_types(year: int) -> List[str]:
     """Get available boundary types for a year."""
