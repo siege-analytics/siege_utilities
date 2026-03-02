@@ -169,7 +169,10 @@ def validate_target_version(target: str) -> str:
 
     Checks:
       1. Format is X.Y.Z (three non-negative integers)
-      2. Target is strictly greater than the current version
+      2. Target is greater than or equal to the current version
+
+    If the target equals the current version, the version is already bumped
+    and the release proceeds without a version change (merge + tag + publish).
 
     Returns the validated version string, or raises ValueError.
     """
@@ -188,12 +191,15 @@ def validate_target_version(target: str) -> str:
     current = get_current_version()
     current_tuple = tuple(int(p) for p in current.split('.'))
 
-    if target_tuple <= current_tuple:
+    if target_tuple < current_tuple:
         raise ValueError(
-            f"Target version {target} must be greater than current version {current}"
+            f"Target version {target} must be >= current version {current}"
         )
 
-    logger.info(f"Target version {target} validated (current: {current})")
+    if target_tuple == current_tuple:
+        logger.info(f"Target version {target} matches current — version already bumped")
+    else:
+        logger.info(f"Target version {target} validated (current: {current})")
     return target
 
 
@@ -670,7 +676,10 @@ def main():
         logger.info("Step 3/12: Setting version...")
         if args.target_version:
             new_ver = args.target_version
-            if args.dry_run:
+            current_ver = get_current_version()
+            if new_ver == current_ver:
+                logger.info(f"Version already at {new_ver} — skipping bump")
+            elif args.dry_run:
                 logger.info(f"[DRY RUN] Would set version to {new_ver}")
             else:
                 set_version(new_ver)
