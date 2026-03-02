@@ -339,11 +339,12 @@ class TestCensusDirectoryDiscovery:
 
     @patch('requests.get')
     def test_validate_download_url_failure(self, mock_get):
-        """Test failed URL validation."""
+        """Test failed URL validation raises BoundaryUrlValidationError."""
+        from siege_utilities.geo.boundary_result import BoundaryUrlValidationError
         mock_get.side_effect = Exception("Network error")
 
-        is_valid = self.discovery.validate_download_url("https://example.com/test.zip")
-        assert is_valid is False
+        with pytest.raises(BoundaryUrlValidationError):
+            self.discovery.validate_download_url("https://example.com/test.zip")
 
 
 class TestCensusDataSource:
@@ -646,14 +647,15 @@ class TestErrorHandling:
             assert len(years) == 0
     
     def test_url_construction_with_none_boundary_type(self):
-        """Test URL construction with None boundary type."""
+        """Test URL construction with None boundary type raises BoundaryDiscoveryError."""
+        from siege_utilities.geo.boundary_result import BoundaryDiscoveryError
         discovery = CensusDirectoryDiscovery()
-        
+
         # Mock available boundary types
         discovery.discover_boundary_types = Mock(return_value={})
-        
-        url = discovery.construct_download_url(2020, None)
-        assert url is None
+
+        with pytest.raises(BoundaryDiscoveryError):
+            discovery.construct_download_url(2020, None)
     
     def test_parameter_validation_edge_cases(self):
         """Test parameter validation with edge cases."""
