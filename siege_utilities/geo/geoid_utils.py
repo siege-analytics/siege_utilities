@@ -553,6 +553,118 @@ def validate_geoid_column(
 
 
 # =============================================================================
+# LEVEL-SPECIFIC GEOID VALIDATORS
+# =============================================================================
+
+# Regex patterns for each common GEOID format
+GEOID_PATTERNS = {
+    'state': re.compile(r'^\d{2}$'),
+    'county': re.compile(r'^\d{5}$'),
+    'tract': re.compile(r'^\d{11}$'),
+    'block_group': re.compile(r'^\d{12}$'),
+    'block': re.compile(r'^\d{15}$'),
+    'place': re.compile(r'^\d{7}$'),
+    'zcta': re.compile(r'^\d{5}$'),
+    'cd': re.compile(r'^\d{4}$'),
+    'sldu': re.compile(r'^\d{5}$'),
+    'sldl': re.compile(r'^\d{5}$'),
+    'vtd': re.compile(r'^\d{6}$'),
+}
+
+
+def validate_state_fips(fips: str) -> bool:
+    """
+    Validate a 2-digit state FIPS code.
+
+    Args:
+        fips: State FIPS code string to validate
+
+    Returns:
+        True if fips is exactly 2 digits, False otherwise
+
+    Example:
+        >>> validate_state_fips("06")
+        True
+        >>> validate_state_fips("6")
+        False
+        >>> validate_state_fips("ABC")
+        False
+    """
+    if not fips or not isinstance(fips, str):
+        return False
+    return bool(GEOID_PATTERNS['state'].match(fips))
+
+
+def validate_county_fips(fips: str) -> bool:
+    """
+    Validate a 5-digit county FIPS code (state + county).
+
+    Args:
+        fips: County FIPS code string to validate
+
+    Returns:
+        True if fips is exactly 5 digits, False otherwise
+
+    Example:
+        >>> validate_county_fips("06037")
+        True
+        >>> validate_county_fips("6037")
+        False
+        >>> validate_county_fips("CA037")
+        False
+    """
+    if not fips or not isinstance(fips, str):
+        return False
+    return bool(GEOID_PATTERNS['county'].match(fips))
+
+
+def validate_tract_geoid(geoid: str) -> bool:
+    """
+    Validate an 11-digit Census tract GEOID (state + county + tract).
+
+    Args:
+        geoid: Tract GEOID string to validate
+
+    Returns:
+        True if geoid is exactly 11 digits, False otherwise
+
+    Example:
+        >>> validate_tract_geoid("06037101100")
+        True
+        >>> validate_tract_geoid("6037101100")
+        False
+        >>> validate_tract_geoid("06037")
+        False
+    """
+    if not geoid or not isinstance(geoid, str):
+        return False
+    return bool(GEOID_PATTERNS['tract'].match(geoid))
+
+
+def validate_block_group_geoid(geoid: str) -> bool:
+    """
+    Validate a 12-digit Census block group GEOID (state + county + tract + block group).
+
+    Args:
+        geoid: Block group GEOID string to validate
+
+    Returns:
+        True if geoid is exactly 12 digits, False otherwise
+
+    Example:
+        >>> validate_block_group_geoid("060371011001")
+        True
+        >>> validate_block_group_geoid("06037101100")
+        False
+        >>> validate_block_group_geoid("0603710110012")
+        False
+    """
+    if not geoid or not isinstance(geoid, str):
+        return False
+    return bool(GEOID_PATTERNS['block_group'].match(geoid))
+
+
+# =============================================================================
 # GEOID MATCHING FOR JOINS
 # =============================================================================
 

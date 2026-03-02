@@ -16,7 +16,11 @@ import warnings
 from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
 
 class SurveyType(Enum):
-    """Enumeration of Census survey types."""
+    """Enumeration of Census survey types.
+
+    This is the canonical source of truth for Census dataset types.
+    The DATASET_TYPES dict in census_constants.py is derived from this enum.
+    """
     DECENNIAL = "decennial"           # Every 10 years (2020, 2010, etc.)
     ACS_1YR = "acs_1yr"              # American Community Survey 1-year estimates
     ACS_3YR = "acs_3yr"              # American Community Survey 3-year estimates
@@ -24,6 +28,10 @@ class SurveyType(Enum):
     CENSUS_BUSINESS = "census_business"  # Economic Census
     POPULATION_ESTIMATES = "population_estimates"  # Annual population estimates
     HOUSING_ESTIMATES = "housing_estimates"  # Annual housing estimates
+
+    # Backward-compatible aliases (same value -> Python Enum alias)
+    ECONOMIC = "census_business"      # Legacy alias from DATASET_TYPES
+    ACS = "acs_5yr"                   # Generic ACS alias defaults to 5-year
 
 class GeographyLevel(Enum):
     """Enumeration of Census geography levels (canonical names)."""

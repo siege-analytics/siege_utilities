@@ -82,12 +82,25 @@ _register([
 
 # --- geoid_utils (pure Python, no geopandas needed) ---
 _register([
-    'GEOID_LENGTHS', 'GEOID_COMPONENT_LENGTHS',
+    'GEOID_LENGTHS', 'GEOID_COMPONENT_LENGTHS', 'GEOID_PATTERNS',
     'normalize_geoid', 'normalize_geoid_column', 'construct_geoid',
     'construct_geoid_from_row', 'parse_geoid', 'extract_parent_geoid',
     'validate_geoid', 'can_normalize_geoid', 'validate_geoid_column',
+    'validate_county_fips', 'validate_tract_geoid', 'validate_block_group_geoid',
     'prepare_geoid_for_join', 'find_geoid_column',
+    'geoid_to_slug', 'slug_to_geoid',
 ], '.geoid_utils')
+# Note: validate_state_fips is intentionally NOT registered here because
+# spatial_data already exports a validate_state_fips that checks existence
+# against known FIPS codes.  The geoid_utils.validate_state_fips checks
+# format only (2-digit string) and is available via direct import:
+#   from siege_utilities.geo.geoid_utils import validate_state_fips
+
+# --- validators (Django field validators for GEOID formats) ---
+_register([
+    'StateFIPSValidator', 'CountyFIPSValidator',
+    'TractGEOIDValidator', 'BlockGroupGEOIDValidator',
+], '.validators')
 
 # --- census_constants (pure Python, via config module) ---
 _register([

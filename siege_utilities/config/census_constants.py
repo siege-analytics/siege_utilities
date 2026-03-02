@@ -123,28 +123,84 @@ GEOGRAPHIC_HIERARCHY = [
 ]
 
 # =============================================================================
-# CENSUS DATASET TYPES
+# CENSUS DATASET TYPES (derived from SurveyType enum — the canonical source)
 # =============================================================================
+# The canonical definitions live in siege_utilities.geo.census_dataset_mapper.SurveyType.
+# This dict is derived for backward compatibility with code that expects a plain dict.
 
-DATASET_TYPES = {
-    "ACS": "acs",                           # American Community Survey
-    "DECENNIAL": "decennial",               # Every 10 years (2020, 2010, etc.)
-    "ECONOMIC": "economic",                 # Economic Census
-    "CENSUS_BUSINESS": "census_business",   # Economic Census
-    "POPULATION_ESTIMATES": "population_estimates",  # Annual population estimates
-    "HOUSING_ESTIMATES": "housing_estimates",        # Annual housing estimates
-}
+def _build_dataset_types() -> Dict[str, str]:
+    """Build DATASET_TYPES dict from SurveyType enum (deferred import to avoid cycles).
+
+    Includes both canonical members AND aliases (e.g. ECONOMIC -> census_business).
+    """
+    from siege_utilities.geo.census_dataset_mapper import SurveyType
+    return {name: member.value for name, member in SurveyType.__members__.items()}
+
+
+class _LazyDict(dict):
+    """Dict that populates itself from a factory on first access."""
+
+    def __init__(self, factory):
+        super().__init__()
+        self._factory = factory
+        self._loaded = False
+
+    def _ensure_loaded(self):
+        if not self._loaded:
+            self._loaded = True
+            self.update(self._factory())
+
+    def __getitem__(self, key):
+        self._ensure_loaded()
+        return super().__getitem__(key)
+
+    def __contains__(self, key):
+        self._ensure_loaded()
+        return super().__contains__(key)
+
+    def __iter__(self):
+        self._ensure_loaded()
+        return super().__iter__()
+
+    def __len__(self):
+        self._ensure_loaded()
+        return super().__len__()
+
+    def keys(self):
+        self._ensure_loaded()
+        return super().keys()
+
+    def values(self):
+        self._ensure_loaded()
+        return super().values()
+
+    def items(self):
+        self._ensure_loaded()
+        return super().items()
+
+    def get(self, key, default=None):
+        self._ensure_loaded()
+        return super().get(key, default)
+
+    def __repr__(self):
+        self._ensure_loaded()
+        return super().__repr__()
+
+
+DATASET_TYPES: Dict[str, str] = _LazyDict(_build_dataset_types)
 
 # =============================================================================
-# CENSUS DATA RELIABILITY LEVELS
+# CENSUS DATA RELIABILITY LEVELS (derived from DataReliability enum)
 # =============================================================================
+# The canonical definitions live in siege_utilities.geo.census_dataset_mapper.DataReliability.
 
-RELIABILITY_LEVELS = {
-    "HIGH": "high",           # Most reliable (decennial, large geographies)
-    "MEDIUM": "medium",       # Moderately reliable (ACS 5-year, medium geographies)
-    "LOW": "low",             # Less reliable (ACS 1-year, small geographies)
-    "ESTIMATED": "estimated"  # Modeled estimates
-}
+def _build_reliability_levels() -> Dict[str, str]:
+    """Build RELIABILITY_LEVELS dict from DataReliability enum (deferred import)."""
+    from siege_utilities.geo.census_dataset_mapper import DataReliability
+    return {member.name: member.value for member in DataReliability}
+
+
+RELIABILITY_LEVELS: Dict[str, str] = _LazyDict(_build_reliability_levels)
 
 # =============================================================================
 # FIPS CODES (STATE IDENTIFIERS)
@@ -158,7 +214,8 @@ STATE_FIPS_CODES = {
     'NH': '33', 'NJ': '34', 'NM': '35', 'NY': '36', 'NC': '37', 'ND': '38', 'OH': '39',
     'OK': '40', 'OR': '41', 'PA': '42', 'RI': '44', 'SC': '45', 'SD': '46', 'TN': '47',
     'TX': '48', 'UT': '49', 'VT': '50', 'VA': '51', 'WA': '53', 'WV': '54', 'WI': '55',
-    'WY': '56', 'DC': '11', 'PR': '72', 'VI': '78', 'AS': '60', 'GU': '66', 'MP': '69'
+    'WY': '56', 'DC': '11', 'PR': '72', 'VI': '78', 'AS': '60', 'GU': '66', 'MP': '69',
+    'UM': '74'
 }
 
 # Reverse mapping for FIPS to state abbreviation
@@ -178,7 +235,7 @@ STATE_NAMES = {
     'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont', 'VA': 'Virginia', 'WA': 'Washington',
     'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming', 'DC': 'District of Columbia',
     'PR': 'Puerto Rico', 'VI': 'Virgin Islands', 'AS': 'American Samoa', 'GU': 'Guam',
-    'MP': 'Northern Mariana Islands'
+    'MP': 'Northern Mariana Islands', 'UM': 'United States Minor Outlying Islands'
 }
 
 # =============================================================================
@@ -193,6 +250,12 @@ DEFAULT_CENSUS_YEAR = _CURRENT_YEAR
 # Year ranges for different data types
 DECENNIAL_YEARS = [year for year in [2000, 2010, 2020, 2030] if year <= _CURRENT_YEAR]
 ACS_AVAILABLE_YEARS = list(range(2009, _CURRENT_YEAR + 1))  # ACS available from 2009
+
+# ACS 5-year estimates: same range as ACS_AVAILABLE_YEARS (single source of truth)
+ACS5_AVAILABLE_YEARS = ACS_AVAILABLE_YEARS
+
+# Census boundary change years (decennial years where TIGER boundaries were redrawn)
+BOUNDARY_CHANGE_YEARS = [year for year in [2010, 2020] if year <= _CURRENT_YEAR]
 
 # =============================================================================
 # CENSUS FILE FORMATS AND PATTERNS
