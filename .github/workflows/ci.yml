@@ -216,7 +216,7 @@ jobs:
 
     - name: Run databricks tests
       run: |
-        uv run pytest tests/test_databricks_auth_session_secrets.py tests/test_databricks_dataframe_bridge.py tests/test_databricks_lakebase_unity.py tests/test_databricks_fallback.py -v --no-cov
+        uv run pytest tests/test_databricks_auth_session_secrets.py tests/test_databricks_dataframe_bridge.py tests/test_databricks_lakebase_unity.py tests/test_databricks_fallback.py tests/test_databricks_download_dir.py -v --no-cov
 
   battle-test:
     runs-on: ubuntu-latest
