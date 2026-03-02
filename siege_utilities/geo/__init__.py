@@ -87,7 +87,14 @@ _register([
     'construct_geoid_from_row', 'parse_geoid', 'extract_parent_geoid',
     'validate_geoid', 'can_normalize_geoid', 'validate_geoid_column',
     'prepare_geoid_for_join', 'find_geoid_column',
+    'geoid_to_slug', 'slug_to_geoid',
 ], '.geoid_utils')
+
+# --- validators (GEOID validation for Django and standalone) ---
+_register([
+    'is_valid_state_fips', 'is_valid_county_fips',
+    'is_valid_tract_geoid', 'is_valid_block_group_geoid',
+], '.validators')
 
 # --- census_constants (pure Python, via config module) ---
 _register([

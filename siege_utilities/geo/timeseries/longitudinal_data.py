@@ -36,17 +36,14 @@ log = logging.getLogger(__name__)
 
 
 # =============================================================================
-# CONFIGURATION
+# CONFIGURATION (canonical source: siege_utilities.config.census_constants)
 # =============================================================================
 
-# ACS 5-year estimate availability by year
-ACS5_AVAILABLE_YEARS = list(range(2009, 2024))  # 2009-2023 (updates annually)
-
-# Decennial census years
-DECENNIAL_YEARS = [2000, 2010, 2020]
-
-# Census boundary change years
-BOUNDARY_CHANGE_YEARS = [2010, 2020]
+from siege_utilities.config.census_constants import (
+    ACS5_AVAILABLE_YEARS,
+    BOUNDARY_CHANGE_YEARS,
+    DECENNIAL_YEARS,
+)
 
 
 # =============================================================================
