@@ -1067,7 +1067,8 @@ def get_demographics(
     geography: str = 'county',
     year: Optional[int] = None,
     variables: str = 'demographics_basic',
-    include_moe: bool = True
+    include_moe: bool = True,
+    dataset: str = 'acs5',
 ) -> pd.DataFrame:
     """
     Convenience function to get demographic data.
@@ -1078,12 +1079,14 @@ def get_demographics(
         year: Census year (defaults to most recent available)
         variables: Variable group name or list of variables
         include_moe: Include margin of error columns
+        dataset: Census dataset ('acs5', 'acs1', 'dec')
 
     Returns:
         DataFrame with demographic data
 
     Example:
         df = get_demographics(state='California', geography='county', year=2020)
+        df = get_demographics(state='TX', geography='county', year=2023, dataset='acs1')
     """
     if year is None:
         year = datetime.now().year - 1  # Most recent complete year
@@ -1095,7 +1098,7 @@ def get_demographics(
     return client.fetch_data(
         variables=variables,
         year=year,
-        dataset='acs5',
+        dataset=dataset,
         geography=geography,
         state_fips=state_fips,
         include_moe=include_moe
@@ -1105,7 +1108,8 @@ def get_demographics(
 def get_population(
     state: str,
     geography: str = 'tract',
-    year: Optional[int] = None
+    year: Optional[int] = None,
+    dataset: str = 'acs5',
 ) -> pd.DataFrame:
     """
     Convenience function to get population data.
@@ -1114,6 +1118,7 @@ def get_population(
         state: State name, abbreviation, or FIPS code
         geography: Geographic level
         year: Census year
+        dataset: Census dataset ('acs5', 'acs1', 'dec')
 
     Returns:
         DataFrame with GEOID, NAME, and population columns
@@ -1127,7 +1132,7 @@ def get_population(
     return client.fetch_data(
         variables='total_population',
         year=year,
-        dataset='acs5',
+        dataset=dataset,
         geography=geography,
         state_fips=state_fips,
         include_moe=True
@@ -1138,7 +1143,8 @@ def get_income_data(
     state: str,
     geography: str = 'tract',
     year: Optional[int] = None,
-    include_moe: bool = True
+    include_moe: bool = True,
+    dataset: str = 'acs5',
 ) -> pd.DataFrame:
     """
     Convenience function to get income data.
@@ -1148,6 +1154,7 @@ def get_income_data(
         geography: Geographic level
         year: Census year
         include_moe: Include margin of error columns
+        dataset: Census dataset ('acs5', 'acs1', 'dec')
 
     Returns:
         DataFrame with GEOID, NAME, and income variables
@@ -1161,7 +1168,7 @@ def get_income_data(
     return client.fetch_data(
         variables='income',
         year=year,
-        dataset='acs5',
+        dataset=dataset,
         geography=geography,
         state_fips=state_fips,
         include_moe=include_moe
@@ -1172,7 +1179,8 @@ def get_education_data(
     state: str,
     geography: str = 'tract',
     year: Optional[int] = None,
-    include_moe: bool = True
+    include_moe: bool = True,
+    dataset: str = 'acs5',
 ) -> pd.DataFrame:
     """
     Convenience function to get educational attainment data.
@@ -1182,6 +1190,7 @@ def get_education_data(
         geography: Geographic level
         year: Census year
         include_moe: Include margin of error columns
+        dataset: Census dataset ('acs5', 'acs1', 'dec')
 
     Returns:
         DataFrame with GEOID, NAME, and education variables
@@ -1195,7 +1204,7 @@ def get_education_data(
     return client.fetch_data(
         variables='education',
         year=year,
-        dataset='acs5',
+        dataset=dataset,
         geography=geography,
         state_fips=state_fips,
         include_moe=include_moe
@@ -1206,7 +1215,8 @@ def get_housing_data(
     state: str,
     geography: str = 'tract',
     year: Optional[int] = None,
-    include_moe: bool = True
+    include_moe: bool = True,
+    dataset: str = 'acs5',
 ) -> pd.DataFrame:
     """
     Convenience function to get housing data.
@@ -1216,6 +1226,7 @@ def get_housing_data(
         geography: Geographic level
         year: Census year
         include_moe: Include margin of error columns
+        dataset: Census dataset ('acs5', 'acs1', 'dec')
 
     Returns:
         DataFrame with GEOID, NAME, and housing variables
@@ -1229,7 +1240,7 @@ def get_housing_data(
     return client.fetch_data(
         variables='housing',
         year=year,
-        dataset='acs5',
+        dataset=dataset,
         geography=geography,
         state_fips=state_fips,
         include_moe=include_moe
