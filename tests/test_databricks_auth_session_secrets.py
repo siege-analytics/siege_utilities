@@ -5,6 +5,8 @@ import types
 
 import pytest
 
+pytestmark = pytest.mark.databricks
+
 from siege_utilities.databricks.auth import get_workspace_client
 from siege_utilities.databricks.secrets import (
     ensure_secret_scope,

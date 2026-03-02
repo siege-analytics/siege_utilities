@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "siege-utilities"
-version = "3.3.3"
+version = "3.4.0"
 description = "A comprehensive Python utilities package with enhanced auto-discovery"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -30,8 +30,8 @@ data = [
 ]
 # Geospatial (geopandas, shapely, pyproj, etc.)
 geo = [
-    "geopandas>=0.13.2",
-    "shapely>=1.8.0",
+    "geopandas>=0.13.2,<1.0",
+    "shapely>=1.8.0,<3.0",
     "pyproj>=3.3.0",
     "fiona>=1.8.0",
     "geopy>=2.4.1",
@@ -120,6 +120,10 @@ credentials = [
     # 1Password CLI integration (requires 1Password CLI to be installed separately)
     # macOS Keychain integration (built-in on macOS)
 ]
+# Databricks SDK integration
+databricks = [
+    "databricks-sdk>=0.20.0",
+]
 # Development and testing
 dev = [
     "pytest>=7.0.0",
@@ -142,8 +146,8 @@ all = [
     "openpyxl>=3.1.0",
     "faker>=35.2.2",
     # geo
-    "geopandas>=0.13.2",
-    "shapely>=1.8.0",
+    "geopandas>=0.13.2,<1.0",
+    "shapely>=1.8.0,<3.0",
     "pyproj>=3.3.0",
     "fiona>=1.8.0",
     "geopy>=2.4.1",
@@ -215,4 +219,10 @@ markers = [
     "requires_gdal: tests requiring GDAL libraries",
     "requires_spark: tests requiring PySpark",
     "integration: tests requiring network/API access",
+    "smoke: quick validation tests for critical paths (no network, no GDAL)",
+    "slow: tests that take >10s (network, large data)",
+    "databricks: tests requiring Databricks runtime or SDK",
 ]
+
+[tool.coverage.report]
+fail_under = 20

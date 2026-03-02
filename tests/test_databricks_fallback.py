@@ -1,5 +1,9 @@
 """Tests for Databricks spatial fallback planning helpers."""
 
+import pytest
+
+pytestmark = pytest.mark.databricks
+
 from siege_utilities.geo.databricks_fallback import (
     build_census_ingest_targets,
     build_census_table_name,
