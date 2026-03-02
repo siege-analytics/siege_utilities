@@ -1,5 +1,9 @@
 """Tests for LakeBase/Unity helpers."""
 
+import pytest
+
+pytestmark = pytest.mark.databricks
+
 from siege_utilities.databricks.artifacts import build_databricks_run_url
 from siege_utilities.databricks.lakebase import (
     build_jdbc_url,

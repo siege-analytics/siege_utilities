@@ -73,6 +73,13 @@ class BoundaryParseError(BoundaryRetrievalError):
         super().__init__(message, stage="parse", context=context)
 
 
+class BoundaryConfigurationError(BoundaryRetrievalError):
+    """Boundary type requires parameters that were not provided (e.g., state FIPS, congress number)."""
+
+    def __init__(self, message: str, context: Optional[Dict[str, Any]] = None):
+        super().__init__(message, stage="configuration", context=context)
+
+
 # ---------------------------------------------------------------------------
 # Result Object
 # ---------------------------------------------------------------------------
@@ -114,6 +121,7 @@ class BoundaryFetchResult:
         exc_map = {
             "input_validation": BoundaryInputError,
             "discovery": BoundaryDiscoveryError,
+            "configuration": BoundaryConfigurationError,
             "url_validation": BoundaryUrlValidationError,
             "download": BoundaryDownloadError,
             "parse": BoundaryParseError,

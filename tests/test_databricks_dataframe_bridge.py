@@ -3,6 +3,8 @@
 import pandas as pd
 import pytest
 
+pytestmark = pytest.mark.databricks
+
 from siege_utilities.databricks.dataframe_bridge import (
     _validate_geometry_format,
     pandas_to_spark,
