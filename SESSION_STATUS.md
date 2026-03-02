@@ -1,7 +1,30 @@
 # Siege Utilities - Session Status
 
-**Last Updated:** February 25, 2026
-**Branch:** `main` (v2.2.0), `feature/epic-14-unified-geo-model` (v3.0.0 — PR #147)
+**Last Updated:** March 2, 2026
+**Branch:** `main` (v3.4.0), `develop` (v3.4.0)
+
+---
+
+## Session 24 Progress (March 2, 2026)
+
+### v3.4.0 Released — su#196 Adoption Umbrella COMPLETE
+
+**Release**: https://github.com/siege-analytics/siege_utilities/releases/tag/v3.4.0
+**PR**: #205 (merged to develop, then develop → main via release_manager.py)
+**Issues**: #196 (parent) + #201-204 (4 sub-issues, all closed)
+
+**Workstreams delivered:**
+
+| WS | Description | Sub-issue |
+|----|-------------|-----------|
+| A | Compatibility docs + dep ceilings (`geopandas<1.0`, `shapely<3.0`) | #201 |
+| B | Boundary reliability (BoundaryConfigurationError, deprecation, tests) | #202 |
+| C | Databricks extras (`databricks-sdk>=0.20.0`) + CI job + quickstart docs | #203 |
+| D | Quality gates (smoke/slow/databricks markers, 20% coverage threshold, 27 smoke tests) | #204 |
+
+**Release infrastructure**: `release_manager.py` now handles full gitflow — develop → main merge, tagging, GitHub release creation (12-step workflow).
+
+**Test results**: 1528 passed, 7 skipped, 0 failed, 39.40% coverage
 
 ---
 
