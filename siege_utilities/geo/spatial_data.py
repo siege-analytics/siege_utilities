@@ -840,6 +840,36 @@ class CensusDataSource(SpatialDataSource):
                     context=base_ctx,
                 )
 
+            # Post-download filtering for national-only boundary types
+            # These types are only available as nationwide files from Census,
+            # so we download the full national file and filter by state FIPS
+            national_only_types = {
+                'state', 'county', 'cbsa', 'csa', 'metdiv', 'micro',
+                'necta', 'nectadiv', 'cnecta', 'aiannh', 'uac', 'uac10', 'uac20',
+            }
+            if normalized_fips and geographic_level in national_only_types:
+                fips_col = None
+                for col in ['statefp', 'STATEFP', 'statefp20', 'STATEFP20',
+                            'statefp10', 'STATEFP10']:
+                    if col in gdf.columns:
+                        fips_col = col
+                        break
+
+                if fips_col:
+                    original_count = len(gdf)
+                    gdf = gdf[gdf[fips_col] == normalized_fips].copy()
+                    log.info(
+                        f"Filtered {geographic_level} from {original_count} to "
+                        f"{len(gdf)} features for state {normalized_fips}"
+                    )
+                    base_ctx["filtered_from"] = original_count
+                    base_ctx["filtered_to"] = len(gdf)
+                else:
+                    log.warning(
+                        f"No state FIPS column found in {geographic_level} data "
+                        f"— cannot filter by state"
+                    )
+
             return BoundaryFetchResult.ok(
                 gdf,
                 message=f"Retrieved {len(gdf)} {geographic_level} features for year {optimal_year}",
