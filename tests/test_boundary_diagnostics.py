@@ -14,6 +14,7 @@ from siege_utilities.geo.boundary_result import (
     BoundaryRetrievalError,
     BoundaryInputError,
     BoundaryDiscoveryError,
+    BoundaryConfigurationError,
     BoundaryUrlValidationError,
     BoundaryDownloadError,
     BoundaryParseError,
@@ -460,4 +461,228 @@ class TestLegacyBackwardCompatibility:
             source.get_geographic_boundaries(2020, 'county')
             dep_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
             assert len(dep_warnings) >= 1
+            assert "fetch_geographic_boundaries" in str(dep_warnings[0].message)
+
+
+# ---------------------------------------------------------------------------
+# BoundaryConfigurationError — silent None → typed exception
+# ---------------------------------------------------------------------------
+
+class TestBoundaryConfigurationError:
+    """Verify _construct_filename_with_fips_validation raises instead of returning None."""
+
+    def _make_discovery(self):
+        from siege_utilities.geo.spatial_data import CensusDirectoryDiscovery
+        disc = CensusDirectoryDiscovery.__new__(CensusDirectoryDiscovery)
+        disc.base_url = "https://www2.census.gov/geo/tiger"
+        disc.timeout = 30
+        disc.cache = {}
+        disc.cache_timeout = 3600
+        return disc
+
+    def test_cd_without_congress_number_raises(self):
+        """Congressional district without congress number raises BoundaryConfigurationError."""
+        disc = self._make_discovery()
+        patterns = {
+            'base_url': 'https://www2.census.gov/geo/tiger/TIGER2020',
+            'filename_patterns': {
+                'congress': 'tl_{year}_us_cd{congress_num}_shp.zip',
+                'state': 'tl_{year}_{state_fips}_{boundary_type}_shp.zip',
+                'national': 'tl_{year}_us_{boundary_type}_shp.zip',
+            }
+        }
+        with pytest.raises(BoundaryConfigurationError) as exc_info:
+            disc._construct_filename_with_fips_validation(
+                year=2020, boundary_type='cd', state_fips=None,
+                congress_number=None, patterns=patterns,
+            )
+        assert exc_info.value.stage == "configuration"
+        assert "congress number" in str(exc_info.value).lower()
+        assert exc_info.value.context["boundary_type"] == "cd"
+
+    def test_tract_without_state_fips_raises(self):
+        """State-required type without state FIPS raises BoundaryConfigurationError."""
+        disc = self._make_discovery()
+        patterns = {
+            'base_url': 'https://www2.census.gov/geo/tiger/TIGER2020',
+            'filename_patterns': {
+                'congress': 'tl_{year}_us_cd{congress_num}_shp.zip',
+                'state': 'tl_{year}_{state_fips}_{boundary_type}_shp.zip',
+                'national': 'tl_{year}_us_{boundary_type}_shp.zip',
+            }
+        }
+        with pytest.raises(BoundaryConfigurationError) as exc_info:
+            disc._construct_filename_with_fips_validation(
+                year=2020, boundary_type='tract', state_fips=None,
+                congress_number=None, patterns=patterns,
+            )
+        assert exc_info.value.stage == "configuration"
+        assert "state fips" in str(exc_info.value).lower()
+        assert exc_info.value.context["requires"] == "state_fips"
+
+    def test_block_group_without_state_fips_raises(self):
+        """block_group without state FIPS also raises BoundaryConfigurationError."""
+        disc = self._make_discovery()
+        patterns = {
+            'base_url': 'https://www2.census.gov/geo/tiger/TIGER2020',
+            'filename_patterns': {
+                'congress': 'tl_{year}_us_cd{congress_num}_shp.zip',
+                'state': 'tl_{year}_{state_fips}_{boundary_type}_shp.zip',
+                'national': 'tl_{year}_us_{boundary_type}_shp.zip',
+            }
+        }
+        with pytest.raises(BoundaryConfigurationError):
+            disc._construct_filename_with_fips_validation(
+                year=2020, boundary_type='block_group', state_fips=None,
+                congress_number=None, patterns=patterns,
+            )
+
+    def test_configuration_error_in_hierarchy(self):
+        """BoundaryConfigurationError is a subclass of BoundaryRetrievalError."""
+        assert issubclass(BoundaryConfigurationError, BoundaryRetrievalError)
+        err = BoundaryConfigurationError("test", context={"key": "val"})
+        assert err.stage == "configuration"
+        assert err.context == {"key": "val"}
+
+    def test_raise_on_error_configuration_stage(self):
+        """BoundaryFetchResult.raise_on_error maps 'configuration' stage correctly."""
+        result = BoundaryFetchResult.fail(
+            error_code="MISSING_CONFIG",
+            error_stage="configuration",
+            message="Missing congress number",
+        )
+        with pytest.raises(BoundaryConfigurationError):
+            result.raise_on_error()
+
+
+# ---------------------------------------------------------------------------
+# Post-download FIPS filtering
+# ---------------------------------------------------------------------------
+
+class TestPostDownloadFiltering:
+    """Test that national-only boundary types get filtered by state FIPS after download."""
+
+    @patch('siege_utilities.geo.spatial_data.CensusDirectoryDiscovery')
+    def _make_source(self, MockDiscovery):
+        mock_disc = MockDiscovery.return_value
+        mock_disc.get_available_years.return_value = [2020, 2024]
+        mock_disc.discover_boundary_types.return_value = {
+            'county': 'COUNTY', 'state': 'STATE', 'cbsa': 'CBSA',
+        }
+        mock_disc.get_optimal_year.return_value = 2020
+
+        from siege_utilities.geo.spatial_data import CensusDataSource
+        source = CensusDataSource.__new__(CensusDataSource)
+        source.name = "Census Bureau"
+        source.base_url = "https://www2.census.gov/geo/tiger"
+        source.api_key = None
+        source.user_config = {}
+        source.discovery = mock_disc
+        source.available_years = [2020, 2024]
+        source.state_required_levels = ['tract', 'block_group', 'block', 'tabblock20', 'sldu', 'sldl']
+        source.national_levels = ['nation', 'state', 'county', 'place', 'zcta', 'cd']
+        return source
+
+    def _make_mock_gdf(self, statefp_col='STATEFP', state_fips_values=None):
+        """Create a mock GeoDataFrame with STATEFP column."""
+        import pandas as pd
+        if state_fips_values is None:
+            state_fips_values = ['06', '06', '36', '36', '48']
+        data = {
+            statefp_col: state_fips_values,
+            'NAME': [f'Feature_{i}' for i in range(len(state_fips_values))],
+        }
+        df = pd.DataFrame(data)
+        # Add columns list for the FIPS column detection
+        return df
+
+    def test_county_filtered_by_state(self):
+        """County (national-only) should filter to requested state only."""
+        source = self._make_source()
+        source.discovery.construct_download_url.return_value = "https://example.com/county.zip"
+        source.discovery.validate_download_url.return_value = True
+
+        mock_gdf = self._make_mock_gdf()
+
+        with patch.object(source, '_download_and_process_tiger', return_value=mock_gdf):
+            result = source.fetch_geographic_boundaries(
+                year=2020, geographic_level='county', state_fips='06',
+            )
+
+        assert result.success
+        gdf = result.geodataframe
+        assert len(gdf) == 2  # Only CA rows
+        assert all(gdf['STATEFP'] == '06')
+
+    def test_national_type_without_state_returns_all(self):
+        """County without state_fips should return all records unfiltered."""
+        source = self._make_source()
+        source.discovery.construct_download_url.return_value = "https://example.com/county.zip"
+        source.discovery.validate_download_url.return_value = True
+
+        mock_gdf = self._make_mock_gdf()
+
+        with patch.object(source, '_download_and_process_tiger', return_value=mock_gdf):
+            result = source.fetch_geographic_boundaries(
+                year=2020, geographic_level='county',
+            )
+
+        assert result.success
+        assert len(result.geodataframe) == 5  # All rows
+
+    def test_statefp20_column_detected(self):
+        """Post-download filtering should detect STATEFP20 variant column."""
+        source = self._make_source()
+        source.discovery.construct_download_url.return_value = "https://example.com/state.zip"
+        source.discovery.validate_download_url.return_value = True
+
+        mock_gdf = self._make_mock_gdf(statefp_col='STATEFP20')
+
+        with patch.object(source, '_download_and_process_tiger', return_value=mock_gdf):
+            result = source.fetch_geographic_boundaries(
+                year=2020, geographic_level='state', state_fips='48',
+            )
+
+        assert result.success
+        assert len(result.geodataframe) == 1  # Only TX
+
+    def test_filtering_context_recorded(self):
+        """Filtering metadata (filtered_from, filtered_to) should appear in context."""
+        source = self._make_source()
+        source.discovery.construct_download_url.return_value = "https://example.com/county.zip"
+        source.discovery.validate_download_url.return_value = True
+
+        mock_gdf = self._make_mock_gdf()
+
+        with patch.object(source, '_download_and_process_tiger', return_value=mock_gdf):
+            result = source.fetch_geographic_boundaries(
+                year=2020, geographic_level='county', state_fips='36',
+            )
+
+        assert result.success
+        assert result.context.get("filtered_from") == 5
+        assert result.context.get("filtered_to") == 2
+
+
+# ---------------------------------------------------------------------------
+# Deprecation of standalone get_census_boundaries
+# ---------------------------------------------------------------------------
+
+class TestGetCensusBoundariesDeprecation:
+    """Verify standalone get_census_boundaries() emits DeprecationWarning."""
+
+    def test_get_census_boundaries_emits_deprecation(self):
+        import warnings
+        from siege_utilities.geo.spatial_data import get_census_boundaries
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            # Call will fail (no network) but we only care about the warning
+            try:
+                get_census_boundaries(2020, 'county')
+            except Exception:
+                pass
+            dep_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
+            assert len(dep_warnings) >= 1
+            assert "get_census_boundaries" in str(dep_warnings[0].message)
             assert "fetch_geographic_boundaries" in str(dep_warnings[0].message)

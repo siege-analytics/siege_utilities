@@ -54,6 +54,7 @@ from .boundary_result import (
     BoundaryRetrievalError,
     BoundaryInputError,
     BoundaryDiscoveryError,
+    BoundaryConfigurationError,
     BoundaryUrlValidationError,
     BoundaryDownloadError,
     BoundaryParseError,
@@ -448,7 +449,7 @@ class CensusDirectoryDiscovery:
 
             return final_url
 
-        except (BoundaryInputError, BoundaryDiscoveryError):
+        except (BoundaryInputError, BoundaryDiscoveryError, BoundaryConfigurationError):
             raise
         except Exception as e:
             raise BoundaryDiscoveryError(
@@ -492,17 +493,29 @@ class CensusDirectoryDiscovery:
                     year=year, congress_num=congress_number
                 )
             else:
-                log.error("Congressional district boundary type requires congress number")
-                return None
-        
+                raise BoundaryConfigurationError(
+                    f"Congressional district boundary type '{boundary_type}' requires a "
+                    f"congress number. Provide it via the boundary_type name (e.g., 'cd118') "
+                    f"or the congress_number parameter.",
+                    context={"boundary_type": boundary_type, "year": year},
+                )
+
         # Handle state-required types
         elif boundary_type in state_required_types:
             if not state_fips:
-                log.error(f"State FIPS required for {boundary_type}. Available FIPS codes:")
-                for fips, state_abbrev in list(FIPS_TO_STATE.items())[:10]:
-                    state_name = STATE_NAMES[state_abbrev]
-                    log.error(f"  {fips}: {state_name} ({state_abbrev})")
-                return None
+                sample_fips = {
+                    fips: f"{STATE_NAMES[abbrev]} ({abbrev})"
+                    for fips, abbrev in list(FIPS_TO_STATE.items())[:5]
+                }
+                raise BoundaryConfigurationError(
+                    f"State FIPS code required for boundary type '{boundary_type}'. "
+                    f"Example FIPS codes: {sample_fips}",
+                    context={
+                        "boundary_type": boundary_type,
+                        "year": year,
+                        "requires": "state_fips",
+                    },
+                )
             
             return patterns['filename_patterns']['state'].format(
                 year=year, state_fips=state_fips, boundary_type=boundary_type
@@ -1375,6 +1388,10 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
     """
     Convenience function to get Census boundaries.
 
+    .. deprecated::
+        Use :func:`fetch_geographic_boundaries` (via CensusDataSource) for
+        structured diagnostics via :class:`BoundaryFetchResult`.
+
     Args:
         year: Census year
         geographic_level: Geographic level (county, tract, etc.)
@@ -1389,6 +1406,12 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
     Returns:
         GeoDataFrame with Census boundaries (filtered by state if specified)
     """
+    warnings.warn(
+        "get_census_boundaries() is deprecated. Use CensusDataSource().fetch_geographic_boundaries() "
+        "for structured error reporting via BoundaryFetchResult.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     source = CensusDataSource()
 
     # National-only boundary types (downloaded as national file, filtered post-download)

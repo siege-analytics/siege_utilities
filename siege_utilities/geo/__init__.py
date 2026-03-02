@@ -20,6 +20,7 @@ def _register(names, module):
 _register([
     'BoundaryFetchResult',
     'BoundaryRetrievalError', 'BoundaryInputError', 'BoundaryDiscoveryError',
+    'BoundaryConfigurationError',
     'BoundaryUrlValidationError', 'BoundaryDownloadError', 'BoundaryParseError',
 ], '.boundary_result')
 
@@ -180,7 +181,7 @@ _register([
 
 __all__ = list(_LAZY_IMPORTS.keys())
 
-__version__ = "3.3.3"
+__version__ = "3.4.0"
 __author__ = "Siege Analytics"
 __description__ = "Enhanced geographic utilities with intelligent Census data selection"
 

@@ -3,8 +3,8 @@
 Release Manager for Siege Utilities
 
 Updates version across all five locations (pyproject.toml, setup.py, __init__.py, docs/conf.py x2),
-runs tests, builds the package, validates with twine, uploads to PyPI,
-and optionally creates GitHub releases.
+runs tests, builds the package, validates with twine, merges develop → main (gitflow),
+tags the release, uploads to PyPI, and creates GitHub releases.
 
 Usage:
     python scripts/release_manager.py --check          # Check version consistency
@@ -15,6 +15,20 @@ Usage:
     python scripts/release_manager.py --release --bump-type major --changelog --pypi
     python scripts/release_manager.py --release --target-version 3.1.0 --changelog --pypi
     python scripts/release_manager.py --release --bump-type patch --dry-run
+
+Release workflow (12 steps):
+    1. Check version consistency
+    2. Run tests (unless --skip-tests)
+    3. Bump or set version
+    4. Verify import
+    5. Clean build artifacts
+    6. Build sdist + wheel
+    7. Validate with twine
+    8. Resolve release notes
+    9. Merge develop → main (gitflow)
+   10. Tag on main + push
+   11. Upload to PyPI (if --pypi)
+   12. Create GitHub release (unless --skip-github)
 """
 
 import os
@@ -315,9 +329,140 @@ def upload_to_pypi(repository: str = 'pypi', token: Optional[str] = None,
     return False
 
 
+def _git(args: List[str], check: bool = True, capture: bool = False) -> subprocess.CompletedProcess:
+    """Run a git command in the project root."""
+    return subprocess.run(
+        ['git'] + args,
+        cwd=PROJECT_ROOT,
+        check=check,
+        capture_output=capture,
+        text=True,
+    )
+
+
+def _current_branch() -> str:
+    """Return the name of the current git branch."""
+    return _git(['branch', '--show-current'], capture=True).stdout.strip()
+
+
+def _branch_exists(branch: str) -> bool:
+    """Check whether a local branch exists."""
+    result = _git(['rev-parse', '--verify', branch], check=False, capture=True)
+    return result.returncode == 0
+
+
+def _is_clean() -> bool:
+    """Return True when the working tree has no uncommitted changes."""
+    result = _git(['status', '--porcelain'], capture=True)
+    return len(result.stdout.strip()) == 0
+
+
+def merge_develop_to_main(dry_run: bool = False) -> bool:
+    """Merge develop into main (gitflow release merge).
+
+    Workflow:
+      1. Verify we are on develop with a clean worktree
+      2. Checkout main and pull latest
+      3. Merge develop into main (no fast-forward for a merge commit)
+      4. Push main
+      5. Return to develop
+
+    Args:
+        dry_run: If True, log what would happen but don't execute.
+
+    Returns:
+        True on success, False on failure.
+    """
+    starting_branch = _current_branch()
+
+    if starting_branch != 'develop':
+        logger.error(f"Expected to be on 'develop', currently on '{starting_branch}'")
+        return False
+
+    if not _is_clean():
+        logger.error("Working tree is not clean — commit or stash changes first")
+        return False
+
+    if dry_run:
+        logger.info("[DRY RUN] Would merge develop → main and push")
+        return True
+
+    try:
+        # Pull latest develop
+        logger.info("Pulling latest develop...")
+        _git(['pull', 'origin', 'develop'])
+
+        # Checkout main and pull
+        logger.info("Switching to main...")
+        _git(['checkout', 'main'])
+        _git(['pull', 'origin', 'main'])
+
+        # Merge develop into main
+        logger.info("Merging develop into main...")
+        _git(['merge', 'develop', '--no-ff', '-m', 'Merge branch \'develop\''])
+
+        # Push main
+        logger.info("Pushing main...")
+        _git(['push', 'origin', 'main'])
+
+        # Return to develop
+        logger.info("Switching back to develop...")
+        _git(['checkout', 'develop'])
+
+        logger.info("Merge develop → main complete")
+        return True
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Merge failed: {e}")
+        # Try to return to starting branch
+        _git(['checkout', starting_branch], check=False)
+        return False
+
+
+def git_tag_and_push(version: str, message: Optional[str] = None,
+                     dry_run: bool = False) -> bool:
+    """Create annotated tag on main and push it.
+
+    Must be called after merge_develop_to_main so the tag lands on main.
+
+    Args:
+        version: Version string (tag will be vX.Y.Z)
+        message: Tag annotation message. Defaults to 'Release vX.Y.Z'.
+        dry_run: If True, log what would happen but don't execute.
+    """
+    tag = f"v{version}"
+    msg = message or f"Release {tag}"
+
+    if dry_run:
+        logger.info(f"[DRY RUN] Would tag {tag} on main and push")
+        return True
+
+    try:
+        # Switch to main to tag
+        current = _current_branch()
+        if current != 'main':
+            _git(['checkout', 'main'])
+
+        _git(['tag', '-a', tag, '-m', msg])
+        _git(['push', 'origin', '--tags'])
+        logger.info(f"Tagged {tag} on main and pushed")
+
+        # Return to develop
+        if current != 'main':
+            _git(['checkout', current])
+
+        return True
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Tagging failed: {e}")
+        return False
+
+
 def git_commit_and_tag(version: str, message: Optional[str] = None,
                        dry_run: bool = False) -> bool:
     """Commit version file changes, create annotated tag, push both.
+
+    .. deprecated::
+        Use merge_develop_to_main + git_tag_and_push for gitflow releases.
+        This function is kept for backward compatibility with non-gitflow repos.
 
     Args:
         version: Version string (tag will be vX.Y.Z)
@@ -493,7 +638,7 @@ def main():
             parser.error("--release requires --release-notes or --changelog")
 
         # 1. Check consistency
-        logger.info("Step 1/10: Checking version consistency...")
+        logger.info("Step 1/12: Checking version consistency...")
         status = check_consistency()
         if not status['consistent']:
             logger.error(f"Version inconsistency: {status['versions']}")
@@ -507,8 +652,13 @@ def main():
                 logger.error(str(e))
                 sys.exit(1)
 
+        # 1c. Check CI status
+        logger.info("Checking CI status on current branch...")
+        if not check_ci_status():
+            logger.warning("CI check did not pass — proceeding anyway (verify manually)")
+
         # 2. Tests
-        logger.info("Step 2/10: Running tests...")
+        logger.info("Step 2/12: Running tests...")
         if not args.skip_tests:
             if not run_tests():
                 logger.error("Tests failed, aborting release")
@@ -517,7 +667,7 @@ def main():
             logger.info("Tests skipped (--skip-tests)")
 
         # 3. Set version
-        logger.info("Step 3/10: Setting version...")
+        logger.info("Step 3/12: Setting version...")
         if args.target_version:
             new_ver = args.target_version
             if args.dry_run:
@@ -542,7 +692,7 @@ def main():
                 logger.info(f"Version bumped to {new_ver}")
 
         # 4. Verify import
-        logger.info("Step 4/10: Verifying import...")
+        logger.info("Step 4/12: Verifying import...")
         if not args.dry_run:
             if not verify_import():
                 logger.error("Import verification failed")
@@ -551,11 +701,11 @@ def main():
             logger.info("[DRY RUN] Would verify import")
 
         # 5. Clean build artifacts
-        logger.info("Step 5/10: Cleaning build artifacts...")
+        logger.info("Step 5/12: Cleaning build artifacts...")
         clean_build_artifacts()
 
         # 6. Build
-        logger.info("Step 6/10: Building package...")
+        logger.info("Step 6/12: Building package...")
         if not args.dry_run:
             if not build_package():
                 sys.exit(1)
@@ -563,37 +713,47 @@ def main():
             logger.info("[DRY RUN] Would build package")
 
         # 7. Validate
-        logger.info("Step 7/10: Validating package...")
+        logger.info("Step 7/12: Validating package...")
         if not args.dry_run:
             if not validate_build():
                 sys.exit(1)
         else:
             logger.info("[DRY RUN] Would validate package")
 
-        # 8. Upload to PyPI
-        logger.info("Step 8/10: PyPI upload...")
+        # 8. Resolve release notes (needed for tag + GitHub release)
+        logger.info("Step 8/12: Resolving release notes...")
+        if args.changelog:
+            notes = extract_changelog_notes(new_ver) or extract_changelog_notes('Unreleased')
+            if not notes:
+                logger.warning("Could not extract changelog notes, using default")
+                notes = f"Release v{new_ver}"
+        else:
+            notes = args.release_notes
+
+        # 9. Merge develop → main (gitflow)
+        logger.info("Step 9/12: Merging develop → main...")
+        if _current_branch() == 'develop' or args.dry_run:
+            if not merge_develop_to_main(args.dry_run):
+                logger.error("Merge develop → main failed")
+                sys.exit(1)
+        else:
+            logger.warning(f"Not on develop (on {_current_branch()}), skipping merge")
+
+        # 10. Tag on main + push
+        logger.info("Step 10/12: Tagging release on main...")
+        if not git_tag_and_push(new_ver, notes, args.dry_run):
+            logger.warning("Tagging failed (non-fatal)")
+
+        # 11. Upload to PyPI
+        logger.info("Step 11/12: PyPI upload...")
         if args.pypi:
             if not upload_to_pypi(args.repository, args.token, args.dry_run):
                 sys.exit(1)
         else:
             logger.info("PyPI upload skipped (use --pypi to enable)")
 
-        # 9. Git commit + tag + push
-        logger.info("Step 9/10: Git commit and tag...")
-        # Resolve release notes
-        if args.changelog:
-            notes = extract_changelog_notes(new_ver) or extract_changelog_notes('Unreleased')
-            if not notes:
-                logger.warning("Could not extract changelog notes, using bump type as fallback")
-                notes = f"Release v{new_ver}"
-        else:
-            notes = args.release_notes
-
-        if not git_commit_and_tag(new_ver, notes, args.dry_run):
-            logger.warning("Git commit/tag failed (non-fatal)")
-
-        # 10. GitHub release
-        logger.info("Step 10/10: GitHub release...")
+        # 12. GitHub release
+        logger.info("Step 12/12: GitHub release...")
         if not args.skip_github:
             if not create_github_release(new_ver, notes, args.dry_run):
                 logger.warning("GitHub release creation failed (non-fatal)")
