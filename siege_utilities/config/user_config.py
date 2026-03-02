@@ -19,6 +19,35 @@ from .enhanced_config import UserProfile as EnhancedUserProfile, load_user_profi
 
 log = logging.getLogger(__name__)
 
+
+def _is_databricks_runtime() -> bool:
+    """Detect whether we are running inside a Databricks environment.
+
+    Checks for ``DATABRICKS_RUNTIME_VERSION`` (set on every DBR cluster)
+    and falls back to probing for ``/dbfs`` which exists on Databricks
+    worker nodes.
+    """
+    if os.environ.get("DATABRICKS_RUNTIME_VERSION"):
+        return True
+    # /dbfs is mounted on every Databricks cluster node
+    if Path("/dbfs").is_dir():
+        return True
+    return False
+
+
+def _default_download_directory() -> Path:
+    """Return the platform-appropriate default download directory.
+
+    On Databricks, ``~/Downloads`` is typically under ``/root`` and blocked
+    by the cluster filesystem policy.  We default to ``/tmp/siege_utilities/downloads``
+    instead, which is always writable on Databricks nodes.
+
+    On all other platforms, we use ``~/Downloads/siege_utilities``.
+    """
+    if _is_databricks_runtime():
+        return Path("/tmp/siege_utilities/downloads")
+    return Path.home() / "Downloads" / "siege_utilities"
+
 @dataclass
 class UserProfile:
     """User profile information and preferences.
@@ -84,7 +113,7 @@ class UserConfigManager:
         
         # Set default download directory if not specified
         if not self.user_profile.preferred_download_directory:
-            self.user_profile.preferred_download_directory = str(Path.home() / "Downloads" / "siege_utilities")
+            self.user_profile.preferred_download_directory = str(_default_download_directory())
             self._save_user_profile()
     
     def _load_user_profile(self) -> UserProfile:
@@ -176,9 +205,10 @@ class UserConfigManager:
         organization = input("Organization (optional): ").strip()
         
         # Get preferences
-        download_dir = input(f"Preferred download directory (default: {Path.home() / 'Downloads' / 'siege_utilities'}): ").strip()
+        default_dir = _default_download_directory()
+        download_dir = input(f"Preferred download directory (default: {default_dir}): ").strip()
         if not download_dir:
-            download_dir = str(Path.home() / "Downloads" / "siege_utilities")
+            download_dir = str(default_dir)
         
         # Update profile
         self.update_user_profile(
@@ -327,7 +357,12 @@ def get_download_directory(specific_path: Optional[str] = None, client_code: Opt
     1. specific_path if provided
     2. Client-specific directory if client_code provided and client profile exists
     3. User's preferred download directory from profile
-    4. Default fallback (~/.siege_utilities/downloads)
+    4. Default fallback (platform-aware: ``/tmp/siege_utilities/downloads``
+       on Databricks, ``~/Downloads/siege_utilities`` elsewhere)
+
+    On Databricks the default ``~/Downloads/siege_utilities`` path resolves to
+    ``/root/Downloads/siege_utilities`` which is blocked by the cluster
+    filesystem policy. The Databricks-aware default avoids this.
 
     Args:
         specific_path: Specific path override (highest priority)
@@ -336,26 +371,39 @@ def get_download_directory(specific_path: Optional[str] = None, client_code: Opt
 
     Returns:
         Path object for download directory
+
+    Raises:
+        OSError: If the resolved directory cannot be created or is not writable
     """
+    download_dir: Optional[Path] = None
+
     # Priority 1: Specific path override
     if specific_path:
         download_dir = Path(specific_path)
-        download_dir.mkdir(parents=True, exist_ok=True)
-        return download_dir
 
     # Priority 2: Client-specific directory
-    if client_code:
+    if download_dir is None and client_code:
         try:
             from .enhanced_config import load_client_profile
             client_profile = load_client_profile(client_code, config_dir)
             if client_profile:
                 # Client profiles don't have download_directory anymore,
                 # use a client-specific subdirectory instead
-                client_dir = user_config.get_download_directory() / "clients" / client_code.lower()
-                client_dir.mkdir(parents=True, exist_ok=True)
-                return client_dir
+                download_dir = user_config.get_download_directory() / "clients" / client_code.lower()
         except Exception as e:
             log.debug(f"Could not load client profile for {client_code}: {e}")
 
     # Priority 3 & 4: User's preferred directory or default
-    return user_config.get_download_directory()
+    if download_dir is None:
+        download_dir = user_config.get_download_directory()
+
+    # Ensure the directory exists and is writable
+    download_dir.mkdir(parents=True, exist_ok=True)
+    if not os.access(download_dir, os.W_OK):
+        raise OSError(
+            f"Download directory is not writable: {download_dir}. "
+            f"Set a writable path via specific_path parameter or "
+            f"user_config preferred_download_directory."
+        )
+
+    return download_dir
