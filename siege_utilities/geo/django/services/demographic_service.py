@@ -166,12 +166,12 @@ class DemographicPopulationService:
             logger.info(
                 f"Fetching {variable_group} data for {geography_type} in state {state_fips}"
             )
-            df = self.client.get_demographics(
-                geography=geography_type,
-                state=state_fips,
+            df = self.client.fetch_data(
+                variables=variable_group,
                 year=year,
-                variable_group=variable_group,
                 dataset=dataset,
+                geography=geography_type,
+                state_fips=state_fips,
             )
         except Exception as e:
             logger.error(f"Error fetching demographics: {e}")
