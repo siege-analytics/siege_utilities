@@ -130,6 +130,18 @@ class User(Person):
         max_length=500,
         description="DuckDB database path"
     )
+
+    # Multi-source credential references
+    source_credentials: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Map of source_id to credential reference (e.g. {'fec': 'FEC_API_KEY', 'census': 'CENSUS_KEY'})"
+    )
+
+    # Jurisdiction authorization scope
+    authorized_jurisdictions: List[str] = Field(
+        default_factory=list,
+        description="Jurisdiction names this user may access (empty = all)"
+    )
     
     @field_validator('username')
     @classmethod
@@ -181,6 +193,22 @@ class User(Person):
         if permission in self.permissions:
             self.permissions.remove(permission)
             self.last_updated = datetime.now()
+
+    # Source credential helpers
+    def get_source_credential(self, source_id: str) -> Optional[str]:
+        """Get the credential reference for a data source."""
+        return self.source_credentials.get(source_id)
+
+    def set_source_credential(self, source_id: str, credential_ref: str) -> None:
+        """Set a credential reference for a data source."""
+        self.source_credentials[source_id] = credential_ref
+        self.last_updated = datetime.now()
+
+    def has_jurisdiction_access(self, jurisdiction_name: str) -> bool:
+        """Check if user is authorized for a jurisdiction (empty list = all)."""
+        if not self.authorized_jurisdictions:
+            return True
+        return jurisdiction_name in self.authorized_jurisdictions
 
     # Client Assignment Methods
     def assign_client(self, client_code: str) -> None:
@@ -284,6 +312,16 @@ class Client(Person):
         description="Report generation preferences"
     )
 
+    # Multi-source / jurisdiction awareness
+    jurisdictions: List[str] = Field(
+        default_factory=list,
+        description="Jurisdiction names where this client operates (e.g. ['Federal', 'Texas'])"
+    )
+    enabled_sources: List[str] = Field(
+        default_factory=list,
+        description="DataSource source_ids enabled for this client (e.g. ['fec', 'tx_ethics'])"
+    )
+
     @field_validator('branding_config', mode='before')
     @classmethod
     def coerce_branding_config(cls, v):
@@ -331,6 +369,19 @@ class Client(Person):
     def is_active_client(self) -> bool:
         """Check if client is active."""
         return self.client_status == "active" and self.is_active()
+
+    # Jurisdiction / source helpers
+    def operates_in_jurisdiction(self, jurisdiction_name: str) -> bool:
+        """Check if client operates in a jurisdiction (empty list = all)."""
+        if not self.jurisdictions:
+            return True
+        return jurisdiction_name in self.jurisdictions
+
+    def has_source_enabled(self, source_id: str) -> bool:
+        """Check if a data source is enabled for this client."""
+        if not self.enabled_sources:
+            return True
+        return source_id in self.enabled_sources
 
     # User Assignment Methods
     def assign_user(self, person_id: str) -> None:
