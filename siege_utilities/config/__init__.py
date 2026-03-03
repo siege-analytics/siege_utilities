@@ -140,7 +140,12 @@ from .census_constants import (
 )
 
 # Canonical enum types (re-exported from geo.census_dataset_mapper for convenience)
-from siege_utilities.geo.census_dataset_mapper import SurveyType, DataReliability
+# Wrapped in try/except because census_dataset_mapper imports pandas at module level
+try:
+    from siege_utilities.geo.census_dataset_mapper import SurveyType, DataReliability
+except ImportError:
+    SurveyType = None
+    DataReliability = None
 
 # Import NCES-specific constants
 from .nces_constants import (
