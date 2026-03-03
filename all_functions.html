@@ -6,14 +6,14 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Complete Function Reference &mdash; Siege Utilities 3.5.0 documentation</title>
+  <title>Complete Function Reference &mdash; Siege Utilities 3.6.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=1d04d630"></script>
+      <script src="_static/documentation_options.js?v=2a4e921e"></script>
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
@@ -1407,7 +1407,7 @@ Returns a properly formatted address string.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.use_nominatim_geocoder">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">use_nominatim_geocoder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query_address</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">country_codes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_retries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/geo/geocoding.html#use_nominatim_geocoder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.use_nominatim_geocoder" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">use_nominatim_geocoder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query_address</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">country_codes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_retries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">server_url</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/geo/geocoding.html#use_nominatim_geocoder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.use_nominatim_geocoder" title="Link to this definition"></a></dt>
 <dd><p>Geocode an address using Nominatim with proper rate limiting and error handling.
 Returns the result as a JSON string for Spark UDF compatibility.</p>
 <dl class="field-list simple">
@@ -1417,6 +1417,11 @@ Returns the result as a JSON string for Spark UDF compatibility.</p>
 <li><p><strong>id</strong> – An identifier for tracking</p></li>
 <li><p><strong>country_codes</strong> – Optional country code filter (defaults to US)</p></li>
 <li><p><strong>max_retries</strong> – Number of retry attempts for transient errors</p></li>
+<li><p><strong>server_url</strong> – Optional custom Nominatim server URL (e.g.,
+“<a class="reference external" href="http://nominatim.nominatim.svc.cluster.local">http://nominatim.nominatim.svc.cluster.local</a>” for self-hosted).
+Defaults to None (public OSM Nominatim with rate limiting).
+When set, rate limiting is skipped (self-hosted servers
+don’t require it).</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
