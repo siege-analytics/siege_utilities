@@ -70,6 +70,13 @@ _register([
     'get_country_name', 'get_country_code', 'list_countries', 'get_coordinates',
 ], '.geocoding')
 
+# --- census_geocoder ---
+_register([
+    'CensusVintage', 'CensusGeocodeResult',
+    'select_vintage_for_cycle', 'geocode_single', 'geocode_batch',
+    'geocode_batch_chunked',
+], '.census_geocoder')
+
 # --- census_api_client ---
 _register([
     'CensusAPIClient', 'CensusAPIError', 'CensusAPIKeyError',
@@ -188,7 +195,7 @@ _register([
 
 __all__ = list(_LAZY_IMPORTS.keys())
 
-__version__ = "3.4.0"
+__version__ = "3.6.0"
 __author__ = "Siege Analytics"
 __description__ = "Enhanced geographic utilities with intelligent Census data selection"
 

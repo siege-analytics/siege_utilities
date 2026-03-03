@@ -334,21 +334,27 @@ def concatenate_addresses(street=None, city=None, state_province_area=None,
     return ', '.join(components)
 
 
-def get_coordinates(query_address, country_codes=None, max_retries=3):
+def get_coordinates(query_address, country_codes=None, max_retries=3, server_url=None):
     """
     Get coordinates (latitude, longitude) for an address using Nominatim.
     Returns a tuple of (latitude, longitude) or None if geocoding fails.
-    
+
     Args:
         query_address: The address to geocode
         country_codes: Optional country code filter (defaults to US)
         max_retries: Maximum number of retry attempts
-        
+        server_url: Optional custom Nominatim server URL (e.g.,
+            "http://nominatim.nominatim.svc.cluster.local" for self-hosted).
+            Defaults to None (public OSM Nominatim).
+
     Returns:
         tuple: (latitude, longitude) or None if geocoding fails
     """
     try:
-        result_json = use_nominatim_geocoder(query_address, country_codes=country_codes, max_retries=max_retries)
+        result_json = use_nominatim_geocoder(
+            query_address, country_codes=country_codes,
+            max_retries=max_retries, server_url=server_url,
+        )
         if result_json:
             data = json.loads(result_json)
             lat = data.get('nominatim_lat')
@@ -362,7 +368,7 @@ def get_coordinates(query_address, country_codes=None, max_retries=3):
 
 
 def use_nominatim_geocoder(query_address, id=None, country_codes=None,
-    max_retries=3):
+    max_retries=3, server_url=None):
     """
     Geocode an address using Nominatim with proper rate limiting and error handling.
     Returns the result as a JSON string for Spark UDF compatibility.
@@ -372,6 +378,11 @@ def use_nominatim_geocoder(query_address, id=None, country_codes=None,
         id: An identifier for tracking
         country_codes: Optional country code filter (defaults to US)
         max_retries: Number of retry attempts for transient errors
+        server_url: Optional custom Nominatim server URL (e.g.,
+            "http://nominatim.nominatim.svc.cluster.local" for self-hosted).
+            Defaults to None (public OSM Nominatim with rate limiting).
+            When set, rate limiting is skipped (self-hosted servers
+            don't require it).
 
     Returns:
         JSON string of geocoding result or None if failed
@@ -389,11 +400,24 @@ def use_nominatim_geocoder(query_address, id=None, country_codes=None,
         log_info(message)
     if not country_codes:
         country_codes = GEOCODER_CONFIG.get('country_codes')
-    geocoder = Nominatim(user_agent=GEOCODER_CONFIG.get('user_agent'),
-        timeout=GEOCODER_CONFIG.get('timeout'))
+    # Build geocoder — use custom server domain if provided
+    geocoder_kwargs = {
+        'user_agent': GEOCODER_CONFIG.get('user_agent'),
+        'timeout': GEOCODER_CONFIG.get('timeout'),
+    }
+    if server_url:
+        # Strip protocol for geopy's domain parameter
+        domain = server_url.replace('http://', '').replace('https://', '').rstrip('/')
+        geocoder_kwargs['domain'] = domain
+        geocoder_kwargs['scheme'] = 'https' if server_url.startswith('https') else 'http'
+    geocoder = Nominatim(**geocoder_kwargs)
     for attempt in range(max_retries):
         try:
-            time.sleep(GEOCODER_CONFIG.get('rate_limit_seconds'))
+            # Skip rate limiting for self-hosted servers
+            if not server_url:
+                time.sleep(GEOCODER_CONFIG.get('rate_limit_seconds'))
+            else:
+                time.sleep(0.05)  # Minimal delay for self-hosted
             result = geocoder.geocode(query_address, country_codes=
                 country_codes, addressdetails=True, exactly_one=True)
             if result:

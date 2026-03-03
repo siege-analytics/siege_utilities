@@ -861,3 +861,117 @@ class TestClientMethods:
     def test_client_code_reserved(self):
         with pytest.raises(Exception):
             make_client(client_code="DEFAULT")
+
+
+# ============================================================================
+# 13. Multi-Source User Extensions
+# ============================================================================
+
+class TestUserMultiSource:
+    """Tests for User source_credentials and authorized_jurisdictions."""
+
+    def test_default_source_credentials_empty(self):
+        u = make_user()
+        assert u.source_credentials == {}
+
+    def test_default_authorized_jurisdictions_empty(self):
+        u = make_user()
+        assert u.authorized_jurisdictions == []
+
+    def test_set_and_get_source_credential(self):
+        u = make_user()
+        u.set_source_credential("fec", "FEC_API_KEY")
+        assert u.get_source_credential("fec") == "FEC_API_KEY"
+        assert u.get_source_credential("census") is None
+
+    def test_source_credentials_in_constructor(self):
+        u = make_user(source_credentials={"fec": "KEY1", "census": "KEY2"})
+        assert u.get_source_credential("fec") == "KEY1"
+        assert u.get_source_credential("census") == "KEY2"
+
+    def test_has_jurisdiction_access_empty_means_all(self):
+        u = make_user()
+        assert u.has_jurisdiction_access("Federal")
+        assert u.has_jurisdiction_access("Texas")
+
+    def test_has_jurisdiction_access_restricted(self):
+        u = make_user(authorized_jurisdictions=["Federal", "Texas"])
+        assert u.has_jurisdiction_access("Federal")
+        assert u.has_jurisdiction_access("Texas")
+        assert not u.has_jurisdiction_access("Florida")
+
+    def test_backward_compat_old_api_keys_still_work(self):
+        u = make_user(
+            google_analytics_key="ga_key",
+            census_api_key="census_key",
+        )
+        assert u.google_analytics_key == "ga_key"
+        assert u.census_api_key == "census_key"
+
+    def test_source_credentials_yaml_round_trip(self, tmp_path):
+        u = make_user(
+            source_credentials={"fec": "FEC_KEY", "census": "CENSUS_KEY"},
+            authorized_jurisdictions=["Federal"],
+        )
+        yaml_path = tmp_path / "user.yaml"
+        u.to_yaml(yaml_path)
+        u2 = User.from_yaml(yaml_path)
+        assert u2.source_credentials == {"fec": "FEC_KEY", "census": "CENSUS_KEY"}
+        assert u2.authorized_jurisdictions == ["Federal"]
+
+
+# ============================================================================
+# 14. Multi-Source Client Extensions
+# ============================================================================
+
+class TestClientMultiSource:
+    """Tests for Client jurisdictions and enabled_sources."""
+
+    def test_default_jurisdictions_empty(self):
+        c = make_client()
+        assert c.jurisdictions == []
+
+    def test_default_enabled_sources_empty(self):
+        c = make_client()
+        assert c.enabled_sources == []
+
+    def test_operates_in_jurisdiction_empty_means_all(self):
+        c = make_client()
+        assert c.operates_in_jurisdiction("Federal")
+        assert c.operates_in_jurisdiction("Texas")
+
+    def test_operates_in_jurisdiction_restricted(self):
+        c = make_client(jurisdictions=["Federal", "Texas"])
+        assert c.operates_in_jurisdiction("Federal")
+        assert c.operates_in_jurisdiction("Texas")
+        assert not c.operates_in_jurisdiction("Florida")
+
+    def test_has_source_enabled_empty_means_all(self):
+        c = make_client()
+        assert c.has_source_enabled("fec")
+        assert c.has_source_enabled("tx_ethics")
+
+    def test_has_source_enabled_restricted(self):
+        c = make_client(enabled_sources=["fec", "census"])
+        assert c.has_source_enabled("fec")
+        assert c.has_source_enabled("census")
+        assert not c.has_source_enabled("tx_ethics")
+
+    def test_jurisdictions_in_constructor(self):
+        c = make_client(jurisdictions=["Federal", "Texas"])
+        assert c.jurisdictions == ["Federal", "Texas"]
+
+    def test_enabled_sources_in_constructor(self):
+        c = make_client(enabled_sources=["fec", "tx_ethics"])
+        assert c.enabled_sources == ["fec", "tx_ethics"]
+
+    def test_client_yaml_round_trip_with_new_fields(self, tmp_path):
+        c = make_client(
+            jurisdictions=["Federal", "Texas"],
+            enabled_sources=["fec", "tx_ethics"],
+        )
+        yaml_path = tmp_path / "client.yaml"
+        c.to_yaml(yaml_path)
+        c2 = Client.from_yaml(yaml_path)
+        assert c2.jurisdictions == ["Federal", "Texas"]
+        assert c2.enabled_sources == ["fec", "tx_ethics"]

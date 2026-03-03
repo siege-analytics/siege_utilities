@@ -101,7 +101,7 @@ from .census_constants import (
     GEOGRAPHIC_LEVELS,
     GEOGRAPHIC_HIERARCHY,
     
-    # Dataset types
+    # Dataset types (backward-compatible dicts derived from SurveyType/DataReliability enums)
     DATASET_TYPES,
     RELIABILITY_LEVELS,
     
@@ -117,7 +117,7 @@ from .census_constants import (
     ACS_AVAILABLE_YEARS,
     ACS5_AVAILABLE_YEARS,
     BOUNDARY_CHANGE_YEARS,
-    
+
     # File patterns
     TIGER_FILE_PATTERNS,
     
@@ -138,6 +138,14 @@ from .census_constants import (
     validate_geographic_level,
     get_fips_info,
 )
+
+# Canonical enum types (re-exported from geo.census_dataset_mapper for convenience)
+# Wrapped in try/except because census_dataset_mapper imports pandas at module level
+try:
+    from siege_utilities.geo.census_dataset_mapper import SurveyType, DataReliability
+except ImportError:
+    SurveyType = None
+    DataReliability = None
 
 # Import NCES-specific constants
 from .nces_constants import (
@@ -287,6 +295,12 @@ try:
     from .models.credential import Credential, OnePasswordCredential
     from .models.oauth_integration import OAuthIntegration, OAuthScope
     from .models.database_connection import DatabaseConnection
+    from .models.data_sources import (
+        JurisdictionLevel, Jurisdiction,
+        DataSourceType, DataSourceStatus,
+        DataSource, SourceCredential,
+    )
+    from .data_source_registry import DataSourceRegistry
     from .migration import (
         ConfigurationMigrator,
         migrate_configurations,
@@ -327,6 +341,13 @@ except ImportError as e:
     OAuthIntegration = _config_dependency_wrapper('OAuthIntegration', _pd)
     OAuthScope = _config_dependency_wrapper('OAuthScope', _pd)
     DatabaseConnection = _config_dependency_wrapper('DatabaseConnection', _pd)
+    JurisdictionLevel = _config_dependency_wrapper('JurisdictionLevel', _pd)
+    Jurisdiction = _config_dependency_wrapper('Jurisdiction', _pd)
+    DataSourceType = _config_dependency_wrapper('DataSourceType', _pd)
+    DataSourceStatus = _config_dependency_wrapper('DataSourceStatus', _pd)
+    DataSource = _config_dependency_wrapper('DataSource', _pd)
+    SourceCredential = _config_dependency_wrapper('SourceCredential', _pd)
+    DataSourceRegistry = _config_dependency_wrapper('DataSourceRegistry', _pd)
     ConfigurationMigrator = _config_dependency_wrapper('ConfigurationMigrator', _pd)
     migrate_configurations = _config_dependency_wrapper('migrate_configurations', _pd)
     backup_and_migrate = _config_dependency_wrapper('backup_and_migrate', _pd)
@@ -410,7 +431,7 @@ __all__ = [
     'CENSUS_BASE_URL', 'CENSUS_API_BASE_URL', 'CENSUS_FTP_BASE_URL',
     'CANONICAL_GEOGRAPHIC_LEVELS', 'resolve_geographic_level',
     'GEOGRAPHIC_LEVELS', 'GEOGRAPHIC_HIERARCHY',
-    'DATASET_TYPES', 'RELIABILITY_LEVELS',
+    'DATASET_TYPES', 'RELIABILITY_LEVELS', 'SurveyType', 'DataReliability',
     'STATE_FIPS_CODES', 'FIPS_TO_STATE', 'STATE_NAMES',
     'AVAILABLE_CENSUS_YEARS', 'DEFAULT_CENSUS_YEAR', 'DECENNIAL_YEARS', 'ACS_AVAILABLE_YEARS',
     'ACS5_AVAILABLE_YEARS', 'BOUNDARY_CHANGE_YEARS',
@@ -470,4 +491,10 @@ __all__ = [
     
     # Migration utilities
     'ConfigurationMigrator', 'migrate_configurations', 'backup_and_migrate',
+
+    # Data source registry
+    'JurisdictionLevel', 'Jurisdiction',
+    'DataSourceType', 'DataSourceStatus',
+    'DataSource', 'SourceCredential',
+    'DataSourceRegistry',
 ]
