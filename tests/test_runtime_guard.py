@@ -4,6 +4,7 @@ See: https://github.com/siege-analytics/siege_utilities/issues/211
 """
 
 import importlib
+import os
 import sys
 from unittest import mock
 
@@ -259,5 +260,3 @@ class TestRuntimeGuardError:
         assert err.diagnostics == {}
         assert err.remediation == ""
 
-
-import os  # noqa: E402 — needed by TestIsDatabricksRuntime
