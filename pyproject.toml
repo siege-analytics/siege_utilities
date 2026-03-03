@@ -40,6 +40,7 @@ geo = [
     "tobler>=0.11.0",
     "osmnx>=1.9.4",
     "pysal>=24.1",
+    "censusgeocode>=0.5.2",
 ]
 # Reporting and visualization
 reporting = [

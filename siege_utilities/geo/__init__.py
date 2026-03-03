@@ -70,6 +70,13 @@ _register([
     'get_country_name', 'get_country_code', 'list_countries', 'get_coordinates',
 ], '.geocoding')
 
+# --- census_geocoder ---
+_register([
+    'CensusVintage', 'CensusGeocodeResult',
+    'select_vintage_for_cycle', 'geocode_single', 'geocode_batch',
+    'geocode_batch_chunked',
+], '.census_geocoder')
+
 # --- census_api_client ---
 _register([
     'CensusAPIClient', 'CensusAPIError', 'CensusAPIKeyError',
