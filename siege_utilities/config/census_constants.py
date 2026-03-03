@@ -126,13 +126,18 @@ GEOGRAPHIC_HIERARCHY = [
 # CENSUS DATASET TYPES
 # =============================================================================
 
+# Canonical enum: SurveyType (in geo.census_dataset_mapper). This dict provides
+# backward-compatible string access aligned with SurveyType member values.
 DATASET_TYPES = {
-    "ACS": "acs",                           # American Community Survey
-    "DECENNIAL": "decennial",               # Every 10 years (2020, 2010, etc.)
-    "ECONOMIC": "economic",                 # Economic Census
-    "CENSUS_BUSINESS": "census_business",   # Economic Census
-    "POPULATION_ESTIMATES": "population_estimates",  # Annual population estimates
-    "HOUSING_ESTIMATES": "housing_estimates",        # Annual housing estimates
+    "DECENNIAL": "decennial",
+    "ACS_1YR": "acs_1yr",
+    "ACS_3YR": "acs_3yr",
+    "ACS_5YR": "acs_5yr",
+    "ACS": "acs_5yr",                       # Convenience alias → ACS 5-year
+    "CENSUS_BUSINESS": "census_business",
+    "ECONOMIC": "census_business",           # Convenience alias → Economic Census
+    "POPULATION_ESTIMATES": "population_estimates",
+    "HOUSING_ESTIMATES": "housing_estimates",
 }
 
 # =============================================================================
@@ -158,7 +163,8 @@ STATE_FIPS_CODES = {
     'NH': '33', 'NJ': '34', 'NM': '35', 'NY': '36', 'NC': '37', 'ND': '38', 'OH': '39',
     'OK': '40', 'OR': '41', 'PA': '42', 'RI': '44', 'SC': '45', 'SD': '46', 'TN': '47',
     'TX': '48', 'UT': '49', 'VT': '50', 'VA': '51', 'WA': '53', 'WV': '54', 'WI': '55',
-    'WY': '56', 'DC': '11', 'PR': '72', 'VI': '78', 'AS': '60', 'GU': '66', 'MP': '69'
+    'WY': '56', 'DC': '11', 'PR': '72', 'VI': '78', 'AS': '60', 'GU': '66', 'MP': '69',
+    'UM': '74'
 }
 
 # Reverse mapping for FIPS to state abbreviation
@@ -178,7 +184,8 @@ STATE_NAMES = {
     'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont', 'VA': 'Virginia', 'WA': 'Washington',
     'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming', 'DC': 'District of Columbia',
     'PR': 'Puerto Rico', 'VI': 'Virgin Islands', 'AS': 'American Samoa', 'GU': 'Guam',
-    'MP': 'Northern Mariana Islands'
+    'MP': 'Northern Mariana Islands',
+    'UM': 'United States Minor Outlying Islands'
 }
 
 # =============================================================================
@@ -193,6 +200,10 @@ DEFAULT_CENSUS_YEAR = _CURRENT_YEAR
 # Year ranges for different data types
 DECENNIAL_YEARS = [year for year in [2000, 2010, 2020, 2030] if year <= _CURRENT_YEAR]
 ACS_AVAILABLE_YEARS = list(range(2009, _CURRENT_YEAR + 1))  # ACS available from 2009
+ACS5_AVAILABLE_YEARS = ACS_AVAILABLE_YEARS  # Alias for backward compatibility
+
+# Census boundary change years (when TIGER geometry vintages shift)
+BOUNDARY_CHANGE_YEARS = [2010, 2020]
 
 # =============================================================================
 # CENSUS FILE FORMATS AND PATTERNS

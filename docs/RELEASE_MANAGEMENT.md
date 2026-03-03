@@ -257,6 +257,92 @@ git push origin :refs/tags/v2.0.0
 
 This must happen before running `release_manager.py` for the 2.0.0 release, otherwise git will refuse to create the tag.
 
+## Adoption Readiness Policy
+
+A release is **adoption-ready** — cleared for production use across local, Linux, and
+Databricks environments — only when every gate below is green with linked evidence.
+
+This policy was established after su#196/v3.4.1 and applies to all releases targeting
+production workloads.
+
+### Gate A — Runtime/Dependency Compatibility
+
+| Requirement | Evidence |
+|-------------|----------|
+| CI matrix passes for all supported Python versions (3.11, 3.12) | CI run links |
+| Pydantic compatibility contract holds (v2 shipped, v1 tested) | `test-pydantic-v1` job green |
+| Dependency constraints documented and tested | `docs/compatibility.md` |
+
+### Gate B — Boundary Retrieval Reliability
+
+| Requirement | Evidence |
+|-------------|----------|
+| Primary boundary path succeeds for representative scenarios | Smoke run IDs + output snippets |
+| No silent `None` or opaque failure paths in critical workflows | Tests covering failure classification |
+| Structured diagnostics on failures (`error_code`, `error_stage`, `message`, `context`) | `BoundaryFetchResult` tests |
+
+### Gate C — Demographics/Enrichment Stability
+
+| Requirement | Evidence |
+|-------------|----------|
+| Convenience APIs stable for expected call signatures | Regression tests |
+| Demographic join path validated in runtime smoke | Runtime output confirms `status: ok` |
+
+### Gate D — Databricks Operational Profile
+
+| Requirement | Evidence |
+|-------------|----------|
+| Clean job-cluster execution with no manual patching | Databricks run IDs (current + previous LTS) |
+| Writable staging path validated (no blocked `/root/...`) | `_is_databricks_runtime()` + auto-remediation tests |
+| Package bootstrap path documented and reproducible | `docs/databricks-quickstart.md` |
+
+### Gate E — Release Quality Controls
+
+| Requirement | Evidence |
+|-------------|----------|
+| All required CI jobs green | CI run URLs for release PR |
+| Smoke tests green | `test-smoke` job |
+| Security checks green | `security` job |
+
+### Gate F — Documentation + Migration Clarity
+
+| Requirement | Evidence |
+|-------------|----------|
+| Release notes include adoption-readiness section | GitHub Release link |
+| Migration notes for any behavior/contract changes | Release notes or docs link |
+
+### Evidence Package
+
+Every adoption-targeted release must publish a single evidence package containing:
+
+1. PR(s) merged
+2. Release tag
+3. CI links (all jobs green)
+4. Runtime smoke run IDs (including Databricks)
+5. Known limitations (if any)
+6. Rollback trigger criteria
+
+### Release Blocking Rules
+
+A release **must be blocked** from adoption-ready status if:
+
+- Any Gate A–E required check is red
+- Runtime smoke requires fallback for a path marked "primary"
+- Failure diagnostics are missing for critical retrieval errors
+
+### Rollback / Hotfix Policy
+
+- If post-release evidence shows a Gate A–E regression, open a blocking issue within 24h
+  and mark the release as degraded.
+- Publish either:
+  - A hotfix release restoring gate status, or
+  - An explicit rollback recommendation with affected versions/environments.
+
+### Cadence
+
+Re-validate this policy quarterly or when the environment baseline changes (new DBR LTS,
+major dependency shifts, Python version additions/removals).
+
 ## Changelog
 
 Release notes are maintained in `CHANGELOG.md` at the repo root, following the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format. The `--changelog` flag reads from this file automatically.
