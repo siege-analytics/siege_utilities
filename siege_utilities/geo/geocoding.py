@@ -267,6 +267,9 @@ COUNTRY_CODES = {
 # Default country code (US)
 DEFAULT_COUNTRY_CODE = 'us'
 
+# Internal Kubernetes service URL for self-hosted Nominatim (elect.info cluster)
+NOMINATIM_INTERNAL_URL = 'http://nominatim.nominatim.svc.cluster.local:80'
+
 GEOCODER_CONFIG = {
     'user_agent': 'geocoding_application_v1.0', 
     'timeout': 10, 

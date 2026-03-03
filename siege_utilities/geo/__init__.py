@@ -68,6 +68,7 @@ _register(['SpatialDataTransformer', 'DUCKDB_AVAILABLE'], '.spatial_transformati
 _register([
     'concatenate_addresses', 'use_nominatim_geocoder', 'NominatimGeoClassifier',
     'get_country_name', 'get_country_code', 'list_countries', 'get_coordinates',
+    'NOMINATIM_INTERNAL_URL',
 ], '.geocoding')
 
 # --- census_geocoder ---
@@ -195,7 +196,7 @@ _register([
 
 __all__ = list(_LAZY_IMPORTS.keys())
 
-__version__ = "3.6.0"
+__version__ = "3.7.0"
 __author__ = "Siege Analytics"
 __description__ = "Enhanced geographic utilities with intelligent Census data selection"
 
