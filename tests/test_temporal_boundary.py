@@ -8,39 +8,15 @@ Since these are abstract models, we test their fields, properties, and methods
 by inspecting the class definitions rather than instantiating them directly.
 """
 
-import os
-import warnings
 from datetime import date
 
 import pytest
 
 # Skip entire module if GDAL is not available (CI without geospatial libs)
 try:
-    import django
-    from django.conf import settings as django_settings
-
-    # Configure Django before any model imports
-    if not django_settings.configured:
-        django_settings.configure(
-            DATABASES={
-                "default": {
-                    "ENGINE": "django.contrib.gis.db.backends.postgis",
-                    "NAME": "test_siege_geo",
-                }
-            },
-            INSTALLED_APPS=[
-                "django.contrib.contenttypes",
-                "django.contrib.gis",
-                "siege_utilities.geo.django",
-            ],
-            DEFAULT_AUTO_FIELD="django.db.models.BigAutoField",
-        )
-        django.setup()
-except Exception as e:
-    pytest.skip(
-        f"Skipping GeoDjango tests: {e}",
-        allow_module_level=True,
-    )
+    from django.contrib.gis.db import models as gis_models  # noqa: F401
+except Exception:
+    pytest.skip("GeoDjango/GDAL not available", allow_module_level=True)
 
 
 class TestTemporalGeographicFeature:

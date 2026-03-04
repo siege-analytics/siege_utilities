@@ -7,31 +7,13 @@ without requiring a full Django database.
 
 import pytest
 
-# Configure Django for model-dependent tests
+# Skip Django-dependent tests if GDAL is not available (CI without geospatial libs)
 try:
-    import django
-    from django.conf import settings as django_settings
+    from django.contrib.gis.db import models as gis_models  # noqa: F401
 
-    if not django_settings.configured:
-        django_settings.configure(
-            DATABASES={
-                "default": {
-                    "ENGINE": "django.contrib.gis.db.backends.postgis",
-                    "NAME": "test_siege_geo",
-                }
-            },
-            INSTALLED_APPS=[
-                "django.contrib.contenttypes",
-                "django.contrib.gis",
-                "siege_utilities.geo.django",
-            ],
-            DEFAULT_AUTO_FIELD="django.db.models.BigAutoField",
-        )
-        django.setup()
     _DJANGO_AVAILABLE = True
-except Exception as e:
+except Exception:
     _DJANGO_AVAILABLE = False
-    _DJANGO_SKIP_REASON = str(e)
 
 
 # ---- Tests that don't require Django ----
@@ -182,7 +164,7 @@ class TestLocaleCodeMapping:
 
 @pytest.mark.skipif(
     not _DJANGO_AVAILABLE,
-    reason=f"Django not available: {globals().get('_DJANGO_SKIP_REASON', 'unknown')}",
+    reason="GeoDjango/GDAL not available",
 )
 class TestUrbanicityClassificationService:
     """Tests for UrbanicityClassificationService (structure and config)."""
@@ -230,7 +212,7 @@ class TestUrbanicityClassificationService:
 
 @pytest.mark.skipif(
     not _DJANGO_AVAILABLE,
-    reason=f"Django not available: {globals().get('_DJANGO_SKIP_REASON', 'unknown')}",
+    reason="GeoDjango/GDAL not available",
 )
 class TestClassificationResult:
     """Tests for the ClassificationResult dataclass."""
@@ -274,7 +256,7 @@ class TestClassificationResult:
 
 @pytest.mark.skipif(
     not _DJANGO_AVAILABLE,
-    reason=f"Django not available: {globals().get('_DJANGO_SKIP_REASON', 'unknown')}",
+    reason="GeoDjango/GDAL not available",
 )
 class TestMetersPerMileConstant:
     """Verify the conversion constant is correct."""
