@@ -18,24 +18,30 @@ DEBUG = False
 GDAL_LIBRARY_PATH = os.getenv("GDAL_LIBRARY_PATH", "")
 GEOS_LIBRARY_PATH = os.getenv("GEOS_LIBRARY_PATH", "")
 
-INSTALLED_APPS = [
-    "django.contrib.contenttypes",
-    "django.contrib.auth",
-    "django.contrib.gis",
-    "rest_framework",
-    "rest_framework_gis",
-]
-
-# Only include GeoDjango app when GDAL is actually available
+# Detect GDAL availability — controls DB engine and installed apps
+_HAS_GDAL = False
 try:
     from django.contrib.gis.gdal import libgdal  # noqa: F401
-    INSTALLED_APPS.append("siege_utilities.geo.django")
+    _HAS_GDAL = True
 except Exception:
     pass
 
+INSTALLED_APPS = [
+    "django.contrib.contenttypes",
+    "django.contrib.auth",
+    "rest_framework",
+]
+
+if _HAS_GDAL:
+    INSTALLED_APPS += [
+        "django.contrib.gis",
+        "rest_framework_gis",
+        "siege_utilities.geo.django",
+    ]
+
 DATABASES = {
     "default": {
-        "ENGINE": "django.contrib.gis.db.backends.postgis",
+        "ENGINE": "django.contrib.gis.db.backends.postgis" if _HAS_GDAL else "django.db.backends.postgresql",
         "NAME": os.environ.get("SIEGE_TEST_DB_NAME", "siege_geo"),
         "USER": os.environ.get("SIEGE_TEST_DB_USER", "postgres"),
         "PASSWORD": os.environ.get("SIEGE_TEST_DB_PASSWORD", ""),
