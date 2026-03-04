@@ -15,14 +15,24 @@ SECRET_KEY = "test-secret-key-not-for-production"
 
 DEBUG = False
 
+GDAL_LIBRARY_PATH = os.getenv("GDAL_LIBRARY_PATH", "")
+GEOS_LIBRARY_PATH = os.getenv("GEOS_LIBRARY_PATH", "")
+
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.auth",
     "django.contrib.gis",
     "rest_framework",
     "rest_framework_gis",
-    "siege_utilities.geo.django",
 ]
+
+# Only include GeoDjango app when GDAL is actually available
+try:
+    from django.contrib.gis import gdal
+    if gdal.HAS_GDAL:
+        INSTALLED_APPS.append("siege_utilities.geo.django")
+except Exception:
+    pass
 
 DATABASES = {
     "default": {
@@ -35,6 +45,12 @@ DATABASES = {
         "TEST": {
             "NAME": "test_siege_geo",
         },
+    }
+}
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
     }
 }
 
