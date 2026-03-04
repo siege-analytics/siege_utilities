@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.abspath('../'))
 project = 'Siege Utilities'
 copyright = '2025-2026, Dheeraj Chand'
 author = 'Dheeraj Chand'
-release = '3.8.0'
+release = '3.8.1'
 
 extensions = [
     'sphinx.ext.autodoc',

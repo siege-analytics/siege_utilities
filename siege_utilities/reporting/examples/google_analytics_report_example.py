@@ -293,18 +293,38 @@ def generate_sample_ga_data(start_date: datetime, end_date: datetime) -> Dict[st
          'avg_time': 185.2, 'bounce_rate': 62.3, 'exit_rate': 58.4},
     ]
 
-    # Geographic data (top regions)
+    # Geographic data (top regions) — enriched with lat/lon and continent
     geo_data = [
         {'country': 'United States', 'region': 'California', 'city': 'Los Angeles',
+         'lat': 34.0522, 'lon': -118.2437, 'continent': 'North America',
          'sessions': int(total_sessions * 0.15), 'users': int(total_users * 0.14)},
         {'country': 'United States', 'region': 'New York', 'city': 'New York',
+         'lat': 40.7128, 'lon': -74.0060, 'continent': 'North America',
          'sessions': int(total_sessions * 0.12), 'users': int(total_users * 0.11)},
         {'country': 'United States', 'region': 'Texas', 'city': 'Houston',
+         'lat': 29.7604, 'lon': -95.3698, 'continent': 'North America',
          'sessions': int(total_sessions * 0.08), 'users': int(total_users * 0.08)},
         {'country': 'United States', 'region': 'Illinois', 'city': 'Chicago',
+         'lat': 41.8781, 'lon': -87.6298, 'continent': 'North America',
          'sessions': int(total_sessions * 0.06), 'users': int(total_users * 0.06)},
         {'country': 'United States', 'region': 'Florida', 'city': 'Miami',
+         'lat': 25.7617, 'lon': -80.1918, 'continent': 'North America',
          'sessions': int(total_sessions * 0.05), 'users': int(total_users * 0.05)},
+        {'country': 'United Kingdom', 'region': 'England', 'city': 'London',
+         'lat': 51.5074, 'lon': -0.1278, 'continent': 'Europe',
+         'sessions': int(total_sessions * 0.04), 'users': int(total_users * 0.04)},
+        {'country': 'Canada', 'region': 'Ontario', 'city': 'Toronto',
+         'lat': 43.6532, 'lon': -79.3832, 'continent': 'North America',
+         'sessions': int(total_sessions * 0.03), 'users': int(total_users * 0.03)},
+        {'country': 'Germany', 'region': 'Berlin', 'city': 'Berlin',
+         'lat': 52.5200, 'lon': 13.4050, 'continent': 'Europe',
+         'sessions': int(total_sessions * 0.025), 'users': int(total_users * 0.025)},
+        {'country': 'Australia', 'region': 'New South Wales', 'city': 'Sydney',
+         'lat': -33.8688, 'lon': 151.2093, 'continent': 'Oceania',
+         'sessions': int(total_sessions * 0.02), 'users': int(total_users * 0.02)},
+        {'country': 'India', 'region': 'Maharashtra', 'city': 'Mumbai',
+         'lat': 19.0760, 'lon': 72.8777, 'continent': 'Asia',
+         'sessions': int(total_sessions * 0.015), 'users': int(total_users * 0.015)},
     ]
 
     # Device categories
@@ -447,7 +467,7 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
 
         # Strategy 1: Try service account credentials from 1Password
         service_account_data = get_google_service_account_from_1password(
-            vault=vault, account=account,
+            item_title=credential_item_name, vault=vault, account=account,
         )
         if service_account_data:
             connector = GoogleAnalyticsConnector(
@@ -758,8 +778,8 @@ def create_kpi_dashboard(ga_data: Dict[str, Any]) -> List[Flowable]:
     return [kpi_table, Spacer(1, 24)]
 
 
-def create_traffic_trend_chart(ga_data: Dict[str, Any], width: float = 7*inch,
-                                height: float = 3*inch) -> Optional[str]:
+def create_traffic_trend_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
+                                height: float = 3.5*inch) -> Optional[str]:
     """Create a line chart showing traffic trends over time."""
     if not MATPLOTLIB_AVAILABLE:
         return None
@@ -789,13 +809,13 @@ def create_traffic_trend_chart(ga_data: Dict[str, Any], width: float = 7*inch,
 
     # Save to temporary file
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
-        plt.savefig(tmp.name, dpi=150, bbox_inches='tight')
+        plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
         plt.close()
         return tmp.name
 
 
-def create_traffic_sources_chart(ga_data: Dict[str, Any], width: float = 6*inch,
-                                  height: float = 4*inch) -> Optional[str]:
+def create_traffic_sources_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
+                                  height: float = 3.5*inch) -> Optional[str]:
     """Create a pie chart of traffic sources."""
     if not MATPLOTLIB_AVAILABLE:
         return None
@@ -818,12 +838,12 @@ def create_traffic_sources_chart(ga_data: Dict[str, Any], width: float = 6*inch,
     plt.tight_layout()
 
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
-        plt.savefig(tmp.name, dpi=150, bbox_inches='tight')
+        plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
         plt.close()
         return tmp.name
 
 
-def create_device_breakdown_chart(ga_data: Dict[str, Any], width: float = 5*inch,
+def create_device_breakdown_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
                                    height: float = 3.5*inch) -> Optional[str]:
     """Create a horizontal bar chart for device breakdown."""
     if not MATPLOTLIB_AVAILABLE:
@@ -847,7 +867,7 @@ def create_device_breakdown_chart(ga_data: Dict[str, Any], width: float = 5*inch
     plt.tight_layout()
 
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
-        plt.savefig(tmp.name, dpi=150, bbox_inches='tight')
+        plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
         plt.close()
         return tmp.name
 
@@ -906,6 +926,394 @@ def create_geo_table(ga_data: Dict[str, Any]) -> List[List[str]]:
             f"{loc['sessions']:,}",
             f"{loc['users']:,}",
         ])
+
+    return [headers] + rows
+
+
+def create_geo_country_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
+                              height: float = 3.5*inch) -> Optional[str]:
+    """
+    Create a country-level geographic chart.
+
+    Primary: geopandas world choropleth colored by sessions.
+    Fallback: horizontal bar chart of top countries.
+    """
+    if not MATPLOTLIB_AVAILABLE:
+        return None
+
+    geo = ga_data.get('geo_data', [])
+    if not geo:
+        return None
+
+    # Aggregate by country
+    country_sessions = {}
+    for loc in geo:
+        c = loc.get('country', 'Unknown')
+        country_sessions[c] = country_sessions.get(c, 0) + loc.get('sessions', 0)
+
+    if not country_sessions:
+        return None
+
+    # Try geopandas choropleth
+    try:
+        import geopandas as gpd
+
+        # Try geodatasets first, then naturalearth_lowres (geopandas < 1.0)
+        world = None
+        try:
+            import geodatasets
+            world = gpd.read_file(geodatasets.get_path('naturalearth.land'))
+        except (ImportError, Exception):
+            pass
+
+        if world is None:
+            try:
+                world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
+            except Exception:
+                pass
+
+        if world is not None and 'name' in world.columns:
+            world['ga_sessions'] = world['name'].map(country_sessions).fillna(0)
+            if world['ga_sessions'].sum() > 0:
+                fig, ax = plt.subplots(figsize=(width / 72, height / 72))
+                world.plot(column='ga_sessions', cmap='YlOrRd', legend=True,
+                           ax=ax, edgecolor='gray', linewidth=0.3,
+                           legend_kwds={'shrink': 0.5, 'label': 'Sessions'})
+                ax.set_title('Sessions by Country', fontsize=11, fontweight='bold')
+                ax.set_axis_off()
+                plt.tight_layout()
+
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                    plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
+                    plt.close()
+                    return tmp.name
+    except Exception:
+        pass
+
+    # Fallback: horizontal bar chart
+    sorted_countries = sorted(country_sessions.items(), key=lambda x: x[1], reverse=True)[:10]
+    labels = [c[0] for c in sorted_countries]
+    values = [c[1] for c in sorted_countries]
+
+    fig, ax = plt.subplots(figsize=(width / 72, height / 72))
+    bar_colors = plt.cm.YlOrRd(np.linspace(0.4, 0.9, len(labels)))
+    ax.barh(range(len(labels)), values, color=bar_colors)
+    ax.set_yticks(range(len(labels)))
+    ax.set_yticklabels(labels)
+    ax.set_xlabel('Sessions')
+    ax.set_title('Top Countries by Sessions', fontsize=11, fontweight='bold')
+    ax.invert_yaxis()
+
+    for i, val in enumerate(values):
+        ax.text(val + max(values) * 0.02, i, f'{val:,}', va='center', fontsize=8)
+
+    plt.tight_layout()
+
+    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+        plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
+        plt.close()
+        return tmp.name
+
+
+def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
+                             height: float = 3.5*inch) -> Optional[str]:
+    """
+    Create a region/state-level geographic chart.
+
+    Primary: US state choropleth via siege_utilities.geo.choropleth if data is US-heavy.
+    Fallback: horizontal bar chart of top regions.
+    """
+    if not MATPLOTLIB_AVAILABLE:
+        return None
+
+    geo = ga_data.get('geo_data', [])
+    if not geo:
+        return None
+
+    # Aggregate by region
+    region_sessions = {}
+    region_users = {}
+    for loc in geo:
+        r = loc.get('region', 'Unknown')
+        region_sessions[r] = region_sessions.get(r, 0) + loc.get('sessions', 0)
+        region_users[r] = region_users.get(r, 0) + loc.get('users', 0)
+
+    if not region_sessions:
+        return None
+
+    # Try bivariate choropleth if both sessions and users are available
+    try:
+        import geopandas as gpd
+        from siege_utilities.geo import create_bivariate_choropleth
+
+        # Check if we have a US states shapefile
+        world = None
+        try:
+            import geodatasets
+            world = gpd.read_file(geodatasets.get_path('naturalearth.land'))
+        except (ImportError, Exception):
+            pass
+
+        if world is None:
+            try:
+                world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
+            except Exception:
+                pass
+
+        # For US states, try Census TIGER
+        us_states = None
+        try:
+            us_states_path = Path.home() / '.siege_utilities' / 'geo_data' / 'cb_us_state_20m.shp'
+            if us_states_path.exists():
+                us_states = gpd.read_file(us_states_path)
+        except Exception:
+            pass
+
+        if us_states is not None and 'NAME' in us_states.columns:
+            us_states['ga_sessions'] = us_states['NAME'].map(region_sessions).fillna(0)
+            us_states['ga_users'] = us_states['NAME'].map(region_users).fillna(0)
+
+            has_both = us_states['ga_sessions'].sum() > 0 and us_states['ga_users'].sum() > 0
+            active = us_states[us_states['ga_sessions'] > 0]
+
+            if has_both and len(active) >= 3:
+                fig, axes = create_bivariate_choropleth(
+                    active, 'ga_sessions', 'ga_users',
+                    title='Sessions vs Users by State',
+                    figsize=(width / 72, height / 72),
+                )
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                    fig.savefig(tmp.name, dpi=300, bbox_inches='tight')
+                    plt.close(fig)
+                    return tmp.name
+    except Exception:
+        pass
+
+    # Fallback: horizontal bar chart
+    sorted_regions = sorted(region_sessions.items(), key=lambda x: x[1], reverse=True)[:10]
+    labels = [r[0] for r in sorted_regions]
+    values = [r[1] for r in sorted_regions]
+
+    fig, ax = plt.subplots(figsize=(width / 72, height / 72))
+    bar_colors = plt.cm.Greens(np.linspace(0.4, 0.9, len(labels)))
+    ax.barh(range(len(labels)), values, color=bar_colors)
+    ax.set_yticks(range(len(labels)))
+    ax.set_yticklabels(labels)
+    ax.set_xlabel('Sessions')
+    ax.set_title('Top Regions by Sessions', fontsize=11, fontweight='bold')
+    ax.invert_yaxis()
+
+    for i, val in enumerate(values):
+        ax.text(val + max(values) * 0.02, i, f'{val:,}', va='center', fontsize=8)
+
+    plt.tight_layout()
+
+    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+        plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
+        plt.close()
+        return tmp.name
+
+
+def create_geo_city_scatter(ga_data: Dict[str, Any], width: float = 5.5*inch,
+                             height: float = 3.5*inch) -> Optional[str]:
+    """
+    Create a city-level scatter plot using lat/lon coordinates.
+
+    Primary: scatter plot on a basemap if coordinates available.
+    Fallback: horizontal bar chart of top cities.
+    """
+    if not MATPLOTLIB_AVAILABLE:
+        return None
+
+    geo = ga_data.get('geo_data', [])
+    if not geo:
+        return None
+
+    # Check for coordinate data
+    has_coords = all('lat' in loc and 'lon' in loc for loc in geo)
+
+    if has_coords:
+        try:
+            lats = [loc['lat'] for loc in geo]
+            lons = [loc['lon'] for loc in geo]
+            sessions = [loc.get('sessions', 1) for loc in geo]
+            users = [loc.get('users', 1) for loc in geo]
+            cities = [loc.get('city', '') for loc in geo]
+
+            fig, ax = plt.subplots(figsize=(width / 72, height / 72))
+
+            # Try to add world basemap
+            try:
+                import geopandas as gpd
+                world = None
+                try:
+                    import geodatasets
+                    world = gpd.read_file(geodatasets.get_path('naturalearth.land'))
+                except (ImportError, Exception):
+                    pass
+                if world is None:
+                    try:
+                        world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
+                    except Exception:
+                        pass
+                if world is not None:
+                    world.plot(ax=ax, color='#E8E8E8', edgecolor='#CCCCCC', linewidth=0.3)
+            except ImportError:
+                pass
+
+            # Normalize sizes
+            max_sessions = max(sessions) if sessions else 1
+            sizes = [max(20, (s / max_sessions) * 300) for s in sessions]
+
+            scatter = ax.scatter(lons, lats, c=sessions, s=sizes, cmap='YlOrRd',
+                                 alpha=0.7, edgecolors='black', linewidth=0.5, zorder=5)
+
+            # Label top 5 cities
+            for i, city in enumerate(cities[:5]):
+                ax.annotate(city, (lons[i], lats[i]), fontsize=7,
+                            xytext=(5, 5), textcoords='offset points')
+
+            plt.colorbar(scatter, ax=ax, shrink=0.5, label='Sessions')
+            ax.set_title('City Traffic Distribution', fontsize=11, fontweight='bold')
+            ax.set_xlabel('Longitude', fontsize=8)
+            ax.set_ylabel('Latitude', fontsize=8)
+            plt.tight_layout()
+
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
+                plt.close()
+                return tmp.name
+        except Exception:
+            pass
+
+    # Fallback: horizontal bar chart
+    sorted_cities = sorted(geo, key=lambda x: x.get('sessions', 0), reverse=True)[:10]
+    labels = [f"{loc['city']}, {loc.get('region', '')}" for loc in sorted_cities]
+    values = [loc.get('sessions', 0) for loc in sorted_cities]
+
+    fig, ax = plt.subplots(figsize=(width / 72, height / 72))
+    bar_colors = plt.cm.Blues(np.linspace(0.4, 0.9, len(labels)))
+    ax.barh(range(len(labels)), values, color=bar_colors)
+    ax.set_yticks(range(len(labels)))
+    ax.set_yticklabels(labels)
+    ax.set_xlabel('Sessions')
+    ax.set_title('Top Cities by Sessions', fontsize=11, fontweight='bold')
+    ax.invert_yaxis()
+
+    for i, val in enumerate(values):
+        ax.text(val + max(values) * 0.02, i, f'{val:,}', va='center', fontsize=8)
+
+    plt.tight_layout()
+
+    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+        plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
+        plt.close()
+        return tmp.name
+
+
+def create_continent_donut_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
+                                  height: float = 3.5*inch) -> Optional[str]:
+    """Create a donut chart of sessions by continent."""
+    if not MATPLOTLIB_AVAILABLE:
+        return None
+
+    geo = ga_data.get('geo_data', [])
+    if not geo:
+        return None
+
+    # Aggregate by continent
+    continent_sessions = {}
+    for loc in geo:
+        c = loc.get('continent', 'Unknown')
+        if c and c != 'Unknown':
+            continent_sessions[c] = continent_sessions.get(c, 0) + loc.get('sessions', 0)
+
+    if not continent_sessions:
+        return None
+
+    sorted_continents = sorted(continent_sessions.items(), key=lambda x: x[1], reverse=True)
+    labels = [c[0] for c in sorted_continents]
+    values = [c[1] for c in sorted_continents]
+    chart_colors = ['#3366cc', '#dc3912', '#ff9900', '#109618', '#990099', '#0099c6', '#dd4477']
+
+    fig, ax = plt.subplots(figsize=(width / 72, height / 72))
+
+    wedges, texts, autotexts = ax.pie(
+        values, labels=labels, autopct='%1.1f%%',
+        colors=chart_colors[:len(labels)], startangle=90,
+        textprops={'fontsize': 9}, pctdistance=0.8,
+    )
+
+    # Draw center circle to make it a donut
+    centre_circle = plt.Circle((0, 0), 0.55, fc='white')
+    ax.add_patch(centre_circle)
+    ax.set_title('Sessions by Continent', fontsize=11, fontweight='bold')
+
+    plt.tight_layout()
+
+    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+        plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
+        plt.close()
+        return tmp.name
+
+
+def create_geo_summary_table(ga_data: Dict[str, Any]) -> List[List[str]]:
+    """
+    Create a geographic summary table showing top location at each level.
+
+    Returns list-of-lists: [Geographic Level, Top Location, Sessions, Market Share].
+    """
+    geo = ga_data.get('geo_data', [])
+    if not geo:
+        return []
+
+    total_sessions = sum(loc.get('sessions', 0) for loc in geo)
+    if total_sessions == 0:
+        return []
+
+    # Aggregate by country
+    country_sessions = {}
+    for loc in geo:
+        c = loc.get('country', 'Unknown')
+        country_sessions[c] = country_sessions.get(c, 0) + loc.get('sessions', 0)
+
+    # Aggregate by region
+    region_sessions = {}
+    for loc in geo:
+        r = loc.get('region', 'Unknown')
+        region_sessions[r] = region_sessions.get(r, 0) + loc.get('sessions', 0)
+
+    # Aggregate by city
+    city_sessions = {}
+    for loc in geo:
+        c = loc.get('city', 'Unknown')
+        city_sessions[c] = city_sessions.get(c, 0) + loc.get('sessions', 0)
+
+    # Aggregate by continent
+    continent_sessions = {}
+    for loc in geo:
+        c = loc.get('continent')
+        if c:
+            continent_sessions[c] = continent_sessions.get(c, 0) + loc.get('sessions', 0)
+
+    headers = ['Geographic Level', 'Top Location', 'Sessions', 'Market Share']
+    rows = []
+
+    if continent_sessions:
+        top = max(continent_sessions.items(), key=lambda x: x[1])
+        rows.append(['Continent', top[0], f'{top[1]:,}', f'{top[1] / total_sessions * 100:.1f}%'])
+
+    if country_sessions:
+        top = max(country_sessions.items(), key=lambda x: x[1])
+        rows.append(['Country', top[0], f'{top[1]:,}', f'{top[1] / total_sessions * 100:.1f}%'])
+
+    if region_sessions:
+        top = max(region_sessions.items(), key=lambda x: x[1])
+        rows.append(['Region', top[0], f'{top[1]:,}', f'{top[1] / total_sessions * 100:.1f}%'])
+
+    if city_sessions:
+        top = max(city_sessions.items(), key=lambda x: x[1])
+        rows.append(['City', top[0], f'{top[1]:,}', f'{top[1] / total_sessions * 100:.1f}%'])
 
     return [headers] + rows
 
@@ -1154,18 +1562,36 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             "5. Device Analysis",
             "6. Top Pages Performance",
             "7. Geographic Distribution",
+            "    7.1 Country Analysis",
+            "    7.2 Regional Analysis",
+            "    7.3 City Analysis",
+            "    7.4 Continental Analysis",
+            "    7.5 Geographic Summary",
         ]
+        next_section = 8
         if ga_data.get('longitudinal'):
-            toc_items.append("8. Year-over-Year Analysis")
+            toc_items.append(f"{next_section}. Year-over-Year Analysis")
+            next_section += 1
         if ga_data.get('best_day'):
-            toc_items.append(f"{len(toc_items) + 1}. Performance Highlights")
-        toc_items.append(f"{len(toc_items) + 1}. Key Insights")
-        toc_items.append(f"{len(toc_items) + 1}. Recommendations")
+            toc_items.append(f"{next_section}. Performance Highlights")
+            next_section += 1
+        toc_items.append(f"{next_section}. Key Insights")
+        next_section += 1
+        toc_items.append(f"{next_section}. Recommendations")
+        next_section += 1
+        toc_items.append("")
+        toc_items.append("APPENDICES")
+        toc_items.append("    A. Complete Daily Performance Data")
+        toc_items.append("    B. Complete Traffic Sources Data")
+        toc_items.append("    C. Complete Device Category Data")
+        toc_items.append("    D. Complete Geographic Data")
+
+        toc_style = ParagraphStyle(
+            'TOC', parent=styles['Normal'], fontSize=12, spaceBefore=4, spaceAfter=4,
+            leftIndent=20
+        )
         for item in toc_items:
-            story.append(Paragraph(item, ParagraphStyle(
-                'TOC', parent=styles['Normal'], fontSize=12, spaceBefore=4, spaceAfter=4,
-                leftIndent=20
-            )))
+            story.append(Paragraph(item, toc_style))
         story.append(PageBreak())
 
         # ── 1. EXECUTIVE SUMMARY ──
@@ -1215,7 +1641,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         story.append(Paragraph("3. Traffic Trends", heading_style))
         trend_chart = create_traffic_trend_chart(ga_data)
         if trend_chart:
-            story.append(RLImage(trend_chart, width=7*inch, height=3*inch))
+            story.append(RLImage(trend_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 12))
         else:
             story.append(Paragraph("Traffic trend chart unavailable (matplotlib not installed).", body_style))
@@ -1225,7 +1651,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         story.append(Paragraph("4. Traffic Sources Analysis", heading_style))
         source_chart = create_traffic_sources_chart(ga_data)
         if source_chart:
-            story.append(RLImage(source_chart, width=6*inch, height=4*inch))
+            story.append(RLImage(source_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 12))
 
         source_table_data = create_traffic_sources_table(ga_data)
@@ -1242,7 +1668,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         story.append(Paragraph("5. Device Analysis", heading_style))
         device_chart = create_device_breakdown_chart(ga_data)
         if device_chart:
-            story.append(RLImage(device_chart, width=5*inch, height=3.5*inch))
+            story.append(RLImage(device_chart, width=5.5*inch, height=3.5*inch))
         else:
             story.append(Paragraph("Device analysis chart unavailable (matplotlib not installed).", body_style))
         story.append(PageBreak())
@@ -1271,7 +1697,67 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
 
         # ── 7. GEOGRAPHIC DISTRIBUTION ──
         story.append(Paragraph("7. Geographic Distribution", heading_style))
-        story.append(Paragraph("Top locations by session volume:", body_style))
+
+        # 7.1 Country Analysis
+        story.append(Paragraph("7.1 Country Analysis", subheading_style))
+        country_chart = create_geo_country_chart(ga_data)
+        if country_chart:
+            story.append(RLImage(country_chart, width=5.5*inch, height=3.5*inch))
+            story.append(Spacer(1, 8))
+
+        # Country heatmapped table
+        geo = ga_data.get('geo_data', [])
+        country_sessions = {}
+        for loc in geo:
+            c = loc.get('country', 'Unknown')
+            country_sessions[c] = country_sessions.get(c, 0) + loc.get('sessions', 0)
+        if country_sessions:
+            total_geo_sessions = sum(country_sessions.values())
+            country_table_data = [['Country', 'Sessions', '% of Total']]
+            for country, sessions in sorted(country_sessions.items(), key=lambda x: x[1], reverse=True):
+                pct = (sessions / total_geo_sessions * 100) if total_geo_sessions else 0
+                country_table_data.append([country, f'{sessions:,}', f'{pct:.1f}%'])
+            country_table = Table(country_table_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
+            country_table.setStyle(create_heatmapped_table_style(
+                country_table_data, value_column_index=1,
+                base_style=green_table_style, color_scheme='green'
+            ))
+            story.append(country_table)
+        story.append(Spacer(1, 12))
+
+        # 7.2 Regional Analysis
+        story.append(Paragraph("7.2 Regional Analysis", subheading_style))
+        region_chart = create_geo_region_chart(ga_data)
+        if region_chart:
+            story.append(RLImage(region_chart, width=5.5*inch, height=3.5*inch))
+            story.append(Spacer(1, 8))
+
+        region_sessions = {}
+        for loc in geo:
+            r = loc.get('region', 'Unknown')
+            region_sessions[r] = region_sessions.get(r, 0) + loc.get('sessions', 0)
+        if region_sessions:
+            total_region = sum(region_sessions.values())
+            region_table_data = [['Region', 'Sessions', '% of Total']]
+            for region, sessions in sorted(region_sessions.items(), key=lambda x: x[1], reverse=True):
+                pct = (sessions / total_region * 100) if total_region else 0
+                region_table_data.append([region, f'{sessions:,}', f'{pct:.1f}%'])
+            region_table = Table(region_table_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
+            region_table.setStyle(create_heatmapped_table_style(
+                region_table_data, value_column_index=1,
+                base_style=green_table_style, color_scheme='green'
+            ))
+            story.append(region_table)
+        story.append(PageBreak())
+
+        # 7.3 City Analysis
+        story.append(Paragraph("7.3 City Analysis", subheading_style))
+        city_chart = create_geo_city_scatter(ga_data)
+        if city_chart:
+            story.append(RLImage(city_chart, width=5.5*inch, height=3.5*inch))
+            story.append(Spacer(1, 8))
+
+        # City heatmapped table (original geo table)
         geo_table_data = create_geo_table(ga_data)
         geo_table = Table(geo_table_data, colWidths=[1.8*inch, 1.5*inch, 1.2*inch, 1.2*inch])
         geo_table.setStyle(create_heatmapped_table_style(
@@ -1279,6 +1765,41 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             base_style=green_table_style, color_scheme='green'
         ))
         story.append(geo_table)
+        story.append(PageBreak())
+
+        # 7.4 Continental Analysis
+        story.append(Paragraph("7.4 Continental Analysis", subheading_style))
+        continent_chart = create_continent_donut_chart(ga_data)
+        if continent_chart:
+            story.append(RLImage(continent_chart, width=5.5*inch, height=3.5*inch))
+            story.append(Spacer(1, 8))
+
+        continent_sessions = {}
+        for loc in geo:
+            c = loc.get('continent')
+            if c:
+                continent_sessions[c] = continent_sessions.get(c, 0) + loc.get('sessions', 0)
+        if continent_sessions:
+            total_cont = sum(continent_sessions.values())
+            cont_table_data = [['Continent', 'Sessions', '% of Total']]
+            for cont, sessions in sorted(continent_sessions.items(), key=lambda x: x[1], reverse=True):
+                pct = (sessions / total_cont * 100) if total_cont else 0
+                cont_table_data.append([cont, f'{sessions:,}', f'{pct:.1f}%'])
+            cont_table = Table(cont_table_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
+            cont_table.setStyle(create_heatmapped_table_style(
+                cont_table_data, value_column_index=1,
+                base_style=green_table_style, color_scheme='green'
+            ))
+            story.append(cont_table)
+        story.append(Spacer(1, 12))
+
+        # 7.5 Geographic Summary
+        story.append(Paragraph("7.5 Geographic Summary", subheading_style))
+        geo_summary_data = create_geo_summary_table(ga_data)
+        if geo_summary_data:
+            summary_table = Table(geo_summary_data, colWidths=[1.5*inch, 2*inch, 1.2*inch, 1.3*inch])
+            summary_table.setStyle(TableStyle(primary_table_style))
+            story.append(summary_table)
         story.append(PageBreak())
 
         # ── 8. YEAR-OVER-YEAR ANALYSIS (if available) ──
@@ -1363,6 +1884,133 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         for i, rec in enumerate(recommendations, 1):
             story.append(Paragraph(f"<b>{i}.</b> {rec}", bullet_style))
         story.append(Spacer(1, 30))
+
+        # ── APPENDICES ──
+        appendix_table_style = [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(primary_color)),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 8),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ('TOPPADDING', (0, 1), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E9ECEF')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#F8F9FA'), colors.white]),
+        ]
+
+        story.append(PageBreak())
+        story.append(Paragraph("APPENDICES", heading_style))
+        story.append(Spacer(1, 12))
+
+        # Appendix A: Complete Daily Performance Data
+        story.append(Paragraph("Appendix A: Complete Daily Performance Data", subheading_style))
+        daily = ga_data['daily_data']
+        daily_table_data = [['Date', 'Sessions', 'Users', 'Pageviews', 'Bounce Rate', 'Avg Duration']]
+        # Sort by sessions descending
+        daily_rows = list(zip(
+            daily['dates'], daily['sessions'], daily['users'],
+            daily['pageviews'], daily['bounce_rate'], daily['avg_duration']
+        ))
+        daily_rows.sort(key=lambda x: x[1], reverse=True)
+        for date, sessions, users, pvs, bounce, duration in daily_rows:
+            daily_table_data.append([
+                date, f'{sessions:,}', f'{users:,}', f'{pvs:,}',
+                f'{bounce:.1f}%', f'{duration:.0f}s'
+            ])
+        daily_app_table = Table(daily_table_data, colWidths=[1.2*inch, 0.9*inch, 0.9*inch, 0.9*inch, 1*inch, 1*inch])
+        daily_app_table.setStyle(TableStyle(appendix_table_style))
+        story.append(daily_app_table)
+        story.append(PageBreak())
+
+        # Appendix B: Complete Traffic Sources Data
+        story.append(Paragraph("Appendix B: Complete Traffic Sources Data", subheading_style))
+        sources = ga_data['traffic_sources']
+        total_src_sessions = sum(s['sessions'] for s in sources)
+        src_table_data = [['Source', 'Medium', 'Sessions', '% of Total', 'Bounce Rate', 'Avg Duration']]
+        for src in sorted(sources, key=lambda x: x['sessions'], reverse=True):
+            pct = (src['sessions'] / total_src_sessions * 100) if total_src_sessions else 0
+            src_table_data.append([
+                src['source'], src['medium'], f"{src['sessions']:,}",
+                f'{pct:.1f}%', f"{src['bounce_rate']:.1f}%", f"{src['avg_duration']:.1f}s"
+            ])
+        src_app_table = Table(src_table_data, colWidths=[1.2*inch, 0.9*inch, 0.9*inch, 0.8*inch, 1*inch, 1*inch])
+        src_app_table.setStyle(TableStyle(appendix_table_style))
+        story.append(src_app_table)
+        story.append(PageBreak())
+
+        # Appendix C: Complete Device Category Data
+        story.append(Paragraph("Appendix C: Complete Device Category Data", subheading_style))
+        devices = ga_data['devices']
+        total_dev_sessions = sum(d['sessions'] for d in devices)
+        dev_table_data = [['Device', 'Sessions', '% of Total', 'Bounce Rate']]
+        for dev in sorted(devices, key=lambda x: x['sessions'], reverse=True):
+            pct = (dev['sessions'] / total_dev_sessions * 100) if total_dev_sessions else 0
+            dev_table_data.append([
+                dev['device'].title(), f"{dev['sessions']:,}",
+                f'{pct:.1f}%', f"{dev['bounce_rate']:.1f}%"
+            ])
+        dev_app_table = Table(dev_table_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+        dev_app_table.setStyle(TableStyle(appendix_table_style))
+        story.append(dev_app_table)
+        story.append(PageBreak())
+
+        # Appendix D: Complete Geographic Data
+        story.append(Paragraph("Appendix D: Complete Geographic Data", subheading_style))
+        geo = ga_data.get('geo_data', [])
+
+        # D.1 All Countries
+        story.append(Paragraph("All Countries", ParagraphStyle(
+            'AppendixSub', parent=styles['Normal'], fontSize=10, spaceBefore=10,
+            spaceAfter=6, fontName='Helvetica-Bold'
+        )))
+        country_agg = {}
+        for loc in geo:
+            c = loc.get('country', 'Unknown')
+            country_agg[c] = country_agg.get(c, 0) + loc.get('sessions', 0)
+        total_geo = sum(country_agg.values())
+        country_app_data = [['Country', 'Sessions', '% of Total']]
+        for country, sessions in sorted(country_agg.items(), key=lambda x: x[1], reverse=True):
+            pct = (sessions / total_geo * 100) if total_geo else 0
+            country_app_data.append([country, f'{sessions:,}', f'{pct:.1f}%'])
+        country_app_table = Table(country_app_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
+        country_app_table.setStyle(TableStyle(appendix_table_style))
+        story.append(country_app_table)
+        story.append(Spacer(1, 12))
+
+        # D.2 All Regions
+        story.append(Paragraph("All Regions", ParagraphStyle(
+            'AppendixSub2', parent=styles['Normal'], fontSize=10, spaceBefore=10,
+            spaceAfter=6, fontName='Helvetica-Bold'
+        )))
+        region_agg = {}
+        for loc in geo:
+            r = loc.get('region', 'Unknown')
+            region_agg[r] = region_agg.get(r, 0) + loc.get('sessions', 0)
+        region_app_data = [['Region', 'Sessions', '% of Total']]
+        for region, sessions in sorted(region_agg.items(), key=lambda x: x[1], reverse=True):
+            pct = (sessions / total_geo * 100) if total_geo else 0
+            region_app_data.append([region, f'{sessions:,}', f'{pct:.1f}%'])
+        region_app_table = Table(region_app_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
+        region_app_table.setStyle(TableStyle(appendix_table_style))
+        story.append(region_app_table)
+        story.append(Spacer(1, 12))
+
+        # D.3 All Cities
+        story.append(Paragraph("All Cities", ParagraphStyle(
+            'AppendixSub3', parent=styles['Normal'], fontSize=10, spaceBefore=10,
+            spaceAfter=6, fontName='Helvetica-Bold'
+        )))
+        city_app_data = [['City', 'Region', 'Country', 'Sessions']]
+        for loc in sorted(geo, key=lambda x: x.get('sessions', 0), reverse=True):
+            city_app_data.append([
+                loc.get('city', 'Unknown'), loc.get('region', 'Unknown'),
+                loc.get('country', 'Unknown'), f"{loc.get('sessions', 0):,}"
+            ])
+        city_app_table = Table(city_app_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+        city_app_table.setStyle(TableStyle(appendix_table_style))
+        story.append(city_app_table)
 
         # Build with header/footer
         doc.build(story, onFirstPage=lambda c, d: None, onLaterPages=_header_footer)
