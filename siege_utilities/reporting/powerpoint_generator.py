@@ -343,18 +343,13 @@ class PowerPointGenerator:
         Returns:
             Updated presentation content
         """
-        text_section = {
-            'type': 'text_slide',
-            'title': title,
-            'content': {
-                'text': text_content,
-                'style': text_style,
-                'bullet_points': bullet_points
-            },
-            'level': level
+        content = {
+            'text': text_content,
+            'style': text_style,
+            'bullet_points': bullet_points
         }
-        
-        return self.add_slide_section(presentation_content, 'text_slide', title, text_section, level)
+
+        return self.add_slide_section(presentation_content, 'text_slide', title, content, level)
 
     def add_chart_slide(self, presentation_content: Dict[str, Any], title: str,
                         charts: List[Any], description: str = "",
@@ -373,18 +368,13 @@ class PowerPointGenerator:
         Returns:
             Updated presentation content
         """
-        chart_section = {
-            'type': 'chart_slide',
-            'title': title,
-            'content': {
-                'charts': charts,
-                'description': description,
-                'layout': layout
-            },
-            'level': level
+        content = {
+            'charts': charts,
+            'description': description,
+            'layout': layout
         }
-        
-        return self.add_slide_section(presentation_content, 'chart_slide', title, chart_section, level)
+
+        return self.add_slide_section(presentation_content, 'chart_slide', title, content, level)
 
     def add_map_slide(self, presentation_content: Dict[str, Any], title: str,
                       maps: List[Any], map_type: str = "choropleth",
@@ -403,18 +393,13 @@ class PowerPointGenerator:
         Returns:
             Updated presentation content
         """
-        map_section = {
-            'type': 'map_slide',
-            'title': title,
-            'content': {
-                'maps': maps,
-                'map_type': map_type,
-                'description': description
-            },
-            'level': level
+        content = {
+            'maps': maps,
+            'map_type': map_type,
+            'description': description
         }
-        
-        return self.add_slide_section(presentation_content, 'map_slide', title, map_section, level)
+
+        return self.add_slide_section(presentation_content, 'map_slide', title, content, level)
 
     def add_table_slide(self, presentation_content: Dict[str, Any], title: str,
                         table_data: Union[List[List], pd.DataFrame],
@@ -442,18 +427,13 @@ class PowerPointGenerator:
         elif headers and table_data:
             table_data = [headers] + table_data
         
-        table_section = {
-            'type': 'table_slide',
-            'title': title,
-            'content': {
-                'data': table_data,
-                'headers': headers,
-                'style': table_style
-            },
-            'level': level
+        content = {
+            'data': table_data,
+            'headers': headers,
+            'style': table_style
         }
-        
-        return self.add_slide_section(presentation_content, 'table_slide', title, table_section, level)
+
+        return self.add_slide_section(presentation_content, 'table_slide', title, content, level)
 
     def add_comparison_slide(self, presentation_content: Dict[str, Any], title: str,
                             comparison_data: Dict[str, Any], level: int = 1) -> Dict[str, Any]:
@@ -469,14 +449,7 @@ class PowerPointGenerator:
         Returns:
             Updated presentation content
         """
-        comparison_section = {
-            'type': 'comparison_slide',
-            'title': title,
-            'content': comparison_data,
-            'level': level
-        }
-        
-        return self.add_slide_section(presentation_content, 'comparison_slide', title, comparison_section, level)
+        return self.add_slide_section(presentation_content, 'comparison_slide', title, comparison_data, level)
 
     def add_summary_slide(self, presentation_content: Dict[str, Any], title: str,
                           key_points: List[str], level: int = 1) -> Dict[str, Any]:
@@ -492,16 +465,11 @@ class PowerPointGenerator:
         Returns:
             Updated presentation content
         """
-        summary_section = {
-            'type': 'summary_slide',
-            'title': title,
-            'content': {
-                'key_points': key_points
-            },
-            'level': level
+        content = {
+            'key_points': key_points
         }
-        
-        return self.add_slide_section(presentation_content, 'summary_slide', title, summary_section, level)
+
+        return self.add_slide_section(presentation_content, 'summary_slide', title, content, level)
 
     def generate_powerpoint_presentation(self, presentation_content: Dict[str, Any],
                                        output_path: str) -> bool:

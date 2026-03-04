@@ -299,18 +299,13 @@ class ReportGenerator:
         elif headers and table_data:
             table_data = [headers] + table_data
         
-        table_section = {
-            'type': 'table',
-            'title': title,
-            'content': {
-                'data': table_data,
-                'headers': headers,
-                'style': table_style
-            },
-            'level': level
+        content = {
+            'data': table_data,
+            'headers': headers,
+            'style': table_style
         }
-        
-        return self.add_section(report_content, 'table', title, table_section, level)
+
+        return self.add_section(report_content, 'table', title, content, level)
 
     def add_text_section(self, report_content: Dict[str, Any], title: str,
                          text_content: str, level: int = 1,
@@ -328,17 +323,7 @@ class ReportGenerator:
         Returns:
             Updated report content
         """
-        text_section = {
-            'type': 'text',
-            'title': title,
-            'content': {
-                'text': text_content,
-                'style': text_style
-            },
-            'level': level
-        }
-        
-        return self.add_section(report_content, 'text', title, text_section, level)
+        return self.add_section(report_content, 'text', title, text_content, level)
 
     def add_chart_section(self, report_content: Dict[str, Any], title: str,
                           charts: List[ImageType], description: str = "",
@@ -357,18 +342,13 @@ class ReportGenerator:
         Returns:
             Updated report content
         """
-        chart_section = {
-            'type': 'charts',
-            'title': title,
-            'content': {
-                'charts': charts,
-                'description': description,
-                'layout': layout
-            },
-            'level': level
+        content = {
+            'charts': charts,
+            'description': description,
+            'layout': layout
         }
-        
-        return self.add_section(report_content, 'charts', title, chart_section, level)
+
+        return self.add_section(report_content, 'charts', title, content, level)
 
     def add_map_section(self, report_content: Dict[str, Any], title: str,
                         maps: List[ImageType], map_type: str = "choropleth",
@@ -387,18 +367,13 @@ class ReportGenerator:
         Returns:
             Updated report content
         """
-        map_section = {
-            'type': 'maps',
-            'title': title,
-            'content': {
-                'maps': maps,
-                'map_type': map_type,
-                'description': description
-            },
-            'level': level
+        content = {
+            'maps': maps,
+            'map_type': map_type,
+            'description': description
         }
-        
-        return self.add_section(report_content, 'maps', title, map_section, level)
+
+        return self.add_section(report_content, 'maps', title, content, level)
 
     def add_appendix(self, report_content: Dict[str, Any], title: str,
                      content: Any, appendix_type: str = "data",
@@ -416,15 +391,7 @@ class ReportGenerator:
         Returns:
             Updated report content
         """
-        appendix_section = {
-            'type': 'appendix',
-            'title': title,
-            'content': content,
-            'appendix_type': appendix_type,
-            'level': level
-        }
-        
-        return self.add_section(report_content, 'appendix', title, appendix_section, level)
+        return self.add_section(report_content, 'appendix', title, content, level)
 
     def _get_template(self, output_path: str, template_config: Optional[str] = None) -> 'BaseReportTemplate':
         """
@@ -626,6 +593,8 @@ class ReportGenerator:
             content = section.get('content', '')
             if isinstance(content, str):
                 story.append(Paragraph(content, styles['Normal']))
+            elif isinstance(content, dict) and 'text' in content:
+                story.append(Paragraph(content['text'], styles['Normal']))
             story.append(Spacer(1, 12))
 
         elif section_type == 'table':
