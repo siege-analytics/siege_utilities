@@ -1763,13 +1763,12 @@ class ChartGenerator:
                 width, height, max_width=max_width, max_height=max_height,
             )
 
-            if scaled_w != width or scaled_h != height:
-                # Scaling occurred — set both dimensions explicitly
-                rl_image = Image(data_url, width=scaled_w * inch,
-                                 height=scaled_h * inch)
-            else:
-                # No scaling — let ReportLab determine height from image
-                rl_image = Image(data_url, width=width * inch)
+            # Always specify both width and height explicitly.
+            # ReportLab cannot reliably infer height from base64 data URLs
+            # and may treat raw pixel height as points, producing oversized
+            # images (e.g. 800px → 800pt = 11.1in instead of 4in at 200 DPI).
+            rl_image = Image(data_url, width=scaled_w * inch,
+                             height=scaled_h * inch)
 
             return rl_image
 
