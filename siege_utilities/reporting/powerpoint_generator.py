@@ -634,28 +634,43 @@ class PowerPointGenerator:
             self._format_content_slide(slide)
 
     def _add_tables_slides(self, prs: Presentation, tables: List[Dict[str, Any]]):
-        """Add slides with data tables."""
+        """Add slides with rendered data tables."""
         for i, table_config in enumerate(tables):
-            slide_layout = prs.slide_layouts[self.slide_layouts['content']]
+            slide_layout = prs.slide_layouts[self.slide_layouts['title_only']]
             slide = prs.slides.add_slide(slide_layout)
-            
+
             # Set title
             title_shape = slide.shapes.title
             title_shape.text = table_config.get('title', f'Table {i+1}')
-            
-            # Add table description
-            content_shape = slide.placeholders[1]
+
             headers = table_config.get('headers', [])
             data = table_config.get('data', [])
-            
-            content_text = f"Table with {len(headers)} columns and {len(data)} rows\n\n"
-            content_text += "Headers: " + ", ".join(headers) + "\n\n"
-            content_text += "Data table will be formatted here."
-            
-            content_shape.text = content_text
-            
-            # Apply formatting
-            self._format_content_slide(slide)
+
+            if not headers or not data:
+                continue
+
+            rows = len(data) + 1
+            cols = len(headers)
+            table_shape = slide.shapes.add_table(
+                rows, cols,
+                Inches(0.5), Inches(1.8),
+                Inches(9.0), Inches(min(0.4 * rows, 5.5)),
+            ).table
+
+            for col_idx, header in enumerate(headers):
+                cell = table_shape.cell(0, col_idx)
+                cell.text = str(header)
+                for paragraph in cell.text_frame.paragraphs:
+                    paragraph.font.size = Pt(11)
+                    paragraph.font.bold = True
+
+            for row_idx, row_data in enumerate(data):
+                for col_idx, value in enumerate(row_data):
+                    if col_idx < cols:
+                        cell = table_shape.cell(row_idx + 1, col_idx)
+                        cell.text = str(value)
+                        for paragraph in cell.text_frame.paragraphs:
+                            paragraph.font.size = Pt(10)
 
     def _add_insights_slide(self, prs: Presentation, insights: List[str]):
         """Add an insights and recommendations slide."""
@@ -810,27 +825,46 @@ class PowerPointGenerator:
         self._format_content_slide(slide)
 
     def _add_table_slide(self, prs: Presentation, slide_config: Dict[str, Any]):
-        """Add a table slide."""
-        slide_layout = prs.slide_layouts[self.slide_layouts['content']]
+        """Add a table slide with an actual rendered table."""
+        slide_layout = prs.slide_layouts[self.slide_layouts['title_only']]
         slide = prs.slides.add_slide(slide_layout)
-        
+
         # Set title
         title_shape = slide.shapes.title
         title_shape.text = slide_config.get('title', 'Table Slide')
-        
-        # Add table description
-        content_shape = slide.placeholders[1]
+
         headers = slide_config.get('headers', [])
         data = slide_config.get('data', [])
-        
-        content_text = f"Table with {len(headers)} columns and {len(data)} rows\n\n"
-        content_text += "Headers: " + ", ".join(headers) + "\n\n"
-        content_text += "Data table will be formatted here."
-        
-        content_shape.text = content_text
-        
-        # Apply formatting
-        self._format_content_slide(slide)
+
+        if not headers or not data:
+            return
+
+        rows = len(data) + 1  # +1 for header row
+        cols = len(headers)
+
+        # Position table below title
+        table_shape = slide.shapes.add_table(
+            rows, cols,
+            Inches(0.5), Inches(1.8),
+            Inches(9.0), Inches(min(0.4 * rows, 5.5)),
+        ).table
+
+        # Populate header row
+        for col_idx, header in enumerate(headers):
+            cell = table_shape.cell(0, col_idx)
+            cell.text = str(header)
+            for paragraph in cell.text_frame.paragraphs:
+                paragraph.font.size = Pt(11)
+                paragraph.font.bold = True
+
+        # Populate data rows
+        for row_idx, row_data in enumerate(data):
+            for col_idx, value in enumerate(row_data):
+                if col_idx < cols:
+                    cell = table_shape.cell(row_idx + 1, col_idx)
+                    cell.text = str(value)
+                    for paragraph in cell.text_frame.paragraphs:
+                        paragraph.font.size = Pt(10)
 
     def _add_image_slide(self, prs: Presentation, slide_config: Dict[str, Any]):
         """Add an image slide."""
@@ -850,24 +884,66 @@ class PowerPointGenerator:
         self._format_content_slide(slide)
 
     def _add_comparison_slide(self, prs: Presentation, slide_config: Dict[str, Any]):
-        """Add a comparison slide."""
-        slide_layout = prs.slide_layouts[self.slide_layouts['comparison']]
+        """Add a comparison slide with two-column layout using textboxes."""
+        slide_layout = prs.slide_layouts[self.slide_layouts['title_only']]
         slide = prs.slides.add_slide(slide_layout)
-        
+
         # Set title
         title_shape = slide.shapes.title
         title_shape.text = slide_config.get('title', 'Comparison Slide')
-        
-        # Add left content
-        left_content = slide.placeholders[1]
-        left_content.text = slide_config.get('left_content', 'Left content')
-        
-        # Add right content
-        right_content = slide.placeholders[2]
-        right_content.text = slide_config.get('right_content', 'Right content')
-        
-        # Apply formatting
-        self._format_content_slide(slide)
+
+        left_text = slide_config.get('left_content', 'Left content')
+        right_text = slide_config.get('right_content', 'Right content')
+
+        # Left column textbox
+        left_box = slide.shapes.add_textbox(
+            Inches(0.5), Inches(2.0), Inches(4.0), Inches(4.5),
+        )
+        left_tf = left_box.text_frame
+        left_tf.word_wrap = True
+        left_tf.text = left_text
+        for paragraph in left_tf.paragraphs:
+            paragraph.font.size = Pt(14)
+
+        # Right column textbox
+        right_box = slide.shapes.add_textbox(
+            Inches(5.5), Inches(2.0), Inches(4.0), Inches(4.5),
+        )
+        right_tf = right_box.text_frame
+        right_tf.word_wrap = True
+        right_tf.text = right_text
+        for paragraph in right_tf.paragraphs:
+            paragraph.font.size = Pt(14)
+
+    def _add_chart_to_slide(self, chart_config, slide, left, top, width, height):
+        """Add a chart to a slide, either as an embedded image or text description.
+
+        Args:
+            chart_config: dict with 'image_path' (str/Path) or 'title'/'type' keys
+            slide: pptx Slide object
+            left, top, width, height: position/size in EMU or Inches
+        """
+        image_path = None
+        if isinstance(chart_config, dict):
+            image_path = chart_config.get('image_path') or chart_config.get('path')
+        elif isinstance(chart_config, (str, Path)):
+            image_path = chart_config
+
+        if image_path and Path(str(image_path)).exists():
+            slide.shapes.add_picture(str(image_path), left, top, width, height)
+        else:
+            # Graceful fallback: add a labeled textbox
+            label = ''
+            if isinstance(chart_config, dict):
+                label = chart_config.get('title', chart_config.get('type', 'Chart'))
+            else:
+                label = str(chart_config)
+            box = slide.shapes.add_textbox(left, top, width, height)
+            tf = box.text_frame
+            tf.word_wrap = True
+            tf.text = f"[Chart: {label}]"
+            for paragraph in tf.paragraphs:
+                paragraph.font.size = Pt(12)
 
     def _format_title_slide(self, slide):
         """Apply formatting to title slide."""
@@ -1279,33 +1355,41 @@ class PowerPointGenerator:
         return slide
 
     def _create_comparison_slide(self, section: Dict[str, Any], prs: Presentation) -> Any:
-        """Create a comparison slide."""
-        slide_layout = prs.slide_layouts[1]  # Title and content layout
+        """Create a comparison slide with two-column layout."""
+        slide_layout = prs.slide_layouts[self.slide_layouts['title_only']]
         slide = prs.slides.add_slide(slide_layout)
-        
+
         # Set title
         title = slide.shapes.title
         title.text = section.get('title', '')
-        
-        # Add comparison content
+
+        # Content may be nested under 'content' or at top level
         comparison_data = section.get('content', {})
-        
-        # Create two-column layout
-        left = Inches(0.5)
-        top = Inches(2)
-        width = Inches(4)
-        height = Inches(4)
-        
-        # Left column
-        left_box = slide.shapes.add_textbox(left, top, width, height)
+        left_text = (comparison_data.get('left_content')
+                     or section.get('left_content', 'Left content'))
+        right_text = (comparison_data.get('right_content')
+                      or section.get('right_content', 'Right content'))
+
+        # Left column textbox
+        left_box = slide.shapes.add_textbox(
+            Inches(0.5), Inches(2.0), Inches(4.0), Inches(4.5),
+        )
         left_tf = left_box.text_frame
-        left_tf.text = comparison_data.get('left_title', 'Before')
-        
-        # Right column
-        right_box = slide.shapes.add_textbox(Inches(5.5), top, width, height)
+        left_tf.word_wrap = True
+        left_tf.text = left_text
+        for paragraph in left_tf.paragraphs:
+            paragraph.font.size = Pt(14)
+
+        # Right column textbox
+        right_box = slide.shapes.add_textbox(
+            Inches(5.5), Inches(2.0), Inches(4.0), Inches(4.5),
+        )
         right_tf = right_box.text_frame
-        right_tf.text = comparison_data.get('right_title', 'After')
-        
+        right_tf.word_wrap = True
+        right_tf.text = right_text
+        for paragraph in right_tf.paragraphs:
+            paragraph.font.size = Pt(14)
+
         return slide
 
     def _create_summary_slide(self, section: Dict[str, Any], prs: Presentation) -> Any:

@@ -794,8 +794,8 @@ def create_traffic_trend_chart(ga_data: Dict[str, Any], width: float = 7*inch,
         return tmp.name
 
 
-def create_traffic_sources_chart(ga_data: Dict[str, Any], width: float = 4*inch,
-                                  height: float = 3*inch) -> Optional[str]:
+def create_traffic_sources_chart(ga_data: Dict[str, Any], width: float = 6*inch,
+                                  height: float = 4*inch) -> Optional[str]:
     """Create a pie chart of traffic sources."""
     if not MATPLOTLIB_AVAILABLE:
         return None
@@ -823,8 +823,8 @@ def create_traffic_sources_chart(ga_data: Dict[str, Any], width: float = 4*inch,
         return tmp.name
 
 
-def create_device_breakdown_chart(ga_data: Dict[str, Any], width: float = 3*inch,
-                                   height: float = 2.5*inch) -> Optional[str]:
+def create_device_breakdown_chart(ga_data: Dict[str, Any], width: float = 5*inch,
+                                   height: float = 3.5*inch) -> Optional[str]:
     """Create a horizontal bar chart for device breakdown."""
     if not MATPLOTLIB_AVAILABLE:
         return None
@@ -1217,13 +1217,15 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         if trend_chart:
             story.append(RLImage(trend_chart, width=7*inch, height=3*inch))
             story.append(Spacer(1, 12))
+        else:
+            story.append(Paragraph("Traffic trend chart unavailable (matplotlib not installed).", body_style))
         story.append(PageBreak())
 
         # ── 4. TRAFFIC SOURCES ──
         story.append(Paragraph("4. Traffic Sources Analysis", heading_style))
         source_chart = create_traffic_sources_chart(ga_data)
         if source_chart:
-            story.append(RLImage(source_chart, width=4*inch, height=3*inch))
+            story.append(RLImage(source_chart, width=6*inch, height=4*inch))
             story.append(Spacer(1, 12))
 
         source_table_data = create_traffic_sources_table(ga_data)
@@ -1240,7 +1242,9 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         story.append(Paragraph("5. Device Analysis", heading_style))
         device_chart = create_device_breakdown_chart(ga_data)
         if device_chart:
-            story.append(RLImage(device_chart, width=3.5*inch, height=2.5*inch))
+            story.append(RLImage(device_chart, width=5*inch, height=3.5*inch))
+        else:
+            story.append(Paragraph("Device analysis chart unavailable (matplotlib not installed).", body_style))
         story.append(PageBreak())
 
         # ── 6. TOP PAGES ──
@@ -1339,8 +1343,10 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             hl_table.setStyle(TableStyle(primary_table_style))
             story.append(hl_table)
             story.append(Spacer(1, 20))
+            story.append(PageBreak())
 
-        story.append(PageBreak())
+        if not (best_day or best_week):
+            story.append(PageBreak())
 
         # ── INSIGHTS ──
         insights_num = (10 if longitudinal and (best_day or best_week) else

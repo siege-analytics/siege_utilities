@@ -649,8 +649,16 @@ class ChartGenerator:
             else:
                 gdf = geodata.copy()
             
-            # Merge data with geodata
-            merged = gdf.merge(df, left_on=location_column, right_on=location_column, how='left')
+            # Merge data with geodata — only if gdf is missing the value columns.
+            # When data and geodata are the same GeoDataFrame the merge would
+            # create suffixed duplicates (population_x / population_y) and the
+            # subsequent column lookup would fail with KeyError.
+            if value_column1 in gdf.columns and value_column2 in gdf.columns:
+                merged = gdf
+            else:
+                df_tabular = df.drop(columns='geometry', errors='ignore')
+                merged = gdf.merge(df_tabular, on=location_column, how='left',
+                                   suffixes=('', '_data'))
             
             # Create proper bivariate classification and coloring
             color_matrix = self._create_bivariate_color_matrix(color_scheme)
