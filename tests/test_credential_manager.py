@@ -554,5 +554,8 @@ class TestFetchRealGA4DataOAuth2Fallback:
         fetch_real_ga4_data('12345', '2026-01-01', '2026-01-31',
                            vault='Private', account='Dheeraj_Chand_Family')
 
-        mock_sa.assert_called_once_with(vault='Private', account='Dheeraj_Chand_Family')
+        mock_sa.assert_called_once_with(
+            item_title='Google Analytics Service Account - Multi-Client Reporter',
+            vault='Private', account='Dheeraj_Chand_Family',
+        )
         mock_oauth.assert_called_once_with(vault='Private', account='Dheeraj_Chand_Family')
