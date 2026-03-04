@@ -591,10 +591,19 @@ class ReportGenerator:
         # Handle different section types
         if section_type == 'text':
             content = section.get('content', '')
-            if isinstance(content, str):
-                story.append(Paragraph(content, styles['Normal']))
-            elif isinstance(content, dict) and 'text' in content:
-                story.append(Paragraph(content['text'], styles['Normal']))
+            text = content if isinstance(content, str) else content.get('text', '') if isinstance(content, dict) else ''
+            if text:
+                # Split on newlines and create separate paragraphs to preserve formatting
+                for line in text.split('\n'):
+                    stripped = line.strip()
+                    if not stripped:
+                        story.append(Spacer(1, 6))
+                    elif stripped.startswith('- ') or stripped.startswith('* '):
+                        # Bullet point
+                        bullet_text = stripped[2:]
+                        story.append(Paragraph(f'&bull; {bullet_text}', styles['Normal']))
+                    else:
+                        story.append(Paragraph(stripped, styles['Normal']))
             story.append(Spacer(1, 12))
 
         elif section_type == 'table':
@@ -604,7 +613,9 @@ class ReportGenerator:
             if isinstance(table_data, pd.DataFrame):
                 headers = headers or table_data.columns.tolist()
                 table_data = [headers] + table_data.values.tolist()
-            elif headers:
+            elif headers and table_data and table_data[0] != headers:
+                # Only prepend headers if they aren't already the first row
+                # (add_table_section already prepends them)
                 table_data = [headers] + table_data
 
             if table_data:
