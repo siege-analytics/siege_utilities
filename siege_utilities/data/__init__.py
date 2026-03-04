@@ -21,7 +21,8 @@ from .sample_data import (
     generate_synthetic_population,
     generate_synthetic_businesses,
     generate_synthetic_housing,
-    
+    HOUSING_LOCALE_PRESETS,
+
     # Dataset categories
     SAMPLE_DATASETS,
     CENSUS_SAMPLES,
@@ -44,7 +45,8 @@ __all__ = [
     'generate_synthetic_population',
     'generate_synthetic_businesses',
     'generate_synthetic_housing',
-    
+    'HOUSING_LOCALE_PRESETS',
+
     # Dataset info
     'SAMPLE_DATASETS',
     'CENSUS_SAMPLES',

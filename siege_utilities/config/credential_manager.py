@@ -600,10 +600,13 @@ class CredentialManager:
                 op_flags = self._build_op_flags(vault=vault, account=account)
                 cmd = ['op', 'item', 'list', f'--tags={tags}', '--format=json'] + op_flags
                 result = subprocess.run(cmd, capture_output=True, text=True)
-                
+
+                op_items = []
                 if result.returncode == 0:
-                    items = json.loads(result.stdout)
-                    for item in items:
+                    op_items = json.loads(result.stdout)
+
+                if op_items:
+                    for item in op_items:
                         credentials.append({
                             'backend': '1password',
                             'service': item.get('title', ''),
@@ -611,6 +614,19 @@ class CredentialManager:
                             'vault': item.get('vault', {}).get('name', ''),
                             'tags': item.get('tags', [])
                         })
+                else:
+                    # No tagged items — check total vault size so the user
+                    # knows 1Password itself is working fine.
+                    all_cmd = ['op', 'item', 'list', '--format=json'] + op_flags
+                    all_result = subprocess.run(all_cmd, capture_output=True, text=True)
+                    total = 0
+                    if all_result.returncode == 0:
+                        total = len(json.loads(all_result.stdout))
+                    log_info(
+                        f"0 items tagged 'siege-utilities' in 1Password "
+                        f"({total} total items in vault). "
+                        f"Tag items with 'siege-utilities' to include them."
+                    )
             except Exception as e:
                 log_warning(f"Error listing 1Password credentials: {e}")
         
