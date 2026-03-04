@@ -15,65 +15,12 @@ import warnings
 
 from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
 
-class SurveyType(Enum):
-    """Enumeration of Census survey types."""
-    DECENNIAL = "decennial"           # Every 10 years (2020, 2010, etc.)
-    ACS_1YR = "acs_1yr"              # American Community Survey 1-year estimates
-    ACS_3YR = "acs_3yr"              # American Community Survey 3-year estimates
-    ACS_5YR = "acs_5yr"              # American Community Survey 5-year estimates
-    CENSUS_BUSINESS = "census_business"  # Economic Census
-    POPULATION_ESTIMATES = "population_estimates"  # Annual population estimates
-    HOUSING_ESTIMATES = "housing_estimates"  # Annual housing estimates
-
-class GeographyLevel(Enum):
-    """Enumeration of Census geography levels (canonical names)."""
-    NATION = "nation"
-    REGION = "region"
-    DIVISION = "division"
-    STATE = "state"
-    COUNTY = "county"
-    COUSUB = "cousub"
-    PLACE = "place"
-    CD = "cd"
-    SLDU = "sldu"
-    SLDL = "sldl"
-    TRACT = "tract"
-    BLOCK_GROUP = "block_group"
-    BLOCK = "block"
-    ZCTA = "zcta"
-    CBSA = "cbsa"
-    PUMA = "puma"
-    VTD = "vtd"
-    VTD20 = "vtd20"
-    TABBLOCK20 = "tabblock20"
-    TABBLOCK10 = "tabblock10"
-
-    # Backward-compatible aliases (same value → Python Enum alias)
-    COUNTY_SUBDIVISION = "cousub"
-    CONGRESSIONAL_DISTRICT = "cd"
-    STATE_LEGISLATIVE_DISTRICT = "sldu"  # defaults to upper chamber
-    ZIP_CODE = "zcta"
-    VOTING_DISTRICT = "vtd"
-
-    @classmethod
-    def _missing_(cls, value):
-        """Resolve aliases like 'congressional_district' → CD."""
-        from siege_utilities.config.census_constants import resolve_geographic_level
-        try:
-            canonical = resolve_geographic_level(value)
-            for member in cls:
-                if member.value == canonical:
-                    return member
-        except ValueError:
-            pass
-        return None
-
-class DataReliability(Enum):
-    """Enumeration of data reliability levels."""
-    HIGH = "high"           # Most reliable (decennial, large geographies)
-    MEDIUM = "medium"       # Moderately reliable (ACS 5-year, medium geographies)
-    LOW = "low"             # Less reliable (ACS 1-year, small geographies)
-    ESTIMATED = "estimated" # Modeled estimates
+# Canonical enum definitions live in census_registry; re-export for backward compat
+from siege_utilities.config.census_registry import (  # noqa: F401
+    SurveyType,
+    GeographyLevel,
+    DataReliability,
+)
 
 @dataclass
 class CensusDataset:

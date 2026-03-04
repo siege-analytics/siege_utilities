@@ -139,13 +139,10 @@ from .census_constants import (
     get_fips_info,
 )
 
-# Canonical enum types (re-exported from geo.census_dataset_mapper for convenience)
-# Wrapped in try/except because census_dataset_mapper imports pandas at module level
-try:
-    from siege_utilities.geo.census_dataset_mapper import SurveyType, DataReliability
-except ImportError:
-    SurveyType = None
-    DataReliability = None
+# Canonical enum types — now live in census_registry (no pandas dependency)
+from .census_constants import SurveyType, DataReliability, GeographyLevel  # noqa: F401
+# Variable groups and descriptions
+from .census_constants import VARIABLE_GROUPS, VARIABLE_DESCRIPTIONS  # noqa: F401
 
 # Import NCES-specific constants
 from .nces_constants import (
