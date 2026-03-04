@@ -2,13 +2,14 @@
 Service for demographic roll-up aggregation across geography levels.
 
 Aggregates demographic data from a finer geography (e.g., tracts) to a
-coarser geography (e.g., counties) using GEOID prefix hierarchy.
-Supports sum, avg, and weighted_avg (population-weighted) operations.
+coarser geography (e.g., counties) using GEOID prefix hierarchy or
+temporal crosswalk mappings.  Supports sum, avg, and weighted_avg
+(population-weighted) operations.
 """
 
 import logging
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 log = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ class RollupResult:
     variable_code: str
     records_created: int = 0
     records_skipped: int = 0
+    coverage_ratio: float = 1.0
     errors: list = field(default_factory=list)
 
     @property
@@ -74,6 +76,8 @@ class DemographicRollupService:
         operation: str = 'sum',
         state_fips: Optional[str] = None,
         batch_size: int = 500,
+        crosswalk_year: Optional[int] = None,
+        min_coverage: float = 0.5,
     ) -> List[RollupResult]:
         """
         Aggregate demographic data from source to target geography level.
@@ -86,6 +90,12 @@ class DemographicRollupService:
             operation: Aggregation operation ('sum', 'avg', 'weighted_avg')
             state_fips: Optional state filter
             batch_size: Bulk create batch size
+            crosswalk_year: When set, use TemporalCrosswalk mappings from
+                ``crosswalk_year`` → ``year`` instead of GEOID prefix truncation.
+                Enables rollup across boundary changes.
+            min_coverage: Minimum coverage ratio (0-1, default 0.5).  When a
+                target geography has data for fewer than ``min_coverage`` of its
+                expected children, a warning is logged.
 
         Returns:
             List of RollupResult (one per variable)
@@ -151,6 +161,13 @@ class DemographicRollupService:
         source_ct = ContentType.objects.get_for_model(source_model)
         target_ct = ContentType.objects.get_for_model(target_model)
 
+        # Build crosswalk lookup if requested
+        crosswalk_map: Optional[Dict[str, List[tuple]]] = None
+        if crosswalk_year is not None:
+            crosswalk_map = self._build_crosswalk_map(
+                source_level, crosswalk_year, year, state_fips
+            )
+
         # Get source snapshots
         snap_qs = DemographicSnapshot.objects.filter(
             content_type=source_ct,
@@ -159,6 +176,21 @@ class DemographicRollupService:
         )
         if state_fips:
             snap_qs = snap_qs.filter(object_id__startswith=state_fips)
+
+        # Count total children per target (for coverage calculation)
+        total_children_per_target: Dict[str, int] = {}
+        if crosswalk_map is None:
+            for snap in snap_qs.iterator():
+                tg = snap.object_id[:target_prefix_len]
+                total_children_per_target[tg] = total_children_per_target.get(tg, 0) + 1
+            # Reset iterator by re-evaluating
+            snap_qs = DemographicSnapshot.objects.filter(
+                content_type=source_ct,
+                dataset=self.dataset,
+                year=year,
+            )
+            if state_fips:
+                snap_qs = snap_qs.filter(object_id__startswith=state_fips)
 
         results = []
 
@@ -169,22 +201,56 @@ class DemographicRollupService:
                 variable_code=variable,
             )
 
-            # Group source values by target GEOID prefix
-            target_groups = {}  # target_geoid → [values]
-            pop_groups = {}  # target_geoid → [populations] (for weighted_avg)
+            # Group source values by target GEOID
+            target_groups: Dict[str, list] = {}
+            pop_groups: Dict[str, list] = {}
+            children_with_data: Dict[str, int] = {}
 
             for snap in snap_qs.iterator():
                 val = snap.values.get(variable)
                 if val is None:
                     continue
 
-                target_geoid = snap.object_id[:target_prefix_len]
-                target_groups.setdefault(target_geoid, []).append(val)
+                if crosswalk_map is not None:
+                    # Use crosswalk: one source may map to multiple targets
+                    mappings = crosswalk_map.get(snap.object_id, [])
+                    for target_geoid, weight in mappings:
+                        weighted_val = val * float(weight)
+                        target_groups.setdefault(target_geoid, []).append(weighted_val)
+                        children_with_data[target_geoid] = children_with_data.get(target_geoid, 0) + 1
 
-                if operation == 'weighted_avg' and snap.total_population:
-                    pop_groups.setdefault(target_geoid, []).append(
-                        snap.total_population
-                    )
+                        if operation == 'weighted_avg' and snap.total_population:
+                            pop_groups.setdefault(target_geoid, []).append(
+                                snap.total_population * float(weight)
+                            )
+                else:
+                    # Use GEOID prefix truncation
+                    target_geoid = snap.object_id[:target_prefix_len]
+                    target_groups.setdefault(target_geoid, []).append(val)
+                    children_with_data[target_geoid] = children_with_data.get(target_geoid, 0) + 1
+
+                    if operation == 'weighted_avg' and snap.total_population:
+                        pop_groups.setdefault(target_geoid, []).append(
+                            snap.total_population
+                        )
+
+            # Compute coverage ratio across all target geographies
+            if total_children_per_target:
+                total_expected = sum(total_children_per_target.values())
+                total_with_data = sum(children_with_data.values())
+                result.coverage_ratio = (
+                    total_with_data / total_expected if total_expected > 0 else 0.0
+                )
+            elif target_groups:
+                result.coverage_ratio = 1.0
+            else:
+                result.coverage_ratio = 0.0
+
+            if result.coverage_ratio < min_coverage:
+                log.warning(
+                    f"Low coverage for {variable} ({source_level}→{target_level}): "
+                    f"{result.coverage_ratio:.2%} < {min_coverage:.0%} threshold"
+                )
 
             # Create aggregated snapshots for target
             to_create = []
@@ -243,10 +309,42 @@ class DemographicRollupService:
             results.append(result)
             log.info(
                 f"Rollup {variable} ({source_level}→{target_level}): "
-                f"created={result.records_created}, skipped={result.records_skipped}"
+                f"created={result.records_created}, skipped={result.records_skipped}, "
+                f"coverage={result.coverage_ratio:.2%}"
             )
 
         return results
+
+    def _build_crosswalk_map(
+        self,
+        source_level: str,
+        source_year: int,
+        target_year: int,
+        state_fips: Optional[str] = None,
+    ) -> Dict[str, List[tuple]]:
+        """
+        Build a mapping from source boundary IDs to (target_id, weight) pairs
+        using TemporalCrosswalk records.
+
+        Returns:
+            Dict mapping source_boundary_id → [(target_boundary_id, weight), ...]
+        """
+        from ..models.crosswalks import TemporalCrosswalk
+
+        qs = TemporalCrosswalk.objects.filter(
+            source_type=source_level,
+            source_vintage_year=source_year,
+            target_vintage_year=target_year,
+        )
+        if state_fips:
+            qs = qs.filter(state_fips=state_fips)
+
+        mapping: Dict[str, List[tuple]] = {}
+        for xw in qs.iterator():
+            mapping.setdefault(xw.source_boundary_id, []).append(
+                (xw.target_boundary_id, xw.weight)
+            )
+        return mapping
 
     def _resolve_model(self, geography_level: str):
         """Resolve a geography level string to a Django model class."""

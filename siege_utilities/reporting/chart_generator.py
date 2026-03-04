@@ -649,8 +649,16 @@ class ChartGenerator:
             else:
                 gdf = geodata.copy()
             
-            # Merge data with geodata
-            merged = gdf.merge(df, left_on=location_column, right_on=location_column, how='left')
+            # Merge data with geodata — only if gdf is missing the value columns.
+            # When data and geodata are the same GeoDataFrame the merge would
+            # create suffixed duplicates (population_x / population_y) and the
+            # subsequent column lookup would fail with KeyError.
+            if value_column1 in gdf.columns and value_column2 in gdf.columns:
+                merged = gdf
+            else:
+                df_tabular = df.drop(columns='geometry', errors='ignore')
+                merged = gdf.merge(df_tabular, on=location_column, how='left',
+                                   suffixes=('', '_data'))
             
             # Create proper bivariate classification and coloring
             color_matrix = self._create_bivariate_color_matrix(color_scheme)
@@ -769,10 +777,12 @@ class ChartGenerator:
         try:
             # Create inset axes for the bivariate legend
             from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+            from matplotlib.colors import to_rgba
             legend_ax = inset_axes(ax, width='20%', height='20%', loc='upper right')
-            
-            # Display the 3x3 color matrix as legend
-            legend_ax.imshow(color_matrix, aspect='equal')
+
+            # Convert hex color strings to RGBA array for imshow
+            rgb_matrix = np.array([[to_rgba(c) for c in row] for row in color_matrix])
+            legend_ax.imshow(rgb_matrix, aspect='equal')
             legend_ax.set_xticks([0, 1, 2])
             legend_ax.set_yticks([0, 1, 2])
             legend_ax.set_xticklabels(['Low', 'Med', 'High'], fontsize=8)

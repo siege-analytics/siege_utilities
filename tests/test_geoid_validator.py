@@ -9,31 +9,13 @@ import pytest
 
 from siege_utilities.geo.geoid_utils import GEOIDValidator
 
-# Configure Django for model tests
+# Skip Django-dependent tests if GDAL is not available (CI without geospatial libs)
 try:
-    import django
-    from django.conf import settings as django_settings
+    from django.contrib.gis.db import models as gis_models  # noqa: F401
 
-    if not django_settings.configured:
-        django_settings.configure(
-            DATABASES={
-                "default": {
-                    "ENGINE": "django.contrib.gis.db.backends.postgis",
-                    "NAME": "test_siege_geo",
-                }
-            },
-            INSTALLED_APPS=[
-                "django.contrib.contenttypes",
-                "django.contrib.gis",
-                "siege_utilities.geo.django",
-            ],
-            DEFAULT_AUTO_FIELD="django.db.models.BigAutoField",
-        )
-        django.setup()
     _DJANGO_AVAILABLE = True
-except Exception as e:
+except Exception:
     _DJANGO_AVAILABLE = False
-    _DJANGO_SKIP_REASON = str(e)
 
 
 class TestGEOIDValidator:
@@ -114,7 +96,7 @@ class TestGEOIDValidator:
 
 @pytest.mark.skipif(
     not _DJANGO_AVAILABLE,
-    reason=f"Django not available: {globals().get('_DJANGO_SKIP_REASON', 'unknown')}",
+    reason="GeoDjango/GDAL not available",
 )
 class TestBoundaryModelConstraints:
     """Verify CheckConstraints exist on all concrete boundary models."""
@@ -153,7 +135,7 @@ class TestBoundaryModelConstraints:
 
 @pytest.mark.skipif(
     not _DJANGO_AVAILABLE,
-    reason=f"Django not available: {globals().get('_DJANGO_SKIP_REASON', 'unknown')}",
+    reason="GeoDjango/GDAL not available",
 )
 class TestTractUrbanicity:
     """Tests for Tract urbanicity field and properties."""

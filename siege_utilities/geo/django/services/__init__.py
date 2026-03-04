@@ -16,6 +16,8 @@ def __getattr__(name):
         "DemographicRollupService": ".rollup_service",
         "UrbanicityClassificationService": ".urbanicity_service",
         "NCESPopulationService": ".nces_service",
+        "NLRBPopulationService": ".nlrb_service",
+        "TimezonePopulationService": ".timezone_service",
     }
     if name in _map:
         import importlib
@@ -33,4 +35,6 @@ __all__ = [
     "DemographicRollupService",
     "UrbanicityClassificationService",
     "NCESPopulationService",
+    "NLRBPopulationService",
+    "TimezonePopulationService",
 ]

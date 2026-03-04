@@ -15,6 +15,7 @@ Model hierarchy:
     │   ├── GADMBoundary (abstract)
     │   │   └── GADMCountry, GADMAdmin1-5
     │   ├── NLRBRegion, FederalJudicialDistrict
+    │   ├── TimezoneGeometry
     │   └── (intersections — 14.7)
     ├── TemporalLinearFeature (abstract — MultiLineString)
     └── TemporalPointFeature (abstract — Point)
@@ -64,6 +65,9 @@ from .education import (
 from .federal import (
     NLRBRegion,
     FederalJudicialDistrict,
+)
+from .timezone import (
+    TimezoneGeometry,
 )
 from .census_extended import (
     CBSA,
@@ -126,6 +130,8 @@ __all__ = [
     # Federal
     "NLRBRegion",
     "FederalJudicialDistrict",
+    # Timezone
+    "TimezoneGeometry",
     # Census Extended
     "CBSA",
     "UrbanArea",

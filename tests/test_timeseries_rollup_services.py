@@ -9,36 +9,18 @@ import math
 
 import pytest
 
-# Configure Django for model-dependent tests
+# Skip entire module if GDAL is not available (CI without geospatial libs)
 try:
-    import django
-    from django.conf import settings as django_settings
+    from django.contrib.gis.db import models as gis_models  # noqa: F401
 
-    if not django_settings.configured:
-        django_settings.configure(
-            DATABASES={
-                "default": {
-                    "ENGINE": "django.contrib.gis.db.backends.postgis",
-                    "NAME": "test_siege_geo",
-                }
-            },
-            INSTALLED_APPS=[
-                "django.contrib.contenttypes",
-                "django.contrib.gis",
-                "siege_utilities.geo.django",
-            ],
-            DEFAULT_AUTO_FIELD="django.db.models.BigAutoField",
-        )
-        django.setup()
     _DJANGO_AVAILABLE = True
-except Exception as e:
+except Exception:
     _DJANGO_AVAILABLE = False
-    _DJANGO_SKIP_REASON = str(e)
 
 
 @pytest.mark.skipif(
     not _DJANGO_AVAILABLE,
-    reason=f"Django not available: {globals().get('_DJANGO_SKIP_REASON', 'unknown')}",
+    reason="GeoDjango/GDAL not available",
 )
 class TestTimeseriesService:
     """Tests for TimeseriesService."""
@@ -113,7 +95,7 @@ class TestTimeseriesService:
 
 @pytest.mark.skipif(
     not _DJANGO_AVAILABLE,
-    reason=f"Django not available: {globals().get('_DJANGO_SKIP_REASON', 'unknown')}",
+    reason="GeoDjango/GDAL not available",
 )
 class TestDemographicRollupService:
     """Tests for DemographicRollupService."""
@@ -149,10 +131,57 @@ class TestDemographicRollupService:
         svc = DemographicRollupService()
         assert svc._resolve_model("galaxy") is None
 
+    def test_rollup_result_has_coverage_ratio(self):
+        from siege_utilities.geo.django.services.rollup_service import RollupResult
+
+        r = RollupResult(
+            source_level="tract",
+            target_level="county",
+            variable_code="B01001_001E",
+        )
+        assert r.coverage_ratio == 1.0
+
+    def test_rollup_result_custom_coverage(self):
+        from siege_utilities.geo.django.services.rollup_service import RollupResult
+
+        r = RollupResult(
+            source_level="tract",
+            target_level="county",
+            variable_code="B01001_001E",
+            coverage_ratio=0.75,
+        )
+        assert r.coverage_ratio == 0.75
+
+    def test_rollup_accepts_crosswalk_year(self):
+        """Verify the rollup method signature accepts crosswalk_year."""
+        import inspect
+        from siege_utilities.geo.django.services.rollup_service import DemographicRollupService
+
+        sig = inspect.signature(DemographicRollupService.rollup)
+        assert "crosswalk_year" in sig.parameters
+        assert sig.parameters["crosswalk_year"].default is None
+
+    def test_rollup_accepts_min_coverage(self):
+        """Verify the rollup method signature accepts min_coverage."""
+        import inspect
+        from siege_utilities.geo.django.services.rollup_service import DemographicRollupService
+
+        sig = inspect.signature(DemographicRollupService.rollup)
+        assert "min_coverage" in sig.parameters
+        assert sig.parameters["min_coverage"].default == 0.5
+
+    def test_build_crosswalk_map_exists(self):
+        """Verify _build_crosswalk_map helper is present."""
+        from siege_utilities.geo.django.services.rollup_service import DemographicRollupService
+
+        svc = DemographicRollupService()
+        assert hasattr(svc, "_build_crosswalk_map")
+        assert callable(svc._build_crosswalk_map)
+
 
 @pytest.mark.skipif(
     not _DJANGO_AVAILABLE,
-    reason=f"Django not available: {globals().get('_DJANGO_SKIP_REASON', 'unknown')}",
+    reason="GeoDjango/GDAL not available",
 )
 class TestServiceExports:
     """Tests for service module exports."""
