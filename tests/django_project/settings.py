@@ -28,9 +28,8 @@ INSTALLED_APPS = [
 
 # Only include GeoDjango app when GDAL is actually available
 try:
-    from django.contrib.gis import gdal
-    if gdal.HAS_GDAL:
-        INSTALLED_APPS.append("siege_utilities.geo.django")
+    from django.contrib.gis.gdal import libgdal  # noqa: F401
+    INSTALLED_APPS.append("siege_utilities.geo.django")
 except Exception:
     pass
 

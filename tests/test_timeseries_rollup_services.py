@@ -131,6 +131,53 @@ class TestDemographicRollupService:
         svc = DemographicRollupService()
         assert svc._resolve_model("galaxy") is None
 
+    def test_rollup_result_has_coverage_ratio(self):
+        from siege_utilities.geo.django.services.rollup_service import RollupResult
+
+        r = RollupResult(
+            source_level="tract",
+            target_level="county",
+            variable_code="B01001_001E",
+        )
+        assert r.coverage_ratio == 1.0
+
+    def test_rollup_result_custom_coverage(self):
+        from siege_utilities.geo.django.services.rollup_service import RollupResult
+
+        r = RollupResult(
+            source_level="tract",
+            target_level="county",
+            variable_code="B01001_001E",
+            coverage_ratio=0.75,
+        )
+        assert r.coverage_ratio == 0.75
+
+    def test_rollup_accepts_crosswalk_year(self):
+        """Verify the rollup method signature accepts crosswalk_year."""
+        import inspect
+        from siege_utilities.geo.django.services.rollup_service import DemographicRollupService
+
+        sig = inspect.signature(DemographicRollupService.rollup)
+        assert "crosswalk_year" in sig.parameters
+        assert sig.parameters["crosswalk_year"].default is None
+
+    def test_rollup_accepts_min_coverage(self):
+        """Verify the rollup method signature accepts min_coverage."""
+        import inspect
+        from siege_utilities.geo.django.services.rollup_service import DemographicRollupService
+
+        sig = inspect.signature(DemographicRollupService.rollup)
+        assert "min_coverage" in sig.parameters
+        assert sig.parameters["min_coverage"].default == 0.5
+
+    def test_build_crosswalk_map_exists(self):
+        """Verify _build_crosswalk_map helper is present."""
+        from siege_utilities.geo.django.services.rollup_service import DemographicRollupService
+
+        svc = DemographicRollupService()
+        assert hasattr(svc, "_build_crosswalk_map")
+        assert callable(svc._build_crosswalk_map)
+
 
 @pytest.mark.skipif(
     not _DJANGO_AVAILABLE,
