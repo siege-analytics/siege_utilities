@@ -1,0 +1,1014 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>siege_utilities.config.census_registry &mdash; Siege Utilities 3.8.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=d2ebfa92"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Siege Utilities
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#core-capabilities">Core Capabilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#core-utilities-16-functions">🔧 <strong>Core Utilities (16 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#file-operations-22-functions">📁 <strong>File Operations (22 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#distributed-computing-503-functions">🚀 <strong>Distributed Computing (503+ functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#geospatial-2-functions">🌍 <strong>Geospatial (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#configuration-management-15-functions">⚙️ <strong>Configuration Management (15 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#analytics-integration-6-functions">📊 <strong>Analytics Integration (6 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#code-hygiene-2-functions">🧹 <strong>Code Hygiene (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#testing-development-2-functions">🧪 <strong>Testing &amp; Development (2 functions)</strong></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#real-world-workflow-examples">Real-World Workflow Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#installation-and-dependencies">Installation and Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#performance-and-scalability">Performance and Scalability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../architecture_diagram.html">Library Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#core-architecture">Core Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#function-distribution">Function Distribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#key-features">Key Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#integration-points">Integration Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#usage-patterns">Usage Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../autodiscovery.html">Enhanced Auto-Discovery System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#how-it-works">How It Works</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#the-five-phase-discovery-process">The Five-Phase Discovery Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#benefits">Benefits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#monitoring-your-package">Monitoring Your Package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#adding-new-functions">Adding New Functions</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Core Utilities:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../core_utilities.html">Core Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../core_utilities.html#package-discovery">Package Discovery</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../core_utilities.html#functions">Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../core_utilities.html#siege_utilities.core.__init__"><code class="docutils literal notranslate"><span class="pre">__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../core_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../core_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../string_utilities.html">String Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../string_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../string_utilities.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../string_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../string_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../logging_utilities.html">Logging Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../logging_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../logging_utilities.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../logging_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../logging_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Distributed Computing:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../distributed_computing.html">Distributed Computing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#hdfs-configuration">HDFS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#hdfs-operations">HDFS Operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#id1">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#id2">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../hdfs_operations.html">HDFS Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../hdfs_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../hdfs_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../hdfs_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../hdfs_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../spark_utilities.html">Spark Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../spark_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../spark_utilities.html#functions-by-category">Functions by Category</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../spark_utilities.html#mathematical-functions">Mathematical Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../spark_utilities.html#array-functions">Array Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../spark_utilities.html#aggregation-functions">Aggregation Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../spark_utilities.html#cryptographic-functions">Cryptographic Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../spark_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../spark_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">File Operations:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../file_operations.html">File Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../file_hashing.html">File Hashing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_hashing.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_hashing.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_hashing.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_hashing.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../remote_operations.html">Remote Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../remote_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../remote_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../remote_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../remote_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../shell_operations.html">Shell Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../shell_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../shell_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../shell_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../shell_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Geographic &amp; Analytics:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../geo.html">Geographic Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../geocoding.html">Geocoding</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../geocoding.html#module-overview">Module Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../geocoding.html#functions">Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../geocoding.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../geocoding.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html">Enhanced Census Utilities and Spatial Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#census-directory-discovery">Census Directory Discovery</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#census-data-source">Census Data Source</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#state-information-methods">State Information Methods</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#spatial-data-source">Spatial Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#government-data-source">Government Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#openstreetmap-data-source">OpenStreetMap Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#convenience-functions">Convenience Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#global-instances">Global Instances</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#census_source"><code class="docutils literal notranslate"><span class="pre">census_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#government_source"><code class="docutils literal notranslate"><span class="pre">government_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#osm_source"><code class="docutils literal notranslate"><span class="pre">osm_source</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#basic-census-data-access">Basic Census Data Access</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#state-information-lookup">State Information Lookup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#dynamic-discovery">Dynamic Discovery</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#error-handling">Error Handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#performance-optimization">Performance Optimization</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#integration-with-other-tools">Integration with Other Tools</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html">Census Dataset Mapper</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#classes">Classes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#censusdatasetmapper">CensusDatasetMapper</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#censusdataset">CensusDataset</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#datasetrelationship">DatasetRelationship</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#enums">Enums</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#surveytype">SurveyType</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#geographylevel">GeographyLevel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#datareliability">DataReliability</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#get-census-dataset-mapper">get_census_dataset_mapper</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#get-best-dataset-for-analysis">get_best_dataset_for_analysis</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#compare-census-datasets">compare_census_datasets</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#basic-dataset-information">Basic Dataset Information</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#dataset-comparison">Dataset Comparison</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#data-selection-guide">Data Selection Guide</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#export-dataset-catalog">Export Dataset Catalog</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html">Census Data Selector</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#classes">Classes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#censusdataselector">CensusDataSelector</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#get-census-data-selector">get_census_data_selector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#select-census-datasets">select_census_datasets</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#get-analysis-approach">get_analysis_approach</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#basic-dataset-selection">Basic Dataset Selection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#analysis-approach-recommendations">Analysis Approach Recommendations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#compatibility-matrix">Compatibility Matrix</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#quick-selection">Quick Selection</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#advanced-usage">Advanced Usage</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#custom-reliability-requirements">Custom Reliability Requirements</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#time-sensitive-analysis">Time-Sensitive Analysis</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#variable-specific-selection">Variable-Specific Selection</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#analysis-types-supported">Analysis Types Supported</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#geography-levels-supported">Geography Levels Supported</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#reliability-levels">Reliability Levels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#output-format">Output Format</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#key-features">Key Features</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../geo.html#census-data-intelligence">Census Data Intelligence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../geo.html#enhanced-census-utilities">Enhanced Census Utilities</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../geo.html#spatial-data-processing">Spatial Data Processing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../geo.html#geocoding-services">Geocoding Services</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#analysis-types-supported">Analysis Types Supported</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#geography-levels-supported">Geography Levels Supported</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#census-survey-types">Census Survey Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#data-quality-and-reliability">Data Quality and Reliability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../analytics.html">Analytics</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#facebook-business-analytics">Facebook Business Analytics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#google-analytics">Google Analytics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#id1">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#id2">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mapping_and_reporting.html">Mapping and Reporting System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#key-features">Key Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#quick-start">Quick Start</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#basic-bivariate-choropleth-map">Basic Bivariate Choropleth Map</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#marker-map-with-geographic-data">Marker Map with Geographic Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#d-elevation-visualization">3D Elevation Visualization</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#comprehensive-report-generation">Comprehensive Report Generation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#creating-professional-pdf-reports">Creating Professional PDF Reports</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#powerpoint-presentation-creation">PowerPoint Presentation Creation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#map-types-reference">Map Types Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#bivariate-choropleth-maps">Bivariate Choropleth Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#marker-maps">Marker Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#d-maps">3D Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#heatmap-maps">Heatmap Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#cluster-maps">Cluster Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#flow-maps">Flow Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#advanced-choropleth-maps">Advanced Choropleth Maps</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#report-structure">Report Structure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#pdf-report-components">PDF Report Components</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#powerpoint-structure">PowerPoint Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#section-types">Section Types</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#integration-examples">Integration Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#google-analytics-integration">Google Analytics Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#database-integration">Database Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#custom-api-integration">Custom API Integration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#data-preparation">Data Preparation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#map-design">Map Design</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#report-organization">Report Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#performance-optimization">Performance Optimization</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#common-issues">Common Issues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#performance-issues">Performance Issues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#error-handling">Error Handling</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#examples-and-recipes">Examples and Recipes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#additional-resources">Additional Resources</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development &amp; Testing:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../testing_guide.html">Testing Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-structure">Test Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#running-tests">Running Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#basic-test-execution">Basic Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#coverage-and-reporting">Coverage and Reporting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#parallel-execution">Parallel Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-markers">Test Markers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#writing-new-tests">Writing New Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-file-structure">Test File Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-naming-conventions">Test Naming Conventions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#example-test-patterns">Example Test Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-fixtures">Test Fixtures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-configuration">Test Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#pytest-configuration">Pytest Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#coverage-configuration">Coverage Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#continuous-integration">Continuous Integration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#ci-pipeline">CI Pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#debugging-tests">Debugging Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#verbose-output">Verbose Output</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#debug-mode">Debug Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#single-test-execution">Single Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-isolation">Test Isolation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#performance-testing">Performance Testing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#benchmark-tests">Benchmark Tests</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#load-testing">Load Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-data-management">Test Data Management</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-data-generation">Test Data Generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#data-cleanup">Data Cleanup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-organization">Test Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-independence">Test Independence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-coverage">Test Coverage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#performance-considerations">Performance Considerations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#common-patterns">Common Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#configuration-testing">Configuration Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#file-operation-testing">File Operation Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#api-testing">API Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#common-issues">Common Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#getting-help">Getting Help</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Siege Utilities</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">siege_utilities.config.census_registry</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for siege_utilities.config.census_registry</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Census Registry — single source of truth for all Census Bureau metadata.</span>
+
+<span class="sd">This module consolidates Census geographic levels, variable groups, survey</span>
+<span class="sd">types, FIPS codes, TIGER URLs, and API constants that were previously</span>
+<span class="sd">scattered across ``census_constants.py``, ``census_api_client.py``, and</span>
+<span class="sd">``census_dataset_mapper.py``.</span>
+
+<span class="sd">Other modules should import from here (or from the backward-compatible</span>
+<span class="sd">shim in ``census_constants.py``).</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># INTERNAL: current year for dynamic range calculation</span>
+<span class="c1"># ============================================================================</span>
+<span class="n">_CURRENT_YEAR</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">year</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># SURVEY AND RELIABILITY ENUMS</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="SurveyType">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.SurveyType">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SurveyType</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Enumeration of Census survey types.&quot;&quot;&quot;</span>
+
+    <span class="n">DECENNIAL</span> <span class="o">=</span> <span class="s2">&quot;decennial&quot;</span>
+    <span class="n">ACS_1YR</span> <span class="o">=</span> <span class="s2">&quot;acs_1yr&quot;</span>
+    <span class="n">ACS_3YR</span> <span class="o">=</span> <span class="s2">&quot;acs_3yr&quot;</span>
+    <span class="n">ACS_5YR</span> <span class="o">=</span> <span class="s2">&quot;acs_5yr&quot;</span>
+    <span class="n">CENSUS_BUSINESS</span> <span class="o">=</span> <span class="s2">&quot;census_business&quot;</span>
+    <span class="n">POPULATION_ESTIMATES</span> <span class="o">=</span> <span class="s2">&quot;population_estimates&quot;</span>
+    <span class="n">HOUSING_ESTIMATES</span> <span class="o">=</span> <span class="s2">&quot;housing_estimates&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="DataReliability">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.DataReliability">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">DataReliability</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Enumeration of data reliability levels.&quot;&quot;&quot;</span>
+
+    <span class="n">HIGH</span> <span class="o">=</span> <span class="s2">&quot;high&quot;</span>
+    <span class="n">MEDIUM</span> <span class="o">=</span> <span class="s2">&quot;medium&quot;</span>
+    <span class="n">LOW</span> <span class="o">=</span> <span class="s2">&quot;low&quot;</span>
+    <span class="n">ESTIMATED</span> <span class="o">=</span> <span class="s2">&quot;estimated&quot;</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># CANONICAL GEOGRAPHIC LEVELS</span>
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Keys are canonical names. Every other reference site derives from this dict.</span>
+
+<span class="n">CANONICAL_GEOGRAPHIC_LEVELS</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;nation&quot;</span><span class="p">:</span>      <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;us&quot;</span><span class="p">,</span> <span class="s2">&quot;national&quot;</span><span class="p">],</span>                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+    <span class="s2">&quot;region&quot;</span><span class="p">:</span>      <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+    <span class="s2">&quot;division&quot;</span><span class="p">:</span>    <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+    <span class="s2">&quot;state&quot;</span><span class="p">:</span>       <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
+    <span class="s2">&quot;county&quot;</span><span class="p">:</span>      <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span>
+    <span class="s2">&quot;cousub&quot;</span><span class="p">:</span>      <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;county_subdivision&quot;</span><span class="p">],</span>                           <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">},</span>
+    <span class="s2">&quot;place&quot;</span><span class="p">:</span>       <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">},</span>
+    <span class="s2">&quot;cd&quot;</span><span class="p">:</span>          <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;congressional_district&quot;</span><span class="p">],</span>                       <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">},</span>
+    <span class="s2">&quot;sldu&quot;</span><span class="p">:</span>        <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;state_legislative_upper&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;state_legislative_district_upper&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;state_legislative_district&quot;</span><span class="p">],</span>                   <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span>
+    <span class="s2">&quot;sldl&quot;</span><span class="p">:</span>        <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;state_legislative_lower&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;state_legislative_district_lower&quot;</span><span class="p">],</span>             <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span>
+    <span class="s2">&quot;tract&quot;</span><span class="p">:</span>       <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">11</span><span class="p">},</span>
+    <span class="s2">&quot;block_group&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;bg&quot;</span><span class="p">,</span> <span class="s2">&quot;blockgroup&quot;</span><span class="p">],</span>                             <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">},</span>
+    <span class="s2">&quot;block&quot;</span><span class="p">:</span>       <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;tabblock&quot;</span><span class="p">],</span>                                     <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">15</span><span class="p">},</span>
+    <span class="s2">&quot;tabblock20&quot;</span><span class="p">:</span>  <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">15</span><span class="p">},</span>
+    <span class="s2">&quot;tabblock10&quot;</span><span class="p">:</span>  <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">15</span><span class="p">},</span>
+    <span class="s2">&quot;zcta&quot;</span><span class="p">:</span>        <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;zip_code&quot;</span><span class="p">,</span> <span class="s2">&quot;zcta5&quot;</span><span class="p">,</span> <span class="s2">&quot;zipcode&quot;</span><span class="p">],</span>                 <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span>
+    <span class="s2">&quot;cbsa&quot;</span><span class="p">:</span>        <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span>
+    <span class="s2">&quot;puma&quot;</span><span class="p">:</span>        <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">},</span>
+    <span class="s2">&quot;vtd&quot;</span><span class="p">:</span>         <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;voting_district&quot;</span><span class="p">],</span>                              <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">6</span><span class="p">},</span>
+    <span class="s2">&quot;vtd20&quot;</span><span class="p">:</span>       <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">6</span><span class="p">},</span>
+<span class="p">}</span>
+
+<span class="c1"># Build reverse lookup: alias → canonical (computed once at import time)</span>
+<span class="n">_ALIAS_TO_CANONICAL</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="k">for</span> <span class="n">_canonical</span><span class="p">,</span> <span class="n">_info</span> <span class="ow">in</span> <span class="n">CANONICAL_GEOGRAPHIC_LEVELS</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="n">_ALIAS_TO_CANONICAL</span><span class="p">[</span><span class="n">_canonical</span><span class="p">]</span> <span class="o">=</span> <span class="n">_canonical</span>
+    <span class="k">for</span> <span class="n">_alias</span> <span class="ow">in</span> <span class="n">_info</span><span class="p">[</span><span class="s2">&quot;aliases&quot;</span><span class="p">]:</span>
+        <span class="n">_ALIAS_TO_CANONICAL</span><span class="p">[</span><span class="n">_alias</span><span class="p">]</span> <span class="o">=</span> <span class="n">_canonical</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">resolve_geographic_level</span><span class="p">(</span><span class="n">level</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Resolve any geographic level name variant to its canonical form.</span>
+
+<span class="sd">    Accepts long forms (congressional_district), short forms (cd),</span>
+<span class="sd">    Census abbreviations (CD), and common aliases (zip_code → zcta).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">normalized</span> <span class="o">=</span> <span class="n">level</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="n">canonical</span> <span class="o">=</span> <span class="n">_ALIAS_TO_CANONICAL</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">normalized</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">canonical</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">canonical</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;Unrecognized geographic level: &#39;</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">&#39;. &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;Valid levels: </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">CANONICAL_GEOGRAPHIC_LEVELS</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span>
+
+
+<div class="viewcode-block" id="GeographyLevel">
+<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.GeographyLevel">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GeographyLevel</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Enumeration of Census geography levels (canonical names).&quot;&quot;&quot;</span>
+
+    <span class="n">NATION</span> <span class="o">=</span> <span class="s2">&quot;nation&quot;</span>
+    <span class="n">REGION</span> <span class="o">=</span> <span class="s2">&quot;region&quot;</span>
+    <span class="n">DIVISION</span> <span class="o">=</span> <span class="s2">&quot;division&quot;</span>
+    <span class="n">STATE</span> <span class="o">=</span> <span class="s2">&quot;state&quot;</span>
+    <span class="n">COUNTY</span> <span class="o">=</span> <span class="s2">&quot;county&quot;</span>
+    <span class="n">COUSUB</span> <span class="o">=</span> <span class="s2">&quot;cousub&quot;</span>
+    <span class="n">PLACE</span> <span class="o">=</span> <span class="s2">&quot;place&quot;</span>
+    <span class="n">CD</span> <span class="o">=</span> <span class="s2">&quot;cd&quot;</span>
+    <span class="n">SLDU</span> <span class="o">=</span> <span class="s2">&quot;sldu&quot;</span>
+    <span class="n">SLDL</span> <span class="o">=</span> <span class="s2">&quot;sldl&quot;</span>
+    <span class="n">TRACT</span> <span class="o">=</span> <span class="s2">&quot;tract&quot;</span>
+    <span class="n">BLOCK_GROUP</span> <span class="o">=</span> <span class="s2">&quot;block_group&quot;</span>
+    <span class="n">BLOCK</span> <span class="o">=</span> <span class="s2">&quot;block&quot;</span>
+    <span class="n">ZCTA</span> <span class="o">=</span> <span class="s2">&quot;zcta&quot;</span>
+    <span class="n">CBSA</span> <span class="o">=</span> <span class="s2">&quot;cbsa&quot;</span>
+    <span class="n">PUMA</span> <span class="o">=</span> <span class="s2">&quot;puma&quot;</span>
+    <span class="n">VTD</span> <span class="o">=</span> <span class="s2">&quot;vtd&quot;</span>
+    <span class="n">VTD20</span> <span class="o">=</span> <span class="s2">&quot;vtd20&quot;</span>
+    <span class="n">TABBLOCK20</span> <span class="o">=</span> <span class="s2">&quot;tabblock20&quot;</span>
+    <span class="n">TABBLOCK10</span> <span class="o">=</span> <span class="s2">&quot;tabblock10&quot;</span>
+
+    <span class="c1"># Backward-compatible aliases (same value → Python Enum alias)</span>
+    <span class="n">COUNTY_SUBDIVISION</span> <span class="o">=</span> <span class="s2">&quot;cousub&quot;</span>
+    <span class="n">CONGRESSIONAL_DISTRICT</span> <span class="o">=</span> <span class="s2">&quot;cd&quot;</span>
+    <span class="n">STATE_LEGISLATIVE_DISTRICT</span> <span class="o">=</span> <span class="s2">&quot;sldu&quot;</span>  <span class="c1"># defaults to upper chamber</span>
+    <span class="n">ZIP_CODE</span> <span class="o">=</span> <span class="s2">&quot;zcta&quot;</span>
+    <span class="n">VOTING_DISTRICT</span> <span class="o">=</span> <span class="s2">&quot;vtd&quot;</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_missing_</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resolve aliases like &#39;congressional_district&#39; → CD.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">canonical</span> <span class="o">=</span> <span class="n">resolve_geographic_level</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="bp">cls</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">member</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="n">canonical</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">member</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># BACKWARD-COMPATIBLE GEOGRAPHIC LEVELS (derived from canonical)</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="n">GEOGRAPHIC_LEVELS</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;NATION&quot;</span><span class="p">:</span> <span class="s2">&quot;nation&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;REGION&quot;</span><span class="p">:</span> <span class="s2">&quot;region&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;DIVISION&quot;</span><span class="p">:</span> <span class="s2">&quot;division&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;STATE&quot;</span><span class="p">:</span> <span class="s2">&quot;state&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;COUNTY&quot;</span><span class="p">:</span> <span class="s2">&quot;county&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;COUSUB&quot;</span><span class="p">:</span> <span class="s2">&quot;cousub&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;COUNTY_SUBDIVISION&quot;</span><span class="p">:</span> <span class="s2">&quot;cousub&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;PLACE&quot;</span><span class="p">:</span> <span class="s2">&quot;place&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CD&quot;</span><span class="p">:</span> <span class="s2">&quot;cd&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CONGRESSIONAL_DISTRICT&quot;</span><span class="p">:</span> <span class="s2">&quot;cd&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;SLDU&quot;</span><span class="p">:</span> <span class="s2">&quot;sldu&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;SLDL&quot;</span><span class="p">:</span> <span class="s2">&quot;sldl&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;STATE_LEGISLATIVE_DISTRICT&quot;</span><span class="p">:</span> <span class="s2">&quot;sldu&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;TRACT&quot;</span><span class="p">:</span> <span class="s2">&quot;tract&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;BLOCK_GROUP&quot;</span><span class="p">:</span> <span class="s2">&quot;block_group&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;BLOCK&quot;</span><span class="p">:</span> <span class="s2">&quot;block&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ZCTA&quot;</span><span class="p">:</span> <span class="s2">&quot;zcta&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ZIP_CODE&quot;</span><span class="p">:</span> <span class="s2">&quot;zcta&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CBSA&quot;</span><span class="p">:</span> <span class="s2">&quot;cbsa&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;PUMA&quot;</span><span class="p">:</span> <span class="s2">&quot;puma&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;VTD&quot;</span><span class="p">:</span> <span class="s2">&quot;vtd&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;VTD20&quot;</span><span class="p">:</span> <span class="s2">&quot;vtd20&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;TABBLOCK20&quot;</span><span class="p">:</span> <span class="s2">&quot;tabblock20&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;TABBLOCK10&quot;</span><span class="p">:</span> <span class="s2">&quot;tabblock10&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;VOTING_DISTRICT&quot;</span><span class="p">:</span> <span class="s2">&quot;vtd&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="n">GEOGRAPHIC_HIERARCHY</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;nation&quot;</span><span class="p">,</span> <span class="s2">&quot;region&quot;</span><span class="p">,</span> <span class="s2">&quot;division&quot;</span><span class="p">,</span> <span class="s2">&quot;state&quot;</span><span class="p">,</span> <span class="s2">&quot;county&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;cousub&quot;</span><span class="p">,</span> <span class="s2">&quot;tract&quot;</span><span class="p">,</span> <span class="s2">&quot;block_group&quot;</span><span class="p">,</span> <span class="s2">&quot;block&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># CENSUS DATASET TYPES (backward-compatible string dicts)</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="n">DATASET_TYPES</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;DECENNIAL&quot;</span><span class="p">:</span> <span class="s2">&quot;decennial&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ACS_1YR&quot;</span><span class="p">:</span> <span class="s2">&quot;acs_1yr&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ACS_3YR&quot;</span><span class="p">:</span> <span class="s2">&quot;acs_3yr&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ACS_5YR&quot;</span><span class="p">:</span> <span class="s2">&quot;acs_5yr&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ACS&quot;</span><span class="p">:</span> <span class="s2">&quot;acs_5yr&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CENSUS_BUSINESS&quot;</span><span class="p">:</span> <span class="s2">&quot;census_business&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ECONOMIC&quot;</span><span class="p">:</span> <span class="s2">&quot;census_business&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;POPULATION_ESTIMATES&quot;</span><span class="p">:</span> <span class="s2">&quot;population_estimates&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;HOUSING_ESTIMATES&quot;</span><span class="p">:</span> <span class="s2">&quot;housing_estimates&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="n">RELIABILITY_LEVELS</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;HIGH&quot;</span><span class="p">:</span> <span class="s2">&quot;high&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;MEDIUM&quot;</span><span class="p">:</span> <span class="s2">&quot;medium&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;LOW&quot;</span><span class="p">:</span> <span class="s2">&quot;low&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ESTIMATED&quot;</span><span class="p">:</span> <span class="s2">&quot;estimated&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># FIPS CODES (STATE IDENTIFIERS)</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="n">STATE_FIPS_CODES</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;AL&quot;</span><span class="p">:</span> <span class="s2">&quot;01&quot;</span><span class="p">,</span> <span class="s2">&quot;AK&quot;</span><span class="p">:</span> <span class="s2">&quot;02&quot;</span><span class="p">,</span> <span class="s2">&quot;AZ&quot;</span><span class="p">:</span> <span class="s2">&quot;04&quot;</span><span class="p">,</span> <span class="s2">&quot;AR&quot;</span><span class="p">:</span> <span class="s2">&quot;05&quot;</span><span class="p">,</span> <span class="s2">&quot;CA&quot;</span><span class="p">:</span> <span class="s2">&quot;06&quot;</span><span class="p">,</span> <span class="s2">&quot;CO&quot;</span><span class="p">:</span> <span class="s2">&quot;08&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CT&quot;</span><span class="p">:</span> <span class="s2">&quot;09&quot;</span><span class="p">,</span> <span class="s2">&quot;DE&quot;</span><span class="p">:</span> <span class="s2">&quot;10&quot;</span><span class="p">,</span> <span class="s2">&quot;FL&quot;</span><span class="p">:</span> <span class="s2">&quot;12&quot;</span><span class="p">,</span> <span class="s2">&quot;GA&quot;</span><span class="p">:</span> <span class="s2">&quot;13&quot;</span><span class="p">,</span> <span class="s2">&quot;HI&quot;</span><span class="p">:</span> <span class="s2">&quot;15&quot;</span><span class="p">,</span> <span class="s2">&quot;ID&quot;</span><span class="p">:</span> <span class="s2">&quot;16&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;IL&quot;</span><span class="p">:</span> <span class="s2">&quot;17&quot;</span><span class="p">,</span> <span class="s2">&quot;IN&quot;</span><span class="p">:</span> <span class="s2">&quot;18&quot;</span><span class="p">,</span> <span class="s2">&quot;IA&quot;</span><span class="p">:</span> <span class="s2">&quot;19&quot;</span><span class="p">,</span> <span class="s2">&quot;KS&quot;</span><span class="p">:</span> <span class="s2">&quot;20&quot;</span><span class="p">,</span> <span class="s2">&quot;KY&quot;</span><span class="p">:</span> <span class="s2">&quot;21&quot;</span><span class="p">,</span> <span class="s2">&quot;LA&quot;</span><span class="p">:</span> <span class="s2">&quot;22&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ME&quot;</span><span class="p">:</span> <span class="s2">&quot;23&quot;</span><span class="p">,</span> <span class="s2">&quot;MD&quot;</span><span class="p">:</span> <span class="s2">&quot;24&quot;</span><span class="p">,</span> <span class="s2">&quot;MA&quot;</span><span class="p">:</span> <span class="s2">&quot;25&quot;</span><span class="p">,</span> <span class="s2">&quot;MI&quot;</span><span class="p">:</span> <span class="s2">&quot;26&quot;</span><span class="p">,</span> <span class="s2">&quot;MN&quot;</span><span class="p">:</span> <span class="s2">&quot;27&quot;</span><span class="p">,</span> <span class="s2">&quot;MS&quot;</span><span class="p">:</span> <span class="s2">&quot;28&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;MO&quot;</span><span class="p">:</span> <span class="s2">&quot;29&quot;</span><span class="p">,</span> <span class="s2">&quot;MT&quot;</span><span class="p">:</span> <span class="s2">&quot;30&quot;</span><span class="p">,</span> <span class="s2">&quot;NE&quot;</span><span class="p">:</span> <span class="s2">&quot;31&quot;</span><span class="p">,</span> <span class="s2">&quot;NV&quot;</span><span class="p">:</span> <span class="s2">&quot;32&quot;</span><span class="p">,</span> <span class="s2">&quot;NH&quot;</span><span class="p">:</span> <span class="s2">&quot;33&quot;</span><span class="p">,</span> <span class="s2">&quot;NJ&quot;</span><span class="p">:</span> <span class="s2">&quot;34&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;NM&quot;</span><span class="p">:</span> <span class="s2">&quot;35&quot;</span><span class="p">,</span> <span class="s2">&quot;NY&quot;</span><span class="p">:</span> <span class="s2">&quot;36&quot;</span><span class="p">,</span> <span class="s2">&quot;NC&quot;</span><span class="p">:</span> <span class="s2">&quot;37&quot;</span><span class="p">,</span> <span class="s2">&quot;ND&quot;</span><span class="p">:</span> <span class="s2">&quot;38&quot;</span><span class="p">,</span> <span class="s2">&quot;OH&quot;</span><span class="p">:</span> <span class="s2">&quot;39&quot;</span><span class="p">,</span> <span class="s2">&quot;OK&quot;</span><span class="p">:</span> <span class="s2">&quot;40&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;OR&quot;</span><span class="p">:</span> <span class="s2">&quot;41&quot;</span><span class="p">,</span> <span class="s2">&quot;PA&quot;</span><span class="p">:</span> <span class="s2">&quot;42&quot;</span><span class="p">,</span> <span class="s2">&quot;RI&quot;</span><span class="p">:</span> <span class="s2">&quot;44&quot;</span><span class="p">,</span> <span class="s2">&quot;SC&quot;</span><span class="p">:</span> <span class="s2">&quot;45&quot;</span><span class="p">,</span> <span class="s2">&quot;SD&quot;</span><span class="p">:</span> <span class="s2">&quot;46&quot;</span><span class="p">,</span> <span class="s2">&quot;TN&quot;</span><span class="p">:</span> <span class="s2">&quot;47&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;TX&quot;</span><span class="p">:</span> <span class="s2">&quot;48&quot;</span><span class="p">,</span> <span class="s2">&quot;UT&quot;</span><span class="p">:</span> <span class="s2">&quot;49&quot;</span><span class="p">,</span> <span class="s2">&quot;VT&quot;</span><span class="p">:</span> <span class="s2">&quot;50&quot;</span><span class="p">,</span> <span class="s2">&quot;VA&quot;</span><span class="p">:</span> <span class="s2">&quot;51&quot;</span><span class="p">,</span> <span class="s2">&quot;WA&quot;</span><span class="p">:</span> <span class="s2">&quot;53&quot;</span><span class="p">,</span> <span class="s2">&quot;WV&quot;</span><span class="p">:</span> <span class="s2">&quot;54&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;WI&quot;</span><span class="p">:</span> <span class="s2">&quot;55&quot;</span><span class="p">,</span> <span class="s2">&quot;WY&quot;</span><span class="p">:</span> <span class="s2">&quot;56&quot;</span><span class="p">,</span> <span class="s2">&quot;DC&quot;</span><span class="p">:</span> <span class="s2">&quot;11&quot;</span><span class="p">,</span> <span class="s2">&quot;PR&quot;</span><span class="p">:</span> <span class="s2">&quot;72&quot;</span><span class="p">,</span> <span class="s2">&quot;VI&quot;</span><span class="p">:</span> <span class="s2">&quot;78&quot;</span><span class="p">,</span> <span class="s2">&quot;AS&quot;</span><span class="p">:</span> <span class="s2">&quot;60&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;GU&quot;</span><span class="p">:</span> <span class="s2">&quot;66&quot;</span><span class="p">,</span> <span class="s2">&quot;MP&quot;</span><span class="p">:</span> <span class="s2">&quot;69&quot;</span><span class="p">,</span> <span class="s2">&quot;UM&quot;</span><span class="p">:</span> <span class="s2">&quot;74&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="n">FIPS_TO_STATE</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">fips</span><span class="p">:</span> <span class="n">st</span> <span class="k">for</span> <span class="n">st</span><span class="p">,</span> <span class="n">fips</span> <span class="ow">in</span> <span class="n">STATE_FIPS_CODES</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+<span class="n">STATE_NAMES</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;AL&quot;</span><span class="p">:</span> <span class="s2">&quot;Alabama&quot;</span><span class="p">,</span> <span class="s2">&quot;AK&quot;</span><span class="p">:</span> <span class="s2">&quot;Alaska&quot;</span><span class="p">,</span> <span class="s2">&quot;AZ&quot;</span><span class="p">:</span> <span class="s2">&quot;Arizona&quot;</span><span class="p">,</span> <span class="s2">&quot;AR&quot;</span><span class="p">:</span> <span class="s2">&quot;Arkansas&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CA&quot;</span><span class="p">:</span> <span class="s2">&quot;California&quot;</span><span class="p">,</span> <span class="s2">&quot;CO&quot;</span><span class="p">:</span> <span class="s2">&quot;Colorado&quot;</span><span class="p">,</span> <span class="s2">&quot;CT&quot;</span><span class="p">:</span> <span class="s2">&quot;Connecticut&quot;</span><span class="p">,</span> <span class="s2">&quot;DE&quot;</span><span class="p">:</span> <span class="s2">&quot;Delaware&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;FL&quot;</span><span class="p">:</span> <span class="s2">&quot;Florida&quot;</span><span class="p">,</span> <span class="s2">&quot;GA&quot;</span><span class="p">:</span> <span class="s2">&quot;Georgia&quot;</span><span class="p">,</span> <span class="s2">&quot;HI&quot;</span><span class="p">:</span> <span class="s2">&quot;Hawaii&quot;</span><span class="p">,</span> <span class="s2">&quot;ID&quot;</span><span class="p">:</span> <span class="s2">&quot;Idaho&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;IL&quot;</span><span class="p">:</span> <span class="s2">&quot;Illinois&quot;</span><span class="p">,</span> <span class="s2">&quot;IN&quot;</span><span class="p">:</span> <span class="s2">&quot;Indiana&quot;</span><span class="p">,</span> <span class="s2">&quot;IA&quot;</span><span class="p">:</span> <span class="s2">&quot;Iowa&quot;</span><span class="p">,</span> <span class="s2">&quot;KS&quot;</span><span class="p">:</span> <span class="s2">&quot;Kansas&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;KY&quot;</span><span class="p">:</span> <span class="s2">&quot;Kentucky&quot;</span><span class="p">,</span> <span class="s2">&quot;LA&quot;</span><span class="p">:</span> <span class="s2">&quot;Louisiana&quot;</span><span class="p">,</span> <span class="s2">&quot;ME&quot;</span><span class="p">:</span> <span class="s2">&quot;Maine&quot;</span><span class="p">,</span> <span class="s2">&quot;MD&quot;</span><span class="p">:</span> <span class="s2">&quot;Maryland&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;MA&quot;</span><span class="p">:</span> <span class="s2">&quot;Massachusetts&quot;</span><span class="p">,</span> <span class="s2">&quot;MI&quot;</span><span class="p">:</span> <span class="s2">&quot;Michigan&quot;</span><span class="p">,</span> <span class="s2">&quot;MN&quot;</span><span class="p">:</span> <span class="s2">&quot;Minnesota&quot;</span><span class="p">,</span> <span class="s2">&quot;MS&quot;</span><span class="p">:</span> <span class="s2">&quot;Mississippi&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;MO&quot;</span><span class="p">:</span> <span class="s2">&quot;Missouri&quot;</span><span class="p">,</span> <span class="s2">&quot;MT&quot;</span><span class="p">:</span> <span class="s2">&quot;Montana&quot;</span><span class="p">,</span> <span class="s2">&quot;NE&quot;</span><span class="p">:</span> <span class="s2">&quot;Nebraska&quot;</span><span class="p">,</span> <span class="s2">&quot;NV&quot;</span><span class="p">:</span> <span class="s2">&quot;Nevada&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;NH&quot;</span><span class="p">:</span> <span class="s2">&quot;New Hampshire&quot;</span><span class="p">,</span> <span class="s2">&quot;NJ&quot;</span><span class="p">:</span> <span class="s2">&quot;New Jersey&quot;</span><span class="p">,</span> <span class="s2">&quot;NM&quot;</span><span class="p">:</span> <span class="s2">&quot;New Mexico&quot;</span><span class="p">,</span> <span class="s2">&quot;NY&quot;</span><span class="p">:</span> <span class="s2">&quot;New York&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;NC&quot;</span><span class="p">:</span> <span class="s2">&quot;North Carolina&quot;</span><span class="p">,</span> <span class="s2">&quot;ND&quot;</span><span class="p">:</span> <span class="s2">&quot;North Dakota&quot;</span><span class="p">,</span> <span class="s2">&quot;OH&quot;</span><span class="p">:</span> <span class="s2">&quot;Ohio&quot;</span><span class="p">,</span> <span class="s2">&quot;OK&quot;</span><span class="p">:</span> <span class="s2">&quot;Oklahoma&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;OR&quot;</span><span class="p">:</span> <span class="s2">&quot;Oregon&quot;</span><span class="p">,</span> <span class="s2">&quot;PA&quot;</span><span class="p">:</span> <span class="s2">&quot;Pennsylvania&quot;</span><span class="p">,</span> <span class="s2">&quot;RI&quot;</span><span class="p">:</span> <span class="s2">&quot;Rhode Island&quot;</span><span class="p">,</span> <span class="s2">&quot;SC&quot;</span><span class="p">:</span> <span class="s2">&quot;South Carolina&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;SD&quot;</span><span class="p">:</span> <span class="s2">&quot;South Dakota&quot;</span><span class="p">,</span> <span class="s2">&quot;TN&quot;</span><span class="p">:</span> <span class="s2">&quot;Tennessee&quot;</span><span class="p">,</span> <span class="s2">&quot;TX&quot;</span><span class="p">:</span> <span class="s2">&quot;Texas&quot;</span><span class="p">,</span> <span class="s2">&quot;UT&quot;</span><span class="p">:</span> <span class="s2">&quot;Utah&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;VT&quot;</span><span class="p">:</span> <span class="s2">&quot;Vermont&quot;</span><span class="p">,</span> <span class="s2">&quot;VA&quot;</span><span class="p">:</span> <span class="s2">&quot;Virginia&quot;</span><span class="p">,</span> <span class="s2">&quot;WA&quot;</span><span class="p">:</span> <span class="s2">&quot;Washington&quot;</span><span class="p">,</span> <span class="s2">&quot;WV&quot;</span><span class="p">:</span> <span class="s2">&quot;West Virginia&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;WI&quot;</span><span class="p">:</span> <span class="s2">&quot;Wisconsin&quot;</span><span class="p">,</span> <span class="s2">&quot;WY&quot;</span><span class="p">:</span> <span class="s2">&quot;Wyoming&quot;</span><span class="p">,</span> <span class="s2">&quot;DC&quot;</span><span class="p">:</span> <span class="s2">&quot;District of Columbia&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;PR&quot;</span><span class="p">:</span> <span class="s2">&quot;Puerto Rico&quot;</span><span class="p">,</span> <span class="s2">&quot;VI&quot;</span><span class="p">:</span> <span class="s2">&quot;Virgin Islands&quot;</span><span class="p">,</span> <span class="s2">&quot;AS&quot;</span><span class="p">:</span> <span class="s2">&quot;American Samoa&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;GU&quot;</span><span class="p">:</span> <span class="s2">&quot;Guam&quot;</span><span class="p">,</span> <span class="s2">&quot;MP&quot;</span><span class="p">:</span> <span class="s2">&quot;Northern Mariana Islands&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;UM&quot;</span><span class="p">:</span> <span class="s2">&quot;United States Minor Outlying Islands&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># CENSUS URLS</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="n">CENSUS_BASE_URL</span> <span class="o">=</span> <span class="s2">&quot;https://www2.census.gov/geo/tiger&quot;</span>
+<span class="n">CENSUS_API_BASE_URL</span> <span class="o">=</span> <span class="s2">&quot;https://api.census.gov/data&quot;</span>
+<span class="n">CENSUS_FTP_BASE_URL</span> <span class="o">=</span> <span class="s2">&quot;https://www2.census.gov&quot;</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># YEARS AND AVAILABILITY</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="n">AVAILABLE_CENSUS_YEARS</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">2010</span><span class="p">,</span> <span class="n">_CURRENT_YEAR</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+<span class="n">DEFAULT_CENSUS_YEAR</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">_CURRENT_YEAR</span>
+<span class="n">DECENNIAL_YEARS</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">y</span> <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">2000</span><span class="p">,</span> <span class="mi">2010</span><span class="p">,</span> <span class="mi">2020</span><span class="p">,</span> <span class="mi">2030</span><span class="p">]</span> <span class="k">if</span> <span class="n">y</span> <span class="o">&lt;=</span> <span class="n">_CURRENT_YEAR</span><span class="p">]</span>
+<span class="n">ACS_AVAILABLE_YEARS</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">2009</span><span class="p">,</span> <span class="n">_CURRENT_YEAR</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+<span class="n">ACS5_AVAILABLE_YEARS</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">ACS_AVAILABLE_YEARS</span>  <span class="c1"># alias</span>
+<span class="n">BOUNDARY_CHANGE_YEARS</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2010</span><span class="p">,</span> <span class="mi">2020</span><span class="p">]</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># TIGER FILE PATTERNS</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="n">TIGER_FILE_PATTERNS</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="c1"># National-scope</span>
+    <span class="s2">&quot;nation&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_us_nation.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;state&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_us_state.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;county&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_us_county.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;cbsa&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_us_cbsa.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;zcta&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_us_zcta520.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;cd&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_us_cd</span><span class="si">{congress_number}</span><span class="s2">.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;uac&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_us_uac20.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;uac20&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_us_uac20.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;rails&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_us_rails.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;aiannh&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_us_aiannh.zip&quot;</span><span class="p">,</span>
+    <span class="c1"># State-scope</span>
+    <span class="s2">&quot;cousub&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_cousub.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;tract&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_tract.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;block_group&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_bg.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;block&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_tabblock20.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;tabblock20&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_tabblock20.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;tabblock10&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_tabblock10.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;place&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_place.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sldu&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_sldu.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sldl&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_sldl.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;vtd&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_vtd.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;vtd20&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_vtd20.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;puma&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_puma20.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;roads&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_roads.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;linear_water&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_linearwater.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;area_water&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_areawater.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;edges&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_edges.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;address_features&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_addrfeat.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;pointlm&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_pointlm.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;arealm&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_arealm.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;elsd&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_elsd.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;scsd&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_scsd.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;unsd&quot;</span><span class="p">:</span> <span class="s2">&quot;tl_</span><span class="si">{year}</span><span class="s2">_</span><span class="si">{state_fips}</span><span class="s2">_unsd.zip&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># OPERATION SETTINGS</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="n">CENSUS_CACHE_TIMEOUT</span> <span class="o">=</span> <span class="mi">86400</span>
+<span class="n">CENSUS_MAX_CACHE_SIZE</span> <span class="o">=</span> <span class="mi">1000</span>
+<span class="n">CENSUS_TIMEOUT</span> <span class="o">=</span> <span class="mi">45</span>
+<span class="n">CENSUS_RETRY_ATTEMPTS</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="n">CENSUS_API_CACHE_TIMEOUT</span> <span class="o">=</span> <span class="mi">86400</span>
+<span class="n">CENSUS_API_DEFAULT_TIMEOUT</span> <span class="o">=</span> <span class="mi">30</span>
+<span class="n">CENSUS_API_RATE_LIMIT_RETRY_DELAY</span> <span class="o">=</span> <span class="mi">60</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># VARIABLE GROUPS</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="n">VARIABLE_GROUPS</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="c1"># ACS variable groups</span>
+    <span class="s2">&quot;total_population&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;B01001_001E&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;demographics_basic&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="s2">&quot;B01001_001E&quot;</span><span class="p">,</span> <span class="s2">&quot;B01001_002E&quot;</span><span class="p">,</span> <span class="s2">&quot;B01001_026E&quot;</span><span class="p">,</span> <span class="s2">&quot;B01002_001E&quot;</span><span class="p">,</span>
+    <span class="p">],</span>
+    <span class="s2">&quot;race_ethnicity&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="s2">&quot;B02001_001E&quot;</span><span class="p">,</span> <span class="s2">&quot;B02001_002E&quot;</span><span class="p">,</span> <span class="s2">&quot;B02001_003E&quot;</span><span class="p">,</span> <span class="s2">&quot;B02001_004E&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;B02001_005E&quot;</span><span class="p">,</span> <span class="s2">&quot;B02001_006E&quot;</span><span class="p">,</span> <span class="s2">&quot;B02001_007E&quot;</span><span class="p">,</span> <span class="s2">&quot;B02001_008E&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;B03001_003E&quot;</span><span class="p">,</span>
+    <span class="p">],</span>
+    <span class="s2">&quot;income&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;B19013_001E&quot;</span><span class="p">,</span> <span class="s2">&quot;B19301_001E&quot;</span><span class="p">,</span> <span class="s2">&quot;B19025_001E&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;education&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="s2">&quot;B15003_001E&quot;</span><span class="p">,</span> <span class="s2">&quot;B15003_017E&quot;</span><span class="p">,</span> <span class="s2">&quot;B15003_018E&quot;</span><span class="p">,</span> <span class="s2">&quot;B15003_021E&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;B15003_022E&quot;</span><span class="p">,</span> <span class="s2">&quot;B15003_023E&quot;</span><span class="p">,</span> <span class="s2">&quot;B15003_024E&quot;</span><span class="p">,</span> <span class="s2">&quot;B15003_025E&quot;</span><span class="p">,</span>
+    <span class="p">],</span>
+    <span class="s2">&quot;poverty&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;B17001_001E&quot;</span><span class="p">,</span> <span class="s2">&quot;B17001_002E&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;housing&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="s2">&quot;B25001_001E&quot;</span><span class="p">,</span> <span class="s2">&quot;B25002_002E&quot;</span><span class="p">,</span> <span class="s2">&quot;B25002_003E&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;B25003_002E&quot;</span><span class="p">,</span> <span class="s2">&quot;B25003_003E&quot;</span><span class="p">,</span> <span class="s2">&quot;B25077_001E&quot;</span><span class="p">,</span> <span class="s2">&quot;B25064_001E&quot;</span><span class="p">,</span>
+    <span class="p">],</span>
+    <span class="s2">&quot;decennial_population&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="s2">&quot;P1_001N&quot;</span><span class="p">,</span> <span class="s2">&quot;P1_003N&quot;</span><span class="p">,</span> <span class="s2">&quot;P1_004N&quot;</span><span class="p">,</span> <span class="s2">&quot;P1_005N&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;P1_006N&quot;</span><span class="p">,</span> <span class="s2">&quot;P1_007N&quot;</span><span class="p">,</span> <span class="s2">&quot;P1_008N&quot;</span><span class="p">,</span>
+    <span class="p">],</span>
+    <span class="c1"># PL 94-171 groups</span>
+    <span class="s2">&quot;pl_p1_race&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="s2">&quot;P1_001N&quot;</span><span class="p">,</span> <span class="s2">&quot;P1_002N&quot;</span><span class="p">,</span> <span class="s2">&quot;P1_003N&quot;</span><span class="p">,</span> <span class="s2">&quot;P1_004N&quot;</span><span class="p">,</span> <span class="s2">&quot;P1_005N&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;P1_006N&quot;</span><span class="p">,</span> <span class="s2">&quot;P1_007N&quot;</span><span class="p">,</span> <span class="s2">&quot;P1_008N&quot;</span><span class="p">,</span> <span class="s2">&quot;P1_009N&quot;</span><span class="p">,</span> <span class="s2">&quot;P1_010N&quot;</span><span class="p">,</span> <span class="s2">&quot;P1_011N&quot;</span><span class="p">,</span>
+    <span class="p">],</span>
+    <span class="s2">&quot;pl_p2_hispanic&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="s2">&quot;P2_001N&quot;</span><span class="p">,</span> <span class="s2">&quot;P2_002N&quot;</span><span class="p">,</span> <span class="s2">&quot;P2_003N&quot;</span><span class="p">,</span> <span class="s2">&quot;P2_004N&quot;</span><span class="p">,</span> <span class="s2">&quot;P2_005N&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;P2_006N&quot;</span><span class="p">,</span> <span class="s2">&quot;P2_007N&quot;</span><span class="p">,</span> <span class="s2">&quot;P2_008N&quot;</span><span class="p">,</span> <span class="s2">&quot;P2_009N&quot;</span><span class="p">,</span> <span class="s2">&quot;P2_010N&quot;</span><span class="p">,</span> <span class="s2">&quot;P2_011N&quot;</span><span class="p">,</span>
+    <span class="p">],</span>
+    <span class="s2">&quot;pl_p3_race_18plus&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="s2">&quot;P3_001N&quot;</span><span class="p">,</span> <span class="s2">&quot;P3_002N&quot;</span><span class="p">,</span> <span class="s2">&quot;P3_003N&quot;</span><span class="p">,</span> <span class="s2">&quot;P3_004N&quot;</span><span class="p">,</span> <span class="s2">&quot;P3_005N&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;P3_006N&quot;</span><span class="p">,</span> <span class="s2">&quot;P3_007N&quot;</span><span class="p">,</span> <span class="s2">&quot;P3_008N&quot;</span><span class="p">,</span> <span class="s2">&quot;P3_009N&quot;</span><span class="p">,</span>
+    <span class="p">],</span>
+    <span class="s2">&quot;pl_p4_hispanic_18plus&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="s2">&quot;P4_001N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_002N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_003N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_004N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_005N&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;P4_006N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_007N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_008N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_009N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_010N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_011N&quot;</span><span class="p">,</span>
+    <span class="p">],</span>
+    <span class="s2">&quot;pl_p5_group_quarters&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="s2">&quot;P5_001N&quot;</span><span class="p">,</span> <span class="s2">&quot;P5_002N&quot;</span><span class="p">,</span> <span class="s2">&quot;P5_003N&quot;</span><span class="p">,</span> <span class="s2">&quot;P5_004N&quot;</span><span class="p">,</span> <span class="s2">&quot;P5_005N&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;P5_006N&quot;</span><span class="p">,</span> <span class="s2">&quot;P5_007N&quot;</span><span class="p">,</span> <span class="s2">&quot;P5_008N&quot;</span><span class="p">,</span> <span class="s2">&quot;P5_009N&quot;</span><span class="p">,</span> <span class="s2">&quot;P5_010N&quot;</span><span class="p">,</span>
+    <span class="p">],</span>
+    <span class="s2">&quot;pl_h1_housing&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;H1_001N&quot;</span><span class="p">,</span> <span class="s2">&quot;H1_002N&quot;</span><span class="p">,</span> <span class="s2">&quot;H1_003N&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;pl_redistricting_core&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="s2">&quot;P1_001N&quot;</span><span class="p">,</span> <span class="s2">&quot;P2_002N&quot;</span><span class="p">,</span> <span class="s2">&quot;P2_003N&quot;</span><span class="p">,</span> <span class="s2">&quot;P2_005N&quot;</span><span class="p">,</span> <span class="s2">&quot;P2_006N&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;P2_007N&quot;</span><span class="p">,</span> <span class="s2">&quot;P2_008N&quot;</span><span class="p">,</span> <span class="s2">&quot;P2_009N&quot;</span><span class="p">,</span> <span class="s2">&quot;P2_010N&quot;</span><span class="p">,</span> <span class="s2">&quot;P2_011N&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;P3_001N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_002N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_003N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_005N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_006N&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;H1_001N&quot;</span><span class="p">,</span> <span class="s2">&quot;H1_002N&quot;</span><span class="p">,</span> <span class="s2">&quot;H1_003N&quot;</span><span class="p">,</span>
+    <span class="p">],</span>
+    <span class="s2">&quot;pl_voting_age&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="s2">&quot;P3_001N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_002N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_003N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_005N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_006N&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;P4_007N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_008N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_009N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_010N&quot;</span><span class="p">,</span> <span class="s2">&quot;P4_011N&quot;</span><span class="p">,</span>
+    <span class="p">],</span>
+<span class="p">}</span>
+
+
+<span class="n">VARIABLE_DESCRIPTIONS</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="c1"># ACS</span>
+    <span class="s2">&quot;B01001_001E&quot;</span><span class="p">:</span> <span class="s2">&quot;Total Population&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B01001_002E&quot;</span><span class="p">:</span> <span class="s2">&quot;Male Population&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B01001_026E&quot;</span><span class="p">:</span> <span class="s2">&quot;Female Population&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B01002_001E&quot;</span><span class="p">:</span> <span class="s2">&quot;Median Age&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B02001_001E&quot;</span><span class="p">:</span> <span class="s2">&quot;Total (Race)&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B02001_002E&quot;</span><span class="p">:</span> <span class="s2">&quot;White Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B02001_003E&quot;</span><span class="p">:</span> <span class="s2">&quot;Black or African American Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B02001_004E&quot;</span><span class="p">:</span> <span class="s2">&quot;American Indian and Alaska Native Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B02001_005E&quot;</span><span class="p">:</span> <span class="s2">&quot;Asian Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B02001_006E&quot;</span><span class="p">:</span> <span class="s2">&quot;Native Hawaiian and Pacific Islander Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B02001_007E&quot;</span><span class="p">:</span> <span class="s2">&quot;Some Other Race Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B02001_008E&quot;</span><span class="p">:</span> <span class="s2">&quot;Two or More Races&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B03001_003E&quot;</span><span class="p">:</span> <span class="s2">&quot;Hispanic or Latino&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B19013_001E&quot;</span><span class="p">:</span> <span class="s2">&quot;Median Household Income&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B19301_001E&quot;</span><span class="p">:</span> <span class="s2">&quot;Per Capita Income&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B19025_001E&quot;</span><span class="p">:</span> <span class="s2">&quot;Aggregate Household Income&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B15003_001E&quot;</span><span class="p">:</span> <span class="s2">&quot;Population 25 Years and Over&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B15003_017E&quot;</span><span class="p">:</span> <span class="s2">&quot;High School Graduate&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B15003_018E&quot;</span><span class="p">:</span> <span class="s2">&quot;GED or Alternative Credential&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B15003_021E&quot;</span><span class="p">:</span> <span class="s2">&quot;Associate&#39;s Degree&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B15003_022E&quot;</span><span class="p">:</span> <span class="s2">&quot;Bachelor&#39;s Degree&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B15003_023E&quot;</span><span class="p">:</span> <span class="s2">&quot;Master&#39;s Degree&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B15003_024E&quot;</span><span class="p">:</span> <span class="s2">&quot;Professional School Degree&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B15003_025E&quot;</span><span class="p">:</span> <span class="s2">&quot;Doctorate Degree&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B17001_001E&quot;</span><span class="p">:</span> <span class="s2">&quot;Population for Poverty Determination&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B17001_002E&quot;</span><span class="p">:</span> <span class="s2">&quot;Below Poverty Level&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B25001_001E&quot;</span><span class="p">:</span> <span class="s2">&quot;Total Housing Units&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B25002_002E&quot;</span><span class="p">:</span> <span class="s2">&quot;Occupied Housing Units&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B25002_003E&quot;</span><span class="p">:</span> <span class="s2">&quot;Vacant Housing Units&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B25003_002E&quot;</span><span class="p">:</span> <span class="s2">&quot;Owner Occupied&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B25003_003E&quot;</span><span class="p">:</span> <span class="s2">&quot;Renter Occupied&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B25077_001E&quot;</span><span class="p">:</span> <span class="s2">&quot;Median Home Value&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;B25064_001E&quot;</span><span class="p">:</span> <span class="s2">&quot;Median Gross Rent&quot;</span><span class="p">,</span>
+    <span class="c1"># PL 94-171 P1</span>
+    <span class="s2">&quot;P1_001N&quot;</span><span class="p">:</span> <span class="s2">&quot;Total Population&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P1_002N&quot;</span><span class="p">:</span> <span class="s2">&quot;Population of One Race&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P1_003N&quot;</span><span class="p">:</span> <span class="s2">&quot;White Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P1_004N&quot;</span><span class="p">:</span> <span class="s2">&quot;Black or African American Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P1_005N&quot;</span><span class="p">:</span> <span class="s2">&quot;American Indian and Alaska Native Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P1_006N&quot;</span><span class="p">:</span> <span class="s2">&quot;Asian Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P1_007N&quot;</span><span class="p">:</span> <span class="s2">&quot;Native Hawaiian and Other Pacific Islander Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P1_008N&quot;</span><span class="p">:</span> <span class="s2">&quot;Some Other Race Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P1_009N&quot;</span><span class="p">:</span> <span class="s2">&quot;Population of Two or More Races&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P1_010N&quot;</span><span class="p">:</span> <span class="s2">&quot;Two Races Including Some Other Race&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P1_011N&quot;</span><span class="p">:</span> <span class="s2">&quot;Two Races Excluding Some Other Race, Three+ Races&quot;</span><span class="p">,</span>
+    <span class="c1"># PL 94-171 P2</span>
+    <span class="s2">&quot;P2_001N&quot;</span><span class="p">:</span> <span class="s2">&quot;Total Population (Hispanic Origin)&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P2_002N&quot;</span><span class="p">:</span> <span class="s2">&quot;Hispanic or Latino&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P2_003N&quot;</span><span class="p">:</span> <span class="s2">&quot;Not Hispanic or Latino&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P2_004N&quot;</span><span class="p">:</span> <span class="s2">&quot;Not Hispanic: One Race&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P2_005N&quot;</span><span class="p">:</span> <span class="s2">&quot;Not Hispanic: White Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P2_006N&quot;</span><span class="p">:</span> <span class="s2">&quot;Not Hispanic: Black or African American Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P2_007N&quot;</span><span class="p">:</span> <span class="s2">&quot;Not Hispanic: American Indian and Alaska Native Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P2_008N&quot;</span><span class="p">:</span> <span class="s2">&quot;Not Hispanic: Asian Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P2_009N&quot;</span><span class="p">:</span> <span class="s2">&quot;Not Hispanic: Native Hawaiian and Other Pacific Islander Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P2_010N&quot;</span><span class="p">:</span> <span class="s2">&quot;Not Hispanic: Some Other Race Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P2_011N&quot;</span><span class="p">:</span> <span class="s2">&quot;Not Hispanic: Two or More Races&quot;</span><span class="p">,</span>
+    <span class="c1"># PL 94-171 P3</span>
+    <span class="s2">&quot;P3_001N&quot;</span><span class="p">:</span> <span class="s2">&quot;Total Population 18 Years and Over&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P3_002N&quot;</span><span class="p">:</span> <span class="s2">&quot;18+: Population of One Race&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P3_003N&quot;</span><span class="p">:</span> <span class="s2">&quot;18+: White Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P3_004N&quot;</span><span class="p">:</span> <span class="s2">&quot;18+: Black or African American Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P3_005N&quot;</span><span class="p">:</span> <span class="s2">&quot;18+: American Indian and Alaska Native Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P3_006N&quot;</span><span class="p">:</span> <span class="s2">&quot;18+: Asian Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P3_007N&quot;</span><span class="p">:</span> <span class="s2">&quot;18+: Native Hawaiian and Other Pacific Islander Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P3_008N&quot;</span><span class="p">:</span> <span class="s2">&quot;18+: Some Other Race Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P3_009N&quot;</span><span class="p">:</span> <span class="s2">&quot;18+: Population of Two or More Races&quot;</span><span class="p">,</span>
+    <span class="c1"># PL 94-171 P4</span>
+    <span class="s2">&quot;P4_001N&quot;</span><span class="p">:</span> <span class="s2">&quot;Total Population 18+ (Hispanic Origin)&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P4_002N&quot;</span><span class="p">:</span> <span class="s2">&quot;18+: Hispanic or Latino&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P4_003N&quot;</span><span class="p">:</span> <span class="s2">&quot;18+: Not Hispanic or Latino&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P4_004N&quot;</span><span class="p">:</span> <span class="s2">&quot;18+: Not Hispanic: One Race&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P4_005N&quot;</span><span class="p">:</span> <span class="s2">&quot;18+: Not Hispanic: White Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P4_006N&quot;</span><span class="p">:</span> <span class="s2">&quot;18+: Not Hispanic: Black or African American Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P4_007N&quot;</span><span class="p">:</span> <span class="s2">&quot;18+: Not Hispanic: American Indian and Alaska Native Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P4_008N&quot;</span><span class="p">:</span> <span class="s2">&quot;18+: Not Hispanic: Asian Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P4_009N&quot;</span><span class="p">:</span> <span class="s2">&quot;18+: Not Hispanic: Native Hawaiian and Other Pacific Islander Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P4_010N&quot;</span><span class="p">:</span> <span class="s2">&quot;18+: Not Hispanic: Some Other Race Alone&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P4_011N&quot;</span><span class="p">:</span> <span class="s2">&quot;18+: Not Hispanic: Two or More Races&quot;</span><span class="p">,</span>
+    <span class="c1"># PL 94-171 P5</span>
+    <span class="s2">&quot;P5_001N&quot;</span><span class="p">:</span> <span class="s2">&quot;Total Group Quarters Population&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P5_002N&quot;</span><span class="p">:</span> <span class="s2">&quot;Institutionalized Population&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P5_003N&quot;</span><span class="p">:</span> <span class="s2">&quot;Correctional Facilities for Adults&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P5_004N&quot;</span><span class="p">:</span> <span class="s2">&quot;Juvenile Facilities&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P5_005N&quot;</span><span class="p">:</span> <span class="s2">&quot;Nursing Facilities/Skilled-Nursing Facilities&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P5_006N&quot;</span><span class="p">:</span> <span class="s2">&quot;Other Institutional Facilities&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P5_007N&quot;</span><span class="p">:</span> <span class="s2">&quot;Noninstitutionalized Population&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P5_008N&quot;</span><span class="p">:</span> <span class="s2">&quot;College/University Student Housing&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P5_009N&quot;</span><span class="p">:</span> <span class="s2">&quot;Military Quarters&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;P5_010N&quot;</span><span class="p">:</span> <span class="s2">&quot;Other Noninstitutional Facilities&quot;</span><span class="p">,</span>
+    <span class="c1"># PL 94-171 H1</span>
+    <span class="s2">&quot;H1_001N&quot;</span><span class="p">:</span> <span class="s2">&quot;Total Housing Units&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;H1_002N&quot;</span><span class="p">:</span> <span class="s2">&quot;Occupied Housing Units&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;H1_003N&quot;</span><span class="p">:</span> <span class="s2">&quot;Vacant Housing Units&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># HELPER FUNCTIONS</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">normalize_state_identifier</span><span class="p">(</span><span class="n">state_input</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Normalize state identifier to FIPS code.&quot;&quot;&quot;</span>
+    <span class="n">state_input</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">state_input</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">state_input</span> <span class="ow">in</span> <span class="n">FIPS_TO_STATE</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">state_input</span>
+    <span class="k">if</span> <span class="n">state_input</span> <span class="ow">in</span> <span class="n">STATE_FIPS_CODES</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">STATE_FIPS_CODES</span><span class="p">[</span><span class="n">state_input</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">abbrev</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">STATE_NAMES</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">state_input</span> <span class="o">==</span> <span class="n">name</span><span class="o">.</span><span class="n">upper</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">STATE_FIPS_CODES</span><span class="p">[</span><span class="n">abbrev</span><span class="p">]</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized state identifier: </span><span class="si">{</span><span class="n">state_input</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_tiger_url</span><span class="p">(</span><span class="n">year</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">state_fips</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">geographic_level</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate TIGER/Line download URL.&quot;&quot;&quot;</span>
+    <span class="n">geographic_level</span> <span class="o">=</span> <span class="n">resolve_geographic_level</span><span class="p">(</span><span class="n">geographic_level</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">geographic_level</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">TIGER_FILE_PATTERNS</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported geographic level: </span><span class="si">{</span><span class="n">geographic_level</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">year</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">AVAILABLE_CENSUS_YEARS</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Census year </span><span class="si">{</span><span class="n">year</span><span class="si">}</span><span class="s2"> not available&quot;</span><span class="p">)</span>
+    <span class="n">filename</span> <span class="o">=</span> <span class="n">TIGER_FILE_PATTERNS</span><span class="p">[</span><span class="n">geographic_level</span><span class="p">]</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="n">year</span><span class="o">=</span><span class="n">year</span><span class="p">,</span> <span class="n">state_fips</span><span class="o">=</span><span class="n">state_fips</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">CENSUS_BASE_URL</span><span class="si">}</span><span class="s2">/TIGER</span><span class="si">{</span><span class="n">year</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">geographic_level</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">validate_geographic_level</span><span class="p">(</span><span class="n">level</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Validate if geographic level is supported. Accepts any alias.&quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">resolve_geographic_level</span><span class="p">(</span><span class="n">level</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_fips_info</span><span class="p">(</span><span class="n">state_identifier</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get comprehensive FIPS information for a state.&quot;&quot;&quot;</span>
+    <span class="n">fips_code</span> <span class="o">=</span> <span class="n">normalize_state_identifier</span><span class="p">(</span><span class="n">state_identifier</span><span class="p">)</span>
+    <span class="n">state_abbrev</span> <span class="o">=</span> <span class="n">FIPS_TO_STATE</span><span class="p">[</span><span class="n">fips_code</span><span class="p">]</span>
+    <span class="n">state_name</span> <span class="o">=</span> <span class="n">STATE_NAMES</span><span class="p">[</span><span class="n">state_abbrev</span><span class="p">]</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;fips&quot;</span><span class="p">:</span> <span class="n">fips_code</span><span class="p">,</span> <span class="s2">&quot;abbreviation&quot;</span><span class="p">:</span> <span class="n">state_abbrev</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">state_name</span><span class="p">}</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025-2026, Dheeraj Chand.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

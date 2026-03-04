@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.geo.census_dataset_mapper &mdash; Siege Utilities 3.7.0 documentation</title>
+  <title>siege_utilities.geo.census_dataset_mapper &mdash; Siege Utilities 3.8.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=3888ae04"></script>
+      <script src="../../../_static/documentation_options.js?v=d2ebfa92"></script>
       <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -458,74 +458,12 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.core.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_logger</span><span class="p">,</span> <span class="n">log_info</span><span class="p">,</span> <span class="n">log_warning</span><span class="p">,</span> <span class="n">log_error</span><span class="p">,</span> <span class="n">log_debug</span>
 
-<div class="viewcode-block" id="SurveyType">
-<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.SurveyType">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">SurveyType</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Enumeration of Census survey types.&quot;&quot;&quot;</span>
-    <span class="n">DECENNIAL</span> <span class="o">=</span> <span class="s2">&quot;decennial&quot;</span>           <span class="c1"># Every 10 years (2020, 2010, etc.)</span>
-    <span class="n">ACS_1YR</span> <span class="o">=</span> <span class="s2">&quot;acs_1yr&quot;</span>              <span class="c1"># American Community Survey 1-year estimates</span>
-    <span class="n">ACS_3YR</span> <span class="o">=</span> <span class="s2">&quot;acs_3yr&quot;</span>              <span class="c1"># American Community Survey 3-year estimates</span>
-    <span class="n">ACS_5YR</span> <span class="o">=</span> <span class="s2">&quot;acs_5yr&quot;</span>              <span class="c1"># American Community Survey 5-year estimates</span>
-    <span class="n">CENSUS_BUSINESS</span> <span class="o">=</span> <span class="s2">&quot;census_business&quot;</span>  <span class="c1"># Economic Census</span>
-    <span class="n">POPULATION_ESTIMATES</span> <span class="o">=</span> <span class="s2">&quot;population_estimates&quot;</span>  <span class="c1"># Annual population estimates</span>
-    <span class="n">HOUSING_ESTIMATES</span> <span class="o">=</span> <span class="s2">&quot;housing_estimates&quot;</span>  <span class="c1"># Annual housing estimates</span></div>
-
-
-<div class="viewcode-block" id="GeographyLevel">
-<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.GeographyLevel">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">GeographyLevel</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Enumeration of Census geography levels (canonical names).&quot;&quot;&quot;</span>
-    <span class="n">NATION</span> <span class="o">=</span> <span class="s2">&quot;nation&quot;</span>
-    <span class="n">REGION</span> <span class="o">=</span> <span class="s2">&quot;region&quot;</span>
-    <span class="n">DIVISION</span> <span class="o">=</span> <span class="s2">&quot;division&quot;</span>
-    <span class="n">STATE</span> <span class="o">=</span> <span class="s2">&quot;state&quot;</span>
-    <span class="n">COUNTY</span> <span class="o">=</span> <span class="s2">&quot;county&quot;</span>
-    <span class="n">COUSUB</span> <span class="o">=</span> <span class="s2">&quot;cousub&quot;</span>
-    <span class="n">PLACE</span> <span class="o">=</span> <span class="s2">&quot;place&quot;</span>
-    <span class="n">CD</span> <span class="o">=</span> <span class="s2">&quot;cd&quot;</span>
-    <span class="n">SLDU</span> <span class="o">=</span> <span class="s2">&quot;sldu&quot;</span>
-    <span class="n">SLDL</span> <span class="o">=</span> <span class="s2">&quot;sldl&quot;</span>
-    <span class="n">TRACT</span> <span class="o">=</span> <span class="s2">&quot;tract&quot;</span>
-    <span class="n">BLOCK_GROUP</span> <span class="o">=</span> <span class="s2">&quot;block_group&quot;</span>
-    <span class="n">BLOCK</span> <span class="o">=</span> <span class="s2">&quot;block&quot;</span>
-    <span class="n">ZCTA</span> <span class="o">=</span> <span class="s2">&quot;zcta&quot;</span>
-    <span class="n">CBSA</span> <span class="o">=</span> <span class="s2">&quot;cbsa&quot;</span>
-    <span class="n">PUMA</span> <span class="o">=</span> <span class="s2">&quot;puma&quot;</span>
-    <span class="n">VTD</span> <span class="o">=</span> <span class="s2">&quot;vtd&quot;</span>
-    <span class="n">VTD20</span> <span class="o">=</span> <span class="s2">&quot;vtd20&quot;</span>
-    <span class="n">TABBLOCK20</span> <span class="o">=</span> <span class="s2">&quot;tabblock20&quot;</span>
-    <span class="n">TABBLOCK10</span> <span class="o">=</span> <span class="s2">&quot;tabblock10&quot;</span>
-
-    <span class="c1"># Backward-compatible aliases (same value → Python Enum alias)</span>
-    <span class="n">COUNTY_SUBDIVISION</span> <span class="o">=</span> <span class="s2">&quot;cousub&quot;</span>
-    <span class="n">CONGRESSIONAL_DISTRICT</span> <span class="o">=</span> <span class="s2">&quot;cd&quot;</span>
-    <span class="n">STATE_LEGISLATIVE_DISTRICT</span> <span class="o">=</span> <span class="s2">&quot;sldu&quot;</span>  <span class="c1"># defaults to upper chamber</span>
-    <span class="n">ZIP_CODE</span> <span class="o">=</span> <span class="s2">&quot;zcta&quot;</span>
-    <span class="n">VOTING_DISTRICT</span> <span class="o">=</span> <span class="s2">&quot;vtd&quot;</span>
-
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">_missing_</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resolve aliases like &#39;congressional_district&#39; → CD.&quot;&quot;&quot;</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.config.census_constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">resolve_geographic_level</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">canonical</span> <span class="o">=</span> <span class="n">resolve_geographic_level</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="bp">cls</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">member</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="n">canonical</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="n">member</span>
-        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-            <span class="k">pass</span>
-        <span class="k">return</span> <span class="kc">None</span></div>
-
-
-<div class="viewcode-block" id="DataReliability">
-<a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.DataReliability">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">DataReliability</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Enumeration of data reliability levels.&quot;&quot;&quot;</span>
-    <span class="n">HIGH</span> <span class="o">=</span> <span class="s2">&quot;high&quot;</span>           <span class="c1"># Most reliable (decennial, large geographies)</span>
-    <span class="n">MEDIUM</span> <span class="o">=</span> <span class="s2">&quot;medium&quot;</span>       <span class="c1"># Moderately reliable (ACS 5-year, medium geographies)</span>
-    <span class="n">LOW</span> <span class="o">=</span> <span class="s2">&quot;low&quot;</span>             <span class="c1"># Less reliable (ACS 1-year, small geographies)</span>
-    <span class="n">ESTIMATED</span> <span class="o">=</span> <span class="s2">&quot;estimated&quot;</span> <span class="c1"># Modeled estimates</span></div>
-
+<span class="c1"># Canonical enum definitions live in census_registry; re-export for backward compat</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.config.census_registry</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>  <span class="c1"># noqa: F401</span>
+    <span class="n">SurveyType</span><span class="p">,</span>
+    <span class="n">GeographyLevel</span><span class="p">,</span>
+    <span class="n">DataReliability</span><span class="p">,</span>
+<span class="p">)</span>
 
 <div class="viewcode-block" id="CensusDataset">
 <a class="viewcode-back" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#siege_utilities.geo.census_dataset_mapper.CensusDataset">[docs]</a>
