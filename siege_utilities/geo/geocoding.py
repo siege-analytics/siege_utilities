@@ -1,6 +1,9 @@
 import time
 import json
 import logging
+from typing import Optional, Tuple
+
+import pandas as pd
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 
@@ -578,3 +581,98 @@ class NominatimGeoClassifier:
         self.place_rank_dict = data.get('place_ranks', {})
         self.importance_dict = data.get('importance_thresholds', {})
         return self
+
+
+# =============================================================================
+# Geocode validation (Pandas)
+# =============================================================================
+
+def _get_crs_bounds(crs) -> Tuple[float, float, float, float]:
+    """Extract (lat_min, lat_max, lon_min, lon_max) from a CRS.
+
+    Uses pyproj's ``area_of_use`` when available, falling back to WGS84
+    geographic bounds (-90..90, -180..180).
+
+    Parameters:
+        crs: A pyproj CRS, an EPSG integer, or a string accepted by
+             ``pyproj.CRS.from_user_input``.
+
+    Returns:
+        (lat_min, lat_max, lon_min, lon_max) tuple.
+    """
+    try:
+        from pyproj import CRS as ProjCRS
+
+        if not isinstance(crs, ProjCRS):
+            crs = ProjCRS.from_user_input(crs)
+        aou = crs.area_of_use
+        if aou is not None:
+            return (aou.south, aou.north, aou.west, aou.east)
+    except Exception:
+        pass
+    return (-90.0, 90.0, -180.0, 180.0)
+
+
+def validate_geocode_data_pandas(
+    df: pd.DataFrame,
+    lat_col: str,
+    lon_col: str,
+    crs=None,
+) -> pd.DataFrame:
+    """Filter rows with invalid geographic coordinates.
+
+    Pandas equivalent of ``spark_utils.validate_geocode_data()``.
+
+    Parameters:
+        df: Input DataFrame.
+        lat_col: Name of the latitude column.
+        lon_col: Name of the longitude column.
+        crs: Optional CRS (pyproj CRS, EPSG int, or string).  When supplied,
+             the valid coordinate bounds are derived from the CRS area of use.
+             Defaults to WGS84 (-90..90, -180..180).
+
+    Returns:
+        DataFrame with only rows whose coordinates fall within the valid range.
+    """
+    lat_min, lat_max, lon_min, lon_max = _get_crs_bounds(crs) if crs else (-90, 90, -180, 180)
+    mask = (
+        df[lat_col].notna()
+        & df[lon_col].notna()
+        & df[lat_col].between(lat_min, lat_max)
+        & df[lon_col].between(lon_min, lon_max)
+    )
+    return df[mask].reset_index(drop=True)
+
+
+def mark_valid_geocode_data_pandas(
+    df: pd.DataFrame,
+    lat_col: str,
+    lon_col: str,
+    output_col: str = "is_valid",
+    crs=None,
+) -> pd.DataFrame:
+    """Add a boolean validity column without removing rows.
+
+    Pandas equivalent of ``spark_utils.mark_valid_geocode_data()``.
+
+    Parameters:
+        df: Input DataFrame.
+        lat_col: Name of the latitude column.
+        lon_col: Name of the longitude column.
+        output_col: Name of the boolean column to add.
+        crs: Optional CRS (pyproj CRS, EPSG int, or string).  When supplied,
+             the valid coordinate bounds are derived from the CRS area of use.
+             Defaults to WGS84 (-90..90, -180..180).
+
+    Returns:
+        Copy of *df* with *output_col* appended.
+    """
+    lat_min, lat_max, lon_min, lon_max = _get_crs_bounds(crs) if crs else (-90, 90, -180, 180)
+    result = df.copy()
+    result[output_col] = (
+        result[lat_col].notna()
+        & result[lon_col].notna()
+        & result[lat_col].between(lat_min, lat_max)
+        & result[lon_col].between(lon_min, lon_max)
+    )
+    return result
