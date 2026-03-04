@@ -196,7 +196,7 @@ _register([
 
 __all__ = list(_LAZY_IMPORTS.keys())
 
-__version__ = "3.7.0"
+__version__ = "3.8.0"
 __author__ = "Siege Analytics"
 __description__ = "Enhanced geographic utilities with intelligent Census data selection"
 
