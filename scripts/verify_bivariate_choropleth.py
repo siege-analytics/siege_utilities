@@ -20,7 +20,7 @@ def test_imports():
     
     try:
         from reporting.chart_generator import ChartGenerator
-        print("✓ ChartGenerator imported successfully")
+        print(f"✓ {ChartGenerator.__name__} imported successfully")
     except ImportError as e:
         print(f"✗ Failed to import ChartGenerator: {e}")
         return False
