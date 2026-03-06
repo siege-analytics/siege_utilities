@@ -77,6 +77,9 @@ python -m pytest tests/ --cov=siege_utilities --cov-report=html
 
 # Run script-level import diagnostics
 python scripts/check_imports.py
+
+# Enforce test filename/location hygiene
+python scripts/check_test_file_hygiene.py
 ```
 
 ### 3. Verify Installation
@@ -88,6 +91,14 @@ python -c "import siege_utilities; print(siege_utilities.get_package_info())"
 # Run comprehensive check
 python scripts/check_imports.py
 ```
+
+## 🤖 Automated Review
+
+CodeRabbit is part of the required PR workflow.
+
+- Review policy is defined in `.coderabbit.yaml`
+- `CodeRabbit` status must pass before merge to `main`
+- See `docs/CODERABBIT_WORKFLOW.md` for merge-readiness expectations
 
 ## 🎯 Adding New Functions
 
