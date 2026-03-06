@@ -15,6 +15,22 @@ on:
     types: [ published ]
 
 jobs:
+  test-file-hygiene:
+    runs-on: ubuntu-latest
+    name: "test file hygiene"
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Validate test filename/location conventions
+      run: |
+        python scripts/check_test_file_hygiene.py
+
   test:
     runs-on: ubuntu-latest
     strategy:

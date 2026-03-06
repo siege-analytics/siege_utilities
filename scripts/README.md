@@ -10,6 +10,8 @@ These scripts are part of the expected contributor workflow and are maintained.
 
 - `python scripts/run_tests.py`
   - Wrapper for project test runs.
+- `python scripts/check_test_file_hygiene.py`
+  - Enforces tracked test naming/location conventions.
 
 ### Release support
 
