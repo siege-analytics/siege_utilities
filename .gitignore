@@ -1,5 +1,8 @@
 # Generated notebook artifacts (PDFs, reports)
 notebooks/*.pdf
+# Keep reviewer-visible notebook outputs tracked.
+!notebooks/output/
+!notebooks/output/**
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -165,6 +168,15 @@ function_priority_list.json
 function_validation_log.txt
 recipe_test_results.json
 notebook_conversion_results.json
+
+# Common local backup/temp cruft
+*.bak
+*.backup
+*.orig
+*.tmp
+*~
+.DS_Store
+._*
 
 # Session progress files (temporary)
 SESSION_*_PROGRESS.md

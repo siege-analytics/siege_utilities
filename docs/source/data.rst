@@ -208,9 +208,8 @@ Best Practices
 Examples
 --------
 
-See the `examples/ <../examples.html>`_ directory for working examples:
+For runnable package examples, see:
 
-* **test_sample_data.py** - Complete demonstration of sample data functionality
-* **census_intelligence_demo.py** - Integration with Census utilities
+* ``siege_utilities/examples/enhanced_features_demo.py`` - integration-oriented usage examples
 
 For detailed API documentation, see the sample data module functions.

@@ -48,6 +48,13 @@ Siege Utilities is a comprehensive Python utilities package with **enhanced auto
    :maxdepth: 2
    :caption: Development & Testing:
 
+   coding_style
+   pr_review_rubric
+   lint_ratchet_plan
+   change_classification_and_release_policy
+   repository_hygiene
+   coderabbit_workflow
+   license_model
    testing_guide
    api/index
 

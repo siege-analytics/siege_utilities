@@ -194,6 +194,17 @@ Test Naming Conventions
 - **Test methods**: `test_function_name_expected_behavior`
 - **Test descriptions**: Clear, descriptive docstrings
 
+Repository naming/location rule:
+
+- Keep test modules under ``tests/`` using ``tests/test_<feature>.py``
+- Do not commit ad hoc duplicate copies (for example, names ending with `` 2.py``)
+
+Automated hygiene check:
+
+.. code-block:: bash
+
+   python scripts/check_test_file_hygiene.py
+
 Example Test Patterns
 ~~~~~~~~~~~~~~~~~~~~
 

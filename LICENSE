@@ -1,21 +1,23 @@
-MIT License
+Siege Utilities Dual License
+Effective date: March 6, 2026
 
-Copyright (c) 2025 Siege Analytics
+SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Siege-Commercial
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This project is offered under a dual-license model:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1) Open-Source License Option
+   - GNU Affero General Public License v3.0 only (AGPL-3.0-only)
+   - Full license text: LICENSES/AGPL-3.0.txt
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+2) Commercial License Option
+   - Commercial/proprietary use is available under a separate written
+     commercial agreement from Siege Analytics.
+   - Default commercial terms and attribution requirements are documented in
+     COMMERCIAL_LICENSE.md and LICENSES/Siege-Commercial.txt.
+
+Attribution Requirement (all license paths)
+- You must preserve copyright notices, license notices, and attribution
+  statements in source and redistributions.
+
+If you do not have a separate commercial agreement, use of this project is
+licensed exclusively under AGPL-3.0-only.
