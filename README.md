@@ -70,6 +70,40 @@ See:
 - `PR_REVIEW_RUBRIC.md`
 - `CHANGE_CLASSIFICATION_AND_RELEASE_POLICY.md`
 
+## External Contributor Workflow
+
+Use this path when contributing from a fork:
+
+1. Fork this repository on GitHub, then clone your fork:
+
+```bash
+git clone https://github.com/<your-user>/siege_utilities.git
+cd siege_utilities
+git remote add upstream https://github.com/siege-analytics/siege_utilities.git
+```
+
+2. Create and activate a local virtual environment, then install from the cloned repo:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+3. Validate notebooks and notebook outputs:
+
+```bash
+python -m pytest -q --no-cov tests/test_notebooks_output_policy.py
+```
+
+If your change updates user-facing workflows or APIs, update the impacted notebooks and ensure `notebooks/output/` artifacts remain reviewable.
+
+4. Open an issue in `siege-analytics/siege_utilities` describing the change for merge review, link your fork branch/PR, and include:
+- Reproduction or motivation
+- Proposed change scope
+- Test evidence
+- Documentation and notebook updates
+
 ## GeoDjango Integration
 
 Full spatial data platform with **37 concrete models**, **9 population services**, and **7 management commands**.

@@ -53,6 +53,42 @@ siege_utilities/
     └── experiments/          # Experimental configurations
 ```
 
+## External Contributor Quickstart (Fork -> Merge)
+
+Follow this flow for external contributions:
+
+### 1. Fork and Clone
+
+```bash
+git clone https://github.com/<your-user>/siege_utilities.git
+cd siege_utilities
+git remote add upstream https://github.com/siege-analytics/siege_utilities.git
+```
+
+### 2. Install in a Local Virtual Environment
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+### 3. Validate Notebook Policy and Outputs
+
+```bash
+python -m pytest -q --no-cov tests/test_notebooks_output_policy.py
+```
+
+If your change affects user-facing behavior or APIs, update relevant notebooks and keep `notebooks/output/` artifacts reviewer-visible.
+
+### 4. File an Issue for Merge and Link Your PR
+
+Open an issue in `siege-analytics/siege_utilities` and include:
+- Problem statement and change scope
+- Link to your branch/PR from your fork
+- Test evidence
+- Documentation and notebook updates
+
 ## 🔧 Development Setup
 
 ### 1. Clone and Install
