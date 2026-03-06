@@ -1,55 +1,56 @@
 # Siege Utilities
 
-A comprehensive Python utilities package providing **300+ functions** across **12 categories** for data engineering, analytics, geospatial analysis, and distributed computing workflows.
-
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Functions](https://img.shields.io/badge/functions-300+-orange.svg)](https://github.com/siege-analytics/siege_utilities)
-[![Tests](https://img.shields.io/badge/tests-1800+-green.svg)](https://github.com/siege-analytics/siege_utilities)
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://siege-analytics.github.io/siege_utilities/)
 
-## What This Does
+`siege_utilities` is the shared utilities library behind Siege Analytics workflows:
 
-**siege_utilities** is the foundational verb layer for Siege Analytics. It provides:
+- Geospatial + GeoDjango boundary/data services
+- Census API/data selection/crosswalk tooling
+- Configuration and profile management
+- Distributed processing helpers (Spark/HDFS/Databricks)
+- Reporting and chart generation
 
-- **Geospatial Intelligence**: 37 Django models for Census, GADM, political, education, federal, and timezone boundaries with PostGIS spatial queries
-- **Census Data Pipeline**: API client, PL 94-171 redistricting data, demographic snapshots, time series, and crosswalk-aware rollups
-- **Configuration Management**: Hydra + Pydantic configs with client-specific overrides
-- **Distributed Computing**: Spark utilities, HDFS operations, Databricks integration
-- **Professional Reporting**: PDF generation, PowerPoint, choropleths, and Google Analytics reports
-
-## Quick Start
+## Install
 
 ```bash
-# Core only (pyyaml, requests, tqdm, pydantic) — fast, minimal
 pip install siege-utilities
-
-# With geospatial support
 pip install siege-utilities[geo]
-
-# With GeoDjango (Django + PostGIS)
 pip install siege-utilities[geodjango]
-
-# Everything
 pip install siege-utilities[all]
 ```
 
+## Quick Usage
+
 ```python
-import siege_utilities  # ~0.02s (lazy loaded via PEP 562)
+import siege_utilities as su
 
-# Core functions always available
-siege_utilities.log_info("Ready.")
-
-# Geo functions load on first access (requires [geo] extra)
-from siege_utilities.geo import select_census_datasets
-recommendations = select_census_datasets("demographics", "tract")
-
-# Missing extras give helpful errors, not crashes
-try:
-    from siege_utilities import ReportGenerator  # requires [reporting]
-except ImportError as e:
-    print(e)  # Shows exactly what to install
+su.log_info("Ready.")
+recommendations = su.select_census_datasets("demographics", "tract")
 ```
+
+## Import Philosophy
+
+This project intentionally favors convenience access patterns, including broad function availability from the package surface. That is a design choice, not an accident.
+
+Contributor rule: convenience imports are acceptable in explicit API-aggregation surfaces, but implementation modules should prefer explicit imports to avoid hidden collisions and reduce regression risk.
+
+## Contributor Requirements
+
+Every PR must include:
+
+- Tests for changed behavior (and regression test for bug fixes)
+- Documentation updates
+- Notebook updates when user-facing workflows or APIs change
+- CodeRabbit feedback addressed for correctness/regression/API-risk findings
+- Required CI/PR checks green (including CodeRabbit status once enabled)
+
+See:
+
+- `CODING_STYLE.md`
+- `PR_REVIEW_RUBRIC.md`
+- `CHANGE_CLASSIFICATION_AND_RELEASE_POLICY.md`
 
 ## GeoDjango Integration
 
@@ -84,8 +85,8 @@ from siege_utilities.geo.django.models import Tract, County, State
 point = Point(-122.4194, 37.7749, srid=4326)
 tract = Tract.objects.containing_point(point).for_year(2020).first()
 
-# Nearest boundaries within distance
-nearby = County.objects.nearest(point, distance_km=50)
+# Nearest boundaries within distance (meters)
+nearby = County.objects.nearest(point, max_distance_m=50_000)
 
 # Temporal + spatial filtering
 counties_2020 = County.objects.for_state("06").for_year(2020)

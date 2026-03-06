@@ -1,0 +1,46 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+tone_instructions: "Prioritize high-signal findings: correctness, regressions, API contract stability, and missing tests/docs. Avoid trivial style-only comments unless they indicate maintainability risk."
+early_access: false
+enable_free_tier: true
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  review_status: true
+  commit_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "siege_utilities/**/*.py"
+      instructions: |
+        Enforce repository coding standards from CODING_STYLE.md.
+        Focus on:
+        - behavior regressions and API compatibility risk
+        - explicit, stable signatures and typed public interfaces
+        - no bare except and no silent failure paths
+        - import ergonomics vs analyzability rule:
+          convenience/broad imports are allowed only in API-boundary aggregation modules;
+          implementation modules should prefer explicit imports.
+        For bug fixes, require a targeted regression test.
+    - path: "tests/**/*.py"
+      instructions: |
+        Verify tests are deterministic, meaningful, and reflect current contracts.
+        Flag duplicate/ad hoc test file patterns and missing regression coverage.
+    - path: "README.md"
+      instructions: |
+        Require README updates for user-visible API/workflow changes.
+        Ensure usage examples match current function signatures.
+    - path: "docs/**"
+      instructions: |
+        Require documentation updates whenever behavior or APIs change.
+        Flag stale references to files/scripts that do not exist.
+    - path: "notebooks/**/*.ipynb"
+      instructions: |
+        For user-facing workflow/API changes, require notebook updates in the same PR.
+        notebooks/output is intentionally tracked for reviewer visibility.
+
+chat:
+  auto_reply: true

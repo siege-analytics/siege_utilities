@@ -412,6 +412,9 @@ with HydraConfigManager() as manager:
 
 ## 📋 Code Review Checklist
 
+- Follow repository coding standards in `CODING_STYLE.md` (canonical) and `docs/CODING_STYLE.md`.
+- Use `PR_REVIEW_RUBRIC.md` for reviewer severity and merge readiness criteria.
+- Use `CHANGE_CLASSIFICATION_AND_RELEASE_POLICY.md` to classify bug/feature/breaking changes and release impact.
 - [ ] Function has proper docstring with examples
 - [ ] Type hints are complete and accurate
 - [ ] Error handling covers edge cases
