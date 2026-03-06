@@ -3,7 +3,7 @@
 A comprehensive Python utilities package providing **300+ functions** across **12 categories** for data engineering, analytics, geospatial analysis, and distributed computing workflows.
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: AGPLv3%20or%20Commercial](https://img.shields.io/badge/License-AGPLv3%20or%20Commercial-orange.svg)](LICENSE)
 [![Functions](https://img.shields.io/badge/functions-300+-orange.svg)](https://github.com/siege-analytics/siege_utilities)
 [![Tests](https://img.shields.io/badge/tests-1800+-green.svg)](https://github.com/siege-analytics/siege_utilities)
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://siege-analytics.github.io/siege_utilities/)
@@ -346,7 +346,12 @@ siege_utilities/
 
 ## License
 
-MIT License - see LICENSE file for details.
+Dual license model (effective March 6, 2026):
+
+- AGPL-3.0-only for open-source usage
+- Commercial license for proprietary/commercial usage by separate agreement
+
+Attribution is required in both paths. See `LICENSE`, `LICENSES/AGPL-3.0.txt`, and `COMMERCIAL_LICENSE.md`.
 
 ---
 
