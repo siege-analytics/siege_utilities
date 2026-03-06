@@ -32,6 +32,7 @@ These scripts are part of the expected contributor workflow and are maintained.
   - Generates a public API manifest for a package import surface.
 - `python scripts/contracts/compare_public_api_contracts.py --baseline /tmp/base.json --candidate /tmp/candidate.json --release-impact patch --allowlist scripts/contracts/contract_allowlist.json`
   - Compares two manifests and enforces release-impact rules.
+  - `--baseline` should come from a released package state (for example `siege-utilities==3.8.0`), and `--candidate` from the current branch output.
 
 ## Experimental / One-off Scripts
 

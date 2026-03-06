@@ -22,7 +22,11 @@ def _resolve_base_head(base_sha: str | None, head_sha: str | None, base_ref: str
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
 
     try:
-        subprocess.run(["git", "fetch", "origin", "main", "--depth", "1"], check=False)
+        ref = base_ref
+        remote = "origin"
+        if "/" in base_ref:
+            remote, ref = base_ref.split("/", 1)
+        subprocess.run(["git", "fetch", remote, ref, "--depth", "1"], check=False)
         merge_base = subprocess.check_output(["git", "merge-base", base_ref, "HEAD"], text=True).strip()
         return merge_base, head
     except Exception:

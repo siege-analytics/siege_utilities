@@ -5,11 +5,10 @@ from __future__ import annotations
 
 import re
 import subprocess
-import sys
 from pathlib import Path
 
 ROOT_TEST_RE = re.compile(r"^test_[A-Za-z0-9_]+\.py$")
-TESTS_FILE_RE = re.compile(r"^tests/test_[a-z0-9_]+\.py$")
+TESTS_FILE_RE = re.compile(r"^tests/(?:[A-Za-z0-9_]+/)*test_[a-z0-9_]+\.py$")
 ADHOC_COPY_RE = re.compile(r"(^|/)test_.*\s+\d+\.py$")
 
 
