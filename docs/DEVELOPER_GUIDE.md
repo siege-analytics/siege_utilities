@@ -75,8 +75,8 @@ python -m pytest tests/test_core_logging.py -v
 # Run with coverage
 python -m pytest tests/ --cov=siege_utilities --cov-report=html
 
-# Battle test the entire system
-python scripts/battle_test_hydra_pydantic.py
+# Run script-level import diagnostics
+python scripts/check_imports.py
 ```
 
 ### 3. Verify Installation
@@ -269,7 +269,7 @@ class ConfigurationMigrator:
 ### 3. Battle Testing
 
 ```python
-# scripts/battle_test_new_feature.py
+# tests/test_new_feature.py
 def test_new_feature_comprehensive():
     """Comprehensive test of new feature."""
     
@@ -412,6 +412,9 @@ with HydraConfigManager() as manager:
 
 ## 📋 Code Review Checklist
 
+- Follow repository coding standards in `CODING_STYLE.md` (canonical) and `docs/CODING_STYLE.md`.
+- Use `PR_REVIEW_RUBRIC.md` for reviewer severity and merge readiness criteria.
+- Use `CHANGE_CLASSIFICATION_AND_RELEASE_POLICY.md` to classify bug/feature/breaking changes and release impact.
 - [ ] Function has proper docstring with examples
 - [ ] Type hints are complete and accurate
 - [ ] Error handling covers edge cases

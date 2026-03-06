@@ -189,9 +189,8 @@ Best Practices
 Examples
 --------
 
-See the `examples/ <../examples.html>`_ directory for working examples:
+Use the maintained example module:
 
-* **census_intelligence_demo.py** - Complete demonstration of the Census Data Intelligence system
-* **enhanced_features_demo.py** - Examples of enhanced Census utilities
+* ``siege_utilities/examples/enhanced_features_demo.py`` - examples of enhanced Census and package features
 
 For detailed API documentation, see :doc:`api/siege_utilities/geo/spatial_data`.

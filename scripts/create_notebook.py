@@ -142,7 +142,7 @@ notebook = {
 }
 
 # Write the notebook
-with open('examples/step_by_step_choropleth.ipynb', 'w') as f:
+with open('notebooks/output/step_by_step_choropleth.ipynb', 'w') as f:
     json.dump(notebook, f, indent=1)
 
 print("✅ Created properly formatted notebook with choropleth cell")

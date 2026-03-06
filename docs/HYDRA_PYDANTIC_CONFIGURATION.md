@@ -225,18 +225,7 @@ branding = manager.load_branding_config()
 
 ### Automated Migration
 
-Use the migration script to transition from the legacy system:
-
-```bash
-# Dry run to see what would be migrated
-python scripts/migrate_to_hydra.py --dry-run
-
-# Migrate with backup
-python scripts/migrate_to_hydra.py --backup
-
-# Migrate from custom directory
-python scripts/migrate_to_hydra.py --legacy-config ~/old_config --backup
-```
+Use the programmatic migration utilities to transition from the legacy system.
 
 ### Programmatic Migration
 
@@ -449,20 +438,11 @@ def validate_client_configuration(client_code: str) -> bool:
 
 ### From Legacy System
 
-1. **Backup Existing Configurations**:
-   ```bash
-   python scripts/migrate_to_hydra.py --backup-only
-   ```
+1. **Backup Existing Configurations** using your normal backup workflow.
 
-2. **Test Migration**:
-   ```bash
-   python scripts/migrate_to_hydra.py --dry-run
-   ```
+2. **Test Migration** in a temporary directory with a dry-run style execution path.
 
-3. **Perform Migration**:
-   ```bash
-   python scripts/migrate_to_hydra.py --backup
-   ```
+3. **Perform Migration** using the programmatic migration utilities.
 
 4. **Verify Migration**:
    ```python
@@ -490,7 +470,7 @@ def validate_client_configuration(client_code: str) -> bool:
 The Hydra + Pydantic configuration system provides a robust, type-safe, and flexible foundation for managing siege_utilities configurations. With comprehensive validation, client-specific customization, and seamless migration support, it enables powerful configuration management while maintaining data integrity and system reliability.
 
 For more information, see:
-- [Configuration Examples](examples/)
+- [Configuration Example Module](../siege_utilities/examples/enhanced_features_demo.py)
 - [Migration Guide](migration/)
 - [API Reference](api/)
 - [Troubleshooting Guide](troubleshooting/)
