@@ -1,0 +1,38 @@
+Siege Commercial License
+Version 1.0
+Effective date: March 6, 2026
+
+Copyright (c) Siege Analytics. All rights reserved.
+
+This license text corresponds to SPDX identifier: LicenseRef-Siege-Commercial.
+
+1. Grant of Rights
+Subject to a valid written commercial agreement with Siege Analytics,
+Licensee is granted a non-exclusive, non-transferable, revocable license to
+use, reproduce, and distribute the Software under the terms of that agreement.
+
+2. Attribution
+Attribution is required in all distributions and derivative works. At minimum,
+include:
+- "Powered by siege_utilities (https://github.com/siege-analytics/siege_utilities)"
+- Copyright notice for Siege Analytics
+- A link or copy of applicable license terms
+
+3. Restrictions
+Absent an executed commercial agreement, no rights are granted under this
+license. In that case, use is available only under AGPL-3.0-only as stated in
+LICENSE.
+
+4. Warranty Disclaimer
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+5. Limitation of Liability
+IN NO EVENT SHALL SIEGE ANALYTICS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM,
+OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+6. Contact
+For commercial licensing inquiries, contact: dheeraj@siegeanalytics.com

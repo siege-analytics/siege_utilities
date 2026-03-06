@@ -5,19 +5,12 @@ DuckDB support is included but optional for enhanced performance on large datase
 """
 
 import logging
-import pandas as pd
 import geopandas as gpd
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Union
-import json
-import tempfile
-import os
-import shutil
+from typing import Optional, Union
 
 # Import existing library functions
-from ..files.remote import download_file, generate_local_path_from_url
-from ..files.paths import unzip_file_to_directory, ensure_path_exists
-from ..config.user_config import get_user_config, get_download_directory
+from ..config.user_config import get_user_config
 from ..conf import settings
 
 # Get logger for this module

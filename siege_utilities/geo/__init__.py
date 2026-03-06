@@ -69,6 +69,7 @@ _register([
     'concatenate_addresses', 'use_nominatim_geocoder', 'NominatimGeoClassifier',
     'get_country_name', 'get_country_code', 'list_countries', 'get_coordinates',
     'NOMINATIM_INTERNAL_URL',
+    'validate_geocode_data_pandas', 'mark_valid_geocode_data_pandas',
 ], '.geocoding')
 
 # --- census_geocoder ---
@@ -154,6 +155,12 @@ _register([
     'SpatialLoaderPlan', 'select_spatial_loader',
     'build_census_table_name', 'build_census_ingest_targets',
 ], '.databricks_fallback')
+
+# --- spatial_runtime ---
+_register([
+    'SpatialRuntimePlan',
+    'resolve_spatial_runtime_plan',
+], '.spatial_runtime')
 
 # --- census_files (PL 94-171) ---
 _register([

@@ -82,7 +82,6 @@ class TimeseriesService:
         Returns:
             List of TimeseriesResult (one per variable)
         """
-        from django.apps import apps
         from django.contrib.contenttypes.models import ContentType
 
         from ..models.demographics import DemographicSnapshot, DemographicTimeSeries

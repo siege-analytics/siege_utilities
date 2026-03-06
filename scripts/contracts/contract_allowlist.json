@@ -1,0 +1,17 @@
+{
+  "added_symbols": [],
+  "removed_symbols": [],
+  "signature_changes": [
+    "compare_census_datasets",
+    "compare_datasets",
+    "export_dataset_catalog",
+    "get_best_dataset_for_analysis",
+    "get_best_dataset_for_use_case",
+    "get_census_dataset_mapper",
+    "get_data_selection_guide",
+    "get_dataset_relationships",
+    "list_datasets_by_geography",
+    "list_datasets_by_type"
+  ],
+  "kind_changes": []
+}

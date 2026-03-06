@@ -21,7 +21,6 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from django.contrib.gis.db.models.functions import Distance
-from django.contrib.gis.measure import D
 
 from siege_utilities.config.nces_constants import (
     LOCALE_CODE_TO_NUMERIC,

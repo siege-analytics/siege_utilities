@@ -18,15 +18,23 @@ class SpatialLoaderPlan:
 def select_spatial_loader(
     ogr2ogr_available: bool,
     sedona_available: bool,
+    native_spatial_available: bool = False,
 ) -> SpatialLoaderPlan:
     """
     Select a spatial loader strategy for Databricks-style environments.
 
     Loader order:
-    1. ogr2ogr
-    2. sedona
-    3. python
+    1. databricks_native
+    2. ogr2ogr
+    3. sedona
+    4. python
     """
+    if native_spatial_available:
+        return SpatialLoaderPlan(
+            primary_loader="databricks_native",
+            loader_order=["databricks_native", "ogr2ogr", "sedona", "python"],
+            reason="native Databricks spatial support available",
+        )
     if ogr2ogr_available:
         return SpatialLoaderPlan(
             primary_loader="ogr2ogr",

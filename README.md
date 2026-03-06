@@ -1,7 +1,7 @@
 # Siege Utilities
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: AGPLv3%20or%20Commercial](https://img.shields.io/badge/License-AGPLv3%20or%20Commercial-orange.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://siege-analytics.github.io/siege_utilities/)
 
 `siege_utilities` is the shared utilities library behind Siege Analytics workflows:
@@ -41,11 +41,63 @@ Every PR must include:
 - CodeRabbit feedback addressed for correctness/regression/API-risk findings
 - Required CI/PR checks green (including CodeRabbit status once enabled)
 
+### Pre-PR Validation Commands
+
+```bash
+# Test naming/location hygiene
+python scripts/check_test_file_hygiene.py
+
+# API contract tooling regression check
+python scripts/contracts/generate_public_api_contract.py --output /tmp/contract_candidate.json
+python scripts/contracts/compare_public_api_contracts.py \
+  --baseline /tmp/contract_baseline.json \
+  --candidate /tmp/contract_candidate.json \
+  --release-impact patch \
+  --allowlist scripts/contracts/contract_allowlist.json
+
+# Contract-tool unit tests
+python -m pytest -q --no-cov tests/test_api_contract_tools.py
+```
+
 See:
 
 - `CODING_STYLE.md`
 - `PR_REVIEW_RUBRIC.md`
 - `CHANGE_CLASSIFICATION_AND_RELEASE_POLICY.md`
+
+## External Contributor Workflow
+
+Use this path when contributing from a fork:
+
+1. Fork this repository on GitHub, then clone your fork:
+
+```bash
+git clone https://github.com/<your-user>/siege_utilities.git
+cd siege_utilities
+git remote add upstream https://github.com/siege-analytics/siege_utilities.git
+```
+
+2. Create and activate a local virtual environment, then install from the cloned repo:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+3. Validate notebooks and notebook outputs:
+
+```bash
+python -m pytest -q --no-cov tests/test_notebooks_output_policy.py
+```
+
+If your change updates user-facing workflows or APIs, update the impacted notebooks and ensure `notebooks/output/` artifacts remain reviewable.
+
+4. Open an issue in `siege-analytics/siege_utilities` describing the change for merge review, link your fork branch/PR, and include:
+- Reproduction or motivation
+- Proposed change scope
+- Test evidence
+- Documentation and notebook updates
 
 ## GeoDjango Integration
 
@@ -342,7 +394,12 @@ siege_utilities/
 
 ## License
 
-MIT License - see LICENSE file for details.
+Dual license model (effective March 6, 2026):
+
+- AGPL-3.0-only for open-source usage
+- Commercial license for proprietary/commercial usage by separate agreement
+
+Attribution is required in both paths. See `LICENSE`, `LICENSES/AGPL-3.0.txt`, and `COMMERCIAL_LICENSE.md`.
 
 ---
 

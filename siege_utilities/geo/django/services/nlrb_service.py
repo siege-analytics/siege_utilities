@@ -11,7 +11,7 @@ Data source: NLRB region-to-county mapping (manual maintenance).
 
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from django.db import transaction
 

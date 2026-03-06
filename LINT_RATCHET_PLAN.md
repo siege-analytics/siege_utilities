@@ -24,6 +24,10 @@ Goal: move from best-effort linting to enforceable quality gates without blockin
   - `F403/F405` import-star undefined names in touched modules
 - Enforce on changed files first if full-repo enforcement is too disruptive.
 
+Implementation command:
+
+- CI/local gate: `python scripts/check_lint_ratchet_phase1.py`
+
 ### Phase 2: Core Hygiene Enforcement
 
 - Add blocking rules for:
@@ -31,6 +35,10 @@ Goal: move from best-effort linting to enforceable quality gates without blockin
   - `F841` unused variables
   - `F541` f-strings without placeholders
 - Require touched-file clean lint for these rules.
+
+Implementation command:
+
+- CI/local gate: `python scripts/check_lint_ratchet.py --phase phase2`
 
 ### Phase 3: Full Module Ratchet
 
@@ -40,10 +48,19 @@ Goal: move from best-effort linting to enforceable quality gates without blockin
   - `siege_utilities/files`
 - Continue debt burndown in low-touch modules.
 
+Implementation command:
+
+- CI/local gate: `python scripts/check_lint_ratchet.py --phase phase3`
+
 ### Phase 4: Full-Repo Enforcement
 
-- Make `ruff check siege_utilities tests` required in CI.
+- Make full-repo selected-rule lint gate required in CI.
 - Keep exception list minimal and temporary, with explicit issue links and sunset dates.
+
+Implementation command:
+
+- CI/local gate: `python scripts/check_lint_ratchet.py --phase phase4`
+- Baseline refresh (dedicated debt-tracking PR only): `python scripts/check_lint_ratchet.py --phase phase4 --update-baseline`
 
 ## Rollout Mechanics
 

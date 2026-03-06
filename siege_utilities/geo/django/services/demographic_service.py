@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 
 if TYPE_CHECKING:
-    import pandas as pd
+    pass
 
 logger = logging.getLogger(__name__)
 

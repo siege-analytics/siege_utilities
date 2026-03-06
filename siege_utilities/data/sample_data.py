@@ -63,6 +63,82 @@ if FAKER_AVAILABLE:
     faker_hi = Faker(['hi_IN'])  # Indian names
     faker_ar = Faker(['ar_SA'])  # Arabic names
 
+# ---------------------------------------------------------------------------
+# Housing locale presets — geographic parameters for generate_synthetic_housing
+# ---------------------------------------------------------------------------
+HOUSING_LOCALE_PRESETS: Dict[str, Dict[str, Any]] = {
+    "us": {
+        "faker_locale": ["en_US"],
+        "lat_range": (33.5, 34.5),   # Los Angeles area
+        "lon_range": (-118.5, -117.5),
+        "area_unit": "square_feet",
+        "area_range": (800, 4000),
+        "value_range": (200_000, 2_000_000),
+        "currency": "USD",
+        "year_range": (1950, 2024),
+        "default_property_types": {
+            "single_family": 0.60, "apartment": 0.25,
+            "condo": 0.10, "townhouse": 0.05,
+        },
+    },
+    "uk": {
+        "faker_locale": ["en_GB"],
+        "lat_range": (51.3, 51.7),   # Greater London area
+        "lon_range": (-0.5, 0.3),
+        "area_unit": "square_metres",
+        "area_range": (40, 250),
+        "value_range": (150_000, 2_500_000),
+        "currency": "GBP",
+        "year_range": (1850, 2024),
+        "default_property_types": {
+            "detached": 0.20, "semi_detached": 0.30,
+            "terraced": 0.25, "flat": 0.20, "bungalow": 0.05,
+        },
+    },
+    "de": {
+        "faker_locale": ["de_DE"],
+        "lat_range": (52.3, 52.7),   # Berlin area
+        "lon_range": (13.1, 13.7),
+        "area_unit": "square_metres",
+        "area_range": (35, 200),
+        "value_range": (100_000, 1_500_000),
+        "currency": "EUR",
+        "year_range": (1900, 2024),
+        "default_property_types": {
+            "apartment": 0.50, "detached": 0.15,
+            "semi_detached": 0.15, "terraced": 0.15, "bungalow": 0.05,
+        },
+    },
+    "fr": {
+        "faker_locale": ["fr_FR"],
+        "lat_range": (48.7, 49.0),   # Paris area
+        "lon_range": (2.1, 2.6),
+        "area_unit": "square_metres",
+        "area_range": (25, 200),
+        "value_range": (150_000, 3_000_000),
+        "currency": "EUR",
+        "year_range": (1850, 2024),
+        "default_property_types": {
+            "apartment": 0.55, "maison": 0.30,
+            "studio": 0.10, "villa": 0.05,
+        },
+    },
+    "au": {
+        "faker_locale": ["en_AU"],
+        "lat_range": (-34.0, -33.7),  # Sydney area
+        "lon_range": (150.9, 151.3),
+        "area_unit": "square_metres",
+        "area_range": (50, 350),
+        "value_range": (400_000, 3_000_000),
+        "currency": "AUD",
+        "year_range": (1920, 2024),
+        "default_property_types": {
+            "house": 0.50, "apartment": 0.30,
+            "townhouse": 0.15, "villa": 0.05,
+        },
+    },
+}
+
 # Dataset definitions
 SAMPLE_DATASETS = {
     "census_tract_sample": {
@@ -574,14 +650,28 @@ def generate_synthetic_businesses(business_count: int = 500,
 
 def generate_synthetic_housing(housing_count: int = 300,
                               property_types: Optional[Dict] = None,
-                              include_coordinates: bool = True) -> pd.DataFrame:
+                              include_coordinates: bool = True,
+                              locale: str = "us",
+                              lat_range: Optional[Tuple[float, float]] = None,
+                              lon_range: Optional[Tuple[float, float]] = None,
+                              area_unit: Optional[str] = None,
+                              area_range: Optional[Tuple[int, int]] = None,
+                              value_range: Optional[Tuple[int, int]] = None) -> pd.DataFrame:
     """
     Generate synthetic housing data with realistic property patterns.
 
     Args:
         housing_count: Number of housing units to generate
-        property_types: Dictionary of property type percentages
+        property_types: Dictionary of property type percentages.
+            If None, uses locale-appropriate defaults.
         include_coordinates: Whether to include synthetic coordinates
+        locale: Country/region preset ('us', 'uk', 'de', 'fr', 'au').
+            Controls address format, coordinate bounds, units, and value ranges.
+        lat_range: Override latitude bounds (min, max)
+        lon_range: Override longitude bounds (min, max)
+        area_unit: Override area column name (e.g. 'square_feet', 'square_metres')
+        area_range: Override area range (min, max)
+        value_range: Override property value range (min, max)
 
     Returns:
         DataFrame with synthetic housing data
@@ -589,14 +679,26 @@ def generate_synthetic_housing(housing_count: int = 300,
     if not FAKER_AVAILABLE:
         raise ImportError("Faker required. Install with: pip install Faker")
 
-    # Default property type distribution
+    # Resolve locale preset
+    preset = HOUSING_LOCALE_PRESETS.get(locale, HOUSING_LOCALE_PRESETS["us"])
+
+    # Merge explicit overrides onto preset
+    resolved = {
+        "faker_locale": preset["faker_locale"],
+        "lat_range": lat_range or preset["lat_range"],
+        "lon_range": lon_range or preset["lon_range"],
+        "area_unit": area_unit or preset["area_unit"],
+        "area_range": area_range or preset["area_range"],
+        "value_range": value_range or preset["value_range"],
+        "year_range": preset["year_range"],
+    }
+
+    # Default property type distribution from preset
     if property_types is None:
-        property_types = {
-            "single_family": 0.60,
-            "apartment": 0.25,
-            "condo": 0.10,
-            "townhouse": 0.05
-        }
+        property_types = preset["default_property_types"]
+
+    # Build a Faker instance for the resolved locale
+    faker_inst = Faker(resolved["faker_locale"])
 
     housing_units = []
 
@@ -608,7 +710,9 @@ def generate_synthetic_housing(housing_count: int = 300,
         for _ in range(type_count):
             housing = _generate_synthetic_housing_unit(
                 property_type=prop_type,
-                include_coordinates=include_coordinates
+                include_coordinates=include_coordinates,
+                faker_inst=faker_inst,
+                geo_config=resolved,
             )
             housing_units.append(housing)
 
@@ -701,22 +805,43 @@ def _generate_synthetic_business(industry: str, include_locations: bool = True) 
 
     return business
 
-def _generate_synthetic_housing_unit(property_type: str, include_coordinates: bool = True) -> Dict[str, Any]:
-    """Generate a single synthetic housing unit."""
-    housing = {
-        'address': faker_en.address(),
+def _generate_synthetic_housing_unit(property_type: str,
+                                     include_coordinates: bool = True,
+                                     faker_inst: Any = None,
+                                     geo_config: Optional[Dict] = None) -> Dict[str, Any]:
+    """Generate a single synthetic housing unit.
+
+    Args:
+        property_type: Type of property (e.g. 'single_family', 'flat')
+        include_coordinates: Whether to include lat/lon
+        faker_inst: Faker instance for the target locale
+        geo_config: Resolved geographic configuration dict with keys
+            lat_range, lon_range, area_unit, area_range, value_range, year_range
+    """
+    if faker_inst is None:
+        faker_inst = faker_en
+    if geo_config is None:
+        geo_config = HOUSING_LOCALE_PRESETS["us"]
+
+    area_min, area_max = geo_config["area_range"]
+    val_min, val_max = geo_config["value_range"]
+    yr_min, yr_max = geo_config["year_range"]
+
+    housing: Dict[str, Any] = {
+        'address': faker_inst.address(),
         'property_type': property_type,
         'bedrooms': np.random.randint(1, 6),
         'bathrooms': np.random.randint(1, 4),
-        'square_feet': np.random.randint(800, 4000),
-        'year_built': np.random.randint(1950, 2024),
-        'value': np.random.randint(200000, 2000000)
+        geo_config["area_unit"]: np.random.randint(area_min, area_max),
+        'year_built': np.random.randint(yr_min, yr_max),
+        'value': np.random.randint(val_min, val_max),
     }
 
     if include_coordinates:
-        # Generate coordinates in a reasonable range (e.g., Los Angeles area)
-        housing['latitude'] = np.random.uniform(33.5, 34.5)
-        housing['longitude'] = np.random.uniform(-118.5, -117.5)
+        lat_min, lat_max = geo_config["lat_range"]
+        lon_min, lon_max = geo_config["lon_range"]
+        housing['latitude'] = np.random.uniform(lat_min, lat_max)
+        housing['longitude'] = np.random.uniform(lon_min, lon_max)
 
     return housing
 

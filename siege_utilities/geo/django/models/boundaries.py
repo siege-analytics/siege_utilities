@@ -7,7 +7,6 @@ which provides: geoid, state_fips, lsad, mtfcc, funcstat, vintage_year,
 valid_from/valid_to, geometry, area_land, area_water, internal_point, source.
 """
 
-from django.contrib.gis.db import models as gis_models
 from django.db import models
 
 from .base import CensusTIGERBoundary

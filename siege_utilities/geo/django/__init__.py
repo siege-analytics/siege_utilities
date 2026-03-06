@@ -29,79 +29,44 @@ Example:
 from __future__ import annotations
 
 import importlib.util
-from typing import TYPE_CHECKING
+import os
+import platform
+from pathlib import Path
 
 # Check for Django availability
 _django_available = importlib.util.find_spec("django") is not None
 _gis_available = False
 
+# Auto-detect GDAL library on macOS if not already set.
+# Django's libgdal.py reads GDAL_LIBRARY_PATH from django.conf.settings,
+# but that only works when DJANGO_SETTINGS_MODULE is configured.
+# Setting the env var ensures GDAL is found in all contexts (notebooks, tests, CLI).
+if "GDAL_LIBRARY_PATH" not in os.environ and platform.system() == "Darwin":
+    for _candidate in (
+        "/opt/homebrew/lib/libgdal.dylib",   # Apple Silicon Homebrew
+        "/usr/local/lib/libgdal.dylib",       # Intel Homebrew
+    ):
+        if Path(_candidate).exists():
+            os.environ["GDAL_LIBRARY_PATH"] = _candidate
+            break
+
+if "GEOS_LIBRARY_PATH" not in os.environ and platform.system() == "Darwin":
+    for _candidate in (
+        "/opt/homebrew/lib/libgeos_c.dylib",
+        "/usr/local/lib/libgeos_c.dylib",
+    ):
+        if Path(_candidate).exists():
+            os.environ["GEOS_LIBRARY_PATH"] = _candidate
+            break
+
 if _django_available:
     try:
-        from django.contrib.gis.db import models as gis_models
+        import django.contrib.gis.db.models  # noqa: F401
         _gis_available = True
-    except ImportError:
+    except Exception:
+        # ImportError: django.contrib.gis not installed
+        # ImproperlyConfigured: GDAL C library not found on system
         _gis_available = False
-
-# Lazy imports to avoid import errors when Django is not installed
-if TYPE_CHECKING:
-    from .models import (
-        TemporalGeographicFeature,
-        TemporalBoundary,
-        CensusTIGERBoundary,
-        TemporalLinearFeature,
-        TemporalPointFeature,
-        CensusBoundary,
-        State,
-        County,
-        Tract,
-        BlockGroup,
-        Block,
-        Place,
-        ZCTA,
-        CongressionalDistrict,
-        StateLegislativeUpper,
-        StateLegislativeLower,
-        VTD,
-        Precinct,
-        GADMBoundary,
-        GADMCountry,
-        GADMAdmin1,
-        GADMAdmin2,
-        GADMAdmin3,
-        GADMAdmin4,
-        GADMAdmin5,
-        SchoolDistrictBase,
-        SchoolDistrictElementary,
-        SchoolDistrictSecondary,
-        SchoolDistrictUnified,
-        NLRBRegion,
-        FederalJudicialDistrict,
-        CBSA,
-        UrbanArea,
-        BoundaryIntersection,
-        CountyCDIntersection,
-        VTDCDIntersection,
-        TractCDIntersection,
-        TemporalCrosswalk,
-        BoundaryCrosswalk,
-        CrosswalkDataset,
-        DemographicSnapshot,
-        DemographicVariable,
-        DemographicTimeSeries,
-    )
-    from .services import (
-        BoundaryPopulationService,
-        DemographicPopulationService,
-        CrosswalkPopulationService,
-    )
-    from .serializers import (
-        TemporalBoundarySerializer,
-        CensusTIGERSerializer,
-        StateSerializer,
-        CountySerializer,
-        TractSerializer,
-        BoundaryWithDemographicsSerializer,
-    )
 
 
 def _check_dependencies():

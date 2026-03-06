@@ -407,7 +407,7 @@ if not result['success']:
 
 ## Examples
 
-See the `examples/client_and_connection_demo.py` file for a complete demonstration of all functionality.
+See `siege_utilities/examples/enhanced_features_demo.py` for an in-repo runnable example.
 
 ## Testing
 

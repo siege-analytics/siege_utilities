@@ -53,6 +53,42 @@ siege_utilities/
     └── experiments/          # Experimental configurations
 ```
 
+## External Contributor Quickstart (Fork -> Merge)
+
+Follow this flow for external contributions:
+
+### 1. Fork and Clone
+
+```bash
+git clone https://github.com/<your-user>/siege_utilities.git
+cd siege_utilities
+git remote add upstream https://github.com/siege-analytics/siege_utilities.git
+```
+
+### 2. Install in a Local Virtual Environment
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+### 3. Validate Notebook Policy and Outputs
+
+```bash
+python -m pytest -q --no-cov tests/test_notebooks_output_policy.py
+```
+
+If your change affects user-facing behavior or APIs, update relevant notebooks and keep `notebooks/output/` artifacts reviewer-visible.
+
+### 4. File an Issue for Merge and Link Your PR
+
+Open an issue in `siege-analytics/siege_utilities` and include:
+- Problem statement and change scope
+- Link to your branch/PR from your fork
+- Test evidence
+- Documentation and notebook updates
+
 ## 🔧 Development Setup
 
 ### 1. Clone and Install
@@ -75,8 +111,23 @@ python -m pytest tests/test_core_logging.py -v
 # Run with coverage
 python -m pytest tests/ --cov=siege_utilities --cov-report=html
 
-# Battle test the entire system
-python scripts/battle_test_hydra_pydantic.py
+# Run script-level import diagnostics
+python scripts/check_imports.py
+
+# Enforce test filename/location hygiene
+python scripts/check_test_file_hygiene.py
+
+# Phase 1 lint ratchet on touched Python files
+python scripts/check_lint_ratchet_phase1.py
+
+# Phase 2 lint ratchet on touched Python files
+python scripts/check_lint_ratchet.py --phase phase2
+
+# Phase 3 lint ratchet for touched high-change domains (config/geo/files)
+python scripts/check_lint_ratchet.py --phase phase3
+
+# Phase 4 full-repo ratchet against baseline
+python scripts/check_lint_ratchet.py --phase phase4
 ```
 
 ### 3. Verify Installation
@@ -88,6 +139,14 @@ python -c "import siege_utilities; print(siege_utilities.get_package_info())"
 # Run comprehensive check
 python scripts/check_imports.py
 ```
+
+## 🤖 Automated Review
+
+CodeRabbit is part of the required PR workflow.
+
+- Review policy is defined in `.coderabbit.yaml`
+- `CodeRabbit` status must pass before merge to `main`
+- See `docs/CODERABBIT_WORKFLOW.md` for merge-readiness expectations
 
 ## 🎯 Adding New Functions
 
@@ -269,7 +328,7 @@ class ConfigurationMigrator:
 ### 3. Battle Testing
 
 ```python
-# scripts/battle_test_new_feature.py
+# tests/test_new_feature.py
 def test_new_feature_comprehensive():
     """Comprehensive test of new feature."""
     
