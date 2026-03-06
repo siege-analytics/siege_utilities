@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
-from typing import Any, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 
 @dataclass(frozen=True)
@@ -102,4 +102,3 @@ def resolve_spatial_runtime_plan(
         loader_order=["python"],
         reason="no native Databricks spatial or Sedona support detected",
     )
-
