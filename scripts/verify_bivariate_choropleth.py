@@ -8,7 +8,7 @@ methods are available.
 """
 
 import sys
-import os
+import importlib
 from pathlib import Path
 
 # Add the parent directory to the path so we can import the modules
@@ -26,15 +26,17 @@ def test_imports():
         return False
     
     try:
-        import pandas as pd
+        pd = importlib.import_module("pandas")
         print("✓ pandas imported successfully")
+        print(f"  pandas version: {getattr(pd, '__version__', 'unknown')}")
     except ImportError as e:
         print(f"✗ Failed to import pandas: {e}")
         return False
     
     try:
-        import matplotlib.pyplot as plt
+        plt = importlib.import_module("matplotlib.pyplot")
         print("✓ matplotlib imported successfully")
+        print(f"  matplotlib backend: {plt.get_backend()}")
     except ImportError as e:
         print(f"✗ Failed to import matplotlib: {e}")
         return False
@@ -49,7 +51,7 @@ def test_chart_generator_initialization():
         from reporting.chart_generator import ChartGenerator
         
         # Test basic initialization
-        chart_gen = ChartGenerator()
+        ChartGenerator()
         print("✓ ChartGenerator initialized successfully")
         
         # Test with branding config
@@ -60,7 +62,7 @@ def test_chart_generator_initialization():
                 'accent': '#FF6B35'
             }
         }
-        chart_gen_with_branding = ChartGenerator(branding_config)
+        ChartGenerator(branding_config)
         print("✓ ChartGenerator with branding initialized successfully")
         
         return True
@@ -146,7 +148,7 @@ def test_basic_functionality():
         
         # Test basic bar chart (this should work without external dependencies)
         try:
-            chart = chart_gen.create_bar_chart(
+            chart_gen.create_bar_chart(
                 data=df,
                 x_column='state',
                 y_column='population_density',
