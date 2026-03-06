@@ -17,12 +17,11 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from siege_utilities.conf import settings
 from siege_utilities.config.nces_constants import (
     DISTANCE_THRESHOLDS,
-    LOCALE_CODE_TO_NUMERIC,
     LOCALE_NUMERIC_CODES,
     POPULATION_THRESHOLDS,
     validate_locale_code,
@@ -649,7 +648,6 @@ class NCESLocaleClassifier:
         Returns:
             An initialized ``NCESLocaleClassifier``.
         """
-        import geopandas as gpd
 
         from .nces_download import NCESDownloader
 

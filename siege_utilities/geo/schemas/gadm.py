@@ -1,6 +1,5 @@
 """Pydantic schemas for GADM models."""
 
-from typing import Optional
 
 from pydantic import Field
 

@@ -19,7 +19,7 @@ Example usage (Django):
 
 import re
 
-from siege_utilities.config.census_constants import STATE_FIPS_CODES, FIPS_TO_STATE
+from siege_utilities.config.census_constants import FIPS_TO_STATE
 
 
 # =============================================================================

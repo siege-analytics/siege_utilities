@@ -15,8 +15,7 @@ from typing import TYPE_CHECKING, Optional
 from django.db import transaction
 
 if TYPE_CHECKING:
-    import geopandas as gpd
-    import pandas as pd
+    pass
 
 log = logging.getLogger(__name__)
 

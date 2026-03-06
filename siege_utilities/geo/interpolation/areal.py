@@ -18,7 +18,6 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 import geopandas as gpd
-import numpy as np
 
 log = logging.getLogger(__name__)
 
@@ -248,9 +247,6 @@ def compute_area_weights(
     # Use an equal-area projection for accurate area computation
     source_ea = source.to_crs("ESRI:54009")
     target_ea = target.to_crs("ESRI:54009")
-
-    source_areas = source_ea.geometry.area
-    target_areas = target_ea.geometry.area
 
     # Compute intersections via spatial overlay
     overlay = gpd.overlay(source_ea, target_ea, how="intersection", keep_geom_type=False)

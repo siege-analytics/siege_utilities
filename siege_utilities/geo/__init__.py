@@ -156,6 +156,12 @@ _register([
     'build_census_table_name', 'build_census_ingest_targets',
 ], '.databricks_fallback')
 
+# --- spatial_runtime ---
+_register([
+    'SpatialRuntimePlan',
+    'resolve_spatial_runtime_plan',
+], '.spatial_runtime')
+
 # --- census_files (PL 94-171) ---
 _register([
     'PLFileDownloader', 'get_pl_data', 'get_pl_blocks', 'get_pl_tracts',

@@ -51,8 +51,8 @@ from .longitudinal_data import (
     # Constants
     ACS5_AVAILABLE_YEARS,
     DECENNIAL_YEARS,
-    BOUNDARY_CHANGE_YEARS,
 )
+from siege_utilities.config.census_constants import BOUNDARY_CHANGE_YEARS
 
 from .change_metrics import (
     # Main functions

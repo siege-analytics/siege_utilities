@@ -7,7 +7,7 @@ Usage:
     python manage.py populate_timezones --file timezones.geojson --update
 """
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):

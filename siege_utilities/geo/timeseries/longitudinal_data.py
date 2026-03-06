@@ -30,7 +30,6 @@ import pandas as pd
 
 if TYPE_CHECKING:
     import geopandas as gpd
-import numpy as np
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +40,6 @@ log = logging.getLogger(__name__)
 
 from siege_utilities.config.census_constants import (
     ACS5_AVAILABLE_YEARS,
-    BOUNDARY_CHANGE_YEARS,
     DECENNIAL_YEARS,
 )
 
