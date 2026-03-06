@@ -24,6 +24,10 @@ Goal: move from best-effort linting to enforceable quality gates without blockin
   - `F403/F405` import-star undefined names in touched modules
 - Enforce on changed files first if full-repo enforcement is too disruptive.
 
+Implementation command:
+
+- CI/local gate: `python scripts/check_lint_ratchet_phase1.py`
+
 ### Phase 2: Core Hygiene Enforcement
 
 - Add blocking rules for:

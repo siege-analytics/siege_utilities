@@ -80,6 +80,9 @@ python scripts/check_imports.py
 
 # Enforce test filename/location hygiene
 python scripts/check_test_file_hygiene.py
+
+# Phase 1 lint ratchet on touched Python files
+python scripts/check_lint_ratchet_phase1.py
 ```
 
 ### 3. Verify Installation
