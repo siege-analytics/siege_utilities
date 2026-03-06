@@ -233,10 +233,10 @@ create_default_profiles()
 
 ## 🎯 Next Steps
 
-1. **Explore Examples**: Check `examples/` directory for comprehensive examples
+1. **Explore Examples**: Start with `siege_utilities/examples/enhanced_features_demo.py`
 2. **Read Documentation**: Full documentation in `docs/` directory
 3. **Run Tests**: `python -m pytest tests/` to verify everything works
-4. **Battle Test**: Run `python scripts/battle_test_hydra_pydantic.py` for comprehensive testing
+4. **Check Imports**: Run `python scripts/check_imports.py` for a quick script-level sanity check
 
 ## 💡 Pro Tips
 
@@ -244,7 +244,7 @@ create_default_profiles()
 - **Check function availability** before using: `info = su.get_package_info()`
 - **Use validation**: The new Pydantic models catch errors early
 - **Client-specific configs**: Override defaults with client-specific YAML files
-- **Migration**: Use `python scripts/migrate_to_hydra.py --dry-run` to migrate existing configs
+- **Migration**: Use the programmatic migration helpers documented in `docs/HYDRA_PYDANTIC_CONFIGURATION.md`
 
 ---
 

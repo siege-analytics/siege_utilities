@@ -5,6 +5,14 @@ All notable changes to siege_utilities will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **License model update (effective March 6, 2026)** — moved from MIT to a dual-license model:
+  - AGPL-3.0-only for open-source use
+  - Commercial license path for proprietary/commercial use by separate agreement
+  - Attribution required in both license paths
+
 ## [3.2.0] - 2026-03-01
 
 ### Changed

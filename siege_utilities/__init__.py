@@ -497,7 +497,7 @@ def get_package_info() -> Dict[str, Any]:
         'validate_branch_naming': 'git',
         'setup_spark_environment': 'testing', 'get_system_info': 'testing',
         'load_sample_data': 'data', 'list_available_datasets': 'data',
-        'get_dataset_info': 'data', 'join_boundaries_and_data': 'data',
+        'join_boundaries_and_data': 'data',
         'create_sample_dataset': 'data', 'generate_synthetic_population': 'data',
         'generate_synthetic_businesses': 'data', 'generate_synthetic_housing': 'data',
         'create_ga_account_profile': 'analytics', 'save_ga_account_profile': 'analytics',

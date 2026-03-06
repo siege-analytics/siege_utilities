@@ -241,16 +241,7 @@ To create client-specific configurations:
 
 ### Automated Migration
 
-```bash
-# Dry run to see what would be migrated
-python scripts/migrate_to_hydra.py --dry-run
-
-# Migrate with backup
-python scripts/migrate_to_hydra.py --backup
-
-# Migrate from custom directory
-python scripts/migrate_to_hydra.py --legacy-config ~/old_config --backup
-```
+Use the programmatic migration helpers from `siege_utilities.config` for migration workflows.
 
 ### Programmatic Migration
 
@@ -304,10 +295,10 @@ except ValueError as e:
 
 ```bash
 # Run the comprehensive example
-python examples/hydra_pydantic_example.py
+python -m siege_utilities.examples.enhanced_features_demo
 
-# Run battle testing
-python scripts/battle_test_hydra_pydantic.py
+# Optional: run import diagnostics
+python scripts/check_imports.py
 ```
 
 ## 📊 Advanced Features
@@ -403,7 +394,7 @@ password
 - [Complete Configuration Documentation](HYDRA_PYDANTIC_CONFIGURATION.md)
 - [API Reference](api/)
 - [Migration Guide](migration/)
-- [Examples](examples/)
+- [`siege_utilities/examples/`](../siege_utilities/examples/)
 - [Troubleshooting Guide](troubleshooting/)
 
 ## 🤝 Getting Help
