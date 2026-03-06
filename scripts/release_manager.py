@@ -363,6 +363,12 @@ def _is_clean() -> bool:
     return len(result.stdout.strip()) == 0
 
 
+def _is_shallow_repo() -> bool:
+    """Return True when git history is shallow."""
+    result = _git(['rev-parse', '--is-shallow-repository'], check=False, capture=True)
+    return result.returncode == 0 and result.stdout.strip() == 'true'
+
+
 def merge_develop_to_main(dry_run: bool = False) -> bool:
     """Merge develop into main (gitflow release merge).
 
@@ -394,6 +400,12 @@ def merge_develop_to_main(dry_run: bool = False) -> bool:
         return True
 
     try:
+        # Ensure full history before merge; shallow clones can trigger false
+        # "unrelated histories" failures when merging long-lived branches.
+        if _is_shallow_repo():
+            logger.info("Repository is shallow; fetching full history...")
+            _git(['fetch', '--unshallow', 'origin'], check=False)
+
         # Pull latest develop
         logger.info("Pulling latest develop...")
         _git(['pull', 'origin', 'develop'])
@@ -405,7 +417,21 @@ def merge_develop_to_main(dry_run: bool = False) -> bool:
 
         # Merge develop into main
         logger.info("Merging develop into main...")
-        _git(['merge', 'develop', '--no-ff', '-m', 'Merge branch \'develop\''])
+        merge_cmd = ['merge', 'develop', '--no-ff', '-m', 'Merge branch \'develop\'']
+        merge_result = _git(merge_cmd, check=False, capture=True)
+        if merge_result.returncode != 0:
+            stderr = (merge_result.stderr or '').strip()
+            if 'refusing to merge unrelated histories' in stderr and _is_shallow_repo():
+                logger.warning("Merge reported unrelated histories on shallow repo; retrying after unshallow fetch...")
+                _git(['fetch', '--unshallow', 'origin'], check=False)
+                merge_result = _git(merge_cmd, check=False, capture=True)
+            if merge_result.returncode != 0:
+                raise subprocess.CalledProcessError(
+                    merge_result.returncode,
+                    ['git'] + merge_cmd,
+                    output=merge_result.stdout,
+                    stderr=merge_result.stderr,
+                )
 
         # Push main
         logger.info("Pushing main...")
