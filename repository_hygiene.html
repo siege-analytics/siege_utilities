@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Welcome to Siege Utilities documentation! &mdash; Siege Utilities 3.8.2 documentation</title>
+  <title>Repository Hygiene &mdash; Siege Utilities 3.8.2 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
@@ -18,7 +18,8 @@
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Getting Started" href="getting_started.html" /> 
+    <link rel="next" title="CodeRabbit Workflow" href="coderabbit_workflow.html" />
+    <link rel="prev" title="Change Classification and Release Policy" href="change_classification_and_release_policy.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -29,7 +30,7 @@
 
           
           
-          <a href="#" class="icon icon-home">
+          <a href="index.html" class="icon icon-home">
             Siege Utilities
           </a>
 <div role="search">
@@ -351,16 +352,16 @@
 </li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development &amp; Testing:</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="coding_style.html">Coding Style</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pr_review_rubric.html">PR Review Rubric</a></li>
 <li class="toctree-l1"><a class="reference internal" href="lint_ratchet_plan.html">Lint Ratchet Plan</a></li>
 <li class="toctree-l1"><a class="reference internal" href="change_classification_and_release_policy.html">Change Classification and Release Policy</a></li>
-<li class="toctree-l1"><a class="reference internal" href="repository_hygiene.html">Repository Hygiene</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="repository_hygiene.html#policy-goals">Policy goals</a></li>
-<li class="toctree-l2"><a class="reference internal" href="repository_hygiene.html#tracked-vs-ignored-artifacts">Tracked vs ignored artifacts</a></li>
-<li class="toctree-l2"><a class="reference internal" href="repository_hygiene.html#special-exception-notebooks-output">Special exception: notebooks output</a></li>
-<li class="toctree-l2"><a class="reference internal" href="repository_hygiene.html#scripts-policy">Scripts policy</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Repository Hygiene</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#policy-goals">Policy goals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tracked-vs-ignored-artifacts">Tracked vs ignored artifacts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#special-exception-notebooks-output">Special exception: notebooks output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#scripts-policy">Scripts policy</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="coderabbit_workflow.html">CodeRabbit Workflow</a><ul>
@@ -442,15 +443,15 @@
 
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="#">Siege Utilities</a>
+          <a href="index.html">Siege Utilities</a>
       </nav>
 
       <div class="wy-nav-content">
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Welcome to Siege Utilities documentation!</li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Repository Hygiene</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -459,249 +460,57 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="welcome-to-siege-utilities-documentation">
-<h1>Welcome to Siege Utilities documentation!<a class="headerlink" href="#welcome-to-siege-utilities-documentation" title="Link to this heading"></a></h1>
-<p>Siege Utilities is a comprehensive Python utilities package with <strong>enhanced auto-discovery</strong> that automatically imports and makes all functions mutually available across modules.</p>
-<div class="toctree-wrapper compound">
-<p class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="getting_started.html#quick-start">Quick Start</a></li>
-<li class="toctree-l2"><a class="reference internal" href="getting_started.html#core-capabilities">Core Capabilities</a></li>
-<li class="toctree-l2"><a class="reference internal" href="getting_started.html#real-world-workflow-examples">Real-World Workflow Examples</a></li>
-<li class="toctree-l2"><a class="reference internal" href="getting_started.html#installation-and-dependencies">Installation and Dependencies</a></li>
-<li class="toctree-l2"><a class="reference internal" href="getting_started.html#performance-and-scalability">Performance and Scalability</a></li>
-<li class="toctree-l2"><a class="reference internal" href="getting_started.html#next-steps">Next Steps</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="architecture_diagram.html">Library Architecture</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#overview">Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#core-architecture">Core Architecture</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#function-distribution">Function Distribution</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#key-features">Key Features</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#integration-points">Integration Points</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture_diagram.html#usage-patterns">Usage Patterns</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="autodiscovery.html">Enhanced Auto-Discovery System</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#how-it-works">How It Works</a></li>
-<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#the-five-phase-discovery-process">The Five-Phase Discovery Process</a></li>
-<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#benefits">Benefits</a></li>
-<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#monitoring-your-package">Monitoring Your Package</a></li>
-<li class="toctree-l2"><a class="reference internal" href="autodiscovery.html#adding-new-functions">Adding New Functions</a></li>
-</ul>
-</li>
-</ul>
-</div>
-<div class="toctree-wrapper compound">
-<p class="caption" role="heading"><span class="caption-text">Core Utilities:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="core_utilities.html">Core Utilities</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="core_utilities.html#package-discovery">Package Discovery</a></li>
-<li class="toctree-l2"><a class="reference internal" href="core_utilities.html#functions">Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="core_utilities.html#usage-examples">Usage Examples</a></li>
-<li class="toctree-l2"><a class="reference internal" href="core_utilities.html#unit-tests">Unit Tests</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="string_utilities.html">String Utilities</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="string_utilities.html#module-overview">Module Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="string_utilities.html#functions">Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="string_utilities.html#usage-examples">Usage Examples</a></li>
-<li class="toctree-l2"><a class="reference internal" href="string_utilities.html#unit-tests">Unit Tests</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="logging_utilities.html">Logging Utilities</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="logging_utilities.html#module-overview">Module Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="logging_utilities.html#functions">Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="logging_utilities.html#usage-examples">Usage Examples</a></li>
-<li class="toctree-l2"><a class="reference internal" href="logging_utilities.html#unit-tests">Unit Tests</a></li>
-</ul>
-</li>
-</ul>
-</div>
-<div class="toctree-wrapper compound">
-<p class="caption" role="heading"><span class="caption-text">Distributed Computing:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="distributed_computing.html">Distributed Computing</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#module-overview">Module Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#hdfs-configuration">HDFS Configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#functions">Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#usage-examples">Usage Examples</a></li>
-<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#hdfs-operations">HDFS Operations</a></li>
-<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#id1">Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#id2">Usage Examples</a></li>
-<li class="toctree-l2"><a class="reference internal" href="distributed_computing.html#unit-tests">Unit Tests</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="hdfs_operations.html">HDFS Operations</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="hdfs_operations.html#module-overview">Module Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hdfs_operations.html#functions">Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hdfs_operations.html#usage-examples">Usage Examples</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hdfs_operations.html#unit-tests">Unit Tests</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="spark_utilities.html">Spark Utilities</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="spark_utilities.html#module-overview">Module Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="spark_utilities.html#functions-by-category">Functions by Category</a></li>
-<li class="toctree-l2"><a class="reference internal" href="spark_utilities.html#usage-examples">Usage Examples</a></li>
-<li class="toctree-l2"><a class="reference internal" href="spark_utilities.html#unit-tests">Unit Tests</a></li>
-</ul>
-</li>
-</ul>
-</div>
-<div class="toctree-wrapper compound">
-<p class="caption" role="heading"><span class="caption-text">File Operations:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="file_operations.html">File Operations</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="file_operations.html#module-overview">Module Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="file_operations.html#functions">Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="file_operations.html#usage-examples">Usage Examples</a></li>
-<li class="toctree-l2"><a class="reference internal" href="file_operations.html#unit-tests">Unit Tests</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="file_hashing.html">File Hashing</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="file_hashing.html#module-overview">Module Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="file_hashing.html#functions">Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="file_hashing.html#usage-examples">Usage Examples</a></li>
-<li class="toctree-l2"><a class="reference internal" href="file_hashing.html#unit-tests">Unit Tests</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="remote_operations.html">Remote Operations</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="remote_operations.html#module-overview">Module Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="remote_operations.html#functions">Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="remote_operations.html#usage-examples">Usage Examples</a></li>
-<li class="toctree-l2"><a class="reference internal" href="remote_operations.html#unit-tests">Unit Tests</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="shell_operations.html">Shell Operations</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="shell_operations.html#module-overview">Module Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="shell_operations.html#functions">Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="shell_operations.html#usage-examples">Usage Examples</a></li>
-<li class="toctree-l2"><a class="reference internal" href="shell_operations.html#unit-tests">Unit Tests</a></li>
-</ul>
-</li>
-</ul>
-</div>
-<div class="toctree-wrapper compound">
-<p class="caption" role="heading"><span class="caption-text">Geographic &amp; Analytics:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="geo.html">Geographic Utilities</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="geocoding.html">Geocoding</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html">Enhanced Census Utilities and Spatial Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html">Census Dataset Mapper</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html">Census Data Selector</a></li>
-<li class="toctree-l2"><a class="reference internal" href="geo.html#overview">Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="geo.html#key-features">Key Features</a></li>
-<li class="toctree-l2"><a class="reference internal" href="geo.html#installation">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="geo.html#quick-start">Quick Start</a></li>
-<li class="toctree-l2"><a class="reference internal" href="geo.html#analysis-types-supported">Analysis Types Supported</a></li>
-<li class="toctree-l2"><a class="reference internal" href="geo.html#geography-levels-supported">Geography Levels Supported</a></li>
-<li class="toctree-l2"><a class="reference internal" href="geo.html#census-survey-types">Census Survey Types</a></li>
-<li class="toctree-l2"><a class="reference internal" href="geo.html#data-quality-and-reliability">Data Quality and Reliability</a></li>
-<li class="toctree-l2"><a class="reference internal" href="geo.html#best-practices">Best Practices</a></li>
-<li class="toctree-l2"><a class="reference internal" href="geo.html#examples">Examples</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="analytics.html">Analytics</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="analytics.html#module-overview">Module Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="analytics.html#facebook-business-analytics">Facebook Business Analytics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="analytics.html#functions">Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="analytics.html#usage-examples">Usage Examples</a></li>
-<li class="toctree-l2"><a class="reference internal" href="analytics.html#google-analytics">Google Analytics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="analytics.html#id1">Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="analytics.html#id2">Usage Examples</a></li>
-<li class="toctree-l2"><a class="reference internal" href="analytics.html#unit-tests">Unit Tests</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="mapping_and_reporting.html">Mapping and Reporting System</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#overview">Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#key-features">Key Features</a></li>
-<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#installation">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#quick-start">Quick Start</a></li>
-<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#comprehensive-report-generation">Comprehensive Report Generation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#map-types-reference">Map Types Reference</a></li>
-<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#report-structure">Report Structure</a></li>
-<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#integration-examples">Integration Examples</a></li>
-<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#best-practices">Best Practices</a></li>
-<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#troubleshooting">Troubleshooting</a></li>
-<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#examples-and-recipes">Examples and Recipes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="mapping_and_reporting.html#additional-resources">Additional Resources</a></li>
-</ul>
-</li>
-</ul>
-</div>
-<div class="toctree-wrapper compound">
-<p class="caption" role="heading"><span class="caption-text">Development &amp; Testing:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="coding_style.html">Coding Style</a></li>
-<li class="toctree-l1"><a class="reference internal" href="pr_review_rubric.html">PR Review Rubric</a></li>
-<li class="toctree-l1"><a class="reference internal" href="lint_ratchet_plan.html">Lint Ratchet Plan</a></li>
-<li class="toctree-l1"><a class="reference internal" href="change_classification_and_release_policy.html">Change Classification and Release Policy</a></li>
-<li class="toctree-l1"><a class="reference internal" href="repository_hygiene.html">Repository Hygiene</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="repository_hygiene.html#policy-goals">Policy goals</a></li>
-<li class="toctree-l2"><a class="reference internal" href="repository_hygiene.html#tracked-vs-ignored-artifacts">Tracked vs ignored artifacts</a></li>
-<li class="toctree-l2"><a class="reference internal" href="repository_hygiene.html#special-exception-notebooks-output">Special exception: notebooks output</a></li>
-<li class="toctree-l2"><a class="reference internal" href="repository_hygiene.html#scripts-policy">Scripts policy</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="coderabbit_workflow.html">CodeRabbit Workflow</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="coderabbit_workflow.html#required-status">Required status</a></li>
-<li class="toctree-l2"><a class="reference internal" href="coderabbit_workflow.html#review-focus">Review focus</a></li>
-<li class="toctree-l2"><a class="reference internal" href="coderabbit_workflow.html#merge-readiness">Merge readiness</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="license_model.html">License Model</a></li>
-<li class="toctree-l1"><a class="reference internal" href="testing_guide.html">Testing Guide</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#overview">Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-structure">Test Structure</a></li>
-<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#running-tests">Running Tests</a></li>
-<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-markers">Test Markers</a></li>
-<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#writing-new-tests">Writing New Tests</a></li>
-<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-fixtures">Test Fixtures</a></li>
-<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-configuration">Test Configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#continuous-integration">Continuous Integration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#debugging-tests">Debugging Tests</a></li>
-<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#performance-testing">Performance Testing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-data-management">Test Data Management</a></li>
-<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#best-practices">Best Practices</a></li>
-<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#common-patterns">Common Patterns</a></li>
-<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#troubleshooting">Troubleshooting</a></li>
-<li class="toctree-l2"><a class="reference internal" href="testing_guide.html#getting-help">Getting Help</a></li>
-</ul>
-</li>
-</ul>
-</div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p><strong>v2.0.0</strong> (February 2026) — Released to <a class="reference external" href="https://pypi.org/project/siege-utilities/2.0.0/">PyPI</a>.</p>
-<p>Key capabilities:</p>
+  <section id="repository-hygiene">
+<h1>Repository Hygiene<a class="headerlink" href="#repository-hygiene" title="Link to this heading"></a></h1>
+<p>This page summarizes repository hygiene expectations for contributors.</p>
+<section id="policy-goals">
+<h2>Policy goals<a class="headerlink" href="#policy-goals" title="Link to this heading"></a></h2>
 <ul class="simple">
-<li><p><strong>Auto-Discovery</strong>: 500+ functions automatically imported and mutually available</p></li>
-<li><p><strong>Person/Actor Models</strong>: Pydantic-based identity and contact management</p></li>
-<li><p><strong>Geographic Data</strong>: Census boundaries, TIGER/Line, spatial queries, choropleths</p></li>
-<li><p><strong>Analytics Connectors</strong>: Google Analytics (GA4), with OAuth2 and service account support</p></li>
-<li><p><strong>Report Generation</strong>: PDF (ReportLab), PowerPoint, branded multi-client reports</p></li>
-<li><p><strong>Distributed Computing</strong>: Spark utilities, HDFS operations</p></li>
-<li><p><strong>Client Profiles</strong>: Client information, contact details, and design artifacts</p></li>
-<li><p><strong>724 tests passing</strong>, 30% coverage</p></li>
+<li><p>Keep commits reviewable and reproducible.</p></li>
+<li><p>Exclude local/temporary artifacts from version control.</p></li>
+<li><p>Preserve reviewer-visible notebook outputs.</p></li>
 </ul>
-<p>Install: <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">siege-utilities==2.0.0</span></code></p>
-</div>
 </section>
-<section id="indices-and-tables">
-<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Link to this heading"></a></h1>
+<section id="tracked-vs-ignored-artifacts">
+<h2>Tracked vs ignored artifacts<a class="headerlink" href="#tracked-vs-ignored-artifacts" title="Link to this heading"></a></h2>
+<p>Track:</p>
 <ul class="simple">
-<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
-<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
-<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+<li><p>Source code and tests</p></li>
+<li><p>Documentation updates tied to behavior changes</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">notebooks/output/</span></code> artifacts used for review and verification</p></li>
 </ul>
+<p>Ignore:</p>
+<ul class="simple">
+<li><p>Build/cache output</p></li>
+<li><p>IDE/editor local state</p></li>
+<li><p>Temporary/backup files</p></li>
+<li><p>Local secrets and machine-specific credentials</p></li>
+</ul>
+</section>
+<section id="special-exception-notebooks-output">
+<h2>Special exception: notebooks output<a class="headerlink" href="#special-exception-notebooks-output" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">notebooks/output/</span></code> is intentionally tracked so external contributors and reviewers can inspect generated notebook deliverables without re-running notebooks.</p>
+<p>When notebook behavior changes, update both:</p>
+<ul class="simple">
+<li><p>the notebook source, and</p></li>
+<li><p>the corresponding artifacts in <code class="docutils literal notranslate"><span class="pre">notebooks/output/</span></code></p></li>
+</ul>
+</section>
+<section id="scripts-policy">
+<h2>Scripts policy<a class="headerlink" href="#scripts-policy" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Scripts in <code class="docutils literal notranslate"><span class="pre">scripts/README.md</span></code> marked as supported are expected to remain stable.</p></li>
+<li><p>One-off diagnostics should be labeled experimental and kept out of critical CI/release paths.</p></li>
+</ul>
+</section>
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="getting_started.html" class="btn btn-neutral float-right" title="Getting Started" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="change_classification_and_release_policy.html" class="btn btn-neutral float-left" title="Change Classification and Release Policy" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="coderabbit_workflow.html" class="btn btn-neutral float-right" title="CodeRabbit Workflow" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
