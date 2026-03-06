@@ -36,6 +36,10 @@ Implementation command:
   - `F541` f-strings without placeholders
 - Require touched-file clean lint for these rules.
 
+Implementation command:
+
+- CI/local gate: `python scripts/check_lint_ratchet.py --phase phase2`
+
 ### Phase 3: Full Module Ratchet
 
 - Promote touched-file lint to full-module lint in high-change areas:
@@ -44,10 +48,19 @@ Implementation command:
   - `siege_utilities/files`
 - Continue debt burndown in low-touch modules.
 
+Implementation command:
+
+- CI/local gate: `python scripts/check_lint_ratchet.py --phase phase3`
+
 ### Phase 4: Full-Repo Enforcement
 
-- Make `ruff check siege_utilities tests` required in CI.
+- Make full-repo selected-rule lint gate required in CI.
 - Keep exception list minimal and temporary, with explicit issue links and sunset dates.
+
+Implementation command:
+
+- CI/local gate: `python scripts/check_lint_ratchet.py --phase phase4`
+- Baseline refresh (dedicated debt-tracking PR only): `python scripts/check_lint_ratchet.py --phase phase4 --update-baseline`
 
 ## Rollout Mechanics
 

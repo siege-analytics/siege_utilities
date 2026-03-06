@@ -83,6 +83,15 @@ python scripts/check_test_file_hygiene.py
 
 # Phase 1 lint ratchet on touched Python files
 python scripts/check_lint_ratchet_phase1.py
+
+# Phase 2 lint ratchet on touched Python files
+python scripts/check_lint_ratchet.py --phase phase2
+
+# Phase 3 lint ratchet for touched high-change domains (config/geo/files)
+python scripts/check_lint_ratchet.py --phase phase3
+
+# Phase 4 full-repo ratchet against baseline
+python scripts/check_lint_ratchet.py --phase phase4
 ```
 
 ### 3. Verify Installation

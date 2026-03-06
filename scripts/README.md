@@ -12,6 +12,14 @@ These scripts are part of the expected contributor workflow and are maintained.
   - Wrapper for project test runs.
 - `python scripts/check_test_file_hygiene.py`
   - Enforces tracked test naming/location conventions.
+- `python scripts/check_lint_ratchet_phase1.py`
+  - Phase 1 lint ratchet (`E722,F601,F403,F405`) on touched Python files.
+- `python scripts/check_lint_ratchet.py --phase phase2`
+  - Phase 2 lint ratchet (`F401,F841,F541`) on touched Python files.
+- `python scripts/check_lint_ratchet.py --phase phase3`
+  - Phase 3 lint ratchet (full-module checks when `config/geo/files` domains are touched).
+- `python scripts/check_lint_ratchet.py --phase phase4`
+  - Phase 4 full-repo ratchet against the committed baseline.
 
 ### Release support
 
