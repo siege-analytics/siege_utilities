@@ -1,7 +1,7 @@
 import time
 import json
 import logging
-from typing import Optional, Tuple
+from typing import Tuple
 
 import pandas as pd
 from geopy.geocoders import Nominatim

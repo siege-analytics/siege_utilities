@@ -25,21 +25,17 @@ Example usage:
     print(crosswalk_df.head())
 """
 
-import hashlib
 import logging
-import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 from io import StringIO
 
 import pandas as pd
 import requests
 
 from .relationship_types import (
-    RelationshipType,
     CrosswalkMetadata,
-    CrosswalkRelationship,
     CROSSWALK_BASE_URL,
     CROSSWALK_FILE_PATTERNS,
     SUPPORTED_CROSSWALK_YEARS,

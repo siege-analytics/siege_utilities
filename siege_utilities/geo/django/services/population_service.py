@@ -164,7 +164,6 @@ class BoundaryPopulationService:
         Returns:
             GeoDataFrame with normalized column names
         """
-        import geopandas as gpd
 
         # Standard column mappings
         column_mappings = {
@@ -440,7 +439,6 @@ class BoundaryPopulationService:
 
         parent_info = parent_map[geography_type]
         parent_field = parent_info[0]
-        parent_model_name = parent_info[1]
         key_fields = parent_info[2:]
 
         parent_model = self._get_model(parent_field)

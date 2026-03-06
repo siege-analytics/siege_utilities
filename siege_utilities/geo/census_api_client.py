@@ -40,11 +40,7 @@ import requests
 
 from ..config import (
     CENSUS_API_BASE_URL,
-    STATE_FIPS_CODES,
-    FIPS_TO_STATE,
-    STATE_NAMES,
     normalize_state_identifier,
-    get_fips_info,
     get_service_timeout,
     CENSUS_RETRY_ATTEMPTS,
 )
@@ -1317,7 +1313,7 @@ def get_census_data_with_geometry(
     """
     import geopandas as gpd
     from .spatial_data import get_census_boundaries
-    from .geoid_utils import normalize_geoid, find_geoid_column
+    from .geoid_utils import find_geoid_column
 
     # Normalize state identifier
     state_fips = None

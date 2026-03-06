@@ -4,17 +4,13 @@ Provides clean, type-safe access to Census, Government, and OpenStreetMap data.
 """
 
 import logging
-import pandas as pd
 import geopandas as gpd
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
-import json
-import tempfile
 import os
-from urllib.parse import urljoin, urlparse
 import time
 import warnings as _warnings_mod
-from datetime import datetime, timedelta
+from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -31,19 +27,12 @@ from ..config.user_config import get_user_config, get_download_directory
 # Import centralized constants
 from ..config import (
     CENSUS_BASE_URL,
-    CENSUS_TIMEOUT,
     CENSUS_CACHE_TIMEOUT,
     CENSUS_RETRY_ATTEMPTS,
     DEFAULT_CENSUS_YEAR,
-    AVAILABLE_CENSUS_YEARS,
-    STATE_FIPS_CODES,
     FIPS_TO_STATE,
     STATE_NAMES,
-    GEOGRAPHIC_LEVELS,
-    TIGER_FILE_PATTERNS,
     normalize_state_identifier,
-    get_tiger_url,
-    validate_geographic_level,
     get_fips_info,
     get_service_timeout
 )
