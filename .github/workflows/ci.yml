@@ -134,6 +134,46 @@ jobs:
       run: |
         uv run pytest tests/test_backward_compat.py tests/test_pydantic_v1_compat.py tests/test_sql_safety.py -v --no-cov
 
+  api-contract-regression:
+    runs-on: ubuntu-latest
+    name: "api contract regression"
+
+    env:
+      BASELINE_VERSION: "3.8.0"
+      RELEASE_IMPACT: "patch"
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Build baseline and candidate API contracts
+      run: |
+        set -euo pipefail
+
+        python -m venv .venv_baseline
+        .venv_baseline/bin/python -m pip install --upgrade pip
+        .venv_baseline/bin/pip install "siege-utilities==${BASELINE_VERSION}"
+        .venv_baseline/bin/python scripts/contracts/generate_public_api_contract.py \
+          --output /tmp/contract_baseline.json
+
+        python -m venv .venv_candidate
+        .venv_candidate/bin/python -m pip install --upgrade pip
+        .venv_candidate/bin/pip install -e .
+        .venv_candidate/bin/python scripts/contracts/generate_public_api_contract.py \
+          --output /tmp/contract_candidate.json
+
+    - name: Compare API contracts
+      run: |
+        python scripts/contracts/compare_public_api_contracts.py \
+          --baseline /tmp/contract_baseline.json \
+          --candidate /tmp/contract_candidate.json \
+          --release-impact "${RELEASE_IMPACT}" \
+          --allowlist scripts/contracts/contract_allowlist.json
+
   test-geo-no-gdal:
     runs-on: ubuntu-latest
     name: "geo without GDAL"
