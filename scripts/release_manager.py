@@ -38,11 +38,9 @@ import shutil
 import json
 import re
 import logging
-import glob as globmod
 from pathlib import Path
 from typing import Dict, List, Optional
 import argparse
-from datetime import datetime
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
