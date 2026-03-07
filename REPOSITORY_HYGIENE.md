@@ -34,6 +34,12 @@ If notebook logic changes, update both:
 - Stable scripts used by contributors/CI should be documented in `scripts/README.md` under supported workflows.
 - One-off analysis scripts must be clearly labeled as experimental and should not become implicit dependencies for CI or release automation.
 
+## Historical Markdown Artifacts
+
+- Keep active policy and workflow docs in canonical root files and linked docs pages.
+- Move superseded planning/status markdown to `docs/archive/` instead of leaving legacy files at repository root.
+- When archiving, use explicit date/version suffixes (for example `*_2026.md`).
+
 ## Contribution Checklist
 
 Before opening a PR:

@@ -150,7 +150,7 @@ git push origin --delete release/v2.0.0
 - [ ] CI `release` job ran successfully (triggered by the release event)
 - [ ] `main` branch has the release commit and tag
 - [ ] `develop` branch has the release merged back
-- [ ] Update `SESSION_STATUS.md` to reflect release completion
+- [ ] Update `docs/archive/SESSION_STATUS_2026.md` to reflect release completion
 - [ ] Close Epic A #38 (merge restoration branch to main)
 
 ## Architectural Decisions
