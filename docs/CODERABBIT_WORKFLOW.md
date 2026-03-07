@@ -4,8 +4,9 @@ This repository uses CodeRabbit for automated PR review.
 
 ## Required Status
 
-- `CodeRabbit` is a required status check on `main`.
+- `CodeRabbit` is a required status check on protected branches (`develop` and `main`).
 - PRs cannot be merged until the check is successful.
+- Standard contributor PR target is `develop`.
 
 ## Scope and Policy
 
