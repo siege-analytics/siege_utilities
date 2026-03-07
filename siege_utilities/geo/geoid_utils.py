@@ -30,7 +30,6 @@ Example usage:
 """
 
 import logging
-import re
 from typing import Dict, Optional, Union
 
 import pandas as pd
@@ -243,7 +242,7 @@ def construct_geoid(
     # Normalize components
     def pad(value: Optional[str], length: int) -> str:
         if value is None:
-            raise ValueError(f"Missing required component")
+            raise ValueError("Missing required component")
         return str(value).zfill(length)
 
     if geography_lower == 'state':
@@ -290,8 +289,6 @@ def construct_geoid_from_row(
         geoid = construct_geoid_from_row(row, 'tract')
         # Returns: '06037101100'
     """
-    geography_lower = resolve_geographic_level(geography_level)
-
     def get_value(col_name: str) -> Optional[str]:
         """Get value from row, handling different column name formats."""
         # Try exact match first

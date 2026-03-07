@@ -7,7 +7,6 @@ different vintage years, enabling longitudinal analysis when boundaries change.
 BoundaryCrosswalk is kept as a deprecated alias for backwards compatibility.
 """
 
-import warnings
 
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models

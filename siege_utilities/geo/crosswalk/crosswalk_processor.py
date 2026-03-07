@@ -22,7 +22,7 @@ Example usage:
 """
 
 import logging
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, List, Optional, Union
 
 import pandas as pd
 import numpy as np
@@ -30,7 +30,6 @@ import numpy as np
 from .relationship_types import (
     RelationshipType,
     WeightMethod,
-    CrosswalkRelationship,
     GeographyChange,
 )
 from .crosswalk_client import get_crosswalk

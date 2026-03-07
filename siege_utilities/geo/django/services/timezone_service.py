@@ -9,9 +9,8 @@ import json
 import logging
 import zipfile
 from dataclasses import dataclass, field
-from io import BytesIO
 from pathlib import Path
-from typing import Optional, Union
+from typing import Union
 
 from django.db import transaction
 
@@ -193,7 +192,7 @@ class TimezonePopulationService:
         Falls back to (None, None, True) if resolution fails.
         """
         try:
-            from datetime import datetime, timezone
+            from datetime import datetime
             from zoneinfo import ZoneInfo
 
             tz = ZoneInfo(tz_id)

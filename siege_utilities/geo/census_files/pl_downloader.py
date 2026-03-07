@@ -21,8 +21,6 @@ Example usage:
 """
 
 import logging
-import os
-import hashlib
 import zipfile
 from datetime import datetime, timedelta
 from io import StringIO

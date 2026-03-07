@@ -10,7 +10,7 @@ for the most commonly-queried intersection pairs.
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
-from .boundaries import State, County, Tract, CongressionalDistrict
+from .boundaries import County, Tract, CongressionalDistrict
 from .political import VTD
 
 

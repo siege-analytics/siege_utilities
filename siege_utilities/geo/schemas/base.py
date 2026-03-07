@@ -4,7 +4,7 @@ Base Pydantic schemas mirroring the abstract model hierarchy.
 Geometry is NOT included — it's handled via GeoDataFrame/WKT in converters.
 """
 
-from datetime import date, datetime
+from datetime import date
 from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator

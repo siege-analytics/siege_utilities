@@ -3,7 +3,7 @@ Custom manager for temporal boundary models with spatial query helpers.
 """
 
 from django.contrib.gis.db import models as gis_models
-from django.contrib.gis.geos import Point, Polygon, GEOSGeometry
+from django.contrib.gis.geos import Point, GEOSGeometry
 from django.contrib.gis.measure import D
 from django.db import models
 

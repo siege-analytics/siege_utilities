@@ -14,12 +14,7 @@
 
 ## Install
 
-```bash
-pip install siege-utilities
-pip install siege-utilities[geo]
-pip install siege-utilities[geodjango]
-pip install siege-utilities[all]
-```
+See [Installation Options](#installation-options) for all supported install commands (`base`, `geo`, `geodjango`, `all`).
 
 ## Quick Usage
 
