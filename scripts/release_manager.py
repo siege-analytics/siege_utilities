@@ -38,11 +38,9 @@ import shutil
 import json
 import re
 import logging
-import glob as globmod
 from pathlib import Path
 from typing import Dict, List, Optional
 import argparse
-from datetime import datetime
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
@@ -367,6 +365,51 @@ def _is_shallow_repo() -> bool:
     """Return True when git history is shallow."""
     result = _git(['rev-parse', '--is-shallow-repository'], check=False, capture=True)
     return result.returncode == 0 and result.stdout.strip() == 'true'
+
+
+def commit_release_metadata(version: str, dry_run: bool = False) -> bool:
+    """Commit and push release metadata changes on develop, if present.
+
+    This includes version-bearing files and CHANGELOG.md when modified.
+    It ensures merge_develop_to_main sees a clean worktree and that the
+    release bump commit exists on origin/develop before merging to main.
+    """
+    if _current_branch() != 'develop':
+        logger.error("Release metadata commit requires current branch 'develop'")
+        return False
+
+    candidate_paths = [str(spec['path'].relative_to(PROJECT_ROOT))
+                       for spec in VERSION_FILES.values()]
+    changelog = PROJECT_ROOT / 'CHANGELOG.md'
+    if changelog.exists():
+        candidate_paths.append('CHANGELOG.md')
+
+    changed_paths = []
+    for path in candidate_paths:
+        result = _git(['status', '--porcelain', '--', path], capture=True)
+        if result.stdout.strip():
+            changed_paths.append(path)
+
+    if not changed_paths:
+        logger.info("No release metadata changes to commit")
+        return True
+
+    if dry_run:
+        logger.info(f"[DRY RUN] Would commit and push release metadata: {changed_paths}")
+        return True
+
+    tag = f"v{version}"
+    commit_message = f"chore(release): bump version to {version}"
+    try:
+        logger.info(f"Committing release metadata for {tag}...")
+        _git(['add'] + changed_paths)
+        _git(['commit', '-m', commit_message])
+        logger.info("Pushing develop...")
+        _git(['push', 'origin', 'develop'])
+        return True
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Failed to commit release metadata: {e}")
+        return False
 
 
 def merge_develop_to_main(dry_run: bool = False) -> bool:
@@ -764,6 +807,15 @@ def main():
                 notes = f"Release v{new_ver}"
         else:
             notes = args.release_notes
+
+        # 8b. Persist release metadata on develop
+        logger.info("Committing release metadata on develop...")
+        if _current_branch() == 'develop' or args.dry_run:
+            if not commit_release_metadata(new_ver, args.dry_run):
+                logger.error("Release metadata commit failed")
+                sys.exit(1)
+        else:
+            logger.warning(f"Not on develop (on {_current_branch()}), skipping metadata commit")
 
         # 9. Merge develop → main (gitflow)
         logger.info("Step 9/12: Merging develop → main...")

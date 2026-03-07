@@ -64,6 +64,7 @@ See:
 - `CODING_STYLE.md`
 - `PR_REVIEW_RUBRIC.md`
 - `CHANGE_CLASSIFICATION_AND_RELEASE_POLICY.md`
+- `CONTRIBUTOR_GOVERNANCE.md`
 
 ## External Contributor Workflow
 

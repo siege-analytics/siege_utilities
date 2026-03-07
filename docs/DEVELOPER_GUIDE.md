@@ -145,7 +145,9 @@ python scripts/check_imports.py
 CodeRabbit is part of the required PR workflow.
 
 - Review policy is defined in `.coderabbit.yaml`
-- `CodeRabbit` status must pass before merge to `main`
+- `CodeRabbit` status must pass before merge
+- Contributor PRs target `develop` (not `main`)
+- Branch protection, bypass policy, and required checks are defined in `CONTRIBUTOR_GOVERNANCE.md`
 - See `docs/CODERABBIT_WORKFLOW.md` for merge-readiness expectations
 
 ## 🎯 Adding New Functions
