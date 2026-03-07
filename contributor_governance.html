@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sample Data and Testing Utilities &mdash; Siege Utilities 3.8.3 documentation</title>
+  <title>Contributor Governance &mdash; Siege Utilities 3.8.3 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
@@ -17,7 +17,9 @@
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
-    <link rel="search" title="Search" href="search.html" /> 
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Coding Style" href="coding_style.html" />
+    <link rel="prev" title="Mapping and Reporting System" href="mapping_and_reporting.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -350,8 +352,8 @@
 </li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development &amp; Testing:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="contributor_governance.html">Contributor Governance</a></li>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Contributor Governance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="coding_style.html">Coding Style</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pr_review_rubric.html">PR Review Rubric</a></li>
 <li class="toctree-l1"><a class="reference internal" href="lint_ratchet_plan.html">Lint Ratchet Plan</a></li>
@@ -450,7 +452,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Sample Data and Testing Utilities</li>
+      <li class="breadcrumb-item active">Contributor Governance</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -459,221 +461,23 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="sample-data-and-testing-utilities">
-<h1>Sample Data and Testing Utilities<a class="headerlink" href="#sample-data-and-testing-utilities" title="Link to this heading"></a></h1>
-<p>The sample data module provides built-in datasets and synthetic data generation capabilities for testing, learning, and development purposes.</p>
-<section id="overview">
-<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
-<p>The sample data utilities combine real Census boundaries with synthetic personal data to create realistic, privacy-safe datasets for development and testing:</p>
+  <section id="contributor-governance">
+<h1>Contributor Governance<a class="headerlink" href="#contributor-governance" title="Link to this heading"></a></h1>
+<p>The contributor governance policy is maintained in:</p>
 <ul class="simple">
-<li><p><strong>Real Geographic Boundaries</strong>: Actual Census tract, county, and metropolitan area boundaries</p></li>
-<li><p><strong>Synthetic Personal Data</strong>: Generated names, demographics, and characteristics using Faker</p></li>
-<li><p><strong>Privacy Safe</strong>: No real personal information, perfect for development environments</p></li>
-<li><p><strong>Multiple Scales</strong>: Data available at tract, county, and metropolitan levels</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CONTRIBUTOR_GOVERNANCE.md</span></code> at repository root (canonical)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">docs/CONTRIBUTOR_GOVERNANCE.md</span></code> (docs-local pointer)</p></li>
 </ul>
-</section>
-<section id="key-features">
-<h2>Key Features<a class="headerlink" href="#key-features" title="Link to this heading"></a></h2>
-<section id="built-in-sample-datasets">
-<h3>Built-in Sample Datasets<a class="headerlink" href="#built-in-sample-datasets" title="Link to this heading"></a></h3>
-<ul class="simple">
-<li><p><strong>census_tract_sample</strong>: Sample Census tract with synthetic population</p></li>
-<li><p><strong>census_county_sample</strong>: County with multiple tracts and synthetic data</p></li>
-<li><p><strong>metropolitan_sample</strong>: Metropolitan area with comprehensive data</p></li>
-<li><p><strong>synthetic_population</strong>: Customizable population data</p></li>
-<li><p><strong>synthetic_businesses</strong>: Business data with industry patterns</p></li>
-<li><p><strong>synthetic_housing</strong>: Property data with realistic characteristics</p></li>
-</ul>
-</section>
-<section id="synthetic-data-generation">
-<h3>Synthetic Data Generation<a class="headerlink" href="#synthetic-data-generation" title="Link to this heading"></a></h3>
-<ul class="simple">
-<li><p><strong>Demographic Matching</strong>: Generate data that matches real demographic patterns</p></li>
-<li><p><strong>Locale-Aware Names</strong>: Ethnicity-appropriate names using Faker locales</p></li>
-<li><p><strong>Realistic Distributions</strong>: Age, income, and education patterns that reflect real data</p></li>
-<li><p><strong>Geographic Integration</strong>: Addresses and coordinates within actual boundaries</p></li>
-</ul>
-</section>
-</section>
-<section id="installation">
-<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
-<p>Install with sample data support:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>siege-utilities<span class="o">[</span>data<span class="o">]</span>
-</pre></div>
-</div>
-<p>For full functionality including geospatial features:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>siege-utilities<span class="o">[</span>data,geo<span class="o">]</span>
-</pre></div>
-</div>
-</section>
-<section id="quick-start">
-<h2>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading"></a></h2>
-<ol class="arabic">
-<li><p><strong>List Available Datasets</strong>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">list_available_datasets</span>
-
-<span class="n">datasets</span> <span class="o">=</span> <span class="n">list_available_datasets</span><span class="p">()</span>
-<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">datasets</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-</li>
-<li><p><strong>Load Pre-built Samples</strong>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_sample_data</span>
-
-<span class="c1"># Load Census tract sample</span>
-<span class="n">tract_data</span> <span class="o">=</span> <span class="n">load_sample_data</span><span class="p">(</span><span class="s2">&quot;census_tract_sample&quot;</span><span class="p">,</span> <span class="n">population_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Generated </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">tract_data</span><span class="p">)</span><span class="si">}</span><span class="s2"> synthetic people&quot;</span><span class="p">)</span>
-
-<span class="c1"># Load county sample</span>
-<span class="n">county_data</span> <span class="o">=</span> <span class="n">load_sample_data</span><span class="p">(</span><span class="s2">&quot;census_county_sample&quot;</span><span class="p">,</span> <span class="n">tract_count</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Generated </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">county_data</span><span class="p">)</span><span class="si">}</span><span class="s2"> people across </span><span class="si">{</span><span class="n">county_data</span><span class="p">[</span><span class="s1">&#39;tract_fips&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span><span class="si">}</span><span class="s2"> tracts&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-</li>
-<li><p><strong>Generate Custom Synthetic Data</strong>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_synthetic_population</span>
-
-<span class="c1"># Create population matching specific demographics</span>
-</pre></div>
-</div>
-</li>
-</ol>
-<dl class="simple">
-<dt>population = generate_synthetic_population(</dt><dd><p>demographics={“Hispanic or Latino”: 0.35, “White alone, not Hispanic or Latino”: 0.30, “Asian alone, not Hispanic or Latino”: 0.25, “Black or African American alone, not Hispanic or Latino”: 0.10},
-size=500,
-include_names=True,
-include_income=True,
-include_education=True</p>
-</dd>
-</dl>
-<p>)</p>
-<blockquote>
-<div><p>print(f”Generated {len(population)} people”)
-print(f”Columns: {list(population.columns)}”)</p>
-</div></blockquote>
-</section>
-<section id="dataset-types">
-<h2>Dataset Types<a class="headerlink" href="#dataset-types" title="Link to this heading"></a></h2>
-<section id="census-based-samples">
-<h3>Census-based Samples<a class="headerlink" href="#census-based-samples" title="Link to this heading"></a></h3>
-<p>These datasets combine real Census boundaries with synthetic population data:</p>
-<ul class="simple">
-<li><p><strong>census_tract_sample</strong>: Single tract with configurable population size</p></li>
-<li><p><strong>census_county_sample</strong>: Multiple tracts within a county</p></li>
-<li><p><strong>metropolitan_sample</strong>: Multiple counties within a metropolitan area</p></li>
-</ul>
-<p><strong>Parameters</strong>:
-* <strong>state_fips</strong>: State FIPS code (default: “06” for California)
-* <strong>county_fips</strong>: County FIPS code (default: “037” for Los Angeles)
-* <strong>population_size</strong>: Number of synthetic people to generate
-* <strong>include_geometry</strong>: Whether to include geographic boundaries</p>
-</section>
-<section id="synthetic-only-datasets">
-<h3>Synthetic-only Datasets<a class="headerlink" href="#synthetic-only-datasets" title="Link to this heading"></a></h3>
-<p>These generate purely synthetic data without geographic boundaries:</p>
-<ul class="simple">
-<li><p><strong>synthetic_population</strong>: Customizable demographic data</p></li>
-<li><p><strong>synthetic_businesses</strong>: Business data with industry patterns</p></li>
-<li><p><strong>synthetic_housing</strong>: Property data with realistic characteristics</p></li>
-</ul>
-<p><strong>Parameters</strong>:
-* <strong>size/count</strong>: Number of records to generate
-* <strong>demographics</strong>: Ethnicity distribution dictionary
-* <strong>include_*</strong>: Boolean flags for optional fields</p>
-</section>
-</section>
-<section id="integration-with-spark">
-<h2>Integration with Spark<a class="headerlink" href="#integration-with-spark" title="Link to this heading"></a></h2>
-<p>Sample data works seamlessly with Spark functions:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">SparkSession</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_synthetic_population</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.distributed.spark_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_row_count</span><span class="p">,</span> <span class="n">sanitise_dataframe_column_names</span>
-
-<span class="c1"># Initialize Spark</span>
-<span class="n">spark</span> <span class="o">=</span> <span class="n">SparkSession</span><span class="o">.</span><span class="n">builder</span><span class="o">.</span><span class="n">appName</span><span class="p">(</span><span class="s2">&quot;SampleDataTest&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">getOrCreate</span><span class="p">()</span>
-
-<span class="c1"># Generate synthetic data</span>
-<span class="n">population</span> <span class="o">=</span> <span class="n">generate_synthetic_population</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
-
-<span class="c1"># Convert to Spark DataFrame</span>
-<span class="n">spark_df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">(</span><span class="n">population</span><span class="p">)</span>
-
-<span class="c1"># Test Spark functions</span>
-<span class="n">row_count</span> <span class="o">=</span> <span class="n">get_row_count</span><span class="p">(</span><span class="n">spark_df</span><span class="p">)</span>
-<span class="n">clean_df</span> <span class="o">=</span> <span class="n">sanitise_dataframe_column_names</span><span class="p">(</span><span class="n">spark_df</span><span class="p">)</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Spark DataFrame: </span><span class="si">{</span><span class="n">row_count</span><span class="si">}</span><span class="s2"> rows&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cleaned columns: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">clean_df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="testing-and-development">
-<h2>Testing and Development<a class="headerlink" href="#testing-and-development" title="Link to this heading"></a></h2>
-<p>Perfect for function testing without external dependencies:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Test file operations</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.operations</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_file_size</span><span class="p">,</span> <span class="n">count_lines</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_synthetic_businesses</span>
-
-<span class="c1"># Generate test data</span>
-<span class="n">businesses</span> <span class="o">=</span> <span class="n">generate_synthetic_businesses</span><span class="p">(</span><span class="n">business_count</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
-
-<span class="c1"># Save to test file</span>
-<span class="n">businesses</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s2">&quot;test_businesses.csv&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-
-<span class="c1"># Test file functions</span>
-<span class="n">file_size</span> <span class="o">=</span> <span class="n">get_file_size</span><span class="p">(</span><span class="s2">&quot;test_businesses.csv&quot;</span><span class="p">)</span>
-<span class="n">line_count</span> <span class="o">=</span> <span class="n">count_lines</span><span class="p">(</span><span class="s2">&quot;test_businesses.csv&quot;</span><span class="p">)</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Test file: </span><span class="si">{</span><span class="n">file_size</span><span class="si">}</span><span class="s2"> bytes, </span><span class="si">{</span><span class="n">line_count</span><span class="si">}</span><span class="s2"> lines&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="census-standards-compliance">
-<h2>Census Standards Compliance<a class="headerlink" href="#census-standards-compliance" title="Link to this heading"></a></h2>
-<p>The synthetic data follows US Census Bureau standards:</p>
-<ul class="simple">
-<li><p><strong>Race Categories</strong>: “White alone, not Hispanic or Latino”, “Black or African American alone, not Hispanic or Latino”, “Asian alone, not Hispanic or Latino”, “American Indian and Alaska Native alone, not Hispanic or Latino”, “Native Hawaiian and Other Pacific Islander alone, not Hispanic or Latino”, “Some Other Race alone, not Hispanic or Latino”</p></li>
-<li><p><strong>Hispanic Origin</strong>: “Hispanic or Latino” vs “Not Hispanic or Latino” (separate from race)</p></li>
-<li><p><strong>Age Groups</strong>: Census-standard age brackets (e.g., “18 to 24 years”, “25 to 34 years”)</p></li>
-<li><p><strong>Income Brackets</strong>: Census income categories (e.g., “$50,000 to $59,999”, “$100,000 to $124,999”)</p></li>
-<li><p><strong>Education Attainment</strong>: Census education levels (e.g., “High school graduate (includes equivalency)”, “Bachelor’s degree”)</p></li>
-</ul>
-</section>
-<section id="data-quality-features">
-<h2>Data Quality Features<a class="headerlink" href="#data-quality-features" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p><strong>Realistic Patterns</strong>: Demographics match actual Census distributions</p></li>
-<li><p><strong>Consistent Relationships</strong>: Age, income, and education correlations</p></li>
-<li><p><strong>Geographic Accuracy</strong>: Addresses within actual boundary constraints</p></li>
-<li><p><strong>Privacy Compliance</strong>: No real personal information</p></li>
-<li><p><strong>Scalable Generation</strong>: Generate datasets of any size</p></li>
-</ul>
-</section>
-<section id="best-practices">
-<h2>Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p>Use sample data for development and testing</p></li>
-<li><p>Generate appropriate sizes for your testing needs</p></li>
-<li><p>Customize demographics to match your use case</p></li>
-<li><p>Combine with real boundaries for geographic testing</p></li>
-<li><p>Document your synthetic data generation parameters</p></li>
-</ul>
-</section>
-<section id="examples">
-<h2>Examples<a class="headerlink" href="#examples" title="Link to this heading"></a></h2>
-<p>For runnable package examples, see:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">siege_utilities/examples/enhanced_features_demo.py</span></code> - integration-oriented usage examples</p></li>
-</ul>
-<p>For detailed API documentation, see the sample data module functions.</p>
-</section>
+<p>Use the root file as the authoritative source.</p>
 </section>
 
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="mapping_and_reporting.html" class="btn btn-neutral float-left" title="Mapping and Reporting System" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="coding_style.html" class="btn btn-neutral float-right" title="Coding Style" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 
