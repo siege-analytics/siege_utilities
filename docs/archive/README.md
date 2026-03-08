@@ -16,3 +16,4 @@ Guidance:
 - Move superseded plans/status writeups here instead of leaving them at repository root.
 - Prefer date/version suffixes for archived files to avoid ambiguity.
 - Keep contributor-facing, current workflow docs in `docs/` root.
+- `ROADMAP_2026.md`
