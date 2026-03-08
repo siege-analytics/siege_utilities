@@ -67,6 +67,7 @@ See:
 - `docs/policies/CONTRIBUTOR_GOVERNANCE.md`
 - `docs/RELEASE_LINEAGE.md`
 - `docs/EXAMPLES.md`
+- `docs/ISOCHRONES_AND_WKLS.md`
 
 ## External Contributor Workflow
 
