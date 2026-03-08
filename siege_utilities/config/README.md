@@ -120,7 +120,7 @@ enhanced_profile = EnhancedUserProfile()
 
 ## Examples
 
-See the [Enhanced Configuration System documentation](../../wiki/Enhanced-Configuration-System.md) for comprehensive examples and best practices.
+See the [Hydra + Pydantic configuration documentation](../../docs/HYDRA_PYDANTIC_CONFIGURATION.md) for comprehensive examples and best practices.
 
 ## Testing
 

@@ -284,10 +284,10 @@ When adding new development utilities:
 
 ## 📖 Related Documentation
 
-- [UV Package Management Guide](../../wiki/UV-Package-Management.md)
+- [UV Package Management Guide](../../docs/USER_GUIDE.md#modern-package-management-with-uv)
 - [Getting Started Guide](../../docs/QUICK_START_GUIDE.md)
 - [Main README](../../README.md)
-- [Architecture Documentation](../../wiki/Architecture/)
+- [Architecture Documentation](../../docs/DEVELOPER_GUIDE.md#-architecture-overview)
 
 ---
 
