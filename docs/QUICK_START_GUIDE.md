@@ -233,7 +233,7 @@ create_default_profiles()
 
 ## 🎯 Next Steps
 
-1. **Explore Examples**: Start with `siege_utilities/examples/enhanced_features_demo.py`
+1. **Explore Examples**: Start with `docs/EXAMPLES.md`
 2. **Read Documentation**: Full documentation in `docs/` directory
 3. **Run Tests**: `python -m pytest tests/` to verify everything works
 4. **Check Imports**: Run `python scripts/check_imports.py` for a quick script-level sanity check

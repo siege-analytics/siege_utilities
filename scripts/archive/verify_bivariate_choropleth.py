@@ -211,7 +211,7 @@ if __name__ == "__main__":
         print("\n💡 Next steps:")
         print("1. Install additional dependencies: pip install geopandas folium")
         print("2. Run the example: python siege_utilities/reporting/examples/bivariate_choropleth_example.py")
-        print("3. Check the documentation: README_bivariate_choropleth.md")
+        print("3. Check the archived documentation: docs/archive/reporting/README_bivariate_choropleth_2026.md")
     else:
         print("\n🔧 Troubleshooting:")
         print("1. Check that all required packages are installed")
