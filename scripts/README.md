@@ -8,8 +8,6 @@ These scripts are part of the expected contributor workflow and are maintained.
 
 ### Test execution
 
-- `python scripts/run_tests.py`
-  - Wrapper for project test runs.
 - `python scripts/check_test_file_hygiene.py`
   - Enforces tracked test naming/location conventions.
 - `python scripts/check_lint_ratchet_phase1.py`
@@ -39,10 +37,11 @@ These scripts are part of the expected contributor workflow and are maintained.
 These scripts are useful for diagnostics or ad hoc local work, but are not part of the stable automation surface.
 
 - `scripts/check_imports.py`
-- `scripts/diagnose_pyspark.py`
-- `scripts/verify_bivariate_choropleth.py`
-- `scripts/create_notebook.py`
 - `scripts/run_overnight_comprehensive.sh`
+- `scripts/archive/diagnose_pyspark.py`
+- `scripts/archive/verify_bivariate_choropleth.py`
+- `scripts/archive/create_notebook.py`
+- `scripts/archive/run_tests.py`
 
 Use experimental scripts manually and verify outputs before relying on them in CI or release workflows.
 
