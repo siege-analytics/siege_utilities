@@ -470,7 +470,7 @@ def validate_client_configuration(client_code: str) -> bool:
 The Hydra + Pydantic configuration system provides a robust, type-safe, and flexible foundation for managing siege_utilities configurations. With comprehensive validation, client-specific customization, and seamless migration support, it enables powerful configuration management while maintaining data integrity and system reliability.
 
 For more information, see:
-- [Configuration Example Module](../siege_utilities/examples/enhanced_features_demo.py)
+- [Examples Index](EXAMPLES.md)
 - [Migration Guide](migration/)
 - [API Reference](api/)
 - [Troubleshooting Guide](troubleshooting/)

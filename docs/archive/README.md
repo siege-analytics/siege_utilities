@@ -10,6 +10,8 @@ Current archived documents:
 - `ROADMAP_2026.md`
 - `legacy/` (superseded reference docs)
 - `design/` (historical design proposals)
+- `reporting/` (historical reporting implementation notes)
+- `examples/` (historical example docs)
 
 Guidance:
 
