@@ -1,6 +1,6 @@
 # Repository Hygiene Policy
 
-See the canonical policy at `REPOSITORY_HYGIENE.md` in the repository root.
+See the canonical policy at `docs/policies/REPOSITORY_HYGIENE.md`.
 
 ## Key Rules
 

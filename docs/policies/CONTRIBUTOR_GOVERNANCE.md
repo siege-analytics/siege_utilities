@@ -101,9 +101,9 @@ For user-visible behavior changes:
 
 Use canonical policies for release impact:
 
-- `CHANGE_CLASSIFICATION_AND_RELEASE_POLICY.md`
-- `CODING_STYLE.md`
-- `PR_REVIEW_RUBRIC.md`
+- `docs/policies/CHANGE_CLASSIFICATION_AND_RELEASE_POLICY.md`
+- `docs/policies/CODING_STYLE.md`
+- `docs/policies/PR_REVIEW_RUBRIC.md`
 
 Release execution uses:
 
