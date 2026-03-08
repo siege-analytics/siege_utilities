@@ -1,5 +1,11 @@
 {
-  "added_symbols": [],
+  "added_symbols": [
+    "DEFAULT_ORS_BASE_URL",
+    "DEFAULT_VALHALLA_BASE_URL",
+    "build_isochrone_request",
+    "get_isochrone",
+    "isochrone_to_geodataframe"
+  ],
   "removed_symbols": [],
   "signature_changes": [
     "compare_census_datasets",

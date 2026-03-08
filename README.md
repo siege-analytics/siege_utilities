@@ -52,12 +52,15 @@ python scripts/contracts/generate_public_api_contract.py --output /tmp/contract_
 python scripts/contracts/compare_public_api_contracts.py \
   --baseline /tmp/contract_baseline.json \
   --candidate /tmp/contract_candidate.json \
-  --release-impact patch \
+  --release-impact <patch|minor|major> \
   --allowlist scripts/contracts/contract_allowlist.json
 
 # Contract-tool unit tests
 python -m pytest -q --no-cov tests/test_api_contract_tools.py
 ```
+
+If a PR intentionally adds public API symbols, classify as `minor` and update
+`scripts/contracts/contract_allowlist.json` in the same PR.
 
 See:
 

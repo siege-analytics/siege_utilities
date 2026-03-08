@@ -31,6 +31,7 @@ These scripts are part of the expected contributor workflow and are maintained.
 - `python scripts/contracts/compare_public_api_contracts.py --baseline /tmp/base.json --candidate /tmp/candidate.json --release-impact patch --allowlist scripts/contracts/contract_allowlist.json`
   - Compares two manifests and enforces release-impact rules.
   - `--baseline` should come from a released package state (for example `siege-utilities==3.8.0`), and `--candidate` from the current branch output.
+  - Use `--release-impact minor` when intentionally adding public symbols and update `scripts/contracts/contract_allowlist.json` in the same PR.
 
 ## Experimental / One-off Scripts
 
