@@ -111,3 +111,7 @@ A release is ready only when:
   - New features
   - Refactors without direct bug/security value
   - Breaking changes
+
+## 6) Historical Lineage
+
+- Release lineage reconstruction and retro-tag decisions are tracked in `docs/RELEASE_LINEAGE.md`.
