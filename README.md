@@ -61,10 +61,10 @@ python -m pytest -q --no-cov tests/test_api_contract_tools.py
 
 See:
 
-- `CODING_STYLE.md`
-- `PR_REVIEW_RUBRIC.md`
-- `CHANGE_CLASSIFICATION_AND_RELEASE_POLICY.md`
-- `CONTRIBUTOR_GOVERNANCE.md`
+- `docs/policies/CODING_STYLE.md`
+- `docs/policies/PR_REVIEW_RUBRIC.md`
+- `docs/policies/CHANGE_CLASSIFICATION_AND_RELEASE_POLICY.md`
+- `docs/policies/CONTRIBUTOR_GOVERNANCE.md`
 
 ## External Contributor Workflow
 

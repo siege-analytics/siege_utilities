@@ -4,8 +4,8 @@ These documents are preserved for historical context but are not the primary sou
 
 Use current governance/policy docs instead:
 
-- `CONTRIBUTOR_GOVERNANCE.md` (root canonical)
-- `CHANGE_CLASSIFICATION_AND_RELEASE_POLICY.md`
-- `CODING_STYLE.md`
-- `PR_REVIEW_RUBRIC.md`
-- `LINT_RATCHET_PLAN.md`
+- `docs/policies/CONTRIBUTOR_GOVERNANCE.md` (canonical)
+- `docs/policies/CHANGE_CLASSIFICATION_AND_RELEASE_POLICY.md`
+- `docs/policies/CODING_STYLE.md`
+- `docs/policies/PR_REVIEW_RUBRIC.md`
+- `docs/policies/LINT_RATCHET_PLAN.md`
