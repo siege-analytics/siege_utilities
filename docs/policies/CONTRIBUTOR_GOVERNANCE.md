@@ -79,10 +79,16 @@ python scripts/contracts/generate_public_api_contract.py --output /tmp/contract_
 python scripts/contracts/compare_public_api_contracts.py \
   --baseline /tmp/contract_baseline.json \
   --candidate /tmp/contract_candidate.json \
-  --release-impact patch \
+  --release-impact <patch|minor|major> \
   --allowlist scripts/contracts/contract_allowlist.json
 python -m pytest -q --no-cov tests/test_api_contract_tools.py
 ```
+
+API release-impact practice:
+
+- `patch`: no new public symbols.
+- `minor`: new public symbols are allowed; add intentional additions to `scripts/contracts/contract_allowlist.json` in the same PR.
+- `major`: breaking API changes require explicit migration notes and allowlist updates for intentional signature/kind/removal changes.
 
 When applicable:
 
