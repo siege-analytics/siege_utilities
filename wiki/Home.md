@@ -100,7 +100,7 @@ person = Person(first_name="Jane", last_name="Doe")
 ## Development
 
 - **Branch model:** `main` (releases) / `develop` (integration) / `dheerajchand/<feature>` (feature work)
-- **Release process:** See `scripts/release_manager.py` and [Release Management](../docs/RELEASE_MANAGEMENT.md)
+- **Release process:** See `scripts/release_manager.py` and [Contributor Governance](../CONTRIBUTOR_GOVERNANCE.md)
 - **Tests:** `pytest tests/ -x -q` (724 tests, 30% coverage)
 - **CI/CD:** GitHub Actions with test, battle-test, build, release, security jobs
 
