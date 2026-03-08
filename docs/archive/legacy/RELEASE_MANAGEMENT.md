@@ -271,7 +271,7 @@ production workloads.
 |-------------|----------|
 | CI matrix passes for all supported Python versions (3.11, 3.12) | CI run links |
 | Pydantic compatibility contract holds (v2 shipped, v1 tested) | `test-pydantic-v1` job green |
-| Dependency constraints documented and tested | `docs/compatibility.md` |
+| Dependency constraints documented and tested | `docs/archive/legacy/compatibility.md` |
 
 ### Gate B — Boundary Retrieval Reliability
 
