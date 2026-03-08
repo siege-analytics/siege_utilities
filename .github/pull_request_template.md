@@ -18,6 +18,9 @@ If breaking, include migration notes:
 
 Reason for selected release impact:
 
+API contract note:
+- [ ] If public API symbols were added intentionally, `scripts/contracts/contract_allowlist.json` is updated in this PR.
+
 ## Verification
 
 - [ ] Tests added/updated for changed behavior

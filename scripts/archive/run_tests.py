@@ -6,7 +6,6 @@ Provides easy access to different test scenarios and configurations.
 Updated 2026-02-28 to match actual test files after su#113 cleanup.
 """
 
-import sys
 import subprocess
 import argparse
 import pathlib
@@ -101,7 +100,7 @@ def run_command(cmd: List[str], description: str) -> bool:
     print(f"Running: {' '.join(cmd)}")
 
     try:
-        result = subprocess.run(cmd, check=True, capture_output=False)
+        subprocess.run(cmd, check=True, capture_output=False)
         print(f"  {description} completed successfully")
         return True
     except subprocess.CalledProcessError as e:
@@ -250,8 +249,8 @@ def check_test_environment() -> bool:
         print(f"    {f.name}")
 
     try:
-        import siege_utilities
-        print(f"\n  siege_utilities package importable")
+        __import__("siege_utilities")
+        print("\n  siege_utilities package importable")
     except ImportError as e:
         print(f"  Cannot import siege_utilities: {e}")
         return False

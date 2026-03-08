@@ -7,7 +7,6 @@ This will help identify the exact cause of the JavaPackage error.
 import os
 import sys
 import subprocess
-import importlib
 
 
 def check_environment():
@@ -49,7 +48,7 @@ def check_imports():
         return False
 
     try:
-        from py4j.java_gateway import JavaGateway, GatewayParameters
+        from py4j import java_gateway  # noqa: F401
         print("✅ JavaGateway imports successfully")
     except Exception as e:
         print(f"❌ JavaGateway import failed: {e}")
@@ -64,7 +63,6 @@ def test_spark_context():
 
     try:
         from pyspark import SparkContext, SparkConf
-        from pyspark.sql import SparkSession
 
         # Clean any existing context
         if SparkContext._active_spark_context:
