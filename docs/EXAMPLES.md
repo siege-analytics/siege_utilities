@@ -10,6 +10,11 @@ Canonical runnable examples are kept with package code.
 - `siege_utilities/reporting/examples/ga_geographic_analysis.py`
 - `siege_utilities/reporting/examples/google_analytics_report_example.py`
 
+## Primary Notebooks
+
+- `notebooks/06_Report_Generation.ipynb` includes an explicit `create_3d_map` demonstration (Section 5, 3D Visualization).
+- `notebooks/07_Geocoding_Address_Processing.ipynb` includes public and custom `server_url` Nominatim usage.
+
 ## Execution
 
 Run examples from repository root:

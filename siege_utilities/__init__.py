@@ -188,6 +188,11 @@ _register_lazy([
 ], '.geo.geocoding', deps=['geopandas'])
 
 _register_lazy([
+    'DEFAULT_ORS_BASE_URL', 'DEFAULT_VALHALLA_BASE_URL',
+    'build_isochrone_request', 'get_isochrone', 'isochrone_to_geodataframe',
+], '.geo.isochrones', deps=['requests'])
+
+_register_lazy([
     'get_census_data_selector', 'select_census_datasets', 'get_analysis_approach',
     'select_datasets_for_analysis', 'get_dataset_compatibility_matrix', 'suggest_analysis_approach',
 ], '.geo.census_data_selector', deps=['geopandas'])

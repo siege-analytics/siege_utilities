@@ -72,6 +72,12 @@ _register([
     'validate_geocode_data_pandas', 'mark_valid_geocode_data_pandas',
 ], '.geocoding')
 
+# --- isochrones ---
+_register([
+    'DEFAULT_ORS_BASE_URL', 'DEFAULT_VALHALLA_BASE_URL',
+    'build_isochrone_request', 'get_isochrone', 'isochrone_to_geodataframe',
+], '.isochrones')
+
 # --- census_geocoder ---
 _register([
     'CensusVintage', 'CensusGeocodeResult',
