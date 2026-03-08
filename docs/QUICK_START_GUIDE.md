@@ -233,7 +233,7 @@ create_default_profiles()
 
 ## 🎯 Next Steps
 
-1. **Explore Examples**: Start with `docs/EXAMPLES.md`
+1. **Explore Examples**: Start with `docs/EXAMPLES.md` (`notebooks/06_Report_Generation.ipynb` includes the 3D map demo).
 2. **Read Documentation**: Full documentation in `docs/` directory
 3. **Run Tests**: `python -m pytest tests/` to verify everything works
 4. **Check Imports**: Run `python scripts/check_imports.py` for a quick script-level sanity check

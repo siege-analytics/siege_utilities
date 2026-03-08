@@ -130,6 +130,32 @@ sdf = pandas_to_spark(spark, pdf)
 pdf_back = spark_to_pandas(sdf, limit=10000)
 ```
 
+### Isochrones with Open-Source Providers
+
+```python
+import siege_utilities as su
+
+# OpenRouteService hosted API
+iso = su.get_isochrone(
+    latitude=41.8781,
+    longitude=-87.6298,
+    travel_time_minutes=15,
+    provider="openrouteservice",
+    api_key="<ors-key>",
+)
+
+# Self-hosted Valhalla
+iso_internal = su.get_isochrone(
+    latitude=41.8781,
+    longitude=-87.6298,
+    travel_time_minutes=20,
+    provider="valhalla",
+    base_url="http://valhalla.svc.cluster.local:8002",
+)
+```
+
+See `docs/ISOCHRONES_AND_WKLS.md` for provider behavior and WKLS integration guidance.
+
 ## Common Pitfalls
 
 ### GDAL Not Available
