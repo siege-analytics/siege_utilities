@@ -61,10 +61,11 @@ python -m pytest -q --no-cov tests/test_api_contract_tools.py
 
 See:
 
-- `CODING_STYLE.md`
-- `PR_REVIEW_RUBRIC.md`
-- `CHANGE_CLASSIFICATION_AND_RELEASE_POLICY.md`
-- `CONTRIBUTOR_GOVERNANCE.md`
+- `docs/policies/CODING_STYLE.md`
+- `docs/policies/PR_REVIEW_RUBRIC.md`
+- `docs/policies/CHANGE_CLASSIFICATION_AND_RELEASE_POLICY.md`
+- `docs/policies/CONTRIBUTOR_GOVERNANCE.md`
+- `docs/EXAMPLES.md`
 
 ## External Contributor Workflow
 
@@ -281,16 +282,15 @@ with HydraConfigManager() as manager:
 ## Reporting & Visualization
 
 ```python
-from siege_utilities.reporting.examples.google_analytics_report_example import (
-    generate_ga_report_pdf
-)
+from siege_utilities.reporting import ReportGenerator
 
-# Professional PDF with KPI cards, sparklines, geographic maps
-generate_ga_report_pdf(
-    ga_data=ga_data,
-    output_path="report.pdf",
-    client_name="Demo Company",
-)
+report_gen = ReportGenerator(client_name="Demo Company")
+
+report_content = {
+    "metadata": {"title": "Analytics Summary"},
+    "sections": [{"type": "text", "title": "Overview", "content": "Report summary."}],
+}
+report_gen.generate_pdf_report(report_content, output_path="report.pdf")
 ```
 
 **Capabilities**: 7+ map types (choropleth, marker, 3D, heatmap, cluster, flow), PDF reports with TOC, PowerPoint generation, GA geographic analysis with Census demographic joins.

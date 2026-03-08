@@ -147,7 +147,7 @@ CodeRabbit is part of the required PR workflow.
 - Review policy is defined in `.coderabbit.yaml`
 - `CodeRabbit` status must pass before merge
 - Contributor PRs target `develop` (not `main`)
-- Branch protection, bypass policy, and required checks are defined in `CONTRIBUTOR_GOVERNANCE.md`
+- Branch protection, bypass policy, and required checks are defined in `docs/policies/CONTRIBUTOR_GOVERNANCE.md`
 - See `docs/CODERABBIT_WORKFLOW.md` for merge-readiness expectations
 
 ## 🎯 Adding New Functions
@@ -473,9 +473,9 @@ with HydraConfigManager() as manager:
 
 ## 📋 Code Review Checklist
 
-- Follow repository coding standards in `CODING_STYLE.md` (canonical) and `docs/CODING_STYLE.md`.
-- Use `PR_REVIEW_RUBRIC.md` for reviewer severity and merge readiness criteria.
-- Use `CHANGE_CLASSIFICATION_AND_RELEASE_POLICY.md` to classify bug/feature/breaking changes and release impact.
+- Follow repository coding standards in `docs/policies/CODING_STYLE.md`.
+- Use `docs/policies/PR_REVIEW_RUBRIC.md` for reviewer severity and merge readiness criteria.
+- Use `docs/policies/CHANGE_CLASSIFICATION_AND_RELEASE_POLICY.md` to classify bug/feature/breaking changes and release impact.
 - [ ] Function has proper docstring with examples
 - [ ] Type hints are complete and accurate
 - [ ] Error handling covers edge cases

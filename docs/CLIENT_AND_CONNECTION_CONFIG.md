@@ -407,7 +407,7 @@ if not result['success']:
 
 ## Examples
 
-See `siege_utilities/examples/enhanced_features_demo.py` for an in-repo runnable example.
+See `docs/EXAMPLES.md` for maintained in-repo runnable examples.
 
 ## Testing
 

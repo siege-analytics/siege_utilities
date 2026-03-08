@@ -3,7 +3,6 @@ Lint Ratchet Plan
 
 The lint rollout plan is maintained in:
 
-- ``LINT_RATCHET_PLAN.md`` at repository root (canonical)
-- ``docs/LINT_RATCHET_PLAN.md`` (docs-local pointer)
+- ``docs/policies/LINT_RATCHET_PLAN.md`` (canonical)
 
-Use the root file as the authoritative source.
+Use the canonical policy file as the authoritative source.

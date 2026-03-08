@@ -67,10 +67,10 @@ Successfully implemented comprehensive bivariate choropleth map functionality in
 
 ### New Files Created
 - `siege_utilities/reporting/examples/bivariate_choropleth_example.py` - Comprehensive examples
-- `siege_utilities/reporting/README_bivariate_choropleth.md` - Detailed documentation
+- `docs/archive/reporting/README_bivariate_choropleth_2026.md` - Detailed historical documentation
 - `siege_utilities/reporting/requirements_bivariate_choropleth.txt` - Dependency list
 - `siege_utilities/reporting/test_bivariate_choropleth.py` - Test suite
-- `siege_utilities/reporting/IMPLEMENTATION_SUMMARY.md` - This summary
+- `docs/archive/reporting/IMPLEMENTATION_SUMMARY_2026.md` - This summary
 
 ## Technical Implementation Details
 
