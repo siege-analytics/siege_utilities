@@ -285,7 +285,7 @@ When adding new development utilities:
 ## 📖 Related Documentation
 
 - [UV Package Management Guide](../../wiki/UV-Package-Management.md)
-- [Getting Started Guide](../../wiki/Getting-Started.md)
+- [Getting Started Guide](../../docs/QUICK_START_GUIDE.md)
 - [Main README](../../README.md)
 - [Architecture Documentation](../../wiki/Architecture/)
 
