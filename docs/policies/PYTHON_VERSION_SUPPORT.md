@@ -34,7 +34,7 @@ Geospatial extras (`[geo]`, `[geodjango]`) depend on packages with compiled C/Ru
 | geopandas | Pure Python | Yes | Yes | But depends on shapely/fiona |
 | scipy | C/Fortran | Yes | No | |
 | scikit-learn | C/Cython | Yes | No | |
-| pydantic-core | Rust (pyo3) | Yes | No | pyo3 needs update for 3.14 |
+| pydantic-core | Rust (pyo3) | Yes | Yes | pyo3 updated for 3.14 |
 | duckdb | C++ | Yes | No | |
 | lxml | C | Yes | No | |
 | pillow | C | Yes | Partial | |
@@ -67,9 +67,9 @@ A Python version moves from allow-failure to required-pass when:
 ### Adding Python 3.14
 
 Python 3.14 will be added to CI when:
-- pydantic-core publishes 3.14 wheels (pyo3 must support 3.14 stable ABI)
-- numpy, scipy, and scikit-learn publish 3.14 wheels
-- shapely and pyproj publish 3.14 wheels
+- fiona publishes 3.14 wheels (GDAL bindings, historically lags 3-6 months)
+- pandas publishes cp314 wheels (claimed in classifiers but not yet shipped)
+- snowflake-connector-python publishes 3.14 wheels (if `[analytics]` extra needed)
 
 Until then, 3.14 is listed in classifiers as experimental.
 

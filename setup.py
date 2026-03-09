@@ -33,9 +33,9 @@ setup(
         "pydantic>=2.0.0",
     ],
     extras_require={
-        "data": ["pandas>=1.5.0", "numpy>=1.21.0", "openpyxl>=3.1.0", "faker>=35.2.2"],
+        "data": ["pandas>=2.0.0", "numpy>=1.24.0", "openpyxl>=3.1.0", "faker>=35.2.2"],
         "geo": [
-            "geopandas>=0.13.2", "shapely>=2.0.0", "pyproj>=3.3.0", "fiona>=1.8.0",
+            "geopandas>=0.13.2", "shapely>=2.0.0", "pyproj>=3.3.0", "fiona>=1.9.0",
             "geopy>=2.4.1", "rtree>=1.0.0", "mapclassify>=2.5.0", "tobler>=0.11.0",
             "osmnx>=1.9.4", "pysal>=24.1",
         ],
@@ -48,7 +48,7 @@ setup(
             "google-auth>=2.40.3", "google-auth-oauthlib>=1.2.2",
             "google-auth-httplib2>=0.2.0", "google-api-python-client>=2.181.0",
             "google-analytics-data>=0.18.19", "google-analytics-admin>=0.25.0",
-            "scipy>=1.8.0", "scikit-learn>=1.1.0",
+            "scipy>=1.11.0", "scikit-learn>=1.3.0",
             "facebook-business>=20.0.0", "datadotworld>=1.7.0",
             "snowflake-connector-python>=3.0.0",
         ],
@@ -75,9 +75,9 @@ setup(
         ],
         "all": [
             # data
-            "pandas>=1.5.0", "numpy>=1.21.0", "openpyxl>=3.1.0", "faker>=35.2.2",
+            "pandas>=2.0.0", "numpy>=1.24.0", "openpyxl>=3.1.0", "faker>=35.2.2",
             # geo
-            "geopandas>=0.13.2", "shapely>=2.0.0", "pyproj>=3.3.0", "fiona>=1.8.0",
+            "geopandas>=0.13.2", "shapely>=2.0.0", "pyproj>=3.3.0", "fiona>=1.9.0",
             "geopy>=2.4.1", "rtree>=1.0.0", "mapclassify>=2.5.0", "tobler>=0.11.0",
             "osmnx>=1.9.4", "pysal>=24.1",
             # reporting
@@ -88,7 +88,7 @@ setup(
             "google-auth>=2.40.3", "google-auth-oauthlib>=1.2.2",
             "google-auth-httplib2>=0.2.0", "google-api-python-client>=2.181.0",
             "google-analytics-data>=0.18.19", "google-analytics-admin>=0.25.0",
-            "scipy>=1.8.0", "scikit-learn>=1.1.0",
+            "scipy>=1.11.0", "scikit-learn>=1.3.0",
             "facebook-business>=20.0.0", "datadotworld>=1.7.0",
             "snowflake-connector-python>=3.0.0",
             # distributed
