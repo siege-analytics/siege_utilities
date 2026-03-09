@@ -75,6 +75,9 @@ _register([
 # --- isochrones ---
 _register([
     'DEFAULT_ORS_BASE_URL', 'DEFAULT_VALHALLA_BASE_URL',
+    'ISOCHRONE_DEFAULT_RETRIES',
+    'IsochroneError', 'IsochroneNetworkError', 'IsochroneProviderError',
+    'IsochroneRequest',
     'build_isochrone_request', 'get_isochrone', 'isochrone_to_geodataframe',
 ], '.isochrones')
 
