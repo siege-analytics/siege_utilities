@@ -80,6 +80,8 @@ def interpolate_areal(
     intensive_variables: Optional[list[str]] = None,
     allocate_total: bool = True,
     n_jobs: int = 1,
+    *,
+    crs: str = "EPSG:4326",
 ) -> ArealInterpolationResult:
     """Transfer attribute data between non-coincident geographies.
 
@@ -95,9 +97,10 @@ def interpolate_areal(
             These are area-weighted averaged.
         allocate_total: If True, ensure 100% of source area is allocated.
         n_jobs: Number of parallel jobs (-1 for all CPUs).
+        crs: Output CRS for the result GeoDataFrame (default ``"EPSG:4326"``).
 
     Returns:
-        ArealInterpolationResult with interpolated GeoDataFrame.
+        ArealInterpolationResult with interpolated GeoDataFrame in *crs*.
 
     Raises:
         ImportError: If tobler is not installed.
@@ -145,6 +148,10 @@ def interpolate_areal(
         n_jobs=n_jobs,
     )
 
+    # Reproject to requested output CRS
+    if crs and result_gdf.crs and str(result_gdf.crs).upper() != crs.upper() and len(result_gdf) > 0:
+        result_gdf = result_gdf.to_crs(crs)
+
     return ArealInterpolationResult(
         data=result_gdf,
         extensive_variables=extensive_variables,
@@ -163,6 +170,8 @@ def interpolate_extensive(
     variables: list[str],
     allocate_total: bool = True,
     n_jobs: int = 1,
+    *,
+    crs: str = "EPSG:4326",
 ) -> ArealInterpolationResult:
     """Interpolate extensive (total/count) variables between geographies.
 
@@ -175,6 +184,7 @@ def interpolate_extensive(
         variables: Column names of extensive variables.
         allocate_total: Ensure all source area is allocated.
         n_jobs: Parallel jobs.
+        crs: Output CRS (default ``"EPSG:4326"``).
 
     Returns:
         ArealInterpolationResult.
@@ -185,6 +195,7 @@ def interpolate_extensive(
         extensive_variables=variables,
         allocate_total=allocate_total,
         n_jobs=n_jobs,
+        crs=crs,
     )
 
 
@@ -194,6 +205,8 @@ def interpolate_intensive(
     variables: list[str],
     allocate_total: bool = True,
     n_jobs: int = 1,
+    *,
+    crs: str = "EPSG:4326",
 ) -> ArealInterpolationResult:
     """Interpolate intensive (rate/density) variables between geographies.
 
@@ -206,6 +219,7 @@ def interpolate_intensive(
         variables: Column names of intensive variables.
         allocate_total: Ensure all source area is allocated.
         n_jobs: Parallel jobs.
+        crs: Output CRS (default ``"EPSG:4326"``).
 
     Returns:
         ArealInterpolationResult.
@@ -216,12 +230,15 @@ def interpolate_intensive(
         intensive_variables=variables,
         allocate_total=allocate_total,
         n_jobs=n_jobs,
+        crs=crs,
     )
 
 
 def compute_area_weights(
     source_gdf: gpd.GeoDataFrame,
     target_gdf: gpd.GeoDataFrame,
+    *,
+    crs: str = "EPSG:4326",
 ) -> gpd.GeoDataFrame:
     """Compute the area overlap matrix between source and target polygons.
 
@@ -238,9 +255,10 @@ def compute_area_weights(
     Args:
         source_gdf: Source polygons.
         target_gdf: Target polygons.
+        crs: Output CRS (default ``"EPSG:4326"``).
 
     Returns:
-        GeoDataFrame with overlap weights.
+        GeoDataFrame with overlap weights in *crs*.
     """
     source, target, _ = _ensure_common_crs(source_gdf, target_gdf)
 
@@ -273,4 +291,4 @@ def compute_area_weights(
         })
 
     result = gpd.GeoDataFrame(records, crs="ESRI:54009")
-    return result.to_crs(source_gdf.crs) if source_gdf.crs else result
+    return result.to_crs(crs)

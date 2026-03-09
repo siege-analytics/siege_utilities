@@ -70,6 +70,8 @@ def spatial_query(
     boundaries: "gpd.GeoDataFrame",
     points: "gpd.GeoDataFrame",
     predicate: str = "intersects",
+    *,
+    crs: str = "EPSG:4326",
 ) -> "gpd.GeoDataFrame":
     """Spatial join between boundaries and points using geopandas.sjoin.
 
@@ -79,9 +81,10 @@ def spatial_query(
         boundaries: GeoDataFrame of boundary polygons (left)
         points: GeoDataFrame of query geometries (right)
         predicate: Spatial predicate (intersects, within, contains, etc.)
+        crs: Output CRS (default ``"EPSG:4326"``).
 
     Returns:
-        Joined GeoDataFrame with columns from both inputs
+        Joined GeoDataFrame with columns from both inputs, in *crs*.
     """
     import geopandas as _gpd
 
@@ -89,7 +92,10 @@ def spatial_query(
     if boundaries.crs and points.crs and boundaries.crs != points.crs:
         points = points.to_crs(boundaries.crs)
 
-    return _gpd.sjoin(boundaries, points, how="inner", predicate=predicate)
+    result = _gpd.sjoin(boundaries, points, how="inner", predicate=predicate)
+    if crs and result.crs and str(result.crs).upper() != crs.upper() and len(result) > 0:
+        result = result.to_crs(crs)
+    return result
 
 
 def point_in_boundary(
@@ -97,6 +103,8 @@ def point_in_boundary(
     lon: float,
     lat: float,
     predicate: str = "intersects",
+    *,
+    crs: str = "EPSG:4326",
 ) -> "gpd.GeoDataFrame":
     """Find which boundaries contain a single point.
 
@@ -108,20 +116,21 @@ def point_in_boundary(
         lon: Longitude
         lat: Latitude
         predicate: Spatial predicate
+        crs: Output CRS (default ``"EPSG:4326"``).
 
     Returns:
-        GeoDataFrame of matching boundaries
+        GeoDataFrame of matching boundaries in *crs*.
     """
     import geopandas as _gpd
     from shapely.geometry import Point
 
-    crs = boundaries.crs or "EPSG:4326"
+    input_crs = boundaries.crs or "EPSG:4326"
     pt_gdf = _gpd.GeoDataFrame(
         {"query_lon": [lon], "query_lat": [lat]},
         geometry=[Point(lon, lat)],
-        crs=crs,
+        crs=input_crs,
     )
-    result = spatial_query(boundaries, pt_gdf, predicate=predicate)
+    result = spatial_query(boundaries, pt_gdf, predicate=predicate, crs=crs)
 
     # Drop the sjoin index column
     if "index_right" in result.columns:
