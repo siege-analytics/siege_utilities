@@ -26,11 +26,18 @@ Usage:
     slides = client.slides_service()
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, TYPE_CHECKING, Union
+
+if TYPE_CHECKING:
+    from siege_utilities.config.models.google_account import GoogleAccount
+    from siege_utilities.config.google_account_registry import GoogleAccountRegistry
+    from siege_utilities.config.models.person import Person
 
 log = logging.getLogger(__name__)
 
@@ -154,10 +161,96 @@ class GoogleWorkspaceClient:
         return cls(creds)
 
     @classmethod
-    def from_credentials(cls, credentials) -> "GoogleWorkspaceClient":
+    def from_credentials(cls, credentials) -> GoogleWorkspaceClient:
         """Wrap an already-authenticated ``google.auth.credentials.Credentials``."""
         _require_google()
         return cls(credentials)
+
+    @classmethod
+    def from_account(
+        cls,
+        account: GoogleAccount,
+        person: Optional[Person] = None,
+        scopes: Optional[List[str]] = None,
+    ) -> GoogleWorkspaceClient:
+        """Build a client from a :class:`GoogleAccount`.
+
+        For OAuth accounts the method looks for a cached *token_file* first,
+        then resolves *oauth_integration_name* from *person* to get
+        client_id/client_secret for the OAuth flow.
+
+        For service accounts the method resolves *service_account_ref* via
+        ``CredentialManager`` (1Password) or treats it as a file path.
+        """
+        from siege_utilities.config.models.google_account import GoogleAccountType
+
+        scopes = scopes or WORKSPACE_SCOPES
+
+        if account.account_type == GoogleAccountType.SERVICE_ACCOUNT:
+            ref = account.service_account_ref
+            if ref and Path(ref).is_file():
+                return cls.from_service_account(
+                    service_account_file=ref, scopes=scopes
+                )
+            # Fall back to 1Password
+            return cls.from_service_account(scopes=scopes)
+
+        # OAuth path
+        if account.token_file and Path(account.token_file).exists():
+            _require_google()
+            from google.oauth2.credentials import Credentials as OAuthCreds
+            from google.auth.transport.requests import Request
+
+            creds = OAuthCreds.from_authorized_user_file(
+                account.token_file, scopes
+            )
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            if creds and creds.valid:
+                return cls(creds)
+
+        # Resolve via OAuthIntegration on Person
+        if person and account.oauth_integration_name:
+            integration = person.get_oauth_integration(account.oauth_integration_name)
+            if integration:
+                return cls.from_oauth(
+                    client_id=integration.client_id,
+                    client_secret=integration.client_secret,
+                    token_file=account.token_file,
+                    scopes=scopes,
+                )
+
+        raise ValueError(
+            f"Cannot resolve credentials for Google account "
+            f"'{account.google_account_id}': no valid token_file and no "
+            f"OAuthIntegration found on person"
+        )
+
+    @classmethod
+    def from_registry(
+        cls,
+        registry: GoogleAccountRegistry,
+        google_account_id: Optional[str] = None,
+        person: Optional[Person] = None,
+        scopes: Optional[List[str]] = None,
+    ) -> GoogleWorkspaceClient:
+        """Build a client from a registry's default or specified account.
+
+        If *google_account_id* is given, looks it up directly; otherwise
+        uses the registry's default account.
+        """
+        if google_account_id:
+            account = registry.get(google_account_id)
+        else:
+            account = registry.get_default()
+
+        if account is None:
+            target = google_account_id or "default"
+            raise ValueError(
+                f"No Google account '{target}' found in registry"
+            )
+
+        return cls.from_account(account, person=person, scopes=scopes)
 
     # ── Service builders ─────────────────────────────────────────
 
