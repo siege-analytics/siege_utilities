@@ -16,6 +16,11 @@ def _register(names, module):
         _LAZY_IMPORTS[name] = module
 
 
+# --- crs (configurable default CRS) ---
+_register([
+    'get_default_crs', 'set_default_crs', 'reproject_if_needed',
+], '.crs')
+
 # --- boundary_result (structured diagnostics) ---
 _register([
     'BoundaryFetchResult',

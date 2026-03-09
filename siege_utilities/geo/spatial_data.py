@@ -6,6 +6,8 @@ Provides clean, type-safe access to Census, Government, and OpenStreetMap data.
 import logging
 import geopandas as gpd
 from pathlib import Path
+
+from siege_utilities.geo.crs import reproject_if_needed
 from typing import Dict, Any, Optional, List, Union
 import os
 import time
@@ -1451,20 +1453,18 @@ def download_osm_data(
     query: str,
     bbox: Optional[List[float]] = None,
     *,
-    crs: str = "EPSG:4326",
+    crs: str | None = None,
 ) -> Optional[GeoDataFrame]:
     """Convenience function to download OSM data.
 
     Args:
         query: OSM query string.
         bbox: Optional bounding box ``[west, south, east, north]``.
-        crs: Output CRS (default ``"EPSG:4326"``).
+        crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.
     """
     source = OpenStreetMapDataSource()
     gdf = source.download_osm_data(query, bbox)
-    if gdf is not None and crs and crs.upper() != "EPSG:4326" and len(gdf) > 0:
-        gdf = gdf.to_crs(crs)
-    return gdf
+    return reproject_if_needed(gdf, crs)
 
 # Standalone convenience functions
 def get_available_years(force_refresh: bool = False) -> List[int]:
@@ -1506,7 +1506,7 @@ def download_data(
     geographic_level: str,
     state_fips: Optional[str] = None,
     *,
-    crs: str = "EPSG:4326",
+    crs: str | None = None,
 ) -> Optional[GeoDataFrame]:
     """Download Census data.
 
@@ -1516,15 +1516,13 @@ def download_data(
         year: Census year
         geographic_level: Geographic level (state, county, tract, etc.)
         state_fips: State FIPS code (required for tract, block_group, etc.)
-        crs: Output CRS (default ``"EPSG:4326"``).
+        crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.
 
     Returns:
         GeoDataFrame with boundaries in *crs*, or None if failed.
     """
     gdf = census_source.get_geographic_boundaries(year, geographic_level, state_fips)
-    if gdf is not None and crs and crs.upper() != "EPSG:4326" and len(gdf) > 0:
-        gdf = gdf.to_crs(crs)
-    return gdf
+    return reproject_if_needed(gdf, crs)
 
 def get_geographic_boundaries(
     year: int = DEFAULT_CENSUS_YEAR,
@@ -1532,7 +1530,7 @@ def get_geographic_boundaries(
     state_fips: Optional[str] = None,
     state_identifier: Optional[str] = None,
     *,
-    crs: str = "EPSG:4326",
+    crs: str | None = None,
 ) -> Optional[GeoDataFrame]:
     """Get geographic boundaries (legacy, returns None on failure).
 
@@ -1540,12 +1538,10 @@ def get_geographic_boundaries(
         Use :func:`fetch_geographic_boundaries` for structured diagnostics.
 
     Args:
-        crs: Output CRS (default ``"EPSG:4326"``).
+        crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.
     """
     gdf = census_source.get_geographic_boundaries(year, geographic_level, state_fips, state_identifier)
-    if gdf is not None and crs and crs.upper() != "EPSG:4326" and len(gdf) > 0:
-        gdf = gdf.to_crs(crs)
-    return gdf
+    return reproject_if_needed(gdf, crs)
 
 
 def fetch_geographic_boundaries(
@@ -1554,7 +1550,7 @@ def fetch_geographic_boundaries(
     state_fips: Optional[str] = None,
     congress_number: Optional[int] = None,
     *,
-    crs: str = "EPSG:4326",
+    crs: str | None = None,
 ) -> BoundaryFetchResult:
     """Get geographic boundaries with structured diagnostics.
 
@@ -1565,7 +1561,7 @@ def fetch_geographic_boundaries(
         geographic_level: Geographic level (state, county, tract, etc.)
         state_fips: State FIPS code (required for tract, block_group, etc.)
         congress_number: Congress number for congressional districts
-        crs: Output CRS (default ``"EPSG:4326"``).
+        crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.
 
     Returns:
         BoundaryFetchResult with .success, .geodataframe in *crs*, .error_stage, etc.
@@ -1576,8 +1572,8 @@ def fetch_geographic_boundaries(
         state_fips=state_fips,
         congress_number=congress_number,
     )
-    if result.success and result.geodataframe is not None and crs and crs.upper() != "EPSG:4326" and len(result.geodataframe) > 0:
-        result.geodataframe = result.geodataframe.to_crs(crs)
+    if result.success and result.geodataframe is not None:
+        result.geodataframe = reproject_if_needed(result.geodataframe, crs)
     return result
 
 
@@ -1704,7 +1700,7 @@ def download_dataset(
     geographic_level: str,
     state_fips: Optional[str] = None,
     *,
-    crs: str = "EPSG:4326",
+    crs: str | None = None,
 ) -> Optional[GeoDataFrame]:
     """Download Census dataset.
 
@@ -1712,12 +1708,10 @@ def download_dataset(
         year: Census year.
         geographic_level: Geographic level.
         state_fips: State FIPS code.
-        crs: Output CRS (default ``"EPSG:4326"``).
+        crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.
     """
     gdf = census_source.download_dataset(year, geographic_level, state_fips)
-    if gdf is not None and crs and crs.upper() != "EPSG:4326" and len(gdf) > 0:
-        gdf = gdf.to_crs(crs)
-    return gdf
+    return reproject_if_needed(gdf, crs)
 
 # Global instances for easy access
 census_source = CensusDataSource()  # Uses centralized Census timeout settings

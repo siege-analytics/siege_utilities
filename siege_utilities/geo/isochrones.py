@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Any, Dict, Literal, Mapping, Optional
 
 import requests
 
+from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+
 if TYPE_CHECKING:
     import geopandas as gpd
 
@@ -330,7 +332,7 @@ def get_isochrone(
 def isochrone_to_geodataframe(
     isochrone_geojson: Mapping[str, Any],
     *,
-    crs: str = "EPSG:4326",
+    crs: str | None = None,
 ) -> "gpd.GeoDataFrame":
     """Convert an isochrone GeoJSON object to a GeoDataFrame.
 
@@ -343,9 +345,9 @@ def isochrone_to_geodataframe(
     Args:
         isochrone_geojson: A GeoJSON dict (typically a FeatureCollection
             returned by :func:`get_isochrone`).
-        crs: Target coordinate reference system (default ``"EPSG:4326"``).
-            Pass any string accepted by ``pyproj`` (e.g. ``"EPSG:3857"``,
-            ``"EPSG:2163"``).
+        crs: Target coordinate reference system. Defaults to
+            :func:`~siege_utilities.geo.crs.get_default_crs` (initially
+            ``"EPSG:4326"``).  Pass any string accepted by ``pyproj``.
 
     Returns:
         A GeoDataFrame with one row per feature in the requested *crs*.
@@ -366,6 +368,4 @@ def isochrone_to_geodataframe(
     if not features:
         return _gpd.GeoDataFrame()
     gdf = _gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
-    if crs and crs.upper() != "EPSG:4326":
-        gdf = gdf.to_crs(crs)
-    return gdf
+    return reproject_if_needed(gdf, crs)

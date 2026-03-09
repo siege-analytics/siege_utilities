@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeVar
 
+from siege_utilities.geo.crs import reproject_if_needed
+
 if TYPE_CHECKING:
     import geopandas as gpd
     from pydantic import BaseModel
@@ -68,11 +70,8 @@ def schemas_to_gdf(
             else:
                 geometries.append(None)
         df[geometry_column] = geometries
-        effective_crs = crs or f"EPSG:{srid}"
         gdf = gpd.GeoDataFrame(df, geometry=geometry_column, crs=f"EPSG:{srid}")
-        if effective_crs.upper() != f"EPSG:{srid}":
-            gdf = gdf.to_crs(effective_crs)
-        return gdf
+        return reproject_if_needed(gdf, crs)
 
     return gpd.GeoDataFrame(df)
 
@@ -200,8 +199,5 @@ def orm_to_gdf(
     if not records:
         return gpd.GeoDataFrame()
 
-    effective_crs = crs or f"EPSG:{srid}"
     gdf = gpd.GeoDataFrame(records, crs=f"EPSG:{srid}")
-    if effective_crs.upper() != f"EPSG:{srid}":
-        gdf = gdf.to_crs(effective_crs)
-    return gdf
+    return reproject_if_needed(gdf, crs)

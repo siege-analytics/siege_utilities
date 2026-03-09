@@ -19,6 +19,8 @@ from typing import Optional
 
 import geopandas as gpd
 
+from siege_utilities.geo.crs import reproject_if_needed
+
 log = logging.getLogger(__name__)
 
 
@@ -81,7 +83,7 @@ def interpolate_areal(
     allocate_total: bool = True,
     n_jobs: int = 1,
     *,
-    crs: str = "EPSG:4326",
+    crs: str | None = None,
 ) -> ArealInterpolationResult:
     """Transfer attribute data between non-coincident geographies.
 
@@ -149,8 +151,7 @@ def interpolate_areal(
     )
 
     # Reproject to requested output CRS
-    if crs and result_gdf.crs and str(result_gdf.crs).upper() != crs.upper() and len(result_gdf) > 0:
-        result_gdf = result_gdf.to_crs(crs)
+    result_gdf = reproject_if_needed(result_gdf, crs)
 
     return ArealInterpolationResult(
         data=result_gdf,
@@ -171,7 +172,7 @@ def interpolate_extensive(
     allocate_total: bool = True,
     n_jobs: int = 1,
     *,
-    crs: str = "EPSG:4326",
+    crs: str | None = None,
 ) -> ArealInterpolationResult:
     """Interpolate extensive (total/count) variables between geographies.
 
@@ -206,7 +207,7 @@ def interpolate_intensive(
     allocate_total: bool = True,
     n_jobs: int = 1,
     *,
-    crs: str = "EPSG:4326",
+    crs: str | None = None,
 ) -> ArealInterpolationResult:
     """Interpolate intensive (rate/density) variables between geographies.
 
@@ -238,7 +239,7 @@ def compute_area_weights(
     source_gdf: gpd.GeoDataFrame,
     target_gdf: gpd.GeoDataFrame,
     *,
-    crs: str = "EPSG:4326",
+    crs: str | None = None,
 ) -> gpd.GeoDataFrame:
     """Compute the area overlap matrix between source and target polygons.
 
@@ -291,4 +292,4 @@ def compute_area_weights(
         })
 
     result = gpd.GeoDataFrame(records, crs="ESRI:54009")
-    return result.to_crs(crs)
+    return reproject_if_needed(result, crs)
