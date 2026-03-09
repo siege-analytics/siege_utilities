@@ -18,6 +18,8 @@ def __getattr__(name):
         "NCESPopulationService": ".nces_service",
         "NLRBPopulationService": ".nlrb_service",
         "TimezonePopulationService": ".timezone_service",
+        "IsochroneComputeService": ".isochrone_service",
+        "IsochroneComputeResult": ".isochrone_service",
     }
     if name in _map:
         import importlib
@@ -37,4 +39,6 @@ __all__ = [
     "NCESPopulationService",
     "NLRBPopulationService",
     "TimezonePopulationService",
+    "IsochroneComputeService",
+    "IsochroneComputeResult",
 ]
