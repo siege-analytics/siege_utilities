@@ -21,6 +21,7 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
     ],
     python_requires=">=3.11",
     install_requires=[
@@ -33,7 +34,7 @@ setup(
     extras_require={
         "data": ["pandas>=1.5.0", "numpy>=1.21.0", "openpyxl>=3.1.0", "faker>=35.2.2"],
         "geo": [
-            "geopandas>=0.13.2", "shapely>=1.8.0", "pyproj>=3.3.0", "fiona>=1.8.0",
+            "geopandas>=0.13.2", "shapely>=2.0.0", "pyproj>=3.3.0", "fiona>=1.8.0",
             "geopy>=2.4.1", "rtree>=1.0.0", "mapclassify>=2.5.0", "tobler>=0.11.0",
             "osmnx>=1.9.4", "pysal>=24.1",
         ],
@@ -75,7 +76,7 @@ setup(
             # data
             "pandas>=1.5.0", "numpy>=1.21.0", "openpyxl>=3.1.0", "faker>=35.2.2",
             # geo
-            "geopandas>=0.13.2", "shapely>=1.8.0", "pyproj>=3.3.0", "fiona>=1.8.0",
+            "geopandas>=0.13.2", "shapely>=2.0.0", "pyproj>=3.3.0", "fiona>=1.8.0",
             "geopy>=2.4.1", "rtree>=1.0.0", "mapclassify>=2.5.0", "tobler>=0.11.0",
             "osmnx>=1.9.4", "pysal>=24.1",
             # reporting
