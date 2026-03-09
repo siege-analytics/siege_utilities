@@ -27,8 +27,14 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import geopandas as gpd
 import matplotlib.pyplot as plt
+
+try:
+    import geopandas as gpd
+    _GEOPANDAS_AVAILABLE = True
+except ImportError:
+    gpd = None
+    _GEOPANDAS_AVAILABLE = False
 import matplotlib.colors as mcolors
 import matplotlib.figure
 

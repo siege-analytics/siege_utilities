@@ -5,8 +5,14 @@ DuckDB support is included but optional for enhanced performance on large datase
 """
 
 import logging
-import geopandas as gpd
 from pathlib import Path
+
+try:
+    import geopandas as gpd
+    _GEOPANDAS_AVAILABLE = True
+except ImportError:
+    gpd = None
+    _GEOPANDAS_AVAILABLE = False
 from typing import Optional, Union
 
 # Import existing library functions
