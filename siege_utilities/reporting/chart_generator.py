@@ -1323,6 +1323,160 @@ class ChartGenerator:
             log.error(f"Error creating flow map: {e}")
             return self._create_placeholder_chart(width, height, f"Flow Map Error: {str(e)}")
 
+    def create_convergence_diagram(self,
+                                   sources: List[Dict[str, Any]],
+                                   hub_label: str = "Unified Hub",
+                                   outputs: Optional[List[Dict[str, Any]]] = None,
+                                   title: str = "Convergence Diagram",
+                                   width: float = 10.0,
+                                   height: float = 6.0,
+                                   arrow_style: str = "curved",
+                                   arrow_count: Optional[int] = None,
+                                   arrow_color: Optional[str] = None,
+                                   show_magnitudes: bool = False,
+                                   magnitude_key: str = "magnitude") -> Image:
+        """
+        Create a stylized convergence diagram with arrows into a labeled origin.
+
+        Args:
+            sources: Source node dictionaries; supports keys:
+                ``label`` (required), ``color`` (optional), and optional magnitude key.
+            hub_label: Center node label.
+            outputs: Optional output node dictionaries (same schema as sources).
+            title: Diagram title.
+            width: Figure width in inches.
+            height: Figure height in inches.
+            arrow_style: One of ``curved``, ``radial``, ``orthogonal``.
+            arrow_count: Optional max number of source arrows to render.
+            arrow_color: Optional color override for arrows.
+            show_magnitudes: If True, append magnitudes to source labels when present.
+            magnitude_key: Dict key to read magnitude from.
+
+        Returns:
+            ReportLab Image object.
+        """
+        if not MATPLOTLIB_AVAILABLE:
+            return self._create_placeholder_chart(width, height, "Matplotlib not available")
+
+        try:
+            if not sources:
+                return self._create_placeholder_chart(width, height, "No sources provided")
+
+            out_nodes = outputs or []
+            src_nodes = sources[:arrow_count] if arrow_count else sources
+
+            primary = self.default_colors.get('primary', '#1f3a5f')
+            secondary = self.default_colors.get('secondary', '#2f5b89')
+            accent = self.default_colors.get('accent', '#ed8936')
+            a_color = arrow_color or '#4a5568'
+
+            fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
+            ax.set_xlim(0, 12)
+            ax.set_ylim(0, 8)
+            ax.axis('off')
+
+            hub_x, hub_y, hub_r = 6.0, 4.0, 1.2
+            hub = mpatches.Circle((hub_x, hub_y), hub_r, facecolor=primary, edgecolor='white', linewidth=2)
+            ax.add_patch(hub)
+            ax.text(hub_x, hub_y, hub_label, color='white', ha='center', va='center',
+                    fontsize=10, fontweight='bold', wrap=True)
+
+            # Left-side source nodes and inbound arrows
+            src_y = np.linspace(7.0, 1.0, len(src_nodes))
+            sx, sw, sh = 0.8, 2.9, 0.82
+
+            for src, y in zip(src_nodes, src_y):
+                label = str(src.get('label', 'Source'))
+                mag = src.get(magnitude_key)
+                if show_magnitudes and mag is not None:
+                    label = f"{label}\n({mag})"
+
+                fill = src.get('color', secondary)
+                node = mpatches.FancyBboxPatch(
+                    (sx, y - (sh / 2)),
+                    sw,
+                    sh,
+                    boxstyle="round,pad=0.02,rounding_size=0.12",
+                    linewidth=1.4,
+                    facecolor=fill,
+                    edgecolor='white',
+                )
+                ax.add_patch(node)
+                ax.text(sx + (sw / 2), y, label, color='white', ha='center', va='center',
+                        fontsize=8, fontweight='bold')
+
+                if arrow_style == "radial":
+                    conn = "arc3,rad=0.0"
+                elif arrow_style == "orthogonal":
+                    conn = "angle3,angleA=0,angleB=90"
+                else:
+                    conn = "arc3,rad=0.15"
+
+                lw = 2.0
+                if show_magnitudes and mag is not None:
+                    try:
+                        lw = max(1.4, min(4.2, 1.2 + float(mag)))
+                    except Exception:
+                        lw = 2.0
+
+                ax.annotate(
+                    "",
+                    xy=(hub_x - (hub_r * 0.94), hub_y),
+                    xytext=(sx + sw, y),
+                    arrowprops=dict(
+                        arrowstyle="-|>",
+                        lw=lw,
+                        color=a_color,
+                        connectionstyle=conn,
+                    ),
+                )
+
+            # Optional right-side output nodes
+            if out_nodes:
+                out_y = np.linspace(6.3, 1.7, len(out_nodes))
+                ox, ow, oh = 8.5, 2.7, 0.82
+                for dst, y in zip(out_nodes, out_y):
+                    label = str(dst.get('label', 'Output'))
+                    fill = dst.get('color', accent)
+                    node = mpatches.FancyBboxPatch(
+                        (ox, y - (oh / 2)),
+                        ow,
+                        oh,
+                        boxstyle="round,pad=0.02,rounding_size=0.12",
+                        linewidth=1.4,
+                        facecolor=fill,
+                        edgecolor='white',
+                    )
+                    ax.add_patch(node)
+                    ax.text(ox + (ow / 2), y, label, color='white', ha='center', va='center',
+                            fontsize=8, fontweight='bold')
+
+                    if arrow_style == "radial":
+                        out_conn = "arc3,rad=0.0"
+                    elif arrow_style == "orthogonal":
+                        out_conn = "angle3,angleA=180,angleB=90"
+                    else:
+                        out_conn = "arc3,rad=-0.12"
+
+                    ax.annotate(
+                        "",
+                        xy=(ox, y),
+                        xytext=(hub_x + (hub_r * 0.94), hub_y),
+                        arrowprops=dict(
+                            arrowstyle="-|>",
+                            lw=2.0,
+                            color=a_color,
+                            connectionstyle=out_conn,
+                        ),
+                    )
+
+            ax.set_title(title, fontsize=13, fontweight='bold')
+            return self._matplotlib_to_reportlab_image(fig, width, height)
+
+        except Exception as e:
+            log.error(f"Error creating convergence diagram: {e}")
+            return self._create_placeholder_chart(width, height, f"Convergence Diagram Error: {str(e)}")
+
     def create_bivariate_choropleth(self, data: Union[pd.DataFrame, Dict[str, Any]],
                                   geo_data: Union['gpd.GeoDataFrame', str, Path, Dict, None] = None,
                                   location_column: str = None,
@@ -2371,6 +2525,28 @@ def create_flow_map(data: Union['pd.DataFrame', Dict[str, Any]],
     return generator.create_flow_map(
         data, origin_lat_column, origin_lon_column, dest_lat_column, dest_lon_column,
         flow_value_column, title, width, height, **kwargs
+    )
+
+
+def create_convergence_diagram(sources: List[Dict[str, Any]],
+                               hub_label: str = "Unified Hub",
+                               outputs: Optional[List[Dict[str, Any]]] = None,
+                               title: str = "Convergence Diagram",
+                               width: float = 10.0,
+                               height: float = 6.0,
+                               **kwargs) -> Optional['Image']:
+    """
+    Standalone function to create a convergence diagram.
+    """
+    generator = ChartGenerator()
+    return generator.create_convergence_diagram(
+        sources=sources,
+        hub_label=hub_label,
+        outputs=outputs,
+        title=title,
+        width=width,
+        height=height,
+        **kwargs,
     )
 
 
