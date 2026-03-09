@@ -25,7 +25,7 @@ The library requires Python 3.11+. Geospatial extras (`[geo]`, `[geodjango]`) de
 
 ## Install
 
-See [Installation Options](#installation-options) for all supported install commands (`base`, `geo`, `geodjango`, `all`).
+See [Installation Options](#installation-options) for all supported install commands (`base`, `geo-lite`, `geo`, `geodjango`, `all`).
 
 ## Quick Usage
 
@@ -335,8 +335,9 @@ report_gen.generate_pdf_report(report_content, output_path="report.pdf")
 pip install siege-utilities
 
 # Add extras for what you need
-pip install siege-utilities[geo]              # geopandas, shapely, pyproj, tobler
-pip install siege-utilities[geodjango]        # Django, DRF, PostGIS
+pip install siege-utilities[geo-lite]         # shapely, pyproj, geopy (no GDAL needed)
+pip install siege-utilities[geo]              # geo-lite + geopandas, fiona, rtree, tobler (needs GDAL)
+pip install siege-utilities[geodjango]        # geo + Django, DRF, PostGIS
 pip install siege-utilities[data]             # pandas, numpy, openpyxl, faker
 pip install siege-utilities[reporting]        # matplotlib, seaborn, folium, plotly, reportlab
 pip install siege-utilities[analytics]        # GA4, Facebook, Snowflake, scipy, scikit-learn
