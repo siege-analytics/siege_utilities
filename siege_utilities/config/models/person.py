@@ -11,7 +11,11 @@ import re
 import yaml
 
 from .credential import Credential, OnePasswordCredential
-from .oauth_integration import OAuthIntegration
+from .oauth_integration import (
+    OAuthIntegration,
+    GoogleLinkedAccount,
+    GoogleWorkspaceProduct,
+)
 from .database_connection import DatabaseConnection
 
 
@@ -69,6 +73,10 @@ class Person(BaseModel):
     oauth_integrations: List[OAuthIntegration] = Field(
         default_factory=list,
         description="OAuth integrations for this person"
+    )
+    google_linked_accounts: List[GoogleLinkedAccount] = Field(
+        default_factory=list,
+        description="Linked Google accounts for account-aware Workspace access"
     )
     database_connections: List[DatabaseConnection] = Field(
         default_factory=list,
@@ -233,6 +241,86 @@ class Person(BaseModel):
     def get_valid_oauth_integrations(self) -> List[OAuthIntegration]:
         """Get all valid OAuth integrations."""
         return [oauth for oauth in self.oauth_integrations if oauth.is_valid()]
+
+    # Linked Google Account Methods
+    def link_google_account(self, account: GoogleLinkedAccount) -> None:
+        """Link a Google account to this person."""
+        if any(existing.account_id == account.account_id
+               for existing in self.google_linked_accounts):
+            raise ValueError(
+                f'Google account "{account.account_id}" is already linked'
+            )
+        if any(existing.email == account.email
+               for existing in self.google_linked_accounts):
+            raise ValueError(
+                f'Google email "{account.email}" is already linked'
+            )
+
+        # Only one default account can exist.
+        if account.is_default:
+            for existing in self.google_linked_accounts:
+                existing.is_default = False
+
+        self.google_linked_accounts.append(account)
+
+        # If no default exists, first linked account becomes default.
+        if not any(a.is_default for a in self.google_linked_accounts):
+            self.google_linked_accounts[0].is_default = True
+
+        self.last_updated = datetime.now()
+
+    def unlink_google_account(self, account_id: str) -> bool:
+        """Unlink a Google account by account_id."""
+        for idx, account in enumerate(self.google_linked_accounts):
+            if account.account_id == account_id:
+                removed_default = account.is_default
+                del self.google_linked_accounts[idx]
+                if removed_default and self.google_linked_accounts:
+                    self.google_linked_accounts[0].is_default = True
+                self.last_updated = datetime.now()
+                return True
+        return False
+
+    def get_google_account(self, account_id: str) -> Optional[GoogleLinkedAccount]:
+        """Return a linked Google account by account_id."""
+        for account in self.google_linked_accounts:
+            if account.account_id == account_id:
+                return account
+        return None
+
+    def set_default_google_account(self, account_id: str) -> bool:
+        """Set a linked Google account as the default account."""
+        account = self.get_google_account(account_id)
+        if account is None:
+            return False
+
+        for existing in self.google_linked_accounts:
+            existing.is_default = False
+        account.is_default = True
+        self.last_updated = datetime.now()
+        return True
+
+    def get_default_google_account(self) -> Optional[GoogleLinkedAccount]:
+        """Return default Google account if one is set."""
+        for account in self.google_linked_accounts:
+            if account.is_default:
+                return account
+        return self.google_linked_accounts[0] if self.google_linked_accounts else None
+
+    def can_write_google_product(
+        self,
+        product: GoogleWorkspaceProduct,
+        account_id: Optional[str] = None,
+    ) -> bool:
+        """Return True when selected/default Google account can write product."""
+        account = (
+            self.get_google_account(account_id)
+            if account_id
+            else self.get_default_google_account()
+        )
+        if account is None:
+            return False
+        return account.can_write_product(product)
     
     # Database Connection Methods
     def add_database_connection(self, connection: DatabaseConnection) -> None:
@@ -334,6 +422,7 @@ class Person(BaseModel):
             'valid_credentials': len(self.get_valid_credentials()),
             'oauth_integrations': len(self.oauth_integrations),
             'valid_oauth_integrations': len(self.get_valid_oauth_integrations()),
+            'google_linked_accounts': len(self.google_linked_accounts),
             'database_connections': len(self.database_connections),
             'onepassword_credentials': len(self.onepassword_credentials),
             'created_date': self.created_date.isoformat(),
@@ -400,6 +489,11 @@ class Person(BaseModel):
                 'valid': len(self.get_valid_oauth_integrations()),
                 'providers': list(set(oauth.provider for oauth in self.oauth_integrations)),
                 'services': list(set(oauth.service for oauth in self.oauth_integrations))
+            },
+            'google_linked_accounts': {
+                'total': len(self.google_linked_accounts),
+                'active': len([a for a in self.google_linked_accounts if a.is_active()]),
+                'default_set': self.get_default_google_account() is not None,
             },
             'onepassword_credentials': {
                 'total': len(self.onepassword_credentials),

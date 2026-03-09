@@ -49,6 +49,34 @@ summary = su.get_profile_summary()
 - `EnhancedUserProfile`: Type-safe user configuration with validation
 - `ClientProfile`: Client-specific settings and preferences
 - `SiegeConfig`: Unified configuration container
+- `GoogleLinkedAccount`: Linked Google account metadata for multi-account users
+
+### Google Workspace Multi-Account Support
+
+Users can now link multiple Google identities and select a default account for
+Google Workspace operations (Sheets, Slides, Docs).
+
+```python
+from siege_utilities.config.models.person import Person
+from siege_utilities.config.models.oauth_integration import (
+    GoogleLinkedAccount,
+    GoogleWorkspaceProduct,
+)
+
+person = Person(person_id="u1", name="User One", email="user@example.com")
+person.link_google_account(
+    GoogleLinkedAccount(
+        account_id="google-sub-1",
+        email="user@example.com",
+        granted_scopes=["https://www.googleapis.com/auth/spreadsheets"],
+        is_default=True,
+    )
+)
+
+can_write_sheets = person.can_write_google_product(
+    GoogleWorkspaceProduct.SHEETS
+)
+```
 
 ### Legacy Classes (Backward Compatibility)
 

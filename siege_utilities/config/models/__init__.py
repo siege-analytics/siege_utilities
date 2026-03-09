@@ -19,6 +19,13 @@ from .data_sources import (
     DataSource,
     SourceCredential,
 )
+from .oauth_integration import (
+    OAuthIntegration,
+    OAuthScope,
+    GoogleLinkedAccount,
+    GoogleAccountStatus,
+    GoogleWorkspaceProduct,
+)
 
 __all__ = [
     "UserProfile",
@@ -34,4 +41,9 @@ __all__ = [
     "DataSourceStatus",
     "DataSource",
     "SourceCredential",
+    "OAuthIntegration",
+    "OAuthScope",
+    "GoogleLinkedAccount",
+    "GoogleAccountStatus",
+    "GoogleWorkspaceProduct",
 ]

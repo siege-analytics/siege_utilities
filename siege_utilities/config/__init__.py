@@ -290,7 +290,13 @@ try:
     from .models.person import Person
     from .models.actor_types import User, Client, Collaborator, Organization, Collaboration
     from .models.credential import Credential, OnePasswordCredential
-    from .models.oauth_integration import OAuthIntegration, OAuthScope
+    from .models.oauth_integration import (
+        OAuthIntegration,
+        OAuthScope,
+        GoogleLinkedAccount,
+        GoogleAccountStatus,
+        GoogleWorkspaceProduct,
+    )
     from .models.database_connection import DatabaseConnection
     from .models.data_sources import (
         JurisdictionLevel, Jurisdiction,
@@ -337,6 +343,9 @@ except ImportError as e:
     OnePasswordCredential = _config_dependency_wrapper('OnePasswordCredential', _pd)
     OAuthIntegration = _config_dependency_wrapper('OAuthIntegration', _pd)
     OAuthScope = _config_dependency_wrapper('OAuthScope', _pd)
+    GoogleLinkedAccount = _config_dependency_wrapper('GoogleLinkedAccount', _pd)
+    GoogleAccountStatus = _config_dependency_wrapper('GoogleAccountStatus', _pd)
+    GoogleWorkspaceProduct = _config_dependency_wrapper('GoogleWorkspaceProduct', _pd)
     DatabaseConnection = _config_dependency_wrapper('DatabaseConnection', _pd)
     JurisdictionLevel = _config_dependency_wrapper('JurisdictionLevel', _pd)
     Jurisdiction = _config_dependency_wrapper('Jurisdiction', _pd)
@@ -485,6 +494,7 @@ __all__ = [
     # Person/Actor architecture models
     'Person', 'User', 'Client', 'Collaborator', 'Organization', 'Collaboration',
     'Credential', 'OnePasswordCredential', 'OAuthIntegration', 'OAuthScope',
+    'GoogleLinkedAccount', 'GoogleAccountStatus', 'GoogleWorkspaceProduct',
     
     # Migration utilities
     'ConfigurationMigrator', 'migrate_configurations', 'backup_and_migrate',

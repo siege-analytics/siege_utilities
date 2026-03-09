@@ -36,6 +36,127 @@ class OAuthScope(str, Enum):
     CONTACTS = "contacts"
 
 
+class GoogleAccountStatus(str, Enum):
+    """Lifecycle states for linked Google accounts."""
+    ACTIVE = "active"
+    REVOKED = "revoked"
+    DISCONNECTED = "disconnected"
+
+
+class GoogleWorkspaceProduct(str, Enum):
+    """Google Workspace products supported for write checks."""
+    SHEETS = "sheets"
+    SLIDES = "slides"
+    DOCS = "docs"
+
+
+_WORKSPACE_WRITE_SCOPES = {
+    GoogleWorkspaceProduct.SHEETS: {
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive.file",
+        "https://www.googleapis.com/auth/drive",
+    },
+    GoogleWorkspaceProduct.SLIDES: {
+        "https://www.googleapis.com/auth/presentations",
+        "https://www.googleapis.com/auth/drive.file",
+        "https://www.googleapis.com/auth/drive",
+    },
+    GoogleWorkspaceProduct.DOCS: {
+        "https://www.googleapis.com/auth/documents",
+        "https://www.googleapis.com/auth/drive.file",
+        "https://www.googleapis.com/auth/drive",
+    },
+}
+
+
+class GoogleLinkedAccount(BaseModel):
+    """
+    Linked Google account metadata for a user.
+
+    This model is intentionally separate from OAuthIntegration so one user can
+    maintain multiple Google identities with independent scopes and lifecycle.
+    """
+
+    model_config = ConfigDict()
+
+    account_id: str = Field(
+        min_length=1,
+        max_length=128,
+        description="Stable Google account subject identifier (OIDC sub)."
+    )
+    email: str = Field(
+        min_length=3,
+        max_length=320,
+        description="Google account email address."
+    )
+    display_name: Optional[str] = Field(
+        default=None,
+        max_length=200,
+        description="Display name from Google profile."
+    )
+    granted_scopes: List[str] = Field(
+        default_factory=list,
+        description="Granted OAuth scopes for this account."
+    )
+    status: GoogleAccountStatus = Field(
+        default=GoogleAccountStatus.ACTIVE,
+        description="Current lifecycle status for this linked account."
+    )
+    is_default: bool = Field(
+        default=False,
+        description="Whether this account is the default for Google operations."
+    )
+    linked_at: datetime = Field(
+        default_factory=datetime.now,
+        description="When this account was linked."
+    )
+    last_used: Optional[datetime] = Field(
+        default=None,
+        description="Last successful use timestamp."
+    )
+    last_refreshed: Optional[datetime] = Field(
+        default=None,
+        description="Last credential refresh timestamp."
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional metadata for account routing and audit."
+    )
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        """Validate email formatting for Google-linked accounts."""
+        candidate = value.strip().lower()
+        if not re.match(r"^[^@]+@[^@]+\.[^@]+$", candidate):
+            raise ValueError("Invalid email format")
+        return candidate
+
+    @field_validator("granted_scopes")
+    @classmethod
+    def validate_granted_scopes(cls, value: List[str]) -> List[str]:
+        """Normalize scopes and ensure uniqueness."""
+        scopes = [scope.strip() for scope in value if scope and scope.strip()]
+        if len(scopes) != len(set(scopes)):
+            raise ValueError("Granted scopes must be unique")
+        return scopes
+
+    def is_active(self) -> bool:
+        """Return True when account can be used for operations."""
+        return self.status == GoogleAccountStatus.ACTIVE
+
+    def grants_scope(self, scope: str) -> bool:
+        """Return True when this account has the requested OAuth scope."""
+        return scope in self.granted_scopes
+
+    def can_write_product(self, product: GoogleWorkspaceProduct) -> bool:
+        """Return True when account has write scope for the selected product."""
+        if not self.is_active():
+            return False
+        required_scopes = _WORKSPACE_WRITE_SCOPES.get(product, set())
+        return any(scope in self.granted_scopes for scope in required_scopes)
+
+
 class OAuthIntegration(BaseModel):
     """
     OAuth integration configuration with comprehensive validation.
