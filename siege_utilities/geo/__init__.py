@@ -16,6 +16,9 @@ def _register(names, module):
         _LAZY_IMPORTS[name] = module
 
 
+# --- capabilities (runtime tier detection) ---
+_register(['geo_capabilities'], '.capabilities')
+
 # --- crs (configurable default CRS) ---
 _register([
     'get_default_crs', 'set_default_crs', 'reproject_if_needed',
