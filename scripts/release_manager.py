@@ -111,9 +111,8 @@ def check_ci_status() -> bool:
         ).stdout.strip()
 
         result = subprocess.run(
-            ['gh', 'run', 'list', '--branch', branch, '--limit', '1',
-             '--workflow', 'Siege Utilities CI/CD', '--json',
-             'conclusion,status,name'],
+            ['gh', 'run', 'list', '--branch', branch, '--limit', '20', '--json',
+             'conclusion,status,name,workflowName,createdAt'],
             capture_output=True, text=True, check=True,
             cwd=PROJECT_ROOT,
         )
@@ -122,7 +121,17 @@ def check_ci_status() -> bool:
             logger.warning(f"No CI runs found for branch {branch}")
             return False
 
-        run = runs[0]
+        workflow_runs = [
+            r for r in runs
+            if r.get('workflowName') == 'Siege Utilities CI/CD'
+        ]
+        if not workflow_runs:
+            logger.warning(
+                f"No 'Siege Utilities CI/CD' runs found for branch {branch}"
+            )
+            return False
+
+        run = workflow_runs[0]
         if run.get('status') != 'completed':
             logger.warning(f"Latest CI run is {run.get('status')}, not completed")
             return False

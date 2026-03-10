@@ -233,6 +233,17 @@ class TestRegistryDefault:
         reg = GoogleAccountRegistry()
         assert reg.get_default() is None
 
+    def test_remove_default_promotes_another(self):
+        reg = GoogleAccountRegistry()
+        a1 = _make_oauth_account(is_default=True)
+        a2 = _make_sa_account(is_default=False)
+        reg.register(a1)
+        reg.register(a2)
+        assert reg.remove(a1.google_account_id)
+        default = reg.get_default()
+        assert default is not None
+        assert default.google_account_id == a2.google_account_id
+
 
 class TestRegistryListing:
     def test_list_accounts(self):
@@ -356,6 +367,25 @@ class TestPersonGoogleAccounts:
         assert not a1.is_default
         assert person.get_default_google_account() is a2
 
+    def test_first_non_default_auto_promoted(self):
+        person = _make_person()
+        a1 = _make_oauth_account(is_default=False)
+        person.add_google_account(a1)
+        default = person.get_default_google_account()
+        assert default is not None
+        assert default.google_account_id == a1.google_account_id
+
+    def test_remove_default_promotes_another(self):
+        person = _make_person()
+        a1 = _make_oauth_account(is_default=True)
+        a2 = _make_sa_account(is_default=False)
+        person.add_google_account(a1)
+        person.add_google_account(a2)
+        assert person.remove_google_account(a1.google_account_id)
+        default = person.get_default_google_account()
+        assert default is not None
+        assert default.google_account_id == a2.google_account_id
+
     def test_set_default(self):
         person = _make_person()
         person.add_google_account(_make_oauth_account())
@@ -446,6 +476,28 @@ class TestFromAccount:
             from siege_utilities.analytics.google_workspace import GoogleWorkspaceClient
             with pytest.raises(ValueError, match="Cannot resolve credentials"):
                 GoogleWorkspaceClient.from_account(acct)
+
+    def test_from_account_service_account_ref_title(self):
+        acct = _make_sa_account(
+            service_account_ref="My Specific 1Password SA Item"
+        )
+
+        with patch("siege_utilities.analytics.google_workspace._GOOGLE_AVAILABLE", True), \
+             patch("siege_utilities.analytics.google_workspace.service_account") as mock_sa, \
+             patch("siege_utilities.analytics.google_workspace.build"), \
+             patch(
+                 "siege_utilities.config.credential_manager.get_google_service_account_from_1password"
+             ) as mock_1p:
+            mock_creds = MagicMock()
+            mock_sa.Credentials.from_service_account_info.return_value = mock_creds
+            mock_1p.return_value = {"type": "service_account", "client_email": "sa@example.com"}
+
+            from siege_utilities.analytics.google_workspace import GoogleWorkspaceClient
+            client = GoogleWorkspaceClient.from_account(acct)
+            assert client._credentials is mock_creds
+            mock_1p.assert_called_once_with(
+                item_title="My Specific 1Password SA Item"
+            )
 
     def test_from_account_oauth_with_person(self):
         from siege_utilities.config.models.oauth_integration import (
