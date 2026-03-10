@@ -39,12 +39,14 @@ client secret:
    # Service account (server-to-server, no browser required)
    client = GoogleWorkspaceClient.from_1password(
        item_title="Google Service Account - siege_utilities",
+       vault="Employee",
        account="Siege_Analytics",
    )
 
    # OAuth (opens browser on first use, caches token afterward)
    client = GoogleWorkspaceClient.from_1password(
        item_title="Google OAuth Client - siege_utilities",
+       vault="Personal",
        account="Siege_Analytics",
    )
 
