@@ -80,7 +80,11 @@ def get_report_output_directory(client_code: str = None) -> Path:
     """Get the appropriate output directory for reports based on profile system."""
     try:
         from ..config.enhanced_config import get_download_directory
-        base_dir = get_download_directory(client_code)
+        import os
+        username = os.environ.get('SIEGE_USERNAME', os.environ.get('USER', 'default'))
+        base_dir = get_download_directory(username)
+        if client_code:
+            return base_dir / client_code / "reports"
         return base_dir / "reports"
     except ImportError:
         return Path.cwd() / "reports"
@@ -98,8 +102,13 @@ def create_powerpoint_generator(client_name: str, client_code: str = None):
     from .powerpoint_generator import PowerPointGenerator as _PG
     try:
         from ..config.enhanced_config import get_download_directory
-        base_dir = get_download_directory(client_code)
-        output_dir = base_dir / "presentations"
+        import os
+        username = os.environ.get('SIEGE_USERNAME', os.environ.get('USER', 'default'))
+        base_dir = get_download_directory(username)
+        if client_code:
+            output_dir = base_dir / client_code / "presentations"
+        else:
+            output_dir = base_dir / "presentations"
     except ImportError:
         output_dir = Path.cwd() / "presentations"
     return _PG(client_name, output_dir)

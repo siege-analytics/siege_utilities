@@ -47,6 +47,7 @@ from .longitudinal_data import (
     get_longitudinal_data,
     # Utility functions
     get_available_years,
+    get_available_years as get_available_survey_years,
     validate_longitudinal_years,
     # Constants
     ACS5_AVAILABLE_YEARS,
@@ -97,6 +98,7 @@ __all__ = [
     # Longitudinal data
     'get_longitudinal_data',
     'get_available_years',
+    'get_available_survey_years',
     'validate_longitudinal_years',
     'ACS5_AVAILABLE_YEARS',
     'DECENNIAL_YEARS',

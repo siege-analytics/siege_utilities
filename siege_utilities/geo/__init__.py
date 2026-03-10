@@ -145,7 +145,7 @@ _register([
     'compute_boundary_stability', 'compute_allocation_efficiency',
     'build_reallocation_chain', 'compare_vintage_stability',
     'identify_volatile_boundaries',
-    'get_longitudinal_data', 'get_available_years', 'validate_longitudinal_years',
+    'get_longitudinal_data', 'get_available_survey_years', 'validate_longitudinal_years',
     'calculate_change_metrics', 'calculate_multi_period_changes',
     'calculate_index', 'get_change_summary',
     'TrendCategory', 'TrendThresholds',
