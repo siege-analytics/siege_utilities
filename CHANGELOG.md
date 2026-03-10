@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.9.1] - 2026-03-10
+
+### Fixed
+- **Credential hygiene** — `.gitignore` blocks `*credentials*.json`, `*service_account*.json`,
+  `*token*.json`, `*client_secret*.json`, `*.pem` from accidental commits.
+- **Hardcoded credentials removed** — `database_connections.yaml` now uses `CHANGE_ME` placeholders.
+- **Name collision fix** — `load_client_profile`/`save_client_profile`/`list_client_profiles`
+  rename shims in `__init__.py` to avoid shadowing.
+- **`get_download_directory()` signature** — fixed call in `files/__init__.py` and
+  `reporting/__init__.py` to pass `username` arg, added `client_code` path handling.
+- **`release_manager.py`** — now tracks `docs/source/conf_fast.py` version.
+- **Geocoding log noise** — demoted `log_warning` to `log_debug` in `use_nominatim_geocoder`.
+- **`get_available_survey_years`** — added alias in `geo/timeseries` for clarity
+  (`get_available_years` still works).
+
 ## [3.9.0] - 2026-03-10
 
 ### Added

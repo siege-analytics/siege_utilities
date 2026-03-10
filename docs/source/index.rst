@@ -62,7 +62,7 @@ Siege Utilities is a comprehensive Python utilities package with **enhanced auto
 
 .. note::
 
-   **v3.9.0** (March 2026) — Latest on `PyPI <https://pypi.org/project/siege-utilities/>`_.
+   **v3.9.1** (March 2026) — Latest on `PyPI <https://pypi.org/project/siege-utilities/>`_.
 
    Key capabilities:
 
