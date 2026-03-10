@@ -25,16 +25,20 @@ from siege_utilities.analytics.google_workspace import GoogleWorkspaceClient
 
 
 # ── Per-mode defaults ────────────────────────────────────────────────
+# Account identifier: use UUID for portability across machines.
+# Siege_Analytics = TLTQ3ANAABGCNEK7KIAOTDNK2Q (team-siege.1password.com)
+SIEGE_ANALYTICS_ACCOUNT = "TLTQ3ANAABGCNEK7KIAOTDNK2Q"
+
 DEFAULTS = {
     "oauth": {
         "item": "Google OAuth Client - siege_utilities",
         "vault": "Personal",
-        "account": "Siege_Analytics",
+        "account": SIEGE_ANALYTICS_ACCOUNT,
     },
     "service_account": {
         "item": "Google Service Account - siege_utilities",
         "vault": "Employee",
-        "account": "Siege_Analytics",
+        "account": SIEGE_ANALYTICS_ACCOUNT,
     },
 }
 # ─────────────────────────────────────────────────────────────────────

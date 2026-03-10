@@ -130,7 +130,7 @@ class GoogleWorkspaceClient:
         cls,
         item_title: str = "Google OAuth Client - siege_utilities",
         vault: Optional[str] = None,
-        account: Optional[str] = "Siege_Analytics",
+        account: Optional[str] = "TLTQ3ANAABGCNEK7KIAOTDNK2Q",  # Siege_Analytics
         token_file: Optional[Union[str, Path]] = None,
         scopes: Optional[List[str]] = None,
     ) -> "GoogleWorkspaceClient":
