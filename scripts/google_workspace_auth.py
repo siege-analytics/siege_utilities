@@ -24,7 +24,7 @@ from siege_utilities.analytics.google_workspace import GoogleWorkspaceClient
 OAUTH_ITEM = "Google OAuth Client - siege_utilities"
 SA_ITEM = "Google Service Account - siege_utilities"
 ACCOUNT = "Siege_Analytics"
-VAULT = "Employee"
+VAULT = None
 
 
 def main():
