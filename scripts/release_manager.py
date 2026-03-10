@@ -12,8 +12,8 @@ Usage:
     python scripts/release_manager.py --build          # Build package
     python scripts/release_manager.py --build --clean  # Clean + build
     python scripts/release_manager.py --release --bump-type minor --release-notes "..."
-    python scripts/release_manager.py --release --bump-type major --changelog --pypi
-    python scripts/release_manager.py --release --target-version 3.1.0 --changelog --pypi
+    python scripts/release_manager.py --release --bump-type major --changelog
+    python scripts/release_manager.py --release --target-version 3.1.0 --changelog
     python scripts/release_manager.py --release --bump-type patch --dry-run
 
 Release workflow (12 steps):
@@ -27,7 +27,7 @@ Release workflow (12 steps):
     8. Resolve release notes
     9. Merge develop → main (gitflow)
    10. Tag on main + push
-   11. Upload to PyPI (if --pypi)
+   11. Upload to PyPI (always — requires PYPI_API_TOKEN or --token)
    12. Create GitHub release (unless --skip-github)
 """
 
@@ -662,7 +662,8 @@ def main():
                         help='Use CHANGELOG.md for release notes (instead of --release-notes)')
     parser.add_argument('--skip-tests', action='store_true', help='Skip tests during release')
     parser.add_argument('--skip-github', action='store_true', help='Skip GitHub release creation')
-    parser.add_argument('--pypi', action='store_true', help='Upload to PyPI after build')
+    parser.add_argument('--pypi', action='store_true',
+                        help='Upload to PyPI after --build (always on during --release)')
     parser.add_argument('--repository', choices=['pypi', 'testpypi'], default='pypi',
                         help='PyPI repository target (default: pypi)')
     parser.add_argument('--token', type=str,
@@ -711,6 +712,14 @@ def main():
             parser.error("--bump-type and --target-version are mutually exclusive")
         if not args.release_notes and not args.changelog:
             parser.error("--release requires --release-notes or --changelog")
+
+        # Early check: PyPI token must be available (upload is mandatory)
+        pypi_token = args.token or os.environ.get('PYPI_API_TOKEN')
+        if not pypi_token and not args.dry_run:
+            parser.error(
+                "--release requires a PyPI token. "
+                "Set PYPI_API_TOKEN env var or pass --token."
+            )
 
         # 1. Check consistency
         logger.info("Step 1/12: Checking version consistency...")
@@ -831,13 +840,11 @@ def main():
         if not git_tag_and_push(new_ver, notes, args.dry_run):
             logger.warning("Tagging failed (non-fatal)")
 
-        # 11. Upload to PyPI
+        # 11. Upload to PyPI (mandatory for releases)
         logger.info("Step 11/12: PyPI upload...")
-        if args.pypi:
-            if not upload_to_pypi(args.repository, args.token, args.dry_run):
-                sys.exit(1)
-        else:
-            logger.info("PyPI upload skipped (use --pypi to enable)")
+        if not upload_to_pypi(args.repository, args.token, args.dry_run):
+            logger.error("PyPI upload failed")
+            sys.exit(1)
 
         # 12. GitHub release
         logger.info("Step 12/12: GitHub release...")
