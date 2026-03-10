@@ -5,52 +5,82 @@ Auto-detects whether the 1Password item is an OAuth client secret
 (opens browser) or a service account key (server-to-server, no browser).
 
 Usage:
-    # OAuth (browser flow, default):
+    # OAuth (default):
     python scripts/google_workspace_auth.py
 
-    # Service account (no browser):
-    python scripts/google_workspace_auth.py --service-account
+    # Service account:
+    python scripts/google_workspace_auth.py --mode service_account
+
+    # Custom vault/account/item:
+    python scripts/google_workspace_auth.py --mode service_account --vault Employee --account Siege_Analytics
+
+    # Fully custom:
+    python scripts/google_workspace_auth.py --item "My Custom Item" --vault MyVault --account MyAccount
 """
 
+import argparse
 import sys
 
 from siege_utilities.analytics.google_workspace import GoogleWorkspaceClient
 
 
-# ── Defaults (edit these to match your 1Password setup) ──────────────
-OAUTH_ITEM = "Google OAuth Client - siege_utilities"
-OAUTH_VAULT = "Personal"
-
-SA_ITEM = "Google Service Account - siege_utilities"
-SA_VAULT = "Employee"
-
-ACCOUNT = "Siege_Analytics"
+# ── Per-mode defaults ────────────────────────────────────────────────
+DEFAULTS = {
+    "oauth": {
+        "item": "Google OAuth Client - siege_utilities",
+        "vault": "Personal",
+        "account": "Siege_Analytics",
+    },
+    "service_account": {
+        "item": "Google Service Account - siege_utilities",
+        "vault": "Employee",
+        "account": "Siege_Analytics",
+    },
+}
 # ─────────────────────────────────────────────────────────────────────
 
 
 def main():
-    service_account = "--service-account" in sys.argv
+    parser = argparse.ArgumentParser(
+        description="Google Workspace authentication via 1Password",
+    )
+    parser.add_argument(
+        "--mode", choices=["oauth", "service_account"], default="oauth",
+        help="Auth mode: oauth (browser) or service_account (no browser). Default: oauth",
+    )
+    parser.add_argument(
+        "--item", default=None,
+        help="1Password item title (default depends on --mode)",
+    )
+    parser.add_argument(
+        "--vault", default=None,
+        help="1Password vault (default depends on --mode)",
+    )
+    parser.add_argument(
+        "--account", default=None,
+        help="1Password account shorthand (default: Siege_Analytics)",
+    )
+    args = parser.parse_args()
 
-    if service_account:
-        item_title = SA_ITEM
-        vault = SA_VAULT
-    else:
-        item_title = OAUTH_ITEM
-        vault = OAUTH_VAULT
+    # Resolve defaults based on mode
+    mode_defaults = DEFAULTS[args.mode]
+    item_title = args.item or mode_defaults["item"]
+    vault = args.vault or mode_defaults["vault"]
+    account = args.account or mode_defaults["account"]
 
     print("Google Workspace Authentication")
     print("=" * 40)
+    print(f"  Mode:              {args.mode}")
     print(f"  1Password item:    {item_title}")
     print(f"  1Password vault:   {vault}")
-    print(f"  1Password account: {ACCOUNT}")
-    print(f"  Mode: {'service account' if service_account else 'OAuth (browser)'}")
+    print(f"  1Password account: {account}")
     print()
 
     try:
         client = GoogleWorkspaceClient.from_1password(
             item_title=item_title,
             vault=vault,
-            account=ACCOUNT,
+            account=account,
         )
     except Exception as e:
         print(f"\nAuthentication failed: {e}")

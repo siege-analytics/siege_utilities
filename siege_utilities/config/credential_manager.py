@@ -1111,7 +1111,12 @@ def get_google_oauth_document_from_1password(
         return client_config
 
     except subprocess.CalledProcessError as e:
-        log_error(f"Failed to get Google OAuth document from 1Password: {e}")
+        stderr = e.stderr.strip() if e.stderr else "(no stderr)"
+        log_error(
+            f"Failed to get Google OAuth document from 1Password: {e}\n"
+            f"  op stderr: {stderr}\n"
+            f"  command: {' '.join(e.cmd)}"
+        )
         return None
     except json.JSONDecodeError as e:
         log_error(f"Invalid JSON in 1Password document '{item_title}': {e}")
