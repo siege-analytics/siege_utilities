@@ -255,29 +255,26 @@ Installation and Dependencies
 ---------------------------
 
 **Core Dependencies:**
-- Python 3.8+
-- pandas
-- pathlib
-- requests
+- Python 3.11+
+- pyyaml, requests, tqdm, pydantic
 
-**Optional Dependencies:**
-- **PySpark**: For distributed computing (503+ functions)
-- **Google Analytics**: For analytics integration
-- **Geospatial**: For location-based analytics
-
-**Installation:**
+**Optional Extras:**
 
 .. code-block:: bash
 
-    # Basic installation
-    pip install siege_utilities
-    
-    # With all dependencies
-    pip install siege_utilities[full]
-    
-    # With specific components
-    pip install siege_utilities[spark]      # PySpark support
-    pip install siege_utilities[analytics]  # Google Analytics support
+    # Core only
+    pip install siege-utilities
+
+    # Geospatial tiers
+    pip install siege-utilities[geo-lite]      # shapely, pyproj, geopy (no GDAL)
+    pip install siege-utilities[geo]           # + geopandas, fiona, rtree, tobler
+    pip install siege-utilities[geodjango]     # + Django, DRF-GIS, PostGIS
+
+    # Analytics (Google Workspace, GA4, Snowflake)
+    pip install siege-utilities[analytics]
+
+    # Everything
+    pip install siege-utilities[all]
 
 Performance and Scalability
 --------------------------

@@ -27,17 +27,17 @@ dependencies = [
 [project.optional-dependencies]
 # Data manipulation (pandas, numpy, openpyxl, faker)
 data = [
-    "pandas>=1.5.0",
-    "numpy>=1.21.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
     "openpyxl>=3.1.0",
     "faker>=35.2.2",
 ]
 # Geospatial (geopandas, shapely, pyproj, etc.)
 geo = [
-    "geopandas>=0.13.2,<1.0",
-    "shapely>=1.8.0,<3.0",
+    "geopandas>=0.13.2",
+    "shapely>=2.0.0,<3.0",
     "pyproj>=3.3.0",
-    "fiona>=1.8.0",
+    "fiona>=1.9.0",
     "geopy>=2.4.1",
     "rtree>=1.0.0",
     "mapclassify>=2.5.0",
@@ -66,8 +66,8 @@ analytics = [
     "google-api-python-client>=2.181.0",
     "google-analytics-data>=0.18.19",
     "google-analytics-admin>=0.25.0",
-    "scipy>=1.8.0",
-    "scikit-learn>=1.1.0",
+    "scipy>=1.11.0",
+    "scikit-learn>=1.3.0",
     "facebook-business>=20.0.0",
     "datadotworld>=1.7.0",
     "snowflake-connector-python>=3.0.0",
@@ -150,15 +150,15 @@ dev = [
 # Everything — convenience meta-extra for full installs
 all = [
     # data
-    "pandas>=1.5.0",
-    "numpy>=1.21.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
     "openpyxl>=3.1.0",
     "faker>=35.2.2",
     # geo
-    "geopandas>=0.13.2,<1.0",
-    "shapely>=1.8.0,<3.0",
+    "geopandas>=0.13.2",
+    "shapely>=2.0.0,<3.0",
     "pyproj>=3.3.0",
-    "fiona>=1.8.0",
+    "fiona>=1.9.0",
     "geopy>=2.4.1",
     "rtree>=1.0.0",
     "mapclassify>=2.5.0",
@@ -182,8 +182,8 @@ all = [
     "google-api-python-client>=2.181.0",
     "google-analytics-data>=0.18.19",
     "google-analytics-admin>=0.25.0",
-    "scipy>=1.8.0",
-    "scikit-learn>=1.1.0",
+    "scipy>=1.11.0",
+    "scikit-learn>=1.3.0",
     "facebook-business>=20.0.0",
     "datadotworld>=1.7.0",
     "snowflake-connector-python>=3.0.0",

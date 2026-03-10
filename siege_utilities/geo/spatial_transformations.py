@@ -5,8 +5,14 @@ DuckDB support is included but optional for enhanced performance on large datase
 """
 
 import logging
-import geopandas as gpd
 from pathlib import Path
+
+try:
+    import geopandas as gpd
+    _GEOPANDAS_AVAILABLE = True
+except ImportError:
+    gpd = None
+    _GEOPANDAS_AVAILABLE = False
 from typing import Optional, Union
 
 # Import existing library functions
@@ -300,68 +306,76 @@ class PostGISConnector:
             log.error(f"Failed to upload to PostGIS: {e}")
             return False
     
-    def download_spatial_data(self, table_name: str, **kwargs) -> Optional[GeoDataFrame]:
+    def download_spatial_data(self, table_name: str, *, crs: str | None = None, **kwargs) -> Optional[GeoDataFrame]:
         """
         Download spatial data from PostGIS.
-        
+
         Args:
             table_name: Source table name
+            crs: Output CRS. Defaults to
+                :func:`~siege_utilities.geo.crs.get_default_crs`.
             **kwargs: Additional parameters
-            
+
         Returns:
             GeoDataFrame with spatial data or None if failed
         """
+        from siege_utilities.geo.crs import reproject_if_needed
+
         if not self.connection:
             log.error("No PostGIS connection available")
             return None
-        
+
         try:
             cursor = self.connection.cursor()
             cursor.execute(f"SELECT ST_AsText(geom) as geometry FROM {table_name}")
-            
+
             rows = cursor.fetchall()
             geometries = []
-            
+
             for row in rows:
                 from shapely import wkt
                 geom = wkt.loads(row[0])
                 geometries.append(geom)
-            
+
             # Create GeoDataFrame
-            gdf = gpd.GeoDataFrame(geometry=geometries)
+            gdf = gpd.GeoDataFrame(geometry=geometries, crs="EPSG:4326")
             log.info(f"Successfully downloaded from PostGIS: {table_name}")
-            return gdf
-            
+            return reproject_if_needed(gdf, crs)
+
         except Exception as e:
             log.error(f"Failed to download from PostGIS: {e}")
             return None
     
-    def execute_spatial_query(self, query: str, **kwargs) -> Optional[GeoDataFrame]:
+    def execute_spatial_query(self, query: str, *, crs: str | None = None, **kwargs) -> Optional[GeoDataFrame]:
         """
         Execute a spatial SQL query.
-        
+
         Args:
             query: SQL query string
+            crs: Output CRS. Defaults to
+                :func:`~siege_utilities.geo.crs.get_default_crs`.
             **kwargs: Additional parameters
-            
+
         Returns:
             Query results as GeoDataFrame or None if failed
         """
+        from siege_utilities.geo.crs import reproject_if_needed
+
         if not self.connection:
             log.error("No PostGIS connection available")
             return None
-        
+
         try:
             cursor = self.connection.cursor()
             cursor.execute(query)
-            
+
             # Process results based on query type
             if query.strip().upper().startswith('SELECT'):
                 rows = cursor.fetchall()
                 # Convert to GeoDataFrame (simplified)
                 gdf = gpd.GeoDataFrame(rows)
                 log.info("Successfully executed PostGIS query")
-                return gdf
+                return reproject_if_needed(gdf, crs)
             else:
                 self.connection.commit()
                 log.info("Successfully executed PostGIS query")
@@ -471,77 +485,85 @@ class DuckDBConnector:
             log.error(f"Failed to upload to DuckDB: {e}")
             return False
     
-    def download_spatial_data(self, table_name: str, **kwargs) -> Optional[GeoDataFrame]:
+    def download_spatial_data(self, table_name: str, *, crs: str | None = None, **kwargs) -> Optional[GeoDataFrame]:
         """
         Download spatial data from DuckDB.
-        
+
         Args:
             table_name: Source table name
+            crs: Output CRS. Defaults to
+                :func:`~siege_utilities.geo.crs.get_default_crs`.
             **kwargs: Additional parameters
-            
+
         Returns:
             GeoDataFrame with spatial data or None if failed
         """
+        from siege_utilities.geo.crs import reproject_if_needed
+
         if not self.connection:
             if not self.connect():
                 return None
-        
+
         try:
             # Construct query
             query = f"SELECT * FROM {table_name}"
             where_clause = kwargs.get('where_clause')
             if where_clause:
                 query += f" WHERE {where_clause}"
-            
+
             # Execute query
             df = self.connection.execute(query).df()
-            
+
             # Convert WKT back to geometries
             if 'geometry_wkt' in df.columns:
                 from shapely import wkt
                 df['geometry'] = df['geometry_wkt'].apply(wkt.loads)
                 df = df.drop(columns=['geometry_wkt'])
-            
+
             # Create GeoDataFrame
             gdf = gpd.GeoDataFrame(df, geometry='geometry')
-            
+
             log.info(f"Successfully downloaded from DuckDB: {table_name}")
-            return gdf
+            return reproject_if_needed(gdf, crs)
             
         except Exception as e:
             log.error(f"Failed to download from DuckDB: {e}")
             return None
     
-    def execute_spatial_query(self, query: str, **kwargs) -> Optional[GeoDataFrame]:
+    def execute_spatial_query(self, query: str, *, crs: str | None = None, **kwargs) -> Optional[GeoDataFrame]:
         """
         Execute a spatial SQL query.
-        
+
         Args:
             query: SQL query string
+            crs: Output CRS. Defaults to
+                :func:`~siege_utilities.geo.crs.get_default_crs`.
             **kwargs: Additional parameters
-            
+
         Returns:
             Query results as GeoDataFrame or None if failed
         """
+        from siege_utilities.geo.crs import reproject_if_needed
+
         if not self.connection:
             if not self.connect():
                 return None
-        
+
         try:
             # Execute query
             df = self.connection.execute(query).df()
-            
+
             # Convert WKT back to geometries if present
             if 'geometry_wkt' in df.columns:
                 from shapely import wkt
                 df['geometry'] = df['geometry_wkt'].apply(wkt.loads)
                 df = df.drop(columns=['geometry_wkt'])
-            
+
             # Create GeoDataFrame
             gdf = gpd.GeoDataFrame(df, geometry='geometry')
-            
+
             log.info("Successfully executed DuckDB query")
-            return gdf
+            return reproject_if_needed(gdf, crs)
             
         except Exception as e:
             log.error(f"Failed to execute DuckDB query: {e}")

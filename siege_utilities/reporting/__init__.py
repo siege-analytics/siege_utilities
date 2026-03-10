@@ -26,7 +26,8 @@ _register([
     'ChartGenerator', 'create_bar_chart', 'create_line_chart',
     'create_scatter_plot', 'create_pie_chart', 'create_heatmap',
     'create_choropleth_map', 'create_bivariate_choropleth',
-    'create_marker_map', 'create_flow_map', 'create_dashboard',
+    'create_marker_map', 'create_flow_map', 'create_convergence_diagram',
+    'create_dashboard',
     'create_dataframe_summary_charts', 'generate_chart_from_dataframe',
 ], '.chart_generator')
 _register(['ClientBrandingManager'], '.client_branding')
@@ -48,6 +49,7 @@ __all__ = [
     'BaseReportTemplate', 'ReportGenerator', 'ChartGenerator',
     'create_bar_chart', 'create_line_chart', 'create_scatter_plot',
     'create_pie_chart', 'create_heatmap',
+    'create_convergence_diagram',
     'ClientBrandingManager', 'AnalyticsReportGenerator', 'PowerPointGenerator',
     'get_report_output_directory', 'create_report_generator', 'create_powerpoint_generator',
     'export_branding_config', 'import_branding_config', 'export_chart_type_config',

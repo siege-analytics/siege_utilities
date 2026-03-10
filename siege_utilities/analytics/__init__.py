@@ -2,7 +2,8 @@
 Analytics Module — lazy-loaded.
 
 Provides analytics integration: Google Analytics, Facebook Business,
-Snowflake, and Data.world connectors.
+Snowflake, Data.world connectors, and Google Workspace write APIs
+(Sheets, Docs, Slides).
 """
 
 import importlib
@@ -37,6 +38,31 @@ _register([
     'list_datasets', 'search_datadotworld_datasets', 'load_datadotworld_dataset',
     'query_datadotworld_dataset', 'DATADOTWORLD_AVAILABLE',
 ], '.datadotworld_connector')
+
+# Google Workspace write APIs (Docs, Sheets, Slides)
+_register([
+    'GoogleWorkspaceClient', 'WORKSPACE_SCOPES',
+], '.google_workspace')
+
+# Google Sheets (no name collisions — exported directly)
+_register([
+    'create_spreadsheet', 'write_values', 'append_rows', 'read_values',
+    'write_dataframe', 'read_dataframe', 'add_sheet',
+    'get_spreadsheet_metadata', 'copy_spreadsheet',
+], '.google_sheets')
+
+# Google Slides and Docs have overlapping function names (insert_text, etc.)
+# Import them via their modules: analytics.google_slides.insert_text
+# Only export non-colliding top-level convenience functions here.
+_register([
+    'create_presentation', 'get_presentation', 'copy_presentation',
+    'add_blank_slide', 'create_textbox',
+], '.google_slides')
+
+_register([
+    'create_document', 'get_document', 'copy_document', 'read_document_text',
+    'insert_paragraph', 'insert_table', 'replace_text',
+], '.google_docs')
 
 __all__ = list(_LAZY_IMPORTS.keys())
 

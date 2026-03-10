@@ -1,20 +1,33 @@
 # Siege Utilities
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11–3.14](https://img.shields.io/badge/python-3.11--3.14-blue.svg)](https://www.python.org/downloads/)
 [![License: AGPLv3%20or%20Commercial](https://img.shields.io/badge/License-AGPLv3%20or%20Commercial-orange.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://siege-analytics.github.io/siege_utilities/)
 
 `siege_utilities` is the shared utilities library behind Siege Analytics workflows:
 
-- Geospatial + GeoDjango boundary/data services
+- Geospatial + GeoDjango boundary/data services (tiered: `[geo-lite]` / `[geo]` / `[geodjango]`)
+- Google Workspace write APIs (Sheets, Docs, Slides, Drive) with multi-account management
 - Census API/data selection/crosswalk tooling
+- Isochrone analysis with configurable CRS and domain exceptions
 - Configuration and profile management
 - Distributed processing helpers (Spark/HDFS/Databricks)
 - Reporting and chart generation
 
+## Python Version Support
+
+| Version | Status | CI |
+|---------|--------|-----|
+| 3.11 | **Fully supported** (floor) | Required pass |
+| 3.12 | **Fully supported** | Required pass |
+| 3.13 | **Supported** | Allow-failure while stabilizing |
+| 3.14 | **Experimental** | Not yet in CI (awaiting ecosystem wheels) |
+
+The library requires Python 3.11+. Geospatial extras (`[geo]`, `[geodjango]`) depend on C-extension packages (GDAL/GEOS/PROJ bindings) whose wheel availability varies by Python version — check PyPI for your target version before installing.
+
 ## Install
 
-See [Installation Options](#installation-options) for all supported install commands (`base`, `geo`, `geodjango`, `all`).
+See [Installation Options](#installation-options) for all supported install commands (`base`, `geo-lite`, `geo`, `geodjango`, `all`).
 
 ## Quick Usage
 
@@ -71,6 +84,7 @@ See:
 - `docs/RELEASE_LINEAGE.md`
 - `docs/EXAMPLES.md`
 - `docs/ISOCHRONES_AND_WKLS.md`
+- `docs/MANAGED_ENVIRONMENTS.md`
 
 ## External Contributor Workflow
 
@@ -309,7 +323,7 @@ report_gen.generate_pdf_report(report_content, output_path="report.pdf")
 | **Files** | 21 | File ops, paths, remote downloads | None |
 | **Distributed** | 37 | Spark utilities, HDFS operations | PySpark |
 | **Geo** | 65+ | Census data, boundaries, spatial, GeoDjango | pandas, geopandas |
-| **Analytics** | 28 | Google Analytics, Snowflake APIs | pandas, connectors |
+| **Analytics** | 45+ | Google Analytics, Workspace (Sheets/Docs/Slides), Snowflake | pandas, google-api-python-client |
 | **Reporting** | 30+ | Charts, maps, GA reports, PDF generation | matplotlib, reportlab |
 | **Testing** | 15 | Environment setup, test runners | None |
 | **Git** | 9 | Branch ops, commit management | None |
@@ -324,8 +338,9 @@ report_gen.generate_pdf_report(report_content, output_path="report.pdf")
 pip install siege-utilities
 
 # Add extras for what you need
-pip install siege-utilities[geo]              # geopandas, shapely, pyproj, tobler
-pip install siege-utilities[geodjango]        # Django, DRF, PostGIS
+pip install siege-utilities[geo-lite]         # shapely, pyproj, geopy (no GDAL needed)
+pip install siege-utilities[geo]              # geo-lite + geopandas, fiona, rtree, tobler (needs GDAL)
+pip install siege-utilities[geodjango]        # geo + Django, DRF, PostGIS
 pip install siege-utilities[data]             # pandas, numpy, openpyxl, faker
 pip install siege-utilities[reporting]        # matplotlib, seaborn, folium, plotly, reportlab
 pip install siege-utilities[analytics]        # GA4, Facebook, Snowflake, scipy, scikit-learn
@@ -346,7 +361,7 @@ pip install -e ".[all,dev]"
 
 ## Testing
 
-**1800+ tests** across all modules.
+**1884 tests** across all modules.
 
 ```bash
 # Full suite
@@ -379,7 +394,7 @@ siege_utilities/
 │       └── serializers/ # DRF GeoJSON serializers
 ├── distributed/         # Spark, HDFS, Databricks utilities
 ├── reporting/           # PDF, PowerPoint, choropleth, GA reports
-├── analytics/           # GA4, Snowflake connectors
+├── analytics/           # GA4, Google Workspace (Sheets/Docs/Slides), Snowflake
 ├── files/               # File operations, hashing, remote downloads
 ├── core/                # Logging, string utilities
 └── development/         # Architecture analysis, package management
@@ -388,7 +403,7 @@ siege_utilities/
 ## Documentation
 
 - **Sphinx Docs**: [siege-analytics.github.io/siege_utilities](https://siege-analytics.github.io/siege_utilities/)
-- **Notebooks**: 15 Jupyter notebooks covering all major features (in `notebooks/`)
+- **Notebooks**: 18 Jupyter notebooks covering all major features (in `notebooks/`)
 
 ## Contributing
 

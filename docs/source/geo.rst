@@ -12,6 +12,57 @@ The geographic utilities package provides comprehensive tools for working with g
    api/siege_utilities/geo/census_dataset_mapper
    api/siege_utilities/geo/census_data_selector
 
+Tiered Installation
+-------------------
+
+The geo package uses a three-tier extras system so you only install what you need:
+
+.. code-block:: bash
+
+   # Tier 1: Lightweight (no GDAL/GEOS system deps)
+   pip install siege-utilities[geo-lite]    # shapely, pyproj, geopy, censusgeocode
+
+   # Tier 2: Full geospatial (requires GDAL/GEOS/PROJ)
+   pip install siege-utilities[geo]         # geo-lite + geopandas, fiona, rtree, tobler, osmnx
+
+   # Tier 3: GeoDjango spatial platform
+   pip install siege-utilities[geodjango]   # geo + Django, DRF-GIS, psycopg2
+
+**Runtime capability detection**:
+
+.. code-block:: python
+
+   from siege_utilities.geo.capabilities import geo_capabilities
+
+   caps = geo_capabilities()
+   # {'shapely': True, 'pyproj': True, 'geopandas': False, 'fiona': False, ...}
+
+Functions that require full ``[geo]`` dependencies will raise ``ImportError`` with
+installation instructions when called from a ``[geo-lite]`` environment. See
+``docs/MANAGED_ENVIRONMENTS.md`` for setup guides for Azure Databricks, Google Colab,
+and AWS SageMaker.
+
+Isochrones and CRS
+------------------
+
+The isochrone module supports ORS and Valhalla providers with configurable CRS,
+retry logic, and domain-specific exceptions (``IsochroneError``,
+``IsochroneNetworkError``, ``IsochroneProviderError``).
+
+.. code-block:: python
+
+   from siege_utilities.geo.isochrones import get_isochrone
+   from siege_utilities.geo.crs import set_default_crs
+
+   # Set project-wide default CRS
+   set_default_crs("EPSG:2263")  # NY State Plane
+
+   # Get a 15-minute walk isochrone (returned in your default CRS)
+   isochrone = get_isochrone(lat=40.7128, lon=-74.0060, minutes=15)
+
+See ``docs/ISOCHRONES_AND_WKLS.md`` for full details on provider configuration,
+timeout handling, and the ``crs`` parameter available on all spatial-returning functions.
+
 Overview
 --------
 
@@ -82,16 +133,18 @@ Geocoding Services
 Installation
 -----------
 
-Install the geographic utilities with full support:
-
 .. code-block:: bash
 
+   # Lightweight (no GDAL required)
+   pip install siege-utilities[geo-lite]
+
+   # Full geospatial
    pip install siege-utilities[geo]
 
-For development and testing:
+   # Full + Django/PostGIS
+   pip install siege-utilities[geodjango]
 
-.. code-block:: bash
-
+   # Development
    pip install siege-utilities[geo,testing]
 
 Quick Start

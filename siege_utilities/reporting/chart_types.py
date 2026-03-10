@@ -10,8 +10,14 @@ from dataclasses import dataclass, field
 import yaml
 from abc import ABC, abstractmethod
 import pandas as pd
-import geopandas as gpd
 from matplotlib.figure import Figure
+
+try:
+    import geopandas as gpd
+    _GEOPANDAS_AVAILABLE = True
+except ImportError:
+    gpd = None
+    _GEOPANDAS_AVAILABLE = False
 import matplotlib.pyplot as plt
 import seaborn as sns
 

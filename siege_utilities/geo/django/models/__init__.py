@@ -16,6 +16,7 @@ Model hierarchy:
     │   │   └── GADMCountry, GADMAdmin1-5
     │   ├── NLRBRegion, FederalJudicialDistrict
     │   ├── TimezoneGeometry
+    │   ├── IsochroneResult
     │   └── (intersections — 14.7)
     ├── TemporalLinearFeature (abstract — MultiLineString)
     └── TemporalPointFeature (abstract — Point)
@@ -68,6 +69,9 @@ from .federal import (
 )
 from .timezone import (
     TimezoneGeometry,
+)
+from .isochrone import (
+    IsochroneResult,
 )
 from .census_extended import (
     CBSA,
@@ -132,6 +136,8 @@ __all__ = [
     "FederalJudicialDistrict",
     # Timezone
     "TimezoneGeometry",
+    # Isochrone
+    "IsochroneResult",
     # Census Extended
     "CBSA",
     "UrbanArea",
