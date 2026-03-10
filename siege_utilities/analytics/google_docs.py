@@ -25,12 +25,14 @@ log = logging.getLogger(__name__)
 def create_document(
     client,
     title: str,
+    folder_id: Optional[str] = None,
 ) -> str:
     """Create a new Google Doc and return its document ID.
 
     Args:
         client: Authenticated GoogleWorkspaceClient.
         title: Title for the new document.
+        folder_id: Optional Drive folder ID to create the document in.
 
     Returns:
         The document ID string.
@@ -38,7 +40,12 @@ def create_document(
     body = {"title": title}
     result = client.docs_service().documents().create(body=body).execute()
     doc_id = result["documentId"]
-    log.info("Created document %r (%s)", title, doc_id)
+
+    if folder_id:
+        client.move_to_folder(doc_id, folder_id)
+
+    url = client.document_url(doc_id)
+    log.info("Created document %r → %s", title, url)
     return doc_id
 
 

@@ -27,12 +27,14 @@ log = logging.getLogger(__name__)
 def create_presentation(
     client,
     title: str,
+    folder_id: Optional[str] = None,
 ) -> str:
     """Create a new Google Slides presentation and return its ID.
 
     Args:
         client: Authenticated GoogleWorkspaceClient.
         title: Title for the new presentation.
+        folder_id: Optional Drive folder ID to create the presentation in.
 
     Returns:
         The presentation ID string.
@@ -40,7 +42,12 @@ def create_presentation(
     body = {"title": title}
     result = client.slides_service().presentations().create(body=body).execute()
     pres_id = result["presentationId"]
-    log.info("Created presentation %r (%s)", title, pres_id)
+
+    if folder_id:
+        client.move_to_folder(pres_id, folder_id)
+
+    url = client.presentation_url(pres_id)
+    log.info("Created presentation %r → %s", title, url)
     return pres_id
 
 

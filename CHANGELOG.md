@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.9.0] - 2026-03-10
+
+### Added
+- **1Password integration for Google Workspace** — `GoogleWorkspaceClient.from_1password()`
+  auto-detects OAuth client secret vs service account key from 1Password Document items.
+  `get_google_oauth_document_from_1password()` in credential_manager.
+- **URL helpers** — `GoogleWorkspaceClient.spreadsheet_url()`, `document_url()`,
+  `presentation_url()`, `file_url()` static methods. Create functions now log live URLs.
+- **folder_id support** — `create_spreadsheet()`, `create_document()`, `create_presentation()`
+  accept `folder_id` to place files in a specific Drive folder at creation time.
+- **Auth script** — `scripts/google_workspace_auth.py` with `--mode`, `--item`, `--vault`,
+  `--account` CLI options. Supports both OAuth (browser) and service account (headless) modes.
+
+### Fixed
+- **Registry register() self-default bug** — re-registering an account with `is_default=True`
+  no longer clears its own default flag.
+- **from_service_account() null crash** — raises `ValueError` instead of `AttributeError`
+  when 1Password returns no data.
+- **credential_manager error logging** — `op` stderr now surfaced in error messages.
+
 ## [3.8.4] - 2026-03-09
 
 ### Added
