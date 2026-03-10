@@ -23,24 +23,85 @@ This installs ``google-api-python-client``, ``google-auth-oauthlib``, and
 Authentication
 --------------
 
-All write operations require an authenticated ``GoogleWorkspaceClient``. Three
-authentication methods are supported:
+All write operations require an authenticated ``GoogleWorkspaceClient``.
 
-**Service Account (recommended for automation)**:
+1Password Integration (Recommended)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``from_1password()`` factory method downloads a credential JSON document from
+1Password and **auto-detects** whether it is a service account key or an OAuth
+client secret:
 
 .. code-block:: python
 
    from siege_utilities.analytics.google_workspace import GoogleWorkspaceClient
 
-   # From 1Password (default for elect.info infrastructure)
-   client = GoogleWorkspaceClient.from_service_account()
+   # Service account (server-to-server, no browser required)
+   client = GoogleWorkspaceClient.from_1password(
+       item_title="Google Service Account - siege_utilities",
+       account="Siege_Analytics",
+   )
 
-   # From a JSON key file
+   # OAuth (opens browser on first use, caches token afterward)
+   client = GoogleWorkspaceClient.from_1password(
+       item_title="Google OAuth Client - siege_utilities",
+       account="Siege_Analytics",
+   )
+
+**One-time GCP setup for a service account**:
+
+.. code-block:: bash
+
+   # Create the service account
+   gcloud iam service-accounts create siege-utilities-workspace \
+       --project=windy-art-489721-j3 \
+       --display-name="siege_utilities Workspace"
+
+   # Enable Workspace APIs
+   gcloud services enable sheets.googleapis.com docs.googleapis.com \
+       slides.googleapis.com drive.googleapis.com \
+       --project=windy-art-489721-j3
+
+   # Download the JSON key
+   gcloud iam service-accounts keys create ~/siege-utilities-sa.json \
+       --iam-account=siege-utilities-workspace@windy-art-489721-j3.iam.gserviceaccount.com \
+       --project=windy-art-489721-j3
+
+   # Store in 1Password and delete the local file
+   op document create ~/siege-utilities-sa.json \
+       --title "Google Service Account - siege_utilities" \
+       --vault Employee --account Siege_Analytics
+   rm ~/siege-utilities-sa.json
+
+**One-time OAuth setup** (for personal Drive access):
+
+.. code-block:: bash
+
+   python scripts/google_workspace_auth.py
+
+This opens a browser for Google sign-in and caches the token at
+``~/.siege/tokens/workspace_token.json``.
+
+.. note::
+
+   Service accounts have their own Drive space. To access files in a user's
+   personal Drive, share those files with the service account email
+   (``siege-utilities-workspace@windy-art-489721-j3.iam.gserviceaccount.com``).
+
+Direct Authentication
+~~~~~~~~~~~~~~~~~~~~~
+
+You can also authenticate without 1Password:
+
+**Service account from a file**:
+
+.. code-block:: python
+
    client = GoogleWorkspaceClient.from_service_account(
        service_account_file="/path/to/service-account.json",
    )
 
-**OAuth2 (interactive, for user-scoped access)**:
+**OAuth2 with explicit credentials**:
 
 .. code-block:: python
 
@@ -225,7 +286,7 @@ multiple Google accounts (OAuth and service account) per user.
    client = GoogleWorkspaceClient.from_registry(registry)
 
    # Person integration
-   person = Person(person_id="dheeraj", first_name="Dheeraj", last_name="Chand")
+   person = Person(person_id="dheeraj", name="Dheeraj Chand")
    person.add_google_account(oauth_acct)
    default = person.get_default_google_account()
 

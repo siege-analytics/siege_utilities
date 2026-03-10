@@ -134,19 +134,25 @@ class GoogleWorkspaceClient:
         token_file: Optional[Union[str, Path]] = None,
         scopes: Optional[List[str]] = None,
     ) -> "GoogleWorkspaceClient":
-        """Authenticate using OAuth credentials stored in 1Password.
+        """Authenticate using credentials stored in a 1Password Document item.
 
-        Downloads a client_secret JSON document from 1Password and runs
-        the OAuth2 installed-app flow. If *token_file* exists and contains
-        a valid token, no browser interaction is needed.
+        Auto-detects whether the JSON document is an **OAuth client secret**
+        (has ``"installed"`` or ``"web"`` key) or a **service account key**
+        (has ``"type": "service_account"``), and routes to the appropriate
+        auth flow.
+
+        For OAuth: runs the installed-app flow (browser required on first
+        use; cached token reused afterward).
+
+        For service account: authenticates server-to-server with no
+        browser interaction.
 
         Args:
-            item_title: Title of the 1Password Document item containing
-                the client_secret JSON.
+            item_title: Title of the 1Password Document item.
             vault: 1Password vault name.
             account: 1Password account shorthand or UUID.
-            token_file: Path to cache the OAuth token (default:
-                ``~/.siege/tokens/workspace_token.json``).
+            token_file: Path to cache the OAuth token (ignored for service
+                accounts). Default: ``~/.siege/tokens/workspace_token.json``.
             scopes: OAuth scopes (defaults to ``WORKSPACE_SCOPES``).
 
         Returns:
@@ -162,14 +168,27 @@ class GoogleWorkspaceClient:
         )
         if client_config is None:
             raise ValueError(
-                f"Could not retrieve OAuth credentials from 1Password "
+                f"Could not retrieve credentials from 1Password "
                 f"item '{item_title}'"
             )
 
-        # Extract client_id and client_secret from "installed" or "web" key
+        # Auto-detect: service account vs OAuth client secret
+        if client_config.get("type") == "service_account":
+            return cls.from_service_account(
+                service_account_data=client_config,
+                scopes=scopes,
+            )
+
+        # OAuth client secret — extract from "installed" or "web" wrapper
         inner = client_config.get("installed") or client_config.get("web") or client_config
-        client_id = inner["client_id"]
-        client_secret = inner["client_secret"]
+        client_id = inner.get("client_id")
+        client_secret = inner.get("client_secret")
+
+        if not client_id or not client_secret:
+            raise ValueError(
+                f"1Password item '{item_title}' does not contain a valid "
+                f"OAuth client secret or service account key"
+            )
 
         if token_file is None:
             token_dir = Path.home() / ".siege" / "tokens"
