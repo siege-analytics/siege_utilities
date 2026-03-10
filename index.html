@@ -266,6 +266,8 @@
 <li class="toctree-l3"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html#output-format">Output Format</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#tiered-installation">Tiered Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#isochrones-and-crs">Isochrones and CRS</a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#overview">Overview</a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#key-features">Key Features</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="geo.html#census-data-intelligence">Census Data Intelligence</a></li>
@@ -282,6 +284,18 @@
 <li class="toctree-l2"><a class="reference internal" href="geo.html#data-quality-and-reliability">Data Quality and Reliability</a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#best-practices">Best Practices</a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="google_workspace.html">Google Workspace Write APIs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#authentication">Authentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#google-sheets">Google Sheets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#google-slides">Google Slides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#google-docs">Google Docs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#drive-utilities">Drive Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#multi-account-management">Multi-Account Management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#notebook">Notebook</a></li>
+<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#module-siege_utilities.analytics.google_workspace">API Reference</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="analytics.html">Analytics</a><ul>
@@ -591,6 +605,8 @@
 <li class="toctree-l2"><a class="reference internal" href="api/siege_utilities/geo/spatial_data.html">Enhanced Census Utilities and Spatial Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/siege_utilities/geo/census_dataset_mapper.html">Census Dataset Mapper</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/siege_utilities/geo/census_data_selector.html">Census Data Selector</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#tiered-installation">Tiered Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#isochrones-and-crs">Isochrones and CRS</a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#overview">Overview</a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#key-features">Key Features</a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#installation">Installation</a></li>
@@ -601,6 +617,18 @@
 <li class="toctree-l2"><a class="reference internal" href="geo.html#data-quality-and-reliability">Data Quality and Reliability</a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#best-practices">Best Practices</a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="google_workspace.html">Google Workspace Write APIs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#authentication">Authentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#google-sheets">Google Sheets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#google-slides">Google Slides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#google-docs">Google Docs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#drive-utilities">Drive Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#multi-account-management">Multi-Account Management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#notebook">Notebook</a></li>
+<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#module-siege_utilities.analytics.google_workspace">API Reference</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="analytics.html">Analytics</a><ul>
@@ -675,19 +703,21 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p><strong>v2.0.0</strong> (February 2026) — Released to <a class="reference external" href="https://pypi.org/project/siege-utilities/2.0.0/">PyPI</a>.</p>
+<p><strong>v3.8.4</strong> (March 2026) — Latest on <a class="reference external" href="https://pypi.org/project/siege-utilities/">PyPI</a>.</p>
 <p>Key capabilities:</p>
 <ul class="simple">
-<li><p><strong>Auto-Discovery</strong>: 500+ functions automatically imported and mutually available</p></li>
+<li><p><strong>Tiered Geo Extras</strong>: <code class="docutils literal notranslate"><span class="pre">[geo-lite]</span></code> (no GDAL) / <code class="docutils literal notranslate"><span class="pre">[geo]</span></code> / <code class="docutils literal notranslate"><span class="pre">[geodjango]</span></code></p></li>
+<li><p><strong>Google Workspace Write APIs</strong>: Sheets, Docs, Slides, Drive via <code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient</span></code></p></li>
+<li><p><strong>Multi-Account Management</strong>: <code class="docutils literal notranslate"><span class="pre">GoogleAccount</span></code> model, <code class="docutils literal notranslate"><span class="pre">GoogleAccountRegistry</span></code>, <code class="docutils literal notranslate"><span class="pre">Person</span></code> integration</p></li>
+<li><p><strong>Isochrone Quality</strong>: Domain exceptions, retry, configurable CRS, method dispatch</p></li>
+<li><p><strong>Python 3.11–3.14</strong> compatibility with raised dependency floors</p></li>
+<li><p><strong>Census Data Intelligence</strong>: API client, boundary downloads, dataset selection</p></li>
 <li><p><strong>Person/Actor Models</strong>: Pydantic-based identity and contact management</p></li>
-<li><p><strong>Geographic Data</strong>: Census boundaries, TIGER/Line, spatial queries, choropleths</p></li>
-<li><p><strong>Analytics Connectors</strong>: Google Analytics (GA4), with OAuth2 and service account support</p></li>
 <li><p><strong>Report Generation</strong>: PDF (ReportLab), PowerPoint, branded multi-client reports</p></li>
 <li><p><strong>Distributed Computing</strong>: Spark utilities, HDFS operations</p></li>
-<li><p><strong>Client Profiles</strong>: Client information, contact details, and design artifacts</p></li>
-<li><p><strong>724 tests passing</strong>, 30% coverage</p></li>
+<li><p><strong>1884 tests passing</strong></p></li>
 </ul>
-<p>Install: <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">siege-utilities==2.0.0</span></code></p>
+<p>Install: <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">siege-utilities</span></code></p>
 </div>
 </section>
 <section id="indices-and-tables">

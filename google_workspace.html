@@ -3,9 +3,10 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" data-content_root="./">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Python Module Index &mdash; Siege Utilities 3.8.4 documentation</title>
+  <title>Google Workspace Write APIs &mdash; Siege Utilities 3.8.4 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
@@ -17,9 +18,8 @@
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="search" title="Search" href="search.html" />
- 
-
-
+    <link rel="next" title="Analytics" href="analytics.html" />
+    <link rel="prev" title="Census Data Selector" href="api/siege_utilities/geo/census_data_selector.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -173,7 +173,7 @@
 </li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Geographic &amp; Analytics:</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="geo.html">Geographic Utilities</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="geocoding.html">Geocoding</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="geocoding.html#module-overview">Module Overview</a></li>
@@ -287,16 +287,16 @@
 <li class="toctree-l2"><a class="reference internal" href="geo.html#examples">Examples</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="google_workspace.html">Google Workspace Write APIs</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#installation">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#authentication">Authentication</a></li>
-<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#google-sheets">Google Sheets</a></li>
-<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#google-slides">Google Slides</a></li>
-<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#google-docs">Google Docs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#drive-utilities">Drive Utilities</a></li>
-<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#multi-account-management">Multi-Account Management</a></li>
-<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#notebook">Notebook</a></li>
-<li class="toctree-l2"><a class="reference internal" href="google_workspace.html#module-siege_utilities.analytics.google_workspace">API Reference</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Google Workspace Write APIs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#authentication">Authentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#google-sheets">Google Sheets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#google-slides">Google Slides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#google-docs">Google Docs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#drive-utilities">Drive Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#multi-account-management">Multi-Account Management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#notebook">Notebook</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-siege_utilities.analytics.google_workspace">API Reference</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="analytics.html">Analytics</a><ul>
@@ -466,7 +466,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Python Module Index</li>
+      <li class="breadcrumb-item active">Google Workspace Write APIs</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -475,159 +475,319 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
+  <section id="google-workspace-write-apis">
+<h1>Google Workspace Write APIs<a class="headerlink" href="#google-workspace-write-apis" title="Link to this heading"></a></h1>
+<p>The Google Workspace integration provides write access to Google Sheets, Docs, Slides,
+and Drive via the Google API v4/v1. All operations are authenticated through
+<code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient</span></code>, which supports OAuth2, service accounts, and multi-account
+registry lookup.</p>
+<nav class="contents local" id="on-this-page">
+<p class="topic-title">On this page</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#installation" id="id1">Installation</a></p></li>
+<li><p><a class="reference internal" href="#authentication" id="id2">Authentication</a></p></li>
+<li><p><a class="reference internal" href="#google-sheets" id="id3">Google Sheets</a></p></li>
+<li><p><a class="reference internal" href="#google-slides" id="id4">Google Slides</a></p></li>
+<li><p><a class="reference internal" href="#google-docs" id="id5">Google Docs</a></p></li>
+<li><p><a class="reference internal" href="#drive-utilities" id="id6">Drive Utilities</a></p></li>
+<li><p><a class="reference internal" href="#multi-account-management" id="id7">Multi-Account Management</a></p></li>
+<li><p><a class="reference internal" href="#notebook" id="id8">Notebook</a></p></li>
+<li><p><a class="reference internal" href="#module-siege_utilities.analytics.google_workspace" id="id9">API Reference</a></p></li>
+</ul>
+</nav>
+<section id="installation">
+<h2><a class="toc-backref" href="#id1" role="doc-backlink">Installation</a><a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>siege-utilities<span class="o">[</span>analytics<span class="o">]</span>
+</pre></div>
+</div>
+<p>This installs <code class="docutils literal notranslate"><span class="pre">google-api-python-client</span></code>, <code class="docutils literal notranslate"><span class="pre">google-auth-oauthlib</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">google-auth-httplib2</span></code>.</p>
+</section>
+<section id="authentication">
+<h2><a class="toc-backref" href="#id2" role="doc-backlink">Authentication</a><a class="headerlink" href="#authentication" title="Link to this heading"></a></h2>
+<p>All write operations require an authenticated <code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient</span></code>. Three
+authentication methods are supported:</p>
+<p><strong>Service Account (recommended for automation)</strong>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.analytics.google_workspace</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleWorkspaceClient</span>
 
-   <h1>Python Module Index</h1>
+<span class="c1"># From 1Password (default for elect.info infrastructure)</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">GoogleWorkspaceClient</span><span class="o">.</span><span class="n">from_service_account</span><span class="p">()</span>
 
-   <div class="modindex-jumpbox">
-   <a href="#cap-s"><strong>s</strong></a>
-   </div>
+<span class="c1"># From a JSON key file</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">GoogleWorkspaceClient</span><span class="o">.</span><span class="n">from_service_account</span><span class="p">(</span>
+    <span class="n">service_account_file</span><span class="o">=</span><span class="s2">&quot;/path/to/service-account.json&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>OAuth2 (interactive, for user-scoped access)</strong>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">client</span> <span class="o">=</span> <span class="n">GoogleWorkspaceClient</span><span class="o">.</span><span class="n">from_oauth</span><span class="p">(</span>
+    <span class="n">client_id</span><span class="o">=</span><span class="s2">&quot;YOUR_CLIENT_ID&quot;</span><span class="p">,</span>
+    <span class="n">client_secret</span><span class="o">=</span><span class="s2">&quot;YOUR_CLIENT_SECRET&quot;</span><span class="p">,</span>
+    <span class="n">token_file</span><span class="o">=</span><span class="s2">&quot;workspace_token.json&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>From a GoogleAccount registry</strong> (see <a class="reference internal" href="#multi-account-management">Multi-Account Management</a>):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleAccountRegistry</span>
 
-   <table class="indextable modindextable">
-     <tr class="pcap"><td></td><td>&#160;</td><td></td></tr>
-     <tr class="cap" id="cap-s"><td></td><td>
-       <strong>s</strong></td><td></td></tr>
-     <tr>
-       <td><img src="_static/minus.png" class="toggler"
-              id="toggle-1" style="display: none" alt="-" /></td>
-       <td>
-       <a href="api/siege_utilities/index.html#module-siege_utilities"><code class="xref">siege_utilities</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="analytics.html#module-siege_utilities.analytics"><code class="xref">siege_utilities.analytics</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="analytics.html#module-siege_utilities.analytics.facebook_business"><code class="xref">siege_utilities.analytics.facebook_business</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="analytics.html#module-siege_utilities.analytics.google_analytics"><code class="xref">siege_utilities.analytics.google_analytics</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="google_workspace.html#module-siege_utilities.analytics.google_docs"><code class="xref">siege_utilities.analytics.google_docs</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="google_workspace.html#module-siege_utilities.analytics.google_sheets"><code class="xref">siege_utilities.analytics.google_sheets</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="google_workspace.html#module-siege_utilities.analytics.google_slides"><code class="xref">siege_utilities.analytics.google_slides</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="google_workspace.html#module-siege_utilities.analytics.google_workspace"><code class="xref">siege_utilities.analytics.google_workspace</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="core_utilities.html#module-siege_utilities.core"><code class="xref">siege_utilities.core</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="logging_utilities.html#module-siege_utilities.core.logging"><code class="xref">siege_utilities.core.logging</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="string_utilities.html#module-siege_utilities.core.string_utils"><code class="xref">siege_utilities.core.string_utils</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="distributed_computing.html#module-siege_utilities.distributed"><code class="xref">siege_utilities.distributed</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="distributed_computing.html#module-siege_utilities.distributed.hdfs_config"><code class="xref">siege_utilities.distributed.hdfs_config</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="hdfs_operations.html#module-siege_utilities.distributed.hdfs_operations"><code class="xref">siege_utilities.distributed.hdfs_operations</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="spark_utilities.html#module-siege_utilities.distributed.spark_utils"><code class="xref">siege_utilities.distributed.spark_utils</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="api/siege_utilities/files/index.html#module-siege_utilities.files"><code class="xref">siege_utilities.files</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="file_hashing.html#module-siege_utilities.files.hashing"><code class="xref">siege_utilities.files.hashing</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="file_operations.html#module-siege_utilities.files.operations"><code class="xref">siege_utilities.files.operations</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="paths.html#module-siege_utilities.files.paths"><code class="xref">siege_utilities.files.paths</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="remote_operations.html#module-siege_utilities.files.remote"><code class="xref">siege_utilities.files.remote</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="shell_operations.html#module-siege_utilities.files.shell"><code class="xref">siege_utilities.files.shell</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="api/siege_utilities/geo/index.html#module-siege_utilities.geo"><code class="xref">siege_utilities.geo</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="api/siege_utilities/geo/census_data_selector.html#module-siege_utilities.geo.census_data_selector"><code class="xref">siege_utilities.geo.census_data_selector</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="api/siege_utilities/geo/census_dataset_mapper.html#module-siege_utilities.geo.census_dataset_mapper"><code class="xref">siege_utilities.geo.census_dataset_mapper</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="geocoding.html#module-siege_utilities.geo.geocoding"><code class="xref">siege_utilities.geo.geocoding</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="api/siege_utilities/hygiene/index.html#module-siege_utilities.hygiene"><code class="xref">siege_utilities.hygiene</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="api/siege_utilities/hygiene/generate_docstrings/index.html#module-siege_utilities.hygiene.generate_docstrings"><code class="xref">siege_utilities.hygiene.generate_docstrings</code></a></td><td>
-       <em></em></td></tr>
-   </table>
+<span class="n">registry</span> <span class="o">=</span> <span class="n">GoogleAccountRegistry</span><span class="p">(</span><span class="n">config_path</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;google_accounts.json&quot;</span><span class="p">))</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">GoogleWorkspaceClient</span><span class="o">.</span><span class="n">from_registry</span><span class="p">(</span><span class="n">registry</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="google-sheets">
+<h2><a class="toc-backref" href="#id3" role="doc-backlink">Google Sheets</a><a class="headerlink" href="#google-sheets" title="Link to this heading"></a></h2>
+<p>Create spreadsheets, write and read data, manage tabs, and round-trip DataFrames.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.analytics.google_sheets</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">create_spreadsheet</span><span class="p">,</span> <span class="n">write_values</span><span class="p">,</span> <span class="n">read_values</span><span class="p">,</span> <span class="n">append_rows</span><span class="p">,</span>
+    <span class="n">write_dataframe</span><span class="p">,</span> <span class="n">read_dataframe</span><span class="p">,</span> <span class="n">add_sheet</span><span class="p">,</span>
+    <span class="n">get_spreadsheet_metadata</span><span class="p">,</span> <span class="n">copy_spreadsheet</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Create a spreadsheet with named tabs</span>
+<span class="n">spreadsheet_id</span> <span class="o">=</span> <span class="n">create_spreadsheet</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="s2">&quot;Q1 Report&quot;</span><span class="p">,</span> <span class="n">sheet_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Data&quot;</span><span class="p">,</span> <span class="s2">&quot;Summary&quot;</span><span class="p">])</span>
+
+<span class="c1"># Write raw values</span>
+<span class="n">write_values</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">spreadsheet_id</span><span class="p">,</span> <span class="s2">&quot;Data!A1&quot;</span><span class="p">,</span> <span class="p">[</span>
+    <span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span> <span class="s2">&quot;Revenue&quot;</span><span class="p">,</span> <span class="s2">&quot;Region&quot;</span><span class="p">],</span>
+    <span class="p">[</span><span class="s2">&quot;Acme&quot;</span><span class="p">,</span> <span class="mi">150000</span><span class="p">,</span> <span class="s2">&quot;Northeast&quot;</span><span class="p">],</span>
+    <span class="p">[</span><span class="s2">&quot;Beta&quot;</span><span class="p">,</span> <span class="mi">230000</span><span class="p">,</span> <span class="s2">&quot;Southeast&quot;</span><span class="p">],</span>
+<span class="p">])</span>
+
+<span class="c1"># Append rows after existing data</span>
+<span class="n">append_rows</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">spreadsheet_id</span><span class="p">,</span> <span class="s2">&quot;Data&quot;</span><span class="p">,</span> <span class="p">[[</span><span class="s2">&quot;Gamma&quot;</span><span class="p">,</span> <span class="mi">90000</span><span class="p">,</span> <span class="s2">&quot;West&quot;</span><span class="p">]])</span>
+
+<span class="c1"># Write a pandas DataFrame</span>
+<span class="n">write_dataframe</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">spreadsheet_id</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">sheet_name</span><span class="o">=</span><span class="s2">&quot;Summary&quot;</span><span class="p">)</span>
+
+<span class="c1"># Read it back</span>
+<span class="n">df_round_trip</span> <span class="o">=</span> <span class="n">read_dataframe</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">spreadsheet_id</span><span class="p">,</span> <span class="s2">&quot;Summary&quot;</span><span class="p">)</span>
+
+<span class="c1"># Add a tab</span>
+<span class="n">add_sheet</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">spreadsheet_id</span><span class="p">,</span> <span class="s2">&quot;Notes&quot;</span><span class="p">)</span>
+
+<span class="c1"># Metadata and copy</span>
+<span class="n">meta</span> <span class="o">=</span> <span class="n">get_spreadsheet_metadata</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">spreadsheet_id</span><span class="p">)</span>
+<span class="n">copy_id</span> <span class="o">=</span> <span class="n">copy_spreadsheet</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">spreadsheet_id</span><span class="p">,</span> <span class="s2">&quot;Q1 Report (Copy)&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="google-slides">
+<h2><a class="toc-backref" href="#id4" role="doc-backlink">Google Slides</a><a class="headerlink" href="#google-slides" title="Link to this heading"></a></h2>
+<p>Create presentations, add slides, and populate them with text boxes and images.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.analytics.google_slides</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">create_presentation</span><span class="p">,</span> <span class="n">get_presentation</span><span class="p">,</span> <span class="n">copy_presentation</span><span class="p">,</span>
+    <span class="n">add_blank_slide</span><span class="p">,</span> <span class="n">create_textbox</span><span class="p">,</span> <span class="n">insert_text</span><span class="p">,</span> <span class="n">insert_image</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">pres_id</span> <span class="o">=</span> <span class="n">create_presentation</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="s2">&quot;Quarterly Review&quot;</span><span class="p">)</span>
+
+<span class="c1"># Get the default first slide</span>
+<span class="n">pres</span> <span class="o">=</span> <span class="n">get_presentation</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">pres_id</span><span class="p">)</span>
+<span class="n">title_slide</span> <span class="o">=</span> <span class="n">pres</span><span class="p">[</span><span class="s2">&quot;slides&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;objectId&quot;</span><span class="p">]</span>
+
+<span class="c1"># Add content to it</span>
+<span class="n">create_textbox</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">pres_id</span><span class="p">,</span> <span class="n">title_slide</span><span class="p">,</span> <span class="s2">&quot;Q1 2026 Review&quot;</span><span class="p">,</span>
+               <span class="n">left</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">top</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">600</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+
+<span class="c1"># Add a new blank slide with content</span>
+<span class="n">slide_id</span> <span class="o">=</span> <span class="n">add_blank_slide</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">pres_id</span><span class="p">)</span>
+<span class="n">create_textbox</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">pres_id</span><span class="p">,</span> <span class="n">slide_id</span><span class="p">,</span> <span class="s2">&quot;Revenue grew 23% YoY&quot;</span><span class="p">,</span>
+               <span class="n">left</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">top</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">600</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">40</span><span class="p">)</span>
+
+<span class="c1"># Copy the presentation</span>
+<span class="n">copy_id</span> <span class="o">=</span> <span class="n">copy_presentation</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">pres_id</span><span class="p">,</span> <span class="s2">&quot;Quarterly Review (Draft)&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="google-docs">
+<h2><a class="toc-backref" href="#id5" role="doc-backlink">Google Docs</a><a class="headerlink" href="#google-docs" title="Link to this heading"></a></h2>
+<p>Create documents, insert structured content (paragraphs, tables, images),
+and perform find/replace operations.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.analytics.google_docs</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">create_document</span><span class="p">,</span> <span class="n">get_document</span><span class="p">,</span> <span class="n">copy_document</span><span class="p">,</span>
+    <span class="n">read_document_text</span><span class="p">,</span> <span class="n">insert_paragraph</span><span class="p">,</span> <span class="n">insert_text</span><span class="p">,</span>
+    <span class="n">insert_table</span><span class="p">,</span> <span class="n">insert_image</span><span class="p">,</span> <span class="n">replace_text</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">doc_id</span> <span class="o">=</span> <span class="n">create_document</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="s2">&quot;Meeting Notes&quot;</span><span class="p">)</span>
+
+<span class="c1"># Insert a heading</span>
+<span class="n">insert_paragraph</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">doc_id</span><span class="p">,</span> <span class="s2">&quot;Action Items&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">heading</span><span class="o">=</span><span class="s2">&quot;HEADING_1&quot;</span><span class="p">)</span>
+
+<span class="c1"># Insert body text</span>
+<span class="n">doc</span> <span class="o">=</span> <span class="n">get_document</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">doc_id</span><span class="p">)</span>
+<span class="n">end</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s2">&quot;body&quot;</span><span class="p">][</span><span class="s2">&quot;content&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;endIndex&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span>
+<span class="n">insert_paragraph</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">doc_id</span><span class="p">,</span> <span class="s2">&quot;Review budget allocations by Friday.&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">end</span><span class="p">)</span>
+
+<span class="c1"># Insert a table</span>
+<span class="n">doc</span> <span class="o">=</span> <span class="n">get_document</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">doc_id</span><span class="p">)</span>
+<span class="n">end</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s2">&quot;body&quot;</span><span class="p">][</span><span class="s2">&quot;content&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;endIndex&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span>
+<span class="n">insert_table</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">doc_id</span><span class="p">,</span> <span class="n">rows</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">cols</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">end</span><span class="p">)</span>
+
+<span class="c1"># Template substitution</span>
+<span class="n">replace_text</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">doc_id</span><span class="p">,</span> <span class="s2">&quot;{{DATE}}&quot;</span><span class="p">,</span> <span class="s2">&quot;2026-03-09&quot;</span><span class="p">)</span>
+
+<span class="c1"># Read full text back</span>
+<span class="n">text</span> <span class="o">=</span> <span class="n">read_document_text</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">doc_id</span><span class="p">)</span>
+
+<span class="c1"># Copy</span>
+<span class="n">copy_id</span> <span class="o">=</span> <span class="n">copy_document</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">doc_id</span><span class="p">,</span> <span class="s2">&quot;Meeting Notes (Archive)&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="drive-utilities">
+<h2><a class="toc-backref" href="#id6" role="doc-backlink">Drive Utilities</a><a class="headerlink" href="#drive-utilities" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient</span></code> includes Drive operations for files it creates:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Copy any file (spreadsheet, doc, presentation)</span>
+<span class="n">new_id</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">copy_file</span><span class="p">(</span><span class="n">file_id</span><span class="p">,</span> <span class="s2">&quot;New Title&quot;</span><span class="p">)</span>
+
+<span class="c1"># Share with a user</span>
+<span class="n">client</span><span class="o">.</span><span class="n">share_file</span><span class="p">(</span><span class="n">file_id</span><span class="p">,</span> <span class="s2">&quot;colleague@example.com&quot;</span><span class="p">,</span> <span class="n">role</span><span class="o">=</span><span class="s2">&quot;writer&quot;</span><span class="p">)</span>
+
+<span class="c1"># Move to a folder</span>
+<span class="n">client</span><span class="o">.</span><span class="n">move_to_folder</span><span class="p">(</span><span class="n">file_id</span><span class="p">,</span> <span class="n">folder_id</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="multi-account-management">
+<h2><a class="toc-backref" href="#id7" role="doc-backlink">Multi-Account Management</a><a class="headerlink" href="#multi-account-management" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">GoogleAccount</span></code> model and <code class="docutils literal notranslate"><span class="pre">GoogleAccountRegistry</span></code> support managing
+multiple Google accounts (OAuth and service account) per user.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.config.models.google_account</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">GoogleAccount</span><span class="p">,</span> <span class="n">GoogleAccountType</span><span class="p">,</span> <span class="n">GoogleAccountStatus</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleAccountRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.config.models.person</span><span class="w"> </span><span class="kn">import</span> <span class="n">Person</span>
+
+<span class="c1"># Create accounts</span>
+<span class="n">oauth_acct</span> <span class="o">=</span> <span class="n">GoogleAccount</span><span class="p">(</span>
+    <span class="n">google_account_id</span><span class="o">=</span><span class="s2">&quot;personal&quot;</span><span class="p">,</span>
+    <span class="n">email</span><span class="o">=</span><span class="s2">&quot;user@example.com&quot;</span><span class="p">,</span>
+    <span class="n">display_name</span><span class="o">=</span><span class="s2">&quot;Personal&quot;</span><span class="p">,</span>
+    <span class="n">account_type</span><span class="o">=</span><span class="n">GoogleAccountType</span><span class="o">.</span><span class="n">OAUTH</span><span class="p">,</span>
+    <span class="n">is_default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">oauth_integration_name</span><span class="o">=</span><span class="s2">&quot;google-workspace&quot;</span><span class="p">,</span>
+    <span class="n">token_file</span><span class="o">=</span><span class="s2">&quot;~/.siege/tokens/token.json&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">svc_acct</span> <span class="o">=</span> <span class="n">GoogleAccount</span><span class="p">(</span>
+    <span class="n">google_account_id</span><span class="o">=</span><span class="s2">&quot;pipeline&quot;</span><span class="p">,</span>
+    <span class="n">email</span><span class="o">=</span><span class="s2">&quot;svc@project.iam.gserviceaccount.com&quot;</span><span class="p">,</span>
+    <span class="n">display_name</span><span class="o">=</span><span class="s2">&quot;Pipeline SA&quot;</span><span class="p">,</span>
+    <span class="n">account_type</span><span class="o">=</span><span class="n">GoogleAccountType</span><span class="o">.</span><span class="n">SERVICE_ACCOUNT</span><span class="p">,</span>
+    <span class="n">service_account_ref</span><span class="o">=</span><span class="s2">&quot;op://Infra/google-sa/credential&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Registry: register, persist, load</span>
+<span class="n">registry</span> <span class="o">=</span> <span class="n">GoogleAccountRegistry</span><span class="p">()</span>
+<span class="n">registry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">oauth_acct</span><span class="p">)</span>
+<span class="n">registry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">svc_acct</span><span class="p">)</span>
+<span class="n">registry</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;google_accounts.json&quot;</span><span class="p">))</span>
+
+<span class="c1"># Build client from registry</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">GoogleWorkspaceClient</span><span class="o">.</span><span class="n">from_registry</span><span class="p">(</span><span class="n">registry</span><span class="p">)</span>
+
+<span class="c1"># Person integration</span>
+<span class="n">person</span> <span class="o">=</span> <span class="n">Person</span><span class="p">(</span><span class="n">person_id</span><span class="o">=</span><span class="s2">&quot;dheeraj&quot;</span><span class="p">,</span> <span class="n">first_name</span><span class="o">=</span><span class="s2">&quot;Dheeraj&quot;</span><span class="p">,</span> <span class="n">last_name</span><span class="o">=</span><span class="s2">&quot;Chand&quot;</span><span class="p">)</span>
+<span class="n">person</span><span class="o">.</span><span class="n">add_google_account</span><span class="p">(</span><span class="n">oauth_acct</span><span class="p">)</span>
+<span class="n">default</span> <span class="o">=</span> <span class="n">person</span><span class="o">.</span><span class="n">get_default_google_account</span><span class="p">()</span>
+
+<span class="c1"># Migrate from legacy OAuthIntegration</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.config.google_account_registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">migrate_single_account</span>
+<span class="n">migrated</span> <span class="o">=</span> <span class="n">migrate_single_account</span><span class="p">(</span><span class="n">legacy_oauth</span><span class="p">,</span> <span class="n">email</span><span class="o">=</span><span class="s2">&quot;user@example.com&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="notebook">
+<h2><a class="toc-backref" href="#id8" role="doc-backlink">Notebook</a><a class="headerlink" href="#notebook" title="Link to this heading"></a></h2>
+<p>See <code class="docutils literal notranslate"><span class="pre">notebooks/18_Google_Workspace.ipynb</span></code> for a full walkthrough using
+elect.info onboarding content written to live Google Drive files.</p>
+</section>
+<section id="module-siege_utilities.analytics.google_workspace">
+<span id="api-reference"></span><h2><a class="toc-backref" href="#id9" role="doc-backlink">API Reference</a><a class="headerlink" href="#module-siege_utilities.analytics.google_workspace" title="Link to this heading"></a></h2>
+<p>Google Workspace base client for Docs, Sheets, and Slides write APIs.</p>
+<p>Provides shared authentication and service-building logic reused by
+the Sheets, Slides, and Docs service modules.</p>
+<p>Authentication follows the same patterns as GoogleAnalyticsConnector:
+- OAuth2 (interactive flow with token file)
+- Service Account (from 1Password or file)
+- Explicit Credentials object</p>
+<dl>
+<dt>Usage:</dt><dd><p>from siege_utilities.analytics.google_workspace import GoogleWorkspaceClient</p>
+<p># OAuth2 with token file
+client = GoogleWorkspaceClient.from_oauth(</p>
+<blockquote>
+<div><p>client_id=”…”, client_secret=”…”, token_file=”token.json”,</p>
+</div></blockquote>
+<p>)</p>
+<p># Service Account from 1Password
+client = GoogleWorkspaceClient.from_service_account()</p>
+<p># Get a specific API service
+sheets = client.sheets_service()
+docs = client.docs_service()
+slides = client.slides_service()</p>
+</dd>
+</dl>
+<p id="module-siege_utilities.analytics.google_sheets">Google Sheets write service.</p>
+<p>Provides functions for creating spreadsheets, writing data, managing
+tabs (sheets), and performing batch updates via the Sheets API v4.</p>
+<p>All functions accept a <code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient</span></code> for authentication.</p>
+<dl>
+<dt>Usage:</dt><dd><p>from siege_utilities.analytics.google_workspace import GoogleWorkspaceClient
+from siege_utilities.analytics.google_sheets import (</p>
+<blockquote>
+<div><p>create_spreadsheet, write_dataframe, append_rows,</p>
+</div></blockquote>
+<p>)</p>
+<p>client = GoogleWorkspaceClient.from_service_account()
+spreadsheet_id = create_spreadsheet(client, “Q1 Report”)
+write_dataframe(client, spreadsheet_id, df)</p>
+</dd>
+</dl>
+<p id="module-siege_utilities.analytics.google_docs">Google Docs write service.</p>
+<p>Provides functions for creating documents, inserting text, tables,
+images, and performing batch updates via the Docs API v1.</p>
+<dl>
+<dt>Usage:</dt><dd><p>from siege_utilities.analytics.google_workspace import GoogleWorkspaceClient
+from siege_utilities.analytics.google_docs import (</p>
+<blockquote>
+<div><p>create_document, insert_text, insert_table,</p>
+</div></blockquote>
+<p>)</p>
+<p>client = GoogleWorkspaceClient.from_service_account()
+doc_id = create_document(client, “Meeting Notes”)
+insert_text(client, doc_id, “Agendan”, bold=True)
+insert_table(client, doc_id, rows=3, cols=2)</p>
+</dd>
+</dl>
+<p id="module-siege_utilities.analytics.google_slides">Google Slides write service.</p>
+<p>Provides functions for creating presentations, adding slides,
+inserting text and images, and performing batch updates via the
+Slides API v1.</p>
+<dl>
+<dt>Usage:</dt><dd><p>from siege_utilities.analytics.google_workspace import GoogleWorkspaceClient
+from siege_utilities.analytics.google_slides import (</p>
+<blockquote>
+<div><p>create_presentation, add_blank_slide, insert_text,</p>
+</div></blockquote>
+<p>)</p>
+<p>client = GoogleWorkspaceClient.from_service_account()
+pres_id = create_presentation(client, “Q1 Report”)
+slide_id = add_blank_slide(client, pres_id)
+insert_text(client, pres_id, slide_id, “Hello World”)</p>
+</dd>
+</dl>
+</section>
+</section>
 
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="api/siege_utilities/geo/census_data_selector.html" class="btn btn-neutral float-left" title="Census Data Selector" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="analytics.html" class="btn btn-neutral float-right" title="Analytics" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 
