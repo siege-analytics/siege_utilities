@@ -126,6 +126,64 @@ class GoogleWorkspaceClient:
         return cls(creds)
 
     @classmethod
+    def from_1password(
+        cls,
+        item_title: str = "Google OAuth Client - siege_utilities",
+        vault: Optional[str] = None,
+        account: Optional[str] = None,
+        token_file: Optional[Union[str, Path]] = None,
+        scopes: Optional[List[str]] = None,
+    ) -> "GoogleWorkspaceClient":
+        """Authenticate using OAuth credentials stored in 1Password.
+
+        Downloads a client_secret JSON document from 1Password and runs
+        the OAuth2 installed-app flow. If *token_file* exists and contains
+        a valid token, no browser interaction is needed.
+
+        Args:
+            item_title: Title of the 1Password Document item containing
+                the client_secret JSON.
+            vault: 1Password vault name.
+            account: 1Password account shorthand or UUID.
+            token_file: Path to cache the OAuth token (default:
+                ``~/.siege/tokens/workspace_token.json``).
+            scopes: OAuth scopes (defaults to ``WORKSPACE_SCOPES``).
+
+        Returns:
+            Authenticated GoogleWorkspaceClient.
+        """
+        _require_google()
+        from siege_utilities.config.credential_manager import (
+            get_google_oauth_document_from_1password,
+        )
+
+        client_config = get_google_oauth_document_from_1password(
+            item_title=item_title, vault=vault, account=account,
+        )
+        if client_config is None:
+            raise ValueError(
+                f"Could not retrieve OAuth credentials from 1Password "
+                f"item '{item_title}'"
+            )
+
+        # Extract client_id and client_secret from "installed" or "web" key
+        inner = client_config.get("installed") or client_config.get("web") or client_config
+        client_id = inner["client_id"]
+        client_secret = inner["client_secret"]
+
+        if token_file is None:
+            token_dir = Path.home() / ".siege" / "tokens"
+            token_dir.mkdir(parents=True, exist_ok=True)
+            token_file = str(token_dir / "workspace_token.json")
+
+        return cls.from_oauth(
+            client_id=client_id,
+            client_secret=client_secret,
+            token_file=token_file,
+            scopes=scopes,
+        )
+
+    @classmethod
     def from_service_account(
         cls,
         service_account_data: Optional[Dict[str, Any]] = None,
