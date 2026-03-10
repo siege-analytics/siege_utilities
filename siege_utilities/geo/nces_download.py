@@ -170,7 +170,12 @@ class NCESDownloader:
             )
         return csvfiles[0]
 
-    def download_locale_boundaries(self, year: int = DEFAULT_NCES_YEAR):
+    def download_locale_boundaries(
+        self,
+        year: int = DEFAULT_NCES_YEAR,
+        *,
+        crs: str | None = None,
+    ):
         """Download NCES locale boundary polygons.
 
         Returns a GeoDataFrame with 12 rows — one polygon per locale territory
@@ -179,6 +184,8 @@ class NCESDownloader:
 
         Args:
             year: NCES publication year.
+            crs: Output CRS. Defaults to
+                :func:`~siege_utilities.geo.crs.get_default_crs`.
 
         Returns:
             GeoDataFrame with columns: locale_code, locale_category,
@@ -230,9 +237,9 @@ class NCESDownloader:
         else:
             gdf["name"] = gdf["NAME"]
 
-        # Reproject to storage CRS
-        if gdf.crs and gdf.crs.to_epsg() != settings.STORAGE_CRS:
-            gdf = gdf.to_crs(epsg=settings.STORAGE_CRS)
+        # Reproject to requested CRS (or global default)
+        from siege_utilities.geo.crs import reproject_if_needed
+        gdf = reproject_if_needed(gdf, crs)
 
         # Select final columns
         keep_cols = ["locale_code", "locale_category", "locale_subcategory", "name", "geometry"]
@@ -245,6 +252,8 @@ class NCESDownloader:
         self,
         year: int = DEFAULT_NCES_YEAR,
         state_abbr: Optional[str] = None,
+        *,
+        crs: str | None = None,
     ):
         """Download geocoded school locations.
 
@@ -253,6 +262,8 @@ class NCESDownloader:
         Args:
             year: NCES publication year.
             state_abbr: Optional 2-letter state abbreviation to filter.
+            crs: Output CRS. Defaults to
+                :func:`~siege_utilities.geo.crs.get_default_crs`.
 
         Returns:
             GeoDataFrame with columns: ncessch, school_name, lea_id,
@@ -324,9 +335,9 @@ class NCESDownloader:
             gdf.loc[valid_codes, "locale_category"] = gdf.loc[valid_codes, "locale_code"].apply(get_locale_category)
             gdf.loc[valid_codes, "locale_subcategory"] = gdf.loc[valid_codes, "locale_code"].apply(get_locale_subcategory)
 
-        # Reproject to storage CRS
-        if gdf.crs and gdf.crs.to_epsg() != settings.STORAGE_CRS:
-            gdf = gdf.to_crs(epsg=settings.STORAGE_CRS)
+        # Reproject to requested CRS (or global default)
+        from siege_utilities.geo.crs import reproject_if_needed
+        gdf = reproject_if_needed(gdf, crs)
 
         log.info(f"Loaded {len(gdf)} school locations for year {year}")
         return gdf

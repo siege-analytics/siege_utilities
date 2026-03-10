@@ -6,6 +6,8 @@ Provides clean, type-safe access to Census, Government, and OpenStreetMap data.
 import logging
 import geopandas as gpd
 from pathlib import Path
+
+from siege_utilities.geo.crs import reproject_if_needed
 from typing import Dict, Any, Optional, List, Union
 import os
 import time
@@ -1447,10 +1449,22 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
 
     return gdf
 
-def download_osm_data(query: str, bbox: Optional[List[float]] = None) -> Optional[GeoDataFrame]:
-    """Convenience function to download OSM data."""
+def download_osm_data(
+    query: str,
+    bbox: Optional[List[float]] = None,
+    *,
+    crs: str | None = None,
+) -> Optional[GeoDataFrame]:
+    """Convenience function to download OSM data.
+
+    Args:
+        query: OSM query string.
+        bbox: Optional bounding box ``[west, south, east, north]``.
+        crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.
+    """
     source = OpenStreetMapDataSource()
-    return source.download_osm_data(query, bbox)
+    gdf = source.download_osm_data(query, bbox)
+    return reproject_if_needed(gdf, crs)
 
 # Standalone convenience functions
 def get_available_years(force_refresh: bool = False) -> List[int]:
@@ -1487,7 +1501,13 @@ def get_optimal_year(geographic_level: str, preferred_year: Optional[int] = None
     year = preferred_year if preferred_year is not None else datetime.now().year
     return census_source.get_optimal_year(year, geographic_level)
 
-def download_data(year: int, geographic_level: str, state_fips: Optional[str] = None) -> Optional[GeoDataFrame]:
+def download_data(
+    year: int,
+    geographic_level: str,
+    state_fips: Optional[str] = None,
+    *,
+    crs: str | None = None,
+) -> Optional[GeoDataFrame]:
     """Download Census data.
 
     This is a convenience wrapper around get_geographic_boundaries().
@@ -1496,25 +1516,42 @@ def download_data(year: int, geographic_level: str, state_fips: Optional[str] = 
         year: Census year
         geographic_level: Geographic level (state, county, tract, etc.)
         state_fips: State FIPS code (required for tract, block_group, etc.)
+        crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.
 
     Returns:
-        GeoDataFrame with boundaries or None if failed
+        GeoDataFrame with boundaries in *crs*, or None if failed.
     """
-    return census_source.get_geographic_boundaries(year, geographic_level, state_fips)
+    gdf = census_source.get_geographic_boundaries(year, geographic_level, state_fips)
+    return reproject_if_needed(gdf, crs)
 
-def get_geographic_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str = 'county',
-                            state_fips: Optional[str] = None, state_identifier: Optional[str] = None) -> Optional[GeoDataFrame]:
+def get_geographic_boundaries(
+    year: int = DEFAULT_CENSUS_YEAR,
+    geographic_level: str = 'county',
+    state_fips: Optional[str] = None,
+    state_identifier: Optional[str] = None,
+    *,
+    crs: str | None = None,
+) -> Optional[GeoDataFrame]:
     """Get geographic boundaries (legacy, returns None on failure).
 
     .. deprecated::
         Use :func:`fetch_geographic_boundaries` for structured diagnostics.
+
+    Args:
+        crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.
     """
-    return census_source.get_geographic_boundaries(year, geographic_level, state_fips, state_identifier)
+    gdf = census_source.get_geographic_boundaries(year, geographic_level, state_fips, state_identifier)
+    return reproject_if_needed(gdf, crs)
 
 
-def fetch_geographic_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str = 'county',
-                                state_fips: Optional[str] = None,
-                                congress_number: Optional[int] = None) -> BoundaryFetchResult:
+def fetch_geographic_boundaries(
+    year: int = DEFAULT_CENSUS_YEAR,
+    geographic_level: str = 'county',
+    state_fips: Optional[str] = None,
+    congress_number: Optional[int] = None,
+    *,
+    crs: str | None = None,
+) -> BoundaryFetchResult:
     """Get geographic boundaries with structured diagnostics.
 
     Returns a :class:`BoundaryFetchResult` instead of ``Optional[GeoDataFrame]``.
@@ -1524,16 +1561,20 @@ def fetch_geographic_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_leve
         geographic_level: Geographic level (state, county, tract, etc.)
         state_fips: State FIPS code (required for tract, block_group, etc.)
         congress_number: Congress number for congressional districts
+        crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.
 
     Returns:
-        BoundaryFetchResult with .success, .geodataframe, .error_stage, etc.
+        BoundaryFetchResult with .success, .geodataframe in *crs*, .error_stage, etc.
     """
-    return census_source.fetch_geographic_boundaries(
+    result = census_source.fetch_geographic_boundaries(
         year=year,
         geographic_level=geographic_level,
         state_fips=state_fips,
         congress_number=congress_number,
     )
+    if result.success and result.geodataframe is not None:
+        result.geodataframe = reproject_if_needed(result.geodataframe, crs)
+    return result
 
 
 def get_available_boundary_types(year: int) -> List[str]:
@@ -1654,9 +1695,23 @@ def get_state_abbreviation(fips: str) -> Optional[str]:
     """Get state abbreviation from FIPS code."""
     return census_source.get_state_abbreviation(fips)
 
-def download_dataset(year: int, geographic_level: str, state_fips: Optional[str] = None) -> Optional[GeoDataFrame]:
-    """Download Census dataset."""
-    return census_source.download_dataset(year, geographic_level, state_fips)
+def download_dataset(
+    year: int,
+    geographic_level: str,
+    state_fips: Optional[str] = None,
+    *,
+    crs: str | None = None,
+) -> Optional[GeoDataFrame]:
+    """Download Census dataset.
+
+    Args:
+        year: Census year.
+        geographic_level: Geographic level.
+        state_fips: State FIPS code.
+        crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.
+    """
+    gdf = census_source.download_dataset(year, geographic_level, state_fips)
+    return reproject_if_needed(gdf, crs)
 
 # Global instances for easy access
 census_source = CensusDataSource()  # Uses centralized Census timeout settings

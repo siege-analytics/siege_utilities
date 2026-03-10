@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeVar
 
+from siege_utilities.geo.crs import reproject_if_needed
+
 if TYPE_CHECKING:
     import geopandas as gpd
     from pydantic import BaseModel
@@ -26,6 +28,8 @@ def schemas_to_gdf(
     geometry_wkts: list[str] | None = None,
     geometry_column: str = "geometry",
     srid: int = 4326,
+    *,
+    crs: str | None = None,
 ) -> "gpd.GeoDataFrame":
     """
     Convert a list of Pydantic schema instances to a GeoDataFrame.
@@ -36,10 +40,11 @@ def schemas_to_gdf(
         schemas: List of Pydantic schema instances
         geometry_wkts: Optional list of WKT geometry strings (parallel to schemas)
         geometry_column: Name for the geometry column
-        srid: SRID for the CRS (default 4326)
+        srid: SRID for the CRS (default 4326). Deprecated — use *crs* instead.
+        crs: Output CRS (default ``"EPSG:4326"``). Overrides *srid* if provided.
 
     Returns:
-        GeoDataFrame with schema data and optional geometry
+        GeoDataFrame with schema data and optional geometry in *crs*.
     """
     import geopandas as gpd
     import pandas as pd
@@ -65,7 +70,8 @@ def schemas_to_gdf(
             else:
                 geometries.append(None)
         df[geometry_column] = geometries
-        return gpd.GeoDataFrame(df, geometry=geometry_column, crs=f"EPSG:{srid}")
+        gdf = gpd.GeoDataFrame(df, geometry=geometry_column, crs=f"EPSG:{srid}")
+        return reproject_if_needed(gdf, crs)
 
     return gpd.GeoDataFrame(df)
 
@@ -158,6 +164,8 @@ def orm_to_gdf(
     queryset,
     geometry_field: str = "geometry",
     srid: int = 4326,
+    *,
+    crs: str | None = None,
 ) -> "gpd.GeoDataFrame":
     """
     Convert a Django QuerySet to a GeoDataFrame.
@@ -165,10 +173,11 @@ def orm_to_gdf(
     Args:
         queryset: Django QuerySet (must include geometry field)
         geometry_field: Name of the geometry field
-        srid: SRID for the output CRS
+        srid: SRID for the output CRS (default 4326). Deprecated — use *crs*.
+        crs: Output CRS (default ``"EPSG:4326"``). Overrides *srid* if provided.
 
     Returns:
-        GeoDataFrame with geometry and all non-geometry fields
+        GeoDataFrame with geometry and all non-geometry fields in *crs*.
     """
     import geopandas as gpd
     from shapely import wkt
@@ -191,4 +200,4 @@ def orm_to_gdf(
         return gpd.GeoDataFrame()
 
     gdf = gpd.GeoDataFrame(records, crs=f"EPSG:{srid}")
-    return gdf
+    return reproject_if_needed(gdf, crs)

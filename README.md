@@ -1,6 +1,6 @@
 # Siege Utilities
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11–3.14](https://img.shields.io/badge/python-3.11--3.14-blue.svg)](https://www.python.org/downloads/)
 [![License: AGPLv3%20or%20Commercial](https://img.shields.io/badge/License-AGPLv3%20or%20Commercial-orange.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://siege-analytics.github.io/siege_utilities/)
 
@@ -11,6 +11,17 @@
 - Configuration and profile management
 - Distributed processing helpers (Spark/HDFS/Databricks)
 - Reporting and chart generation
+
+## Python Version Support
+
+| Version | Status | CI |
+|---------|--------|-----|
+| 3.11 | **Fully supported** (floor) | Required pass |
+| 3.12 | **Fully supported** | Required pass |
+| 3.13 | **Supported** | Allow-failure while stabilizing |
+| 3.14 | **Experimental** | Not yet in CI (awaiting ecosystem wheels) |
+
+The library requires Python 3.11+. Geospatial extras (`[geo]`, `[geodjango]`) depend on C-extension packages (GDAL/GEOS/PROJ bindings) whose wheel availability varies by Python version — check PyPI for your target version before installing.
 
 ## Install
 

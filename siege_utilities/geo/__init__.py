@@ -16,6 +16,11 @@ def _register(names, module):
         _LAZY_IMPORTS[name] = module
 
 
+# --- crs (configurable default CRS) ---
+_register([
+    'get_default_crs', 'set_default_crs', 'reproject_if_needed',
+], '.crs')
+
 # --- boundary_result (structured diagnostics) ---
 _register([
     'BoundaryFetchResult',
@@ -75,6 +80,9 @@ _register([
 # --- isochrones ---
 _register([
     'DEFAULT_ORS_BASE_URL', 'DEFAULT_VALHALLA_BASE_URL',
+    'ISOCHRONE_DEFAULT_RETRIES',
+    'IsochroneError', 'IsochroneNetworkError', 'IsochroneProviderError',
+    'IsochroneRequest',
     'build_isochrone_request', 'get_isochrone', 'isochrone_to_geodataframe',
 ], '.isochrones')
 
@@ -209,7 +217,7 @@ _register([
 
 __all__ = list(_LAZY_IMPORTS.keys())
 
-__version__ = "3.8.0"
+# Version is derived from the top-level package; no separate version here.
 __author__ = "Siege Analytics"
 __description__ = "Enhanced geographic utilities with intelligent Census data selection"
 

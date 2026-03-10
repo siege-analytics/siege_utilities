@@ -150,10 +150,15 @@ class BoundaryQuerySet(gis_models.QuerySet):
 
     def geojson(self):
         """
-        Return boundaries as GeoJSON Feature dicts.
+        Return boundaries as a GeoJSON FeatureCollection dict.
+
+        GeoJSON is always WGS 84 (EPSG:4326) per RFC 7946.  The global
+        default CRS set via :func:`~siege_utilities.geo.crs.set_default_crs`
+        does not apply here — use :func:`isochrone_to_geodataframe` or
+        convert the result to a GeoDataFrame if you need reprojection.
 
         Returns:
-            GeoJSON FeatureCollection dict
+            GeoJSON FeatureCollection dict (always EPSG:4326).
         """
         features = []
         for boundary in self.all():

@@ -25,7 +25,11 @@ from .core.string_utils import remove_wrapping_quotes_and_trim  # noqa: F401
 
 # ── Package metadata ─────────────────────────────────────────────────
 
-__version__ = "3.8.4"
+try:
+    from importlib.metadata import version as _meta_version
+    __version__ = _meta_version("siege-utilities")
+except Exception:
+    __version__ = "0.0.0"  # fallback for editable installs without metadata
 __author__ = "Siege Analytics"
 __description__ = "Comprehensive utilities for data engineering, analytics, and distributed computing"
 
