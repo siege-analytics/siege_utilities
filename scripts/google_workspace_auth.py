@@ -10,58 +10,47 @@ Usage:
 
     # Service account (no browser):
     python scripts/google_workspace_auth.py --service-account
-
-    # Custom 1Password item:
-    python scripts/google_workspace_auth.py --item "My Custom Item"
 """
 
-import argparse
 import sys
 
 from siege_utilities.analytics.google_workspace import GoogleWorkspaceClient
 
 
+# ── Defaults (edit these to match your 1Password setup) ──────────────
 OAUTH_ITEM = "Google OAuth Client - siege_utilities"
+OAUTH_VAULT = "Personal"
+
 SA_ITEM = "Google Service Account - siege_utilities"
+SA_VAULT = "Employee"
+
 ACCOUNT = "Siege_Analytics"
-VAULT = None
+# ─────────────────────────────────────────────────────────────────────
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Google Workspace authentication via 1Password")
-    parser.add_argument(
-        "--service-account", action="store_true",
-        help="Use service account (server-to-server, no browser)",
-    )
-    parser.add_argument(
-        "--item", type=str, default=None,
-        help="1Password item title (overrides default)",
-    )
-    parser.add_argument(
-        "--account", type=str, default=ACCOUNT,
-        help=f"1Password account (default: {ACCOUNT})",
-    )
-    parser.add_argument(
-        "--vault", type=str, default=VAULT,
-        help=f"1Password vault (default: {VAULT})",
-    )
-    args = parser.parse_args()
+    service_account = "--service-account" in sys.argv
 
-    item_title = args.item or (SA_ITEM if args.service_account else OAUTH_ITEM)
+    if service_account:
+        item_title = SA_ITEM
+        vault = SA_VAULT
+    else:
+        item_title = OAUTH_ITEM
+        vault = OAUTH_VAULT
 
     print("Google Workspace Authentication")
     print("=" * 40)
-    print(f"  1Password item: {item_title}")
-    print(f"  1Password vault: {args.vault}")
-    print(f"  1Password account: {args.account}")
-    print(f"  Mode: {'service account' if args.service_account else 'OAuth (browser)'}")
+    print(f"  1Password item:    {item_title}")
+    print(f"  1Password vault:   {vault}")
+    print(f"  1Password account: {ACCOUNT}")
+    print(f"  Mode: {'service account' if service_account else 'OAuth (browser)'}")
     print()
 
     try:
         client = GoogleWorkspaceClient.from_1password(
             item_title=item_title,
-            vault=args.vault,
-            account=args.account,
+            vault=vault,
+            account=ACCOUNT,
         )
     except Exception as e:
         print(f"\nAuthentication failed: {e}")
