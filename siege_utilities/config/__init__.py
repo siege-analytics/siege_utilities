@@ -298,6 +298,7 @@ try:
         DataSource, SourceCredential,
     )
     from .data_source_registry import DataSourceRegistry
+    from .google_account_registry import GoogleAccountRegistry
     from .migration import (
         ConfigurationMigrator,
         migrate_configurations,
@@ -345,6 +346,7 @@ except ImportError as e:
     DataSource = _config_dependency_wrapper('DataSource', _pd)
     SourceCredential = _config_dependency_wrapper('SourceCredential', _pd)
     DataSourceRegistry = _config_dependency_wrapper('DataSourceRegistry', _pd)
+    GoogleAccountRegistry = _config_dependency_wrapper('GoogleAccountRegistry', _pd)
     ConfigurationMigrator = _config_dependency_wrapper('ConfigurationMigrator', _pd)
     migrate_configurations = _config_dependency_wrapper('migrate_configurations', _pd)
     backup_and_migrate = _config_dependency_wrapper('backup_and_migrate', _pd)
@@ -494,4 +496,5 @@ __all__ = [
     'DataSourceType', 'DataSourceStatus',
     'DataSource', 'SourceCredential',
     'DataSourceRegistry',
+    'GoogleAccountRegistry',
 ]
