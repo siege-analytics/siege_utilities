@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Google Workspace write APIs** (su#289) — `GoogleWorkspaceClient` base client with
+  OAuth2 and service account auth. Module-level functions for Sheets (`create_spreadsheet`,
+  `write_dataframe`, `read_dataframe`), Slides (`create_presentation`, `add_blank_slide`,
+  `create_textbox`), and Docs (`create_document`, `insert_paragraph`, `insert_table`,
+  `replace_text`). Drive utilities (`copy_file`, `share_file`, `move_to_folder`).
+- **Multi-Google-account management** (su#290) — `GoogleAccount` model, `GoogleAccountRegistry`
+  with JSON persistence and default selection, `Person.google_accounts` integration,
+  `GoogleWorkspaceClient.from_account()` / `from_registry()` factory methods,
+  `migrate_single_account()` utility.
+- **Notebook NB18** — Google Workspace demo using elect.info onboarding content.
+
 ### Changed
 - **License model update (effective March 6, 2026)** — moved from MIT to a dual-license model:
   - AGPL-3.0-only for open-source use

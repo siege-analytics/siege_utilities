@@ -19,6 +19,7 @@ from .data_sources import (
     DataSource,
     SourceCredential,
 )
+from .google_account import GoogleAccount, GoogleAccountType, GoogleAccountStatus
 
 __all__ = [
     "UserProfile",
@@ -34,4 +35,7 @@ __all__ = [
     "DataSourceStatus",
     "DataSource",
     "SourceCredential",
+    "GoogleAccount",
+    "GoogleAccountType",
+    "GoogleAccountStatus",
 ]

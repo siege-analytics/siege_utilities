@@ -17,7 +17,12 @@ import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
-import geopandas as gpd
+try:
+    import geopandas as gpd
+    _GEOPANDAS_AVAILABLE = True
+except ImportError:
+    gpd = None
+    _GEOPANDAS_AVAILABLE = False
 
 from siege_utilities.geo.crs import reproject_if_needed
 

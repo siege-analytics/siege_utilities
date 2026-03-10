@@ -11,6 +11,7 @@ import re
 import yaml
 
 from .credential import Credential, OnePasswordCredential
+from .google_account import GoogleAccount, GoogleAccountStatus
 from .oauth_integration import OAuthIntegration
 from .database_connection import DatabaseConnection
 
@@ -78,7 +79,11 @@ class Person(BaseModel):
         default_factory=list,
         description="1Password credential references"
     )
-    
+    google_accounts: List[GoogleAccount] = Field(
+        default_factory=list,
+        description="Google accounts for this person"
+    )
+
     # Organizational Relationships
     organizations: List[str] = Field(
         default_factory=list,
@@ -284,6 +289,67 @@ class Person(BaseModel):
         """Get all 1Password credentials for a specific service."""
         return [cred for cred in self.onepassword_credentials if cred.service == service]
     
+    # Google Account Management Methods
+    def add_google_account(self, account: GoogleAccount) -> None:
+        """Add a Google account to this person."""
+        if any(a.google_account_id == account.google_account_id for a in self.google_accounts):
+            raise ValueError(f'Google account "{account.google_account_id}" already exists')
+        # Enforce single default
+        if account.is_default:
+            for a in self.google_accounts:
+                a.is_default = False
+        self.google_accounts.append(account)
+        self.last_updated = datetime.now()
+
+    def remove_google_account(self, google_account_id: str) -> bool:
+        """Remove a Google account by ID."""
+        for i, a in enumerate(self.google_accounts):
+            if a.google_account_id == google_account_id:
+                del self.google_accounts[i]
+                self.last_updated = datetime.now()
+                return True
+        return False
+
+    def get_google_account(self, google_account_id: str) -> Optional[GoogleAccount]:
+        """Get a Google account by ID."""
+        for a in self.google_accounts:
+            if a.google_account_id == google_account_id:
+                return a
+        return None
+
+    def get_google_account_by_email(self, email: str) -> Optional[GoogleAccount]:
+        """Get a Google account by email address."""
+        for a in self.google_accounts:
+            if a.email == email:
+                return a
+        return None
+
+    def get_default_google_account(self) -> Optional[GoogleAccount]:
+        """Get the default Google account."""
+        for a in self.google_accounts:
+            if a.is_default:
+                return a
+        return None
+
+    def set_default_google_account(self, google_account_id: str) -> None:
+        """Set a Google account as the default."""
+        found = False
+        for a in self.google_accounts:
+            if a.google_account_id == google_account_id:
+                a.is_default = True
+                found = True
+            else:
+                a.is_default = False
+        if not found:
+            raise ValueError(f'Google account "{google_account_id}" not found')
+        self.last_updated = datetime.now()
+
+    def list_google_accounts(self, active_only: bool = False) -> List[GoogleAccount]:
+        """List Google accounts, optionally filtering to active only."""
+        if active_only:
+            return [a for a in self.google_accounts if a.is_active()]
+        return list(self.google_accounts)
+
     # Organization Management Methods
     def add_organization(self, org_id: str) -> None:
         """Add an organization to this person."""
@@ -336,6 +402,8 @@ class Person(BaseModel):
             'valid_oauth_integrations': len(self.get_valid_oauth_integrations()),
             'database_connections': len(self.database_connections),
             'onepassword_credentials': len(self.onepassword_credentials),
+            'google_accounts': len(self.google_accounts),
+            'active_google_accounts': len(self.list_google_accounts(active_only=True)),
             'created_date': self.created_date.isoformat(),
             'last_updated': self.last_updated.isoformat()
         }
@@ -411,6 +479,12 @@ class Person(BaseModel):
                 'total': len(self.database_connections),
                 'types': list(set(conn.connection_type for conn in self.database_connections)),
                 'hosts': list(set(conn.host for conn in self.database_connections))
+            },
+            'google_accounts': {
+                'total': len(self.google_accounts),
+                'active': len(self.list_google_accounts(active_only=True)),
+                'types': list(set(a.account_type.value for a in self.google_accounts)),
+                'has_default': self.get_default_google_account() is not None,
             }
         }
         
