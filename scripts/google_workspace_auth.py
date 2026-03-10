@@ -24,6 +24,7 @@ from siege_utilities.analytics.google_workspace import GoogleWorkspaceClient
 OAUTH_ITEM = "Google OAuth Client - siege_utilities"
 SA_ITEM = "Google Service Account - siege_utilities"
 ACCOUNT = "Siege_Analytics"
+VAULT = "Employee"
 
 
 def main():
@@ -40,6 +41,10 @@ def main():
         "--account", type=str, default=ACCOUNT,
         help=f"1Password account (default: {ACCOUNT})",
     )
+    parser.add_argument(
+        "--vault", type=str, default=VAULT,
+        help=f"1Password vault (default: {VAULT})",
+    )
     args = parser.parse_args()
 
     item_title = args.item or (SA_ITEM if args.service_account else OAUTH_ITEM)
@@ -47,6 +52,7 @@ def main():
     print("Google Workspace Authentication")
     print("=" * 40)
     print(f"  1Password item: {item_title}")
+    print(f"  1Password vault: {args.vault}")
     print(f"  1Password account: {args.account}")
     print(f"  Mode: {'service account' if args.service_account else 'OAuth (browser)'}")
     print()
@@ -54,6 +60,7 @@ def main():
     try:
         client = GoogleWorkspaceClient.from_1password(
             item_title=item_title,
+            vault=args.vault,
             account=args.account,
         )
     except Exception as e:
