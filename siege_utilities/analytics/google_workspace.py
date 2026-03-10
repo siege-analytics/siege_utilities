@@ -154,6 +154,12 @@ class GoogleWorkspaceClient:
                 get_google_service_account_from_1password,
             )
             data = get_google_service_account_from_1password()
+            if data is None:
+                raise ValueError(
+                    "No service account credentials found. Provide "
+                    "service_account_data, service_account_file, or "
+                    "configure 1Password with a Google service account item."
+                )
             creds = service_account.Credentials.from_service_account_info(
                 data, scopes=scopes,
             )
