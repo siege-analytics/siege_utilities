@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "siege-utilities"
-version = "3.8.4"
+version = "3.9.0"
 description = "A comprehensive Python utilities package with enhanced auto-discovery"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -165,6 +165,9 @@ all = [
     "tobler>=0.11.0",
     "osmnx>=1.9.4",
     "pysal>=24.1",
+    "censusgeocode>=0.5.2",
+    # databricks
+    "databricks-sdk>=0.20.0",
     # reporting
     "matplotlib>=3.7.5",
     "seaborn>=0.13.2",
