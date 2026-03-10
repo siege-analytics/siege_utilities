@@ -433,6 +433,39 @@ class GoogleWorkspaceClient:
             .execute()
         )
 
+    # ── URL helpers ────────────────────────────────────────────────
+
+    @staticmethod
+    def spreadsheet_url(spreadsheet_id: str) -> str:
+        """Return the live Google Sheets URL for a spreadsheet ID."""
+        return f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}"
+
+    @staticmethod
+    def document_url(document_id: str) -> str:
+        """Return the live Google Docs URL for a document ID."""
+        return f"https://docs.google.com/document/d/{document_id}"
+
+    @staticmethod
+    def presentation_url(presentation_id: str) -> str:
+        """Return the live Google Slides URL for a presentation ID."""
+        return f"https://docs.google.com/presentation/d/{presentation_id}"
+
+    @staticmethod
+    def file_url(file_id: str, mime_type: Optional[str] = None) -> str:
+        """Return the live Google Drive URL for a file ID.
+
+        If *mime_type* is provided, returns the appropriate editor URL.
+        Otherwise returns the generic Drive file URL.
+        """
+        mime_map = {
+            "application/vnd.google-apps.spreadsheet": f"https://docs.google.com/spreadsheets/d/{file_id}",
+            "application/vnd.google-apps.document": f"https://docs.google.com/document/d/{file_id}",
+            "application/vnd.google-apps.presentation": f"https://docs.google.com/presentation/d/{file_id}",
+        }
+        if mime_type and mime_type in mime_map:
+            return mime_map[mime_type]
+        return f"https://drive.google.com/file/d/{file_id}"
+
     # ── Drive utilities (copy, share, permissions) ───────────────
 
     def copy_file(self, file_id: str, title: Optional[str] = None) -> str:
