@@ -69,6 +69,10 @@ VERSION_FILES = {
         'path': PROJECT_ROOT / 'docs' / 'source' / 'conf.py',
         'pattern': r"(release\s*=\s*')[^']+(')",
     },
+    'docs/source/conf_fast.py': {
+        'path': PROJECT_ROOT / 'docs' / 'source' / 'conf_fast.py',
+        'pattern': r"(release\s*=\s*')[^']+(')",
+    },
 }
 
 

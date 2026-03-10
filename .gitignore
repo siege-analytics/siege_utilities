@@ -107,8 +107,14 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
-# Environments
+# Credentials and secrets
 .env
+*credentials*.json
+*service_account*.json
+*token*.json
+*client_secret*.json
+*.pem
+!tests/fixtures/**
 .venv
 env/
 venv/

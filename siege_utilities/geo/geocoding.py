@@ -393,8 +393,7 @@ def use_nominatim_geocoder(query_address, id=None, country_codes=None,
     Returns:
         JSON string of geocoding result or None if failed
     """
-    message = f'{query_address}'
-    log_warning(message)
+    log_debug(f'Geocoding address: {query_address}')
     if not query_address:
         message = (
             'query_address cannot be None, Empty address provided for geocoding'

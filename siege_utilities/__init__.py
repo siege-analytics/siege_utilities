@@ -140,11 +140,16 @@ _register_lazy([
 _register_lazy([
     'EnhancedUserProfile', 'ClientProfile', 'SiegeConfig',
     'load_user_profile', 'save_user_profile',
-    'load_client_profile', 'save_client_profile',
-    'list_client_profiles',
+    'enhanced_load_client_profile', 'enhanced_save_client_profile',
+    'enhanced_list_client_profiles',
     'export_config_yaml', 'import_config_yaml',
 ], '.config.enhanced_config', deps=['pydantic>=2.0'],
-    renames={'EnhancedUserProfile': 'UserProfile'})
+    renames={
+        'EnhancedUserProfile': 'UserProfile',
+        'enhanced_load_client_profile': 'load_client_profile',
+        'enhanced_save_client_profile': 'save_client_profile',
+        'enhanced_list_client_profiles': 'list_client_profiles',
+    })
 
 _register_lazy([
     'get_default_profile_location', 'set_profile_location',
@@ -243,12 +248,13 @@ _register_lazy([
 # ── Sample data (requires pandas, faker) ─────────────────────────────
 
 _register_lazy([
-    'load_sample_data', 'list_available_datasets', 'get_dataset_info',
+    'load_sample_data', 'list_available_datasets', 'get_sample_dataset_info',
     'join_boundaries_and_data', 'create_sample_dataset',
     'generate_synthetic_population', 'generate_synthetic_businesses',
     'generate_synthetic_housing',
     'SAMPLE_DATASETS', 'CENSUS_SAMPLES', 'SYNTHETIC_SAMPLES',
-], '.data.sample_data', deps=['pandas'])
+], '.data.sample_data', deps=['pandas'],
+    renames={'get_sample_dataset_info': 'get_dataset_info'})
 
 # ── Analytics ────────────────────────────────────────────────────────
 
@@ -334,8 +340,9 @@ _register_lazy(['start_feature_workflow', 'validate_branch_naming'], '.git.git_w
 
 _register_lazy([
     'setup_spark_environment', 'get_system_info', 'ensure_env_vars',
-    'check_java_version', 'diagnose_environment', 'quick_environment_setup',
-], '.testing.environment')
+    'check_java_version', 'diagnose_test_environment', 'quick_environment_setup',
+], '.testing.environment',
+    renames={'diagnose_test_environment': 'diagnose_environment'})
 
 _register_lazy([
     'run_test_suite', 'get_test_report', 'run_comprehensive_test',
