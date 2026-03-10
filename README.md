@@ -6,8 +6,10 @@
 
 `siege_utilities` is the shared utilities library behind Siege Analytics workflows:
 
-- Geospatial + GeoDjango boundary/data services
+- Geospatial + GeoDjango boundary/data services (tiered: `[geo-lite]` / `[geo]` / `[geodjango]`)
+- Google Workspace write APIs (Sheets, Docs, Slides, Drive) with multi-account management
 - Census API/data selection/crosswalk tooling
+- Isochrone analysis with configurable CRS and domain exceptions
 - Configuration and profile management
 - Distributed processing helpers (Spark/HDFS/Databricks)
 - Reporting and chart generation
@@ -82,6 +84,7 @@ See:
 - `docs/RELEASE_LINEAGE.md`
 - `docs/EXAMPLES.md`
 - `docs/ISOCHRONES_AND_WKLS.md`
+- `docs/MANAGED_ENVIRONMENTS.md`
 
 ## External Contributor Workflow
 
@@ -320,7 +323,7 @@ report_gen.generate_pdf_report(report_content, output_path="report.pdf")
 | **Files** | 21 | File ops, paths, remote downloads | None |
 | **Distributed** | 37 | Spark utilities, HDFS operations | PySpark |
 | **Geo** | 65+ | Census data, boundaries, spatial, GeoDjango | pandas, geopandas |
-| **Analytics** | 28 | Google Analytics, Snowflake APIs | pandas, connectors |
+| **Analytics** | 45+ | Google Analytics, Workspace (Sheets/Docs/Slides), Snowflake | pandas, google-api-python-client |
 | **Reporting** | 30+ | Charts, maps, GA reports, PDF generation | matplotlib, reportlab |
 | **Testing** | 15 | Environment setup, test runners | None |
 | **Git** | 9 | Branch ops, commit management | None |
@@ -358,7 +361,7 @@ pip install -e ".[all,dev]"
 
 ## Testing
 
-**1800+ tests** across all modules.
+**1884 tests** across all modules.
 
 ```bash
 # Full suite
@@ -391,7 +394,7 @@ siege_utilities/
 │       └── serializers/ # DRF GeoJSON serializers
 ├── distributed/         # Spark, HDFS, Databricks utilities
 ├── reporting/           # PDF, PowerPoint, choropleth, GA reports
-├── analytics/           # GA4, Snowflake connectors
+├── analytics/           # GA4, Google Workspace (Sheets/Docs/Slides), Snowflake
 ├── files/               # File operations, hashing, remote downloads
 ├── core/                # Logging, string utilities
 └── development/         # Architecture analysis, package management
@@ -400,7 +403,7 @@ siege_utilities/
 ## Documentation
 
 - **Sphinx Docs**: [siege-analytics.github.io/siege_utilities](https://siege-analytics.github.io/siege_utilities/)
-- **Notebooks**: 15 Jupyter notebooks covering all major features (in `notebooks/`)
+- **Notebooks**: 18 Jupyter notebooks covering all major features (in `notebooks/`)
 
 ## Contributing
 

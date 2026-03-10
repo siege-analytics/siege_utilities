@@ -1,7 +1,10 @@
 Analytics
 =========
 
-The analytics module provides utilities for working with various analytics platforms including Facebook Business API and Google Analytics.
+The analytics module provides utilities for working with various analytics platforms including
+Facebook Business API, Google Analytics, and Google Workspace write APIs (Sheets, Docs, Slides).
+
+For Google Workspace (Sheets, Docs, Slides, Drive), see :doc:`google_workspace`.
 
 Module Overview
 --------------
