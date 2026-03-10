@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.8.4] - 2026-03-09
+
 ### Added
 - **Google Workspace write APIs** (su#289) — `GoogleWorkspaceClient` base client with
   OAuth2 and service account auth. Module-level functions for Sheets (`create_spreadsheet`,
@@ -17,13 +19,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with JSON persistence and default selection, `Person.google_accounts` integration,
   `GoogleWorkspaceClient.from_account()` / `from_registry()` factory methods,
   `migrate_single_account()` utility.
+- **Tiered geo extras** (su#275) — `[geo-lite]` tier (shapely, pyproj, geopy — no GDAL),
+  import guards on 5 modules, `geo_capabilities()` runtime detection function.
+  `[geo]` and `[geodjango]` tiers preserved. Managed environments docs (Databricks, Colab, SageMaker).
+- **IsochroneResult Django model** + `IsochroneComputeService` + migration 0004 (su#287).
+- **Isochrone quality rewrite** (su#268) — Domain exceptions (`IsochroneError`,
+  `IsochroneNetworkError`, `IsochroneProviderError`), TypedDict result types, retry logic,
+  method dispatch, configurable CRS via `get_default_crs()`/`set_default_crs()`.
+- **CRS parameter** on 19 spatial-returning functions across `spatial_data`, `spatial_transformations`,
+  `temporal/query`, `interpolation/areal`, `schemas/converters`, `nces_download`, `boundary_manager`.
+- **Python version support policy** doc and CI for Python 3.13 (su#274).
+- **Convergence diagram** chart type in reporting module.
 - **Notebook NB18** — Google Workspace demo using elect.info onboarding content.
+- **Sphinx docs** — `google_workspace.rst`, updated `geo.rst` with tiered extras and isochrones.
 
 ### Changed
 - **License model update (effective March 6, 2026)** — moved from MIT to a dual-license model:
   - AGPL-3.0-only for open-source use
   - Commercial license path for proprietary/commercial use by separate agreement
   - Attribution required in both license paths
+- **Raised dependency floors** — pandas>=2.0, numpy>=1.24, scipy>=1.11, shapely>=2.0.0,
+  geopandas uncapped (removed <1.0 cap). Python floor: 3.11.
+- **Version sync** via `importlib.metadata` — single source of truth in pyproject.toml.
 
 ## [3.2.0] - 2026-03-01
 
