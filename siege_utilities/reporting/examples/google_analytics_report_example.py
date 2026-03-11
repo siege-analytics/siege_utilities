@@ -434,11 +434,13 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
                         credential_item_name: str = "Google Analytics Service Account - Multi-Client Reporter",
                         vault: Optional[str] = None,
                         account: Optional[str] = None,
+                        service_account_data: Optional[Dict[str, Any]] = None,
                         ) -> Optional[Dict[str, Any]]:
     """
-    Fetch real GA4 data using GoogleAnalyticsConnector with 1Password credentials.
+    Fetch real GA4 data using GoogleAnalyticsConnector.
 
-    Tries service account auth first, then falls back to OAuth2 credentials.
+    If service_account_data is provided, uses it directly. Otherwise tries
+    1Password (service account first, then OAuth2 fallback).
     Returns the same dict structure as generate_sample_ga_data() so notebook code
     works identically with either data source.
 
@@ -465,15 +467,23 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
     try:
         connector = None
 
-        # Strategy 1: Try service account credentials from 1Password
-        service_account_data = get_google_service_account_from_1password(
-            item_title=credential_item_name, vault=vault, account=account,
-        )
+        # Strategy 0: Use provided service account data directly
         if service_account_data:
             connector = GoogleAnalyticsConnector(
                 auth_method="service_account",
                 service_account_data=service_account_data,
             )
+
+        # Strategy 1: Try service account credentials from 1Password
+        if connector is None:
+            sa_data = get_google_service_account_from_1password(
+                item_title=credential_item_name, vault=vault, account=account,
+            )
+            if sa_data:
+                connector = GoogleAnalyticsConnector(
+                    auth_method="service_account",
+                    service_account_data=sa_data,
+                )
 
         # Strategy 2: Try OAuth2 credentials from 1Password
         if connector is None:
