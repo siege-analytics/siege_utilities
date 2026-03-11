@@ -236,16 +236,22 @@ class GoogleAnalyticsConnector:
             response = self.ga4_client.run_report(request)
 
             # Convert to DataFrame
+            dimension_headers = [h.name for h in response.dimension_headers]
+            metric_headers = [h.name for h in response.metric_headers]
             data = []
             for row in response.rows:
                 row_data = {}
-                for i, dimension in enumerate(row.dimension_headers):
-                    row_data[dimension.name] = row.dimension_values[i].value
-                for i, metric in enumerate(row.metric_headers):
-                    row_data[metric.name] = row.metric_values[i].value
+                for i, dim_value in enumerate(row.dimension_values):
+                    row_data[dimension_headers[i]] = dim_value.value
+                for i, metric_value in enumerate(row.metric_values):
+                    row_data[metric_headers[i]] = metric_value.value
                 data.append(row_data)
 
             df = pd.DataFrame(data)
+            # GA4 API returns all values as strings; coerce metric columns to numeric
+            for col in metric_headers:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
             log_info(f"Retrieved {len(df)} rows from GA4 property {property_id}")
             return df
 
