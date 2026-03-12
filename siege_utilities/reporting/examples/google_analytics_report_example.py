@@ -1758,10 +1758,25 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         # ── TITLE PAGE ──
         # Client logo (upper right)
         if client_logo_path and Path(client_logo_path).exists():
-            from reportlab.platypus import Table as RLTable
-            logo_img = RLImage(client_logo_path, width=1.5*inch, height=1.0*inch)
-            logo_img.hAlign = 'RIGHT'
-            story.append(logo_img)
+            _logo_path = client_logo_path
+            # ReportLab can't render SVG directly; convert to PNG first
+            if Path(client_logo_path).suffix.lower() == '.svg':
+                try:
+                    import cairosvg
+                    _tmp_logo = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+                    cairosvg.svg2png(url=str(Path(client_logo_path).resolve()),
+                                    write_to=_tmp_logo.name, output_width=300)
+                    _logo_path = _tmp_logo.name
+                except ImportError:
+                    log.debug("cairosvg not installed; skipping SVG logo (install cairosvg for SVG support)")
+                    _logo_path = None
+                except Exception as e:
+                    log.debug(f"Could not convert SVG logo: {e}")
+                    _logo_path = None
+            if _logo_path:
+                logo_img = RLImage(_logo_path, width=1.5*inch, height=1.0*inch)
+                logo_img.hAlign = 'RIGHT'
+                story.append(logo_img)
             story.append(Spacer(1, 0.5*inch))
         else:
             story.append(Spacer(1, 1.5*inch))
