@@ -340,6 +340,11 @@ def generate_sample_ga_data(start_date: datetime, end_date: datetime) -> Dict[st
     prior_bounce = avg_bounce_rate + 3.2
     prior_duration = avg_session_duration * 0.92
 
+    # Generate prior period daily data for comparison charts
+    prior_dates = [start_date - timedelta(days=days) + timedelta(days=i) for i in range(days)]
+    prior_daily_sessions = [max(10, int(s * 0.9 + np.random.randint(-20, 20))) for s in daily_sessions]
+    prior_daily_users = [max(5, int(u * 0.88 + np.random.randint(-15, 15))) for u in daily_users]
+
     # Best/worst day analysis
     best_day_idx = daily_sessions.index(max(daily_sessions))
     worst_day_idx = daily_sessions.index(min(daily_sessions))
@@ -396,6 +401,11 @@ def generate_sample_ga_data(start_date: datetime, end_date: datetime) -> Dict[st
             'sessions': prior_sessions,
             'avg_bounce_rate': prior_bounce,
             'avg_session_duration': prior_duration,
+        },
+        'prior_daily_data': {
+            'dates': [d.strftime('%Y-%m-%d') for d in prior_dates],
+            'sessions': prior_daily_sessions,
+            'users': prior_daily_users,
         },
         'changes': {
             'users': ((total_users - prior_users) / prior_users) * 100,
@@ -649,10 +659,21 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
             dimensions=["date"]
         )
 
-        prior_sessions = int(prior_df['sessions'].sum()) if prior_df is not None else int(total_sessions / 1.08)
-        prior_users = int(prior_df['totalUsers'].sum()) if prior_df is not None else int(total_users / 1.10)
-        prior_bounce = float(prior_df['bounceRate'].mean()) if prior_df is not None else avg_bounce + 3.2
-        prior_duration = float(prior_df['averageSessionDuration'].mean()) if prior_df is not None else avg_duration * 0.92
+        prior_has_data = prior_df is not None and not prior_df.empty
+        prior_sessions = int(prior_df['sessions'].sum()) if prior_has_data else int(total_sessions / 1.08)
+        prior_users = int(prior_df['totalUsers'].sum()) if prior_has_data else int(total_users / 1.10)
+        prior_bounce = float(prior_df['bounceRate'].mean()) if prior_has_data else avg_bounce + 3.2
+        prior_duration = float(prior_df['averageSessionDuration'].mean()) if prior_has_data else avg_duration * 0.92
+
+        # Extract prior daily data for comparison charts
+        prior_daily_dates = []
+        prior_daily_sessions_list = []
+        prior_daily_users_list = []
+        if prior_has_data and 'date' in prior_df.columns:
+            prior_sorted = prior_df.sort_values('date')
+            prior_daily_dates = prior_sorted['date'].tolist()
+            prior_daily_sessions_list = prior_sorted['sessions'].astype(int).tolist()
+            prior_daily_users_list = prior_sorted['totalUsers'].astype(int).tolist()
 
         # Longitudinal data (fetch yearly totals)
         current_year = end_dt.year
@@ -701,6 +722,11 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
                 'sessions': prior_sessions,
                 'avg_bounce_rate': prior_bounce,
                 'avg_session_duration': prior_duration,
+            },
+            'prior_daily_data': {
+                'dates': prior_daily_dates,
+                'sessions': prior_daily_sessions_list,
+                'users': prior_daily_users_list,
             },
             'changes': {
                 'users': ((total_users - prior_users) / prior_users * 100) if prior_users else 0,
@@ -1399,6 +1425,110 @@ def create_geo_summary_table(ga_data: Dict[str, Any]) -> List[List[str]]:
     return [headers] + rows
 
 
+def create_period_comparison_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
+                                    height: float = 4.0*inch,
+                                    vector_export_path: Optional[str] = None) -> Optional[str]:
+    """Create an overlay chart comparing current vs prior period daily traffic.
+
+    Shows current and prior period sessions on the same axes, aligned by
+    day number (not date), so periods of different lengths align from day 1.
+    """
+    if not MATPLOTLIB_AVAILABLE:
+        return None
+
+    daily = ga_data.get('daily_data', {})
+    prior = ga_data.get('prior_daily_data', {})
+
+    if not daily.get('sessions') or not prior.get('sessions'):
+        return None
+
+    current_sessions = daily['sessions']
+    prior_sessions = prior['sessions']
+
+    # Align by day number (shorter period truncates the longer)
+    n_days = min(len(current_sessions), len(prior_sessions))
+    day_nums = list(range(1, n_days + 1))
+
+    fig, ax = plt.subplots(figsize=(width / 72, height / 72), dpi=100)
+
+    ax.plot(day_nums, current_sessions[:n_days], color='#3366cc', linewidth=2,
+            label='Current Period', zorder=3)
+    ax.fill_between(day_nums, current_sessions[:n_days], alpha=0.1, color='#3366cc')
+    ax.plot(day_nums, prior_sessions[:n_days], color='#999999', linewidth=1.5,
+            linestyle='--', label='Prior Period', alpha=0.7, zorder=2)
+    ax.fill_between(day_nums, prior_sessions[:n_days], alpha=0.05, color='#999999')
+
+    ax.set_xlabel('Day of Period', fontsize=10)
+    ax.set_ylabel('Sessions', fontsize=10)
+    ax.set_title('Current vs Prior Period: Daily Sessions', fontsize=12, fontweight='bold')
+    ax.legend(loc='upper left', fontsize=9)
+    ax.grid(True, alpha=0.3)
+
+    # Annotate total change
+    current_total = sum(current_sessions[:n_days])
+    prior_total = sum(prior_sessions[:n_days])
+    if prior_total > 0:
+        pct_change = ((current_total - prior_total) / prior_total) * 100
+        color = '#28a745' if pct_change >= 0 else '#dc3545'
+        ax.annotate(f'{pct_change:+.1f}% overall',
+                    xy=(0.98, 0.95), xycoords='axes fraction',
+                    fontsize=11, fontweight='bold', color=color,
+                    ha='right', va='top',
+                    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor=color, alpha=0.8))
+
+    plt.tight_layout()
+
+    if vector_export_path:
+        fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+        plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
+        plt.close()
+        return tmp.name
+
+
+# ── GA Term Definitions (for footnotes) ──
+
+GA_TERM_DEFINITIONS = {
+    'sessions': 'A session is a group of interactions on your website within a given time frame. A single user can have multiple sessions.',
+    'users': 'The number of unique visitors to your website during the reporting period.',
+    'bounce_rate': 'The percentage of single-page sessions where the user left without interacting further.',
+    'pageviews': 'The total number of pages viewed, including repeated views of a single page.',
+    'avg_session_duration': 'The average length of a session, measured from first to last interaction.',
+    'pages_per_session': 'The average number of pages viewed during a session.',
+    'medium': 'The general category of the traffic source (e.g., organic, referral, cpc, direct).',
+    'source': 'The specific origin of traffic (e.g., Google, Facebook, newsletter).',
+}
+
+
+def create_footnote_paragraph(terms: List[str], styles_obj=None) -> Optional[Paragraph]:
+    """Create a footnote paragraph explaining GA terms used in a table section.
+
+    Args:
+        terms: List of term keys from GA_TERM_DEFINITIONS to include.
+        styles_obj: ReportLab stylesheet (uses default if None).
+
+    Returns:
+        A Paragraph flowable with term definitions, or None if no terms match.
+    """
+    definitions = []
+    for term in terms:
+        defn = GA_TERM_DEFINITIONS.get(term)
+        if defn:
+            label = term.replace('_', ' ').title()
+            definitions.append(f"<b>{label}:</b> {defn}")
+
+    if not definitions:
+        return None
+
+    footnote_style = ParagraphStyle(
+        'Footnote', fontSize=7, leading=9, spaceBefore=6, spaceAfter=10,
+        textColor=colors.HexColor('#666666'), leftIndent=10,
+    )
+    text = " | ".join(definitions)
+    return Paragraph(text, footnote_style)
+
+
 def generate_insights(ga_data: Dict[str, Any]) -> List[str]:
     """Generate automated insights from the data."""
     insights = []
@@ -1492,7 +1622,9 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
                            report_title: str = "Google Analytics Performance Report",
                            branding_key: Optional[str] = None,
                            prepared_by: str = "Siege Analytics",
-                           vector_export_dir: Optional[str] = None) -> bool:
+                           vector_export_dir: Optional[str] = None,
+                           client_logo_path: Optional[str] = None,
+                           company_logo_path: Optional[str] = None) -> bool:
     """
     Generate a comprehensive Google Analytics PDF report with professional styling.
 
@@ -1509,6 +1641,8 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         prepared_by: Name of report preparer
         vector_export_dir: If provided, save SVG copies of all charts to this directory
             for designer handoff (InDesign/Illustrator).
+        client_logo_path: Path to client logo image for the cover page (upper right).
+        company_logo_path: Path to company/agency logo for the cover page footer.
 
     Returns:
         True if successful
@@ -1619,7 +1753,16 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         story = []
 
         # ── TITLE PAGE ──
-        story.append(Spacer(1, 1.5*inch))
+        # Client logo (upper right)
+        if client_logo_path and Path(client_logo_path).exists():
+            from reportlab.platypus import Table as RLTable
+            logo_img = RLImage(client_logo_path, width=1.5*inch, height=1.0*inch)
+            logo_img.hAlign = 'RIGHT'
+            story.append(logo_img)
+            story.append(Spacer(1, 0.5*inch))
+        else:
+            story.append(Spacer(1, 1.5*inch))
+
         story.append(Paragraph(client_name, title_style))
         story.append(Paragraph("Comprehensive Website Performance Analysis", subtitle_style))
         story.append(Spacer(1, 0.3*inch))
@@ -1633,6 +1776,13 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         story.append(Paragraph(f"<b>Prepared By:</b> {prepared_by}", details_style))
         data_source = ga_data.get('data_source', 'sample')
         story.append(Paragraph(f"<b>Data Source:</b> {'GA4 API (Live)' if data_source == 'ga4_api' else 'Sample Data'}", details_style))
+
+        # Company logo (bottom of title page)
+        if company_logo_path and Path(company_logo_path).exists():
+            story.append(Spacer(1, 1.0*inch))
+            company_logo = RLImage(company_logo_path, width=1.2*inch, height=0.6*inch)
+            company_logo.hAlign = 'RIGHT'
+            story.append(company_logo)
         story.append(PageBreak())
 
         # ── TABLE OF CONTENTS ──
@@ -1653,6 +1803,9 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             "    7.5 Geographic Summary",
         ]
         next_section = 8
+        if ga_data.get('prior_daily_data', {}).get('sessions'):
+            toc_items.append(f"{next_section}. Period-over-Period Comparison")
+            next_section += 1
         if ga_data.get('longitudinal'):
             toc_items.append(f"{next_section}. Year-over-Year Analysis")
             next_section += 1
@@ -1714,6 +1867,9 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         kph_table = Table(kph_data, colWidths=[2*inch, 1.5*inch, 2.8*inch])
         kph_table.setStyle(TableStyle(primary_table_style))
         story.append(kph_table)
+        fn = create_footnote_paragraph(['sessions', 'users', 'bounce_rate', 'pageviews', 'avg_session_duration'])
+        if fn:
+            story.append(fn)
         story.append(Spacer(1, 20))
 
         # ── 2. KPI DASHBOARD ──
@@ -1758,6 +1914,9 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             base_style=primary_table_style, color_scheme='blue'
         ))
         story.append(source_table)
+        fn = create_footnote_paragraph(['source', 'medium', 'sessions', 'bounce_rate'])
+        if fn:
+            story.append(fn)
         story.append(Spacer(1, 20))
 
         # ── 5. DEVICE ANALYSIS ──
@@ -1913,10 +2072,53 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             story.append(summary_table)
         story.append(PageBreak())
 
-        # ── 8. YEAR-OVER-YEAR ANALYSIS (if available) ──
+        # ── PERIOD-OVER-PERIOD COMPARISON (if prior daily data available) ──
+        pop_section = 8
+        has_pop = bool(ga_data.get('prior_daily_data', {}).get('sessions'))
+        if has_pop:
+            story.append(Paragraph(f"{pop_section}. Period-over-Period Comparison", heading_style))
+            story.append(Paragraph(
+                "Daily sessions for the current period compared against the equivalent prior period.",
+                body_style
+            ))
+            story.append(Spacer(1, 10))
+
+            pop_chart = create_period_comparison_chart(
+                ga_data,
+                vector_export_path=str(_vec_dir / 'period_comparison.svg') if _vec_dir else None,
+            )
+            if pop_chart:
+                story.append(RLImage(pop_chart, width=5.5*inch, height=4.0*inch))
+                story.append(Spacer(1, 8))
+
+            # Summary table
+            prior_p = ga_data.get('prior_period', {})
+            pop_table_data = [
+                ['Metric', 'Current Period', 'Prior Period', 'Change'],
+                ['Sessions', f"{totals['sessions']:,}", f"{prior_p.get('sessions', 0):,}",
+                 f"{changes['sessions']:+.1f}%"],
+                ['Users', f"{totals['users']:,}", f"{prior_p.get('users', 0):,}",
+                 f"{changes['users']:+.1f}%"],
+                ['Bounce Rate', f"{totals['avg_bounce_rate']:.1f}%",
+                 f"{prior_p.get('avg_bounce_rate', 0):.1f}%",
+                 f"{changes['bounce_rate']:+.1f} pts"],
+                ['Avg Duration', f"{totals['avg_session_duration']:.0f}s",
+                 f"{prior_p.get('avg_session_duration', 0):.0f}s",
+                 f"{changes['duration']:+.1f}%"],
+            ]
+            pop_table = Table(pop_table_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+            pop_table.setStyle(TableStyle(primary_table_style))
+            story.append(pop_table)
+            fn = create_footnote_paragraph(['sessions', 'users', 'bounce_rate', 'avg_session_duration'])
+            if fn:
+                story.append(fn)
+            story.append(PageBreak())
+
+        # ── YEAR-OVER-YEAR ANALYSIS (if available) ──
+        yoy_section = (pop_section + 1) if has_pop else pop_section
         longitudinal = ga_data.get('longitudinal', {})
         if longitudinal:
-            story.append(Paragraph("8. Year-over-Year Analysis", heading_style))
+            story.append(Paragraph(f"{yoy_section}. Year-over-Year Analysis", heading_style))
             story.append(Paragraph(
                 "Longitudinal comparison of website performance across years.",
                 body_style
@@ -1958,8 +2160,8 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         best_week = ga_data.get('best_week')
         worst_week = ga_data.get('worst_week')
         if best_day or best_week:
-            section_num = 9 if longitudinal else 8
-            story.append(Paragraph(f"{section_num}. Performance Highlights", heading_style))
+            highlight_section = yoy_section + (1 if longitudinal else 0)
+            story.append(Paragraph(f"{highlight_section}. Performance Highlights", heading_style))
 
             highlights = [["Metric", "Value", "Details"]]
             if best_day:
@@ -1981,8 +2183,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             story.append(PageBreak())
 
         # ── INSIGHTS ──
-        insights_num = (10 if longitudinal and (best_day or best_week) else
-                       9 if longitudinal or (best_day or best_week) else 8)
+        insights_num = yoy_section + (1 if longitudinal else 0) + (1 if (best_day or best_week) else 0)
         story.append(Paragraph(f"{insights_num}. Key Insights", heading_style))
         insights = generate_insights(ga_data)
         for insight in insights:
