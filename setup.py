@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="siege-utilities",
-    version="3.8.4",
+    version="3.10.0",
     author="Dheeraj Chand",
     author_email="dheeraj@siegeanalytics.com",
     description="A comprehensive Python utilities package with enhanced auto-discovery",
@@ -35,10 +35,12 @@ setup(
     extras_require={
         "data": ["pandas>=2.0.0", "numpy>=1.24.0", "openpyxl>=3.1.0", "faker>=35.2.2"],
         "geo": [
-            "geopandas>=0.13.2", "shapely>=2.0.0", "pyproj>=3.3.0", "fiona>=1.9.0",
+            "geopandas>=0.13.2", "shapely>=2.0.0,<3.0", "pyproj>=3.3.0", "fiona>=1.9.0",
             "geopy>=2.4.1", "rtree>=1.0.0", "mapclassify>=2.5.0", "tobler>=0.11.0",
-            "osmnx>=1.9.4", "pysal>=24.1",
+            "osmnx>=1.9.4", "pysal>=24.1", "censusgeocode>=0.5.2",
         ],
+        "h3": ["h3>=4.0.0"],
+        "databricks": ["databricks-sdk>=0.20.0"],
         "reporting": [
             "matplotlib>=3.7.5", "seaborn>=0.13.2", "folium>=0.18.0", "branca>=0.5.0",
             "plotly>=6.3.0", "reportlab>=4.4.3", "pypdf2>=3.0.1", "pillow>=10.0.0",
@@ -71,15 +73,16 @@ setup(
             "pytest>=7.0.0", "pytest-cov>=4.0.0", "pytest-mock>=3.10.0",
             "pytest-xdist>=3.0.0", "pytest-html>=3.1.0", "pytest-json-report>=1.5.0",
             "pytest-forked>=1.4.0", "black>=21.0.0", "flake8>=3.8.0",
-            "astor>=0.8.1", "django>=4.2.0",
+            "astor>=0.8.1", "django>=4.2.0", "pytest-django>=4.5.0",
+            "djangorestframework-gis>=1.0.0",
         ],
         "all": [
             # data
             "pandas>=2.0.0", "numpy>=1.24.0", "openpyxl>=3.1.0", "faker>=35.2.2",
             # geo
-            "geopandas>=0.13.2", "shapely>=2.0.0", "pyproj>=3.3.0", "fiona>=1.9.0",
+            "geopandas>=0.13.2", "shapely>=2.0.0,<3.0", "pyproj>=3.3.0", "fiona>=1.9.0",
             "geopy>=2.4.1", "rtree>=1.0.0", "mapclassify>=2.5.0", "tobler>=0.11.0",
-            "osmnx>=1.9.4", "pysal>=24.1",
+            "osmnx>=1.9.4", "pysal>=24.1", "censusgeocode>=0.5.2",
             # reporting
             "matplotlib>=3.7.5", "seaborn>=0.13.2", "folium>=0.18.0", "branca>=0.5.0",
             "plotly>=6.3.0", "reportlab>=4.4.3", "pypdf2>=3.0.1", "pillow>=10.0.0",
@@ -91,6 +94,10 @@ setup(
             "scipy>=1.11.0", "scikit-learn>=1.3.0",
             "facebook-business>=20.0.0", "datadotworld>=1.7.0",
             "snowflake-connector-python>=3.0.0",
+            # h3
+            "h3>=4.0.0",
+            # databricks
+            "databricks-sdk>=0.20.0",
             # distributed
             "pyspark>=3.3.0", "apache-sedona>=1.5.0",
             # geodjango

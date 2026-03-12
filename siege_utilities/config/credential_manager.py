@@ -1078,6 +1078,54 @@ def get_google_oauth_from_1password(
         return None
 
 
+def get_google_oauth_document_from_1password(
+    item_title: str = "Google OAuth Client - siege_utilities",
+    vault: Optional[str] = None,
+    account: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Get Google OAuth2 client secret JSON from a 1Password DOCUMENT item.
+
+    Unlike :func:`get_google_oauth_from_1password` which reads individual fields,
+    this function downloads an attached JSON file (client_secret_*.json) stored as
+    a 1Password Document item.
+
+    Args:
+        item_title: Title of the 1Password Document item.
+        vault: 1Password vault name.
+        account: 1Password account shorthand or UUID.
+
+    Returns:
+        Parsed client secret dict (contains ``"installed"`` or ``"web"`` key),
+        or ``None`` if not found.
+    """
+    try:
+        cmd = ['op', 'document', 'get', item_title]
+        if vault:
+            cmd.append(f'--vault={vault}')
+        if account:
+            cmd.append(f'--account={account}')
+
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        client_config = json.loads(result.stdout)
+        log_info(f"Retrieved Google OAuth document from 1Password: {item_title}")
+        return client_config
+
+    except subprocess.CalledProcessError as e:
+        stderr = e.stderr.strip() if e.stderr else "(no stderr)"
+        log_error(
+            f"Failed to get Google OAuth document from 1Password: {e}\n"
+            f"  op stderr: {stderr}\n"
+            f"  command: {' '.join(e.cmd)}"
+        )
+        return None
+    except json.JSONDecodeError as e:
+        log_error(f"Invalid JSON in 1Password document '{item_title}': {e}")
+        return None
+    except Exception as e:
+        log_error(f"Error retrieving Google OAuth document: {e}")
+        return None
+
+
 def create_temporary_service_account_file(service_account_data: Dict[str, str]) -> Optional[str]:
     """
     Create a temporary service account file for Google APIs.

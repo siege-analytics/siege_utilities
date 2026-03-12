@@ -1,8 +1,9 @@
 """
-Sample Data Module for Siege Utilities
+Data Module for Siege Utilities
 
-This module provides built-in sample datasets for testing, learning, and demonstration purposes.
-Combines real Census data with synthetic personal data using Faker for realistic datasets.
+This module provides:
+- Built-in sample datasets for testing, learning, and demonstration purposes.
+- Engine-agnostic DataFrame operations (pandas, DuckDB, Spark, PostGIS).
 """
 
 from .sample_data import (
@@ -29,6 +30,20 @@ from .sample_data import (
     SYNTHETIC_SAMPLES
 )
 
+from .dataframe_engine import (
+    Engine,
+    PANDAS,
+    DUCKDB,
+    SPARK,
+    POSTGIS,
+    DataFrameEngine,
+    PandasEngine,
+    DuckDBEngine,
+    SparkEngine,
+    PostGISEngine,
+    get_engine,
+)
+
 __all__ = [
     # Core functions
     'load_sample_data',
@@ -50,7 +65,20 @@ __all__ = [
     # Dataset info
     'SAMPLE_DATASETS',
     'CENSUS_SAMPLES',
-    'SYNTHETIC_SAMPLES'
+    'SYNTHETIC_SAMPLES',
+
+    # Engine-agnostic DataFrame operations
+    'Engine',
+    'PANDAS',
+    'DUCKDB',
+    'SPARK',
+    'POSTGIS',
+    'DataFrameEngine',
+    'PandasEngine',
+    'DuckDBEngine',
+    'SparkEngine',
+    'PostGISEngine',
+    'get_engine',
 ]
 
 # Package metadata

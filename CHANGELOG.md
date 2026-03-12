@@ -7,6 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.10.0] - 2026-03-11
+
+### Added
+- **Vector chart export** — `ChartGenerator.save_figure_as_vector()` for SVG/EPS/PDF output.
+  All 7 GA report chart functions gained `vector_export_path` parameter; `generate_ga_report_pdf()`
+  gained `vector_export_dir` for batch SVG export (designer handoff for InDesign/Illustrator).
+- **Period-over-period comparison** (su#304) — `create_period_comparison_chart()` overlays
+  current vs prior period daily sessions with fill_between shading and change annotation.
+  Prior daily data added to both `generate_sample_ga_data()` and `fetch_real_ga4_data()`.
+- **Report cosmetic enhancements** (su#305) — GA term definitions footnote system after KPI
+  and traffic tables, cover page logo support (`client_logo_path`/`company_logo_path`),
+  dynamic section numbering across all report sections.
+- **Raster chart export** — `generate_ga_report_pdf()` gained `raster_export_dir` parameter
+  to save high-resolution PNG copies (300 DPI) of all 8 charts for presentations and web use.
+- **Design kit export** — `export_design_kit()` produces a complete InDesign handoff package:
+  SVG vector charts, PNG raster charts, CSV data tables, report narrative markdown, and
+  metadata YAML with KPIs and file inventory.
+- **SVG logo support** — Cover page logo auto-converts SVG to PNG via `cairosvg` for
+  ReportLab compatibility (graceful fallback if cairosvg not installed).
+
+### Fixed
+- **GA4 API response parsing** (su#302, PR #299) — `dimension_headers`/`metric_headers`
+  now read from the Response object (not Row objects). Metric columns coerced to numeric
+  via `pd.to_numeric()` to fix `nlargest`/aggregation on string-typed values.
+
+### Tests
+- **GA4 connector tests** (PR #301) — 7 unit tests covering response parsing, numeric
+  coercion, empty responses, dimensions-only, metrics-only, and unauthenticated state.
+
+## [3.9.1] - 2026-03-10
+
+### Fixed
+- **Credential hygiene** — `.gitignore` blocks `*credentials*.json`, `*service_account*.json`,
+  `*token*.json`, `*client_secret*.json`, `*.pem` from accidental commits.
+- **Hardcoded credentials removed** — `database_connections.yaml` now uses `CHANGE_ME` placeholders.
+- **Name collision fix** — `load_client_profile`/`save_client_profile`/`list_client_profiles`
+  rename shims in `__init__.py` to avoid shadowing.
+- **`get_download_directory()` signature** — fixed call in `files/__init__.py` and
+  `reporting/__init__.py` to pass `username` arg, added `client_code` path handling.
+- **`release_manager.py`** — now tracks `docs/source/conf_fast.py` version.
+- **Geocoding log noise** — demoted `log_warning` to `log_debug` in `use_nominatim_geocoder`.
+- **`get_available_survey_years`** — added alias in `geo/timeseries` for clarity
+  (`get_available_years` still works).
+
+## [3.9.0] - 2026-03-10
+
+### Added
+- **1Password integration for Google Workspace** — `GoogleWorkspaceClient.from_1password()`
+  auto-detects OAuth client secret vs service account key from 1Password Document items.
+  `get_google_oauth_document_from_1password()` in credential_manager.
+- **URL helpers** — `GoogleWorkspaceClient.spreadsheet_url()`, `document_url()`,
+  `presentation_url()`, `file_url()` static methods. Create functions now log live URLs.
+- **folder_id support** — `create_spreadsheet()`, `create_document()`, `create_presentation()`
+  accept `folder_id` to place files in a specific Drive folder at creation time.
+- **Auth script** — `scripts/google_workspace_auth.py` with `--mode`, `--item`, `--vault`,
+  `--account` CLI options. Supports both OAuth (browser) and service account (headless) modes.
+
+### Fixed
+- **Registry register() self-default bug** — re-registering an account with `is_default=True`
+  no longer clears its own default flag.
+- **from_service_account() null crash** — raises `ValueError` instead of `AttributeError`
+  when 1Password returns no data.
+- **credential_manager error logging** — `op` stderr now surfaced in error messages.
+
 ## [3.8.4] - 2026-03-09
 
 ### Added

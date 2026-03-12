@@ -34,6 +34,7 @@ def create_spreadsheet(
     client,
     title: str,
     sheet_names: Optional[List[str]] = None,
+    folder_id: Optional[str] = None,
 ) -> str:
     """Create a new Google Spreadsheet and return its ID.
 
@@ -42,6 +43,7 @@ def create_spreadsheet(
         title: Title for the new spreadsheet.
         sheet_names: Optional list of sheet/tab names to create.
             If omitted, a single default "Sheet1" is created.
+        folder_id: Optional Drive folder ID to create the spreadsheet in.
 
     Returns:
         The spreadsheet ID string.
@@ -54,7 +56,12 @@ def create_spreadsheet(
 
     result = client.sheets_service().spreadsheets().create(body=body).execute()
     spreadsheet_id = result["spreadsheetId"]
-    log.info("Created spreadsheet %r (%s)", title, spreadsheet_id)
+
+    if folder_id:
+        client.move_to_folder(spreadsheet_id, folder_id)
+
+    url = client.spreadsheet_url(spreadsheet_id)
+    log.info("Created spreadsheet %r → %s", title, url)
     return spreadsheet_id
 
 

@@ -6,11 +6,11 @@ defaults:
 connections:
   - name: "client_a_prod"
     connection_type: "postgresql"
-    host: "client-a-prod.company.com"
+    host: "CHANGE_ME"
     port: 5432
-    database: "client_a_production"
-    username: "client_a_user"
-    password: "SecurePassword123"
+    database: "CHANGE_ME"
+    username: "CHANGE_ME"
+    password: "CHANGE_ME"
     ssl_enabled: true
     connection_timeout: 30
     max_connections: 15

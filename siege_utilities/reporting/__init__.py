@@ -37,6 +37,15 @@ _register(['decode_rl_image', 'show_rl_image', 'save_rl_image'], '.image_utils')
 _register(['ChartTypeRegistry'], '.chart_types')
 _register(['PollingAnalyzer'], '.analytics.polling_analyzer')
 
+# IDML (InDesign) export
+_register(['IDMLExporter', 'export_report_idml', 'SIMPLEIDML_AVAILABLE'], '.idml_export')
+
+# 3D map rendering (pydeck / deck.gl)
+_register([
+    'ThreeDMapRenderer', 'PYDECK_AVAILABLE',
+    'create_3d_hexbin', 'create_3d_columns',
+], '.map_3d')
+
 # Professional page templates
 _register(['TitlePageTemplate', 'create_title_page'], '.templates.title_page_template')
 _register([
@@ -58,6 +67,9 @@ __all__ = [
     'TableOfContentsTemplate', 'create_table_of_contents',
     'generate_sections_from_report_structure',
     'ContentPageTemplate', 'create_content_page',
+    'ThreeDMapRenderer', 'PYDECK_AVAILABLE',
+    'create_3d_hexbin', 'create_3d_columns',
+    'IDMLExporter', 'export_report_idml', 'SIMPLEIDML_AVAILABLE',
 ]
 
 
@@ -80,7 +92,11 @@ def get_report_output_directory(client_code: str = None) -> Path:
     """Get the appropriate output directory for reports based on profile system."""
     try:
         from ..config.enhanced_config import get_download_directory
-        base_dir = get_download_directory(client_code)
+        import os
+        username = os.environ.get('SIEGE_USERNAME', os.environ.get('USER', 'default'))
+        base_dir = get_download_directory(username)
+        if client_code:
+            return base_dir / client_code / "reports"
         return base_dir / "reports"
     except ImportError:
         return Path.cwd() / "reports"
@@ -98,8 +114,13 @@ def create_powerpoint_generator(client_name: str, client_code: str = None):
     from .powerpoint_generator import PowerPointGenerator as _PG
     try:
         from ..config.enhanced_config import get_download_directory
-        base_dir = get_download_directory(client_code)
-        output_dir = base_dir / "presentations"
+        import os
+        username = os.environ.get('SIEGE_USERNAME', os.environ.get('USER', 'default'))
+        base_dir = get_download_directory(username)
+        if client_code:
+            output_dir = base_dir / client_code / "presentations"
+        else:
+            output_dir = base_dir / "presentations"
     except ImportError:
         output_dir = Path.cwd() / "presentations"
     return _PG(client_name, output_dir)

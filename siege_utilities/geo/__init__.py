@@ -32,6 +32,12 @@ _register([
     'BoundaryUrlValidationError', 'BoundaryDownloadError', 'BoundaryParseError',
 ], '.boundary_result')
 
+# --- boundary_providers (pluggable boundary data sources) ---
+_register([
+    'BoundaryProvider', 'CensusTIGERProvider', 'GADMProvider',
+    'resolve_boundary_provider',
+], '.boundary_providers')
+
 # --- spatial_data ---
 _register([
     'CensusDirectoryDiscovery', 'CensusDataSource', 'SpatialDataSource',
@@ -86,7 +92,9 @@ _register([
     'ISOCHRONE_DEFAULT_RETRIES',
     'IsochroneError', 'IsochroneNetworkError', 'IsochroneProviderError',
     'IsochroneRequest',
+    'IsochroneProvider', 'OpenRouteServiceProvider', 'ValhallaProvider',
     'build_isochrone_request', 'get_isochrone', 'isochrone_to_geodataframe',
+    'get_provider',
 ], '.isochrones')
 
 # --- census_geocoder ---
@@ -145,7 +153,7 @@ _register([
     'compute_boundary_stability', 'compute_allocation_efficiency',
     'build_reallocation_chain', 'compare_vintage_stability',
     'identify_volatile_boundaries',
-    'get_longitudinal_data', 'get_available_years', 'validate_longitudinal_years',
+    'get_longitudinal_data', 'get_available_survey_years', 'validate_longitudinal_years',
     'calculate_change_metrics', 'calculate_multi_period_changes',
     'calculate_index', 'get_change_summary',
     'TrendCategory', 'TrendThresholds',
@@ -177,6 +185,11 @@ _register([
 _register([
     'SpatialRuntimePlan',
     'resolve_spatial_runtime_plan',
+    'GeometryPayload',
+    'encode_geometry',
+    'decode_geometry',
+    'payload_to_spark_row',
+    'spark_row_to_payload',
 ], '.spatial_runtime')
 
 # --- census_files (PL 94-171) ---
@@ -206,6 +219,13 @@ _register([
     'DemographicVariableSchema', 'DemographicSnapshotSchema',
     'DemographicTimeSeriesSchema', 'schemas_to_gdf',
 ], '.schemas')
+
+# --- h3_utils (H3 hexagonal spatial index) ---
+_register([
+    'H3_AVAILABLE',
+    'h3_index_points', 'h3_index_polygon', 'h3_spatial_join',
+    'h3_hex_to_boundary', 'h3_resolution_for_area',
+], '.h3_utils')
 
 # --- temporal (pure-Python temporal data management) ---
 _register([

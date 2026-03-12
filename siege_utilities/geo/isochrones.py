@@ -1,7 +1,15 @@
-"""Isochrone utilities with open-source-first providers and custom server support."""
+"""Isochrone utilities with open-source-first providers and custom server support.
+
+This module provides both a function-based API (backward-compatible) and a
+provider-based OOP architecture via :class:`IsochroneProvider` and its concrete
+subclasses :class:`OpenRouteServiceProvider` and :class:`ValhallaProvider`.
+
+Use :func:`get_provider` to obtain a configured provider instance by name.
+"""
 
 from __future__ import annotations
 
+import abc
 import logging
 import time
 from typing import TYPE_CHECKING, Any, Dict, Literal, Mapping, Optional
@@ -369,3 +377,178 @@ def isochrone_to_geodataframe(
         return _gpd.GeoDataFrame()
     gdf = _gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
     return reproject_if_needed(gdf, crs)
+
+
+# ---------------------------------------------------------------------------
+# Provider architecture (ABC + concrete implementations)
+# ---------------------------------------------------------------------------
+
+
+class IsochroneProvider(abc.ABC):
+    """Abstract base class for isochrone providers.
+
+    Subclasses must implement :meth:`fetch`, :meth:`validate_config`, and the
+    :attr:`provider_name` property.
+    """
+
+    @abc.abstractmethod
+    def fetch(
+        self,
+        lat: float,
+        lon: float,
+        time_minutes: int,
+        profile: str = "driving-car",
+    ) -> Dict[str, Any]:
+        """Fetch an isochrone as a GeoJSON dict.
+
+        Args:
+            lat: Center latitude (-90 to 90).
+            lon: Center longitude (-180 to 180).
+            time_minutes: Travel-time contour in minutes (must be > 0).
+            profile: Travel profile (e.g. ``"driving-car"``).
+
+        Returns:
+            A GeoJSON dict (typically a FeatureCollection).
+        """
+
+    @abc.abstractmethod
+    def validate_config(self) -> bool:
+        """Check whether this provider is properly configured.
+
+        Returns:
+            ``True`` if the provider configuration is valid, ``False`` otherwise.
+        """
+
+    @property
+    @abc.abstractmethod
+    def provider_name(self) -> str:
+        """Return the canonical name of this provider."""
+
+
+class OpenRouteServiceProvider(IsochroneProvider):
+    """Concrete :class:`IsochroneProvider` wrapping the OpenRouteService API.
+
+    Args:
+        api_key: ORS API key. Required for the hosted service; optional for
+            self-hosted instances.
+        base_url: Root URL of the ORS server. Defaults to
+            ``DEFAULT_ORS_BASE_URL``.
+        timeout_seconds: HTTP timeout in seconds (default 30).
+        max_retries: Maximum retry attempts for transient failures (default 3).
+    """
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        timeout_seconds: int = 30,
+        max_retries: int = ISOCHRONE_DEFAULT_RETRIES,
+    ) -> None:
+        self.api_key = api_key
+        self.base_url = base_url or DEFAULT_ORS_BASE_URL
+        self.timeout_seconds = timeout_seconds
+        self.max_retries = max_retries
+
+    @property
+    def provider_name(self) -> str:
+        return "openrouteservice"
+
+    def validate_config(self) -> bool:
+        """Check that the provider is configured.
+
+        For the hosted ORS service (default URL), an API key is required.
+        For self-hosted instances, the base URL must be non-empty.
+        """
+        if self.base_url == DEFAULT_ORS_BASE_URL:
+            return bool(self.api_key)
+        return bool(self.base_url)
+
+    def fetch(
+        self,
+        lat: float,
+        lon: float,
+        time_minutes: int,
+        profile: str = "driving-car",
+    ) -> Dict[str, Any]:
+        return get_isochrone(
+            latitude=lat,
+            longitude=lon,
+            travel_time_minutes=time_minutes,
+            provider="openrouteservice",
+            base_url=self.base_url,
+            profile=profile,
+            api_key=self.api_key,
+            timeout_seconds=self.timeout_seconds,
+            max_retries=self.max_retries,
+        )
+
+
+class ValhallaProvider(IsochroneProvider):
+    """Concrete :class:`IsochroneProvider` wrapping a Valhalla server.
+
+    Args:
+        base_url: Root URL of the Valhalla server. Defaults to
+            ``DEFAULT_VALHALLA_BASE_URL``.
+        timeout_seconds: HTTP timeout in seconds (default 30).
+        max_retries: Maximum retry attempts for transient failures (default 3).
+    """
+
+    def __init__(
+        self,
+        base_url: Optional[str] = None,
+        timeout_seconds: int = 30,
+        max_retries: int = ISOCHRONE_DEFAULT_RETRIES,
+    ) -> None:
+        self.base_url = base_url or DEFAULT_VALHALLA_BASE_URL
+        self.timeout_seconds = timeout_seconds
+        self.max_retries = max_retries
+
+    @property
+    def provider_name(self) -> str:
+        return "valhalla"
+
+    def validate_config(self) -> bool:
+        """Check that the base URL is configured."""
+        return bool(self.base_url)
+
+    def fetch(
+        self,
+        lat: float,
+        lon: float,
+        time_minutes: int,
+        profile: str = "driving-car",
+    ) -> Dict[str, Any]:
+        return get_isochrone(
+            latitude=lat,
+            longitude=lon,
+            travel_time_minutes=time_minutes,
+            provider="valhalla",
+            base_url=self.base_url,
+            profile=profile,
+            timeout_seconds=self.timeout_seconds,
+            max_retries=self.max_retries,
+        )
+
+
+def get_provider(name: str = "ors", **kwargs: Any) -> IsochroneProvider:
+    """Factory function returning a configured :class:`IsochroneProvider`.
+
+    Args:
+        name: Provider name — ``"ors"`` / ``"openrouteservice"`` or
+            ``"valhalla"``.
+        **kwargs: Passed through to the provider constructor (e.g.
+            ``api_key``, ``base_url``, ``timeout_seconds``).
+
+    Returns:
+        A configured provider instance.
+
+    Raises:
+        ValueError: If *name* is not a recognised provider.
+    """
+    normalized = _normalize_provider(name)
+    if normalized == _PROVIDER_ORS:
+        return OpenRouteServiceProvider(**kwargs)
+    if normalized == _PROVIDER_VALHALLA:
+        return ValhallaProvider(**kwargs)
+    # _normalize_provider already raises, but guard just in case
+    raise ValueError(f"Unknown isochrone provider: {name!r}")

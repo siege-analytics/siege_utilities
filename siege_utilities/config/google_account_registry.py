@@ -34,8 +34,9 @@ class GoogleAccountRegistry:
         all other accounts are demoted.
         """
         if account.is_default:
-            for existing in self._accounts.values():
-                existing.is_default = False
+            for aid, existing in self._accounts.items():
+                if aid != account.google_account_id:
+                    existing.is_default = False
         self._accounts[account.google_account_id] = account
 
     def remove(self, google_account_id: str) -> bool:

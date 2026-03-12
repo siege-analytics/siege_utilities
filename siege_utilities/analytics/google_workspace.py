@@ -126,6 +126,83 @@ class GoogleWorkspaceClient:
         return cls(creds)
 
     @classmethod
+    def from_1password(
+        cls,
+        item_title: str = "Google OAuth Client - siege_utilities",
+        vault: Optional[str] = None,
+        account: Optional[str] = "TLTQ3ANAABGCNEK7KIAOTDNK2Q",  # Siege_Analytics
+        token_file: Optional[Union[str, Path]] = None,
+        scopes: Optional[List[str]] = None,
+    ) -> "GoogleWorkspaceClient":
+        """Authenticate using credentials stored in a 1Password Document item.
+
+        Auto-detects whether the JSON document is an **OAuth client secret**
+        (has ``"installed"`` or ``"web"`` key) or a **service account key**
+        (has ``"type": "service_account"``), and routes to the appropriate
+        auth flow.
+
+        For OAuth: runs the installed-app flow (browser required on first
+        use; cached token reused afterward).
+
+        For service account: authenticates server-to-server with no
+        browser interaction.
+
+        Args:
+            item_title: Title of the 1Password Document item.
+            vault: 1Password vault name.
+            account: 1Password account shorthand or UUID.
+            token_file: Path to cache the OAuth token (ignored for service
+                accounts). Default: ``~/.siege/tokens/workspace_token.json``.
+            scopes: OAuth scopes (defaults to ``WORKSPACE_SCOPES``).
+
+        Returns:
+            Authenticated GoogleWorkspaceClient.
+        """
+        _require_google()
+        from siege_utilities.config.credential_manager import (
+            get_google_oauth_document_from_1password,
+        )
+
+        client_config = get_google_oauth_document_from_1password(
+            item_title=item_title, vault=vault, account=account,
+        )
+        if client_config is None:
+            raise ValueError(
+                f"Could not retrieve credentials from 1Password "
+                f"item '{item_title}'"
+            )
+
+        # Auto-detect: service account vs OAuth client secret
+        if client_config.get("type") == "service_account":
+            return cls.from_service_account(
+                service_account_data=client_config,
+                scopes=scopes,
+            )
+
+        # OAuth client secret — extract from "installed" or "web" wrapper
+        inner = client_config.get("installed") or client_config.get("web") or client_config
+        client_id = inner.get("client_id")
+        client_secret = inner.get("client_secret")
+
+        if not client_id or not client_secret:
+            raise ValueError(
+                f"1Password item '{item_title}' does not contain a valid "
+                f"OAuth client secret or service account key"
+            )
+
+        if token_file is None:
+            token_dir = Path.home() / ".siege" / "tokens"
+            token_dir.mkdir(parents=True, exist_ok=True)
+            token_file = str(token_dir / "workspace_token.json")
+
+        return cls.from_oauth(
+            client_id=client_id,
+            client_secret=client_secret,
+            token_file=token_file,
+            scopes=scopes,
+        )
+
+    @classmethod
     def from_service_account(
         cls,
         service_account_data: Optional[Dict[str, Any]] = None,
@@ -154,6 +231,12 @@ class GoogleWorkspaceClient:
                 get_google_service_account_from_1password,
             )
             data = get_google_service_account_from_1password()
+            if data is None:
+                raise ValueError(
+                    "No service account credentials found. Provide "
+                    "service_account_data, service_account_file, or "
+                    "configure 1Password with a Google service account item."
+                )
             creds = service_account.Credentials.from_service_account_info(
                 data, scopes=scopes,
             )
@@ -362,6 +445,39 @@ class GoogleWorkspaceClient:
             .batchUpdate(presentationId=presentation_id, body=body)
             .execute()
         )
+
+    # ── URL helpers ────────────────────────────────────────────────
+
+    @staticmethod
+    def spreadsheet_url(spreadsheet_id: str) -> str:
+        """Return the live Google Sheets URL for a spreadsheet ID."""
+        return f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}"
+
+    @staticmethod
+    def document_url(document_id: str) -> str:
+        """Return the live Google Docs URL for a document ID."""
+        return f"https://docs.google.com/document/d/{document_id}"
+
+    @staticmethod
+    def presentation_url(presentation_id: str) -> str:
+        """Return the live Google Slides URL for a presentation ID."""
+        return f"https://docs.google.com/presentation/d/{presentation_id}"
+
+    @staticmethod
+    def file_url(file_id: str, mime_type: Optional[str] = None) -> str:
+        """Return the live Google Drive URL for a file ID.
+
+        If *mime_type* is provided, returns the appropriate editor URL.
+        Otherwise returns the generic Drive file URL.
+        """
+        mime_map = {
+            "application/vnd.google-apps.spreadsheet": f"https://docs.google.com/spreadsheets/d/{file_id}",
+            "application/vnd.google-apps.document": f"https://docs.google.com/document/d/{file_id}",
+            "application/vnd.google-apps.presentation": f"https://docs.google.com/presentation/d/{file_id}",
+        }
+        if mime_type and mime_type in mime_map:
+            return mime_map[mime_type]
+        return f"https://drive.google.com/file/d/{file_id}"
 
     # ── Drive utilities (copy, share, permissions) ───────────────
 
