@@ -220,6 +220,13 @@ _register([
     'DemographicTimeSeriesSchema', 'schemas_to_gdf',
 ], '.schemas')
 
+# --- h3_utils (H3 hexagonal spatial index) ---
+_register([
+    'H3_AVAILABLE',
+    'h3_index_points', 'h3_index_polygon', 'h3_spatial_join',
+    'h3_hex_to_boundary', 'h3_resolution_for_area',
+], '.h3_utils')
+
 # --- temporal (pure-Python temporal data management) ---
 _register([
     'TemporalDataStore', 'get_temporal_store',
