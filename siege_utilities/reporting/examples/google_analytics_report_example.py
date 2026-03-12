@@ -2376,6 +2376,269 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         return False
 
 
+def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
+                      client_name: str = "Client",
+                      prepared_by: str = "Siege Analytics",
+                      branding_key: Optional[str] = None) -> bool:
+    """
+    Export a complete design kit for InDesign/Illustrator handoff.
+
+    Produces a folder structure with separated assets that a designer can
+    use to build a custom report layout:
+
+        output_dir/
+            charts/          8 SVG vector chart files
+            charts-png/      8 high-resolution PNG chart files (300 DPI)
+            tables/          CSV exports of all data tables
+            text/            report_text.md with all narrative sections
+            metadata.yaml    client name, dates, KPIs, summary stats
+
+    Args:
+        ga_data: Google Analytics data dictionary
+        output_dir: Root directory for the design kit
+        client_name: Client name for metadata
+        prepared_by: Preparer name for metadata
+        branding_key: Optional branding template key
+
+    Returns:
+        True if successful
+    """
+    import csv
+    try:
+        import yaml
+        _has_yaml = True
+    except ImportError:
+        _has_yaml = False
+
+    try:
+        kit = Path(output_dir)
+        charts_dir = kit / 'charts'
+        charts_png_dir = kit / 'charts-png'
+        tables_dir = kit / 'tables'
+        text_dir = kit / 'text'
+
+        for d in [charts_dir, charts_png_dir, tables_dir, text_dir]:
+            d.mkdir(parents=True, exist_ok=True)
+
+        date_range = ga_data['date_range']
+        totals = ga_data['totals']
+        changes = ga_data['changes']
+
+        # ── 1. Charts (SVG + PNG) ──
+        chart_funcs = [
+            ('traffic_trends', create_traffic_trend_chart),
+            ('traffic_sources', create_traffic_sources_chart),
+            ('device_breakdown', create_device_breakdown_chart),
+            ('geo_country', create_geo_country_chart),
+            ('geo_region', create_geo_region_chart),
+            ('geo_city', create_geo_city_scatter),
+            ('geo_continent', create_continent_donut_chart),
+        ]
+        if ga_data.get('prior_daily_data', {}).get('sessions'):
+            chart_funcs.append(('period_comparison', create_period_comparison_chart))
+
+        for name, func in chart_funcs:
+            chart_path = func(ga_data, vector_export_path=str(charts_dir / f'{name}.svg'))
+            if chart_path and Path(chart_path).exists():
+                import shutil
+                shutil.copy2(chart_path, charts_png_dir / f'{name}.png')
+
+        # ── 2. Tables (CSV) ──
+        # Daily performance
+        daily = ga_data['daily_data']
+        with open(tables_dir / 'daily_performance.csv', 'w', newline='') as f:
+            w = csv.writer(f)
+            w.writerow(['Date', 'Sessions', 'Users', 'Pageviews', 'Bounce Rate (%)', 'Avg Duration (s)'])
+            for i in range(len(daily['dates'])):
+                w.writerow([daily['dates'][i], daily['sessions'][i], daily['users'][i],
+                            daily['pageviews'][i], f"{daily['bounce_rate'][i]:.1f}",
+                            f"{daily['avg_duration'][i]:.0f}"])
+
+        # Traffic sources
+        with open(tables_dir / 'traffic_sources.csv', 'w', newline='') as f:
+            w = csv.writer(f)
+            w.writerow(['Source', 'Medium', 'Sessions', 'Users', 'Bounce Rate (%)', 'Avg Duration (s)'])
+            for src in sorted(ga_data['traffic_sources'], key=lambda x: x['sessions'], reverse=True):
+                w.writerow([src['source'], src['medium'], src['sessions'], src['users'],
+                            f"{src['bounce_rate']:.1f}", f"{src['avg_duration']:.1f}"])
+
+        # Top pages
+        with open(tables_dir / 'top_pages.csv', 'w', newline='') as f:
+            w = csv.writer(f)
+            w.writerow(['Page', 'Pageviews', 'Unique Views', 'Avg Time (s)', 'Bounce Rate (%)', 'Exit Rate (%)'])
+            for p in ga_data['top_pages']:
+                w.writerow([p['page'], p['pageviews'], p['unique_views'],
+                            f"{p['avg_time']:.1f}", f"{p['bounce_rate']:.1f}", f"{p['exit_rate']:.1f}"])
+
+        # Geographic data
+        with open(tables_dir / 'geographic.csv', 'w', newline='') as f:
+            w = csv.writer(f)
+            w.writerow(['Country', 'Region', 'City', 'Continent', 'Sessions', 'Users'])
+            for loc in sorted(ga_data['geo_data'], key=lambda x: x.get('sessions', 0), reverse=True):
+                w.writerow([loc.get('country', ''), loc.get('region', ''), loc.get('city', ''),
+                            loc.get('continent', ''), loc.get('sessions', 0), loc.get('users', 0)])
+
+        # Device breakdown
+        with open(tables_dir / 'devices.csv', 'w', newline='') as f:
+            w = csv.writer(f)
+            w.writerow(['Device', 'Sessions', 'Bounce Rate (%)'])
+            for d in ga_data['devices']:
+                w.writerow([d['device'], d['sessions'], f"{d['bounce_rate']:.1f}"])
+
+        # KPI summary
+        with open(tables_dir / 'kpi_summary.csv', 'w', newline='') as f:
+            w = csv.writer(f)
+            w.writerow(['Metric', 'Value', 'Change vs Prior (%)'])
+            w.writerow(['Sessions', totals['sessions'], f"{changes['sessions']:+.1f}"])
+            w.writerow(['Users', totals['users'], f"{changes['users']:+.1f}"])
+            w.writerow(['Pageviews', totals['pageviews'], f"{changes.get('pageviews', 0):+.1f}"])
+            w.writerow(['Avg Bounce Rate', f"{totals['avg_bounce_rate']:.1f}%", f"{changes['bounce_rate']:+.1f}"])
+            w.writerow(['Avg Session Duration', f"{totals['avg_session_duration']:.0f}s", f"{changes['duration']:+.1f}"])
+            w.writerow(['Pages per Session', f"{totals['pages_per_session']:.2f}", ""])
+
+        # Period comparison (if available)
+        prior = ga_data.get('prior_period')
+        if prior:
+            with open(tables_dir / 'period_comparison.csv', 'w', newline='') as f:
+                w = csv.writer(f)
+                w.writerow(['Metric', 'Current Period', 'Prior Period', 'Change'])
+                w.writerow(['Sessions', totals['sessions'], prior.get('sessions', 0), f"{changes['sessions']:+.1f}%"])
+                w.writerow(['Users', totals['users'], prior.get('users', 0), f"{changes['users']:+.1f}%"])
+                w.writerow(['Bounce Rate', f"{totals['avg_bounce_rate']:.1f}%",
+                            f"{prior.get('avg_bounce_rate', 0):.1f}%", f"{changes['bounce_rate']:+.1f} pts"])
+                w.writerow(['Avg Duration', f"{totals['avg_session_duration']:.0f}s",
+                            f"{prior.get('avg_session_duration', 0):.0f}s", f"{changes['duration']:+.1f}%"])
+
+        # Longitudinal / YoY
+        longitudinal = ga_data.get('longitudinal', {})
+        if longitudinal:
+            with open(tables_dir / 'year_over_year.csv', 'w', newline='') as f:
+                w = csv.writer(f)
+                w.writerow(['Year', 'Sessions', 'Users', 'Pageviews'])
+                for year in sorted(longitudinal.keys()):
+                    yd = longitudinal[year]
+                    w.writerow([year, yd['sessions'], yd['users'], yd['pageviews']])
+
+        # ── 3. Report text (Markdown) ──
+        insights = generate_insights(ga_data)
+        recommendations = generate_recommendations(ga_data)
+
+        lines = [
+            f"# {client_name}",
+            f"## Google Analytics Performance Report",
+            f"",
+            f"**Date Range:** {date_range['start']} to {date_range['end']}",
+            f"**Prepared by:** {prepared_by}",
+            f"",
+            f"---",
+            f"",
+            f"## Executive Summary",
+            f"",
+            f"| Metric | Value | Change vs Prior |",
+            f"|--------|-------|-----------------|",
+            f"| Sessions | {totals['sessions']:,} | {changes['sessions']:+.1f}% |",
+            f"| Users | {totals['users']:,} | {changes['users']:+.1f}% |",
+            f"| Pageviews | {totals['pageviews']:,} | {changes.get('pageviews', 0):+.1f}% |",
+            f"| Bounce Rate | {totals['avg_bounce_rate']:.1f}% | {changes['bounce_rate']:+.1f} pts |",
+            f"| Avg Duration | {totals['avg_session_duration']:.0f}s | {changes['duration']:+.1f}% |",
+            f"| Pages/Session | {totals['pages_per_session']:.2f} | |",
+            f"",
+        ]
+
+        best_day = ga_data.get('best_day')
+        worst_day = ga_data.get('worst_day')
+        if best_day:
+            lines.append(f"**Best Day:** {best_day['date']} ({best_day['sessions']:,} sessions)")
+        if worst_day:
+            lines.append(f"**Lowest Day:** {worst_day['date']} ({worst_day['sessions']:,} sessions)")
+        lines.append("")
+
+        lines.append("## Key Insights")
+        lines.append("")
+        for insight in insights:
+            lines.append(f"- {insight}")
+        lines.append("")
+
+        lines.append("## Recommendations")
+        lines.append("")
+        for i, rec in enumerate(recommendations, 1):
+            lines.append(f"{i}. {rec}")
+        lines.append("")
+
+        lines.append("---")
+        lines.append("")
+        lines.append("## Chart Inventory")
+        lines.append("")
+        lines.append("| File | Description |")
+        lines.append("|------|-------------|")
+        lines.append("| traffic_trends | Daily sessions and users over the date range |")
+        lines.append("| traffic_sources | Top traffic sources (organic, direct, social, etc.) |")
+        lines.append("| device_breakdown | Desktop vs mobile vs tablet split |")
+        lines.append("| geo_country | Sessions by country |")
+        lines.append("| geo_region | Sessions by state/region |")
+        lines.append("| geo_city | City-level session distribution |")
+        lines.append("| geo_continent | Continental traffic breakdown |")
+        if ga_data.get('prior_daily_data', {}).get('sessions'):
+            lines.append("| period_comparison | Current vs prior period daily overlay |")
+        lines.append("")
+        lines.append("Charts are available as SVG (vector, editable) in `charts/` and PNG (raster, 300 DPI) in `charts-png/`.")
+
+        with open(text_dir / 'report_text.md', 'w') as f:
+            f.write('\n'.join(lines))
+
+        # ── 4. Metadata (YAML or plain text) ──
+        metadata = {
+            'client_name': client_name,
+            'prepared_by': prepared_by,
+            'branding_key': branding_key,
+            'date_range': {'start': date_range['start'], 'end': date_range['end']},
+            'totals': {
+                'sessions': int(totals['sessions']),
+                'users': int(totals['users']),
+                'pageviews': int(totals['pageviews']),
+                'avg_bounce_rate': float(round(totals['avg_bounce_rate'], 1)),
+                'avg_session_duration': float(round(totals['avg_session_duration'], 0)),
+                'pages_per_session': float(round(totals['pages_per_session'], 2)),
+            },
+            'changes_vs_prior': {
+                'sessions': float(round(changes['sessions'], 1)),
+                'users': float(round(changes['users'], 1)),
+                'pageviews': float(round(changes.get('pageviews', 0), 1)),
+                'bounce_rate': float(round(changes['bounce_rate'], 1)),
+                'duration': float(round(changes['duration'], 1)),
+            },
+            'chart_files': [name for name, _ in chart_funcs],
+            'table_files': [f.name for f in sorted(tables_dir.glob('*.csv'))],
+        }
+
+        if _has_yaml:
+            with open(kit / 'metadata.yaml', 'w') as f:
+                yaml.dump(metadata, f, default_flow_style=False, sort_keys=False)
+        else:
+            # Fallback: write as readable text
+            with open(kit / 'metadata.txt', 'w') as f:
+                for k, v in metadata.items():
+                    if isinstance(v, dict):
+                        f.write(f"\n{k}:\n")
+                        for kk, vv in v.items():
+                            f.write(f"  {kk}: {vv}\n")
+                    elif isinstance(v, list):
+                        f.write(f"\n{k}:\n")
+                        for item in v:
+                            f.write(f"  - {item}\n")
+                    else:
+                        f.write(f"{k}: {v}\n")
+
+        log.info(f"Design kit exported: {kit}")
+        return True
+
+    except Exception as e:
+        log.error(f"Error exporting design kit: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 def main():
     """Main demonstration function."""
     print("=" * 80)
