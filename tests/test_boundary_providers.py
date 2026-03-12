@@ -1,0 +1,175 @@
+"""Tests for siege_utilities.geo.boundary_providers."""
+
+from __future__ import annotations
+
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from siege_utilities.geo.boundary_providers import (
+    BoundaryProvider,
+    CensusTIGERProvider,
+    GADMProvider,
+    resolve_boundary_provider,
+)
+
+
+# ---------------------------------------------------------------------------
+# ABC contract
+# ---------------------------------------------------------------------------
+
+
+class TestBoundaryProviderABC:
+    """BoundaryProvider cannot be instantiated directly."""
+
+    def test_cannot_instantiate(self):
+        with pytest.raises(TypeError):
+            BoundaryProvider()
+
+    def test_subclass_must_implement(self):
+        """A subclass that omits required methods cannot be instantiated."""
+
+        class Incomplete(BoundaryProvider):
+            pass
+
+        with pytest.raises(TypeError):
+            Incomplete()
+
+
+# ---------------------------------------------------------------------------
+# CensusTIGERProvider
+# ---------------------------------------------------------------------------
+
+
+class TestCensusTIGERProvider:
+    def test_provider_name(self):
+        provider = CensusTIGERProvider()
+        assert provider.provider_name == 'Census TIGER/Line'
+
+    def test_is_available(self):
+        provider = CensusTIGERProvider()
+        assert provider.is_available() is True
+
+    def test_list_levels_returns_sorted_canonical_levels(self):
+        provider = CensusTIGERProvider()
+        levels = provider.list_levels()
+        assert isinstance(levels, list)
+        assert len(levels) > 0
+        assert levels == sorted(levels)
+        # Spot-check a few expected entries
+        for expected in ('state', 'county', 'tract', 'block_group', 'zcta', 'cd'):
+            assert expected in levels
+
+    @patch('siege_utilities.geo.boundary_providers.CensusTIGERProvider.get_boundary')
+    def test_get_boundary_delegates(self, mock_get):
+        """get_boundary forwards to get_census_boundaries."""
+        sentinel = MagicMock(name='gdf')
+        mock_get.return_value = sentinel
+
+        provider = CensusTIGERProvider()
+        result = provider.get_boundary('county', identifier='06')
+        mock_get.assert_called_once_with('county', identifier='06')
+        assert result is sentinel
+
+    @patch('siege_utilities.geo.spatial_data.get_census_boundaries')
+    def test_get_boundary_passes_kwargs(self, mock_gcb):
+        """Extra kwargs (e.g. year) are forwarded."""
+        mock_gcb.return_value = MagicMock(name='gdf')
+        provider = CensusTIGERProvider()
+        provider.get_boundary('tract', identifier='36', year=2020)
+        mock_gcb.assert_called_once_with(
+            geographic_level='tract', state_fips='36', year=2020,
+        )
+
+
+# ---------------------------------------------------------------------------
+# GADMProvider
+# ---------------------------------------------------------------------------
+
+
+class TestGADMProvider:
+    def test_provider_name(self):
+        provider = GADMProvider()
+        assert provider.provider_name == 'GADM'
+
+    def test_list_levels(self):
+        provider = GADMProvider()
+        levels = provider.list_levels()
+        assert levels == ['country', 'admin1', 'admin2', 'admin3']
+
+    def test_is_available_when_geopandas_present(self):
+        provider = GADMProvider()
+        # geopandas is installed in this test environment
+        assert provider.is_available() is True
+
+    def test_is_available_when_geopandas_missing(self):
+        with patch.dict('sys.modules', {'geopandas': None}):
+            provider = GADMProvider()
+            # Importing geopandas will raise ImportError when module is None
+            assert provider.is_available() is False
+
+    @patch('geopandas.read_file')
+    def test_get_boundary_builds_correct_url(self, mock_read):
+        mock_read.return_value = MagicMock(name='gdf')
+        provider = GADMProvider()
+        provider.get_boundary('admin1', country_code='DEU')
+        url = mock_read.call_args[0][0]
+        assert 'DEU' in url
+        assert '_1.json' in url
+
+    @patch('geopandas.read_file')
+    def test_get_boundary_identifier_as_country_code(self, mock_read):
+        """identifier parameter works as country_code."""
+        mock_read.return_value = MagicMock(name='gdf')
+        provider = GADMProvider()
+        provider.get_boundary('country', identifier='FRA')
+        url = mock_read.call_args[0][0]
+        assert 'FRA' in url
+        assert '_0.json' in url
+
+    def test_get_boundary_missing_country_raises(self):
+        provider = GADMProvider()
+        with pytest.raises(ValueError, match='country_code'):
+            provider.get_boundary('admin1')
+
+    def test_get_boundary_invalid_level_raises(self):
+        provider = GADMProvider()
+        with pytest.raises(ValueError, match='Unknown GADM level'):
+            provider.get_boundary('province', country_code='DEU')
+
+
+# ---------------------------------------------------------------------------
+# Factory: resolve_boundary_provider
+# ---------------------------------------------------------------------------
+
+
+class TestResolveBoundaryProvider:
+    def test_us_returns_census_tiger(self):
+        provider = resolve_boundary_provider('US')
+        assert isinstance(provider, CensusTIGERProvider)
+
+    def test_usa_returns_census_tiger(self):
+        provider = resolve_boundary_provider('USA')
+        assert isinstance(provider, CensusTIGERProvider)
+
+    def test_us_territory_returns_census_tiger(self):
+        for code in ('PR', 'GU', 'VI', 'AS', 'MP'):
+            provider = resolve_boundary_provider(code)
+            assert isinstance(provider, CensusTIGERProvider), f'Failed for {code}'
+
+    def test_case_insensitive(self):
+        provider = resolve_boundary_provider('us')
+        assert isinstance(provider, CensusTIGERProvider)
+
+    def test_international_returns_gadm(self):
+        provider = resolve_boundary_provider('DE')
+        assert isinstance(provider, GADMProvider)
+
+    def test_default_is_us(self):
+        provider = resolve_boundary_provider()
+        assert isinstance(provider, CensusTIGERProvider)
+
+    def test_gadm_kwargs_forwarded(self):
+        provider = resolve_boundary_provider('FR', version='3.6')
+        assert isinstance(provider, GADMProvider)
+        assert provider._version == '3.6'

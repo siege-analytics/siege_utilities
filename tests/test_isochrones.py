@@ -5,12 +5,17 @@ import requests
 
 from siege_utilities.geo.isochrones import (
     DEFAULT_ORS_BASE_URL,
+    DEFAULT_VALHALLA_BASE_URL,
     IsochroneError,
     IsochroneNetworkError,
+    IsochroneProvider,
     IsochroneProviderError,
     IsochroneRequest,
+    OpenRouteServiceProvider,
+    ValhallaProvider,
     build_isochrone_request,
     get_isochrone,
+    get_provider,
     isochrone_to_geodataframe,
 )
 
@@ -508,3 +513,226 @@ class TestIsochroneToGeoDataFrame:
         }
         gdf = isochrone_to_geodataframe(geojson)
         assert gdf.crs.to_epsg() == 4326
+
+
+# ---------------------------------------------------------------------------
+# JSON snapshot fixture — known ORS response
+# ---------------------------------------------------------------------------
+
+ORS_SNAPSHOT = {
+    "type": "FeatureCollection",
+    "bbox": [-87.6543, 41.8567, -87.6012, 41.8998],
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [-87.6298, 41.8998],
+                        [-87.6012, 41.8781],
+                        [-87.6298, 41.8567],
+                        [-87.6543, 41.8781],
+                        [-87.6298, 41.8998],
+                    ]
+                ],
+            },
+            "properties": {
+                "group_index": 0,
+                "value": 900.0,
+                "center": [-87.6298, 41.8781],
+            },
+        }
+    ],
+    "metadata": {
+        "attribution": "openrouteservice.org | OpenStreetMap contributors",
+        "service": "isochrones",
+        "query": {
+            "locations": [[-87.6298, 41.8781]],
+            "range": [900],
+            "profile": "driving-car",
+        },
+    },
+}
+
+
+class TestORSSnapshot:
+    """Regression tests using a known ORS response snapshot."""
+
+    def test_snapshot_parses_to_geodataframe(self):
+        """Snapshot produces a one-row GeoDataFrame with expected columns."""
+        try:
+            import geopandas  # noqa: F401
+        except ImportError:
+            pytest.skip("geopandas not available")
+
+        gdf = isochrone_to_geodataframe(ORS_SNAPSHOT)
+        assert len(gdf) == 1
+        assert gdf.crs.to_epsg() == 4326
+        assert "geometry" in gdf.columns
+        assert "value" in gdf.columns
+        assert "group_index" in gdf.columns
+        assert "center" in gdf.columns
+
+    def test_snapshot_value_matches(self):
+        """The ``value`` property (travel time in seconds) is preserved."""
+        try:
+            import geopandas  # noqa: F401
+        except ImportError:
+            pytest.skip("geopandas not available")
+
+        gdf = isochrone_to_geodataframe(ORS_SNAPSHOT)
+        assert gdf.iloc[0]["value"] == 900.0
+
+    def test_snapshot_geometry_is_polygon(self):
+        """The geometry is a valid Polygon."""
+        try:
+            import geopandas  # noqa: F401
+            from shapely.geometry import Polygon
+        except ImportError:
+            pytest.skip("geopandas/shapely not available")
+
+        gdf = isochrone_to_geodataframe(ORS_SNAPSHOT)
+        geom = gdf.iloc[0].geometry
+        assert isinstance(geom, Polygon)
+        assert geom.is_valid
+
+
+# ---------------------------------------------------------------------------
+# Provider architecture
+# ---------------------------------------------------------------------------
+
+
+class TestIsochroneProviderABC:
+    """Tests for the abstract base class itself."""
+
+    def test_cannot_instantiate_abc(self):
+        with pytest.raises(TypeError):
+            IsochroneProvider()  # type: ignore[abstract]
+
+    def test_abc_defines_required_methods(self):
+        abstract_methods = IsochroneProvider.__abstractmethods__
+        assert "fetch" in abstract_methods
+        assert "validate_config" in abstract_methods
+        assert "provider_name" in abstract_methods
+
+
+class TestOpenRouteServiceProvider:
+    def test_instantiation_defaults(self):
+        p = OpenRouteServiceProvider()
+        assert p.provider_name == "openrouteservice"
+        assert p.base_url == DEFAULT_ORS_BASE_URL
+        assert p.api_key is None
+
+    def test_instantiation_with_params(self):
+        p = OpenRouteServiceProvider(
+            api_key="test-key",
+            base_url="https://ors.local",
+            timeout_seconds=10,
+            max_retries=1,
+        )
+        assert p.api_key == "test-key"
+        assert p.base_url == "https://ors.local"
+        assert p.timeout_seconds == 10
+        assert p.max_retries == 1
+
+    def test_validate_config_hosted_needs_key(self):
+        """Hosted ORS (default URL) requires an API key."""
+        assert not OpenRouteServiceProvider().validate_config()
+        assert OpenRouteServiceProvider(api_key="k").validate_config()
+
+    def test_validate_config_selfhosted_no_key_needed(self):
+        """Self-hosted ORS does not require an API key."""
+        p = OpenRouteServiceProvider(base_url="https://ors.internal")
+        assert p.validate_config()
+
+    def test_is_isochrone_provider(self):
+        assert isinstance(OpenRouteServiceProvider(), IsochroneProvider)
+
+    def test_fetch_delegates_to_get_isochrone(self, monkeypatch):
+        """Fetch delegates to the function-based get_isochrone."""
+        captured = {}
+
+        def _fake_get_isochrone(**kwargs):
+            captured.update(kwargs)
+            return {"type": "FeatureCollection", "features": []}
+
+        monkeypatch.setattr(
+            "siege_utilities.geo.isochrones.get_isochrone", _fake_get_isochrone
+        )
+        p = OpenRouteServiceProvider(api_key="abc", base_url="https://ors.test")
+        result = p.fetch(41.8781, -87.6298, 15, profile="foot-walking")
+
+        assert result["type"] == "FeatureCollection"
+        assert captured["latitude"] == 41.8781
+        assert captured["longitude"] == -87.6298
+        assert captured["travel_time_minutes"] == 15
+        assert captured["provider"] == "openrouteservice"
+        assert captured["api_key"] == "abc"
+        assert captured["profile"] == "foot-walking"
+
+
+class TestValhallaProvider:
+    def test_instantiation_defaults(self):
+        p = ValhallaProvider()
+        assert p.provider_name == "valhalla"
+        assert p.base_url == DEFAULT_VALHALLA_BASE_URL
+
+    def test_instantiation_with_params(self):
+        p = ValhallaProvider(
+            base_url="http://valhalla.local:8002",
+            timeout_seconds=15,
+        )
+        assert p.base_url == "http://valhalla.local:8002"
+        assert p.timeout_seconds == 15
+
+    def test_validate_config(self):
+        assert ValhallaProvider().validate_config()
+        assert ValhallaProvider(base_url="http://v.local").validate_config()
+
+    def test_is_isochrone_provider(self):
+        assert isinstance(ValhallaProvider(), IsochroneProvider)
+
+    def test_fetch_delegates_to_get_isochrone(self, monkeypatch):
+        captured = {}
+
+        def _fake_get_isochrone(**kwargs):
+            captured.update(kwargs)
+            return {"type": "FeatureCollection", "features": []}
+
+        monkeypatch.setattr(
+            "siege_utilities.geo.isochrones.get_isochrone", _fake_get_isochrone
+        )
+        p = ValhallaProvider(base_url="http://v.test:8002")
+        result = p.fetch(30.2672, -97.7431, 20)
+
+        assert result["type"] == "FeatureCollection"
+        assert captured["provider"] == "valhalla"
+        assert captured["base_url"] == "http://v.test:8002"
+        assert captured["travel_time_minutes"] == 20
+
+
+class TestGetProviderFactory:
+    def test_ors_shorthand(self):
+        p = get_provider("ors", api_key="k")
+        assert isinstance(p, OpenRouteServiceProvider)
+        assert p.api_key == "k"
+
+    def test_openrouteservice_full_name(self):
+        p = get_provider("openrouteservice")
+        assert isinstance(p, OpenRouteServiceProvider)
+
+    def test_valhalla(self):
+        p = get_provider("valhalla", base_url="http://v.local")
+        assert isinstance(p, ValhallaProvider)
+        assert p.base_url == "http://v.local"
+
+    def test_unknown_provider_raises(self):
+        with pytest.raises(ValueError, match="provider must be one of"):
+            get_provider("mapbox")
+
+    def test_kwargs_forwarded(self):
+        p = get_provider("ors", api_key="key", timeout_seconds=5, max_retries=1)
+        assert p.api_key == "key"
+        assert p.timeout_seconds == 5
+        assert p.max_retries == 1

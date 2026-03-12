@@ -42,7 +42,12 @@ class GoogleAccountRegistry:
     def remove(self, google_account_id: str) -> bool:
         """Remove a Google account by ID. Returns True if found."""
         if google_account_id in self._accounts:
+            removed_default = self._accounts[google_account_id].is_default
             del self._accounts[google_account_id]
+            if removed_default and self._accounts:
+                # Keep invariant: one default account when registry is non-empty.
+                first_key = sorted(self._accounts.keys())[0]
+                self.set_default(first_key)
             return True
         return False
 

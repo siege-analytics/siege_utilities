@@ -299,13 +299,20 @@ class Person(BaseModel):
             for a in self.google_accounts:
                 a.is_default = False
         self.google_accounts.append(account)
+        # Ensure we always have a default if any account exists.
+        if not any(a.is_default for a in self.google_accounts):
+            self.google_accounts[0].is_default = True
         self.last_updated = datetime.now()
 
     def remove_google_account(self, google_account_id: str) -> bool:
         """Remove a Google account by ID."""
         for i, a in enumerate(self.google_accounts):
             if a.google_account_id == google_account_id:
+                removed_default = a.is_default
                 del self.google_accounts[i]
+                if removed_default and self.google_accounts:
+                    # Promote first remaining account as default.
+                    self.google_accounts[0].is_default = True
                 self.last_updated = datetime.now()
                 return True
         return False

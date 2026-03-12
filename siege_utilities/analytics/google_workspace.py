@@ -275,6 +275,19 @@ class GoogleWorkspaceClient:
                 return cls.from_service_account(
                     service_account_file=ref, scopes=scopes
                 )
+            if ref:
+                # Treat non-file refs as account-specific 1Password item titles.
+                from siege_utilities.config.credential_manager import (
+                    get_google_service_account_from_1password,
+                )
+                data = get_google_service_account_from_1password(item_title=ref)
+                if data:
+                    return cls.from_service_account(
+                        service_account_data=data, scopes=scopes
+                    )
+                raise ValueError(
+                    f"Could not resolve service account credentials for ref '{ref}'"
+                )
             # Fall back to 1Password
             return cls.from_service_account(scopes=scopes)
 

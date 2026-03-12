@@ -39,6 +39,7 @@ setup(
             "geopy>=2.4.1", "rtree>=1.0.0", "mapclassify>=2.5.0", "tobler>=0.11.0",
             "osmnx>=1.9.4", "pysal>=24.1", "censusgeocode>=0.5.2",
         ],
+        "h3": ["h3>=4.0.0"],
         "databricks": ["databricks-sdk>=0.20.0"],
         "reporting": [
             "matplotlib>=3.7.5", "seaborn>=0.13.2", "folium>=0.18.0", "branca>=0.5.0",
@@ -93,6 +94,8 @@ setup(
             "scipy>=1.11.0", "scikit-learn>=1.3.0",
             "facebook-business>=20.0.0", "datadotworld>=1.7.0",
             "snowflake-connector-python>=3.0.0",
+            # h3
+            "h3>=4.0.0",
             # databricks
             "databricks-sdk>=0.20.0",
             # distributed
