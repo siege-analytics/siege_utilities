@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.10.0] - 2026-03-11
+
+### Added
+- **Vector chart export** — `ChartGenerator.save_figure_as_vector()` for SVG/EPS/PDF output.
+  All 7 GA report chart functions gained `vector_export_path` parameter; `generate_ga_report_pdf()`
+  gained `vector_export_dir` for batch SVG export (designer handoff for InDesign/Illustrator).
+- **Period-over-period comparison** (su#304) — `create_period_comparison_chart()` overlays
+  current vs prior period daily sessions with fill_between shading and change annotation.
+  Prior daily data added to both `generate_sample_ga_data()` and `fetch_real_ga4_data()`.
+- **Report cosmetic enhancements** (su#305) — GA term definitions footnote system after KPI
+  and traffic tables, cover page logo support (`client_logo_path`/`company_logo_path`),
+  dynamic section numbering across all report sections.
+- **Raster chart export** — `generate_ga_report_pdf()` gained `raster_export_dir` parameter
+  to save high-resolution PNG copies (300 DPI) of all 8 charts for presentations and web use.
+- **Design kit export** — `export_design_kit()` produces a complete InDesign handoff package:
+  SVG vector charts, PNG raster charts, CSV data tables, report narrative markdown, and
+  metadata YAML with KPIs and file inventory.
+- **SVG logo support** — Cover page logo auto-converts SVG to PNG via `cairosvg` for
+  ReportLab compatibility (graceful fallback if cairosvg not installed).
+
+### Fixed
+- **GA4 API response parsing** (su#302, PR #299) — `dimension_headers`/`metric_headers`
+  now read from the Response object (not Row objects). Metric columns coerced to numeric
+  via `pd.to_numeric()` to fix `nlargest`/aggregation on string-typed values.
+
+### Tests
+- **GA4 connector tests** (PR #301) — 7 unit tests covering response parsing, numeric
+  coercion, empty responses, dimensions-only, metrics-only, and unauthenticated state.
+
 ## [3.9.1] - 2026-03-10
 
 ### Fixed

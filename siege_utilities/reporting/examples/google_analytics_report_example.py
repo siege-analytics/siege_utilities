@@ -340,6 +340,11 @@ def generate_sample_ga_data(start_date: datetime, end_date: datetime) -> Dict[st
     prior_bounce = avg_bounce_rate + 3.2
     prior_duration = avg_session_duration * 0.92
 
+    # Generate prior period daily data for comparison charts
+    prior_dates = [start_date - timedelta(days=days) + timedelta(days=i) for i in range(days)]
+    prior_daily_sessions = [max(10, int(s * 0.9 + np.random.randint(-20, 20))) for s in daily_sessions]
+    prior_daily_users = [max(5, int(u * 0.88 + np.random.randint(-15, 15))) for u in daily_users]
+
     # Best/worst day analysis
     best_day_idx = daily_sessions.index(max(daily_sessions))
     worst_day_idx = daily_sessions.index(min(daily_sessions))
@@ -397,6 +402,11 @@ def generate_sample_ga_data(start_date: datetime, end_date: datetime) -> Dict[st
             'avg_bounce_rate': prior_bounce,
             'avg_session_duration': prior_duration,
         },
+        'prior_daily_data': {
+            'dates': [d.strftime('%Y-%m-%d') for d in prior_dates],
+            'sessions': prior_daily_sessions,
+            'users': prior_daily_users,
+        },
         'changes': {
             'users': ((total_users - prior_users) / prior_users) * 100,
             'sessions': ((total_sessions - prior_sessions) / prior_sessions) * 100,
@@ -434,11 +444,13 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
                         credential_item_name: str = "Google Analytics Service Account - Multi-Client Reporter",
                         vault: Optional[str] = None,
                         account: Optional[str] = None,
+                        service_account_data: Optional[Dict[str, Any]] = None,
                         ) -> Optional[Dict[str, Any]]:
     """
-    Fetch real GA4 data using GoogleAnalyticsConnector with 1Password credentials.
+    Fetch real GA4 data using GoogleAnalyticsConnector.
 
-    Tries service account auth first, then falls back to OAuth2 credentials.
+    If service_account_data is provided, uses it directly. Otherwise tries
+    1Password (service account first, then OAuth2 fallback).
     Returns the same dict structure as generate_sample_ga_data() so notebook code
     works identically with either data source.
 
@@ -465,15 +477,23 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
     try:
         connector = None
 
-        # Strategy 1: Try service account credentials from 1Password
-        service_account_data = get_google_service_account_from_1password(
-            item_title=credential_item_name, vault=vault, account=account,
-        )
+        # Strategy 0: Use provided service account data directly
         if service_account_data:
             connector = GoogleAnalyticsConnector(
                 auth_method="service_account",
                 service_account_data=service_account_data,
             )
+
+        # Strategy 1: Try service account credentials from 1Password
+        if connector is None:
+            sa_data = get_google_service_account_from_1password(
+                item_title=credential_item_name, vault=vault, account=account,
+            )
+            if sa_data:
+                connector = GoogleAnalyticsConnector(
+                    auth_method="service_account",
+                    service_account_data=sa_data,
+                )
 
         # Strategy 2: Try OAuth2 credentials from 1Password
         if connector is None:
@@ -639,10 +659,21 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
             dimensions=["date"]
         )
 
-        prior_sessions = int(prior_df['sessions'].sum()) if prior_df is not None else int(total_sessions / 1.08)
-        prior_users = int(prior_df['totalUsers'].sum()) if prior_df is not None else int(total_users / 1.10)
-        prior_bounce = float(prior_df['bounceRate'].mean()) if prior_df is not None else avg_bounce + 3.2
-        prior_duration = float(prior_df['averageSessionDuration'].mean()) if prior_df is not None else avg_duration * 0.92
+        prior_has_data = prior_df is not None and not prior_df.empty
+        prior_sessions = int(prior_df['sessions'].sum()) if prior_has_data else int(total_sessions / 1.08)
+        prior_users = int(prior_df['totalUsers'].sum()) if prior_has_data else int(total_users / 1.10)
+        prior_bounce = float(prior_df['bounceRate'].mean()) if prior_has_data else avg_bounce + 3.2
+        prior_duration = float(prior_df['averageSessionDuration'].mean()) if prior_has_data else avg_duration * 0.92
+
+        # Extract prior daily data for comparison charts
+        prior_daily_dates = []
+        prior_daily_sessions_list = []
+        prior_daily_users_list = []
+        if prior_has_data and 'date' in prior_df.columns:
+            prior_sorted = prior_df.sort_values('date')
+            prior_daily_dates = prior_sorted['date'].tolist()
+            prior_daily_sessions_list = prior_sorted['sessions'].astype(int).tolist()
+            prior_daily_users_list = prior_sorted['totalUsers'].astype(int).tolist()
 
         # Longitudinal data (fetch yearly totals)
         current_year = end_dt.year
@@ -691,6 +722,11 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
                 'sessions': prior_sessions,
                 'avg_bounce_rate': prior_bounce,
                 'avg_session_duration': prior_duration,
+            },
+            'prior_daily_data': {
+                'dates': prior_daily_dates,
+                'sessions': prior_daily_sessions_list,
+                'users': prior_daily_users_list,
             },
             'changes': {
                 'users': ((total_users - prior_users) / prior_users * 100) if prior_users else 0,
@@ -779,8 +815,19 @@ def create_kpi_dashboard(ga_data: Dict[str, Any]) -> List[Flowable]:
 
 
 def create_traffic_trend_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
-                                height: float = 3.5*inch) -> Optional[str]:
-    """Create a line chart showing traffic trends over time."""
+                                height: float = 3.5*inch,
+                                vector_export_path: Optional[str] = None) -> Optional[str]:
+    """Create a line chart showing traffic trends over time.
+
+    Args:
+        ga_data: Google Analytics data dictionary.
+        width: Chart width in points.
+        height: Chart height in points.
+        vector_export_path: If provided, save an SVG copy to this path.
+
+    Returns:
+        Path to the temporary PNG file, or ``None`` if matplotlib unavailable.
+    """
     if not MATPLOTLIB_AVAILABLE:
         return None
 
@@ -807,6 +854,11 @@ def create_traffic_trend_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
     plt.tight_layout()
 
+    # Save vector copy before closing
+    if vector_export_path:
+        fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+
     # Save to temporary file
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
         plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
@@ -815,8 +867,19 @@ def create_traffic_trend_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
 
 def create_traffic_sources_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
-                                  height: float = 3.5*inch) -> Optional[str]:
-    """Create a pie chart of traffic sources."""
+                                  height: float = 3.5*inch,
+                                  vector_export_path: Optional[str] = None) -> Optional[str]:
+    """Create a pie chart of traffic sources.
+
+    Args:
+        ga_data: Google Analytics data dictionary.
+        width: Chart width in points.
+        height: Chart height in points.
+        vector_export_path: If provided, save an SVG copy to this path.
+
+    Returns:
+        Path to the temporary PNG file, or ``None`` if matplotlib unavailable.
+    """
     if not MATPLOTLIB_AVAILABLE:
         return None
 
@@ -837,6 +900,10 @@ def create_traffic_sources_chart(ga_data: Dict[str, Any], width: float = 5.5*inc
 
     plt.tight_layout()
 
+    if vector_export_path:
+        fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
         plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
         plt.close()
@@ -844,8 +911,19 @@ def create_traffic_sources_chart(ga_data: Dict[str, Any], width: float = 5.5*inc
 
 
 def create_device_breakdown_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
-                                   height: float = 3.5*inch) -> Optional[str]:
-    """Create a horizontal bar chart for device breakdown."""
+                                   height: float = 3.5*inch,
+                                   vector_export_path: Optional[str] = None) -> Optional[str]:
+    """Create a horizontal bar chart for device breakdown.
+
+    Args:
+        ga_data: Google Analytics data dictionary.
+        width: Chart width in points.
+        height: Chart height in points.
+        vector_export_path: If provided, save an SVG copy to this path.
+
+    Returns:
+        Path to the temporary PNG file, or ``None`` if matplotlib unavailable.
+    """
     if not MATPLOTLIB_AVAILABLE:
         return None
 
@@ -865,6 +943,10 @@ def create_device_breakdown_chart(ga_data: Dict[str, Any], width: float = 5.5*in
                 f'{val:,}', va='center', fontsize=8)
 
     plt.tight_layout()
+
+    if vector_export_path:
+        fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
 
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
         plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
@@ -931,7 +1013,8 @@ def create_geo_table(ga_data: Dict[str, Any]) -> List[List[str]]:
 
 
 def create_geo_country_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
-                              height: float = 3.5*inch) -> Optional[str]:
+                              height: float = 3.5*inch,
+                              vector_export_path: Optional[str] = None) -> Optional[str]:
     """
     Create a country-level geographic chart.
 
@@ -983,6 +1066,9 @@ def create_geo_country_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
                 ax.set_axis_off()
                 plt.tight_layout()
 
+                if vector_export_path:
+                    fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                                facecolor='white', edgecolor='none')
                 with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
                     plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
                     plt.close()
@@ -1009,6 +1095,9 @@ def create_geo_country_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
     plt.tight_layout()
 
+    if vector_export_path:
+        fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
         plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
         plt.close()
@@ -1016,7 +1105,8 @@ def create_geo_country_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
 
 def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
-                             height: float = 3.5*inch) -> Optional[str]:
+                             height: float = 3.5*inch,
+                             vector_export_path: Optional[str] = None) -> Optional[str]:
     """
     Create a region/state-level geographic chart.
 
@@ -1082,6 +1172,9 @@ def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
                     title='Sessions vs Users by State',
                     figsize=(width / 72, height / 72),
                 )
+                if vector_export_path:
+                    fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                                facecolor='white', edgecolor='none')
                 with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
                     fig.savefig(tmp.name, dpi=300, bbox_inches='tight')
                     plt.close(fig)
@@ -1108,6 +1201,9 @@ def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
     plt.tight_layout()
 
+    if vector_export_path:
+        fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
         plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
         plt.close()
@@ -1115,7 +1211,8 @@ def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
 
 def create_geo_city_scatter(ga_data: Dict[str, Any], width: float = 5.5*inch,
-                             height: float = 3.5*inch) -> Optional[str]:
+                             height: float = 3.5*inch,
+                             vector_export_path: Optional[str] = None) -> Optional[str]:
     """
     Create a city-level scatter plot using lat/lon coordinates.
 
@@ -1179,6 +1276,9 @@ def create_geo_city_scatter(ga_data: Dict[str, Any], width: float = 5.5*inch,
             ax.set_ylabel('Latitude', fontsize=8)
             plt.tight_layout()
 
+            if vector_export_path:
+                fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                            facecolor='white', edgecolor='none')
             with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
                 plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
                 plt.close()
@@ -1205,6 +1305,9 @@ def create_geo_city_scatter(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
     plt.tight_layout()
 
+    if vector_export_path:
+        fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
         plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
         plt.close()
@@ -1212,7 +1315,8 @@ def create_geo_city_scatter(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
 
 def create_continent_donut_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
-                                  height: float = 3.5*inch) -> Optional[str]:
+                                  height: float = 3.5*inch,
+                                  vector_export_path: Optional[str] = None) -> Optional[str]:
     """Create a donut chart of sessions by continent."""
     if not MATPLOTLIB_AVAILABLE:
         return None
@@ -1251,6 +1355,9 @@ def create_continent_donut_chart(ga_data: Dict[str, Any], width: float = 5.5*inc
 
     plt.tight_layout()
 
+    if vector_export_path:
+        fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
         plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
         plt.close()
@@ -1316,6 +1423,110 @@ def create_geo_summary_table(ga_data: Dict[str, Any]) -> List[List[str]]:
         rows.append(['City', top[0], f'{top[1]:,}', f'{top[1] / total_sessions * 100:.1f}%'])
 
     return [headers] + rows
+
+
+def create_period_comparison_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
+                                    height: float = 4.0*inch,
+                                    vector_export_path: Optional[str] = None) -> Optional[str]:
+    """Create an overlay chart comparing current vs prior period daily traffic.
+
+    Shows current and prior period sessions on the same axes, aligned by
+    day number (not date), so periods of different lengths align from day 1.
+    """
+    if not MATPLOTLIB_AVAILABLE:
+        return None
+
+    daily = ga_data.get('daily_data', {})
+    prior = ga_data.get('prior_daily_data', {})
+
+    if not daily.get('sessions') or not prior.get('sessions'):
+        return None
+
+    current_sessions = daily['sessions']
+    prior_sessions = prior['sessions']
+
+    # Align by day number (shorter period truncates the longer)
+    n_days = min(len(current_sessions), len(prior_sessions))
+    day_nums = list(range(1, n_days + 1))
+
+    fig, ax = plt.subplots(figsize=(width / 72, height / 72), dpi=100)
+
+    ax.plot(day_nums, current_sessions[:n_days], color='#3366cc', linewidth=2,
+            label='Current Period', zorder=3)
+    ax.fill_between(day_nums, current_sessions[:n_days], alpha=0.1, color='#3366cc')
+    ax.plot(day_nums, prior_sessions[:n_days], color='#999999', linewidth=1.5,
+            linestyle='--', label='Prior Period', alpha=0.7, zorder=2)
+    ax.fill_between(day_nums, prior_sessions[:n_days], alpha=0.05, color='#999999')
+
+    ax.set_xlabel('Day of Period', fontsize=10)
+    ax.set_ylabel('Sessions', fontsize=10)
+    ax.set_title('Current vs Prior Period: Daily Sessions', fontsize=12, fontweight='bold')
+    ax.legend(loc='upper left', fontsize=9)
+    ax.grid(True, alpha=0.3)
+
+    # Annotate total change
+    current_total = sum(current_sessions[:n_days])
+    prior_total = sum(prior_sessions[:n_days])
+    if prior_total > 0:
+        pct_change = ((current_total - prior_total) / prior_total) * 100
+        color = '#28a745' if pct_change >= 0 else '#dc3545'
+        ax.annotate(f'{pct_change:+.1f}% overall',
+                    xy=(0.98, 0.95), xycoords='axes fraction',
+                    fontsize=11, fontweight='bold', color=color,
+                    ha='right', va='top',
+                    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor=color, alpha=0.8))
+
+    plt.tight_layout()
+
+    if vector_export_path:
+        fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+        plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
+        plt.close()
+        return tmp.name
+
+
+# ── GA Term Definitions (for footnotes) ──
+
+GA_TERM_DEFINITIONS = {
+    'sessions': 'A session is a group of interactions on your website within a given time frame. A single user can have multiple sessions.',
+    'users': 'The number of unique visitors to your website during the reporting period.',
+    'bounce_rate': 'The percentage of single-page sessions where the user left without interacting further.',
+    'pageviews': 'The total number of pages viewed, including repeated views of a single page.',
+    'avg_session_duration': 'The average length of a session, measured from first to last interaction.',
+    'pages_per_session': 'The average number of pages viewed during a session.',
+    'medium': 'The general category of the traffic source (e.g., organic, referral, cpc, direct).',
+    'source': 'The specific origin of traffic (e.g., Google, Facebook, newsletter).',
+}
+
+
+def create_footnote_paragraph(terms: List[str], styles_obj=None) -> Optional[Paragraph]:
+    """Create a footnote paragraph explaining GA terms used in a table section.
+
+    Args:
+        terms: List of term keys from GA_TERM_DEFINITIONS to include.
+        styles_obj: ReportLab stylesheet (uses default if None).
+
+    Returns:
+        A Paragraph flowable with term definitions, or None if no terms match.
+    """
+    definitions = []
+    for term in terms:
+        defn = GA_TERM_DEFINITIONS.get(term)
+        if defn:
+            label = term.replace('_', ' ').title()
+            definitions.append(f"<b>{label}:</b> {defn}")
+
+    if not definitions:
+        return None
+
+    footnote_style = ParagraphStyle(
+        'Footnote', fontSize=7, leading=9, spaceBefore=6, spaceAfter=10,
+        textColor=colors.HexColor('#666666'), leftIndent=10,
+    )
+    text = " | ".join(definitions)
+    return Paragraph(text, footnote_style)
 
 
 def generate_insights(ga_data: Dict[str, Any]) -> List[str]:
@@ -1410,7 +1621,11 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
                            client_name: str = "Demo Client",
                            report_title: str = "Google Analytics Performance Report",
                            branding_key: Optional[str] = None,
-                           prepared_by: str = "Siege Analytics") -> bool:
+                           prepared_by: str = "Siege Analytics",
+                           vector_export_dir: Optional[str] = None,
+                           raster_export_dir: Optional[str] = None,
+                           client_logo_path: Optional[str] = None,
+                           company_logo_path: Optional[str] = None) -> bool:
     """
     Generate a comprehensive Google Analytics PDF report with professional styling.
 
@@ -1425,6 +1640,12 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         report_title: Report title
         branding_key: Optional ClientBrandingManager template key (e.g., 'hillcrest', 'siege_analytics')
         prepared_by: Name of report preparer
+        vector_export_dir: If provided, save SVG copies of all charts to this directory
+            for designer handoff (InDesign/Illustrator).
+        raster_export_dir: If provided, save high-resolution PNG copies of all charts
+            to this directory for traditional use (presentations, web, social media).
+        client_logo_path: Path to client logo image for the cover page (upper right).
+        company_logo_path: Path to company/agency logo for the cover page footer.
 
     Returns:
         True if successful
@@ -1535,7 +1756,31 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         story = []
 
         # ── TITLE PAGE ──
-        story.append(Spacer(1, 1.5*inch))
+        # Client logo (upper right)
+        if client_logo_path and Path(client_logo_path).exists():
+            _logo_path = client_logo_path
+            # ReportLab can't render SVG directly; convert to PNG first
+            if Path(client_logo_path).suffix.lower() == '.svg':
+                try:
+                    import cairosvg
+                    _tmp_logo = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+                    cairosvg.svg2png(url=str(Path(client_logo_path).resolve()),
+                                    write_to=_tmp_logo.name, output_width=300)
+                    _logo_path = _tmp_logo.name
+                except ImportError:
+                    log.debug("cairosvg not installed; skipping SVG logo (install cairosvg for SVG support)")
+                    _logo_path = None
+                except Exception as e:
+                    log.debug(f"Could not convert SVG logo: {e}")
+                    _logo_path = None
+            if _logo_path:
+                logo_img = RLImage(_logo_path, width=1.5*inch, height=1.0*inch)
+                logo_img.hAlign = 'RIGHT'
+                story.append(logo_img)
+            story.append(Spacer(1, 0.5*inch))
+        else:
+            story.append(Spacer(1, 1.5*inch))
+
         story.append(Paragraph(client_name, title_style))
         story.append(Paragraph("Comprehensive Website Performance Analysis", subtitle_style))
         story.append(Spacer(1, 0.3*inch))
@@ -1549,6 +1794,13 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         story.append(Paragraph(f"<b>Prepared By:</b> {prepared_by}", details_style))
         data_source = ga_data.get('data_source', 'sample')
         story.append(Paragraph(f"<b>Data Source:</b> {'GA4 API (Live)' if data_source == 'ga4_api' else 'Sample Data'}", details_style))
+
+        # Company logo (bottom of title page)
+        if company_logo_path and Path(company_logo_path).exists():
+            story.append(Spacer(1, 1.0*inch))
+            company_logo = RLImage(company_logo_path, width=1.2*inch, height=0.6*inch)
+            company_logo.hAlign = 'RIGHT'
+            story.append(company_logo)
         story.append(PageBreak())
 
         # ── TABLE OF CONTENTS ──
@@ -1569,6 +1821,9 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             "    7.5 Geographic Summary",
         ]
         next_section = 8
+        if ga_data.get('prior_daily_data', {}).get('sessions'):
+            toc_items.append(f"{next_section}. Period-over-Period Comparison")
+            next_section += 1
         if ga_data.get('longitudinal'):
             toc_items.append(f"{next_section}. Year-over-Year Analysis")
             next_section += 1
@@ -1630,6 +1885,9 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         kph_table = Table(kph_data, colWidths=[2*inch, 1.5*inch, 2.8*inch])
         kph_table.setStyle(TableStyle(primary_table_style))
         story.append(kph_table)
+        fn = create_footnote_paragraph(['sessions', 'users', 'bounce_rate', 'pageviews', 'avg_session_duration'])
+        if fn:
+            story.append(fn)
         story.append(Spacer(1, 20))
 
         # ── 2. KPI DASHBOARD ──
@@ -1637,9 +1895,32 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         story.extend(create_kpi_dashboard(ga_data))
         story.append(PageBreak())
 
+        # Resolve export paths
+        _vec_dir = Path(vector_export_dir) if vector_export_dir else None
+        if _vec_dir:
+            _vec_dir.mkdir(parents=True, exist_ok=True)
+            log.info(f"Vector chart export enabled: {_vec_dir}")
+
+        _ras_dir = Path(raster_export_dir) if raster_export_dir else None
+        if _ras_dir:
+            _ras_dir.mkdir(parents=True, exist_ok=True)
+            log.info(f"Raster chart export enabled: {_ras_dir}")
+
+        def _save_raster(chart_path: Optional[str], name: str) -> None:
+            """Copy a chart's temp PNG to the raster export directory."""
+            if _ras_dir and chart_path and Path(chart_path).exists():
+                import shutil
+                dest = _ras_dir / f"{name}.png"
+                shutil.copy2(chart_path, dest)
+                log.info(f"Saved raster chart: {dest}")
+
         # ── 3. TRAFFIC TRENDS ──
         story.append(Paragraph("3. Traffic Trends", heading_style))
-        trend_chart = create_traffic_trend_chart(ga_data)
+        trend_chart = create_traffic_trend_chart(
+            ga_data,
+            vector_export_path=str(_vec_dir / 'traffic_trends.svg') if _vec_dir else None,
+        )
+        _save_raster(trend_chart, 'traffic_trends')
         if trend_chart:
             story.append(RLImage(trend_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 12))
@@ -1649,7 +1930,11 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
 
         # ── 4. TRAFFIC SOURCES ──
         story.append(Paragraph("4. Traffic Sources Analysis", heading_style))
-        source_chart = create_traffic_sources_chart(ga_data)
+        source_chart = create_traffic_sources_chart(
+            ga_data,
+            vector_export_path=str(_vec_dir / 'traffic_sources.svg') if _vec_dir else None,
+        )
+        _save_raster(source_chart, 'traffic_sources')
         if source_chart:
             story.append(RLImage(source_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 12))
@@ -1662,11 +1947,18 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             base_style=primary_table_style, color_scheme='blue'
         ))
         story.append(source_table)
+        fn = create_footnote_paragraph(['source', 'medium', 'sessions', 'bounce_rate'])
+        if fn:
+            story.append(fn)
         story.append(Spacer(1, 20))
 
         # ── 5. DEVICE ANALYSIS ──
         story.append(Paragraph("5. Device Analysis", heading_style))
-        device_chart = create_device_breakdown_chart(ga_data)
+        device_chart = create_device_breakdown_chart(
+            ga_data,
+            vector_export_path=str(_vec_dir / 'device_breakdown.svg') if _vec_dir else None,
+        )
+        _save_raster(device_chart, 'device_breakdown')
         if device_chart:
             story.append(RLImage(device_chart, width=5.5*inch, height=3.5*inch))
         else:
@@ -1700,7 +1992,11 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
 
         # 7.1 Country Analysis
         story.append(Paragraph("7.1 Country Analysis", subheading_style))
-        country_chart = create_geo_country_chart(ga_data)
+        country_chart = create_geo_country_chart(
+            ga_data,
+            vector_export_path=str(_vec_dir / 'geo_country.svg') if _vec_dir else None,
+        )
+        _save_raster(country_chart, 'geo_country')
         if country_chart:
             story.append(RLImage(country_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 8))
@@ -1727,7 +2023,11 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
 
         # 7.2 Regional Analysis
         story.append(Paragraph("7.2 Regional Analysis", subheading_style))
-        region_chart = create_geo_region_chart(ga_data)
+        region_chart = create_geo_region_chart(
+            ga_data,
+            vector_export_path=str(_vec_dir / 'geo_region.svg') if _vec_dir else None,
+        )
+        _save_raster(region_chart, 'geo_region')
         if region_chart:
             story.append(RLImage(region_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 8))
@@ -1752,7 +2052,11 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
 
         # 7.3 City Analysis
         story.append(Paragraph("7.3 City Analysis", subheading_style))
-        city_chart = create_geo_city_scatter(ga_data)
+        city_chart = create_geo_city_scatter(
+            ga_data,
+            vector_export_path=str(_vec_dir / 'geo_city.svg') if _vec_dir else None,
+        )
+        _save_raster(city_chart, 'geo_city')
         if city_chart:
             story.append(RLImage(city_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 8))
@@ -1769,7 +2073,11 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
 
         # 7.4 Continental Analysis
         story.append(Paragraph("7.4 Continental Analysis", subheading_style))
-        continent_chart = create_continent_donut_chart(ga_data)
+        continent_chart = create_continent_donut_chart(
+            ga_data,
+            vector_export_path=str(_vec_dir / 'geo_continent.svg') if _vec_dir else None,
+        )
+        _save_raster(continent_chart, 'geo_continent')
         if continent_chart:
             story.append(RLImage(continent_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 8))
@@ -1802,10 +2110,54 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             story.append(summary_table)
         story.append(PageBreak())
 
-        # ── 8. YEAR-OVER-YEAR ANALYSIS (if available) ──
+        # ── PERIOD-OVER-PERIOD COMPARISON (if prior daily data available) ──
+        pop_section = 8
+        has_pop = bool(ga_data.get('prior_daily_data', {}).get('sessions'))
+        if has_pop:
+            story.append(Paragraph(f"{pop_section}. Period-over-Period Comparison", heading_style))
+            story.append(Paragraph(
+                "Daily sessions for the current period compared against the equivalent prior period.",
+                body_style
+            ))
+            story.append(Spacer(1, 10))
+
+            pop_chart = create_period_comparison_chart(
+                ga_data,
+                vector_export_path=str(_vec_dir / 'period_comparison.svg') if _vec_dir else None,
+            )
+            _save_raster(pop_chart, 'period_comparison')
+            if pop_chart:
+                story.append(RLImage(pop_chart, width=5.5*inch, height=4.0*inch))
+                story.append(Spacer(1, 8))
+
+            # Summary table
+            prior_p = ga_data.get('prior_period', {})
+            pop_table_data = [
+                ['Metric', 'Current Period', 'Prior Period', 'Change'],
+                ['Sessions', f"{totals['sessions']:,}", f"{prior_p.get('sessions', 0):,}",
+                 f"{changes['sessions']:+.1f}%"],
+                ['Users', f"{totals['users']:,}", f"{prior_p.get('users', 0):,}",
+                 f"{changes['users']:+.1f}%"],
+                ['Bounce Rate', f"{totals['avg_bounce_rate']:.1f}%",
+                 f"{prior_p.get('avg_bounce_rate', 0):.1f}%",
+                 f"{changes['bounce_rate']:+.1f} pts"],
+                ['Avg Duration', f"{totals['avg_session_duration']:.0f}s",
+                 f"{prior_p.get('avg_session_duration', 0):.0f}s",
+                 f"{changes['duration']:+.1f}%"],
+            ]
+            pop_table = Table(pop_table_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+            pop_table.setStyle(TableStyle(primary_table_style))
+            story.append(pop_table)
+            fn = create_footnote_paragraph(['sessions', 'users', 'bounce_rate', 'avg_session_duration'])
+            if fn:
+                story.append(fn)
+            story.append(PageBreak())
+
+        # ── YEAR-OVER-YEAR ANALYSIS (if available) ──
+        yoy_section = (pop_section + 1) if has_pop else pop_section
         longitudinal = ga_data.get('longitudinal', {})
         if longitudinal:
-            story.append(Paragraph("8. Year-over-Year Analysis", heading_style))
+            story.append(Paragraph(f"{yoy_section}. Year-over-Year Analysis", heading_style))
             story.append(Paragraph(
                 "Longitudinal comparison of website performance across years.",
                 body_style
@@ -1847,8 +2199,8 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         best_week = ga_data.get('best_week')
         worst_week = ga_data.get('worst_week')
         if best_day or best_week:
-            section_num = 9 if longitudinal else 8
-            story.append(Paragraph(f"{section_num}. Performance Highlights", heading_style))
+            highlight_section = yoy_section + (1 if longitudinal else 0)
+            story.append(Paragraph(f"{highlight_section}. Performance Highlights", heading_style))
 
             highlights = [["Metric", "Value", "Details"]]
             if best_day:
@@ -1870,8 +2222,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             story.append(PageBreak())
 
         # ── INSIGHTS ──
-        insights_num = (10 if longitudinal and (best_day or best_week) else
-                       9 if longitudinal or (best_day or best_week) else 8)
+        insights_num = yoy_section + (1 if longitudinal else 0) + (1 if (best_day or best_week) else 0)
         story.append(Paragraph(f"{insights_num}. Key Insights", heading_style))
         insights = generate_insights(ga_data)
         for insight in insights:
@@ -2020,6 +2371,269 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
 
     except Exception as e:
         log.error(f"Error generating GA report: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
+                      client_name: str = "Client",
+                      prepared_by: str = "Siege Analytics",
+                      branding_key: Optional[str] = None) -> bool:
+    """
+    Export a complete design kit for InDesign/Illustrator handoff.
+
+    Produces a folder structure with separated assets that a designer can
+    use to build a custom report layout:
+
+        output_dir/
+            charts/          8 SVG vector chart files
+            charts-png/      8 high-resolution PNG chart files (300 DPI)
+            tables/          CSV exports of all data tables
+            text/            report_text.md with all narrative sections
+            metadata.yaml    client name, dates, KPIs, summary stats
+
+    Args:
+        ga_data: Google Analytics data dictionary
+        output_dir: Root directory for the design kit
+        client_name: Client name for metadata
+        prepared_by: Preparer name for metadata
+        branding_key: Optional branding template key
+
+    Returns:
+        True if successful
+    """
+    import csv
+    try:
+        import yaml
+        _has_yaml = True
+    except ImportError:
+        _has_yaml = False
+
+    try:
+        kit = Path(output_dir)
+        charts_dir = kit / 'charts'
+        charts_png_dir = kit / 'charts-png'
+        tables_dir = kit / 'tables'
+        text_dir = kit / 'text'
+
+        for d in [charts_dir, charts_png_dir, tables_dir, text_dir]:
+            d.mkdir(parents=True, exist_ok=True)
+
+        date_range = ga_data['date_range']
+        totals = ga_data['totals']
+        changes = ga_data['changes']
+
+        # ── 1. Charts (SVG + PNG) ──
+        chart_funcs = [
+            ('traffic_trends', create_traffic_trend_chart),
+            ('traffic_sources', create_traffic_sources_chart),
+            ('device_breakdown', create_device_breakdown_chart),
+            ('geo_country', create_geo_country_chart),
+            ('geo_region', create_geo_region_chart),
+            ('geo_city', create_geo_city_scatter),
+            ('geo_continent', create_continent_donut_chart),
+        ]
+        if ga_data.get('prior_daily_data', {}).get('sessions'):
+            chart_funcs.append(('period_comparison', create_period_comparison_chart))
+
+        for name, func in chart_funcs:
+            chart_path = func(ga_data, vector_export_path=str(charts_dir / f'{name}.svg'))
+            if chart_path and Path(chart_path).exists():
+                import shutil
+                shutil.copy2(chart_path, charts_png_dir / f'{name}.png')
+
+        # ── 2. Tables (CSV) ──
+        # Daily performance
+        daily = ga_data['daily_data']
+        with open(tables_dir / 'daily_performance.csv', 'w', newline='') as f:
+            w = csv.writer(f)
+            w.writerow(['Date', 'Sessions', 'Users', 'Pageviews', 'Bounce Rate (%)', 'Avg Duration (s)'])
+            for i in range(len(daily['dates'])):
+                w.writerow([daily['dates'][i], daily['sessions'][i], daily['users'][i],
+                            daily['pageviews'][i], f"{daily['bounce_rate'][i]:.1f}",
+                            f"{daily['avg_duration'][i]:.0f}"])
+
+        # Traffic sources
+        with open(tables_dir / 'traffic_sources.csv', 'w', newline='') as f:
+            w = csv.writer(f)
+            w.writerow(['Source', 'Medium', 'Sessions', 'Users', 'Bounce Rate (%)', 'Avg Duration (s)'])
+            for src in sorted(ga_data['traffic_sources'], key=lambda x: x['sessions'], reverse=True):
+                w.writerow([src['source'], src['medium'], src['sessions'], src['users'],
+                            f"{src['bounce_rate']:.1f}", f"{src['avg_duration']:.1f}"])
+
+        # Top pages
+        with open(tables_dir / 'top_pages.csv', 'w', newline='') as f:
+            w = csv.writer(f)
+            w.writerow(['Page', 'Pageviews', 'Unique Views', 'Avg Time (s)', 'Bounce Rate (%)', 'Exit Rate (%)'])
+            for p in ga_data['top_pages']:
+                w.writerow([p['page'], p['pageviews'], p['unique_views'],
+                            f"{p['avg_time']:.1f}", f"{p['bounce_rate']:.1f}", f"{p['exit_rate']:.1f}"])
+
+        # Geographic data
+        with open(tables_dir / 'geographic.csv', 'w', newline='') as f:
+            w = csv.writer(f)
+            w.writerow(['Country', 'Region', 'City', 'Continent', 'Sessions', 'Users'])
+            for loc in sorted(ga_data['geo_data'], key=lambda x: x.get('sessions', 0), reverse=True):
+                w.writerow([loc.get('country', ''), loc.get('region', ''), loc.get('city', ''),
+                            loc.get('continent', ''), loc.get('sessions', 0), loc.get('users', 0)])
+
+        # Device breakdown
+        with open(tables_dir / 'devices.csv', 'w', newline='') as f:
+            w = csv.writer(f)
+            w.writerow(['Device', 'Sessions', 'Bounce Rate (%)'])
+            for d in ga_data['devices']:
+                w.writerow([d['device'], d['sessions'], f"{d['bounce_rate']:.1f}"])
+
+        # KPI summary
+        with open(tables_dir / 'kpi_summary.csv', 'w', newline='') as f:
+            w = csv.writer(f)
+            w.writerow(['Metric', 'Value', 'Change vs Prior (%)'])
+            w.writerow(['Sessions', totals['sessions'], f"{changes['sessions']:+.1f}"])
+            w.writerow(['Users', totals['users'], f"{changes['users']:+.1f}"])
+            w.writerow(['Pageviews', totals['pageviews'], f"{changes.get('pageviews', 0):+.1f}"])
+            w.writerow(['Avg Bounce Rate', f"{totals['avg_bounce_rate']:.1f}%", f"{changes['bounce_rate']:+.1f}"])
+            w.writerow(['Avg Session Duration', f"{totals['avg_session_duration']:.0f}s", f"{changes['duration']:+.1f}"])
+            w.writerow(['Pages per Session', f"{totals['pages_per_session']:.2f}", ""])
+
+        # Period comparison (if available)
+        prior = ga_data.get('prior_period')
+        if prior:
+            with open(tables_dir / 'period_comparison.csv', 'w', newline='') as f:
+                w = csv.writer(f)
+                w.writerow(['Metric', 'Current Period', 'Prior Period', 'Change'])
+                w.writerow(['Sessions', totals['sessions'], prior.get('sessions', 0), f"{changes['sessions']:+.1f}%"])
+                w.writerow(['Users', totals['users'], prior.get('users', 0), f"{changes['users']:+.1f}%"])
+                w.writerow(['Bounce Rate', f"{totals['avg_bounce_rate']:.1f}%",
+                            f"{prior.get('avg_bounce_rate', 0):.1f}%", f"{changes['bounce_rate']:+.1f} pts"])
+                w.writerow(['Avg Duration', f"{totals['avg_session_duration']:.0f}s",
+                            f"{prior.get('avg_session_duration', 0):.0f}s", f"{changes['duration']:+.1f}%"])
+
+        # Longitudinal / YoY
+        longitudinal = ga_data.get('longitudinal', {})
+        if longitudinal:
+            with open(tables_dir / 'year_over_year.csv', 'w', newline='') as f:
+                w = csv.writer(f)
+                w.writerow(['Year', 'Sessions', 'Users', 'Pageviews'])
+                for year in sorted(longitudinal.keys()):
+                    yd = longitudinal[year]
+                    w.writerow([year, yd['sessions'], yd['users'], yd['pageviews']])
+
+        # ── 3. Report text (Markdown) ──
+        insights = generate_insights(ga_data)
+        recommendations = generate_recommendations(ga_data)
+
+        lines = [
+            f"# {client_name}",
+            f"## Google Analytics Performance Report",
+            f"",
+            f"**Date Range:** {date_range['start']} to {date_range['end']}",
+            f"**Prepared by:** {prepared_by}",
+            f"",
+            f"---",
+            f"",
+            f"## Executive Summary",
+            f"",
+            f"| Metric | Value | Change vs Prior |",
+            f"|--------|-------|-----------------|",
+            f"| Sessions | {totals['sessions']:,} | {changes['sessions']:+.1f}% |",
+            f"| Users | {totals['users']:,} | {changes['users']:+.1f}% |",
+            f"| Pageviews | {totals['pageviews']:,} | {changes.get('pageviews', 0):+.1f}% |",
+            f"| Bounce Rate | {totals['avg_bounce_rate']:.1f}% | {changes['bounce_rate']:+.1f} pts |",
+            f"| Avg Duration | {totals['avg_session_duration']:.0f}s | {changes['duration']:+.1f}% |",
+            f"| Pages/Session | {totals['pages_per_session']:.2f} | |",
+            f"",
+        ]
+
+        best_day = ga_data.get('best_day')
+        worst_day = ga_data.get('worst_day')
+        if best_day:
+            lines.append(f"**Best Day:** {best_day['date']} ({best_day['sessions']:,} sessions)")
+        if worst_day:
+            lines.append(f"**Lowest Day:** {worst_day['date']} ({worst_day['sessions']:,} sessions)")
+        lines.append("")
+
+        lines.append("## Key Insights")
+        lines.append("")
+        for insight in insights:
+            lines.append(f"- {insight}")
+        lines.append("")
+
+        lines.append("## Recommendations")
+        lines.append("")
+        for i, rec in enumerate(recommendations, 1):
+            lines.append(f"{i}. {rec}")
+        lines.append("")
+
+        lines.append("---")
+        lines.append("")
+        lines.append("## Chart Inventory")
+        lines.append("")
+        lines.append("| File | Description |")
+        lines.append("|------|-------------|")
+        lines.append("| traffic_trends | Daily sessions and users over the date range |")
+        lines.append("| traffic_sources | Top traffic sources (organic, direct, social, etc.) |")
+        lines.append("| device_breakdown | Desktop vs mobile vs tablet split |")
+        lines.append("| geo_country | Sessions by country |")
+        lines.append("| geo_region | Sessions by state/region |")
+        lines.append("| geo_city | City-level session distribution |")
+        lines.append("| geo_continent | Continental traffic breakdown |")
+        if ga_data.get('prior_daily_data', {}).get('sessions'):
+            lines.append("| period_comparison | Current vs prior period daily overlay |")
+        lines.append("")
+        lines.append("Charts are available as SVG (vector, editable) in `charts/` and PNG (raster, 300 DPI) in `charts-png/`.")
+
+        with open(text_dir / 'report_text.md', 'w') as f:
+            f.write('\n'.join(lines))
+
+        # ── 4. Metadata (YAML or plain text) ──
+        metadata = {
+            'client_name': client_name,
+            'prepared_by': prepared_by,
+            'branding_key': branding_key,
+            'date_range': {'start': date_range['start'], 'end': date_range['end']},
+            'totals': {
+                'sessions': int(totals['sessions']),
+                'users': int(totals['users']),
+                'pageviews': int(totals['pageviews']),
+                'avg_bounce_rate': float(round(totals['avg_bounce_rate'], 1)),
+                'avg_session_duration': float(round(totals['avg_session_duration'], 0)),
+                'pages_per_session': float(round(totals['pages_per_session'], 2)),
+            },
+            'changes_vs_prior': {
+                'sessions': float(round(changes['sessions'], 1)),
+                'users': float(round(changes['users'], 1)),
+                'pageviews': float(round(changes.get('pageviews', 0), 1)),
+                'bounce_rate': float(round(changes['bounce_rate'], 1)),
+                'duration': float(round(changes['duration'], 1)),
+            },
+            'chart_files': [name for name, _ in chart_funcs],
+            'table_files': [f.name for f in sorted(tables_dir.glob('*.csv'))],
+        }
+
+        if _has_yaml:
+            with open(kit / 'metadata.yaml', 'w') as f:
+                yaml.dump(metadata, f, default_flow_style=False, sort_keys=False)
+        else:
+            # Fallback: write as readable text
+            with open(kit / 'metadata.txt', 'w') as f:
+                for k, v in metadata.items():
+                    if isinstance(v, dict):
+                        f.write(f"\n{k}:\n")
+                        for kk, vv in v.items():
+                            f.write(f"  {kk}: {vv}\n")
+                    elif isinstance(v, list):
+                        f.write(f"\n{k}:\n")
+                        for item in v:
+                            f.write(f"  - {item}\n")
+                    else:
+                        f.write(f"{k}: {v}\n")
+
+        log.info(f"Design kit exported: {kit}")
+        return True
+
+    except Exception as e:
+        log.error(f"Error exporting design kit: {e}")
         import traceback
         traceback.print_exc()
         return False
