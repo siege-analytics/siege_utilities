@@ -1623,6 +1623,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
                            branding_key: Optional[str] = None,
                            prepared_by: str = "Siege Analytics",
                            vector_export_dir: Optional[str] = None,
+                           raster_export_dir: Optional[str] = None,
                            client_logo_path: Optional[str] = None,
                            company_logo_path: Optional[str] = None) -> bool:
     """
@@ -1641,6 +1642,8 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         prepared_by: Name of report preparer
         vector_export_dir: If provided, save SVG copies of all charts to this directory
             for designer handoff (InDesign/Illustrator).
+        raster_export_dir: If provided, save high-resolution PNG copies of all charts
+            to this directory for traditional use (presentations, web, social media).
         client_logo_path: Path to client logo image for the cover page (upper right).
         company_logo_path: Path to company/agency logo for the cover page footer.
 
@@ -1877,11 +1880,24 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         story.extend(create_kpi_dashboard(ga_data))
         story.append(PageBreak())
 
-        # Resolve vector export paths
+        # Resolve export paths
         _vec_dir = Path(vector_export_dir) if vector_export_dir else None
         if _vec_dir:
             _vec_dir.mkdir(parents=True, exist_ok=True)
             log.info(f"Vector chart export enabled: {_vec_dir}")
+
+        _ras_dir = Path(raster_export_dir) if raster_export_dir else None
+        if _ras_dir:
+            _ras_dir.mkdir(parents=True, exist_ok=True)
+            log.info(f"Raster chart export enabled: {_ras_dir}")
+
+        def _save_raster(chart_path: Optional[str], name: str) -> None:
+            """Copy a chart's temp PNG to the raster export directory."""
+            if _ras_dir and chart_path and Path(chart_path).exists():
+                import shutil
+                dest = _ras_dir / f"{name}.png"
+                shutil.copy2(chart_path, dest)
+                log.info(f"Saved raster chart: {dest}")
 
         # ── 3. TRAFFIC TRENDS ──
         story.append(Paragraph("3. Traffic Trends", heading_style))
@@ -1889,6 +1905,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             ga_data,
             vector_export_path=str(_vec_dir / 'traffic_trends.svg') if _vec_dir else None,
         )
+        _save_raster(trend_chart, 'traffic_trends')
         if trend_chart:
             story.append(RLImage(trend_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 12))
@@ -1902,6 +1919,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             ga_data,
             vector_export_path=str(_vec_dir / 'traffic_sources.svg') if _vec_dir else None,
         )
+        _save_raster(source_chart, 'traffic_sources')
         if source_chart:
             story.append(RLImage(source_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 12))
@@ -1925,6 +1943,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             ga_data,
             vector_export_path=str(_vec_dir / 'device_breakdown.svg') if _vec_dir else None,
         )
+        _save_raster(device_chart, 'device_breakdown')
         if device_chart:
             story.append(RLImage(device_chart, width=5.5*inch, height=3.5*inch))
         else:
@@ -1962,6 +1981,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             ga_data,
             vector_export_path=str(_vec_dir / 'geo_country.svg') if _vec_dir else None,
         )
+        _save_raster(country_chart, 'geo_country')
         if country_chart:
             story.append(RLImage(country_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 8))
@@ -1992,6 +2012,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             ga_data,
             vector_export_path=str(_vec_dir / 'geo_region.svg') if _vec_dir else None,
         )
+        _save_raster(region_chart, 'geo_region')
         if region_chart:
             story.append(RLImage(region_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 8))
@@ -2020,6 +2041,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             ga_data,
             vector_export_path=str(_vec_dir / 'geo_city.svg') if _vec_dir else None,
         )
+        _save_raster(city_chart, 'geo_city')
         if city_chart:
             story.append(RLImage(city_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 8))
@@ -2040,6 +2062,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             ga_data,
             vector_export_path=str(_vec_dir / 'geo_continent.svg') if _vec_dir else None,
         )
+        _save_raster(continent_chart, 'geo_continent')
         if continent_chart:
             story.append(RLImage(continent_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 8))
@@ -2087,6 +2110,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
                 ga_data,
                 vector_export_path=str(_vec_dir / 'period_comparison.svg') if _vec_dir else None,
             )
+            _save_raster(pop_chart, 'period_comparison')
             if pop_chart:
                 story.append(RLImage(pop_chart, width=5.5*inch, height=4.0*inch))
                 story.append(Spacer(1, 8))
