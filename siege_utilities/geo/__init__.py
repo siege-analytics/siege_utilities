@@ -177,6 +177,11 @@ _register([
 _register([
     'SpatialRuntimePlan',
     'resolve_spatial_runtime_plan',
+    'GeometryPayload',
+    'encode_geometry',
+    'decode_geometry',
+    'payload_to_spark_row',
+    'spark_row_to_payload',
 ], '.spatial_runtime')
 
 # --- census_files (PL 94-171) ---
