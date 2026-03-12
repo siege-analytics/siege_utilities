@@ -789,8 +789,19 @@ def create_kpi_dashboard(ga_data: Dict[str, Any]) -> List[Flowable]:
 
 
 def create_traffic_trend_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
-                                height: float = 3.5*inch) -> Optional[str]:
-    """Create a line chart showing traffic trends over time."""
+                                height: float = 3.5*inch,
+                                vector_export_path: Optional[str] = None) -> Optional[str]:
+    """Create a line chart showing traffic trends over time.
+
+    Args:
+        ga_data: Google Analytics data dictionary.
+        width: Chart width in points.
+        height: Chart height in points.
+        vector_export_path: If provided, save an SVG copy to this path.
+
+    Returns:
+        Path to the temporary PNG file, or ``None`` if matplotlib unavailable.
+    """
     if not MATPLOTLIB_AVAILABLE:
         return None
 
@@ -817,6 +828,11 @@ def create_traffic_trend_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
     plt.tight_layout()
 
+    # Save vector copy before closing
+    if vector_export_path:
+        fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+
     # Save to temporary file
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
         plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
@@ -825,8 +841,19 @@ def create_traffic_trend_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
 
 def create_traffic_sources_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
-                                  height: float = 3.5*inch) -> Optional[str]:
-    """Create a pie chart of traffic sources."""
+                                  height: float = 3.5*inch,
+                                  vector_export_path: Optional[str] = None) -> Optional[str]:
+    """Create a pie chart of traffic sources.
+
+    Args:
+        ga_data: Google Analytics data dictionary.
+        width: Chart width in points.
+        height: Chart height in points.
+        vector_export_path: If provided, save an SVG copy to this path.
+
+    Returns:
+        Path to the temporary PNG file, or ``None`` if matplotlib unavailable.
+    """
     if not MATPLOTLIB_AVAILABLE:
         return None
 
@@ -847,6 +874,10 @@ def create_traffic_sources_chart(ga_data: Dict[str, Any], width: float = 5.5*inc
 
     plt.tight_layout()
 
+    if vector_export_path:
+        fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
         plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
         plt.close()
@@ -854,8 +885,19 @@ def create_traffic_sources_chart(ga_data: Dict[str, Any], width: float = 5.5*inc
 
 
 def create_device_breakdown_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
-                                   height: float = 3.5*inch) -> Optional[str]:
-    """Create a horizontal bar chart for device breakdown."""
+                                   height: float = 3.5*inch,
+                                   vector_export_path: Optional[str] = None) -> Optional[str]:
+    """Create a horizontal bar chart for device breakdown.
+
+    Args:
+        ga_data: Google Analytics data dictionary.
+        width: Chart width in points.
+        height: Chart height in points.
+        vector_export_path: If provided, save an SVG copy to this path.
+
+    Returns:
+        Path to the temporary PNG file, or ``None`` if matplotlib unavailable.
+    """
     if not MATPLOTLIB_AVAILABLE:
         return None
 
@@ -875,6 +917,10 @@ def create_device_breakdown_chart(ga_data: Dict[str, Any], width: float = 5.5*in
                 f'{val:,}', va='center', fontsize=8)
 
     plt.tight_layout()
+
+    if vector_export_path:
+        fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
 
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
         plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
@@ -941,7 +987,8 @@ def create_geo_table(ga_data: Dict[str, Any]) -> List[List[str]]:
 
 
 def create_geo_country_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
-                              height: float = 3.5*inch) -> Optional[str]:
+                              height: float = 3.5*inch,
+                              vector_export_path: Optional[str] = None) -> Optional[str]:
     """
     Create a country-level geographic chart.
 
@@ -993,6 +1040,9 @@ def create_geo_country_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
                 ax.set_axis_off()
                 plt.tight_layout()
 
+                if vector_export_path:
+                    fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                                facecolor='white', edgecolor='none')
                 with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
                     plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
                     plt.close()
@@ -1019,6 +1069,9 @@ def create_geo_country_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
     plt.tight_layout()
 
+    if vector_export_path:
+        fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
         plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
         plt.close()
@@ -1026,7 +1079,8 @@ def create_geo_country_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
 
 def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
-                             height: float = 3.5*inch) -> Optional[str]:
+                             height: float = 3.5*inch,
+                             vector_export_path: Optional[str] = None) -> Optional[str]:
     """
     Create a region/state-level geographic chart.
 
@@ -1092,6 +1146,9 @@ def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
                     title='Sessions vs Users by State',
                     figsize=(width / 72, height / 72),
                 )
+                if vector_export_path:
+                    fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                                facecolor='white', edgecolor='none')
                 with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
                     fig.savefig(tmp.name, dpi=300, bbox_inches='tight')
                     plt.close(fig)
@@ -1118,6 +1175,9 @@ def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
     plt.tight_layout()
 
+    if vector_export_path:
+        fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
         plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
         plt.close()
@@ -1125,7 +1185,8 @@ def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
 
 def create_geo_city_scatter(ga_data: Dict[str, Any], width: float = 5.5*inch,
-                             height: float = 3.5*inch) -> Optional[str]:
+                             height: float = 3.5*inch,
+                             vector_export_path: Optional[str] = None) -> Optional[str]:
     """
     Create a city-level scatter plot using lat/lon coordinates.
 
@@ -1189,6 +1250,9 @@ def create_geo_city_scatter(ga_data: Dict[str, Any], width: float = 5.5*inch,
             ax.set_ylabel('Latitude', fontsize=8)
             plt.tight_layout()
 
+            if vector_export_path:
+                fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                            facecolor='white', edgecolor='none')
             with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
                 plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
                 plt.close()
@@ -1215,6 +1279,9 @@ def create_geo_city_scatter(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
     plt.tight_layout()
 
+    if vector_export_path:
+        fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
         plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
         plt.close()
@@ -1222,7 +1289,8 @@ def create_geo_city_scatter(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
 
 def create_continent_donut_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
-                                  height: float = 3.5*inch) -> Optional[str]:
+                                  height: float = 3.5*inch,
+                                  vector_export_path: Optional[str] = None) -> Optional[str]:
     """Create a donut chart of sessions by continent."""
     if not MATPLOTLIB_AVAILABLE:
         return None
@@ -1261,6 +1329,9 @@ def create_continent_donut_chart(ga_data: Dict[str, Any], width: float = 5.5*inc
 
     plt.tight_layout()
 
+    if vector_export_path:
+        fig.savefig(vector_export_path, format='svg', bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
         plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
         plt.close()
@@ -1420,7 +1491,8 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
                            client_name: str = "Demo Client",
                            report_title: str = "Google Analytics Performance Report",
                            branding_key: Optional[str] = None,
-                           prepared_by: str = "Siege Analytics") -> bool:
+                           prepared_by: str = "Siege Analytics",
+                           vector_export_dir: Optional[str] = None) -> bool:
     """
     Generate a comprehensive Google Analytics PDF report with professional styling.
 
@@ -1435,6 +1507,8 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         report_title: Report title
         branding_key: Optional ClientBrandingManager template key (e.g., 'hillcrest', 'siege_analytics')
         prepared_by: Name of report preparer
+        vector_export_dir: If provided, save SVG copies of all charts to this directory
+            for designer handoff (InDesign/Illustrator).
 
     Returns:
         True if successful
@@ -1647,9 +1721,18 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         story.extend(create_kpi_dashboard(ga_data))
         story.append(PageBreak())
 
+        # Resolve vector export paths
+        _vec_dir = Path(vector_export_dir) if vector_export_dir else None
+        if _vec_dir:
+            _vec_dir.mkdir(parents=True, exist_ok=True)
+            log.info(f"Vector chart export enabled: {_vec_dir}")
+
         # ── 3. TRAFFIC TRENDS ──
         story.append(Paragraph("3. Traffic Trends", heading_style))
-        trend_chart = create_traffic_trend_chart(ga_data)
+        trend_chart = create_traffic_trend_chart(
+            ga_data,
+            vector_export_path=str(_vec_dir / 'traffic_trends.svg') if _vec_dir else None,
+        )
         if trend_chart:
             story.append(RLImage(trend_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 12))
@@ -1659,7 +1742,10 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
 
         # ── 4. TRAFFIC SOURCES ──
         story.append(Paragraph("4. Traffic Sources Analysis", heading_style))
-        source_chart = create_traffic_sources_chart(ga_data)
+        source_chart = create_traffic_sources_chart(
+            ga_data,
+            vector_export_path=str(_vec_dir / 'traffic_sources.svg') if _vec_dir else None,
+        )
         if source_chart:
             story.append(RLImage(source_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 12))
@@ -1676,7 +1762,10 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
 
         # ── 5. DEVICE ANALYSIS ──
         story.append(Paragraph("5. Device Analysis", heading_style))
-        device_chart = create_device_breakdown_chart(ga_data)
+        device_chart = create_device_breakdown_chart(
+            ga_data,
+            vector_export_path=str(_vec_dir / 'device_breakdown.svg') if _vec_dir else None,
+        )
         if device_chart:
             story.append(RLImage(device_chart, width=5.5*inch, height=3.5*inch))
         else:
@@ -1710,7 +1799,10 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
 
         # 7.1 Country Analysis
         story.append(Paragraph("7.1 Country Analysis", subheading_style))
-        country_chart = create_geo_country_chart(ga_data)
+        country_chart = create_geo_country_chart(
+            ga_data,
+            vector_export_path=str(_vec_dir / 'geo_country.svg') if _vec_dir else None,
+        )
         if country_chart:
             story.append(RLImage(country_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 8))
@@ -1737,7 +1829,10 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
 
         # 7.2 Regional Analysis
         story.append(Paragraph("7.2 Regional Analysis", subheading_style))
-        region_chart = create_geo_region_chart(ga_data)
+        region_chart = create_geo_region_chart(
+            ga_data,
+            vector_export_path=str(_vec_dir / 'geo_region.svg') if _vec_dir else None,
+        )
         if region_chart:
             story.append(RLImage(region_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 8))
@@ -1762,7 +1857,10 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
 
         # 7.3 City Analysis
         story.append(Paragraph("7.3 City Analysis", subheading_style))
-        city_chart = create_geo_city_scatter(ga_data)
+        city_chart = create_geo_city_scatter(
+            ga_data,
+            vector_export_path=str(_vec_dir / 'geo_city.svg') if _vec_dir else None,
+        )
         if city_chart:
             story.append(RLImage(city_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 8))
@@ -1779,7 +1877,10 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
 
         # 7.4 Continental Analysis
         story.append(Paragraph("7.4 Continental Analysis", subheading_style))
-        continent_chart = create_continent_donut_chart(ga_data)
+        continent_chart = create_continent_donut_chart(
+            ga_data,
+            vector_export_path=str(_vec_dir / 'geo_continent.svg') if _vec_dir else None,
+        )
         if continent_chart:
             story.append(RLImage(continent_chart, width=5.5*inch, height=3.5*inch))
             story.append(Spacer(1, 8))

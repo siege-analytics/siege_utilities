@@ -1868,11 +1868,45 @@ class ChartGenerator:
         except Exception as e:
             log.error(f"Error creating scatter subplot: {e}")
 
+    def save_figure_as_vector(self, fig, output_path: Union[str, Path],
+                              fmt: str = 'svg') -> Optional[Path]:
+        """Save a matplotlib figure as a vector file (SVG, EPS, or PDF).
+
+        Args:
+            fig: Matplotlib figure.
+            output_path: Destination file path (extension is overridden by *fmt*).
+            fmt: Vector format — ``'svg'``, ``'eps'``, or ``'pdf'``.
+
+        Returns:
+            Path to the saved file, or ``None`` on error.
+        """
+        allowed = {'svg', 'eps', 'pdf'}
+        if fmt not in allowed:
+            log.error(f"Unsupported vector format '{fmt}'; expected one of {allowed}")
+            return None
+
+        try:
+            out = Path(output_path).with_suffix(f'.{fmt}')
+            out.parent.mkdir(parents=True, exist_ok=True)
+            fig.savefig(str(out), format=fmt, bbox_inches='tight',
+                        facecolor='white', edgecolor='none', pad_inches=0.1)
+            log.info(f"Saved vector chart: {out}")
+            return out
+        except Exception as e:
+            log.error(f"Error saving vector chart to {output_path}: {e}")
+            return None
+
     def _matplotlib_to_reportlab_image(self, fig, width: float, height: float,
                                        max_width: Optional[float] = None,
-                                       max_height: Optional[float] = None) -> Image:
+                                       max_height: Optional[float] = None,
+                                       vector_export_path: Optional[Union[str, Path]] = None,
+                                       vector_format: str = 'svg') -> Image:
         """
         Convert matplotlib figure to ReportLab Image with size optimization.
+
+        Optionally saves a vector copy (SVG/EPS/PDF) alongside the raster
+        PDF embed.  The vector file is intended for designer handoff —
+        InDesign and Illustrator can import SVG/EPS directly.
 
         Args:
             fig: Matplotlib figure
@@ -1880,11 +1914,17 @@ class ChartGenerator:
             height: Image height in inches
             max_width: Per-call max width override for ``_scale_dimensions``.
             max_height: Per-call max height override for ``_scale_dimensions``.
+            vector_export_path: If provided, save a vector copy to this path.
+            vector_format: Format for vector export (``'svg'``, ``'eps'``, ``'pdf'``).
 
         Returns:
             ReportLab Image object
         """
         try:
+            # Save vector copy if requested (before closing the figure)
+            if vector_export_path is not None:
+                self.save_figure_as_vector(fig, vector_export_path, fmt=vector_format)
+
             # Use high DPI for crisp, professional quality
             optimal_dpi = self.default_dpi
 
