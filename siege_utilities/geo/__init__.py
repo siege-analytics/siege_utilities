@@ -32,6 +32,12 @@ _register([
     'BoundaryUrlValidationError', 'BoundaryDownloadError', 'BoundaryParseError',
 ], '.boundary_result')
 
+# --- boundary_providers (pluggable boundary data sources) ---
+_register([
+    'BoundaryProvider', 'CensusTIGERProvider', 'GADMProvider',
+    'resolve_boundary_provider',
+], '.boundary_providers')
+
 # --- spatial_data ---
 _register([
     'CensusDirectoryDiscovery', 'CensusDataSource', 'SpatialDataSource',
@@ -86,7 +92,9 @@ _register([
     'ISOCHRONE_DEFAULT_RETRIES',
     'IsochroneError', 'IsochroneNetworkError', 'IsochroneProviderError',
     'IsochroneRequest',
+    'IsochroneProvider', 'OpenRouteServiceProvider', 'ValhallaProvider',
     'build_isochrone_request', 'get_isochrone', 'isochrone_to_geodataframe',
+    'get_provider',
 ], '.isochrones')
 
 # --- census_geocoder ---
