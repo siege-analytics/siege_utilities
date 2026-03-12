@@ -37,6 +37,12 @@ _register(['decode_rl_image', 'show_rl_image', 'save_rl_image'], '.image_utils')
 _register(['ChartTypeRegistry'], '.chart_types')
 _register(['PollingAnalyzer'], '.analytics.polling_analyzer')
 
+# 3D map rendering (pydeck / deck.gl)
+_register([
+    'ThreeDMapRenderer', 'PYDECK_AVAILABLE',
+    'create_3d_hexbin', 'create_3d_columns',
+], '.map_3d')
+
 # Professional page templates
 _register(['TitlePageTemplate', 'create_title_page'], '.templates.title_page_template')
 _register([
@@ -58,6 +64,8 @@ __all__ = [
     'TableOfContentsTemplate', 'create_table_of_contents',
     'generate_sections_from_report_structure',
     'ContentPageTemplate', 'create_content_page',
+    'ThreeDMapRenderer', 'PYDECK_AVAILABLE',
+    'create_3d_hexbin', 'create_3d_columns',
 ]
 
 
