@@ -746,6 +746,208 @@ def compare_plans(
 # Demographic overlay
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# High-level fetch functions (list → download → load in one call)
+# ---------------------------------------------------------------------------
+
+def fetch_enacted_plan(
+    state: str,
+    chamber: str = "congress",
+    year: Optional[str] = None,
+    client: Optional["RDHClient"] = None,
+) -> "gpd.GeoDataFrame":
+    """Fetch enacted district plan as GeoDataFrame with boundaries + attributes.
+
+    Parameters
+    ----------
+    state : str
+        Two-letter state abbreviation.
+    chamber : str
+        ``"congress"``, ``"state_senate"``, or ``"state_house"``.
+    year : str, optional
+        Filter by year.
+    client : RDHClient, optional
+        Existing client instance.  Created from env vars if omitted.
+
+    Returns
+    -------
+    GeoDataFrame with district boundaries and attributes.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no matching enacted plan dataset is found.
+    """
+    if not HAS_GEOPANDAS:
+        raise ImportError(
+            "geopandas is required. Install with: pip install 'siege-utilities[geo]'"
+        )
+    c = client or RDHClient()
+    datasets = c.get_enacted_plans(state, chamber=chamber, year=year)
+    if not datasets:
+        raise FileNotFoundError(
+            f"No enacted {chamber} plan found for {state}"
+            + (f" year={year}" if year else "")
+        )
+    return c.load_shapefile(datasets[0])
+
+
+def fetch_precinct_results(
+    state: str,
+    year: Optional[str] = None,
+    client: Optional["RDHClient"] = None,
+) -> "gpd.GeoDataFrame":
+    """Fetch precinct boundaries with election results as GeoDataFrame.
+
+    Parameters
+    ----------
+    state : str
+        Two-letter state abbreviation.
+    year : str, optional
+        Election year filter.
+    client : RDHClient, optional
+        Existing client instance.
+
+    Returns
+    -------
+    GeoDataFrame with precinct boundaries and vote columns.
+    """
+    if not HAS_GEOPANDAS:
+        raise ImportError(
+            "geopandas is required. Install with: pip install 'siege-utilities[geo]'"
+        )
+    c = client or RDHClient()
+    datasets = c.get_precinct_data(state, year=year, format="shp")
+    if not datasets:
+        raise FileNotFoundError(
+            f"No precinct data found for {state}"
+            + (f" year={year}" if year else "")
+        )
+    return c.load_shapefile(datasets[0])
+
+
+def fetch_cvap(
+    state: str,
+    year: Optional[str] = None,
+    geography: str = "tract",
+    client: Optional["RDHClient"] = None,
+) -> "pd.DataFrame":
+    """Fetch CVAP (Citizen Voting Age Population) data as DataFrame.
+
+    Parameters
+    ----------
+    state : str
+        Two-letter state abbreviation.
+    year : str, optional
+        Data year filter.
+    geography : str
+        Geographic level hint for filtering (e.g. ``"tract"``, ``"block_group"``).
+    client : RDHClient, optional
+        Existing client instance.
+
+    Returns
+    -------
+    DataFrame with CVAP estimates.
+    """
+    if not HAS_PANDAS:
+        raise ImportError("pandas is required to load CVAP data")
+    c = client or RDHClient()
+    datasets = c.get_cvap_data(state, year=year)
+    # Filter by geography keyword if multiple results
+    if geography and len(datasets) > 1:
+        filtered = [
+            ds for ds in datasets
+            if geography.lower() in ds.title.lower()
+        ]
+        if filtered:
+            datasets = filtered
+    if not datasets:
+        raise FileNotFoundError(
+            f"No CVAP data found for {state}"
+            + (f" year={year}" if year else "")
+        )
+    return c.load_csv(datasets[0])
+
+
+def fetch_pl94171(
+    state: str,
+    year: Optional[str] = None,
+    geography: str = "block",
+    client: Optional["RDHClient"] = None,
+) -> "pd.DataFrame":
+    """Fetch PL 94-171 redistricting population data as DataFrame.
+
+    Parameters
+    ----------
+    state : str
+        Two-letter state abbreviation.
+    year : str, optional
+        Decennial year filter.
+    geography : str
+        Geographic level hint (e.g. ``"block"``, ``"tract"``).
+    client : RDHClient, optional
+        Existing client instance.
+
+    Returns
+    -------
+    DataFrame with PL 94-171 population data.
+    """
+    if not HAS_PANDAS:
+        raise ImportError("pandas is required to load PL 94-171 data")
+    c = client or RDHClient()
+    datasets = c.get_pl94171_data(state, year=year)
+    if geography and len(datasets) > 1:
+        filtered = [
+            ds for ds in datasets
+            if geography.lower() in ds.title.lower()
+        ]
+        if filtered:
+            datasets = filtered
+    if not datasets:
+        raise FileNotFoundError(
+            f"No PL 94-171 data found for {state}"
+            + (f" year={year}" if year else "")
+        )
+    return c.load_csv(datasets[0])
+
+
+def fetch_demographic_summary(
+    state: str,
+    year: Optional[str] = None,
+    client: Optional["RDHClient"] = None,
+) -> "pd.DataFrame":
+    """Fetch ACS 5-year demographic summary by district.
+
+    Parameters
+    ----------
+    state : str
+        Two-letter state abbreviation.
+    year : str, optional
+        ACS year filter.
+    client : RDHClient, optional
+        Existing client instance.
+
+    Returns
+    -------
+    DataFrame with ACS demographic columns.
+    """
+    if not HAS_PANDAS:
+        raise ImportError("pandas is required to load demographic data")
+    c = client or RDHClient()
+    datasets = c.list_datasets(
+        states=[state],
+        format="csv",
+        year=year,
+        dataset_type="acs",
+    )
+    if not datasets:
+        raise FileNotFoundError(
+            f"No ACS demographic data found for {state}"
+            + (f" year={year}" if year else "")
+        )
+    return c.load_csv(datasets[0])
+
+
 def demographic_profile(
     plan_gdf: "gpd.GeoDataFrame",
     census_gdf: "gpd.GeoDataFrame",
@@ -821,4 +1023,10 @@ __all__ = [
     # Plan analysis
     "compare_plans",
     "demographic_profile",
+    # High-level fetch functions
+    "fetch_enacted_plan",
+    "fetch_precinct_results",
+    "fetch_cvap",
+    "fetch_pl94171",
+    "fetch_demographic_summary",
 ]

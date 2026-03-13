@@ -20,6 +20,8 @@ def __getattr__(name):
         "TimezonePopulationService": ".timezone_service",
         "IsochroneComputeService": ".isochrone_service",
         "IsochroneComputeResult": ".isochrone_service",
+        "RDHLoaderService": ".rdh_loader",
+        "RDHLoadResult": ".rdh_loader",
     }
     if name in _map:
         import importlib
@@ -41,4 +43,6 @@ __all__ = [
     "TimezonePopulationService",
     "IsochroneComputeService",
     "IsochroneComputeResult",
+    "RDHLoaderService",
+    "RDHLoadResult",
 ]

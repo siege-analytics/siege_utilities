@@ -27,6 +27,11 @@ from siege_utilities.data.redistricting_data_hub import (
     compare_plans,
     demographic_profile,
     CompactnessScores,
+    fetch_enacted_plan,
+    fetch_precinct_results,
+    fetch_cvap,
+    fetch_pl94171,
+    fetch_demographic_summary,
 )
 
 
@@ -677,3 +682,132 @@ class TestConstants:
         assert cs.district_id == "D1"
         assert cs.polsby_popper == 0.8
         assert cs.reock == 0.0
+
+
+# ---------------------------------------------------------------------------
+# High-level fetch functions
+# ---------------------------------------------------------------------------
+
+
+class TestFetchEnactedPlan:
+
+    def test_calls_client_and_loads(self, client, sample_api_response):
+        """fetch_enacted_plan delegates to client methods."""
+        mock_gdf = MagicMock()
+        mock_gdf.__len__ = lambda self: 11
+
+        with patch.object(client, "get_enacted_plans") as mock_get, \
+             patch.object(client, "load_shapefile", return_value=mock_gdf) as mock_load:
+            mock_get.return_value = [RDHDataset(
+                title="VA_enacted_congress_2022_shp",
+                url="https://example.com/plan.zip",
+                state="VA",
+                format="shp",
+            )]
+
+            result = fetch_enacted_plan("VA", chamber="congress", client=client)
+
+            mock_get.assert_called_once_with("VA", chamber="congress", year=None)
+            mock_load.assert_called_once()
+            assert result is mock_gdf
+
+    def test_raises_on_no_data(self, client):
+        with patch.object(client, "get_enacted_plans", return_value=[]):
+            with pytest.raises(FileNotFoundError, match="No enacted"):
+                fetch_enacted_plan("XX", client=client)
+
+
+class TestFetchPrecinctResults:
+
+    def test_calls_client(self, client):
+        mock_gdf = MagicMock()
+        with patch.object(client, "get_precinct_data") as mock_get, \
+             patch.object(client, "load_shapefile", return_value=mock_gdf):
+            mock_get.return_value = [RDHDataset(
+                title="VA_precinct_2020",
+                url="https://example.com/precinct.zip",
+                format="shp",
+            )]
+            result = fetch_precinct_results("VA", year="2020", client=client)
+            mock_get.assert_called_once_with("VA", year="2020", format="shp")
+            assert result is mock_gdf
+
+    def test_raises_on_no_data(self, client):
+        with patch.object(client, "get_precinct_data", return_value=[]):
+            with pytest.raises(FileNotFoundError, match="No precinct"):
+                fetch_precinct_results("XX", client=client)
+
+
+class TestFetchCVAP:
+
+    def test_calls_client(self, client):
+        mock_df = MagicMock()
+        with patch.object(client, "get_cvap_data") as mock_get, \
+             patch.object(client, "load_csv", return_value=mock_df):
+            mock_get.return_value = [RDHDataset(
+                title="VA_CVAP_2021_tract",
+                url="https://example.com/cvap.csv",
+                format="csv",
+            )]
+            result = fetch_cvap("VA", year="2021", client=client)
+            mock_get.assert_called_once_with("VA", year="2021")
+            assert result is mock_df
+
+    def test_raises_on_no_data(self, client):
+        with patch.object(client, "get_cvap_data", return_value=[]):
+            with pytest.raises(FileNotFoundError, match="No CVAP"):
+                fetch_cvap("XX", client=client)
+
+    def test_filters_by_geography(self, client):
+        mock_df = MagicMock()
+        ds_tract = RDHDataset(title="VA_CVAP_tract", url="https://example.com/t.csv", format="csv")
+        ds_block = RDHDataset(title="VA_CVAP_block_group", url="https://example.com/b.csv", format="csv")
+        with patch.object(client, "get_cvap_data", return_value=[ds_tract, ds_block]), \
+             patch.object(client, "load_csv", return_value=mock_df) as mock_load:
+            fetch_cvap("VA", geography="tract", client=client)
+            # Should load the tract one (first match after filtering)
+            mock_load.assert_called_once_with(ds_tract)
+
+
+class TestFetchPL94171:
+
+    def test_calls_client(self, client):
+        mock_df = MagicMock()
+        with patch.object(client, "get_pl94171_data") as mock_get, \
+             patch.object(client, "load_csv", return_value=mock_df):
+            mock_get.return_value = [RDHDataset(
+                title="VA_PL_94171_block",
+                url="https://example.com/pl.csv",
+                format="csv",
+            )]
+            result = fetch_pl94171("VA", year="2020", client=client)
+            mock_get.assert_called_once_with("VA", year="2020")
+            assert result is mock_df
+
+    def test_raises_on_no_data(self, client):
+        with patch.object(client, "get_pl94171_data", return_value=[]):
+            with pytest.raises(FileNotFoundError, match="No PL 94-171"):
+                fetch_pl94171("XX", client=client)
+
+
+class TestFetchDemographicSummary:
+
+    def test_calls_client(self, client):
+        mock_df = MagicMock()
+        with patch.object(client, "list_datasets") as mock_list, \
+             patch.object(client, "load_csv", return_value=mock_df):
+            mock_list.return_value = [RDHDataset(
+                title="VA_ACS5_2022",
+                url="https://example.com/acs.csv",
+                format="csv",
+            )]
+            result = fetch_demographic_summary("VA", year="2022", client=client)
+            mock_list.assert_called_once_with(
+                states=["VA"], format="csv", year="2022", dataset_type="acs",
+            )
+            assert result is mock_df
+
+    def test_raises_on_no_data(self, client):
+        with patch.object(client, "list_datasets", return_value=[]):
+            with pytest.raises(FileNotFoundError, match="No ACS"):
+                fetch_demographic_summary("XX", client=client)

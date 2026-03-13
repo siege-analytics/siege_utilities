@@ -68,6 +68,12 @@ from .demographics import (
     DemographicSnapshotSchema,
     DemographicTimeSeriesSchema,
 )
+from .redistricting import (
+    RedistrictingPlanSchema,
+    PlanDistrictSchema,
+    DistrictDemographicsSchema,
+    PrecinctElectionResultSchema,
+)
 from .converters import (
     gdf_to_schemas,
     schemas_to_gdf,
@@ -123,6 +129,11 @@ __all__ = [
     "DemographicVariableSchema",
     "DemographicSnapshotSchema",
     "DemographicTimeSeriesSchema",
+    # Redistricting
+    "RedistrictingPlanSchema",
+    "PlanDistrictSchema",
+    "DistrictDemographicsSchema",
+    "PrecinctElectionResultSchema",
     # Converters
     "gdf_to_schemas",
     "schemas_to_gdf",

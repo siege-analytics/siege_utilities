@@ -11,6 +11,7 @@ Model hierarchy:
     │   ├── CensusTIGERBoundary (abstract — GEOID + TIGER metadata)
     │   │   ├── State, County, Tract, BlockGroup, Block, Place, ZCTA, CD
     │   │   ├── StateLegislativeUpper, StateLegislativeLower, VTD, Precinct
+    │   │   ├── PlanDistrict (redistricting plan districts)
     │   │   └── SchoolDistrictElementary, Secondary, Unified
     │   ├── GADMBoundary (abstract)
     │   │   └── GADMCountry, GADMAdmin1-5
@@ -88,6 +89,12 @@ from .demographics import (
     DemographicSnapshot,
     DemographicTimeSeries,
 )
+from .redistricting import (
+    RedistrictingPlan,
+    PlanDistrict,
+    DistrictDemographics,
+    PrecinctElectionResult,
+)
 from .crosswalks import (
     TemporalCrosswalk,
     BoundaryCrosswalk,  # deprecated alias
@@ -154,4 +161,9 @@ __all__ = [
     "TemporalCrosswalk",
     "BoundaryCrosswalk",  # deprecated alias
     "CrosswalkDataset",
+    # Redistricting
+    "RedistrictingPlan",
+    "PlanDistrict",
+    "DistrictDemographics",
+    "PrecinctElectionResult",
 ]
