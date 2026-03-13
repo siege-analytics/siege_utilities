@@ -30,6 +30,22 @@ from .sample_data import (
     SYNTHETIC_SAMPLES
 )
 
+from .redistricting_data_hub import (
+    RDHClient,
+    RDHDataset,
+    RDHDataFormat,
+    RDHDatasetType,
+    RDH_BASE_URL,
+    US_STATES,
+    polsby_popper,
+    reock,
+    convex_hull_ratio,
+    schwartzberg,
+    compute_compactness,
+    compare_plans,
+    demographic_profile,
+)
+
 from .dataframe_engine import (
     Engine,
     PANDAS,
@@ -66,6 +82,21 @@ __all__ = [
     'SAMPLE_DATASETS',
     'CENSUS_SAMPLES',
     'SYNTHETIC_SAMPLES',
+
+    # Redistricting Data Hub
+    'RDHClient',
+    'RDHDataset',
+    'RDHDataFormat',
+    'RDHDatasetType',
+    'RDH_BASE_URL',
+    'US_STATES',
+    'polsby_popper',
+    'reock',
+    'convex_hull_ratio',
+    'schwartzberg',
+    'compute_compactness',
+    'compare_plans',
+    'demographic_profile',
 
     # Engine-agnostic DataFrame operations
     'Engine',
