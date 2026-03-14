@@ -6,17 +6,10 @@ Targets lines: 15-20 (import fallback), 149-150, 153-172, 175-194, 197-210,
 """
 import os
 import sys
-from unittest.mock import patch, Mock, MagicMock
-
-import pytest
+from unittest.mock import patch, MagicMock
 
 from siege_utilities.testing.environment import (
-    _get_sdkman_root,
-    _get_system_java_paths,
-    _get_system_spark_paths,
-    _get_system_hadoop_paths,
     ensure_env_vars,
-    check_java_version,
     setup_spark_environment,
     get_system_info,
     diagnose_environment,
@@ -38,7 +31,7 @@ class TestImportFallback:
         # Since the module is already imported, we test the fallback functions directly
         # by simulating the import error path.
         import importlib
-        import siege_utilities.testing.environment as env_mod
+        import siege_utilities.testing.environment as env_mod  # noqa: F841
 
         original_modules = {}
         # Temporarily hide the logging module to trigger fallback
@@ -50,10 +43,10 @@ class TestImportFallback:
             with patch.dict('sys.modules', {'siege_utilities.core.logging': None}):
                 # Force re-import
                 spec = importlib.util.find_spec('siege_utilities.testing.environment')
-                loader = importlib.util.LazyLoader(spec.loader)
+                _ = importlib.util.LazyLoader(spec.loader)
                 # Simpler approach: just verify the fallback functions exist and are callable
                 # by calling them with None-returning behavior
-                from siege_utilities.testing import environment as reloaded
+                from siege_utilities.testing import environment as reloaded  # noqa: F401
                 # The fallback functions should be no-ops (return None)
                 # We can't easily force a reimport, so let's test the stubs directly
         finally:

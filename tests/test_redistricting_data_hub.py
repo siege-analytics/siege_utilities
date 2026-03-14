@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import json
 import math
 import os
-import tempfile
 import zipfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -25,7 +23,6 @@ from siege_utilities.data.redistricting_data_hub import (
     schwartzberg,
     compute_compactness,
     compare_plans,
-    demographic_profile,
     CompactnessScores,
     fetch_enacted_plan,
     fetch_precinct_results,

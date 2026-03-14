@@ -1,11 +1,7 @@
 """Tests for siege_utilities.reporting.map_3d — 3D map rendering via pydeck."""
 
 import importlib
-import json
 import sys
-import types
-from pathlib import Path
-from unittest import mock
 
 import pytest
 

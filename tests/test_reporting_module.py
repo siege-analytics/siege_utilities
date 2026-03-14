@@ -6,11 +6,9 @@ PowerPointGenerator, and image_utils across 35+ tests.
 """
 
 import base64
-import io
-import logging
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
@@ -20,8 +18,6 @@ import pytest
 # ---------------------------------------------------------------------------
 try:
     import reportlab  # noqa: F401
-    from reportlab.platypus import Image as RLImage
-    from reportlab.lib.units import inch
 
     REPORTLAB_AVAILABLE = True
 except ImportError:
@@ -654,7 +650,7 @@ class TestImageUtils:
     def test_save_rl_image_creates_parent_dirs(self, tmp_path):
         stub = _make_rl_image_stub()
         out_path = tmp_path / "nested" / "dir" / "image.png"
-        result = save_rl_image(stub, out_path)
+        save_rl_image(stub, out_path)
         assert out_path.exists()
 
     def test_save_rl_image_non_data_uri(self, tmp_path):

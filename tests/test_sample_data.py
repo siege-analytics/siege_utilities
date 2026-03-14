@@ -6,9 +6,7 @@ External-service functions (Census boundaries/data) are not tested here.
 """
 
 import pytest
-import numpy as np
 import pandas as pd
-from unittest.mock import patch
 
 from siege_utilities.data.sample_data import (
     HOUSING_LOCALE_PRESETS,

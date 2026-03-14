@@ -9,7 +9,6 @@ Focuses on lines not covered by test_runtime_guard.py:
 - _auto_install_deps: success, CalledProcessError, FileNotFoundError
 """
 
-import importlib
 import logging
 import subprocess
 import sys
@@ -60,7 +59,7 @@ class TestDiagnoseEnvironmentEdgeCases:
 
     def test_pydantic_not_installed(self):
         """Lines 120-123: pydantic not importable at all."""
-        original_import = builtins_import = __import__
+        original_import = __import__
 
         def fake_import(name, *args, **kwargs):
             if name == "pydantic":
@@ -247,7 +246,7 @@ class TestEnsureCompatiblePaths:
     def test_non_quiet_logs_on_success(self, caplog):
         """Lines 249 and 259: non-quiet mode logs info messages."""
         with caplog.at_level(logging.INFO, logger="siege_utilities.runtime"):
-            diag = ensure_compatible(quiet=False)
+            ensure_compatible(quiet=False)
         assert "runtime guard" in caplog.text.lower()
 
     def test_auto_install_repairs_successfully(self):

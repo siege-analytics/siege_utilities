@@ -14,11 +14,7 @@ Covers:
 """
 
 import sys
-import os
-from pathlib import Path
-from unittest.mock import patch, MagicMock, mock_open, call
-
-import pytest
+from unittest.mock import patch, MagicMock, mock_open
 
 from siege_utilities.testing.runner import (
     run_command,

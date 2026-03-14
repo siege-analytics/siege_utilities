@@ -25,11 +25,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Data manipulation (pandas, numpy, openpyxl, faker)
+# Data manipulation (pandas, numpy, openpyxl, pyarrow, faker)
 data = [
     "pandas>=2.0.0",
     "numpy>=1.24.0",
     "openpyxl>=3.1.0",
+    "pyarrow>=14.0.0",
     "faker>=35.2.2",
 ]
 # Geospatial (geopandas, shapely, pyproj, etc.)
@@ -161,6 +162,7 @@ all = [
     "pandas>=2.0.0",
     "numpy>=1.24.0",
     "openpyxl>=3.1.0",
+    "pyarrow>=14.0.0",
     "faker>=35.2.2",
     # geo
     "geopandas>=0.13.2",

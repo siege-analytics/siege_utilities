@@ -229,7 +229,6 @@ jobs:
 
     env:
       BASELINE_VERSION: "3.8.0"
-      RELEASE_IMPACT: "patch"
 
     steps:
     - uses: actions/checkout@v4
@@ -238,6 +237,13 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: "3.11"
+
+    - name: Infer release impact from version delta
+      id: impact
+      run: |
+        IMPACT=$(python scripts/release_manager.py --infer-impact --baseline-version "${BASELINE_VERSION}")
+        echo "level=${IMPACT}" >> $GITHUB_OUTPUT
+        echo "Inferred release impact: ${IMPACT} (baseline ${BASELINE_VERSION} → candidate $(python -c "import re; print(re.search(r'version\s*=\"([^\"]+)\"', open('pyproject.toml').read()).group(1))"))"
 
     - name: Build baseline and candidate API contracts
       run: |
@@ -260,7 +266,7 @@ jobs:
         python scripts/contracts/compare_public_api_contracts.py \
           --baseline /tmp/contract_baseline.json \
           --candidate /tmp/contract_candidate.json \
-          --release-impact "${RELEASE_IMPACT}" \
+          --release-impact "${{ steps.impact.outputs.level }}" \
           --allowlist scripts/contracts/contract_allowlist.json
 
   test-geo-no-gdal:

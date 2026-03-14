@@ -214,6 +214,39 @@ def validate_target_version(target: str) -> str:
     return target
 
 
+def infer_release_impact(baseline: str, candidate: str) -> str:
+    """Infer the semver release impact between two versions.
+
+    Compares baseline and candidate version strings to determine whether the
+    transition is a major, minor, or patch bump.  This is used by CI to set
+    the API-contract-regression policy dynamically instead of hard-coding it.
+
+    Args:
+        baseline: The baseline version (e.g. '3.8.0').
+        candidate: The candidate version (e.g. '3.12.0').
+
+    Returns:
+        One of 'major', 'minor', or 'patch'.
+
+    Raises:
+        ValueError: If either version is not in X.Y.Z format.
+    """
+    def _parse(v: str) -> tuple[int, int, int]:
+        parts = v.split('.')
+        if len(parts) != 3:
+            raise ValueError(f"Version must be X.Y.Z format, got: {v}")
+        return int(parts[0]), int(parts[1]), int(parts[2])
+
+    b_major, b_minor, b_patch = _parse(baseline)
+    c_major, c_minor, c_patch = _parse(candidate)
+
+    if c_major != b_major:
+        return 'major'
+    if c_minor != b_minor:
+        return 'minor'
+    return 'patch'
+
+
 def bump_version(bump_type: str) -> str:
     """Bump version and return new version string."""
     current = get_current_version()
@@ -685,6 +718,10 @@ def main():
                         help='Show actions without executing side effects')
     parser.add_argument('--clean', action='store_true',
                         help='Clean build artifacts before building')
+    parser.add_argument('--infer-impact', action='store_true',
+                        help='Infer release impact (patch/minor/major) from baseline and candidate versions')
+    parser.add_argument('--baseline-version', type=str,
+                        help='Baseline version for --infer-impact (default: read from pyproject.toml)')
 
     args = parser.parse_args()
 
@@ -692,6 +729,15 @@ def main():
         status = check_consistency()
         print(json.dumps(status, indent=2))
         sys.exit(0 if status['consistent'] else 1)
+
+    elif args.infer_impact:
+        candidate = get_current_version()
+        baseline = args.baseline_version
+        if not baseline:
+            parser.error("--infer-impact requires --baseline-version")
+        impact = infer_release_impact(baseline, candidate)
+        print(impact)
+        sys.exit(0)
 
     elif args.bump:
         new_ver = bump_version(args.bump)

@@ -1,7 +1,6 @@
 """Tests for siege_utilities.reporting.image_utils module."""
 
 import base64
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock
 from siege_utilities.reporting.image_utils import decode_rl_image, save_rl_image
@@ -72,7 +71,7 @@ class TestSaveRlImage:
         mock_img.filename = f"data:image/png;base64,{b64}"
 
         out_path = tmp_path / "nested" / "dir" / "output.png"
-        result = save_rl_image(mock_img, out_path)
+        save_rl_image(mock_img, out_path)
         assert out_path.exists()
 
     def test_string_path_accepted(self, tmp_path):
@@ -82,5 +81,5 @@ class TestSaveRlImage:
         mock_img.filename = f"data:image/png;base64,{b64}"
 
         out_path = str(tmp_path / "output.png")
-        result = save_rl_image(mock_img, out_path)
+        save_rl_image(mock_img, out_path)
         assert Path(out_path).exists()
