@@ -407,11 +407,17 @@ siege_utilities/
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature-name`
-3. Run tests: `python -m pytest tests/ --tb=short -q`
-4. Commit and push
-5. Submit a Pull Request
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the full guide: fork, clone, install locally, run tests, and submit a PR.
+
+Quick version:
+
+```bash
+git clone https://github.com/<your-user>/siege_utilities.git
+cd siege_utilities
+python3.11 -m venv .venv && source .venv/bin/activate
+pip install -e ".[all,dev]"
+python -m pytest tests/ -v
+```
 
 ## License
 
