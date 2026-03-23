@@ -4,7 +4,7 @@ All Google API calls are mocked — no real credentials needed.
 """
 
 import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 
 # ── GoogleWorkspaceClient ─────────────────────────────────────────
@@ -218,7 +218,7 @@ class TestGoogleSheets:
 
 class TestGoogleSheetsDataFrame:
     def test_write_dataframe(self, mock_client):
-        pd = pytest.importorskip("pandas")
+        pytest.importorskip("pandas")
         from siege_utilities.analytics.google_sheets import write_dataframe
         import pandas as _pd
         df = _pd.DataFrame({"name": ["Alice", "Bob"], "score": [95, 87]})
@@ -228,7 +228,7 @@ class TestGoogleSheetsDataFrame:
         assert result["updatedCells"] == 6
 
     def test_read_dataframe(self, mock_client):
-        pd = pytest.importorskip("pandas")
+        pytest.importorskip("pandas")
         from siege_utilities.analytics.google_sheets import read_dataframe
         (mock_client._mock_sheets.spreadsheets().values()
          .get().execute.return_value) = {
@@ -239,7 +239,7 @@ class TestGoogleSheetsDataFrame:
         assert len(df) == 2
 
     def test_read_dataframe_empty(self, mock_client):
-        pd = pytest.importorskip("pandas")
+        pytest.importorskip("pandas")
         from siege_utilities.analytics.google_sheets import read_dataframe
         (mock_client._mock_sheets.spreadsheets().values()
          .get().execute.return_value) = {}

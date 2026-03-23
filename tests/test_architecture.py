@@ -13,11 +13,10 @@ Covers:
 """
 
 import json
-import os
 import textwrap
 import types
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 

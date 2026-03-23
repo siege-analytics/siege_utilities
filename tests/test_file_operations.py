@@ -1,7 +1,4 @@
 """Tests for siege_utilities.files.operations — file manipulation utilities."""
-import json
-import pytest
-from pathlib import Path
 
 from siege_utilities.files.operations import (
     remove_tree,

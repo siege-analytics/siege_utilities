@@ -5,9 +5,6 @@ See: https://github.com/siege-analytics/siege_utilities/issues/92
 
 from __future__ import annotations
 
-import csv
-import os
-import tempfile
 from pathlib import Path
 from unittest import mock
 

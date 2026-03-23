@@ -1,7 +1,5 @@
 """Tests for siege_utilities.geo.capabilities."""
 
-import pytest
-
 
 def test_geo_capabilities_returns_dict():
     from siege_utilities.geo.capabilities import geo_capabilities

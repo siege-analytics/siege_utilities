@@ -1,7 +1,5 @@
 """Tests for siege_utilities.config.projects module."""
 
-import json
-import pytest
 from pathlib import Path
 from siege_utilities.config.projects import (
     create_project_config,

@@ -3,7 +3,6 @@ Tests for siege_utilities.geo.h3_utils — H3 hexagonal spatial index utilities.
 """
 
 import importlib
-import math
 import sys
 from unittest import mock
 

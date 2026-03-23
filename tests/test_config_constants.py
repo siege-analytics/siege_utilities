@@ -1,8 +1,5 @@
 """Tests for siege_utilities.config.constants module."""
 
-import pytest
-from pathlib import Path
-
 
 class TestGetTimeout:
     """Tests for get_timeout helper function."""

@@ -197,8 +197,6 @@ class NCESDownloader:
             get_locale_category,
             get_locale_subcategory,
         )
-        from siege_utilities.conf import settings
-
         self._validate_year(year)
         url = self._build_url("locale_boundaries", year)
 
@@ -277,8 +275,6 @@ class NCESDownloader:
             get_locale_category,
             get_locale_subcategory,
         )
-        from siege_utilities.conf import settings
-
         self._validate_year(year)
         url = self._build_url("school_locations", year)
 

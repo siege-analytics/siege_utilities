@@ -243,7 +243,7 @@ class TestListDatasets:
 
         states = ["VA", "MD", "DC", "NC", "PA", "NY"]
         with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
-            results = client.list_datasets(states=states)
+            client.list_datasets(states=states)
 
         # Should make 2 batches: 4 + 2
         assert mock_get.call_count == 2
@@ -435,7 +435,6 @@ class TestLoadCSV:
         csv_file.parent.mkdir()
         csv_file.write_text("x,y\n1,2\n")
 
-        import pandas as pd
         # Create an RDHDataset that returns the directory
         with patch.object(client, "download_dataset", return_value=csv_file.parent):
             ds = RDHDataset(title="test", url="https://example.com/data.zip")

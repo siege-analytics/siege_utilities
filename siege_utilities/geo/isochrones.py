@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Dict, Literal, Mapping, Optional
 
 import requests
 
-from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+from siege_utilities.geo.crs import reproject_if_needed
 
 if TYPE_CHECKING:
     import geopandas as gpd

@@ -8,7 +8,7 @@ Covers the two bugs fixed in PR #299:
 
 import pytest
 import pandas as pd
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 from types import SimpleNamespace
 
 
@@ -66,7 +66,6 @@ def connector():
         "google.analytics.data_v1beta.types": MagicMock(),
     }):
         # Patch the availability flag and imports at module level
-        import importlib
         import siege_utilities.analytics.google_analytics as ga_mod
         original_available = ga_mod.GOOGLE_ANALYTICS_AVAILABLE
         ga_mod.GOOGLE_ANALYTICS_AVAILABLE = True

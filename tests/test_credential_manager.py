@@ -21,7 +21,6 @@ Covers:
 import json
 import os
 import subprocess
-import tempfile
 from pathlib import Path
 from unittest.mock import patch, Mock, MagicMock
 
@@ -863,7 +862,7 @@ class TestListStoredCredentials:
             Mock(returncode=0, stdout='[{"title":"a"},{"title":"b"}]', stderr=''),
         ]
 
-        results = manager.list_stored_credentials()
+        manager.list_stored_credentials()
         assert mock_op_available.call_count == 2
 
     def test_handles_1password_exception(self, mock_op_available):

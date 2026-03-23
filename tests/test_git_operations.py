@@ -1,7 +1,7 @@
 """Tests for siege_utilities.git.git_operations — git command wrappers."""
 import subprocess
 import pytest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 
 from siege_utilities.git.git_operations import (
     run_git_command,
@@ -608,7 +608,7 @@ class TestResetToCommit:
             return ""
 
         with patch(RGC, side_effect=fake_rgc):
-            result = reset_to_commit("abc1234", reset_type="mixed")
+            reset_to_commit("abc1234", reset_type="mixed")
 
         assert ("reset", "--mixed", "abc1234") in call_log
 
@@ -620,7 +620,7 @@ class TestResetToCommit:
             return ""
 
         with patch(RGC, side_effect=fake_rgc):
-            result = reset_to_commit("abc1234", reset_type="hard")
+            reset_to_commit("abc1234", reset_type="hard")
 
         assert ("reset", "--hard", "abc1234") in call_log
 
@@ -727,7 +727,7 @@ class TestCreateTag:
             return ""
 
         with patch(RGC, side_effect=fake_rgc):
-            result = create_tag("v1.0.0", commit_hash="abc1234")
+            create_tag("v1.0.0", commit_hash="abc1234")
 
         tag_calls = [c for c in call_log if c[0] == "tag"]
         assert "abc1234" in tag_calls[0]
@@ -757,9 +757,8 @@ class TestCreateTag:
         """When validation module is not importable, fallback checks empty name."""
         with patch(
             "siege_utilities.git.git_operations.run_git_command"
-        ) as mock_rgc:
+        ):
             # Force ImportError on validation import inside create_tag
-            import importlib
             with patch("builtins.__import__", side_effect=ImportError):
                 with pytest.raises((ValueError, ImportError)):
                     create_tag("")
@@ -794,7 +793,7 @@ class TestPushBranch:
             return ""
 
         with patch(RGC, side_effect=fake_rgc):
-            result = push_branch(branch_name="feature/x")
+            push_branch(branch_name="feature/x")
 
         push_calls = [c for c in call_log if c[0] == "push"]
         assert "feature/x" in push_calls[0]
@@ -862,7 +861,7 @@ class TestPullBranch:
             return ""
 
         with patch(RGC, side_effect=fake_rgc):
-            result = pull_branch(branch_name="develop")
+            pull_branch(branch_name="develop")
 
         pull_calls = [c for c in call_log if c[0] == "pull"]
         assert "develop" in pull_calls[0]
@@ -889,7 +888,7 @@ class TestPullBranch:
             return ""
 
         with patch(RGC, side_effect=fake_rgc):
-            result = pull_branch(remote="upstream")
+            pull_branch(remote="upstream")
 
         pull_calls = [c for c in call_log if c[0] == "pull"]
         assert "upstream" in pull_calls[0]

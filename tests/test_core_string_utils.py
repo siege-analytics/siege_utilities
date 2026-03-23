@@ -1,6 +1,5 @@
 """Tests for siege_utilities.core.string_utils module."""
 
-import pytest
 from siege_utilities.core.string_utils import (
     remove_wrapping_quotes_and_trim,
     clean_string,

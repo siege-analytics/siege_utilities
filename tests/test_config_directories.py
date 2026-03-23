@@ -1,7 +1,5 @@
 """Tests for siege_utilities.config.directories module."""
 
-import json
-import pytest
 from pathlib import Path
 from siege_utilities.config.directories import (
     create_directory_structure,

@@ -10,7 +10,7 @@ Requires: h3>=4.0 (primary), with v3 fallback support.
 
 import logging
 import math
-from typing import Optional, Union
+from typing import Optional
 
 import pandas as pd
 

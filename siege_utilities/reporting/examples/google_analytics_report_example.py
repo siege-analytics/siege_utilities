@@ -1541,18 +1541,18 @@ def generate_insights(ga_data: Dict[str, Any]) -> List[str]:
     # User growth insight
     if changes['users'] > 0:
         insights.append(f"User traffic increased by {changes['users']:.1f}% compared to the prior period, "
-                       f"indicating positive growth momentum.")
+                       "indicating positive growth momentum.")
     else:
         insights.append(f"User traffic decreased by {abs(changes['users']):.1f}% compared to the prior period. "
-                       f"Consider reviewing marketing efforts and content strategy.")
+                       "Consider reviewing marketing efforts and content strategy.")
 
     # Bounce rate insight
     if totals['avg_bounce_rate'] < 40:
         insights.append(f"The bounce rate of {totals['avg_bounce_rate']:.1f}% is excellent, "
-                       f"indicating strong user engagement with your content.")
+                       "indicating strong user engagement with your content.")
     elif totals['avg_bounce_rate'] > 60:
         insights.append(f"The bounce rate of {totals['avg_bounce_rate']:.1f}% is higher than optimal. "
-                       f"Consider improving page load times and content relevance.")
+                       "Consider improving page load times and content relevance.")
 
     # Traffic source insight
     top_source = max(sources, key=lambda x: x['sessions'])
@@ -1565,7 +1565,7 @@ def generate_insights(ga_data: Dict[str, Any]) -> List[str]:
         mobile_pct = mobile['sessions'] / totals['sessions'] * 100
         if mobile_pct > 50:
             insights.append(f"Mobile traffic accounts for {mobile_pct:.1f}% of sessions. "
-                           f"Ensure your site provides an excellent mobile experience.")
+                           "Ensure your site provides an excellent mobile experience.")
 
     # Session duration insight
     if totals['avg_session_duration'] > 120:
@@ -2525,24 +2525,24 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
 
         lines = [
             f"# {client_name}",
-            f"## Google Analytics Performance Report",
-            f"",
+            "## Google Analytics Performance Report",
+            "",
             f"**Date Range:** {date_range['start']} to {date_range['end']}",
             f"**Prepared by:** {prepared_by}",
-            f"",
-            f"---",
-            f"",
-            f"## Executive Summary",
-            f"",
-            f"| Metric | Value | Change vs Prior |",
-            f"|--------|-------|-----------------|",
+            "",
+            "---",
+            "",
+            "## Executive Summary",
+            "",
+            "| Metric | Value | Change vs Prior |",
+            "|--------|-------|-----------------|",
             f"| Sessions | {totals['sessions']:,} | {changes['sessions']:+.1f}% |",
             f"| Users | {totals['users']:,} | {changes['users']:+.1f}% |",
             f"| Pageviews | {totals['pageviews']:,} | {changes.get('pageviews', 0):+.1f}% |",
             f"| Bounce Rate | {totals['avg_bounce_rate']:.1f}% | {changes['bounce_rate']:+.1f} pts |",
             f"| Avg Duration | {totals['avg_session_duration']:.0f}s | {changes['duration']:+.1f}% |",
             f"| Pages/Session | {totals['pages_per_session']:.2f} | |",
-            f"",
+            "",
         ]
 
         best_day = ga_data.get('best_day')

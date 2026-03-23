@@ -1,6 +1,5 @@
 """Tests for siege_utilities.files.hashing — file hash functions."""
 import hashlib
-import tempfile
 import os
 import pytest
 

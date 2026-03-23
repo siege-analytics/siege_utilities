@@ -1,8 +1,6 @@
 """Tests for siege_utilities.config.paths module."""
 
-import pytest
 from pathlib import Path
-from unittest.mock import patch
 
 
 class TestConstants:

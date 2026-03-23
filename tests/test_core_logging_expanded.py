@@ -1,10 +1,8 @@
 """Expanded tests for siege_utilities.core.logging module."""
 
 import logging
-import pytest
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 
 class TestLoggerManager:

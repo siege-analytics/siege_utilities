@@ -16,14 +16,10 @@ from __future__ import annotations
 
 import io
 import logging
-import os
-import re
 import uuid
-import warnings
 import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-from xml.etree import ElementTree as ET
 
 log = logging.getLogger(__name__)
 
@@ -560,7 +556,6 @@ def export_report_idml(
 
     # -- KPI summary --
     totals = ga_data.get("totals", {})
-    changes = ga_data.get("changes", {})
     if totals:
         kpi_text = (
             f"Users: {totals.get('users', 'N/A'):,}  "

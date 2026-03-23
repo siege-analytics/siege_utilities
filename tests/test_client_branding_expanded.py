@@ -3,7 +3,6 @@
 import pytest
 import json
 import yaml
-from pathlib import Path
 from siege_utilities.reporting.client_branding import ClientBrandingManager
 
 

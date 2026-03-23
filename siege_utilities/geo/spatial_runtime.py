@@ -12,7 +12,7 @@ import base64
 import json
 import os
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 try:

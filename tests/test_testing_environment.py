@@ -31,7 +31,7 @@ class TestImportFallback:
         # Since the module is already imported, we test the fallback functions directly
         # by simulating the import error path.
         import importlib
-        import siege_utilities.testing.environment as env_mod  # noqa: F841
+        import siege_utilities.testing.environment as env_mod  # noqa: F401, F841
 
         original_modules = {}
         # Temporarily hide the logging module to trigger fallback

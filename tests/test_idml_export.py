@@ -10,19 +10,15 @@ Covers:
 
 from __future__ import annotations
 
-import os
-import tempfile
 import zipfile
 from pathlib import Path
 from typing import Any, Dict
 from unittest import mock
-from xml.etree import ElementTree as ET
 
 import pytest
 
 from siege_utilities.reporting.idml_export import (
     IDMLExporter,
-    SIMPLEIDML_AVAILABLE,
     export_report_idml,
     _uid,
 )
