@@ -206,7 +206,7 @@ scripts/
 ├── contracts/           # API contract generation and comparison
 └── check_*.py           # Lint and hygiene validation scripts
 
-tests/                   # 1884+ tests across all modules
+tests/                   # 3058+ tests across all modules
 notebooks/               # 20 Jupyter notebooks demonstrating features
 docs/                    # Sphinx documentation + policy docs
 ```
