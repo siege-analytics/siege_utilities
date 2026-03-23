@@ -381,7 +381,7 @@ Note:
             df_with_json = df_with_json.withColumn('parsed_json', when(col(
                 'parsed_json').isNull(), lit(None).cast(StringType())).
                 otherwise(col('parsed_json')))
-        except:
+        except Exception:
             _log_error(
                 f'Failed even with string schema for {json_column}. Returning original dataframe.'
                 )

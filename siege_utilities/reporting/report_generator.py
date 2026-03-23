@@ -517,7 +517,7 @@ class ReportGenerator:
                     try:
                         import matplotlib.pyplot as plt
                         plt.close(chart)
-                    except:
+                    except Exception:
                         pass
                     continue
 

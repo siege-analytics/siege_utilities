@@ -181,7 +181,7 @@ def get_quick_file_signature(file_path) ->str:
         try:
             stat = pathlib.Path(file_path).stat()
             return f'fallback_{stat.st_size}_{stat.st_mtime}'
-        except:
+        except Exception:
             return 'error'
 
 

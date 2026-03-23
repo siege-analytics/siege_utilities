@@ -53,7 +53,7 @@ def get_repository_status(repo_path: str = ".") -> Dict[str, Union[str, int, boo
         last_commit_date = run_git_command("log", "-1", "--format=%cd", "--date=short", repo_path=repo_path)
         last_commit_author = run_git_command("log", "-1", "--format=%an", repo_path=repo_path)
         last_commit_message = run_git_command("log", "-1", "--format=%s", repo_path=repo_path)
-    except:
+    except Exception:
         last_commit_hash = "unknown"
         last_commit_date = "unknown"
         last_commit_author = "unknown"
@@ -65,7 +65,7 @@ def get_repository_status(repo_path: str = ".") -> Dict[str, Union[str, int, boo
         upstream_branch = run_git_command("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}", repo_path=repo_path, check=False)
         if upstream_branch == "":
             upstream_branch = None
-    except:
+    except Exception:
         remote_url = "unknown"
         upstream_branch = None
     
@@ -74,7 +74,7 @@ def get_repository_status(repo_path: str = ".") -> Dict[str, Union[str, int, boo
     if upstream_branch:
         try:
             ahead_behind = run_git_command("rev-list", "--count", "--left-right", f"{upstream_branch}...HEAD", repo_path=repo_path)
-        except:
+        except Exception:
             ahead_behind = "0 0"
     
     behind, ahead = ahead_behind.split()
@@ -133,7 +133,7 @@ def get_branch_info(repo_path: str = ".") -> Dict[str, Union[str, List[str], int
                             "message": message
                         }
                     })
-            except:
+            except Exception:
                 branches.append({
                     "name": branch_name,
                     "upstream": upstream,
@@ -178,7 +178,7 @@ def get_remote_info(repo_path: str = ".") -> Dict[str, Union[str, List[Dict[str,
                 "fetch_url": fetch_url if fetch_url else url,
                 "push_url": push_url if push_url else url
             })
-        except:
+        except Exception:
             remote_info.append({
                 "name": remote_name,
                 "url": "unknown",
@@ -211,7 +211,7 @@ def get_stash_list(repo_path: str = ".") -> List[Dict[str, str]]:
                     })
         
         return stashes
-    except:
+    except Exception:
         return []
 
 def get_tag_list(repo_path: str = ".") -> List[Dict[str, str]]:
@@ -233,7 +233,7 @@ def get_tag_list(repo_path: str = ".") -> List[Dict[str, str]]:
                     })
         
         return tags
-    except:
+    except Exception:
         return []
 
 def get_log_summary(
@@ -281,7 +281,7 @@ def get_log_summary(
                 "max_count": max_count
             }
         }
-    except:
+    except Exception:
         return {
             "total_commits": 0,
             "commits": [],
@@ -328,7 +328,7 @@ def get_file_status(repo_path: str = ".") -> Dict[str, List[str]]:
                     files["untracked"].append(filepath)
         
         return files
-    except:
+    except Exception:
         return {
             "staged": [],
             "unstaged": [],
@@ -361,7 +361,7 @@ def get_repository_size(repo_path: str = ".") -> Dict[str, Union[int, str]]:
             "total_size_bytes": git_size + working_size,
             "total_size_mb": round((git_size + working_size) / (1024 * 1024), 2)
         }
-    except:
+    except Exception:
         return {
             "git_directory_size_bytes": 0,
             "git_directory_size_mb": 0,

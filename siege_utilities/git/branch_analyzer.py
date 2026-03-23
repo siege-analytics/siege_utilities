@@ -45,7 +45,7 @@ def analyze_branch_status(repo_path: str = ".") -> Dict[str, str]:
             behind, ahead = status_output.split()
         else:
             behind, ahead = "0", "0"
-    except:
+    except Exception:
         behind, ahead = "0", "0"
 
     # Get last commit info
@@ -144,7 +144,7 @@ def get_file_changes(repo_path: str = ".") -> Dict[str, List[str]]:
             "modified": modified,
             "deleted": deleted
         }
-    except:
+    except Exception:
         return {"added": [], "modified": [], "deleted": []}
 
 def get_file_stats(repo_path: str = ".") -> Dict[str, int]:
