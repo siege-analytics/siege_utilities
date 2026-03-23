@@ -44,6 +44,13 @@ from .redistricting_data_hub import (
     compute_compactness,
     compare_plans,
     demographic_profile,
+    fetch_enacted_plan,
+    fetch_precinct_results,
+    fetch_cvap,
+    fetch_pl94171,
+    fetch_demographic_summary,
+    CompactnessScores,
+    RDH_SITE_URL,
 )
 
 from .dataframe_engine import (
@@ -97,6 +104,13 @@ __all__ = [
     'compute_compactness',
     'compare_plans',
     'demographic_profile',
+    'fetch_enacted_plan',
+    'fetch_precinct_results',
+    'fetch_cvap',
+    'fetch_pl94171',
+    'fetch_demographic_summary',
+    'CompactnessScores',
+    'RDH_SITE_URL',
 
     # Engine-agnostic DataFrame operations
     'Engine',
