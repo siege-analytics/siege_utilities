@@ -33,7 +33,7 @@ setup(
         "pydantic>=2.0.0",
     ],
     extras_require={
-        "data": ["pandas>=2.0.0", "numpy>=1.24.0", "openpyxl>=3.1.0", "faker>=35.2.2"],
+        "data": ["pandas>=2.0.0", "numpy>=1.24.0", "openpyxl>=3.1.0", "faker>=35.2.2", "pyarrow>=14.0.0"],
         "geo": [
             "geopandas>=0.13.2", "shapely>=2.0.0,<3.0", "pyproj>=3.3.0", "fiona>=1.9.0",
             "geopy>=2.4.1", "rtree>=1.0.0", "mapclassify>=2.5.0", "tobler>=0.11.0",
@@ -74,7 +74,8 @@ setup(
             "pytest-xdist>=3.0.0", "pytest-html>=3.1.0", "pytest-json-report>=1.5.0",
             "pytest-forked>=1.4.0", "black>=21.0.0", "flake8>=3.8.0",
             "astor>=0.8.1", "django>=4.2.0", "pytest-django>=4.5.0",
-            "djangorestframework-gis>=1.0.0",
+            "djangorestframework>=3.14.0", "djangorestframework-gis>=1.0.0",
+            "psycopg2-binary>=2.9.0",
         ],
         "all": [
             # data
