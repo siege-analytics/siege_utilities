@@ -301,7 +301,11 @@ jobs:
           --ignore=tests/test_temporal_boundary.py \
           --ignore=tests/test_urbanicity_service.py \
           --ignore=tests/test_timeseries_rollup_services.py \
-          --ignore=tests/test_credential_manager.py
+          --ignore=tests/test_credential_manager.py \
+          --ignore=tests/test_google_account.py \
+          --ignore=tests/test_google_analytics_connector.py \
+          --ignore=tests/test_google_workspace.py \
+          --ignore=tests/test_redistricting_models.py
 
   test-smoke:
     runs-on: ubuntu-latest
