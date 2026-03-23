@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="siege-utilities",
-    version="3.12.0",
+    version="3.12.1",
     author="Dheeraj Chand",
     author_email="dheeraj@siegeanalytics.com",
     description="A comprehensive Python utilities package with enhanced auto-discovery",
