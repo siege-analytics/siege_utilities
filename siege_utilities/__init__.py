@@ -248,13 +248,13 @@ _register_lazy([
 # ── Sample data (requires pandas, faker) ─────────────────────────────
 
 _register_lazy([
-    'load_sample_data', 'list_available_datasets', 'get_sample_dataset_info',
+    'load_sample_data', 'list_available_datasets',
     'join_boundaries_and_data', 'create_sample_dataset',
     'generate_synthetic_population', 'generate_synthetic_businesses',
     'generate_synthetic_housing',
     'SAMPLE_DATASETS', 'CENSUS_SAMPLES', 'SYNTHETIC_SAMPLES',
 ], '.data.sample_data', deps=['pandas'],
-    renames={'get_sample_dataset_info': 'get_dataset_info'})
+)
 
 # ── Analytics ────────────────────────────────────────────────────────
 

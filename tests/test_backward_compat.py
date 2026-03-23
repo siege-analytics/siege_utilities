@@ -151,7 +151,7 @@ GIT_NAMES = [
 
 TESTING_NAMES = [
     'setup_spark_environment', 'get_system_info', 'ensure_env_vars',
-    'check_java_version', 'diagnose_environment', 'quick_environment_setup',
+    'check_java_version', 'diagnose_test_environment', 'quick_environment_setup',
     'run_test_suite', 'get_test_report', 'run_comprehensive_test',
     'quick_smoke_test', 'build_pytest_command',
 ]
