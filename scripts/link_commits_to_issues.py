@@ -80,12 +80,12 @@ def get_all_commits() -> list[Commit]:
     return commits
 
 
-def get_closed_issues(min_num: int = 157, max_num: int = 305) -> list[dict]:
+def get_closed_issues(min_num: int = 1, max_num: int = 9999) -> list[dict]:
     """Fetch closed issues in range."""
     issues = gh_json([
         "issue", "list",
         "--state", "closed",
-        "--limit", "200",
+        "--limit", "500",
         "--json", "number,title,closedAt,labels",
     ])
     return [
@@ -146,14 +146,41 @@ def get_issue_comments(issue_number: int) -> list[dict]:
 # ---------------------------------------------------------------------------
 # Detection: which issues already have commit references?
 # ---------------------------------------------------------------------------
-def issues_with_commit_refs_in_git(commits: list[Commit]) -> set[int]:
-    """Find issue numbers referenced in commit messages via #N or su#N."""
-    referenced = set()
-    pattern = re.compile(r'(?:su)?#(\d+)')
+def issues_with_commit_refs_in_git(commits: list[Commit]) -> dict[int, list[Commit]]:
+    """Find issue numbers referenced in commit messages via su#N.
+
+    Returns a mapping of issue_number -> list of commits that reference it.
+    Uses su#N pattern specifically to avoid false positives from PR merge messages.
+    """
+    referenced: dict[int, list[Commit]] = {}
+    pattern = re.compile(r'su#(\d+)')
     for c in commits:
         for m in pattern.finditer(c.subject):
-            referenced.add(int(m.group(1)))
+            num = int(m.group(1))
+            referenced.setdefault(num, []).append(c)
     return referenced
+
+
+def get_merged_pr_refs() -> dict[int, list[int]]:
+    """Scan merged PR titles for issue references.
+
+    Returns mapping of issue_number -> list of PR numbers.
+    """
+    prs = gh_json([
+        "pr", "list",
+        "--state", "merged",
+        "--limit", "500",
+        "--json", "number,title",
+    ])
+    refs: dict[int, list[int]] = {}
+    pattern = re.compile(r'su#(\d+)')
+    for pr in prs:
+        title = pr.get("title", "")
+        pr_num = pr["number"]
+        for m in pattern.finditer(title):
+            issue_num = int(m.group(1))
+            refs.setdefault(issue_num, []).append(pr_num)
+    return refs
 
 
 def issue_has_sha_in_comments(issue_number: int) -> bool:
@@ -448,8 +475,8 @@ def main():
     parser.add_argument("--post", action="store_true", help="Post comments (default: dry run)")
     parser.add_argument("--json", action="store_true", dest="json_output", help="Output JSON mapping")
     parser.add_argument("--issue", type=int, help="Process single issue number")
-    parser.add_argument("--min", type=int, default=157, help="Minimum issue number")
-    parser.add_argument("--max", type=int, default=305, help="Maximum issue number")
+    parser.add_argument("--min", type=int, default=1, help="Minimum issue number")
+    parser.add_argument("--max", type=int, default=9999, help="Maximum issue number")
     parser.add_argument("--skip-comment-check", action="store_true",
                         help="Skip checking existing comments (faster)")
     args = parser.parse_args()
@@ -458,9 +485,14 @@ def main():
     all_commits = get_all_commits()
     print(f"  {len(all_commits)} commits found", file=sys.stderr)
 
-    # Find issues already referenced in commit messages
-    already_referenced = issues_with_commit_refs_in_git(all_commits)
-    print(f"  {len(already_referenced)} issues already referenced in commits", file=sys.stderr)
+    # Build index of issues referenced in commit messages
+    commit_refs_by_issue = issues_with_commit_refs_in_git(all_commits)
+    print(f"  {len(commit_refs_by_issue)} issues referenced in commits via su#N", file=sys.stderr)
+
+    # Build index of issues referenced in merged PR titles
+    print("Scanning merged PR titles...", file=sys.stderr)
+    pr_refs_by_issue = get_merged_pr_refs()
+    print(f"  {len(pr_refs_by_issue)} issues referenced in merged PR titles", file=sys.stderr)
 
     print("Fetching closed issues...", file=sys.stderr)
     issues = get_closed_issues(args.min, args.max)
@@ -472,15 +504,8 @@ def main():
             print(f"Issue #{args.issue} not found in closed issues", file=sys.stderr)
             sys.exit(1)
 
-    # Filter to unlinked issues
-    unlinked = []
-    for issue in issues:
-        num = issue["number"]
-        if num in already_referenced:
-            continue
-        unlinked.append(issue)
-
-    print(f"  {len(unlinked)} issues need linking", file=sys.stderr)
+    unlinked = list(issues)
+    print(f"  {len(unlinked)} issues to process", file=sys.stderr)
 
     # Process each unlinked issue
     results: list[IssueMatch] = []
@@ -535,7 +560,26 @@ def main():
             print(f"  META: epic/umbrella issue", file=sys.stderr)
             continue
 
-        # Strategy 1: PR linkage
+        # Strategy 0: Direct su#N references in commits or merged PR titles
+        direct_commits = commit_refs_by_issue.get(num, [])
+        direct_prs = pr_refs_by_issue.get(num, [])
+        if direct_commits or direct_prs:
+            match = IssueMatch(
+                issue_number=num,
+                title=title,
+                closed_at=closed_at,
+                commits=direct_commits[:5],
+                prs=direct_prs,
+                confidence="high",
+                strategy="direct (su#N in commit/PR)",
+            )
+            results.append(match)
+            refs = ", ".join(c.short_sha for c in direct_commits[:5])
+            pr_str = ", ".join(f"#{p}" for p in direct_prs)
+            print(f"  DIRECT: commits=[{refs}] PRs=[{pr_str}]", file=sys.stderr)
+            continue
+
+        # Strategy 1: PR linkage via closedByPullRequests
         match = match_by_pr(num, all_commits)
         if match:
             match.issue_number = num
