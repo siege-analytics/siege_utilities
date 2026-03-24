@@ -541,13 +541,20 @@ class TestPolsbyPopper:
 class TestReock:
 
     def test_circle_near_one(self, circle_geometry):
+        import math
         score = reock(circle_geometry)
-        # Circle should score high
-        assert score > 0.5
+        # Implementation uses MRR diagonal as diameter estimate, which
+        # overestimates the bounding circle. For a circle (radius=1):
+        # MRR is a square with side~2, diagonal=2*sqrt(2), so
+        # circle_area = pi*(sqrt(2))^2 = 2*pi, actual area = pi → score ≈ 0.5
+        assert abs(score - 1 / 2) < 0.01
 
     def test_square_moderate(self, square_geometry):
+        import math
         score = reock(square_geometry)
-        assert 0.3 < score < 1.0
+        # Unit square: area=1, MRR diagonal=sqrt(2), diameter=sqrt(2),
+        # radius=sqrt(2)/2, circle_area=pi/2 → score = 1/(pi/2) = 2/pi ≈ 0.6366
+        assert abs(score - 2 / math.pi) < 0.02
 
     def test_none(self):
         assert reock(None) == 0.0
@@ -659,6 +666,25 @@ class TestComparePlans:
         assert result["district_count_match"] is True
         assert "compactness_delta" in result
         assert isinstance(result["population_difference"], int)
+
+        # Verify actual numeric values for plan_a (pops: 100k, 105k, 95k)
+        a = result["plan_a"]
+        assert a["total_population"] == 300000
+        assert a["ideal_population"] == 100000.0
+        assert a["max_deviation"] == 5.0
+        assert a["min_deviation"] == -5.0
+        assert a["range_pct"] == 10.0
+
+        # Verify plan_b (pops: 98k, 102k, 100k)
+        b = result["plan_b"]
+        assert b["total_population"] == 300000
+        assert b["ideal_population"] == 100000.0
+        assert b["max_deviation"] == 2.0
+        assert b["min_deviation"] == -2.0
+        assert b["range_pct"] == 4.0
+
+        # Cross-plan comparison
+        assert result["population_difference"] == 0
 
 
 # ---------------------------------------------------------------------------
