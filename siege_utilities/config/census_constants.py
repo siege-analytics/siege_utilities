@@ -22,6 +22,7 @@ from .census_registry import (  # noqa: F401
     RELIABILITY_LEVELS,
     # FIPS codes
     STATE_FIPS_CODES,
+    STATEFIPS_LOOKUP_DICT,
     FIPS_TO_STATE,
     STATE_NAMES,
     # URLs

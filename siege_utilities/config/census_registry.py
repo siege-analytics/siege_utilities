@@ -226,6 +226,9 @@ STATE_FIPS_CODES: Dict[str, str] = {
 
 FIPS_TO_STATE: Dict[str, str] = {fips: st for st, fips in STATE_FIPS_CODES.items()}
 
+# Downstream compatibility alias (used by Social Warehouse, Reverberator)
+STATEFIPS_LOOKUP_DICT = STATE_FIPS_CODES
+
 STATE_NAMES: Dict[str, str] = {
     "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",
     "CA": "California", "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware",
@@ -490,7 +493,35 @@ VARIABLE_DESCRIPTIONS: Dict[str, str] = {
 # ============================================================================
 
 def normalize_state_identifier(state_input: str) -> str:
-    """Normalize state identifier to FIPS code."""
+    """Normalize a state identifier to its 2-digit zero-padded FIPS code.
+
+    Parameters
+    ----------
+    state_input : str
+        Any of: 2-digit FIPS code (``"48"``), 2-letter abbreviation
+        (``"TX"``), or full state name (``"Texas"``). Case-insensitive.
+
+    Returns
+    -------
+    str
+        Zero-padded 2-digit FIPS code (e.g., ``"06"`` for California).
+
+    Raises
+    ------
+    ValueError
+        If *state_input* doesn't match any known state, territory, or DC.
+
+    Examples
+    --------
+    >>> normalize_state_identifier("TX")
+    '48'
+    >>> normalize_state_identifier("48")
+    '48'
+    >>> normalize_state_identifier("Texas")
+    '48'
+    >>> normalize_state_identifier("DC")
+    '11'
+    """
     state_input = str(state_input).strip().upper()
     if state_input in FIPS_TO_STATE:
         return state_input
@@ -525,7 +556,23 @@ def validate_geographic_level(level: str) -> bool:
 
 
 def get_fips_info(state_identifier: str) -> Dict[str, str]:
-    """Get comprehensive FIPS information for a state."""
+    """Return FIPS code, abbreviation, and full name for a state.
+
+    Parameters
+    ----------
+    state_identifier : str
+        Any form accepted by :func:`normalize_state_identifier`.
+
+    Returns
+    -------
+    dict
+        Keys: ``"fips"`` (zero-padded), ``"abbreviation"``, ``"name"``.
+
+    Examples
+    --------
+    >>> get_fips_info("CA")
+    {'fips': '06', 'abbreviation': 'CA', 'name': 'California'}
+    """
     fips_code = normalize_state_identifier(state_identifier)
     state_abbrev = FIPS_TO_STATE[fips_code]
     state_name = STATE_NAMES[state_abbrev]
