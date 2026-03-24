@@ -122,7 +122,7 @@ def check_function_dependencies(module, function_name):
 
             return missing_deps
 
-        except:
+        except (OSError, TypeError):
             return ['Could not analyze source']
 
     except Exception as e:
