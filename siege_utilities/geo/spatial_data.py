@@ -650,7 +650,31 @@ class SpatialDataSource:
 
 
 class CensusDataSource(SpatialDataSource):
-    """Enhanced Census data source with dynamic discovery."""
+    """Census TIGER/Line boundary data source with dynamic year discovery.
+
+    Supports all standard TIGER/Line boundary types:
+
+    **National-scope** (no state_fips required):
+        ``nation``, ``state``, ``county``, ``place``, ``zcta``, ``cd``
+
+    **State-scope** (state_fips required):
+        ``tract``, ``block_group``, ``block``, ``tabblock20``, ``sldu``, ``sldl``
+
+    GEOID formats by boundary type:
+
+    =============  ======  =================================
+    Boundary       Digits  Components
+    =============  ======  =================================
+    state          2       SS
+    county         5       SS + CCC
+    tract          11      SS + CCC + TTTTTT
+    block_group    12      SS + CCC + TTTTTT + G
+    tabblock20     15      SS + CCC + TTTTTT + BBBB
+    cd             4       SS + DD
+    sldu           5       SS + DDD
+    sldl           5       SS + DDD
+    =============  ======  =================================
+    """
     
     def __init__(self, api_key: Optional[str] = None, timeout: Optional[int] = None):
         super().__init__("Census Bureau", CENSUS_BASE_URL, api_key)
