@@ -715,6 +715,9 @@
 
 <span class="n">FIPS_TO_STATE</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">fips</span><span class="p">:</span> <span class="n">st</span> <span class="k">for</span> <span class="n">st</span><span class="p">,</span> <span class="n">fips</span> <span class="ow">in</span> <span class="n">STATE_FIPS_CODES</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
 
+<span class="c1"># Downstream compatibility alias (used by Social Warehouse, Reverberator)</span>
+<span class="n">STATEFIPS_LOOKUP_DICT</span> <span class="o">=</span> <span class="n">STATE_FIPS_CODES</span>
+
 <span class="n">STATE_NAMES</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
     <span class="s2">&quot;AL&quot;</span><span class="p">:</span> <span class="s2">&quot;Alabama&quot;</span><span class="p">,</span> <span class="s2">&quot;AK&quot;</span><span class="p">:</span> <span class="s2">&quot;Alaska&quot;</span><span class="p">,</span> <span class="s2">&quot;AZ&quot;</span><span class="p">:</span> <span class="s2">&quot;Arizona&quot;</span><span class="p">,</span> <span class="s2">&quot;AR&quot;</span><span class="p">:</span> <span class="s2">&quot;Arkansas&quot;</span><span class="p">,</span>
     <span class="s2">&quot;CA&quot;</span><span class="p">:</span> <span class="s2">&quot;California&quot;</span><span class="p">,</span> <span class="s2">&quot;CO&quot;</span><span class="p">:</span> <span class="s2">&quot;Colorado&quot;</span><span class="p">,</span> <span class="s2">&quot;CT&quot;</span><span class="p">:</span> <span class="s2">&quot;Connecticut&quot;</span><span class="p">,</span> <span class="s2">&quot;DE&quot;</span><span class="p">:</span> <span class="s2">&quot;Delaware&quot;</span><span class="p">,</span>
@@ -979,7 +982,35 @@
 <span class="c1"># ============================================================================</span>
 
 <span class="k">def</span><span class="w"> </span><span class="nf">normalize_state_identifier</span><span class="p">(</span><span class="n">state_input</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Normalize state identifier to FIPS code.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Normalize a state identifier to its 2-digit zero-padded FIPS code.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    state_input : str</span>
+<span class="sd">        Any of: 2-digit FIPS code (``&quot;48&quot;``), 2-letter abbreviation</span>
+<span class="sd">        (``&quot;TX&quot;``), or full state name (``&quot;Texas&quot;``). Case-insensitive.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str</span>
+<span class="sd">        Zero-padded 2-digit FIPS code (e.g., ``&quot;06&quot;`` for California).</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If *state_input* doesn&#39;t match any known state, territory, or DC.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; normalize_state_identifier(&quot;TX&quot;)</span>
+<span class="sd">    &#39;48&#39;</span>
+<span class="sd">    &gt;&gt;&gt; normalize_state_identifier(&quot;48&quot;)</span>
+<span class="sd">    &#39;48&#39;</span>
+<span class="sd">    &gt;&gt;&gt; normalize_state_identifier(&quot;Texas&quot;)</span>
+<span class="sd">    &#39;48&#39;</span>
+<span class="sd">    &gt;&gt;&gt; normalize_state_identifier(&quot;DC&quot;)</span>
+<span class="sd">    &#39;11&#39;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">state_input</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">state_input</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
     <span class="k">if</span> <span class="n">state_input</span> <span class="ow">in</span> <span class="n">FIPS_TO_STATE</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">state_input</span>
@@ -1014,7 +1045,23 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">get_fips_info</span><span class="p">(</span><span class="n">state_identifier</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get comprehensive FIPS information for a state.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return FIPS code, abbreviation, and full name for a state.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    state_identifier : str</span>
+<span class="sd">        Any form accepted by :func:`normalize_state_identifier`.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        Keys: ``&quot;fips&quot;`` (zero-padded), ``&quot;abbreviation&quot;``, ``&quot;name&quot;``.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; get_fips_info(&quot;CA&quot;)</span>
+<span class="sd">    {&#39;fips&#39;: &#39;06&#39;, &#39;abbreviation&#39;: &#39;CA&#39;, &#39;name&#39;: &#39;California&#39;}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">fips_code</span> <span class="o">=</span> <span class="n">normalize_state_identifier</span><span class="p">(</span><span class="n">state_identifier</span><span class="p">)</span>
     <span class="n">state_abbrev</span> <span class="o">=</span> <span class="n">FIPS_TO_STATE</span><span class="p">[</span><span class="n">fips_code</span><span class="p">]</span>
     <span class="n">state_name</span> <span class="o">=</span> <span class="n">STATE_NAMES</span><span class="p">[</span><span class="n">state_abbrev</span><span class="p">]</span>
