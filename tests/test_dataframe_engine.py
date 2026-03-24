@@ -202,6 +202,17 @@ class TestPandasEngine:
         assert len(result) == 2
         assert "w" in result.columns
 
+    def test_join_outer(self):
+        engine = PandasEngine()
+        left = pd.DataFrame({"key": [1, 2], "lval": ["a", "b"]})
+        right = pd.DataFrame({"key": [2, 3], "rval": ["x", "y"]})
+        result = engine.join(left, right, on="key", how="outer")
+        assert len(result) == 3
+        assert set(result["key"].tolist()) == {1, 2, 3}
+        # Non-matching rows should have NaN in the other side's columns
+        assert result.loc[result["key"] == 1, "rval"].isna().all()
+        assert result.loc[result["key"] == 3, "lval"].isna().all()
+
 
 # ---------------------------------------------------------------------------
 # get_engine factory
@@ -300,6 +311,33 @@ class TestDuckDBIntegration:
         right = pd.DataFrame({"key": [2, 3], "w": [30, 40]})
         result = engine.join(left, right, on="key", how="inner")
         assert len(result) == 1
+
+    def test_join_outer(self):
+        engine = get_engine("duckdb")
+        left = pd.DataFrame({"key": [1, 2], "lval": ["a", "b"]})
+        right = pd.DataFrame({"key": [2, 3], "rval": ["x", "y"]})
+        result = engine.join(left, right, on="key", how="outer")
+        assert len(result) == 3
+        assert set(result["key"].tolist()) == {1, 2, 3}
+
+    def test_join_via_sql(self):
+        """Test native DuckDB SQL JOIN through engine.query()."""
+        engine = get_engine("duckdb")
+        left = pd.DataFrame({"key": [1, 2, 3], "lval": ["a", "b", "c"]})
+        right = pd.DataFrame({"key": [2, 3, 4], "rval": ["x", "y", "z"]})
+        # Register first table
+        engine.query("SELECT * FROM left_t", table="left_t", df=left)
+        # Register second table and run the JOIN
+        result = engine.query(
+            "SELECT l.key, l.lval, r.rval "
+            "FROM left_t l INNER JOIN right_t r ON l.key = r.key",
+            table="right_t",
+            df=right,
+        )
+        assert len(result) == 2
+        assert set(result["key"].tolist()) == {2, 3}
+        assert set(result["lval"].tolist()) == {"b", "c"}
+        assert set(result["rval"].tolist()) == {"x", "y"}
 
     def test_to_pandas(self):
         engine = get_engine("duckdb")
