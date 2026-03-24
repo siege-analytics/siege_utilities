@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.12.1] - 2026-03-22
+
+### Fixed
+- **Missing data exports** (su#328) — `data/__init__.py` missing 7 exports from `redistricting_data_hub`.
+- **Name collisions** (su#329) — top-level `__init__.py` had two name collisions (`get_dataset_info`, `diagnose_environment`).
+- **extras_require sync** (su#330) — `setup.py` extras out of sync with `pyproject.toml`.
+- **Bare except clauses** (su#331) — replaced 19 bare `except:` with `except Exception:` across 7 files.
+- **CONTRIBUTING.md test count** (su#332) — updated from 1884 to 3058.
+- **CI contract allowlist** — updated for changed top-level API signatures.
+- **geo-no-gdal CI lane** — updated ignore list for Django/Google-dependent test files.
+- **F401/F841 lint violations** — cleaned up unused imports and variables across source and test files.
+
+## [3.11.0] - 2026-03-22
+
+### Added
+- **Enterprise onboarding notebooks** — NB21 for branded PPT/PDF generation using `ChartGenerator` and `ClientBrandingManager`.
+- **Commit-to-issue linkage script** — `scripts/link_commits_to_issues.py` for retroactive GitHub issue traceability.
+
 ## [3.10.0] - 2026-03-11
 
 ### Added
