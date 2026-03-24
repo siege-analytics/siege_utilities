@@ -742,8 +742,13 @@ class CensusAPIClient:
 
                 # Census API returns list of lists, first row is headers
                 if not data or len(data) < 2:
-                    log.warning("Empty response from Census API")
-                    return pd.DataFrame()
+                    from siege_utilities.exceptions import SiegeAPIError, handle_error
+                    return handle_error(
+                        SiegeAPIError("Census API returned empty response (< 2 rows)"),
+                        on_error=getattr(self, '_on_error', 'skip'),
+                        fallback=pd.DataFrame(),
+                        context="Census API query",
+                    )
 
                 # Convert to DataFrame
                 df = pd.DataFrame(data[1:], columns=data[0])

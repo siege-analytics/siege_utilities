@@ -209,31 +209,46 @@ class CensusDirectoryDiscovery:
         log.info("Using fallback years (2010-present)")
         return list(range(2010, datetime.now().year + 1))
     
-    def get_year_directory_contents(self, year: int, force_refresh: bool = False) -> List[str]:
-        """Get contents of a specific TIGER year directory."""
+    def get_year_directory_contents(
+        self, year: int, force_refresh: bool = False, on_error: str = "skip",
+    ) -> List[str]:
+        """Get contents of a specific TIGER year directory.
+
+        Parameters
+        ----------
+        year : int
+            Census TIGER year.
+        force_refresh : bool
+            Bypass the in-memory cache.
+        on_error : ``"raise"`` | ``"warn"`` | ``"skip"``
+            What to do when the network request fails.  ``"skip"`` (default)
+            returns an empty list silently — preserving the legacy behaviour.
+        """
+        from siege_utilities.exceptions import SiegeGeoError, handle_error
+
         cache_key = f"year_{year}_contents"
-        
+
         if not force_refresh and cache_key in self.cache:
             cache_time, data = self.cache[cache_key]
             if time.time() - cache_time < self.cache_timeout:
                 return data
-        
+
         try:
             year_url = f"{self.base_url}/TIGER{year}/"
             response = requests.get(year_url, timeout=self.timeout)
             response.raise_for_status()
-            
+
             soup = BeautifulSoup(response.content, 'html.parser')
             directories = []
-            
+
             for link in soup.find_all('a'):
                 href = link.get('href', '')
                 if href.endswith('/') and href != '../':
                     directories.append(href.rstrip('/'))
-            
+
             self.cache[cache_key] = (time.time(), directories)
             return directories
-            
+
         except requests.exceptions.SSLError:
             log.warning(f"SSL verification failed for year {year}, trying without verification...")
             try:
@@ -241,25 +256,29 @@ class CensusDirectoryDiscovery:
                 year_url = f"{self.base_url}/TIGER{year}/"
                 response = requests.get(year_url, timeout=self.timeout, verify=False)
                 response.raise_for_status()
-                
+
                 soup = BeautifulSoup(response.content, 'html.parser')
                 directories = []
-                
+
                 for link in soup.find_all('a'):
                     href = link.get('href', '')
                     if href.endswith('/') and href != '../':
                         directories.append(href.rstrip('/'))
-                
+
                 self.cache[cache_key] = (time.time(), directories)
                 return directories
-                
+
             except Exception as e:
-                log.error(f"Failed to get contents for year {year} (with SSL bypass): {e}")
-                return []
-                
+                return handle_error(
+                    SiegeGeoError(f"Failed to get contents for year {year} (SSL bypass): {e}"),
+                    on_error=on_error, fallback=[], context=f"TIGER directory listing for {year}",
+                )
+
         except Exception as e:
-            log.error(f"Failed to get contents for year {year}: {e}")
-            return []
+            return handle_error(
+                SiegeGeoError(f"Failed to get contents for year {year}: {e}"),
+                on_error=on_error, fallback=[], context=f"TIGER directory listing for {year}",
+            )
     
     def discover_boundary_types(self, year: int) -> Dict[str, str]:
         """Discover what boundary types are available for a given year."""
