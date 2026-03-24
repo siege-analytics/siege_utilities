@@ -3,6 +3,8 @@ Git utilities for siege_utilities package.
 Comprehensive git operations, branch management, and status reporting.
 """
 
+from siege_utilities.exceptions import GitError  # noqa: F401
+
 from .branch_analyzer import (
     analyze_branch_status, 
     generate_branch_report,
@@ -45,6 +47,9 @@ from .git_workflow import (
 )
 
 __all__ = [
+    # Exceptions
+    'GitError',
+
     # Branch Analysis
     'analyze_branch_status',
     'generate_branch_report', 

@@ -10,6 +10,9 @@ from typing import List, Dict, Optional, Union
 import re
 from datetime import datetime
 
+from siege_utilities.exceptions import GitError
+
+
 def run_git_command(*args, repo_path: str = ".", check: bool = True) -> str:
     """Run a git command and return the output."""
     try:
@@ -23,7 +26,7 @@ def run_git_command(*args, repo_path: str = ".", check: bool = True) -> str:
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
         if check:
-            raise RuntimeError(f"Git command failed: {' '.join(args)} - {e.stderr}")
+            raise GitError(f"Git command failed: {' '.join(args)} - {e.stderr}")
         return ""
 
 def get_repository_status(repo_path: str = ".") -> Dict[str, Union[str, int, bool]]:

@@ -54,6 +54,10 @@ class SiegeConfigError(SiegeError):
     """Error in configuration or registry lookup."""
 
 
+class GitError(SiegeError):
+    """Error executing a git command or git workflow operation."""
+
+
 # ---------------------------------------------------------------------------
 # Error-handling utility
 # ---------------------------------------------------------------------------

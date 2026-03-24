@@ -10,6 +10,7 @@ from typing import List, Dict, Optional, Union
 import re
 
 from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+from siege_utilities.exceptions import GitError
 
 def run_git_command(*args, repo_path: str = ".", check: bool = True) -> str:
     """Run a git command and return the output."""
@@ -24,7 +25,7 @@ def run_git_command(*args, repo_path: str = ".", check: bool = True) -> str:
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
         if check:
-            raise RuntimeError(f"Git command failed: {' '.join(args)} - {e.stderr}")
+            raise GitError(f"Git command failed: {' '.join(args)} - {e.stderr}")
         return ""
 
 def create_feature_branch(
@@ -177,7 +178,7 @@ def merge_branch(
         run_git_command(*merge_args, repo_path=repo_path)
         merge_status = "success"
         log_info(f"Successfully merged {source_branch} into {target_branch}")
-    except RuntimeError as e:
+    except (RuntimeError, GitError) as e:
         merge_status = "failed"
         log_error(f"Merge failed: {e}")
         return {"status": merge_status, "error": str(e)}
@@ -240,7 +241,7 @@ def rebase_branch(
         run_git_command(*rebase_args, repo_path=repo_path)
         rebase_status = "success"
         log_info(f"Successfully rebased {source_branch} onto {base_branch}")
-    except RuntimeError as e:
+    except (RuntimeError, GitError) as e:
         rebase_status = "failed"
         log_error(f"Rebase failed: {e}")
         return {"status": rebase_status, "error": str(e)}
@@ -306,7 +307,7 @@ def stash_changes(
             "message": message,
             "include_untracked": include_untracked
         }
-    except RuntimeError as e:
+    except (RuntimeError, GitError) as e:
         stash_status = "failed"
         log_error(f"Stash failed: {e}")
         return {"status": stash_status, "error": str(e)}
@@ -352,7 +353,7 @@ def apply_stash(
         apply_status = "success"
         action = "popped" if pop else "applied"
         log_info(f"Stash {stash_ref} {action} successfully")
-    except RuntimeError as e:
+    except (RuntimeError, GitError) as e:
         apply_status = "failed"
         log_error(f"Stash apply failed: {e}")
         return {"status": apply_status, "error": str(e)}
@@ -402,7 +403,7 @@ def clean_working_directory(
         run_git_command(*clean_args, repo_path=repo_path)
         clean_status = "success"
         log_info("Working directory cleaned successfully")
-    except RuntimeError as e:
+    except (RuntimeError, GitError) as e:
         clean_status = "failed"
         log_error(f"Clean failed: {e}")
         return {"status": clean_status, "error": str(e)}
@@ -452,7 +453,7 @@ def reset_to_commit(
         run_git_command(*reset_args, repo_path=repo_path)
         reset_status = "success"
         log_info(f"Reset to commit {commit_hash} ({reset_type}) successful")
-    except RuntimeError as e:
+    except (RuntimeError, GitError) as e:
         reset_status = "failed"
         log_error(f"Reset failed: {e}")
         return {"status": reset_status, "error": str(e)}
@@ -504,7 +505,7 @@ def cherry_pick_commit(
         cherry_pick_status = "success"
         action = "continued" if continue_on_conflict else "applied"
         log_info(f"Cherry-pick {action} successfully")
-    except RuntimeError as e:
+    except (RuntimeError, GitError) as e:
         cherry_pick_status = "failed"
         log_error(f"Cherry-pick failed: {e}")
         return {"status": cherry_pick_status, "error": str(e)}
@@ -599,7 +600,7 @@ def create_tag(
             run_git_command("push", "origin", tag_name, repo_path=repo_path)
             log_info(f"Tag {tag_name} pushed to remote")
             tag_status = "pushed"
-    except RuntimeError as e:
+    except (RuntimeError, GitError) as e:
         tag_status = "failed"
         log_error(f"Tag creation failed: {e}")
         return {"status": tag_status, "error": str(e)}
@@ -659,7 +660,7 @@ def push_branch(
         push_status = "success"
         force_text = " (force)" if force else ""
         log_info(f"Branch pushed to {remote}{force_text} successfully")
-    except RuntimeError as e:
+    except (RuntimeError, GitError) as e:
         push_status = "failed"
         log_error(f"Push failed: {e}")
         return {"status": push_status, "error": str(e)}
@@ -718,7 +719,7 @@ def pull_branch(
         pull_status = "success"
         rebase_text = " (rebase)" if rebase else ""
         log_info(f"Changes pulled from {remote}{rebase_text} successfully")
-    except RuntimeError as e:
+    except (RuntimeError, GitError) as e:
         pull_status = "failed"
         log_error(f"Pull failed: {e}")
         return {"status": pull_status, "error": str(e)}

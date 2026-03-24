@@ -3,6 +3,8 @@ import subprocess
 import pytest
 from unittest.mock import patch, MagicMock
 
+from siege_utilities.exceptions import GitError
+
 from siege_utilities.git.git_operations import (
     run_git_command,
     create_feature_branch,
@@ -64,7 +66,7 @@ class TestRunGitCommand:
         with patch(SUBPROCESS_RUN, side_effect=subprocess.CalledProcessError(
             1, "git", stderr="fatal: not a git repo"
         )):
-            with pytest.raises(RuntimeError, match="Git command failed"):
+            with pytest.raises(GitError, match="Git command failed"):
                 run_git_command("status")
 
     def test_returns_empty_string_when_check_false(self):
@@ -306,7 +308,7 @@ class TestMergeBranch:
             if args[0] == "pull":
                 return ""
             if args[0] == "merge":
-                raise RuntimeError("merge conflict")
+                raise GitError("merge conflict")
             return ""
 
         with patch(RGC, side_effect=fake_rgc):
@@ -373,7 +375,7 @@ class TestRebaseBranch:
             if args[0] == "branch":
                 return "feature/x"
             if args[0] == "rebase":
-                raise RuntimeError("rebase conflict")
+                raise GitError("rebase conflict")
             return ""
 
         with patch(RGC, side_effect=fake_rgc):
@@ -440,7 +442,7 @@ class TestStashChanges:
         assert result["stash_hash"] == "0"
 
     def test_stash_failure(self):
-        with patch(RGC, side_effect=RuntimeError("stash failed")):
+        with patch(RGC, side_effect=GitError("stash failed")):
             result = stash_changes()
         assert result["status"] == "failed"
         assert "error" in result
@@ -493,7 +495,7 @@ class TestApplyStash:
         assert result["stash_ref"] == "stash@{2}"
 
     def test_apply_failure(self):
-        with patch(RGC, side_effect=RuntimeError("conflict")):
+        with patch(RGC, side_effect=GitError("conflict")):
             result = apply_stash()
         assert result["status"] == "failed"
         assert "error" in result
@@ -574,7 +576,7 @@ class TestCleanWorkingDirectory:
             call_count[0] += 1
             if "-n" in args:
                 return "Would remove foo.txt"
-            raise RuntimeError("clean failed")
+            raise GitError("clean failed")
 
         with patch(RGC, side_effect=fake_rgc):
             result = clean_working_directory(force=True)
@@ -629,7 +631,7 @@ class TestResetToCommit:
             reset_to_commit("abc1234", reset_type="superhard")
 
     def test_reset_failure(self):
-        with patch(RGC, side_effect=RuntimeError("reset failed")):
+        with patch(RGC, side_effect=GitError("reset failed")):
             result = reset_to_commit("abc1234")
         assert result["status"] == "failed"
         assert "error" in result
@@ -676,7 +678,7 @@ class TestCherryPickCommit:
         assert ("cherry-pick", "--continue") in call_log
 
     def test_cherry_pick_failure(self):
-        with patch(RGC, side_effect=RuntimeError("cherry-pick conflict")):
+        with patch(RGC, side_effect=GitError("cherry-pick conflict")):
             result = cherry_pick_commit("abc1234")
         assert result["status"] == "failed"
         assert "error" in result
@@ -748,7 +750,7 @@ class TestCreateTag:
         assert "v1.0.0" in push_calls[0]
 
     def test_tag_creation_failure(self):
-        with patch(RGC, side_effect=RuntimeError("tag exists")):
+        with patch(RGC, side_effect=GitError("tag exists")):
             result = create_tag("v1.0.0")
         assert result["status"] == "failed"
         assert "error" in result
@@ -827,7 +829,7 @@ class TestPushBranch:
         assert result["remote"] == "upstream"
 
     def test_push_failure(self):
-        with patch(RGC, side_effect=RuntimeError("push rejected")):
+        with patch(RGC, side_effect=GitError("push rejected")):
             result = push_branch()
         assert result["status"] == "failed"
         assert "error" in result
@@ -894,7 +896,7 @@ class TestPullBranch:
         assert "upstream" in pull_calls[0]
 
     def test_pull_failure(self):
-        with patch(RGC, side_effect=RuntimeError("pull failed")):
+        with patch(RGC, side_effect=GitError("pull failed")):
             result = pull_branch()
         assert result["status"] == "failed"
         assert "error" in result
