@@ -46,6 +46,7 @@ geo = [
     "osmnx>=1.9.4",
     "pysal>=24.1",
     "censusgeocode>=0.5.2",
+    "topojson>=1.8",
 ]
 # H3 hexagonal spatial index (lightweight spatial joins)
 h3 = [

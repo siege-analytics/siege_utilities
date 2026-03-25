@@ -53,6 +53,13 @@ from .remote import (
     is_downloadable,
 )
 
+from .formats import (
+    SpatialFormat,
+    TabularFormat,
+    save_spatial,
+    save_tabular,
+)
+
 from .hashing import (
     generate_sha256_hash_for_file,
     get_file_hash,
@@ -130,6 +137,12 @@ __all__ = [
     'is_downloadable',
     'get_download_directory',  # Convenience alias
     
+    # Format functions
+    'SpatialFormat',
+    'TabularFormat',
+    'save_spatial',
+    'save_tabular',
+
     # Hashing functions
     'generate_sha256_hash_for_file',
     'get_file_hash',
