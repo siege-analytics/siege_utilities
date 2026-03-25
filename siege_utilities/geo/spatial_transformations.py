@@ -270,38 +270,61 @@ class PostGISConnector:
     def upload_spatial_data(self, gdf: GeoDataFrame, table_name: str, **kwargs) -> bool:
         """
         Upload spatial data to PostGIS.
-        
+
         Args:
             gdf: GeoDataFrame to upload
             table_name: Target table name
-            **kwargs: Additional parameters
-            
+            **kwargs: Additional parameters:
+                if_exists: How to handle existing table -- ``'replace'`` (default,
+                    drops and recreates), ``'append'`` (inserts into existing table),
+                    or ``'fail'`` (raises if table exists).
+                schema: PostgreSQL schema name (default ``'public'``).
+
         Returns:
             True if successful, False otherwise
         """
         if not self.connection:
             log.error("No PostGIS connection available")
             return False
-        
+
+        if_exists = kwargs.get('if_exists', 'replace')
+        schema = kwargs.get('schema', 'public')
+        qualified_table = f"{schema}.{table_name}"
+
         try:
-            # Create table if it doesn't exist
-            self._create_spatial_table(table_name, gdf)
-            
+            cursor = self.connection.cursor()
+
+            if if_exists == 'fail':
+                cursor.execute(
+                    "SELECT to_regclass(%s)",
+                    (qualified_table,),
+                )
+                if cursor.fetchone()[0] is not None:
+                    raise ValueError(
+                        f"Table {qualified_table} already exists and if_exists='fail'"
+                    )
+
+            if if_exists == 'replace':
+                cursor.execute(f"DROP TABLE IF EXISTS {qualified_table}")
+                self.connection.commit()
+
+            if if_exists in ('replace', 'fail'):
+                self._create_spatial_table(qualified_table, gdf)
+
             # Upload data
             cursor = self.connection.cursor()
-            
+
             for idx, row in gdf.iterrows():
                 geom_wkt = row.geometry.wkt
-                # Basic upload - in practice you'd want more sophisticated handling
                 cursor.execute(
-                    f"INSERT INTO {table_name} (geom) VALUES (ST_GeomFromText(%s))",
-                    (geom_wkt,)
+                    f"INSERT INTO {qualified_table} (geom) VALUES (ST_GeomFromText(%s))",
+                    (geom_wkt,),
                 )
-            
+
             self.connection.commit()
-            log.info(f"Successfully uploaded to PostGIS table: {table_name}")
+            log.info(f"Successfully uploaded to PostGIS table: {qualified_table}")
             return True
-            
+
         except Exception as e:
             log.error(f"Failed to upload to PostGIS: {e}")
             return False

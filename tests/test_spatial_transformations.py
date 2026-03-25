@@ -370,6 +370,69 @@ class TestPostGISConnector:
             call_sql = mock_conn.cursor.return_value.execute.call_args[0][0]
             assert "4269" in call_sql
 
+    # -- if_exists and schema parameter tests (#326) --
+
+    def test_upload_default_schema_is_public(self, sample_gdf):
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value.fetchone.return_value = (None,)
+        connector = self._make_connector(mock_conn)
+        with patch.object(connector, "_create_spatial_table"):
+            connector.upload_spatial_data(sample_gdf, "test_table")
+        calls = [str(c) for c in mock_conn.cursor.return_value.execute.call_args_list]
+        assert any("public.test_table" in c for c in calls)
+
+    def test_upload_custom_schema(self, sample_gdf):
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value.fetchone.return_value = (None,)
+        connector = self._make_connector(mock_conn)
+        with patch.object(connector, "_create_spatial_table"):
+            connector.upload_spatial_data(
+                sample_gdf, "test_table", schema="staging"
+            )
+        calls = [str(c) for c in mock_conn.cursor.return_value.execute.call_args_list]
+        assert any("staging.test_table" in c for c in calls)
+
+    def test_upload_if_exists_replace_drops_table(self, sample_gdf):
+        mock_conn = MagicMock()
+        connector = self._make_connector(mock_conn)
+        with patch.object(connector, "_create_spatial_table"):
+            connector.upload_spatial_data(
+                sample_gdf, "test_table", if_exists="replace"
+            )
+        calls = [str(c) for c in mock_conn.cursor.return_value.execute.call_args_list]
+        assert any("DROP TABLE IF EXISTS" in c for c in calls)
+
+    def test_upload_if_exists_append_no_drop_no_create(self, sample_gdf):
+        mock_conn = MagicMock()
+        connector = self._make_connector(mock_conn)
+        with patch.object(connector, "_create_spatial_table") as mock_create:
+            connector.upload_spatial_data(
+                sample_gdf, "test_table", if_exists="append"
+            )
+        calls = [str(c) for c in mock_conn.cursor.return_value.execute.call_args_list]
+        assert not any("DROP TABLE" in c for c in calls)
+        mock_create.assert_not_called()
+
+    def test_upload_if_exists_fail_raises_when_table_exists(self, sample_gdf):
+        mock_conn = MagicMock()
+        # to_regclass returns a non-None value meaning the table exists
+        mock_conn.cursor.return_value.fetchone.return_value = ("public.test_table",)
+        connector = self._make_connector(mock_conn)
+        result = connector.upload_spatial_data(
+            sample_gdf, "test_table", if_exists="fail"
+        )
+        assert result is False
+
+    def test_upload_if_exists_fail_succeeds_when_table_absent(self, sample_gdf):
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value.fetchone.return_value = (None,)
+        connector = self._make_connector(mock_conn)
+        with patch.object(connector, "_create_spatial_table"):
+            result = connector.upload_spatial_data(
+                sample_gdf, "test_table", if_exists="fail"
+            )
+        assert result is True
+
 
 # ---------------------------------------------------------------------------
 # DuckDBConnector (mocked — no real duckdb dependency required)
