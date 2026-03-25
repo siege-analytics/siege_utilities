@@ -21,9 +21,18 @@ Example usage:
     )
 
     # Result has columns: GEOID, B19013_001E_2010, B19013_001E_2015, B19013_001E_2020
+
+    # Multi-decade alignment with inflation adjustment
+    from siege_utilities.geo.timeseries.longitudinal_data import LongitudinalAligner
+
+    aligner = LongitudinalAligner(target_vintage=2020)
+    aligned = aligner.align(df_2010, source_vintage=2010, geography='tract')
+    adjusted = aligner.adjust_inflation(aligned, dollar_columns=['B19013_001E'],
+                                         from_year=2010, to_year=2020)
 """
 
 import logging
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Union, TYPE_CHECKING
 
 import pandas as pd
@@ -512,3 +521,358 @@ def validate_longitudinal_years(
         log.warning(f"Skipping unavailable years: {sorted(invalid)}")
 
     return sorted(valid)
+
+
+# =============================================================================
+# CPI-U ANNUAL AVERAGES (Bureau of Labor Statistics, All Urban Consumers)
+# Base period: 1982-84 = 100.  Used for inflation adjustment.
+# Source: https://www.bls.gov/cpi/tables/supplemental-files/historical-cpi-u-202401.pdf
+# =============================================================================
+
+CPI_U_ANNUAL: Dict[int, float] = {
+    2000: 172.2,
+    2001: 177.1,
+    2002: 179.9,
+    2003: 184.0,
+    2004: 188.9,
+    2005: 195.3,
+    2006: 201.6,
+    2007: 207.3,
+    2008: 215.3,
+    2009: 214.5,
+    2010: 218.1,
+    2011: 224.9,
+    2012: 229.6,
+    2013: 233.0,
+    2014: 236.7,
+    2015: 237.0,
+    2016: 240.0,
+    2017: 245.1,
+    2018: 251.1,
+    2019: 255.7,
+    2020: 258.8,
+    2021: 271.0,
+    2022: 292.7,
+    2023: 304.7,
+    2024: 313.2,
+    2025: 319.5,
+}
+
+
+def inflation_factor(from_year: int, to_year: int) -> float:
+    """Return the CPI-U multiplier to convert dollars from *from_year* to *to_year*.
+
+    Raises ``KeyError`` if either year is not in the CPI-U table.
+    """
+    return CPI_U_ANNUAL[to_year] / CPI_U_ANNUAL[from_year]
+
+
+# =============================================================================
+# LONGITUDINAL ALIGNER
+# =============================================================================
+
+# Supported vintage transitions (Census crosswalk availability)
+_SUPPORTED_TRANSITIONS = {
+    (2000, 2010),
+    (2010, 2020),
+    (2000, 2020),  # chained: 2000→2010→2020
+}
+
+
+@dataclass
+class AlignmentResult:
+    """Result of a longitudinal alignment operation.
+
+    Attributes:
+        data: Aligned DataFrame with GEOIDs in the target vintage.
+        source_vintage: Original boundary vintage year.
+        target_vintage: Target boundary vintage year.
+        method: Method used for alignment (``'crosswalk'`` or ``'areal'``).
+        rows_before: Row count before alignment.
+        rows_after: Row count after alignment.
+        warnings: Any warnings generated during alignment.
+    """
+
+    data: pd.DataFrame
+    source_vintage: int
+    target_vintage: int
+    method: str = "crosswalk"
+    rows_before: int = 0
+    rows_after: int = 0
+    warnings: List[str] = field(default_factory=list)
+
+
+class LongitudinalAligner:
+    """Align Census data across vintage years with optional inflation adjustment.
+
+    Chains crosswalks for multi-decade transitions (e.g. 2000→2010→2020) and
+    falls back to areal interpolation when crosswalk data is unavailable.
+
+    Parameters
+    ----------
+    target_vintage : int
+        Target boundary vintage year (2000, 2010, or 2020).
+    geography : str
+        Geographic level (``'tract'``, ``'county'``, ``'block_group'``).
+    state_fips : str, optional
+        Two-digit state FIPS to limit crosswalk scope.
+
+    Example
+    -------
+    ::
+
+        aligner = LongitudinalAligner(target_vintage=2020)
+        result = aligner.align(df_2010, source_vintage=2010, geography='tract')
+        adjusted = aligner.adjust_inflation(
+            result.data, dollar_columns=['B19013_001E'],
+            from_year=2010, to_year=2020,
+        )
+    """
+
+    def __init__(
+        self,
+        target_vintage: int = 2020,
+        geography: str = "tract",
+        state_fips: Optional[str] = None,
+    ):
+        if target_vintage not in (2000, 2010, 2020):
+            raise ValueError(
+                f"target_vintage must be 2000, 2010, or 2020, got {target_vintage}"
+            )
+        self.target_vintage = target_vintage
+        self.geography = geography
+        self.state_fips = state_fips
+
+    # --------------------------------------------------------------------- #
+    # Public API
+    # --------------------------------------------------------------------- #
+
+    def align(
+        self,
+        df: pd.DataFrame,
+        source_vintage: int,
+        geography: Optional[str] = None,
+        state_fips: Optional[str] = None,
+        geoid_column: str = "GEOID",
+    ) -> AlignmentResult:
+        """Align *df* from *source_vintage* boundaries to :attr:`target_vintage`.
+
+        Parameters
+        ----------
+        df : DataFrame
+            Data with a GEOID column in *source_vintage* boundaries.
+        source_vintage : int
+            Boundary vintage of *df* (2000, 2010, or 2020).
+        geography : str, optional
+            Override instance geography.
+        state_fips : str, optional
+            Override instance state_fips.
+        geoid_column : str
+            Name of the GEOID column in *df*.
+
+        Returns
+        -------
+        AlignmentResult
+        """
+        geo = geography or self.geography
+        sfips = state_fips or self.state_fips
+        rows_before = len(df)
+
+        if source_vintage == self.target_vintage:
+            return AlignmentResult(
+                data=df.copy(),
+                source_vintage=source_vintage,
+                target_vintage=self.target_vintage,
+                method="identity",
+                rows_before=rows_before,
+                rows_after=rows_before,
+            )
+
+        # Determine chain of transitions needed
+        chain = self._transition_chain(source_vintage, self.target_vintage)
+        log.info(
+            "Aligning %d rows from %d→%d via chain %s",
+            rows_before, source_vintage, self.target_vintage, chain,
+        )
+
+        warnings: List[str] = []
+        current_df = df.copy()
+        method = "crosswalk"
+
+        for src, tgt in chain:
+            try:
+                current_df = self._apply_crosswalk_step(
+                    current_df, src, tgt, geo, sfips, geoid_column,
+                )
+            except Exception as exc:
+                log.warning(
+                    "Crosswalk %d→%d failed (%s), trying areal interpolation",
+                    src, tgt, exc,
+                )
+                try:
+                    current_df = self._apply_areal_interpolation(
+                        current_df, src, tgt, geo, sfips, geoid_column,
+                    )
+                    method = "areal"
+                    warnings.append(
+                        f"Used areal interpolation for {src}→{tgt} (crosswalk unavailable)"
+                    )
+                except Exception as areal_exc:
+                    msg = (
+                        f"Both crosswalk and areal interpolation failed for "
+                        f"{src}→{tgt}: {areal_exc}"
+                    )
+                    log.warning(msg)
+                    warnings.append(msg)
+                    # Return data as-is with warning
+                    return AlignmentResult(
+                        data=current_df,
+                        source_vintage=source_vintage,
+                        target_vintage=self.target_vintage,
+                        method="failed",
+                        rows_before=rows_before,
+                        rows_after=len(current_df),
+                        warnings=warnings,
+                    )
+
+        return AlignmentResult(
+            data=current_df,
+            source_vintage=source_vintage,
+            target_vintage=self.target_vintage,
+            method=method,
+            rows_before=rows_before,
+            rows_after=len(current_df),
+            warnings=warnings,
+        )
+
+    @staticmethod
+    def adjust_inflation(
+        df: pd.DataFrame,
+        dollar_columns: List[str],
+        from_year: int,
+        to_year: int,
+    ) -> pd.DataFrame:
+        """Adjust dollar-denominated columns for inflation using CPI-U.
+
+        Parameters
+        ----------
+        df : DataFrame
+            Data containing dollar-valued columns.
+        dollar_columns : list of str
+            Column names to adjust.
+        from_year : int
+            Base year of the dollar values.
+        to_year : int
+            Target year to express values in.
+
+        Returns
+        -------
+        DataFrame with adjusted values (original columns overwritten).
+        """
+        factor = inflation_factor(from_year, to_year)
+        result = df.copy()
+        for col in dollar_columns:
+            if col in result.columns:
+                result[col] = result[col] * factor
+        return result
+
+    # --------------------------------------------------------------------- #
+    # Internal helpers
+    # --------------------------------------------------------------------- #
+
+    @staticmethod
+    def _transition_chain(
+        source: int, target: int,
+    ) -> List[tuple]:
+        """Return list of (src, tgt) steps to get from *source* to *target*."""
+        if source == target:
+            return []
+
+        direct = (min(source, target), max(source, target))
+        if direct in {(2000, 2010), (2010, 2020)}:
+            return [(source, target)]
+
+        # Chain: 2000→2020 via 2010
+        if direct == (2000, 2020):
+            if source < target:
+                return [(2000, 2010), (2010, 2020)]
+            return [(2020, 2010), (2010, 2000)]
+
+        raise ValueError(
+            f"No supported crosswalk path from {source} to {target}. "
+            f"Supported vintages: 2000, 2010, 2020."
+        )
+
+    @staticmethod
+    def _apply_crosswalk_step(
+        df: pd.DataFrame,
+        source_year: int,
+        target_year: int,
+        geography_level: str,
+        state_fips: Optional[str],
+        geoid_column: str,
+    ) -> pd.DataFrame:
+        """Apply a single crosswalk step using CrosswalkProcessor."""
+        from ..crosswalk.crosswalk_processor import apply_crosswalk
+
+        return apply_crosswalk(
+            df=df,
+            source_year=source_year,
+            target_year=target_year,
+            geography_level=geography_level,
+            state_fips=state_fips,
+            geoid_column=geoid_column,
+        )
+
+    @staticmethod
+    def _apply_areal_interpolation(
+        df: pd.DataFrame,
+        source_year: int,
+        target_year: int,
+        geography_level: str,
+        state_fips: Optional[str],
+        geoid_column: str,
+    ) -> pd.DataFrame:
+        """Fall back to areal interpolation when crosswalk is unavailable."""
+        try:
+            from ..interpolation.areal import areal_interpolate
+            from ..spatial_data import get_census_boundaries
+        except ImportError as exc:
+            raise ImportError(
+                "Areal interpolation requires geopandas and tobler. "
+                "Install with: pip install 'siege-utilities[geo]'"
+            ) from exc
+
+        import geopandas as _gpd
+
+        source_boundaries = get_census_boundaries(
+            year=source_year,
+            geographic_level=geography_level,
+            state_fips=state_fips,
+        )
+        target_boundaries = get_census_boundaries(
+            year=target_year,
+            geographic_level=geography_level,
+            state_fips=state_fips,
+        )
+
+        if source_boundaries is None or target_boundaries is None:
+            raise RuntimeError(
+                f"Cannot fetch boundaries for areal interpolation "
+                f"({source_year}/{target_year} {geography_level})"
+            )
+
+        # Merge data onto source boundaries
+        source_gdf = source_boundaries.merge(df, left_on="GEOID", right_on=geoid_column)
+        numeric_cols = [
+            c for c in df.columns
+            if c != geoid_column and df[c].dtype.kind in ("i", "f")
+        ]
+
+        result = areal_interpolate(
+            source_gdf=source_gdf,
+            target_gdf=target_boundaries,
+            extensive_variables=numeric_cols,
+        )
+
+        return pd.DataFrame(result.data.drop(columns="geometry"))
