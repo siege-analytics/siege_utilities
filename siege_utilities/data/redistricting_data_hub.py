@@ -557,9 +557,53 @@ class RDHClient:
         )
         return [
             ds for ds in datasets
-            if "pl" in ds.title.lower() and "94" in ds.title.lower()
-            or "redistricting" in ds.title.lower() and "data" in ds.title.lower()
+            if ("pl" in ds.title.lower() and "94" in ds.title.lower())
+            or ("redistricting" in ds.title.lower() and "data" in ds.title.lower())
         ]
+
+    # -- Cross-tabulation integration -----------------------------------------
+
+    @staticmethod
+    def to_crosstab_input(
+        df: "pd.DataFrame",
+        geography_col: str = "GEOID",
+        variable_cols: Optional[List[str]] = None,
+    ) -> "pd.DataFrame":
+        """Reshape an RDH DataFrame into long format for cross-tabulation.
+
+        Returns a DataFrame with columns ``[geography, variable, value]`` suitable
+        for use with :func:`siege_utilities.data.cross_tabulation.contingency_table`.
+
+        Parameters
+        ----------
+        df : DataFrame
+            Wide-format data (one row per geography, numeric columns as variables).
+        geography_col : str
+            Column identifying the geographic unit.
+        variable_cols : list of str, optional
+            Columns to melt. If ``None``, all numeric columns except the geography
+            column are used.
+
+        Returns
+        -------
+        DataFrame with columns ``geography``, ``variable``, ``value``.
+        """
+        if not HAS_PANDAS:
+            raise ImportError("pandas is required")
+
+        if variable_cols is None:
+            variable_cols = [
+                c for c in df.columns
+                if c != geography_col and df[c].dtype.kind in ("i", "f")
+            ]
+
+        melted = df[[geography_col] + variable_cols].melt(
+            id_vars=[geography_col],
+            var_name="variable",
+            value_name="value",
+        )
+        melted = melted.rename(columns={geography_col: "geography"})
+        return melted
 
 
 # ---------------------------------------------------------------------------

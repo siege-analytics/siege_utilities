@@ -812,6 +812,91 @@ class TestFetchPL94171:
                 fetch_pl94171("XX", client=client)
 
 
+class TestDemographicProfile:
+
+    def test_overlay_aggregates_by_district(self):
+        import geopandas as gpd
+        import pandas as pd
+        from shapely.geometry import box
+
+        plan = gpd.GeoDataFrame(
+            {"GEOID": ["D1", "D2"]},
+            geometry=[box(0, 0, 5, 5), box(5, 0, 10, 5)],
+            crs="EPSG:4326",
+        )
+        census = gpd.GeoDataFrame(
+            {
+                "TOTPOP": [100, 200, 300, 400],
+                "VAP": [80, 160, 240, 320],
+            },
+            geometry=[box(1, 1, 2, 2), box(2, 2, 3, 3),
+                      box(6, 1, 7, 2), box(7, 2, 8, 3)],
+            crs="EPSG:4326",
+        )
+
+        from siege_utilities.data.redistricting_data_hub import demographic_profile
+        result = demographic_profile(plan, census)
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 2
+        # D1 contains first two points: 100+200, D2 contains last two: 300+400
+        d1 = result[result["GEOID"] == "D1"].iloc[0]
+        assert d1["TOTPOP"] == 300
+        assert d1["VAP"] == 240
+
+    def test_no_population_cols_returns_empty(self):
+        import geopandas as gpd
+        from shapely.geometry import box
+
+        plan = gpd.GeoDataFrame(
+            {"GEOID": ["D1"]},
+            geometry=[box(0, 0, 10, 10)],
+            crs="EPSG:4326",
+        )
+        census = gpd.GeoDataFrame(
+            {"name": ["a"]},
+            geometry=[box(1, 1, 2, 2)],
+            crs="EPSG:4326",
+        )
+
+        from siege_utilities.data.redistricting_data_hub import demographic_profile
+        result = demographic_profile(plan, census)
+        assert len(result) == 0
+
+
+class TestToCrosstabInput:
+
+    def test_melts_wide_to_long(self):
+        import pandas as pd
+        df = pd.DataFrame({
+            "GEOID": ["A", "B"],
+            "TOTPOP": [100, 200],
+            "VAP": [80, 160],
+        })
+        result = RDHClient.to_crosstab_input(df)
+        assert list(result.columns) == ["geography", "variable", "value"]
+        assert len(result) == 4  # 2 geographies × 2 variables
+        assert set(result["variable"]) == {"TOTPOP", "VAP"}
+
+    def test_explicit_variable_cols(self):
+        import pandas as pd
+        df = pd.DataFrame({
+            "GEOID": ["A"],
+            "TOTPOP": [100],
+            "VAP": [80],
+            "name": ["test"],
+        })
+        result = RDHClient.to_crosstab_input(df, variable_cols=["TOTPOP"])
+        assert len(result) == 1
+        assert result.iloc[0]["variable"] == "TOTPOP"
+
+    def test_empty_dataframe(self):
+        import pandas as pd
+        df = pd.DataFrame({"GEOID": [], "TOTPOP": []})
+        result = RDHClient.to_crosstab_input(df)
+        assert len(result) == 0
+        assert list(result.columns) == ["geography", "variable", "value"]
+
+
 class TestFetchDemographicSummary:
 
     def test_calls_client(self, client):
