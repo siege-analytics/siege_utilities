@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.abspath('../../'))
 project = 'Siege Utilities'
 copyright = '2025, Dheeraj Chand'
 author = 'Dheeraj Chand'
-release = '3.12.1'
+release = '3.13.0'
 
 # Minimal extensions for fast builds
 extensions = [
