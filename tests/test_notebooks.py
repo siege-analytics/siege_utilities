@@ -30,8 +30,8 @@ NOTEBOOKS_DIR = Path(__file__).parent.parent / "notebooks"
 # Notebook dependency groups
 # ---------------------------------------------------------------------------
 
-PURE_PYTHON = [1, 2, 3, 6, 8, 11, 12, 17, 21]
-GEO_NOTEBOOKS = [4, 5, 7]
+PURE_PYTHON = [1, 2, 3, 6, 8, 11, 12, 17, 21, 22, 23, 24, 27]
+GEO_NOTEBOOKS = [4, 5, 7, 25, 26]
 DJANGO_NOTEBOOKS = [13, 15]
 # Integration group: requires external services (credentials, Spark, network downloads)
 ANALYTICS_NOTEBOOKS = [9, 14, 18]
