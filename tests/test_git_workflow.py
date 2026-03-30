@@ -7,7 +7,6 @@ from unittest import mock
 
 import pytest
 
-from siege_utilities.exceptions import GitError
 from siege_utilities.git.git_workflow import (
     enforce_commit_conventions,
     validate_branch_naming,

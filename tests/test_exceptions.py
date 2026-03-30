@@ -5,7 +5,6 @@ import warnings
 import pytest
 
 from siege_utilities.exceptions import (
-    OnErrorStrategy,
     SiegeAPIError,
     SiegeConfigError,
     SiegeDataError,

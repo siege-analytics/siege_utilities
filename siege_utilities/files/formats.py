@@ -16,7 +16,11 @@ from __future__ import annotations
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Union
+from typing import TYPE_CHECKING, Union
+
+if TYPE_CHECKING:
+    from pandas import DataFrame
+    from geopandas import GeoDataFrame
 
 log = logging.getLogger(__name__)
 
@@ -53,7 +57,7 @@ class TabularFormat(str, Enum):
 # ---------------------------------------------------------------------------
 
 def save_spatial(
-    gdf: "GeoDataFrame",
+    gdf: GeoDataFrame,
     path: FilePath,
     fmt: SpatialFormat = SpatialFormat.GEOPARQUET,
     **kwargs,
@@ -127,7 +131,7 @@ def save_spatial(
 # ---------------------------------------------------------------------------
 
 def save_tabular(
-    df: "DataFrame",
+    df: DataFrame,
     path: FilePath,
     fmt: TabularFormat = TabularFormat.PARQUET,
     **kwargs,

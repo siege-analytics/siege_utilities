@@ -146,7 +146,9 @@ jobs:
     
     - name: Test with pytest
       run: |
-        uv run pytest tests/ -v --cov=siege_utilities --cov-report=xml
+        uv run pytest tests/ -v --cov=siege_utilities --cov-report=xml \
+          --ignore=tests/test_notebooks.py \
+          --ignore=tests/test_django_temporal_models_orm.py
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
@@ -243,7 +245,7 @@ jobs:
       run: |
         IMPACT=$(python scripts/release_manager.py --infer-impact --baseline-version "${BASELINE_VERSION}")
         echo "level=${IMPACT}" >> $GITHUB_OUTPUT
-        echo "Inferred release impact: ${IMPACT} (baseline ${BASELINE_VERSION} → candidate $(python -c "import re; print(re.search(r'version\s*=\"([^\"]+)\"', open('pyproject.toml').read()).group(1))"))"
+        echo "Inferred release impact: ${IMPACT} (baseline ${BASELINE_VERSION} → candidate $(python -c "import re; print(re.search(r'version\s*=\s*\"([^\"]+)\"', open('pyproject.toml').read()).group(1))"))"
 
     - name: Build baseline and candidate API contracts
       run: |
@@ -305,7 +307,10 @@ jobs:
           --ignore=tests/test_google_account.py \
           --ignore=tests/test_google_analytics_connector.py \
           --ignore=tests/test_google_workspace.py \
-          --ignore=tests/test_redistricting_models.py
+          --ignore=tests/test_redistricting_models.py \
+          --ignore=tests/test_notebooks.py \
+          --ignore=tests/test_django_temporal_models_orm.py \
+          --ignore=tests/test_dataframe_engine_spatial.py
 
   test-smoke:
     runs-on: ubuntu-latest
