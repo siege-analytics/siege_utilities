@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Change Classification and Release Policy &mdash; Siege Utilities 3.13.0 documentation</title>
+  <title>Installation Troubleshooting &mdash; Siege Utilities 3.13.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
@@ -18,8 +18,8 @@
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Repository Hygiene" href="repository_hygiene.html" />
-    <link rel="prev" title="Lint Ratchet Plan" href="lint_ratchet_plan.html" /> 
+    <link rel="next" title="Library Architecture" href="architecture_diagram.html" />
+    <link rel="prev" title="Getting Started" href="getting_started.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -42,7 +42,7 @@
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="getting_started.html#quick-start">Quick Start</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting_started.html#core-capabilities">Core Capabilities</a><ul>
@@ -62,15 +62,15 @@
 <li class="toctree-l2"><a class="reference internal" href="getting_started.html#next-steps">Next Steps</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="installation_troubleshooting.html">Installation Troubleshooting</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="installation_troubleshooting.html#system-dependencies-for-geospatial">System Dependencies for Geospatial</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="installation_troubleshooting.html#ubuntu-debian">Ubuntu / Debian</a></li>
-<li class="toctree-l3"><a class="reference internal" href="installation_troubleshooting.html#macos-homebrew">macOS (Homebrew)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="installation_troubleshooting.html#windows">Windows</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation Troubleshooting</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#system-dependencies-for-geospatial">System Dependencies for Geospatial</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ubuntu-debian">Ubuntu / Debian</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#macos-homebrew">macOS (Homebrew)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#windows">Windows</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="installation_troubleshooting.html#choosing-the-right-extras">Choosing the Right Extras</a></li>
-<li class="toctree-l2"><a class="reference internal" href="installation_troubleshooting.html#common-errors">Common Errors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#choosing-the-right-extras">Choosing the Right Extras</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#common-errors">Common Errors</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="architecture_diagram.html">Library Architecture</a><ul>
@@ -395,12 +395,12 @@
 </li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development &amp; Testing:</span></p>
-<ul class="current">
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="contributor_governance.html">Contributor Governance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="coding_style.html">Coding Style</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pr_review_rubric.html">PR Review Rubric</a></li>
 <li class="toctree-l1"><a class="reference internal" href="lint_ratchet_plan.html">Lint Ratchet Plan</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Change Classification and Release Policy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="change_classification_and_release_policy.html">Change Classification and Release Policy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="repository_hygiene.html">Repository Hygiene</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="repository_hygiene.html#policy-goals">Policy goals</a></li>
 <li class="toctree-l2"><a class="reference internal" href="repository_hygiene.html#tracked-vs-ignored-artifacts">Tracked vs ignored artifacts</a></li>
@@ -495,7 +495,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Change Classification and Release Policy</li>
+      <li class="breadcrumb-item active">Installation Troubleshooting</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -504,21 +504,100 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="change-classification-and-release-policy">
-<h1>Change Classification and Release Policy<a class="headerlink" href="#change-classification-and-release-policy" title="Link to this heading"></a></h1>
-<p>The bug/feature/release policy is maintained in:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">docs/policies/CHANGE_CLASSIFICATION_AND_RELEASE_POLICY.md</span></code> (canonical)</p></li>
-</ul>
-<p>Use the canonical policy file as the authoritative source.</p>
+  <section id="installation-troubleshooting">
+<h1>Installation Troubleshooting<a class="headerlink" href="#installation-troubleshooting" title="Link to this heading"></a></h1>
+<section id="system-dependencies-for-geospatial">
+<h2>System Dependencies for Geospatial<a class="headerlink" href="#system-dependencies-for-geospatial" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">[geo]</span></code> and <code class="docutils literal notranslate"><span class="pre">[geodjango]</span></code> extras require system-level libraries
+(GDAL, GEOS, PROJ) that cannot be installed via pip.</p>
+<section id="ubuntu-debian">
+<h3>Ubuntu / Debian<a class="headerlink" href="#ubuntu-debian" title="Link to this heading"></a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>sudo apt-get update
+sudo apt-get install -y \
+    gdal-bin libgdal-dev \
+    libgeos-dev libgeos++-dev \
+    libproj-dev proj-bin \
+    libspatialindex-dev \
+    libsqlite3-mod-spatialite
+
+# Set GDAL version for pip
+export GDAL_VERSION=$(gdal-config --version)
+pip install siege-utilities[geo]
+</pre></div>
+</div>
+</section>
+<section id="macos-homebrew">
+<h3>macOS (Homebrew)<a class="headerlink" href="#macos-homebrew" title="Link to this heading"></a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">brew</span> <span class="n">install</span> <span class="n">gdal</span> <span class="n">geos</span> <span class="n">proj</span> <span class="n">spatialindex</span>
+<span class="n">pip</span> <span class="n">install</span> <span class="n">siege</span><span class="o">-</span><span class="n">utilities</span><span class="p">[</span><span class="n">geo</span><span class="p">]</span>
+</pre></div>
+</div>
+</section>
+<section id="windows">
+<h3>Windows<a class="headerlink" href="#windows" title="Link to this heading"></a></h3>
+<p>Use conda or OSGeo4W:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">install</span> <span class="o">-</span><span class="n">c</span> <span class="n">conda</span><span class="o">-</span><span class="n">forge</span> <span class="n">gdal</span> <span class="n">geopandas</span>
+<span class="n">pip</span> <span class="n">install</span> <span class="n">siege</span><span class="o">-</span><span class="n">utilities</span><span class="p">[</span><span class="n">geo</span><span class="o">-</span><span class="n">lite</span><span class="p">]</span>  <span class="c1"># Use geo-lite to skip GDAL requirement</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="choosing-the-right-extras">
+<h2>Choosing the Right Extras<a class="headerlink" href="#choosing-the-right-extras" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Extra</p></th>
+<th class="head"><p>System Deps</p></th>
+<th class="head"><p>What You Get</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">[geo-lite]</span></code></p></td>
+<td><p>None</p></td>
+<td><p>Census data, geocoding, schemas (no geometry operations)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">[geo]</span></code></p></td>
+<td><p>GDAL, GEOS, PROJ</p></td>
+<td><p>Full GeoPandas, spatial joins, choropleths, isochrones</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">[geodjango]</span></code></p></td>
+<td><p>GDAL, GEOS, PROJ, PostGIS</p></td>
+<td><p>Everything + Django ORM with spatial queries</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="common-errors">
+<h2>Common Errors<a class="headerlink" href="#common-errors" title="Link to this heading"></a></h2>
+<dl>
+<dt><strong>“Could not find GDAL library”</strong></dt><dd><p>GDAL is not installed or not on PATH. Install system GDAL first.</p>
+</dd>
+<dt><strong>“OSError: cannot load library ‘libgeos_c.so’”</strong></dt><dd><p>GEOS not installed. On Ubuntu: <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">apt</span> <span class="pre">install</span> <span class="pre">libgeos-dev</span></code>.</p>
+</dd>
+<dt><strong>“ModuleNotFoundError: No module named ‘osgeo’”</strong></dt><dd><p>GDAL Python bindings not installed. Try: <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">GDAL==$(gdal-config</span> <span class="pre">--version)</span></code>.</p>
+</dd>
+<dt><strong>“django.contrib.gis.gdal.error.GDALException”</strong></dt><dd><p>GDAL library found but version mismatch. Ensure system GDAL version matches Python GDAL.</p>
+</dd>
+<dt><strong>DuckDB spatial “Extension … not found”</strong></dt><dd><p>DuckDB spatial extension needs internet access on first load. Run:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">duckdb</span>
+<span class="n">conn</span> <span class="o">=</span> <span class="n">duckdb</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span>
+<span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;INSTALL spatial; LOAD spatial&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>PostGIS “relation does not exist”</strong></dt><dd><p>Run migrations first: <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">manage.py</span> <span class="pre">migrate</span></code>.
+Ensure PostGIS extension is enabled: <code class="docutils literal notranslate"><span class="pre">CREATE</span> <span class="pre">EXTENSION</span> <span class="pre">IF</span> <span class="pre">NOT</span> <span class="pre">EXISTS</span> <span class="pre">postgis;</span></code></p>
+</dd>
+</dl>
+</section>
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="lint_ratchet_plan.html" class="btn btn-neutral float-left" title="Lint Ratchet Plan" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="repository_hygiene.html" class="btn btn-neutral float-right" title="Repository Hygiene" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="getting_started.html" class="btn btn-neutral float-left" title="Getting Started" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="architecture_diagram.html" class="btn btn-neutral float-right" title="Library Architecture" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
