@@ -135,6 +135,10 @@ credentials = [
     # 1Password CLI integration (requires 1Password CLI to be installed separately)
     # macOS Keychain integration (built-in on macOS)
 ]
+# S3-compatible object storage (MinIO, AWS S3)
+s3 = [
+    "boto3>=1.28.0",
+]
 # Databricks SDK integration
 databricks = [
     "databricks-sdk>=0.20.0",
@@ -181,6 +185,8 @@ all = [
     "h3>=4.0.0",
     # databricks
     "databricks-sdk>=0.20.0",
+    # s3
+    "boto3>=1.28.0",
     # reporting
     "matplotlib>=3.7.5",
     "seaborn>=0.13.2",
