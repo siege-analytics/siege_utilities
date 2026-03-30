@@ -491,3 +491,118 @@ class TestPlanDistrictAssignmentORM:
                 plan=plan, seat=seat,
                 boundary_content_type_id=1, boundary_object_id=2,
             )
+
+
+# ---------------------------------------------------------------------------
+# Cascade delete and null FK tests
+# ---------------------------------------------------------------------------
+
+class TestCascadeDeleteORM:
+    """Verify FK cascade behavior — deleting parent objects cascades correctly."""
+
+    def test_delete_state_cascades_to_seats(self, db, state):
+        from siege_utilities.geo.django.models import Seat
+
+        Seat.objects.create(office="US_HOUSE", state=state, district_label="1")
+        Seat.objects.create(office="US_HOUSE", state=state, district_label="2")
+        assert Seat.objects.filter(state=state).count() == 2
+
+        state.delete()
+        assert Seat.objects.count() == 0
+
+    def test_delete_term_cascades_to_calendars(self, db, state, term):
+        from siege_utilities.geo.django.models import StateElectionCalendar
+
+        StateElectionCalendar.objects.create(state=state, congressional_term=term)
+        assert StateElectionCalendar.objects.count() == 1
+
+        term.delete()
+        assert StateElectionCalendar.objects.count() == 0
+
+    def test_delete_seat_cascades_to_races(self, db, seat, term):
+        from siege_utilities.geo.django.models import Race
+
+        Race.objects.create(seat=seat, congressional_term=term)
+        assert Race.objects.count() == 1
+
+        seat.delete()
+        assert Race.objects.count() == 0
+
+    def test_delete_race_cascades_to_events_and_snapshots(self, db, race):
+        from siege_utilities.geo.django.models import RaceEvent, ReturnSnapshot
+
+        RaceEvent.objects.create(
+            race=race, event_type="GENERAL", event_date=date(2024, 11, 5),
+        )
+        ReturnSnapshot.objects.create(
+            race=race,
+            timestamp=datetime(2024, 11, 5, 22, 0, tzinfo=timezone.utc),
+            source="ap",
+        )
+        assert RaceEvent.objects.count() == 1
+        assert ReturnSnapshot.objects.count() == 1
+
+        race.delete()
+        assert RaceEvent.objects.count() == 0
+        assert ReturnSnapshot.objects.count() == 0
+
+    def test_delete_external_event_nulls_race_event_fk(self, db, race):
+        """Deleting a SpatioTemporalEvent should NULL the RaceEvent FK, not cascade."""
+        from siege_utilities.geo.django.models import RaceEvent, SpatioTemporalEvent
+
+        ext = SpatioTemporalEvent.objects.create(
+            feature_id="court-order",
+            name="Court Order",
+            vintage_year=2024,
+            event_start=datetime(2024, 9, 1, tzinfo=timezone.utc),
+            event_category="COURT_RULING",
+        )
+        evt = RaceEvent.objects.create(
+            race=race, event_type="COURT_RULING",
+            event_date=date(2024, 9, 1), external_event=ext,
+        )
+        assert evt.external_event is not None
+
+        ext.delete()
+        evt.refresh_from_db()
+        assert evt.external_event is None  # SET_NULL, not CASCADE
+        assert RaceEvent.objects.count() == 1  # RaceEvent survives
+
+
+class TestNullFKBehaviorORM:
+    """Verify nullable FK fields work correctly."""
+
+    def test_seat_with_null_state(self, db):
+        """PRESIDENT seat has no state — should create cleanly."""
+        from siege_utilities.geo.django.models import Seat
+
+        s = Seat.objects.create(office="PRESIDENT")
+        assert s.state is None
+        s_db = Seat.objects.get(pk=s.pk)
+        assert s_db.state is None
+
+    def test_calendar_all_dates_null(self, db, state, term):
+        """All date fields nullable — empty calendar should save."""
+        from siege_utilities.geo.django.models import StateElectionCalendar
+
+        cal = StateElectionCalendar.objects.create(
+            state=state, congressional_term=term,
+        )
+        assert cal.primary_date is None
+        assert cal.general_date is None
+        assert cal.certification_deadline is None
+
+    def test_return_snapshot_optional_fields(self, db, race):
+        """ReturnSnapshot with only required fields."""
+        from siege_utilities.geo.django.models import ReturnSnapshot
+
+        snap = ReturnSnapshot.objects.create(
+            race=race,
+            timestamp=datetime(2024, 11, 5, tzinfo=timezone.utc),
+            source="ap",
+        )
+        assert snap.precincts_reporting is None
+        assert snap.total_precincts is None
+        assert snap.pct_reporting is None
+        assert snap.total_ballots_counted is None
+        assert snap.ballots_outstanding is None

@@ -69,6 +69,39 @@ def _run_notebook(nb_path: Path, timeout: int = 300):
             os.unlink(out_path)
 
 
+def _run_and_get_outputs(nb_path: Path, timeout: int = 300) -> list:
+    """Execute notebook and return cell outputs for validation."""
+    papermill = pytest.importorskip("papermill")
+    nbformat = pytest.importorskip("nbformat")
+    with tempfile.NamedTemporaryFile(suffix=".ipynb", delete=False) as f:
+        out_path = f.name
+    try:
+        papermill.execute_notebook(
+            str(nb_path),
+            out_path,
+            kernel_name="python3",
+            cwd=str(NOTEBOOKS_DIR),
+            request_save_on_cell_execute=True,
+        )
+        nb = nbformat.read(out_path, as_version=4)
+        outputs = []
+        for cell in nb.cells:
+            if cell.cell_type == "code" and cell.outputs:
+                text = ""
+                for out in cell.outputs:
+                    if "text" in out:
+                        text += out["text"]
+                    elif "data" in out and "text/plain" in out["data"]:
+                        text += out["data"]["text/plain"]
+                outputs.append(text)
+            elif cell.cell_type == "code":
+                outputs.append("")
+        return outputs
+    finally:
+        if os.path.exists(out_path):
+            os.unlink(out_path)
+
+
 # ---------------------------------------------------------------------------
 # Pure Python notebooks — always runnable
 # ---------------------------------------------------------------------------
@@ -148,3 +181,54 @@ def test_credential_notebook(nb_num):
 )
 def test_external_download_notebook(nb_num):
     _run_notebook(_notebook_path(nb_num))
+
+
+# ---------------------------------------------------------------------------
+# Output validation — verify notebooks produce correct results
+# ---------------------------------------------------------------------------
+
+class TestNotebookOutputValidation:
+    """Verify that critical notebooks produce correct outputs, not just
+    'doesn't crash'."""
+
+    def test_nb08_sample_data_produces_dataframe(self):
+        """NB08 generates synthetic data — verify it has expected columns."""
+        outputs = _run_and_get_outputs(_notebook_path(8))
+        all_text = "\n".join(outputs)
+        # NB08 generates population data with specific columns
+        assert "age" in all_text.lower() or "population" in all_text.lower(), \
+            "NB08 should produce population/age data"
+
+    def test_nb22_temporal_models_validate(self):
+        """NB22 exercises validation — verify it catches invalid data."""
+        outputs = _run_and_get_outputs(_notebook_path(22))
+        all_text = "\n".join(outputs)
+        assert "validation error" in all_text.lower() or "caught" in all_text.lower(), \
+            "NB22 should demonstrate validation catching bad data"
+        assert "119" in all_text, "NB22 should reference the 119th Congress"
+
+    def test_nb23_redistricting_has_compactness(self):
+        """NB23 shows compactness scores — verify they appear."""
+        outputs = _run_and_get_outputs(_notebook_path(23))
+        all_text = "\n".join(outputs)
+        assert "polsby" in all_text.lower() or "reock" in all_text.lower(), \
+            "NB23 should show compactness scores"
+
+    def test_nb24_duckdb_produces_results(self):
+        """NB24 runs DuckDB queries — verify results are non-empty."""
+        try:
+            import duckdb  # noqa: F401
+        except ImportError:
+            pytest.skip("DuckDB not installed")
+        outputs = _run_and_get_outputs(_notebook_path(24))
+        all_text = "\n".join(outputs)
+        assert "engine" in all_text.lower(), "NB24 should reference engine names"
+        # Should show actual aggregation results (numbers)
+        assert any(c.isdigit() for c in all_text), "NB24 should produce numeric results"
+
+    def test_nb27_moe_propagation(self):
+        """NB27 demonstrates MOE — verify CV percentages appear."""
+        outputs = _run_and_get_outputs(_notebook_path(27))
+        all_text = "\n".join(outputs)
+        assert "cv" in all_text.lower() or "margin" in all_text.lower() or "moe" in all_text.lower(), \
+            "NB27 should demonstrate MOE/CV calculations"
