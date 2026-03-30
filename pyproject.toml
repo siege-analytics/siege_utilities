@@ -139,6 +139,11 @@ credentials = [
 s3 = [
     "boto3>=1.28.0",
 ]
+# Notebook headless execution
+notebooks = [
+    "papermill>=2.4.0",
+    "nbformat>=5.7.0",
+]
 # Databricks SDK integration
 databricks = [
     "databricks-sdk>=0.20.0",
@@ -153,6 +158,8 @@ dev = [
     "pytest-json-report>=1.5.0",
     "pytest-forked>=1.4.0",
     "pytest-django>=4.5.0",
+    "papermill>=2.4.0",
+    "nbformat>=5.7.0",
     "black>=21.0.0",
     "flake8>=3.8.0",
     "astor>=0.8.1",
