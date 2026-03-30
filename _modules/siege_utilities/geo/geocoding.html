@@ -1262,9 +1262,8 @@
         <span class="c1"># Check if SpatiaLite is available</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT spatialite_version()&quot;</span><span class="p">)</span>
-            <span class="n">has_spatialite</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="k">except</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">OperationalError</span><span class="p">:</span>
-            <span class="n">has_spatialite</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">pass</span>
 
         <span class="c1"># Geocode results table</span>
         <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
