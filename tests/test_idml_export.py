@@ -500,6 +500,7 @@ class TestSimpleIDMLPath:
         ex.save(str(out))
 
         mock_package.export_to_file.assert_called_once()
+        assert ex._replacements == {"{{X}}": "Y"}
 
     def test_save_with_simpleidml_applies_replacements(self, tmp_dir):
         mock_package = mock.MagicMock()
@@ -516,6 +517,8 @@ class TestSimpleIDMLPath:
 
         # Should have tried set_tag, then fallen back to raw replacement
         mock_package.set_tag.assert_called_once_with("{{NAME}}", "Test")
+        assert "{{NAME}}" in ex._replacements
+        assert ex._replacements["{{NAME}}"] == "Test"
 
     def test_fallback_when_simpleidml_load_fails(self, tmp_dir):
         """If simpleidml raises on load, fall back to manual builder."""

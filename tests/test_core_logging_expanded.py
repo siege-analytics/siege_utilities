@@ -150,12 +150,12 @@ class TestConvenienceFunctions:
 
     def test_log_functions_dont_raise(self):
         from siege_utilities.core.logging import log_debug, log_info, log_warning, log_error, log_critical
-        # These should not raise any exceptions
-        log_debug("test debug")
-        log_info("test info")
-        log_warning("test warning")
-        log_error("test error")
-        log_critical("test critical")
+        # Log functions return None on success
+        assert log_debug("test debug") is None
+        assert log_info("test info") is None
+        assert log_warning("test warning") is None
+        assert log_error("test error") is None
+        assert log_critical("test critical") is None
 
 
 class TestTemporaryLoggingConfig:

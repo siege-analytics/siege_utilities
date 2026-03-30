@@ -493,9 +493,10 @@ class TestCensusDataSource:
         self.census.discovery.discover_boundary_types = Mock(return_value={
             'county': 'COUNTY'
         })
-        
-        # This should not raise an exception
-        self.census._validate_census_parameters(2020, 'county', None)
+
+        # _validate_census_parameters returns None on success, raises ValueError on failure
+        result = self.census._validate_census_parameters(2020, 'county', None)
+        assert result is None
     
     def test_parameter_validation_invalid_year(self):
         """Test parameter validation with invalid year."""
@@ -601,16 +602,16 @@ class TestCensusIntegration:
     @pytest.mark.integration
     def test_full_census_workflow(self):
         """Test the complete Census data workflow."""
-        # This test would require actual network access
-        # Marked as integration test to be run separately
-        pass
-    
+        # This test requires actual network access and is skipped in CI.
+        # Marked as integration test to be run separately.
+        pytest.skip("Integration test requires network access")
+
     @pytest.mark.integration
     def test_census_discovery_real_data(self):
         """Test Census discovery with real Census Bureau data."""
-        # This test would require actual network access
-        # Marked as integration test to be run separately
-        pass
+        # This test requires actual network access and is skipped in CI.
+        # Marked as integration test to be run separately.
+        pytest.skip("Integration test requires network access")
 
 
 class TestErrorHandling:

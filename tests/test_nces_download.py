@@ -28,13 +28,13 @@ class TestNCESDownloader:
         assert cache.exists()
 
     def test_validate_year_valid(self):
-        """Valid NCES years pass validation."""
+        """Valid NCES years pass validation (returns None without raising)."""
         from siege_utilities.geo.nces_download import NCESDownloader
 
         downloader = NCESDownloader()
-        # Should not raise
-        downloader._validate_year(2023)
-        downloader._validate_year(2020)
+        # _validate_year returns None on success, raises ValueError on failure
+        assert downloader._validate_year(2023) is None
+        assert downloader._validate_year(2020) is None
 
     def test_validate_year_invalid(self):
         """Invalid NCES years raise ValueError."""

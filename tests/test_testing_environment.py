@@ -43,12 +43,12 @@ class TestImportFallback:
             with patch.dict('sys.modules', {'siege_utilities.core.logging': None}):
                 # Force re-import
                 spec = importlib.util.find_spec('siege_utilities.testing.environment')
-                _ = importlib.util.LazyLoader(spec.loader)
-                # Simpler approach: just verify the fallback functions exist and are callable
-                # by calling them with None-returning behavior
+                loader = importlib.util.LazyLoader(spec.loader)
+                assert loader is not None
+                # Verify the fallback functions exist and are callable
                 from siege_utilities.testing import environment as reloaded  # noqa: F401
-                # The fallback functions should be no-ops (return None)
-                # We can't easily force a reimport, so let's test the stubs directly
+                # The module should still be importable even with logging unavailable
+                assert hasattr(reloaded, 'setup_spark_environment')
         finally:
             sys.modules.update(original_modules)
 

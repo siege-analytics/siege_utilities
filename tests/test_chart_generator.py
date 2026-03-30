@@ -75,11 +75,12 @@ class TestSaveFoliumMap:
     def test_saves_html_file(self, chart_gen_custom, tmp_output_dir):
         """_save_folium_map should call folium_map.save() at the correct path."""
         mock_map = MagicMock()
-        chart_gen_custom._save_folium_map(
+        result = chart_gen_custom._save_folium_map(
             mock_map, "test_map.html", "Test Map", 6.0, 4.0
         )
         expected_path = tmp_output_dir / "test_map.html"
         mock_map.save.assert_called_once_with(str(expected_path))
+        assert result is not None
 
     def test_creates_parent_directory(self, chart_gen_custom, tmp_output_dir):
         """_save_folium_map should create the output directory if missing."""

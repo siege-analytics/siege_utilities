@@ -91,6 +91,8 @@ class TestInterpolateExtensive:
             target_gdf=target_gdf,
             variables=["total_pop"],
         )
+        assert result is not None
+        assert "total_pop" in result.data.columns
         total = result.data["total_pop"].sum()
         np.testing.assert_allclose(total, 1000.0, atol=1.0)
 
@@ -106,8 +108,10 @@ class TestInterpolateIntensive:
             target_gdf=target_gdf,
             variables=["median_income"],
         )
+        assert result is not None
+        assert "median_income" in result.data.columns
         values = result.data["median_income"].values
-        # Uniform source → all targets get same value
+        # Uniform source - all targets get same value
         np.testing.assert_allclose(values, 50000.0, atol=1.0)
 
 
@@ -163,6 +167,8 @@ class TestInterpolateAreal:
             target_gdf=target_gdf,
             variables=["total_pop"],
         )
+        assert result is not None
+        assert "total_pop" in result.data.columns
         total = result.data["total_pop"].sum()
         np.testing.assert_allclose(total, 1000.0, atol=1.0)
 

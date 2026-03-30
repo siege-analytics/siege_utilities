@@ -24,17 +24,18 @@ class TestGEOIDValidator:
     def test_valid_state_geoid(self):
         """A 2-digit state GEOID should pass validation."""
         validator = GEOIDValidator("state")
-        validator("06")  # California — should not raise
+        # Django validators return None on success, raise ValidationError on failure
+        assert validator("06") is None  # California
 
     def test_valid_county_geoid(self):
         """A 5-digit county GEOID should pass validation."""
         validator = GEOIDValidator("county")
-        validator("06037")  # LA County
+        assert validator("06037") is None  # LA County
 
     def test_valid_tract_geoid(self):
         """An 11-digit tract GEOID should pass validation."""
         validator = GEOIDValidator("tract")
-        validator("06037101100")
+        assert validator("06037101100") is None
 
     def test_invalid_geoid_wrong_length(self):
         """GEOID with wrong length should raise ValidationError."""

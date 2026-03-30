@@ -53,7 +53,7 @@ class TestRunGitCommand:
         mock_result = MagicMock()
         mock_result.stdout = "ok"
         with patch(SUBPROCESS_RUN, return_value=mock_result) as mock_run:
-            run_git_command("checkout", "-b", "feature/x", repo_path=".")
+            result = run_git_command("checkout", "-b", "feature/x", repo_path=".")
         mock_run.assert_called_once_with(
             ["git", "checkout", "-b", "feature/x"],
             cwd=".",
@@ -61,6 +61,7 @@ class TestRunGitCommand:
             text=True,
             check=True,
         )
+        assert result == "ok"
 
     def test_raises_runtime_error_when_check_true(self):
         with patch(SUBPROCESS_RUN, side_effect=subprocess.CalledProcessError(

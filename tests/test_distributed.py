@@ -160,16 +160,18 @@ class TestHDFSConfigMethods:
         from siege_utilities.distributed.hdfs_config import HDFSConfig
         mock_func = Mock()
         config = HDFSConfig(log_info_func=mock_func)
-        config.log_info('test message')
+        result = config.log_info('test message')
         mock_func.assert_called_once_with('test message')
+        assert result is None
 
     def test_log_error_delegates(self):
         """log_error delegates to configured function."""
         from siege_utilities.distributed.hdfs_config import HDFSConfig
         mock_func = Mock()
         config = HDFSConfig(log_error_func=mock_func)
-        config.log_error('error message')
+        result = config.log_error('error message')
         mock_func.assert_called_once_with('error message')
+        assert result is None
 
 
 class TestHDFSConfigFactories:
@@ -357,9 +359,11 @@ class TestEnsureLiteral:
         if not PYSPARK_AVAILABLE:
             pytest.skip("PySpark not available")
         with patch('siege_utilities.distributed.spark_utils.lit') as mock_lit:
-            mock_lit.return_value = Mock()
+            sentinel = Mock()
+            mock_lit.return_value = sentinel
             result = ensure_literal(42)
             mock_lit.assert_called_once_with(42)
+            assert result is sentinel
 
 
 class TestCreateUniqueStagingDirectory:
@@ -470,9 +474,11 @@ class TestRepartitionAndCache:
         """Default partitions is 100."""
         from siege_utilities.distributed.spark_utils import repartition_and_cache
         mock_df = Mock()
-        mock_df.repartition.return_value.cache.return_value = Mock()
-        repartition_and_cache(mock_df)
+        cached = Mock()
+        mock_df.repartition.return_value.cache.return_value = cached
+        result = repartition_and_cache(mock_df)
         mock_df.repartition.assert_called_once_with(100)
+        assert result is cached
 
     def test_returns_none_on_error(self):
         """Returns None when an exception occurs."""
@@ -520,13 +526,10 @@ class TestMoveColumnToFront:
         """Returns None on error."""
         from siege_utilities.distributed.spark_utils import move_column_to_front_of_dataframe
         mock_df = Mock()
-        mock_df.columns = PropertyMock(side_effect=Exception("fail"))
-        # Accessing .columns on the mock will raise
-        result = move_column_to_front_of_dataframe(mock_df, 'col')
-        # The function catches all exceptions
-        # Either it returns None or raises - let's check
-        # Actually the mock.columns access goes through __getattr__ which
-        # won't raise. Let me set it up differently.
+        mock_df.columns = ['a', 'b']
+        mock_df.select.side_effect = Exception("fail")
+        result = move_column_to_front_of_dataframe(mock_df, 'a')
+        assert result is None
 
     def test_column_already_first(self):
         """Column already at front still works."""
@@ -538,6 +541,7 @@ class TestMoveColumnToFront:
         mock_df.select.return_value = reordered
         result = move_column_to_front_of_dataframe(mock_df, 'target')
         mock_df.select.assert_called_once_with('target', 'a', 'b')
+        assert result is reordered
 
 
 class TestWriteDfToParquet:
@@ -636,19 +640,22 @@ class TestExportPysparkDfToExcel:
         mock_df = Mock()
         mock_pandas = Mock()
         mock_df.toPandas.return_value = mock_pandas
-        export_pyspark_df_to_excel(mock_df, 'output.xlsx', 'Sheet1')
+        result = export_pyspark_df_to_excel(mock_df, 'output.xlsx', 'Sheet1')
         mock_df.toPandas.assert_called_once()
         mock_pandas.to_excel.assert_called_once_with(
             'output.xlsx', sheet_name='Sheet1', index=False
         )
+        # Function returns None on success (no return value)
+        assert result is None
 
     def test_handles_error_gracefully(self):
         """Does not raise on error (logs instead)."""
         from siege_utilities.distributed.spark_utils import export_pyspark_df_to_excel
         mock_df = Mock()
         mock_df.toPandas.side_effect = Exception("conversion failed")
-        # Should not raise
-        export_pyspark_df_to_excel(mock_df, 'output.xlsx')
+        # Should not raise; returns None on error
+        result = export_pyspark_df_to_excel(mock_df, 'output.xlsx')
+        assert result is None
 
 
 # ================================================================

@@ -149,28 +149,29 @@ except ImportError:
 @pytest.mark.skipif(not HAS_DJANGO, reason="Django not installed")
 class TestDjangoValidators:
     def test_state_fips_valid(self):
-        StateFIPSValidator()("06")
+        # Django validators return None on success, raise ValidationError on failure
+        assert StateFIPSValidator()("06") is None
 
     def test_state_fips_invalid(self):
         with pytest.raises(ValidationError):
             StateFIPSValidator()("99")
 
     def test_county_fips_valid(self):
-        CountyFIPSValidator()("06037")
+        assert CountyFIPSValidator()("06037") is None
 
     def test_county_fips_invalid(self):
         with pytest.raises(ValidationError):
             CountyFIPSValidator()("99001")
 
     def test_tract_geoid_valid(self):
-        TractGEOIDValidator()("06037101100")
+        assert TractGEOIDValidator()("06037101100") is None
 
     def test_tract_geoid_invalid(self):
         with pytest.raises(ValidationError):
             TractGEOIDValidator()("invalid")
 
     def test_block_group_geoid_valid(self):
-        BlockGroupGEOIDValidator()("060371011001")
+        assert BlockGroupGEOIDValidator()("060371011001") is None
 
     def test_block_group_geoid_invalid(self):
         with pytest.raises(ValidationError):

@@ -192,15 +192,18 @@ class TestGeographyValidation:
 
     def test_valid_county_geography(self, census_client):
         """Test that county geography is valid."""
-        # Should not raise
-        census_client._validate_geography('county', None, None)
-        census_client._validate_geography('county', '06', None)
-        census_client._validate_geography('county', '06', '037')
+        # _validate_geography returns the validated geography string on success
+        result1 = census_client._validate_geography('county', None, None)
+        assert isinstance(result1, str)
+        result2 = census_client._validate_geography('county', '06', None)
+        assert isinstance(result2, str)
+        result3 = census_client._validate_geography('county', '06', '037')
+        assert isinstance(result3, str)
 
     def test_valid_tract_geography_with_state(self, census_client):
         """Test that tract geography requires state FIPS."""
-        # Should not raise with state
-        census_client._validate_geography('tract', '06', None)
+        result = census_client._validate_geography('tract', '06', None)
+        assert isinstance(result, str)
 
     def test_tract_requires_state(self, census_client):
         """Test that tract geography without state raises error."""

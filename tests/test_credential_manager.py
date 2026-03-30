@@ -1484,7 +1484,7 @@ class TestFetchRealGA4DataOAuth2Fallback:
         mock_connector.get_ga4_data.return_value = None
         mock_connector_cls.return_value = mock_connector
 
-        fetch_real_ga4_data('12345', '2026-01-01', '2026-01-31')
+        result = fetch_real_ga4_data('12345', '2026-01-01', '2026-01-31')
 
         mock_connector_cls.assert_called_once_with(
             client_id='test-id',
@@ -1492,6 +1492,8 @@ class TestFetchRealGA4DataOAuth2Fallback:
             redirect_uri='http://localhost',
         )
         mock_connector.authenticate.assert_called_once()
+        # get_ga4_data returns None, so the function should return None
+        assert result is None
 
     @patch('siege_utilities.config.get_google_oauth_from_1password')
     @patch('siege_utilities.config.get_google_service_account_from_1password')
@@ -1512,7 +1514,7 @@ class TestFetchRealGA4DataOAuth2Fallback:
         mock_sa.return_value = None
         mock_oauth.return_value = None
 
-        fetch_real_ga4_data('12345', '2026-01-01', '2026-01-31',
+        result = fetch_real_ga4_data('12345', '2026-01-01', '2026-01-31',
                            vault='Private', account='Dheeraj_Chand_Family')
 
         mock_sa.assert_called_once_with(
@@ -1520,3 +1522,5 @@ class TestFetchRealGA4DataOAuth2Fallback:
             vault='Private', account='Dheeraj_Chand_Family',
         )
         mock_oauth.assert_called_once_with(vault='Private', account='Dheeraj_Chand_Family')
+        # Both credential strategies failed, so result should be None
+        assert result is None

@@ -256,12 +256,9 @@ class TestSetupSparkEnvironment:
         mock_su.check_dependencies.return_value = {'pyspark': False, 'apache-sedona': False}
 
         with patch.dict('sys.modules', {'siege_utilities': mock_su}):
-            # We need to re-import to pick up the mock
-            # Actually the function does `import siege_utilities` inside
             result = setup_spark_environment()
-            # Since siege_utilities is already imported, we need a different approach
-            # Let's just verify the function handles the case
-            # The real siege_utilities module may not have check_dependencies
+            # The function should return a boolean (True if setup succeeded, False otherwise)
+            assert isinstance(result, bool)
             # so we check that the function handles gracefully
 
 

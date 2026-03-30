@@ -233,38 +233,44 @@ class TestConvenienceLoggingFunctions:
     def test_log_debug(self):
         """Test log_debug function."""
         with patch('logging.Logger.debug') as mock_debug:
-            log_debug("Debug message")
+            result = log_debug("Debug message")
             mock_debug.assert_called_once_with("Debug message")
-    
+            assert result is None
+
     def test_log_info(self):
         """Test log_info function."""
         with patch('logging.Logger.info') as mock_info:
-            log_info("Info message")
+            result = log_info("Info message")
             mock_info.assert_called_once_with("Info message")
-    
+            assert result is None
+
     def test_log_warning(self):
         """Test log_warning function."""
         with patch('logging.Logger.warning') as mock_warning:
-            log_warning("Warning message")
+            result = log_warning("Warning message")
             mock_warning.assert_called_once_with("Warning message")
-    
+            assert result is None
+
     def test_log_error(self):
         """Test log_error function."""
         with patch('logging.Logger.error') as mock_error:
-            log_error("Error message")
+            result = log_error("Error message")
             mock_error.assert_called_once_with("Error message")
-    
+            assert result is None
+
     def test_log_critical(self):
         """Test log_critical function."""
         with patch('logging.Logger.critical') as mock_critical:
-            log_critical("Critical message")
+            result = log_critical("Critical message")
             mock_critical.assert_called_once_with("Critical message")
-    
+            assert result is None
+
     def test_log_with_specific_logger(self):
         """Test logging with specific logger name."""
         with patch('logging.Logger.info') as mock_info:
-            log_info("Message", logger_name="specific_logger")
+            result = log_info("Message", logger_name="specific_logger")
             mock_info.assert_called_once_with("Message")
+            assert result is None
 
 
 class TestIntegration:

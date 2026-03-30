@@ -463,7 +463,9 @@ class TestDuckDBConnector:
             return connector
 
     def test_init_raises_when_duckdb_unavailable(self):
-        self._make_connector(duckdb_available=False)
+        # _make_connector internally asserts ImportError is raised via pytest.raises
+        result = self._make_connector(duckdb_available=False)
+        assert result is None
 
     def test_connect_success(self):
         connector = self._make_connector()

@@ -220,7 +220,9 @@ class TestAddChartCreator:
     def test_add_to_nonexistent(self):
         registry = ChartTypeRegistry()
         mock_fn = MagicMock()
-        registry.add_chart_creator("nonexistent", mock_fn)  # should not raise
+        registry.add_chart_creator("nonexistent", mock_fn)
+        # add_chart_creator on a nonexistent type logs a warning but doesn't create it
+        assert registry.get_chart_type("nonexistent") is None
 
 
 class TestGetChartRegistry:

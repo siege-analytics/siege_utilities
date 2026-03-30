@@ -76,10 +76,11 @@ class TestCensusTIGERProvider:
         """Extra kwargs (e.g. year) are forwarded."""
         mock_gcb.return_value = MagicMock(name='gdf')
         provider = CensusTIGERProvider()
-        provider.get_boundary('tract', identifier='36', year=2020)
+        result = provider.get_boundary('tract', identifier='36', year=2020)
         mock_gcb.assert_called_once_with(
             geographic_level='tract', state_fips='36', year=2020,
         )
+        assert result is mock_gcb.return_value
 
 
 # ---------------------------------------------------------------------------

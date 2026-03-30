@@ -786,9 +786,10 @@ class TestFetchCVAP:
         ds_block = RDHDataset(title="VA_CVAP_block_group", url="https://example.com/b.csv", format="csv")
         with patch.object(client, "get_cvap_data", return_value=[ds_tract, ds_block]), \
              patch.object(client, "load_csv", return_value=mock_df) as mock_load:
-            fetch_cvap("VA", geography="tract", client=client)
+            result = fetch_cvap("VA", geography="tract", client=client)
             # Should load the tract one (first match after filtering)
             mock_load.assert_called_once_with(ds_tract)
+            assert result is mock_df
 
 
 class TestFetchPL94171:
