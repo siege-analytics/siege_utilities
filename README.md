@@ -14,6 +14,15 @@
 - Distributed processing helpers (Spark/HDFS/Databricks)
 - Reporting and chart generation
 
+## Related: Siege Analytics ZSH Configuration
+
+`siege_utilities` works alongside [`siege_analytics_zshrc`](https://github.com/dheerajchand/siege_analytics_zshrc) — a modular ZSH configuration system for data engineering environments. Together they form a two-part toolchain:
+
+- **siege_utilities** — Python library: geospatial, reporting, analytics, Django models, distributed computing
+- **siege_analytics_zshrc** — Shell environment: Java/Spark/Hadoop/Python version management, credential handling, cluster connectivity
+
+They are designed to work together (the ZSH config sets up `SPARK_HOME`, `JAVA_HOME`, pyenv, and credential paths that siege_utilities expects) but each can be used independently. You don't need the ZSH config to use the Python library, and vice versa.
+
 ## Python Version Support
 
 | Version | Status | CI |
