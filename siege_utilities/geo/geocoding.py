@@ -1,7 +1,12 @@
+import hashlib
+import os
+import sqlite3
 import time
 import json
 import logging
-from typing import Tuple
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 from geopy.geocoders import Nominatim
@@ -675,3 +680,370 @@ def mark_valid_geocode_data_pandas(
         & result[lon_col].between(lon_min, lon_max)
     )
     return result
+
+
+# =============================================================================
+# SpatiaLite Geocoding Cache
+# =============================================================================
+
+_DEFAULT_CACHE_PATH = os.path.expanduser("~/.cache/siege_utilities/geocode_cache.db")
+
+
+def _address_hash(address: str) -> str:
+    """Deterministic SHA-256 hash of a normalized address string."""
+    normalized = " ".join(address.lower().split())
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+class SpatiaLiteCache:
+    """SpatiaLite-backed local cache for geocoding results and boundary lookups.
+
+    Stores:
+    - geocode results: address_hash → (lat, lon, WKT point, source, timestamp)
+    - boundary lookups: geoid → (point WKT, boundary WKT, vintage_year)
+    - crosswalk mappings: (source_geoid, target_geoid) → weight
+
+    Spatial index on point geometry enables bounding-box queries.
+    The database file is portable across machines.
+
+    Usage::
+
+        cache = SpatiaLiteCache()
+        cache.put_geocode("123 Main St, Springfield, IL 62701", 39.7817, -89.6501, source="nominatim")
+        result = cache.get_geocode("123 Main St, Springfield, IL 62701")
+    """
+
+    def __init__(self, db_path: Optional[str] = None):
+        self.db_path = db_path or _DEFAULT_CACHE_PATH
+        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+        self._conn = None
+        self._init_db()
+
+    def _get_conn(self) -> sqlite3.Connection:
+        if self._conn is None:
+            self._conn = sqlite3.connect(self.db_path)
+            # Try to load SpatiaLite extension
+            try:
+                self._conn.enable_load_extension(True)
+                self._conn.load_extension("mod_spatialite")
+            except Exception:
+                # SpatiaLite not available — fall back to plain SQLite
+                # Spatial index won't work, but the cache is still functional
+                pass
+        return self._conn
+
+    def _init_db(self):
+        conn = self._get_conn()
+        cur = conn.cursor()
+
+        # Check if SpatiaLite is available
+        try:
+            cur.execute("SELECT spatialite_version()")
+            has_spatialite = True
+        except sqlite3.OperationalError:
+            has_spatialite = False
+
+        # Geocode results table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS geocode_cache (
+                address_hash TEXT PRIMARY KEY,
+                address_raw TEXT NOT NULL,
+                latitude REAL NOT NULL,
+                longitude REAL NOT NULL,
+                point_wkt TEXT NOT NULL,
+                source TEXT NOT NULL DEFAULT 'nominatim',
+                raw_response TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+
+        # Boundary lookup table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS boundary_cache (
+                geoid TEXT NOT NULL,
+                vintage_year INTEGER NOT NULL,
+                point_wkt TEXT,
+                boundary_wkt TEXT,
+                source TEXT NOT NULL DEFAULT 'tiger',
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                PRIMARY KEY (geoid, vintage_year)
+            )
+        """)
+
+        # Crosswalk mapping table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS crosswalk_cache (
+                source_geoid TEXT NOT NULL,
+                target_geoid TEXT NOT NULL,
+                weight REAL NOT NULL DEFAULT 1.0,
+                source TEXT NOT NULL DEFAULT 'census',
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                PRIMARY KEY (source_geoid, target_geoid)
+            )
+        """)
+
+        # Indexes
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_geocode_source
+            ON geocode_cache(source)
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_geocode_lat_lon
+            ON geocode_cache(latitude, longitude)
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_boundary_vintage
+            ON boundary_cache(vintage_year)
+        """)
+
+        conn.commit()
+
+    # ------------------------------------------------------------------
+    # Geocode cache operations
+    # ------------------------------------------------------------------
+
+    def put_geocode(
+        self,
+        address: str,
+        latitude: float,
+        longitude: float,
+        source: str = "nominatim",
+        raw_response: Optional[str] = None,
+    ) -> str:
+        """Store a geocoding result. Returns the address hash."""
+        addr_hash = _address_hash(address)
+        point_wkt = f"POINT({longitude} {latitude})"
+        now = datetime.utcnow().isoformat()
+
+        conn = self._get_conn()
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO geocode_cache
+                (address_hash, address_raw, latitude, longitude, point_wkt,
+                 source, raw_response, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (addr_hash, address, latitude, longitude, point_wkt,
+             source, raw_response, now, now),
+        )
+        conn.commit()
+        return addr_hash
+
+    def get_geocode(self, address: str) -> Optional[Dict]:
+        """Look up a cached geocoding result by address string."""
+        addr_hash = _address_hash(address)
+        conn = self._get_conn()
+        row = conn.execute(
+            """
+            SELECT address_raw, latitude, longitude, point_wkt, source,
+                   raw_response, created_at, updated_at
+            FROM geocode_cache WHERE address_hash = ?
+            """,
+            (addr_hash,),
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        return {
+            "address": row[0],
+            "latitude": row[1],
+            "longitude": row[2],
+            "point_wkt": row[3],
+            "source": row[4],
+            "raw_response": row[5],
+            "created_at": row[6],
+            "updated_at": row[7],
+        }
+
+    def get_geocode_or_fetch(
+        self,
+        address: str,
+        country_codes: Optional[str] = None,
+        server_url: Optional[str] = None,
+    ) -> Optional[Dict]:
+        """Look up cache, falling back to Nominatim if not cached."""
+        cached = self.get_geocode(address)
+        if cached is not None:
+            return cached
+
+        result_json = use_nominatim_geocoder(
+            address, country_codes=country_codes, server_url=server_url,
+        )
+        if result_json is None:
+            return None
+
+        data = json.loads(result_json)
+        lat = data.get("nominatim_lat")
+        lon = data.get("nominatim_lng")
+        if lat is None or lon is None:
+            return None
+
+        self.put_geocode(
+            address, float(lat), float(lon),
+            source="nominatim", raw_response=result_json,
+        )
+        return self.get_geocode(address)
+
+    def get_geocodes_in_bbox(
+        self,
+        lat_min: float,
+        lat_max: float,
+        lon_min: float,
+        lon_max: float,
+    ) -> List[Dict]:
+        """Return all cached geocodes within a bounding box."""
+        conn = self._get_conn()
+        rows = conn.execute(
+            """
+            SELECT address_raw, latitude, longitude, point_wkt, source,
+                   created_at
+            FROM geocode_cache
+            WHERE latitude BETWEEN ? AND ?
+              AND longitude BETWEEN ? AND ?
+            """,
+            (lat_min, lat_max, lon_min, lon_max),
+        ).fetchall()
+
+        return [
+            {
+                "address": r[0],
+                "latitude": r[1],
+                "longitude": r[2],
+                "point_wkt": r[3],
+                "source": r[4],
+                "created_at": r[5],
+            }
+            for r in rows
+        ]
+
+    # ------------------------------------------------------------------
+    # Boundary cache operations
+    # ------------------------------------------------------------------
+
+    def put_boundary(
+        self,
+        geoid: str,
+        vintage_year: int,
+        point_wkt: Optional[str] = None,
+        boundary_wkt: Optional[str] = None,
+        source: str = "tiger",
+    ):
+        """Cache a boundary lookup result."""
+        conn = self._get_conn()
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO boundary_cache
+                (geoid, vintage_year, point_wkt, boundary_wkt, source, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (geoid, vintage_year, point_wkt, boundary_wkt, source,
+             datetime.utcnow().isoformat()),
+        )
+        conn.commit()
+
+    def get_boundary(
+        self, geoid: str, vintage_year: int,
+    ) -> Optional[Dict]:
+        """Look up a cached boundary by GEOID and vintage year."""
+        conn = self._get_conn()
+        row = conn.execute(
+            """
+            SELECT geoid, vintage_year, point_wkt, boundary_wkt, source, created_at
+            FROM boundary_cache WHERE geoid = ? AND vintage_year = ?
+            """,
+            (geoid, vintage_year),
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        return {
+            "geoid": row[0],
+            "vintage_year": row[1],
+            "point_wkt": row[2],
+            "boundary_wkt": row[3],
+            "source": row[4],
+            "created_at": row[5],
+        }
+
+    # ------------------------------------------------------------------
+    # Crosswalk cache operations
+    # ------------------------------------------------------------------
+
+    def put_crosswalk(
+        self,
+        source_geoid: str,
+        target_geoid: str,
+        weight: float = 1.0,
+        source: str = "census",
+    ):
+        """Cache a crosswalk mapping."""
+        conn = self._get_conn()
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO crosswalk_cache
+                (source_geoid, target_geoid, weight, source, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (source_geoid, target_geoid, weight, source,
+             datetime.utcnow().isoformat()),
+        )
+        conn.commit()
+
+    def get_crosswalk(
+        self, source_geoid: str,
+    ) -> List[Dict]:
+        """Get all crosswalk targets for a source GEOID."""
+        conn = self._get_conn()
+        rows = conn.execute(
+            """
+            SELECT source_geoid, target_geoid, weight, source
+            FROM crosswalk_cache WHERE source_geoid = ?
+            """,
+            (source_geoid,),
+        ).fetchall()
+
+        return [
+            {
+                "source_geoid": r[0],
+                "target_geoid": r[1],
+                "weight": r[2],
+                "source": r[3],
+            }
+            for r in rows
+        ]
+
+    # ------------------------------------------------------------------
+    # Utility
+    # ------------------------------------------------------------------
+
+    def stats(self) -> Dict[str, int]:
+        """Return row counts for all cache tables."""
+        conn = self._get_conn()
+        return {
+            "geocodes": conn.execute("SELECT COUNT(*) FROM geocode_cache").fetchone()[0],
+            "boundaries": conn.execute("SELECT COUNT(*) FROM boundary_cache").fetchone()[0],
+            "crosswalks": conn.execute("SELECT COUNT(*) FROM crosswalk_cache").fetchone()[0],
+        }
+
+    def clear(self, table: Optional[str] = None):
+        """Clear cache tables. If table is None, clear all."""
+        conn = self._get_conn()
+        tables = [table] if table else ["geocode_cache", "boundary_cache", "crosswalk_cache"]
+        for t in tables:
+            conn.execute(f"DELETE FROM {t}")  # noqa: S608 — table names are hardcoded
+        conn.commit()
+
+    def close(self):
+        """Close the database connection."""
+        if self._conn is not None:
+            self._conn.close()
+            self._conn = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
