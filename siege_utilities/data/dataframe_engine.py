@@ -211,7 +211,6 @@ class DataFrameEngine(ABC):
         Default converts to GeoDataFrame and uses ``gdf.dissolve()``.
         Engines may override for native performance.
         """
-        import geopandas as gpd
         gdf = self.to_geodataframe(df, geometry_col=geometry_col)
         return gdf.dissolve(by=by, **agg_kwargs).reset_index()
 

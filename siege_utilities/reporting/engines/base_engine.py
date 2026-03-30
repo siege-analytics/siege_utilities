@@ -11,7 +11,6 @@ from typing import Dict, List, Any, Optional, Union
 # Core plotting libraries
 try:
     import matplotlib.pyplot as plt
-    import matplotlib.patches as mpatches
     import seaborn as sns
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
@@ -22,7 +21,6 @@ except ImportError:
 # Geographic plotting
 try:
     import folium
-    from folium import plugins
     FOLIUM_AVAILABLE = True
 except ImportError:
     FOLIUM_AVAILABLE = False

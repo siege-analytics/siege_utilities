@@ -7,7 +7,6 @@ generator. Requires python-pptx.
 import pytest
 import pandas as pd
 import numpy as np
-from pathlib import Path
 
 try:
     from pptx import Presentation as PptxPresentation

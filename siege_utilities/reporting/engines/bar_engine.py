@@ -3,12 +3,11 @@ Bar, line, pie, and proportional text bar chart mixins.
 """
 
 import logging
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Union
 
 # Core plotting libraries
 try:
     import matplotlib.pyplot as plt
-    import matplotlib.patches as mpatches
     import seaborn as sns
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
@@ -183,7 +182,7 @@ class BarChartMixin:
                            label=col, color=color, linewidth=2, marker='o')
 
             # Customize chart
-            ax.set_title(title or f"Trends over time")
+            ax.set_title(title or "Trends over time")
             ax.set_xlabel(x_column if x_column != 'index' else 'Index')
             ax.set_ylabel('Value')
 
@@ -261,9 +260,9 @@ class BarChartMixin:
             fig.subplots_adjust(left=0.1, right=0.6, top=0.9, bottom=0.1)
 
             # Create clean pie chart with NO LABELS AT ALL
-            wedges = ax.pie(values, labels=None, autopct=None,
-                           colors=self.color_palette[:len(values)],
-                           startangle=90)[0]
+            ax.pie(values, labels=None, autopct=None,
+                   colors=self.color_palette[:len(values)],
+                   startangle=90)
 
             # Customize chart
             ax.set_title(title or "Data Distribution")
@@ -279,7 +278,7 @@ class BarChartMixin:
                 legend_data = []
                 for i, (label, value, pct) in enumerate(zip(labels, values, percentages)):
                     legend_data.append([
-                        f"■",  # Color indicator
+                        "■",  # Color indicator
                         label,
                         f"{value:,}",
                         f"{pct:.1f}%"

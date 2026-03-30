@@ -541,7 +541,6 @@ class TestPolsbyPopper:
 class TestReock:
 
     def test_circle_near_one(self, circle_geometry):
-        import math
         score = reock(circle_geometry)
         # Implementation uses MRR diagonal as diameter estimate, which
         # overestimates the bounding circle. For a circle (radius=1):

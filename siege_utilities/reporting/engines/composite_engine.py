@@ -3,7 +3,7 @@ Composite chart mixins — convergence diagrams, dashboards, and subplot helpers
 """
 
 import logging
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional
 
 # Core plotting libraries
 try:

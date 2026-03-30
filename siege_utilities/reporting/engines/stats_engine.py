@@ -3,7 +3,7 @@ Statistical chart mixins — heatmap, scatter plot, and text heatmap.
 """
 
 import logging
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Union
 
 # Core plotting libraries
 try:

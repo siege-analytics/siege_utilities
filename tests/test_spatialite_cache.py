@@ -1,8 +1,5 @@
 """Tests for SpatiaLite geocoding cache."""
 
-import os
-import tempfile
-
 import pytest
 
 from siege_utilities.geo.geocoding import SpatiaLiteCache, _address_hash

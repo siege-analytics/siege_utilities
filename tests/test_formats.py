@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import geopandas as gpd
 import pandas as pd
 import pytest
-from shapely.geometry import Point, box
+from shapely.geometry import Point
 
 from siege_utilities.files.formats import (
     SpatialFormat,
@@ -208,5 +207,5 @@ class TestExports:
         assert expected == set(__all__)
 
     def test_importable_from_files_package(self):
-        from siege_utilities.files import SpatialFormat, save_spatial
+        from siege_utilities.files import SpatialFormat
         assert SpatialFormat.GEOPARQUET.value == "geoparquet"

@@ -739,9 +739,8 @@ class SpatiaLiteCache:
         # Check if SpatiaLite is available
         try:
             cur.execute("SELECT spatialite_version()")
-            has_spatialite = True
         except sqlite3.OperationalError:
-            has_spatialite = False
+            pass
 
         # Geocode results table
         cur.execute("""

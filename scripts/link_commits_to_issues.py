@@ -19,7 +19,7 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 
 
 # ---------------------------------------------------------------------------
@@ -519,7 +519,7 @@ def main():
 
         # Check if already has SHA in comments
         if not args.skip_comment_check and issue_has_sha_in_comments(num):
-            print(f"  SKIP: already has commit reference in comments", file=sys.stderr)
+            print("  SKIP: already has commit reference in comments", file=sys.stderr)
             continue
 
         # Manual overrides (reviewed medium-confidence matches)
@@ -557,7 +557,7 @@ def main():
                 strategy="meta",
             )
             results.append(match)
-            print(f"  META: epic/umbrella issue", file=sys.stderr)
+            print("  META: epic/umbrella issue", file=sys.stderr)
             continue
 
         # Strategy 0: Direct su#N references in commits or merged PR titles
@@ -612,7 +612,7 @@ def main():
             print(f"  TIMELINE (low): {shas}", file=sys.stderr)
             continue
 
-        print(f"  NO MATCH", file=sys.stderr)
+        print("  NO MATCH", file=sys.stderr)
 
     # Output
     print(f"\n{'='*60}", file=sys.stderr)
@@ -649,7 +649,7 @@ def main():
             print(f"\nPosting comment on #{r.issue_number}...", file=sys.stderr)
             try:
                 run(["gh", "issue", "comment", str(r.issue_number), "--body", comment])
-                print(f"  POSTED", file=sys.stderr)
+                print("  POSTED", file=sys.stderr)
             except subprocess.CalledProcessError as e:
                 print(f"  FAILED: {e}", file=sys.stderr)
         else:

@@ -6,7 +6,6 @@ import pytest
 
 from siege_utilities.data.moe_propagation import (
     Estimate,
-    Z_90,
     flag_unreliable,
     moe_difference,
     moe_product,

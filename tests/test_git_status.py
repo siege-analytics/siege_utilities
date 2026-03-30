@@ -10,10 +10,8 @@ import pytest
 from siege_utilities.exceptions import GitError
 from siege_utilities.git.git_status import (
     get_branch_info,
-    get_file_status,
     get_log_summary,
     get_remote_info,
-    get_repository_size,
     get_repository_status,
     get_stash_list,
     get_tag_list,

@@ -47,7 +47,7 @@ import requests  # noqa: F401 — tests mock this module attribute
 from ..config import normalize_state_identifier
 
 # Re-export constants and sub-components for backward compatibility
-from .census.variable_registry import VARIABLE_GROUPS, VARIABLE_DESCRIPTIONS
+from .census.variable_registry import VARIABLE_GROUPS, VARIABLE_DESCRIPTIONS  # noqa: F401
 from .census.dataset_selector import DatasetSelector
 from .census.api import CensusAPI, CENSUS_API_CACHE_TIMEOUT
 

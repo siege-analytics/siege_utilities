@@ -11,7 +11,7 @@ import re
 import yaml
 
 from .credential import Credential, OnePasswordCredential
-from .google_account import GoogleAccount, GoogleAccountStatus
+from .google_account import GoogleAccount
 from .oauth_integration import OAuthIntegration
 from .database_connection import DatabaseConnection
 

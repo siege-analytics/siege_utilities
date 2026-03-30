@@ -1,7 +1,6 @@
 """Tests for spatial operations in the DataFrame engine abstraction."""
 
 import tempfile
-from pathlib import Path
 
 import pytest
 

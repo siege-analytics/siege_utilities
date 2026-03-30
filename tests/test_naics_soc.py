@@ -5,8 +5,6 @@ import pytest
 from siege_utilities.data.naics_soc_crosswalk import (
     NAICS_SECTORS,
     SOC_MAJOR_GROUPS,
-    NAICSCode,
-    SOCCode,
     crosswalk_naics,
     fuzzy_match_naics,
     naics_ancestors,

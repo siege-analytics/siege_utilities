@@ -15,8 +15,6 @@ Usage:
     python manage.py stage_boundaries_s3 --year 2020 --type county --format parquet
 """
 
-import io
-import json
 import tempfile
 
 from django.core.management.base import BaseCommand, CommandError
@@ -204,7 +202,6 @@ class Command(BaseCommand):
 
     def _queryset_to_gdf(self, qs, model):
         """Convert a Django queryset with geometry to a GeoDataFrame."""
-        from django.contrib.gis.geos import GEOSGeometry
         from shapely import wkt
 
         records = []

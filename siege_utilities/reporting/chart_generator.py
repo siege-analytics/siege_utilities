@@ -4,16 +4,11 @@ Supports multiple chart types, maps, and data sources including pandas and Spark
 """
 
 import logging
-import json
-from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
-import io
-import base64
 
 # Core plotting libraries
 try:
     import matplotlib.pyplot as plt
-    import matplotlib.patches as mpatches
     import seaborn as sns
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
@@ -25,7 +20,6 @@ except ImportError:
 try:
     import plotly.graph_objects as go
     import plotly.express as px
-    import plotly.offline as pyo
     PLOTLY_AVAILABLE = True
 except ImportError:
     PLOTLY_AVAILABLE = False
@@ -35,7 +29,6 @@ except ImportError:
 # Geographic plotting
 try:
     import folium
-    from folium import plugins
     FOLIUM_AVAILABLE = True
 except ImportError:
     FOLIUM_AVAILABLE = False
@@ -59,9 +52,7 @@ except ImportError:
     pd = None
     np = None
 
-from reportlab.platypus import Image, Paragraph, Spacer
-from reportlab.lib.units import inch
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Image
 
 # Legend management will be added later
 # from .legend_manager import LegendManager, LegendPosition, ColorScheme

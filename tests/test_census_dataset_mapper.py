@@ -3,8 +3,6 @@
 Pure-logic module, no I/O needed.
 """
 
-import pytest
-
 from siege_utilities.geo.census_dataset_mapper import (
     CensusDataset,
     CensusDatasetMapper,
@@ -20,7 +18,6 @@ from siege_utilities.geo.census_dataset_mapper import (
     list_datasets_by_type,
 )
 from siege_utilities.config.census_registry import (
-    GeographyLevel,
     SurveyType,
 )
 

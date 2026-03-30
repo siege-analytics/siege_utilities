@@ -7,7 +7,7 @@ using mocks to avoid requiring a real Spark/HDFS environment.
 import os
 import tempfile
 import pathlib
-from unittest.mock import Mock, MagicMock, patch, PropertyMock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -915,7 +915,7 @@ class TestConvenienceFunction:
         """Convenience function creates ops instance and delegates."""
         from siege_utilities.distributed.hdfs_config import HDFSConfig
         from siege_utilities.distributed.hdfs_operations import (
-            setup_distributed_environment, AbstractHDFSOperations,
+            setup_distributed_environment,
         )
         with tempfile.TemporaryDirectory() as tmpdir:
             config = HDFSConfig(

@@ -5,12 +5,11 @@ Map chart mixins — choropleth, marker, 3D, heatmap, cluster, flow, and bivaria
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, Any, Union
 
 # Core plotting libraries
 try:
     import matplotlib.pyplot as plt
-    import matplotlib.patches as mpatches
     import seaborn as sns
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
@@ -22,7 +21,6 @@ except ImportError:
 try:
     import plotly.graph_objects as go
     import plotly.express as px
-    import plotly.offline as pyo
     PLOTLY_AVAILABLE = True
 except ImportError:
     PLOTLY_AVAILABLE = False
@@ -642,7 +640,7 @@ class MapChartMixin:
                 heat_data.append([row[latitude_column], row[longitude_column], row[value_column]])
 
             # Add heatmap layer
-            folium.plugins.HeatMap(
+            plugins.HeatMap(
                 heat_data,
                 radius=20,
                 blur=blur_radius,
@@ -711,7 +709,7 @@ class MapChartMixin:
             )
 
             # Create marker cluster
-            marker_cluster = folium.plugins.MarkerCluster(
+            marker_cluster = plugins.MarkerCluster(
                 name="Data Points",
                 overlay=True,
                 control=True,

@@ -843,8 +843,6 @@ class LongitudinalAligner:
                 "Install with: pip install 'siege-utilities[geo]'"
             ) from exc
 
-        import geopandas as _gpd
-
         source_boundaries = get_census_boundaries(
             year=source_year,
             geographic_level=geography_level,

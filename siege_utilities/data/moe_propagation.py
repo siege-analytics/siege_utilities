@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from typing import Sequence
 
 
 Z_90 = 1.645  # z-score for 90% confidence (ACS default)
