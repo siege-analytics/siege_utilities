@@ -31,11 +31,13 @@ NOTEBOOKS_DIR = Path(__file__).parent.parent / "notebooks"
 # ---------------------------------------------------------------------------
 
 PURE_PYTHON = [1, 2, 3, 6, 8, 11, 12, 17, 21]
-GEO_NOTEBOOKS = [4, 5, 7, 19, 20]
+GEO_NOTEBOOKS = [4, 5, 7]
 DJANGO_NOTEBOOKS = [13, 15]
+# Integration group: requires external services (credentials, Spark, network downloads)
 ANALYTICS_NOTEBOOKS = [9, 14, 18]
 SPARK_NOTEBOOKS = [16]
 CREDENTIAL_NOTEBOOKS = [10]
+EXTERNAL_DOWNLOAD_NOTEBOOKS = [19, 20]  # require NCES/external downloads
 
 
 # ---------------------------------------------------------------------------
@@ -114,6 +116,7 @@ def test_analytics_notebook(nb_num):
 # Spark notebooks
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
 @pytest.mark.requires_spark
 @pytest.mark.parametrize("nb_num", SPARK_NOTEBOOKS, ids=[f"NB{n:02d}" for n in SPARK_NOTEBOOKS])
 def test_spark_notebook(nb_num):
@@ -130,4 +133,18 @@ def test_spark_notebook(nb_num):
     ids=[f"NB{n:02d}" for n in CREDENTIAL_NOTEBOOKS],
 )
 def test_credential_notebook(nb_num):
+    _run_notebook(_notebook_path(nb_num))
+
+
+# ---------------------------------------------------------------------------
+# External download notebooks (require network access to NCES, etc.)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.integration
+@pytest.mark.requires_gdal
+@pytest.mark.parametrize(
+    "nb_num", EXTERNAL_DOWNLOAD_NOTEBOOKS,
+    ids=[f"NB{n:02d}" for n in EXTERNAL_DOWNLOAD_NOTEBOOKS],
+)
+def test_external_download_notebook(nb_num):
     _run_notebook(_notebook_path(nb_num))
