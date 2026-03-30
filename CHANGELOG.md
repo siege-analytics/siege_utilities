@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.13.0] - 2026-03-30
+
+### Added
+- **First-class geospatial in every DataFrame engine** — 5 spatial abstract methods (`read_spatial`, `spatial_join`, `buffer`, `distance`, `to_geodataframe`) + 2 concrete sugar methods (`point_in_polygon`, `dissolve`) in DataFrameEngine ABC. All 4 engines (Pandas, DuckDB, Spark, PostGIS) implement spatial operations using native capabilities.
+- **SparkEngine Sedona integration** — `enable_sedona=True` parameter registers Apache Sedona UDFs for distributed spatial operations.
+- **DuckDB spatial extension** — lazily activated via `_ensure_spatial()` for `ST_Read`, `ST_Buffer`, `ST_Distance`, etc.
+- **Temporal political models (Phase A)** — `CongressionalTerm`, `Seat`, `StateElectionCalendar` Django models + Pydantic schemas + `populate_congressional_terms` management command.
+- **Temporal event models (Phase B)** — `Race`, `RaceEvent`, `SpatioTemporalEvent`, `ReturnSnapshot` for election event tracking and progressive result reporting.
+- **PlanDistrictAssignment (Phase C)** — GenericFK bridge mapping Seats to boundary polygons within redistricting plans.
+- **Django migration 0005** — creates tables for all temporal, redistricting, and event models.
+- **SpatiaLite geocoding cache** — `SpatiaLiteCache` for portable file-based caching of geocoding results, boundary lookups, and crosswalk mappings with bounding-box queries.
+- **S3 boundary staging** — `stage_boundaries_s3` management command exports TIGER boundaries to MinIO in Parquet and GeoJSON formats.
+- **Census API refactoring** — monolithic `census_api_client.py` split into `census/` subpackage (variable_registry, dataset_selector, api modules).
+- **Papermill notebook test runner** — `test_notebooks.py` runs all 27 notebooks headlessly with dependency grouping (pure-python, geo, django, analytics, spark, credentials).
+- **6 new notebooks** — NB22 (Temporal Political Models), NB23 (Redistricting Analysis), NB24 (DuckDB & Engine Abstraction), NB25 (SpatiaLite Cache & Geocoding), NB26 (International Boundaries / GADM), NB27 (Advanced Census MOE & NAICS/SOC).
+- **SiegeSpatialError** exception class under `SiegeGeoError`.
+- **boto3 optional dependency** in `[s3]` extras group.
+- **papermill + nbformat** in `[notebooks]` and `dev` extras.
+- **29 Django ORM tests** against PostGIS verifying CRUD, FK relationships, constraints, GenericFK, M2M, and model methods.
+- **19 spatial engine tests** verifying Pandas and DuckDB spatial operations and cross-engine consistency.
+
+### Fixed
+- **PlanDistrictAssignment FK bug** — string reference `"temporal_political.Seat"` used wrong app label; fixed to direct `Seat` import.
+- **NB10 generate_sample_ga_data()** — updated call signature and data key references for changed API.
+
+### Changed
+- **Notebook NB02/NB03** — added cross-reference notes clarifying scope overlap.
+- **Notebook NB04** — added navigation note pointing to focused notebooks for specific subsystems.
+- **Notebooks NB16/19/20** — moved to `integration` marker (require Spark/external downloads).
+
 ## [3.12.1] - 2026-03-22
 
 ### Fixed

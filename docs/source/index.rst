@@ -8,6 +8,7 @@ Siege Utilities is a comprehensive Python utilities package with **enhanced auto
    :caption: Getting Started:
 
    getting_started
+   installation_troubleshooting
    architecture_diagram
    autodiscovery
 
@@ -47,6 +48,12 @@ Siege Utilities is a comprehensive Python utilities package with **enhanced auto
 
 .. toctree::
    :maxdepth: 2
+   :caption: Notebooks & Examples:
+
+   notebooks
+
+.. toctree::
+   :maxdepth: 2
    :caption: Development & Testing:
 
    contributor_governance
@@ -62,20 +69,21 @@ Siege Utilities is a comprehensive Python utilities package with **enhanced auto
 
 .. note::
 
-   **v3.10.0** (March 2026) — Latest on `PyPI <https://pypi.org/project/siege-utilities/>`_.
+   **v3.13.0** (March 2026) — Latest on `PyPI <https://pypi.org/project/siege-utilities/>`_.
 
    Key capabilities:
 
+   - **First-class geospatial** in every DataFrame engine (Pandas, DuckDB, Spark+Sedona, PostGIS)
+   - **Temporal political models**: CongressionalTerm, Seat, Race, ReturnSnapshot
+   - **Redistricting analysis**: Plans, districts, compactness scores, demographics
+   - **Census data intelligence**: API client, boundary downloads, MOE propagation, NAICS/SOC
+   - **27 Jupyter notebooks** with papermill-based automated testing
    - **Tiered Geo Extras**: ``[geo-lite]`` (no GDAL) / ``[geo]`` / ``[geodjango]``
-   - **Google Workspace Write APIs**: Sheets, Docs, Slides, Drive via ``GoogleWorkspaceClient``
-   - **Multi-Account Management**: ``GoogleAccount`` model, ``GoogleAccountRegistry``, ``Person`` integration
-   - **Isochrone Quality**: Domain exceptions, retry, configurable CRS, method dispatch
-   - **Python 3.11–3.14** compatibility with raised dependency floors
-   - **Census Data Intelligence**: API client, boundary downloads, dataset selection
+   - **Google Workspace Write APIs**: Sheets, Docs, Slides, Drive
    - **Person/Actor Models**: Pydantic-based identity and contact management
    - **Report Generation**: PDF (ReportLab), PowerPoint, branded multi-client reports
-   - **Distributed Computing**: Spark utilities, HDFS operations
-   - **1884 tests passing**
+   - **Distributed Computing**: Spark + Sedona, HDFS operations, DuckDB engine
+   - **3442 tests passing**, 56% coverage
 
    Install: ``pip install siege-utilities``
 
