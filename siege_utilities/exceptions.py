@@ -46,6 +46,10 @@ class SiegeGeoError(SiegeError):
     """Error in geographic operations (boundaries, spatial joins, etc.)."""
 
 
+class SiegeSpatialError(SiegeGeoError):
+    """Error in engine-level spatial operations (buffer, spatial join, etc.)."""
+
+
 class SiegeAPIError(SiegeError):
     """Error communicating with an external API."""
 

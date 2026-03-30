@@ -112,6 +112,109 @@ class DataFrameEngine(ABC):
     ) -> Any:
         """Join *left* and *right* on column(s) *on* using join type *how*."""
 
+    # -- Spatial I/O -------------------------------------------------------
+
+    @abstractmethod
+    def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
+        """Read a spatial file (GeoJSON, Shapefile, GeoParquet, GPKG).
+
+        Returns an engine-native spatial DataFrame.  *crs* defaults to
+        ``EPSG:4326`` (via ``geo.crs.get_default_crs``).
+        """
+
+    # -- Spatial operations ------------------------------------------------
+
+    @abstractmethod
+    def spatial_join(
+        self,
+        left: Any,
+        right: Any,
+        how: str = "inner",
+        predicate: str = "intersects",
+        *,
+        left_geom: str = "geometry",
+        right_geom: str = "geometry",
+    ) -> Any:
+        """Spatial join using a geometric predicate.
+
+        *predicate* is one of: intersects, contains, within, touches,
+        crosses, overlaps.
+        """
+
+    @abstractmethod
+    def buffer(
+        self,
+        df: Any,
+        distance: float,
+        geometry_col: str = "geometry",
+        *,
+        crs: Optional[str] = None,
+    ) -> Any:
+        """Buffer geometries by *distance* (in CRS units).
+
+        Returns a new DataFrame with the geometry column replaced by
+        buffered geometries.
+        """
+
+    @abstractmethod
+    def distance(
+        self,
+        df: Any,
+        other: Any,
+        geometry_col: str = "geometry",
+        other_geom: str = "geometry",
+    ) -> Any:
+        """Compute distances between geometries.
+
+        *other* may be a DataFrame (row-aligned pairwise) or a single
+        geometry (shapely object / WKT string).
+        """
+
+    @abstractmethod
+    def to_geodataframe(
+        self, df: Any, geometry_col: str = "geometry", *, crs: Optional[str] = None,
+    ) -> Any:
+        """Convert *df* to a GeoPandas ``GeoDataFrame``.
+
+        Always returns a ``geopandas.GeoDataFrame`` regardless of engine.
+        """
+
+    # -- Spatial sugar (concrete defaults) ---------------------------------
+
+    def point_in_polygon(
+        self,
+        points_df: Any,
+        polygons_df: Any,
+        *,
+        points_geom: str = "geometry",
+        polygons_geom: str = "geometry",
+    ) -> Any:
+        """Find which polygon each point falls within.
+
+        Delegates to :meth:`spatial_join` with ``predicate='within'``.
+        """
+        return self.spatial_join(
+            points_df, polygons_df,
+            how="inner", predicate="within",
+            left_geom=points_geom, right_geom=polygons_geom,
+        )
+
+    def dissolve(
+        self,
+        df: Any,
+        by: Union[str, List[str]],
+        geometry_col: str = "geometry",
+        **agg_kwargs: Any,
+    ) -> Any:
+        """Dissolve/merge geometries grouped by *by* columns.
+
+        Default converts to GeoDataFrame and uses ``gdf.dissolve()``.
+        Engines may override for native performance.
+        """
+        import geopandas as gpd
+        gdf = self.to_geodataframe(df, geometry_col=geometry_col)
+        return gdf.dissolve(by=by, **agg_kwargs).reset_index()
+
 
 # ---------------------------------------------------------------------------
 # Pandas engine (always available)
@@ -179,6 +282,53 @@ class PandasEngine(DataFrameEngine):
     ) -> Any:
         return left.merge(right, on=on, how=how)
 
+    # -- Spatial -----------------------------------------------------------
+
+    def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
+        import geopandas as gpd
+        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+        gdf = gpd.read_file(path, **kwargs)
+        return reproject_if_needed(gdf, crs or get_default_crs())
+
+    def spatial_join(self, left, right, how="inner", predicate="intersects",
+                     *, left_geom="geometry", right_geom="geometry"):
+        import geopandas as gpd
+        if left.geometry.name != left_geom:
+            left = left.set_geometry(left_geom)
+        if right.geometry.name != right_geom:
+            right = right.set_geometry(right_geom)
+        return gpd.sjoin(left, right, how=how, predicate=predicate)
+
+    def buffer(self, df, distance, geometry_col="geometry", *, crs=None):
+        import geopandas as gpd
+        from siege_utilities.geo.crs import reproject_if_needed
+        gdf = df if isinstance(df, gpd.GeoDataFrame) else self.to_geodataframe(df, geometry_col)
+        result = gdf.copy()
+        result[geometry_col] = result[geometry_col].buffer(distance)
+        return reproject_if_needed(result, crs) if crs else result
+
+    def distance(self, df, other, geometry_col="geometry", other_geom="geometry"):
+        from shapely.geometry.base import BaseGeometry
+        if isinstance(other, BaseGeometry):
+            return df[geometry_col].distance(other)
+        if isinstance(other, str):
+            from shapely import wkt
+            return df[geometry_col].distance(wkt.loads(other))
+        return df[geometry_col].distance(other[other_geom])
+
+    def to_geodataframe(self, df, geometry_col="geometry", *, crs=None):
+        import geopandas as gpd
+        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+        if isinstance(df, gpd.GeoDataFrame):
+            return reproject_if_needed(df, crs or get_default_crs())
+        if geometry_col in df.columns:
+            from shapely import wkt
+            geoms = df[geometry_col].apply(
+                lambda g: wkt.loads(g) if isinstance(g, str) else g
+            )
+            return gpd.GeoDataFrame(df, geometry=geoms, crs=crs or get_default_crs())
+        raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
+
 
 # ---------------------------------------------------------------------------
 # DuckDB engine (lazy import)
@@ -196,6 +346,7 @@ class DuckDBEngine(DataFrameEngine):
             ) from None
         self._conn_kwargs = kwargs
         self._conn: Any = None
+        self._spatial_loaded: bool = False
 
     @property
     def _connection(self) -> Any:
@@ -284,6 +435,88 @@ class DuckDBEngine(DataFrameEngine):
             "(use .query() with JOIN for pure-SQL workflows)"
         )
 
+    # -- Spatial -----------------------------------------------------------
+
+    def _ensure_spatial(self) -> None:
+        """Load DuckDB spatial extension if not already loaded."""
+        if not self._spatial_loaded:
+            self._connection.execute("INSTALL spatial; LOAD spatial;")
+            self._spatial_loaded = True
+
+    def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
+        import geopandas as gpd
+        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+        self._ensure_spatial()
+        result = self._connection.execute(
+            f"SELECT * FROM ST_Read('{path}')"
+        ).fetchdf()
+        # ST_Read returns geometry as WKB-hex; convert to shapely
+        geom_col = "geom" if "geom" in result.columns else "geometry"
+        if geom_col in result.columns:
+            from shapely import wkb as shapely_wkb, wkt as shapely_wkt
+            def _parse_geom(g):
+                if g is None:
+                    return None
+                if isinstance(g, bytes):
+                    return shapely_wkb.loads(g)
+                if isinstance(g, str):
+                    try:
+                        return shapely_wkb.loads(g, hex=True)
+                    except Exception:
+                        return shapely_wkt.loads(g)
+                return g
+            result[geom_col] = result[geom_col].apply(_parse_geom)
+            gdf = gpd.GeoDataFrame(result, geometry=geom_col, crs=crs or get_default_crs())
+            return reproject_if_needed(gdf, crs or get_default_crs())
+        return result
+
+    def spatial_join(self, left, right, how="inner", predicate="intersects",
+                     *, left_geom="geometry", right_geom="geometry"):
+        # Delegate to GeoPandas for correctness
+        import geopandas as gpd
+        left_gdf = self.to_geodataframe(left, left_geom) if not isinstance(left, gpd.GeoDataFrame) else left
+        right_gdf = self.to_geodataframe(right, right_geom) if not isinstance(right, gpd.GeoDataFrame) else right
+        return gpd.sjoin(left_gdf, right_gdf, how=how, predicate=predicate)
+
+    def buffer(self, df, distance, geometry_col="geometry", *, crs=None):
+        import geopandas as gpd
+        from siege_utilities.geo.crs import reproject_if_needed
+        gdf = self.to_geodataframe(df, geometry_col) if not isinstance(df, gpd.GeoDataFrame) else df
+        result = gdf.copy()
+        result[geometry_col] = result[geometry_col].buffer(distance)
+        return reproject_if_needed(result, crs) if crs else result
+
+    def distance(self, df, other, geometry_col="geometry", other_geom="geometry"):
+        import geopandas as gpd
+        from shapely.geometry.base import BaseGeometry
+        gdf = self.to_geodataframe(df, geometry_col) if not isinstance(df, gpd.GeoDataFrame) else df
+        if isinstance(other, BaseGeometry):
+            return gdf[geometry_col].distance(other)
+        if isinstance(other, str):
+            from shapely import wkt
+            return gdf[geometry_col].distance(wkt.loads(other))
+        other_gdf = self.to_geodataframe(other, other_geom) if not isinstance(other, gpd.GeoDataFrame) else other
+        return gdf[geometry_col].distance(other_gdf[other_geom])
+
+    def to_geodataframe(self, df, geometry_col="geometry", *, crs=None):
+        import geopandas as gpd
+        import pandas as pd
+        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+        if isinstance(df, gpd.GeoDataFrame):
+            return reproject_if_needed(df, crs or get_default_crs())
+        if isinstance(df, pd.DataFrame) and geometry_col in df.columns:
+            from shapely import wkt as shapely_wkt, wkb as shapely_wkb
+            from shapely.geometry.base import BaseGeometry
+            sample = df[geometry_col].dropna().iloc[0] if len(df) > 0 else None
+            if sample is not None and not isinstance(sample, BaseGeometry):
+                if isinstance(sample, bytes):
+                    geoms = df[geometry_col].apply(lambda g: shapely_wkb.loads(g) if g is not None else None)
+                else:
+                    geoms = df[geometry_col].apply(lambda g: shapely_wkt.loads(g) if isinstance(g, str) else g)
+                return gpd.GeoDataFrame(df, geometry=geoms, crs=crs or get_default_crs())
+            return gpd.GeoDataFrame(df, geometry=geometry_col, crs=crs or get_default_crs())
+        raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
+
 
 # ---------------------------------------------------------------------------
 # Spark engine (lazy import)
@@ -299,7 +532,7 @@ class SparkEngine(DataFrameEngine):
         retrieves the active session on first use.
     """
 
-    def __init__(self, spark: Any = None) -> None:
+    def __init__(self, spark: Any = None, *, enable_sedona: bool = False) -> None:
         try:
             import pyspark  # noqa: F401
         except ImportError:
@@ -307,6 +540,8 @@ class SparkEngine(DataFrameEngine):
                 "PySpark is not installed. Install it with: pip install pyspark"
             ) from None
         self._spark = spark
+        self._enable_sedona = enable_sedona
+        self._sedona_registered = False
 
     @property
     def _session(self) -> Any:
@@ -371,6 +606,84 @@ class SparkEngine(DataFrameEngine):
         how: str = "inner",
     ) -> Any:
         return left.join(right, on=on, how=how)
+
+    # -- Spatial -----------------------------------------------------------
+
+    def _ensure_sedona(self) -> None:
+        """Register Sedona UDFs if not already done."""
+        if not self._sedona_registered:
+            if self._enable_sedona:
+                try:
+                    from sedona.register import SedonaRegistrator
+                    SedonaRegistrator.registerAll(self._session)
+                    self._sedona_registered = True
+                except ImportError:
+                    pass  # Sedona not installed — spatial methods will fail with clear errors
+
+    def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
+        # Fallback: read via GeoPandas, convert to Spark DataFrame
+        import geopandas as gpd
+        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+        gdf = gpd.read_file(path, **kwargs)
+        gdf = reproject_if_needed(gdf, crs or get_default_crs())
+        # Convert geometry to WKT for Spark compatibility
+        pdf = gdf.copy()
+        pdf["geometry"] = pdf["geometry"].apply(lambda g: g.wkt if g is not None else None)
+        return self._session.createDataFrame(pdf)
+
+    def spatial_join(self, left, right, how="inner", predicate="intersects",
+                     *, left_geom="geometry", right_geom="geometry"):
+        self._ensure_sedona()
+        left.createOrReplaceTempView("_sjoin_left")
+        right.createOrReplaceTempView("_sjoin_right")
+        st_func = f"ST_{predicate.capitalize()}"
+        # Avoid column name collision by aliasing right geometry
+        sql = (
+            f"SELECT l.*, r.* "
+            f"FROM _sjoin_left l {how.upper()} JOIN _sjoin_right r "
+            f"ON {st_func}(ST_GeomFromText(l.{left_geom}), ST_GeomFromText(r.{right_geom}))"
+        )
+        return self._session.sql(sql)
+
+    def buffer(self, df, distance, geometry_col="geometry", *, crs=None):
+        self._ensure_sedona()
+        df.createOrReplaceTempView("_buf_tbl")
+        sql = (
+            f"SELECT *, ST_AsText(ST_Buffer(ST_GeomFromText({geometry_col}), {distance})) "
+            f"AS {geometry_col}_buffered FROM _buf_tbl"
+        )
+        return self._session.sql(sql)
+
+    def distance(self, df, other, geometry_col="geometry", other_geom="geometry"):
+        self._ensure_sedona()
+        from shapely.geometry.base import BaseGeometry
+        df.createOrReplaceTempView("_dist_left")
+        if isinstance(other, (BaseGeometry, str)):
+            wkt_str = other.wkt if isinstance(other, BaseGeometry) else other
+            sql = (
+                f"SELECT *, ST_Distance(ST_GeomFromText({geometry_col}), "
+                f"ST_GeomFromText('{wkt_str}')) AS _distance FROM _dist_left"
+            )
+        else:
+            other.createOrReplaceTempView("_dist_right")
+            sql = (
+                f"SELECT ST_Distance(ST_GeomFromText(l.{geometry_col}), "
+                f"ST_GeomFromText(r.{other_geom})) AS _distance "
+                f"FROM _dist_left l, _dist_right r"
+            )
+        return self._session.sql(sql)
+
+    def to_geodataframe(self, df, geometry_col="geometry", *, crs=None):
+        import geopandas as gpd
+        from siege_utilities.geo.crs import get_default_crs
+        from shapely import wkt
+        pdf = df.toPandas()
+        if geometry_col in pdf.columns:
+            geoms = pdf[geometry_col].apply(
+                lambda g: wkt.loads(g) if isinstance(g, str) else g
+            )
+            return gpd.GeoDataFrame(pdf, geometry=geoms, crs=crs or get_default_crs())
+        raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
 
 
 # ---------------------------------------------------------------------------
@@ -482,6 +795,57 @@ class PostGISEngine(DataFrameEngine):
         how: str = "inner",
     ) -> Any:
         return left.merge(right, on=on, how=how)
+
+    # -- Spatial -----------------------------------------------------------
+
+    def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
+        import geopandas as gpd
+        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+        if path.upper().startswith("SELECT"):
+            return self.query(path, **kwargs)
+        gdf = gpd.read_file(path, **kwargs)
+        return reproject_if_needed(gdf, crs or get_default_crs())
+
+    def spatial_join(self, left, right, how="inner", predicate="intersects",
+                     *, left_geom="geometry", right_geom="geometry"):
+        import geopandas as gpd
+        left_gdf = left if isinstance(left, gpd.GeoDataFrame) else self.to_geodataframe(left, left_geom)
+        right_gdf = right if isinstance(right, gpd.GeoDataFrame) else self.to_geodataframe(right, right_geom)
+        return gpd.sjoin(left_gdf, right_gdf, how=how, predicate=predicate)
+
+    def buffer(self, df, distance, geometry_col="geometry", *, crs=None):
+        import geopandas as gpd
+        from siege_utilities.geo.crs import reproject_if_needed
+        gdf = df if isinstance(df, gpd.GeoDataFrame) else self.to_geodataframe(df, geometry_col)
+        result = gdf.copy()
+        result[geometry_col] = result[geometry_col].buffer(distance)
+        return reproject_if_needed(result, crs) if crs else result
+
+    def distance(self, df, other, geometry_col="geometry", other_geom="geometry"):
+        import geopandas as gpd
+        from shapely.geometry.base import BaseGeometry
+        gdf = df if isinstance(df, gpd.GeoDataFrame) else self.to_geodataframe(df, geometry_col)
+        if isinstance(other, BaseGeometry):
+            return gdf[geometry_col].distance(other)
+        if isinstance(other, str):
+            from shapely import wkt
+            return gdf[geometry_col].distance(wkt.loads(other))
+        other_gdf = other if isinstance(other, gpd.GeoDataFrame) else self.to_geodataframe(other, other_geom)
+        return gdf[geometry_col].distance(other_gdf[other_geom])
+
+    def to_geodataframe(self, df, geometry_col="geometry", *, crs=None):
+        import geopandas as gpd
+        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+        if isinstance(df, gpd.GeoDataFrame):
+            return reproject_if_needed(df, crs or get_default_crs())
+        import pandas as pd
+        if isinstance(df, pd.DataFrame) and geometry_col in df.columns:
+            from shapely import wkt
+            geoms = df[geometry_col].apply(
+                lambda g: wkt.loads(g) if isinstance(g, str) else g
+            )
+            return gpd.GeoDataFrame(df, geometry=geoms, crs=crs or get_default_crs())
+        raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
 
 
 # ---------------------------------------------------------------------------
