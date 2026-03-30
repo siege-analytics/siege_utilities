@@ -21,6 +21,7 @@ from django.contrib.contenttypes.models import ContentType
 
 from .base import CensusTIGERBoundary
 from .boundaries import State
+from .temporal_political import Seat
 
 
 # ---------------------------------------------------------------------------
@@ -436,7 +437,7 @@ class PlanDistrictAssignment(models.Model):
         help_text="Parent redistricting plan",
     )
     seat = models.ForeignKey(
-        "temporal_political.Seat",
+        Seat,
         on_delete=models.CASCADE,
         related_name="district_assignments",
         help_text="The political seat assigned to this boundary",
