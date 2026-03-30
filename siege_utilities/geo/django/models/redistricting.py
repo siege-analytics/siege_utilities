@@ -16,6 +16,9 @@ from django.contrib.gis.db import models as gis_models
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
+
 from .base import CensusTIGERBoundary
 from .boundaries import State
 
@@ -414,3 +417,55 @@ class PrecinctElectionResult(models.Model):
             f"{self.precinct_id} {self.election_year} "
             f"{self.office} {self.party}: {self.votes}"
         )
+
+
+class PlanDistrictAssignment(models.Model):
+    """Maps a Seat to a boundary polygon within a RedistrictingPlan.
+
+    Uses a Generic FK to point at any boundary model (CongressionalDistrict,
+    StateLegislativeUpper, StateLegislativeLower, PlanDistrict, etc.)
+    so that the same assignment model works for all chambers.
+
+    This is the Phase C bridge: Plan → Seat → Boundary.
+    """
+
+    plan = models.ForeignKey(
+        RedistrictingPlan,
+        on_delete=models.CASCADE,
+        related_name="district_assignments",
+        help_text="Parent redistricting plan",
+    )
+    seat = models.ForeignKey(
+        "temporal_political.Seat",
+        on_delete=models.CASCADE,
+        related_name="district_assignments",
+        help_text="The political seat assigned to this boundary",
+    )
+
+    # Generic FK to boundary model
+    boundary_content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        help_text="Content type of the boundary model",
+    )
+    boundary_object_id = models.PositiveIntegerField(
+        help_text="PK of the boundary instance",
+    )
+    boundary = GenericForeignKey("boundary_content_type", "boundary_object_id")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Plan District Assignment"
+        verbose_name_plural = "Plan District Assignments"
+        unique_together = [("plan", "seat")]
+        indexes = [
+            models.Index(fields=["plan", "seat"]),
+            models.Index(
+                fields=["boundary_content_type", "boundary_object_id"],
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.plan} → {self.seat}"

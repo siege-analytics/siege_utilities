@@ -20,7 +20,13 @@ Model hierarchy:
     │   ├── IsochroneResult
     │   └── (intersections — 14.7)
     ├── TemporalLinearFeature (abstract — MultiLineString)
-    └── TemporalPointFeature (abstract — Point)
+    ├── TemporalPointFeature (abstract — Point)
+    └── SpatioTemporalEvent (GeometryCollection — discrete events)
+
+Non-spatial temporal models:
+    CongressionalTerm, Seat, StateElectionCalendar (Phase A)
+    Race, RaceEvent, ReturnSnapshot (Phase B)
+    PlanDistrictAssignment (Phase C — GenericFK to boundary)
 """
 
 from .base import (
@@ -94,6 +100,18 @@ from .redistricting import (
     PlanDistrict,
     DistrictDemographics,
     PrecinctElectionResult,
+    PlanDistrictAssignment,
+)
+from .temporal_political import (
+    CongressionalTerm,
+    Seat,
+    StateElectionCalendar,
+)
+from .temporal_events import (
+    Race,
+    RaceEvent,
+    SpatioTemporalEvent,
+    ReturnSnapshot,
 )
 from .crosswalks import (
     TemporalCrosswalk,
@@ -166,4 +184,14 @@ __all__ = [
     "PlanDistrict",
     "DistrictDemographics",
     "PrecinctElectionResult",
+    "PlanDistrictAssignment",
+    # Temporal Political (Phase A)
+    "CongressionalTerm",
+    "Seat",
+    "StateElectionCalendar",
+    # Temporal Events (Phase B)
+    "Race",
+    "RaceEvent",
+    "SpatioTemporalEvent",
+    "ReturnSnapshot",
 ]

@@ -74,6 +74,17 @@ from .redistricting import (
     DistrictDemographicsSchema,
     PrecinctElectionResultSchema,
 )
+from .temporal_political import (
+    CongressionalTermSchema,
+    SeatSchema,
+    StateElectionCalendarSchema,
+)
+from .temporal_events import (
+    RaceSchema,
+    RaceEventSchema,
+    SpatioTemporalEventSchema,
+    ReturnSnapshotSchema,
+)
 from .converters import (
     gdf_to_schemas,
     schemas_to_gdf,
@@ -134,6 +145,15 @@ __all__ = [
     "PlanDistrictSchema",
     "DistrictDemographicsSchema",
     "PrecinctElectionResultSchema",
+    # Temporal Political (Phase A)
+    "CongressionalTermSchema",
+    "SeatSchema",
+    "StateElectionCalendarSchema",
+    # Temporal Events (Phase B)
+    "RaceSchema",
+    "RaceEventSchema",
+    "SpatioTemporalEventSchema",
+    "ReturnSnapshotSchema",
     # Converters
     "gdf_to_schemas",
     "schemas_to_gdf",
