@@ -1,20 +1,24 @@
-"""Layer 3: Census TIGER and GADM boundary convenience functions.
+"""Boundary data source convenience functions (engine-agnostic).
 
-Thin wrappers around Layer 1 (spark_spatial) and Layer 2 (spark_boundary_ops)
-that know about specific data sources — Census TIGER, GADM, RDH redistricting
-plans. These call ``load_polygons()`` with the correct paths and parameters.
+Thin wrappers that know about specific data sources — Census TIGER, GADM,
+RDH redistricting plans. These call ``engine.load_polygons()`` with the
+correct paths and parameters.
 
-For custom boundary sources, use Layer 1/2 directly.
+Works with ANY DataFrameEngine (Pandas, DuckDB, Spark, PostGIS).
+For custom boundary sources, call ``engine.load_polygons()`` directly.
 
 Usage::
 
-    from siege_utilities.geo.sedona_boundaries import load_census_boundaries
+    from siege_utilities.data.dataframe_engine import get_engine, Engine
+    from siege_utilities.geo.boundary_sources import load_census_boundaries
 
-    # Load congressional districts — just a convenience for load_polygons()
-    districts = load_census_boundaries(spark, "cd", year=2020)
+    engine = get_engine(Engine.SPARK, enable_sedona=True)
 
-    # Load GADM international boundaries
-    countries = load_gadm_boundaries(spark, level=0)
+    # Load congressional districts via the engine
+    districts = load_census_boundaries(engine, "cd", year=2020)
+
+    # Assign addresses to districts
+    enriched = engine.assign_boundaries(addresses, districts)
 """
 
 from __future__ import annotations
@@ -22,11 +26,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from siege_utilities.geo.spark_spatial import load_polygons
-
 logger = logging.getLogger(__name__)
 
-# Census TIGER boundary types → S3 path convention
 CENSUS_BOUNDARY_TYPES = {
     "state", "county", "tract", "blockgroup", "block", "place",
     "zcta", "cd", "sldu", "sldl", "vtd", "cbsa",
@@ -34,34 +35,31 @@ CENSUS_BOUNDARY_TYPES = {
 
 
 def load_census_boundaries(
-    spark: Any,
+    engine: Any,
     boundary_type: str,
     year: int = 2020,
     state_fips: Optional[str] = None,
     s3_base: str = "s3a://boundaries/tiger",
 ) -> Any:
-    """Load Census TIGER boundaries as a Sedona-ready Spark DataFrame.
-
-    Convenience wrapper around ``load_polygons()`` that resolves
-    the S3 path from boundary type and year.
+    """Load Census TIGER boundaries via any DataFrameEngine.
 
     Parameters
     ----------
-    spark : SparkSession
+    engine : DataFrameEngine
+        Any engine instance (Pandas, DuckDB, Spark, PostGIS).
     boundary_type : str
         One of: state, county, tract, blockgroup, block, place, zcta,
         cd, sldu, sldl, vtd, cbsa.
     year : int
         Census vintage year (default 2020).
     state_fips : str, optional
-        2-digit state FIPS to filter (e.g., '06' for CA).
+        2-digit state FIPS to filter.
     s3_base : str
-        Base S3 path for staged TIGER GeoParquet.
+        Base path for staged GeoParquet.
 
     Returns
     -------
-    DataFrame
-        Spark DataFrame with geometry (WKT), geoid, name, and other attributes.
+    Engine-native DataFrame with geometry column.
     """
     if boundary_type not in CENSUS_BOUNDARY_TYPES:
         raise ValueError(
@@ -72,108 +70,93 @@ def load_census_boundaries(
     path = f"{s3_base}/{boundary_type}/{year}/data.parquet"
 
     try:
-        df = load_polygons(spark, path)
+        df = engine.load_polygons(path)
     except Exception as e:
         raise FileNotFoundError(
             f"Census boundaries not staged at {path}. "
-            f"Run stage_census_boundaries(spark, '{boundary_type}', {year}) first."
+            f"Run stage_census_boundaries() first."
         ) from e
 
-    if state_fips and "state_fips" in df.columns:
-        df = df.filter(df.state_fips == state_fips)
+    # Filter by state if the engine supports it
+    if state_fips:
+        df = engine.filter(df, df["state_fips"] == state_fips) if hasattr(df, "__getitem__") else df
 
     return df
 
 
 def load_gadm_boundaries(
-    spark: Any,
+    engine: Any,
     level: int = 0,
     country: Optional[str] = None,
     s3_base: str = "s3a://boundaries/gadm",
 ) -> Any:
-    """Load GADM (Global Administrative Areas) boundaries.
+    """Load GADM (Global Administrative Areas) boundaries via any engine.
 
     Parameters
     ----------
-    spark : SparkSession
+    engine : DataFrameEngine
     level : int
         Admin level 0-5 (0=countries, 1=states/provinces, etc.)
     country : str, optional
-        ISO 3166-1 alpha-3 country code to filter (e.g., 'USA').
+        ISO 3166-1 alpha-3 country code to filter.
     s3_base : str
-        Base S3 path for staged GADM data.
-
-    Returns
-    -------
-    DataFrame
-        Spark DataFrame with geometry and GADM attributes.
+        Base path for staged GADM data.
     """
     path = f"{s3_base}/admin{level}/data.parquet"
 
     try:
-        df = load_polygons(spark, path)
+        df = engine.load_polygons(path)
     except Exception:
-        # Fallback: load via GADM provider
-        return _load_gadm_via_provider(spark, level, country)
+        # Fallback: load via GADM provider + engine conversion
+        return _load_gadm_via_provider(engine, level, country)
 
-    if country and "iso3" in df.columns:
-        df = df.filter(df.iso3 == country.upper())
+    if country and hasattr(df, "__getitem__"):
+        df = engine.filter(df, df["iso3"] == country.upper())
 
     return df
 
 
 def load_rdh_boundaries(
-    spark: Any,
+    engine: Any,
     state: str,
     plan_type: str = "enacted",
     s3_base: str = "s3a://boundaries/rdh",
 ) -> Any:
-    """Load Redistricting Data Hub plan boundaries.
+    """Load Redistricting Data Hub plan boundaries via any engine.
 
     Parameters
     ----------
-    spark : SparkSession
+    engine : DataFrameEngine
     state : str
         2-letter state abbreviation.
     plan_type : str
         'enacted', 'proposed', 'alternative'.
-    s3_base : str
-        Base S3 path for RDH data.
-
-    Returns
-    -------
-    DataFrame
-        Spark DataFrame with redistricting plan district geometries.
     """
     path = f"{s3_base}/{state.lower()}/{plan_type}/data.parquet"
-    return load_polygons(spark, path)
+    return engine.load_polygons(path)
 
 
 def stage_census_boundaries(
-    spark: Any,
+    engine: Any,
     boundary_type: str,
     year: int = 2020,
     s3_base: str = "s3a://boundaries/tiger",
 ) -> str:
-    """Stage Census TIGER boundaries to S3 as GeoParquet for fast loading.
+    """Stage Census TIGER boundaries for fast loading.
 
-    Fetches boundaries from Census API via siege_utilities CensusTIGERProvider,
-    converts geometry to WKT, writes as Parquet to S3.
+    Fetches from Census API via CensusTIGERProvider, converts geometry
+    to the engine's format, writes to the staging path.
 
     Parameters
     ----------
-    spark : SparkSession
+    engine : DataFrameEngine
     boundary_type : str
-        Census boundary type.
     year : int
-        Census vintage year.
     s3_base : str
-        Base S3 path for output.
 
     Returns
     -------
-    str
-        S3 path where boundaries were written.
+    str : path where boundaries were written.
     """
     from siege_utilities.geo.boundary_providers import CensusTIGERProvider
 
@@ -186,18 +169,27 @@ def stage_census_boundaries(
         logger.warning("No boundaries returned for %s/%s", boundary_type, year)
         return s3_path
 
+    # Convert geometry to WKT for universal engine compatibility
     import pandas as pd
 
     pdf = pd.DataFrame(gdf.drop(columns="geometry"))
     pdf["geometry"] = gdf.geometry.apply(lambda g: g.wkt if g is not None else None)
 
-    spark.createDataFrame(pdf).write.mode("overwrite").parquet(s3_path)
+    # Write via engine if it supports parquet write, else via pandas
+    if hasattr(engine, "_session"):
+        # Spark engine — write via Spark for S3 support
+        sdf = engine._session.createDataFrame(pdf)
+        sdf.write.mode("overwrite").parquet(s3_path)
+    else:
+        pdf.to_parquet(s3_path.replace("s3a://", "/tmp/staged_"))
+        logger.warning("Non-Spark engine: wrote to local path instead of S3")
+
     logger.info("Staged %d %s boundaries to %s", len(gdf), boundary_type, s3_path)
     return s3_path
 
 
-def _load_gadm_via_provider(spark, level, country):
-    """Fallback: load GADM via siege_utilities provider."""
+def _load_gadm_via_provider(engine, level, country):
+    """Fallback: load GADM via provider, convert to engine format."""
     from siege_utilities.geo.boundary_providers import GADMProvider
     import pandas as pd
 
@@ -209,4 +201,8 @@ def _load_gadm_via_provider(spark, level, country):
 
     pdf = pd.DataFrame(gdf.drop(columns="geometry"))
     pdf["geometry"] = gdf.geometry.apply(lambda g: g.wkt if g is not None else None)
-    return spark.createDataFrame(pdf)
+
+    # Return as engine-native format
+    if hasattr(engine, "_session"):
+        return engine._session.createDataFrame(pdf)
+    return pdf

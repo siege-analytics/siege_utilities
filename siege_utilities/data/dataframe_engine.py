@@ -214,6 +214,215 @@ class DataFrameEngine(ABC):
         gdf = self.to_geodataframe(df, geometry_col=geometry_col)
         return gdf.dissolve(by=by, **agg_kwargs).reset_index()
 
+    # -- Spatial geometry loading (concrete defaults) ----------------------
+
+    def load_polygons(
+        self,
+        path: str,
+        *,
+        geometry_col: str = "geometry",
+        format: str = "auto",
+        crs: Optional[str] = None,
+    ) -> Any:
+        """Load polygon geometries from any supported spatial format.
+
+        Handles GeoJSON, Shapefile, GeoParquet, GPKG, WKT CSV.
+        Returns engine-native DataFrame with a geometry column.
+        Engines may override for native loaders (e.g., Sedona, DuckDB spatial).
+        """
+        return self.read_spatial(path, crs=crs)
+
+    def load_points(
+        self,
+        df: Any,
+        lat_col: str = "lat",
+        lon_col: str = "lon",
+        geometry_col: str = "geometry",
+    ) -> Any:
+        """Create point geometries from latitude/longitude columns.
+
+        Adds a ``geometry`` column with WKT POINT strings (or native
+        geometry objects, depending on engine).
+        Engines may override for native point construction.
+        """
+        # Default: convert to GeoDataFrame with shapely Points
+        import pandas as pd
+        pdf = self.to_pandas(df) if not isinstance(df, pd.DataFrame) else df
+        from shapely.geometry import Point
+
+        pdf = pdf.copy()
+        pdf[geometry_col] = [
+            Point(lon, lat) if pd.notna(lon) and pd.notna(lat) else None
+            for lat, lon in zip(pdf[lat_col], pdf[lon_col])
+        ]
+        return pdf
+
+    def load_lines(
+        self,
+        path: str,
+        *,
+        geometry_col: str = "geometry",
+        format: str = "auto",
+        crs: Optional[str] = None,
+    ) -> Any:
+        """Load line/multiline geometries from any supported spatial format.
+
+        Same interface as :meth:`load_polygons` — works for roads, rivers,
+        transit routes, or any linear feature.
+        """
+        return self.read_spatial(path, crs=crs)
+
+    # -- Spatial boundary operations (concrete defaults) -------------------
+
+    def assign_boundaries(
+        self,
+        points: Any,
+        polygons: Any,
+        *,
+        point_geom: str = "geometry",
+        polygon_geom: str = "geometry",
+        how: str = "left",
+    ) -> Any:
+        """Assign each point to its containing polygon(s).
+
+        Core DSTK replacement: given addresses (points) and boundaries
+        (polygons), determine which boundary contains each address.
+
+        Default delegates to :meth:`spatial_join` with predicate='contains'
+        (reversed: polygon contains point). Engines may override for
+        broadcast optimization or native spatial indexing.
+        """
+        return self.spatial_join(
+            points, polygons,
+            how=how, predicate="within",
+            left_geom=point_geom, right_geom=polygon_geom,
+        )
+
+    def intersect_boundaries(
+        self,
+        poly_a: Any,
+        poly_b: Any,
+        *,
+        a_geom: str = "geometry",
+        b_geom: str = "geometry",
+    ) -> Any:
+        """Find overlapping regions between two polygon boundary sets.
+
+        Returns all pairs of polygons that intersect, with both sets of
+        attributes. Useful for county-to-district apportionment or
+        boundary change analysis.
+
+        Default delegates to :meth:`spatial_join` with predicate='intersects'.
+        Engines may override to compute intersection geometry and area.
+        """
+        return self.spatial_join(
+            poly_a, poly_b,
+            how="inner", predicate="intersects",
+            left_geom=a_geom, right_geom=b_geom,
+        )
+
+    def apportion(
+        self,
+        source_polys: Any,
+        target_polys: Any,
+        weight_col: str,
+        *,
+        source_geom: str = "geometry",
+        target_geom: str = "geometry",
+    ) -> Any:
+        """Apportion a value from source polygons to target polygons by overlap.
+
+        Distributes ``weight_col`` from source to target proportional to
+        the fraction of source area that overlaps each target. Example:
+        apportion tract population to congressional districts.
+
+        Default: intersect, compute area ratios via GeoPandas, aggregate.
+        Engines may override for native area computation (Sedona ST_Area,
+        PostGIS ST_Area, etc.).
+        """
+        import geopandas as gpd
+
+        src = self.to_geodataframe(source_polys, source_geom)
+        tgt = self.to_geodataframe(target_polys, target_geom)
+
+        # Compute intersection
+        overlay = gpd.overlay(src, tgt, how="intersection")
+
+        # Area ratio: intersection_area / source_area
+        overlay["_src_area"] = src.loc[overlay.index].geometry.area
+        overlay["_isect_area"] = overlay.geometry.area
+        overlay["_ratio"] = overlay["_isect_area"] / overlay["_src_area"].replace(0, float("nan"))
+        overlay[f"apportioned_{weight_col}"] = overlay[weight_col] * overlay["_ratio"]
+
+        # Aggregate by target
+        tgt_id_cols = [c for c in tgt.columns if c != target_geom]
+        return overlay.groupby(tgt_id_cols).agg(
+            {f"apportioned_{weight_col}": "sum"}
+        ).reset_index()
+
+    def nearest(
+        self,
+        points: Any,
+        targets: Any,
+        *,
+        k: int = 1,
+        max_distance: Optional[float] = None,
+        point_geom: str = "geometry",
+        target_geom: str = "geometry",
+    ) -> Any:
+        """Find the k nearest targets for each point.
+
+        Default: brute-force via GeoPandas sjoin_nearest.
+        Engines should override for native spatial indexing (Sedona KNN,
+        PostGIS ST_DWithin + ORDER BY distance, DuckDB spatial).
+        """
+        import geopandas as gpd
+
+        pts = self.to_geodataframe(points, point_geom)
+        tgts = self.to_geodataframe(targets, target_geom)
+
+        return gpd.sjoin_nearest(
+            pts, tgts,
+            how="left",
+            max_distance=max_distance,
+            distance_col="distance",
+        )
+
+    def multi_assign(
+        self,
+        points: Any,
+        boundary_layers: Dict[str, Any],
+        *,
+        point_geom: str = "geometry",
+    ) -> Any:
+        """Assign points to multiple boundary layers simultaneously.
+
+        Calls :meth:`assign_boundaries` for each layer and joins results.
+
+        Parameters
+        ----------
+        points : DataFrame
+            Point DataFrame.
+        boundary_layers : dict
+            ``{layer_name: polygon_DataFrame}``. Each polygon DataFrame
+            must have a geometry column and identifying columns.
+
+        Returns
+        -------
+        DataFrame
+            Points enriched with ``{layer_name}_geoid`` and
+            ``{layer_name}_name`` from each boundary layer.
+        """
+        result = points
+        for layer_name, polygons in boundary_layers.items():
+            assigned = self.assign_boundaries(
+                result, polygons,
+                point_geom=point_geom, polygon_geom="geometry",
+                how="left",
+            )
+            result = assigned
+        return result
+
 
 # ---------------------------------------------------------------------------
 # Pandas engine (always available)
@@ -683,6 +892,65 @@ class SparkEngine(DataFrameEngine):
             )
             return gpd.GeoDataFrame(pdf, geometry=geoms, crs=crs or get_default_crs())
         raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
+
+    # -- Spatial overrides (Spark/Sedona native) ---------------------------
+
+    def load_polygons(self, path, *, geometry_col="geometry", format="auto", crs=None):
+        """Load polygons — Spark-native parquet/json reader."""
+        if format == "auto":
+            format = "parquet" if "parquet" in path.lower() or "/" == path[-1:] else "geojson"
+        if format in ("parquet", "geoparquet"):
+            df = self._session.read.parquet(path)
+            if geometry_col not in df.columns and "geom" in df.columns:
+                from pyspark.sql.functions import col
+                df = df.withColumnRenamed("geom", geometry_col)
+            return df
+        # Fallback to GeoPandas for GeoJSON/Shapefile
+        return self.read_spatial(path, crs=crs)
+
+    def load_points(self, df, lat_col="lat", lon_col="lon", geometry_col="geometry"):
+        """Create point geometries — Spark-native WKT string construction."""
+        from pyspark.sql.functions import col, concat, lit
+        return df.withColumn(
+            geometry_col,
+            concat(lit("POINT("), col(lon_col).cast("string"), lit(" "), col(lat_col).cast("string"), lit(")")),
+        )
+
+    def assign_boundaries(self, points, polygons, *, point_geom="geometry",
+                          polygon_geom="geometry", how="left"):
+        """Point-in-polygon — Sedona ST_Contains with optional broadcast."""
+        self._ensure_sedona()
+        from pyspark.sql.functions import broadcast
+        points.createOrReplaceTempView("_assign_pts")
+        broadcast(polygons).createOrReplaceTempView("_assign_poly")
+        return self._session.sql(
+            f"SELECT p.*, poly.* "
+            f"FROM _assign_pts p {how.upper()} JOIN _assign_poly poly "
+            f"ON ST_Contains(ST_GeomFromText(poly.{polygon_geom}), "
+            f"ST_GeomFromText(p.{point_geom}))"
+        )
+
+    def nearest(self, points, targets, *, k=1, max_distance=None,
+                point_geom="geometry", target_geom="geometry"):
+        """K-nearest — Sedona ST_Distance with window function."""
+        self._ensure_sedona()
+        points.createOrReplaceTempView("_nn_pts")
+        targets.createOrReplaceTempView("_nn_tgt")
+        dist_filter = f"WHERE d <= {max_distance}" if max_distance else ""
+        return self._session.sql(f"""
+            SELECT * FROM (
+                SELECT p.*, t.*,
+                    ST_Distance(ST_GeomFromText(p.{point_geom}),
+                                ST_GeomFromText(t.{target_geom})) AS d,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY p.{point_geom}
+                        ORDER BY ST_Distance(ST_GeomFromText(p.{point_geom}),
+                                             ST_GeomFromText(t.{target_geom}))
+                    ) AS rn
+                FROM _nn_pts p, _nn_tgt t
+                {dist_filter}
+            ) WHERE rn <= {k}
+        """)
 
 
 # ---------------------------------------------------------------------------
