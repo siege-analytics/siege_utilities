@@ -30,7 +30,13 @@ OFFICE_CHOICES = frozenset({
 
 
 class RedistrictingPlanSchema(BaseModel):
-    """Schema for a redistricting plan (non-spatial grouping)."""
+    """Schema for a redistricting plan with temporal resolution.
+
+    Supports court-ordered mid-cycle redistricting: multiple plans can exist
+    for the same state/chamber/cycle with different effective date ranges.
+    Use for_date(state_fips, chamber, date) on the Django model to find
+    which plan was active on a given date.
+    """
 
     state_fips: str = Field(max_length=2)
     chamber: str = Field(max_length=20)
@@ -41,9 +47,24 @@ class RedistrictingPlanSchema(BaseModel):
     source_url: str = ""
     num_districts: int
     enacted_date: Optional[date] = None
+    effective_from: Optional[date] = None
+    effective_to: Optional[date] = None
+    superseded_by_id: Optional[int] = None
+    court_case: str = ""
     data_source: str = Field(default="rdh", max_length=100)
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def validate_effective_range(self):
+        """Effective range must be valid if both dates are set."""
+        if self.effective_from and self.effective_to:
+            if self.effective_to < self.effective_from:
+                raise ValueError(
+                    f"effective_to ({self.effective_to}) cannot be before "
+                    f"effective_from ({self.effective_from})"
+                )
+        return self
 
 
 class PlanDistrictSchema(CensusTIGERSchema):
