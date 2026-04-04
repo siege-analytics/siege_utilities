@@ -73,12 +73,47 @@ OFFICE_CHOICES = [
 # Models
 # ---------------------------------------------------------------------------
 
+class RedistrictingPlanManager(models.Manager):
+    """Custom manager with temporal query support."""
+
+    def for_date(self, state_fips, chamber, date):
+        """Return the plan that was active for a state/chamber on a given date.
+
+        If multiple plans overlap (shouldn't happen, but data quality), returns
+        the most recently effective one.
+
+        Returns None if no plan is found for the given date.
+        """
+        return self.filter(
+            state_fips=state_fips,
+            chamber=chamber,
+            effective_from__lte=date,
+        ).filter(
+            models.Q(effective_to__gte=date) | models.Q(effective_to__isnull=True)
+        ).order_by("-effective_from").first()
+
+    def active(self):
+        """Return plans that are currently in effect (no effective_to)."""
+        return self.filter(effective_to__isnull=True)
+
+    def for_state(self, state_fips):
+        """Return all plans for a state, ordered by effective date."""
+        return self.filter(state_fips=state_fips).order_by("chamber", "-effective_from")
+
+
 class RedistrictingPlan(models.Model):
-    """A redistricting plan (enacted, proposed, or alternative).
+    """A redistricting plan (enacted, proposed, court-ordered, or commission).
 
     Non-spatial model that groups PlanDistrict records for a given
-    state/chamber/cycle combination.
+    state/chamber/cycle combination. Supports temporal resolution:
+    multiple plans can exist for the same state/chamber/cycle when
+    courts order mid-cycle redistricting.
+
+    Use RedistrictingPlan.objects.for_date(state_fips, chamber, date)
+    to find which plan was active on a specific date.
     """
+
+    objects = RedistrictingPlanManager()
 
     state = models.ForeignKey(
         State,
@@ -128,7 +163,33 @@ class RedistrictingPlan(models.Model):
     enacted_date = models.DateField(
         null=True,
         blank=True,
-        help_text="Date the plan was enacted (if applicable)",
+        help_text="Date the plan was enacted by legislature/commission/court",
+    )
+    effective_from = models.DateField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Date this plan took legal effect (may differ from enacted_date)",
+    )
+    effective_to = models.DateField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Date this plan was superseded (NULL = still in effect)",
+    )
+    superseded_by = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="supersedes",
+        help_text="The plan that replaced this one (court order, new cycle, etc.)",
+    )
+    court_case = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Court case name if court-ordered (e.g., 'Allen v. Milligan')",
     )
     data_source = models.CharField(
         max_length=100,
@@ -146,6 +207,8 @@ class RedistrictingPlan(models.Model):
         indexes = [
             models.Index(fields=["state_fips", "chamber"]),
             models.Index(fields=["cycle_year", "plan_type"]),
+            models.Index(fields=["state_fips", "chamber", "effective_from"]),
+            models.Index(fields=["effective_from", "effective_to"]),
         ]
 
     def __str__(self):
