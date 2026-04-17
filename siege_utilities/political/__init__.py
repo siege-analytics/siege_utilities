@@ -48,4 +48,6 @@ def schema_migrations_dir() -> Path:
     return Path(__file__).resolve().parent / "migrations"
 
 
-__all__ = ["schema_migrations_dir"]
+from siege_utilities.political import readers  # noqa: F401
+
+__all__ = ["schema_migrations_dir", "readers"]
