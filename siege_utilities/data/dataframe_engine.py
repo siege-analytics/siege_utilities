@@ -902,7 +902,6 @@ class SparkEngine(DataFrameEngine):
         if format in ("parquet", "geoparquet"):
             df = self._session.read.parquet(path)
             if geometry_col not in df.columns and "geom" in df.columns:
-                from pyspark.sql.functions import col
                 df = df.withColumnRenamed("geom", geometry_col)
             return df
         # Fallback to GeoPandas for GeoJSON/Shapefile
