@@ -22,7 +22,7 @@ side helper ``schema_migrations_dir()``.
 
 from __future__ import annotations
 
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
 
 
 _POLITICAL_SCHEMA = "political"
