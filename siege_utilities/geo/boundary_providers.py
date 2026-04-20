@@ -93,6 +93,7 @@ class CensusTIGERProvider(BoundaryProvider):
         """
         from .spatial_data import CensusDataSource
 
+        kwargs.pop('geographic_level', None)  # level arg is authoritative
         call_kwargs: dict[str, Any] = {
             'geographic_level': level,
             **kwargs,
