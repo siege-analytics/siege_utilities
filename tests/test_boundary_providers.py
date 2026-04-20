@@ -71,7 +71,7 @@ class TestCensusTIGERProvider:
         mock_get.assert_called_once_with('county', identifier='06')
         assert result is sentinel
 
-    @patch('siege_utilities.geo.boundary_providers.CensusDataSource')
+    @patch('siege_utilities.geo.spatial_data.CensusDataSource')
     def test_get_boundary_passes_kwargs(self, MockDS):
         """Extra kwargs (e.g. year) are forwarded to fetch_geographic_boundaries."""
         sentinel_gdf = MagicMock(name='gdf')
@@ -85,7 +85,7 @@ class TestCensusTIGERProvider:
         )
         assert result is sentinel_gdf
 
-    @patch('siege_utilities.geo.boundary_providers.CensusDataSource')
+    @patch('siege_utilities.geo.spatial_data.CensusDataSource')
     def test_get_boundary_congress_number_forwarded(self, MockDS):
         """congress_number kwarg reaches fetch_geographic_boundaries for CD boundaries."""
         sentinel_gdf = MagicMock(name='cd_gdf')
@@ -99,7 +99,7 @@ class TestCensusTIGERProvider:
         )
         assert result is sentinel_gdf
 
-    @patch('siege_utilities.geo.boundary_providers.CensusDataSource')
+    @patch('siege_utilities.geo.spatial_data.CensusDataSource')
     def test_get_boundary_level_authoritative(self, MockDS):
         """geographic_level in kwargs is silently dropped; the level arg wins."""
         mock_result = MagicMock(success=True, geodataframe=MagicMock())
@@ -110,7 +110,7 @@ class TestCensusTIGERProvider:
         call_kwargs = MockDS.return_value.fetch_geographic_boundaries.call_args[1]
         assert call_kwargs['geographic_level'] == 'county'
 
-    @patch('siege_utilities.geo.boundary_providers.CensusDataSource')
+    @patch('siege_utilities.geo.spatial_data.CensusDataSource')
     def test_get_boundary_failure_returns_none(self, MockDS):
         """result.success=False returns None and logs a warning."""
         mock_result = MagicMock(success=False, error_stage='download', message='404')
