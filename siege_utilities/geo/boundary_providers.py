@@ -70,7 +70,7 @@ class CensusTIGERProvider(BoundaryProvider):
     """
     US Census TIGER/Line boundary provider.
 
-    Wraps :func:`siege_utilities.geo.spatial_data.get_census_boundaries` and
+    Wraps :class:`siege_utilities.geo.spatial_data.CensusDataSource` and
     :data:`siege_utilities.config.census_constants.CANONICAL_GEOGRAPHIC_LEVELS`.
     """
 
@@ -83,20 +83,42 @@ class CensusTIGERProvider(BoundaryProvider):
         Fetch US Census TIGER boundaries.
 
         Args:
-            level: A canonical geographic level (e.g. 'county', 'tract', 'state').
+            level: A canonical geographic level (e.g. 'county', 'tract', 'cd').
             identifier: State FIPS code when the level requires it.
-            **kwargs: Forwarded to ``get_census_boundaries`` (e.g. ``year``).
+            **kwargs: Forwarded to
+                :meth:`~siege_utilities.geo.spatial_data.CensusDataSource.fetch_geographic_boundaries`
+                (e.g. ``year``, ``congress_number``).
 
         Returns:
-            GeoDataFrame or None.
-        """
-        from .spatial_data import get_census_boundaries
+            GeoDataFrame or None if the boundary could not be retrieved.
 
-        call_kwargs: dict[str, Any] = {'geographic_level': level}
+        Note:
+            Previously this delegated to the deprecated module-level
+            ``get_census_boundaries()`` function, which silently dropped
+            ``congress_number`` and other kwargs not in its signature.  It now
+            uses ``CensusDataSource.fetch_geographic_boundaries()`` directly so
+            that all parameters — including ``congress_number`` for ``'cd'``
+            boundaries — are honoured.
+        """
+        from .spatial_data import CensusDataSource
+
+        call_kwargs: dict[str, Any] = {
+            'geographic_level': level,
+            **kwargs,
+        }
         if identifier is not None:
             call_kwargs['state_fips'] = identifier
-        call_kwargs.update(kwargs)
-        return get_census_boundaries(**call_kwargs)
+
+        ds = CensusDataSource()
+        result = ds.fetch_geographic_boundaries(**call_kwargs)
+        if not result.success:
+            logger.warning(
+                "CensusTIGERProvider: boundary retrieval failed [%s] %s",
+                result.error_stage,
+                result.message,
+            )
+            return None
+        return result.geodataframe
 
     def list_levels(self) -> list[str]:
         """Return canonical Census geographic level names."""
