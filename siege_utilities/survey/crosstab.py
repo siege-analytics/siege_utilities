@@ -271,8 +271,7 @@ def _build_mean_scale(
                     continue
                 mean = float(cat_vals.mean())
                 ci = 1.96 * float(cat_vals.std(ddof=1)) / (len(cat_vals) ** 0.5) if len(cat_vals) > 1 else 0.0
-                v = View(metric=str(cat), base=base, count=mean, pct=None)
-                v.ci = ci  # type: ignore[attr-defined]  # attached dynamically
+                v = View(metric=str(cat), base=base, count=mean, pct=None, ci=ci)
                 cell_views.append(v)
             if top_n:
                 cell_views = sorted(cell_views, key=lambda v: v.count, reverse=True)[:top_n]

@@ -30,6 +30,7 @@ class View:
     count: float                 # weighted or raw count
     pct: Optional[float] = None  # proportion (0–1); None for non-percent views
     sig_flag: Optional[str] = None  # column letter if significantly different
+    ci: Optional[float] = None   # 95% confidence interval (MEAN_SCALE only)
 
 
 # ---------------------------------------------------------------------------
@@ -40,8 +41,14 @@ class View:
 class Chain:
     """One cross-tabulation: row_var × break_vars.
 
-    table_type drives chart selection, significance testing approach, and
+    ``table_type`` drives chart selection, significance testing approach, and
     whether percent bases are respondents (MULTIPLE_RESPONSE) or column totals.
+
+    Fields populated by later pipeline stages (significance testing,
+    weighting) are declared here with ``None`` defaults so
+    :func:`dataclasses.fields` / :func:`dataclasses.asdict` see them — the
+    previous pattern of attaching them dynamically via ``setattr`` broke
+    introspection.
     """
 
     row_var: str
@@ -51,6 +58,11 @@ class Chain:
     base_note: str = ""
     geo_column: Optional[str] = None  # presence triggers map generation
     delta_column: Optional[str] = None  # for LONGITUDINAL: computed change column
+
+    # Populated by siege_utilities.survey.significance.chi_square_flag.
+    # None = not yet tested; True/False = tested.
+    chi_square_significant: Optional[bool] = None
+    chi_square_p: Optional[float] = None
 
     def to_dataframe(self) -> pd.DataFrame:
         """Render the chain as a display-ready wide DataFrame.

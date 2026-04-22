@@ -132,8 +132,8 @@ def chi_square_flag(chain: "Chain", alpha: float = 0.05) -> "Chain":
         df = df.drop(index=["Total"])
 
     if df.empty or df.shape[0] < 2 or df.shape[1] < 2:
-        chain.chi_square_significant = False  # type: ignore[attr-defined]
-        chain.chi_square_p = None             # type: ignore[attr-defined]
+        chain.chi_square_significant = False
+        chain.chi_square_p = None
         return chain
 
     try:
