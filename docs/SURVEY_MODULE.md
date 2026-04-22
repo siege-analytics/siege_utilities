@@ -47,7 +47,7 @@ The hierarchy mirrors the one Quantipy3 adopted from UNICOM Intelligence's OSCAR
 which has been the industry standard for commercial survey reporting for 20+ years.
 We adopted the naming and the conceptual layers but wrote every line from scratch.
 
-```
+```text
 Stack
 └── Cluster  (one report section / deck section)
     └── Chain  (one cross-tabulation slide: question × breaks)
@@ -118,7 +118,7 @@ v = View(metric="Democrat", base=342, count=205.0, pct=0.60)
 Every deliverable unit in a report is an `Argument`:
 **headline → narrative → table → chart + optional map.**
 
-```
+```text
 headline    "Party ID by County — Travis + Harris"
 narrative   "Democrats hold a 20-point advantage in Travis County but trail
              in Harris County when donors with multiple cycles are excluded."
