@@ -6,9 +6,7 @@ All tests use a mocked GoogleWorkspaceClient — no live API calls.
 """
 
 import os
-import tempfile
-import uuid
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
@@ -108,7 +106,6 @@ class TestUploadFigureToDrive:
 
     def test_temp_file_cleaned_up(self, mock_client):
         fig, ax = plt.subplots()
-        original_upload = mock_client.upload_file
 
         captured_paths = []
 
