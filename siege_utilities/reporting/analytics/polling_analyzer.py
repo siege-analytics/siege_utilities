@@ -1,477 +1,467 @@
 #!/usr/bin/env python3
-"""
-Polling Analysis Module for Siege Utilities
-Provides comprehensive cross-tabulation and longitudinal analysis capabilities
+"""Polling analysis — cross-tabulation, longitudinal analysis, change detection.
+
+Operates on long-form DataFrames with at least one dimension column and one
+numeric metric column (default ``metric='value'``). Callers supply their own
+column names via keyword arguments.
 """
 
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Tuple, Optional, Union
-from datetime import datetime, timedelta
+from __future__ import annotations
+
+from typing import Dict, List, Optional, Tuple
+
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
+
+from siege_utilities.core.logging import log_error
+
 from ..chart_generator import ChartGenerator
-from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+
+
+class PollingAnalysisError(RuntimeError):
+    """Raised when polling analysis cannot complete due to bad input or config."""
+
+
+def _choose_heatmap_fmt(df: pd.DataFrame) -> str:
+    """Return ``'d'`` when every column is integer-typed and every value is an
+    integer, ``'.2f'`` otherwise.
+
+    Seaborn's ``fmt='d'`` crashes on float values (``ValueError: Unknown format
+    code 'd'``). A crosstab built from integer sums can still surface floats if
+    ``.fillna(0)`` upcast, so check both dtype and actual values.
+    """
+    try:
+        if not all(pd.api.types.is_numeric_dtype(df[c]) for c in df.columns):
+            return ".2f"
+        arr = df.to_numpy()
+        if pd.api.types.is_integer_dtype(arr):
+            return "d"
+        # Float dtype but values round-trip as integers (e.g. 30.0) — keep 'd'.
+        if (arr == arr.astype(int)).all():
+            return "d"
+        return ".2f"
+    except (AttributeError, ValueError, TypeError):
+        return ".2f"
+
 
 class PollingAnalyzer:
-    """
-    Comprehensive polling analysis for cross-dimensional analytics
-    """
-    
-    def __init__(self):
+    """Cross-dimensional analytics for polling and survey data."""
+
+    def __init__(self) -> None:
         self.chart_generator = ChartGenerator()
-        self.analysis_results = {}
-        
-    def create_cross_tabulation_matrix(self, 
-                                     data: pd.DataFrame,
-                                     dimensions: List[str],
-                                     metric: str = 'sessions',
-                                     top_n: int = 10) -> Dict[str, pd.DataFrame]:
-        """
-        Create comprehensive cross-tabulation matrix for all dimension combinations
-        
-        Args:
-            data: DataFrame with analytics data
-            dimensions: List of dimension column names
-            metric: Metric column name to aggregate
-            top_n: Number of top items to include per dimension
-            
-        Returns:
-            Dictionary of cross-tabulation DataFrames
+        self.analysis_results: Dict[str, object] = {}
+
+    def create_cross_tabulation_matrix(
+        self,
+        data: pd.DataFrame,
+        dimensions: List[str],
+        *,
+        metric: str = "value",
+        top_n: int = 10,
+    ) -> Dict[str, pd.DataFrame]:
+        """Build pairwise cross-tabulations for all dimension combinations.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Input data with one row per observation.
+        dimensions : list of str
+            Column names to cross-tab. Must exist in ``data``.
+        metric : str, keyword-only
+            Numeric column to aggregate (sum).
+        top_n : int, keyword-only
+            Keep only the top ``top_n`` values per dimension.
+
+        Returns
+        -------
+        dict
+            Keys ``"{dim1}_x_{dim2}"``; values are filtered cross-tab DataFrames.
+
+        Raises
+        ------
+        PollingAnalysisError
+            If a required column is missing or aggregation fails.
         """
         try:
-            cross_tabs = {}
-            
-            # Create all possible 2-way combinations
+            cross_tabs: Dict[str, pd.DataFrame] = {}
             for i, dim1 in enumerate(dimensions):
-                for j, dim2 in enumerate(dimensions[i+1:], i+1):
-                    combo_name = f"{dim1}_x_{dim2}"
-                    
-                    # Create cross-tabulation
+                for dim2 in dimensions[i + 1:]:
                     crosstab = pd.crosstab(
-                        data[dim1], 
-                        data[dim2], 
-                        values=data[metric], 
-                        aggfunc='sum', 
-                        fill_value=0
-                    )
-                    
-                    # Get top N items for each dimension
+                        data[dim1],
+                        data[dim2],
+                        values=data[metric],
+                        aggfunc="sum",
+                    ).fillna(0)
                     top_dim1 = data.groupby(dim1)[metric].sum().nlargest(top_n).index
                     top_dim2 = data.groupby(dim2)[metric].sum().nlargest(top_n).index
-                    
-                    # Filter to top items
-                    filtered_crosstab = crosstab.loc[top_dim1, top_dim2]
-                    
-                    cross_tabs[combo_name] = filtered_crosstab
-                    
+                    cross_tabs[f"{dim1}_x_{dim2}"] = crosstab.loc[top_dim1, top_dim2]
             return cross_tabs
-            
-        except Exception as e:
-            log_error(f"Error creating cross-tabulation matrix: {e}")
-            return {}
-    
-    def create_longitudinal_analysis(self, 
-                                   data: pd.DataFrame,
-                                   time_column: str,
-                                   dimensions: List[str],
-                                   metric: str = 'sessions',
-                                   periods: List[str] = ['daily', 'weekly', 'monthly', 'quarterly']) -> Dict[str, pd.DataFrame]:
+        except (KeyError, ValueError, TypeError) as e:
+            log_error(f"cross-tabulation failed (dimensions={dimensions!r}, metric={metric!r}): {e}")
+            raise PollingAnalysisError(
+                f"cross-tabulation failed for dimensions={dimensions!r}, metric={metric!r}"
+            ) from e
+
+    def create_longitudinal_analysis(
+        self,
+        data: pd.DataFrame,
+        time_column: str,
+        dimensions: List[str],
+        *,
+        metric: str = "value",
+        periods: Tuple[str, ...] = ("daily", "weekly", "monthly", "quarterly"),
+    ) -> Dict[str, Dict[str, pd.DataFrame]]:
+        """Aggregate ``data`` by time period and dimension.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Input with a parseable time column.
+        time_column : str
+            Column to convert to datetime and group by period.
+        dimensions : list of str
+            Dimension columns to group within each period.
+        metric : str, keyword-only
+            Numeric column to sum.
+        periods : tuple of str, keyword-only
+            Subset of ``{"daily", "weekly", "monthly", "quarterly"}``.
+
+        Returns
+        -------
+        dict
+            ``{period: {dimension: DataFrame}}``.
+
+        Raises
+        ------
+        PollingAnalysisError
+            If the time column cannot be parsed or a period name is unknown.
         """
-        Create longitudinal analysis across multiple time periods and dimensions
-        
-        Args:
-            data: DataFrame with time series data
-            time_column: Column containing time information
-            dimensions: List of dimension columns to analyze
-            metric: Metric column to analyze
-            periods: List of time periods to aggregate
-            
-        Returns:
-            Dictionary of longitudinal analysis DataFrames
-        """
+        period_map = {
+            "daily": lambda s: s.dt.date,
+            "weekly": lambda s: s.dt.to_period("W"),
+            "monthly": lambda s: s.dt.to_period("M"),
+            "quarterly": lambda s: s.dt.to_period("Q"),
+        }
         try:
-            longitudinal_results = {}
-            
-            # Ensure time column is datetime
+            data = data.copy()
             data[time_column] = pd.to_datetime(data[time_column])
-            
+            results: Dict[str, Dict[str, pd.DataFrame]] = {}
             for period in periods:
-                period_results = {}
-                
-                # Create time-based aggregation
-                if period == 'daily':
-                    data['period'] = data[time_column].dt.date
-                elif period == 'weekly':
-                    data['period'] = data[time_column].dt.to_period('W')
-                elif period == 'monthly':
-                    data['period'] = data[time_column].dt.to_period('M')
-                elif period == 'quarterly':
-                    data['period'] = data[time_column].dt.to_period('Q')
-                
-                # Aggregate by period and each dimension
-                for dimension in dimensions:
-                    period_dim_data = data.groupby(['period', dimension])[metric].sum().reset_index()
-                    period_results[dimension] = period_dim_data
-                
-                longitudinal_results[period] = period_results
-                
-            return longitudinal_results
-            
-        except Exception as e:
-            log_error(f"Error creating longitudinal analysis: {e}")
-            return {}
-    
-    def create_performance_rankings(self, 
-                                  data: pd.DataFrame,
-                                  dimensions: List[str],
-                                  metric: str = 'sessions',
-                                  top_n: int = 10) -> Dict[str, List[Tuple]]:
-        """
-        Create performance rankings across all dimensions
-        
-        Args:
-            data: DataFrame with analytics data
-            dimensions: List of dimension columns to rank
-            metric: Metric column to rank by
-            top_n: Number of top performers to return
-            
-        Returns:
-            Dictionary of rankings for each dimension
+                if period not in period_map:
+                    raise PollingAnalysisError(
+                        f"unknown period {period!r}; expected one of {list(period_map)}"
+                    )
+                data = data.assign(period=period_map[period](data[time_column]))
+                results[period] = {
+                    d: data.groupby(["period", d])[metric].sum().reset_index()
+                    for d in dimensions
+                }
+            return results
+        except (KeyError, ValueError, TypeError) as e:
+            log_error(f"longitudinal analysis failed (time={time_column!r}, dims={dimensions!r}): {e}")
+            raise PollingAnalysisError(
+                f"longitudinal analysis failed for time_column={time_column!r}"
+            ) from e
+
+    def create_performance_rankings(
+        self,
+        data: pd.DataFrame,
+        dimensions: List[str],
+        *,
+        metric: str = "value",
+        top_n: int = 10,
+    ) -> Dict[str, List[Tuple[object, float, float]]]:
+        """Rank the top-N values per dimension by total ``metric``.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+        dimensions : list of str
+        metric : str, keyword-only
+        top_n : int, keyword-only
+
+        Returns
+        -------
+        dict of list of tuple
+            For each dimension, a list of ``(value, sum_metric, percentage)``.
+            ``percentage`` is the share of the dimension's total, in [0, 100].
+
+        Raises
+        ------
+        PollingAnalysisError
+            If a required column is missing.
         """
         try:
-            rankings = {}
-            
+            rankings: Dict[str, List[Tuple[object, float, float]]] = {}
             for dimension in dimensions:
-                # Calculate rankings
-                dimension_rankings = data.groupby(dimension)[metric].agg(['sum', 'count']).reset_index()
-                dimension_rankings['percentage'] = (dimension_rankings['sum'] / dimension_rankings['sum'].sum()) * 100
-                
-                # Calculate growth (simplified - would need historical data for real growth)
-                dimension_rankings['growth'] = np.random.normal(5, 15, len(dimension_rankings))  # Simulated growth
-                
-                # Sort by performance
-                dimension_rankings = dimension_rankings.sort_values('sum', ascending=False).head(top_n)
-                
-                # Convert to list of tuples
+                agg = data.groupby(dimension)[metric].agg(["sum", "count"]).reset_index()
+                total = agg["sum"].sum()
+                agg["percentage"] = (agg["sum"] / total * 100) if total else 0.0
+                agg = agg.sort_values("sum", ascending=False).head(top_n)
                 rankings[dimension] = [
-                    (row[dimension], row['sum'], row['percentage'], row['growth'])
-                    for _, row in dimension_rankings.iterrows()
+                    (row[dimension], float(row["sum"]), float(row["percentage"]))
+                    for _, row in agg.iterrows()
                 ]
-                
             return rankings
-            
-        except Exception as e:
-            log_error(f"Error creating performance rankings: {e}")
-            return {}
-    
-    def create_time_series_choropleth_data(self, 
-                                         geographic_data: pd.DataFrame,
-                                         time_column: str,
-                                         periods: List[str]) -> Dict[str, pd.DataFrame]:
-        """
-        Create time series data for choropleth sequences
-        
-        Args:
-            geographic_data: DataFrame with geographic and time data
-            time_column: Column containing time information
-            periods: List of time periods to create sequences for
-            
-        Returns:
-            Dictionary of geographic data for each time period
-        """
-        try:
-            time_series_data = {}
-            
-            # Ensure time column is datetime
-            geographic_data[time_column] = pd.to_datetime(geographic_data[time_column])
-            
-            for period in periods:
-                # Filter data for this period
-                if period == 'Q1 2024':
-                    period_data = geographic_data[
-                        (geographic_data[time_column] >= '2024-01-01') & 
-                        (geographic_data[time_column] < '2024-04-01')
-                    ]
-                elif period == 'Q2 2024':
-                    period_data = geographic_data[
-                        (geographic_data[time_column] >= '2024-04-01') & 
-                        (geographic_data[time_column] < '2024-07-01')
-                    ]
-                elif period == 'Q3 2024':
-                    period_data = geographic_data[
-                        (geographic_data[time_column] >= '2024-07-01') & 
-                        (geographic_data[time_column] < '2024-10-01')
-                    ]
-                elif period == 'Q4 2024':
-                    period_data = geographic_data[
-                        (geographic_data[time_column] >= '2024-10-01') & 
-                        (geographic_data[time_column] < '2025-01-01')
-                    ]
-                elif period == 'Q1 2025':
-                    period_data = geographic_data[
-                        (geographic_data[time_column] >= '2025-01-01') & 
-                        (geographic_data[time_column] < '2025-04-01')
-                    ]
-                else:
-                    # Default to all data
-                    period_data = geographic_data
-                
-                # Aggregate by country
-                if not period_data.empty:
-                    aggregated = period_data.groupby('country')['sessions'].sum().reset_index()
-                    time_series_data[period] = aggregated
-                else:
-                    # Create empty DataFrame with same structure
-                    time_series_data[period] = pd.DataFrame(columns=['country', 'sessions'])
-                    
-            return time_series_data
-            
-        except Exception as e:
-            log_error(f"Error creating time series choropleth data: {e}")
-            return {}
-    
-    def create_change_detection_data(self, 
-                                   current_data: pd.DataFrame,
-                                   historical_data: pd.DataFrame,
-                                   geographic_column: str = 'country',
-                                   metric: str = 'sessions') -> pd.DataFrame:
-        """
-        Create change detection data showing growth/decline patterns
-        
-        Args:
-            current_data: Current period data
-            historical_data: Historical period data
-            geographic_column: Column containing geographic information
-            metric: Metric to compare
-            
-        Returns:
-            DataFrame with change detection results
+        except (KeyError, ValueError, TypeError) as e:
+            log_error(f"performance rankings failed (dims={dimensions!r}, metric={metric!r}): {e}")
+            raise PollingAnalysisError(
+                f"performance rankings failed for dimensions={dimensions!r}"
+            ) from e
+
+    def create_change_detection_data(
+        self,
+        current_data: pd.DataFrame,
+        historical_data: pd.DataFrame,
+        *,
+        geographic_column: str = "geography",
+        metric: str = "value",
+    ) -> pd.DataFrame:
+        """Compare current vs historical aggregates and compute growth/decline.
+
+        Parameters
+        ----------
+        current_data, historical_data : pd.DataFrame
+            Long-form data sharing ``geographic_column`` and ``metric`` columns.
+        geographic_column : str, keyword-only
+            Column to aggregate on.
+        metric : str, keyword-only
+            Numeric column to sum.
+
+        Returns
+        -------
+        pd.DataFrame
+            Columns: ``geographic_column``, ``{metric}_current``,
+            ``{metric}_historical``, ``change_pct``, ``change_direction``.
+
+        Raises
+        ------
+        PollingAnalysisError
+            If either frame is missing the required columns.
         """
         try:
-            # Aggregate current and historical data
             current_agg = current_data.groupby(geographic_column)[metric].sum().reset_index()
             historical_agg = historical_data.groupby(geographic_column)[metric].sum().reset_index()
-            
-            # Merge data
             merged = current_agg.merge(
-                historical_agg, 
-                on=geographic_column, 
-                suffixes=('_current', '_historical'),
-                how='outer'
+                historical_agg,
+                on=geographic_column,
+                suffixes=("_current", "_historical"),
+                how="outer",
             ).fillna(0)
-            
-            # Calculate change percentage
-            merged['change_pct'] = (
-                (merged[f'{metric}_current'] - merged[f'{metric}_historical']) / 
-                merged[f'{metric}_historical'] * 100
-            ).fillna(0)
-            
-            # Add change direction
-            merged['change_direction'] = merged['change_pct'].apply(
-                lambda x: 'growth' if x > 0 else 'decline' if x < 0 else 'stable'
+            baseline = merged[f"{metric}_historical"]
+            current = merged[f"{metric}_current"]
+            merged["change_pct"] = (
+                (current - baseline)
+                .div(baseline.replace(0, pd.NA))
+                .mul(100)
             )
-            
-            return merged
-            
-        except Exception as e:
-            log_error(f"Error creating change detection data: {e}")
-            return pd.DataFrame()
-    
-    def create_geographic_device_crosstab(self, 
-                                        geographic_data: pd.DataFrame,
-                                        device_data: pd.DataFrame,
-                                        geographic_column: str = 'country',
-                                        device_column: str = 'deviceCategory',
-                                        metric: str = 'sessions') -> pd.DataFrame:
-        """
-        Create geographic × device cross-tabulation
-        
-        Args:
-            geographic_data: DataFrame with geographic data
-            device_data: DataFrame with device data
-            geographic_column: Column containing geographic information
-            device_column: Column containing device information
-            metric: Metric to aggregate
-            
-        Returns:
-            DataFrame with geographic × device cross-tabulation
-        """
-        try:
-            # Simulate device distribution by country based on country characteristics
-            crosstab_data = []
-            
-            for _, geo_row in geographic_data.iterrows():
-                country = geo_row[geographic_column]
-                total_sessions = geo_row[metric]
-                
-                # Simulate device distribution based on country characteristics
-                if country in ['United States', 'Canada', 'United Kingdom', 'Germany']:
-                    # Developed countries tend to have more desktop usage
-                    mobile_pct = 0.6
-                    desktop_pct = 0.35
-                    tablet_pct = 0.05
-                elif country in ['India', 'Brazil', 'China']:
-                    # Emerging markets tend to be more mobile-heavy
-                    mobile_pct = 0.8
-                    desktop_pct = 0.15
-                    tablet_pct = 0.05
-                else:
-                    # Default distribution
-                    mobile_pct = 0.7
-                    desktop_pct = 0.25
-                    tablet_pct = 0.05
-                
-                mobile_sessions = int(total_sessions * mobile_pct)
-                desktop_sessions = int(total_sessions * desktop_pct)
-                tablet_sessions = total_sessions - mobile_sessions - desktop_sessions
-                
-                crosstab_data.append({
-                    'country': country,
-                    'mobile_sessions': mobile_sessions,
-                    'desktop_sessions': desktop_sessions,
-                    'tablet_sessions': tablet_sessions,
-                    'total_sessions': total_sessions
-                })
-            
-            return pd.DataFrame(crosstab_data)
-            
-        except Exception as e:
-            log_error(f"Error creating geographic device crosstab: {e}")
-            return pd.DataFrame()
-    
-    def create_polling_summary(self, 
-                             data: Dict[str, pd.DataFrame],
-                             metric: str = 'sessions') -> str:
-        """
-        Create executive summary for polling analysis
-        
-        Args:
-            data: Dictionary of DataFrames with different data types
-            metric: Metric column name
-            
-        Returns:
-            Executive summary string
+
+            # Zero-baseline handling: a new geography (historical=0, current>0)
+            # is "growth_from_zero", not silently "stable" via fillna(0).
+            new_geography = baseline.eq(0) & current.gt(0)
+
+            def _classify(row) -> str:
+                if row["_new"]:
+                    return "growth_from_zero"
+                pct = row["change_pct"]
+                if pd.isna(pct):
+                    return "stable"
+                return "growth" if pct > 0 else ("decline" if pct < 0 else "stable")
+
+            merged["_new"] = new_geography
+            merged["change_direction"] = merged.apply(_classify, axis=1)
+            merged["change_pct"] = merged["change_pct"].fillna(0.0)
+            return merged.drop(columns=["_new"])
+        except (KeyError, ValueError, TypeError) as e:
+            log_error(f"change detection failed (col={geographic_column!r}, metric={metric!r}): {e}")
+            raise PollingAnalysisError(
+                f"change detection failed for geographic_column={geographic_column!r}"
+            ) from e
+
+    def create_polling_summary(
+        self,
+        data: Dict[str, pd.DataFrame],
+        *,
+        metric: str = "value",
+        name_column: Optional[str] = None,
+    ) -> str:
+        """Build an executive-summary string from a dict of data-type frames.
+
+        Parameters
+        ----------
+        data : dict of pd.DataFrame
+            Keyed by data-type label (e.g. ``"region"``, ``"segment"``).
+        metric : str, keyword-only
+        name_column : str, keyword-only, optional
+            Column to read the top performer's label from. If omitted, the
+            first column that is not the metric is used.
+
+        Returns
+        -------
+        str
+            Multi-sentence summary.
+
+        Raises
+        ------
+        PollingAnalysisError
+            If no frame in ``data`` contains the requested ``metric`` column,
+            or a frame has no non-metric column to use as a label.
         """
         try:
-            # Extract key metrics
-            total_sessions = 0
-            dimensions_info = {}
-            
-            for data_type, df in data.items():
-                if metric in df.columns:
-                    total_sessions += df[metric].sum()
-                    dimensions_info[data_type] = len(df)
-            
-            # Find top performers
-            top_performers = {}
-            for data_type, df in data.items():
-                if metric in df.columns and not df.empty:
-                    top_item = df.nlargest(1, metric).iloc[0]
-                    top_performers[data_type] = {
-                        'name': top_item.iloc[0],  # First column (usually the dimension)
-                        'value': top_item[metric],
-                        'percentage': (top_item[metric] / total_sessions * 100) if total_sessions > 0 else 0
-                    }
-            
-            # Create summary
-            summary_parts = [
-                f"This comprehensive polling analysis examines {total_sessions:,} {metric} across multiple dimensions."
-            ]
-            
-            for data_type, info in dimensions_info.items():
-                summary_parts.append(f"{data_type.title()}: {info} items")
-            
-            summary_parts.append("Key findings include:")
-            
-            for data_type, performer in top_performers.items():
-                summary_parts.append(
-                    f"{performer['name']} leads {data_type} with {performer['value']:,} {metric} "
-                    f"({performer['percentage']:.1f}%)"
+            frames_with_metric = {k: df for k, df in data.items() if metric in df.columns and not df.empty}
+            if not frames_with_metric:
+                raise PollingAnalysisError(
+                    f"no frame in data contains metric={metric!r}; keys={list(data)}"
                 )
-            
-            summary_parts.append("Cross-dimensional analysis reveals patterns in distribution and performance.")
-            
-            return " ".join(summary_parts)
-            
-        except Exception as e:
-            return f"Polling analysis summary generation failed: {str(e)}"
-    
-    def create_heatmap_visualization(self, 
-                                   crosstab_data: pd.DataFrame,
-                                   title: str = "Cross-Tabulation Heatmap",
-                                   figsize: Tuple[int, int] = (10, 8)) -> plt.Figure:
-        """
-        Create heatmap visualization for cross-tabulation data
-        
-        Args:
-            crosstab_data: DataFrame with cross-tabulation data
-            title: Chart title
-            figsize: Figure size tuple
-            
-        Returns:
-            Matplotlib figure
+
+            total_value = sum(df[metric].sum() for df in frames_with_metric.values())
+            dimensions_info = {k: len(df) for k, df in frames_with_metric.items()}
+
+            top_performers: Dict[str, Dict[str, object]] = {}
+            for data_type, df in frames_with_metric.items():
+                # Pick a label column explicitly rather than trusting iloc[0]
+                # to sit on the dimension. Caller can pin via name_column=.
+                if name_column and name_column in df.columns:
+                    label_col = name_column
+                else:
+                    label_col = next((c for c in df.columns if c != metric), None)
+                if label_col is None:
+                    raise PollingAnalysisError(
+                        f"frame for {data_type!r} has no non-metric column to label; "
+                        f"pass name_column= explicitly"
+                    )
+                top_item = df.nlargest(1, metric).iloc[0]
+                value = float(top_item[metric])
+                top_performers[data_type] = {
+                    "name": top_item[label_col],
+                    "value": value,
+                    "percentage": (value / total_value * 100) if total_value else 0.0,
+                }
+
+            parts = [
+                f"This comprehensive polling analysis examines {total_value:,.0f} {metric} across multiple dimensions."
+            ]
+            parts.extend(f"{k.title()}: {n} items" for k, n in dimensions_info.items())
+            parts.append("Key findings include:")
+            parts.extend(
+                f"{p['name']} leads {dt} with {p['value']:,.0f} {metric} ({p['percentage']:.1f}%)"
+                for dt, p in top_performers.items()
+            )
+            parts.append("Cross-dimensional analysis reveals patterns in distribution and performance.")
+            return " ".join(parts)
+        except PollingAnalysisError:
+            raise
+        except (KeyError, ValueError, TypeError, IndexError) as e:
+            log_error(f"polling summary failed (metric={metric!r}): {e}")
+            raise PollingAnalysisError(
+                f"polling summary generation failed for metric={metric!r}"
+            ) from e
+
+    def create_heatmap_visualization(
+        self,
+        crosstab_data: pd.DataFrame,
+        *,
+        title: str = "Cross-Tabulation Heatmap",
+        metric: str = "value",
+        figsize: Tuple[int, int] = (10, 8),
+    ) -> plt.Figure:
+        """Render a cross-tab as a Seaborn heatmap.
+
+        ``metric`` is keyword-only; it is used only for the colorbar label.
+        The annotation format is chosen automatically from the data dtype
+        (integer data gets ``'d'``, float data gets ``'.2f'``).
+
+        Parameters
+        ----------
+        crosstab_data : pd.DataFrame
+            Output of :meth:`create_cross_tabulation_matrix`.
+        title : str, keyword-only
+        metric : str, keyword-only
+        figsize : tuple of int, keyword-only
+
+        Returns
+        -------
+        matplotlib.figure.Figure
+
+        Raises
+        ------
+        PollingAnalysisError
+            If matplotlib or seaborn cannot render the input.
         """
         try:
             fig, ax = plt.subplots(figsize=figsize)
-            
-            # Create heatmap
-            sns.heatmap(crosstab_data, 
-                       annot=True, 
-                       fmt='d', 
-                       cmap='YlOrRd',
-                       ax=ax,
-                       cbar_kws={'label': 'Sessions'})
-            
-            ax.set_title(title, fontsize=14, fontweight='bold')
-            ax.set_xlabel('')
-            ax.set_ylabel('')
-            
+            fmt = _choose_heatmap_fmt(crosstab_data)
+            # Seaborn's fmt='d' expects an integer dtype; cast float-valued
+            # integers (e.g. 30.0) to int so ``format(v, 'd')`` doesn't raise.
+            data_to_plot = crosstab_data.astype(int) if fmt == "d" else crosstab_data
+            sns.heatmap(
+                data_to_plot,
+                annot=True,
+                fmt=fmt,
+                cmap="YlOrRd",
+                ax=ax,
+                cbar_kws={"label": metric.title()},
+            )
+            ax.set_title(title, fontsize=14, fontweight="bold")
+            ax.set_xlabel("")
+            ax.set_ylabel("")
             plt.tight_layout()
             return fig
-            
-        except Exception as e:
-            log_error(f"Error creating heatmap visualization: {e}")
-            return None
-    
-    def create_trend_analysis_chart(self, 
-                                  longitudinal_data: Dict[str, pd.DataFrame],
-                                  dimension: str,
-                                  metric: str = 'sessions',
-                                  figsize: Tuple[int, int] = (12, 6)) -> plt.Figure:
-        """
-        Create trend analysis chart for longitudinal data
-        
-        Args:
-            longitudinal_data: Dictionary of longitudinal data by period
-            dimension: Dimension to analyze
-            metric: Metric to plot
-            figsize: Figure size tuple
-            
-        Returns:
-            Matplotlib figure
+        except (ValueError, TypeError) as e:
+            log_error(f"heatmap rendering failed (shape={crosstab_data.shape}): {e}")
+            raise PollingAnalysisError("heatmap rendering failed") from e
+
+    def create_trend_analysis_chart(
+        self,
+        longitudinal_data: Dict[str, pd.DataFrame],
+        dimension: str,
+        *,
+        metric: str = "value",
+        figsize: Tuple[int, int] = (12, 6),
+    ) -> plt.Figure:
+        """Plot per-period trend lines for a single dimension.
+
+        Parameters
+        ----------
+        longitudinal_data : dict of pd.DataFrame
+            Keyed by period label.
+        dimension : str
+            Dimension column name to title/label with.
+        metric : str, keyword-only
+        figsize : tuple of int, keyword-only
+
+        Returns
+        -------
+        matplotlib.figure.Figure
+
+        Raises
+        ------
+        PollingAnalysisError
+            If plotting fails.
         """
         try:
             fig, ax = plt.subplots(figsize=figsize)
-            
-            # Plot trends for each period
             for period, data in longitudinal_data.items():
-                if dimension in data.columns and metric in data.columns:
-                    period_data = data.groupby('period')[metric].sum()
-                    ax.plot(period_data.index.astype(str), period_data.values, 
-                           marker='o', label=period, linewidth=2)
-            
-            ax.set_title(f'Trend Analysis: {dimension.title()}', fontsize=14, fontweight='bold')
-            ax.set_xlabel('Time Period')
+                if "period" in data.columns and metric in data.columns:
+                    period_data = data.groupby("period")[metric].sum()
+                    ax.plot(
+                        period_data.index.astype(str),
+                        period_data.values,
+                        marker="o",
+                        label=period,
+                        linewidth=2,
+                    )
+            ax.set_title(f"Trend Analysis: {dimension.title()}", fontsize=14, fontweight="bold")
+            ax.set_xlabel("Time Period")
             ax.set_ylabel(metric.title())
             ax.legend()
             ax.grid(True, alpha=0.3)
-            
             plt.xticks(rotation=45)
             plt.tight_layout()
             return fig
-            
-        except Exception as e:
-            log_error(f"Error creating trend analysis chart: {e}")
-            return None
-
+        except (ValueError, TypeError) as e:
+            log_error(f"trend chart rendering failed (dimension={dimension!r}): {e}")
+            raise PollingAnalysisError(
+                f"trend chart rendering failed for dimension={dimension!r}"
+            ) from e
