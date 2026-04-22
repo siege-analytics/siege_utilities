@@ -8,7 +8,7 @@ column names via keyword arguments.
 
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -24,10 +24,24 @@ class PollingAnalysisError(RuntimeError):
 
 
 def _choose_heatmap_fmt(df: pd.DataFrame) -> str:
-    """Return ``'d'`` for integer-only data, ``'.2f'`` otherwise."""
+    """Return ``'d'`` when every column is integer-typed and every value is an
+    integer, ``'.2f'`` otherwise.
+
+    Seaborn's ``fmt='d'`` crashes on float values (``ValueError: Unknown format
+    code 'd'``). A crosstab built from integer sums can still surface floats if
+    ``.fillna(0)`` upcast, so check both dtype and actual values.
+    """
     try:
-        return "d" if pd.api.types.is_integer_dtype(df.values.dtype) else ".2f"
-    except (AttributeError, ValueError):
+        if not all(pd.api.types.is_numeric_dtype(df[c]) for c in df.columns):
+            return ".2f"
+        arr = df.to_numpy()
+        if pd.api.types.is_integer_dtype(arr):
+            return "d"
+        # Float dtype but values round-trip as integers (e.g. 30.0) — keep 'd'.
+        if (arr == arr.astype(int)).all():
+            return "d"
+        return ".2f"
+    except (AttributeError, ValueError, TypeError):
         return ".2f"
 
 
@@ -236,16 +250,29 @@ class PollingAnalyzer:
                 how="outer",
             ).fillna(0)
             baseline = merged[f"{metric}_historical"]
+            current = merged[f"{metric}_current"]
             merged["change_pct"] = (
-                (merged[f"{metric}_current"] - baseline)
+                (current - baseline)
                 .div(baseline.replace(0, pd.NA))
                 .mul(100)
-                .fillna(0.0)
             )
-            merged["change_direction"] = merged["change_pct"].apply(
-                lambda x: "growth" if x > 0 else ("decline" if x < 0 else "stable")
-            )
-            return merged
+
+            # Zero-baseline handling: a new geography (historical=0, current>0)
+            # is "growth_from_zero", not silently "stable" via fillna(0).
+            new_geography = baseline.eq(0) & current.gt(0)
+
+            def _classify(row) -> str:
+                if row["_new"]:
+                    return "growth_from_zero"
+                pct = row["change_pct"]
+                if pd.isna(pct):
+                    return "stable"
+                return "growth" if pct > 0 else ("decline" if pct < 0 else "stable")
+
+            merged["_new"] = new_geography
+            merged["change_direction"] = merged.apply(_classify, axis=1)
+            merged["change_pct"] = merged["change_pct"].fillna(0.0)
+            return merged.drop(columns=["_new"])
         except (KeyError, ValueError, TypeError) as e:
             log_error(f"change detection failed (col={geographic_column!r}, metric={metric!r}): {e}")
             raise PollingAnalysisError(
@@ -257,6 +284,7 @@ class PollingAnalyzer:
         data: Dict[str, pd.DataFrame],
         *,
         metric: str = "value",
+        name_column: Optional[str] = None,
     ) -> str:
         """Build an executive-summary string from a dict of data-type frames.
 
@@ -265,6 +293,9 @@ class PollingAnalyzer:
         data : dict of pd.DataFrame
             Keyed by data-type label (e.g. ``"region"``, ``"segment"``).
         metric : str, keyword-only
+        name_column : str, keyword-only, optional
+            Column to read the top performer's label from. If omitted, the
+            first column that is not the metric is used.
 
         Returns
         -------
@@ -274,7 +305,8 @@ class PollingAnalyzer:
         Raises
         ------
         PollingAnalysisError
-            If no frame in ``data`` contains the requested ``metric`` column.
+            If no frame in ``data`` contains the requested ``metric`` column,
+            or a frame has no non-metric column to use as a label.
         """
         try:
             frames_with_metric = {k: df for k, df in data.items() if metric in df.columns and not df.empty}
@@ -288,10 +320,21 @@ class PollingAnalyzer:
 
             top_performers: Dict[str, Dict[str, object]] = {}
             for data_type, df in frames_with_metric.items():
+                # Pick a label column explicitly rather than trusting iloc[0]
+                # to sit on the dimension. Caller can pin via name_column=.
+                if name_column and name_column in df.columns:
+                    label_col = name_column
+                else:
+                    label_col = next((c for c in df.columns if c != metric), None)
+                if label_col is None:
+                    raise PollingAnalysisError(
+                        f"frame for {data_type!r} has no non-metric column to label; "
+                        f"pass name_column= explicitly"
+                    )
                 top_item = df.nlargest(1, metric).iloc[0]
                 value = float(top_item[metric])
                 top_performers[data_type] = {
-                    "name": top_item.iloc[0],
+                    "name": top_item[label_col],
                     "value": value,
                     "percentage": (value / total_value * 100) if total_value else 0.0,
                 }
@@ -348,10 +391,14 @@ class PollingAnalyzer:
         """
         try:
             fig, ax = plt.subplots(figsize=figsize)
+            fmt = _choose_heatmap_fmt(crosstab_data)
+            # Seaborn's fmt='d' expects an integer dtype; cast float-valued
+            # integers (e.g. 30.0) to int so ``format(v, 'd')`` doesn't raise.
+            data_to_plot = crosstab_data.astype(int) if fmt == "d" else crosstab_data
             sns.heatmap(
-                crosstab_data,
+                data_to_plot,
                 annot=True,
-                fmt=_choose_heatmap_fmt(crosstab_data),
+                fmt=fmt,
                 cmap="YlOrRd",
                 ax=ax,
                 cbar_kws={"label": metric.title()},
