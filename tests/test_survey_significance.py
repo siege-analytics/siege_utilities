@@ -72,10 +72,10 @@ class TestChiSquareFlag:
     def test_significant_for_strong_association(self):
         chain = _make_chain_two_cols()
         chi_square_flag(chain, alpha=0.05)
-        assert chain.chi_square_significant is True
+        assert bool(chain.chi_square_significant) is True
 
     def test_empty_chain_no_crash(self):
         chain = Chain(row_var="q", break_vars=[], views={},
                       table_type=TableType.CROSS_TAB)
         chi_square_flag(chain)
-        assert chain.chi_square_significant is False
+        assert bool(chain.chi_square_significant) is False
