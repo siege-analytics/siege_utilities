@@ -10,9 +10,12 @@ View    = one cell statistic (count, pct, sig flag)
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import pandas as pd
+
+if TYPE_CHECKING:
+    from ..reporting.pages.page_models import Argument, TableType
 
 
 # ---------------------------------------------------------------------------
@@ -44,7 +47,7 @@ class Chain:
     row_var: str
     break_vars: List[str]
     views: Dict[str, List[View]]       # key = break variable value
-    table_type: "TableType"            # imported lazily to avoid circular dep
+    table_type: TableType
     base_note: str = ""
     geo_column: Optional[str] = None  # presence triggers map generation
     delta_column: Optional[str] = None  # for LONGITUDINAL: computed change column
@@ -71,7 +74,7 @@ class Chain:
         df.index.name = self.row_var
         return df
 
-    def to_argument(self, headline: str, narrative: str) -> "Argument":
+    def to_argument(self, headline: str, narrative: str) -> Argument:
         """Wrap this Chain in an Argument (calls chart + map builders)."""
         from .render import chain_to_argument
         return chain_to_argument(self, headline=headline, narrative=narrative)

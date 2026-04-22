@@ -16,7 +16,6 @@ class TestApplyRimWeightsImport:
         """When weightipy is absent, apply_rim_weights raises ImportError."""
         import sys
         monkeypatch.setitem(sys.modules, "weightipy", None)
-        from importlib import reload
         import siege_utilities.survey.weights as wmod
         with pytest.raises((ImportError, ModuleNotFoundError)):
             wmod.apply_rim_weights(

@@ -6,9 +6,8 @@ Delegates chi-square to siege_utilities.data.cross_tabulation (not reimplemented
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
-import numpy as np
 import pandas as pd
 
 from ..reporting.pages.page_models import TableType

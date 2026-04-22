@@ -1,5 +1,4 @@
 """Tests for siege_utilities.survey.render (SAL-65)."""
-import pytest
 import pandas as pd
 from siege_utilities.survey.models import Chain, View
 from siege_utilities.survey.render import chain_to_argument

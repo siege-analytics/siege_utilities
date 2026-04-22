@@ -1,6 +1,5 @@
 """Tests for siege_utilities.survey.significance (SAL-65)."""
 import pytest
-import pandas as pd
 from siege_utilities.survey.models import Chain, View
 from siege_utilities.survey.significance import column_proportion_test, chi_square_flag
 from siege_utilities.reporting.pages.page_models import TableType
