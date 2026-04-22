@@ -116,9 +116,16 @@ def _views_from_counts(
 # Per-type builders
 # ---------------------------------------------------------------------------
 
-def _build_single_response(
-    df, row_var, break_vars, metric, weight_var, top_n, geo_column
-) -> Chain:
+def _grouped_counts_views(
+    df, row_var, break_vars, metric, weight_var, top_n
+) -> Dict[str, List[View]]:
+    """Shared loop: for each (break_var, break_value) subset, compute weighted
+    counts of row_var and wrap as Views keyed ``"{bv}={bval}"``.
+
+    Used by SINGLE_RESPONSE, CROSS_TAB, and BANNER builders (identical body).
+    Separate helper keeps the three type-tagged wrappers honest — a change
+    here ripples to all three without drift.
+    """
     views: Dict[str, List[View]] = {}
     for bv in break_vars:
         for bval in df[bv].dropna().unique():
@@ -127,10 +134,16 @@ def _build_single_response(
             counts = _weighted_counts(subset, row_var, metric, weight_var)
             if top_n:
                 counts = counts.nlargest(top_n)
-            key = f"{bv}={bval}"
-            views[key] = _views_from_counts(counts, base)
+            views[f"{bv}={bval}"] = _views_from_counts(counts, base)
+    return views
+
+
+def _build_single_response(
+    df, row_var, break_vars, metric, weight_var, top_n, geo_column
+) -> Chain:
     return Chain(
-        row_var=row_var, break_vars=break_vars, views=views,
+        row_var=row_var, break_vars=break_vars,
+        views=_grouped_counts_views(df, row_var, break_vars, metric, weight_var, top_n),
         table_type=TableType.SINGLE_RESPONSE, geo_column=geo_column,
     )
 
@@ -138,7 +151,11 @@ def _build_single_response(
 def _build_multiple_response(
     df, row_var, break_vars, metric, weight_var, top_n, geo_column
 ) -> Chain:
-    """Percents are per-respondent (sum can exceed 100%); auto-sets base_note."""
+    """Percents are per-respondent (sum can exceed 100%); auto-sets base_note.
+
+    Distinct from ``_grouped_counts_views`` because MULTIPLE_RESPONSE uses
+    ``pct_base=n_respondents`` — items that sum to >100% are the whole point.
+    """
     views: Dict[str, List[View]] = {}
     for bv in break_vars:
         for bval in df[bv].dropna().unique():
@@ -148,7 +165,6 @@ def _build_multiple_response(
             if top_n:
                 counts = counts.nlargest(top_n)
             key = f"{bv}={bval}"
-            # Percent base = respondents, not responses (items sum > 100%)
             views[key] = _views_from_counts(
                 counts, base=n_respondents, pct_base=float(n_respondents)
             )
@@ -164,18 +180,9 @@ def _build_multiple_response(
 def _build_cross_tab(
     df, row_var, break_vars, metric, weight_var, top_n, geo_column
 ) -> Chain:
-    views: Dict[str, List[View]] = {}
-    for bv in break_vars:
-        for bval in df[bv].dropna().unique():
-            subset = df[df[bv] == bval]
-            base = _base_respondents(subset, weight_var)
-            counts = _weighted_counts(subset, row_var, metric, weight_var)
-            if top_n:
-                counts = counts.nlargest(top_n)
-            key = f"{bv}={bval}"
-            views[key] = _views_from_counts(counts, base)
     return Chain(
-        row_var=row_var, break_vars=break_vars, views=views,
+        row_var=row_var, break_vars=break_vars,
+        views=_grouped_counts_views(df, row_var, break_vars, metric, weight_var, top_n),
         table_type=TableType.CROSS_TAB, geo_column=geo_column,
     )
 
@@ -287,17 +294,8 @@ def _build_banner(
     df, row_var, break_vars, metric, weight_var, top_n, geo_column
 ) -> Chain:
     """Multi-column cross-tab (OSCAR-style): each break var is a banner column."""
-    views: Dict[str, List[View]] = {}
-    for bv in break_vars:
-        for bval in df[bv].dropna().unique():
-            subset = df[df[bv] == bval]
-            base = _base_respondents(subset, weight_var)
-            counts = _weighted_counts(subset, row_var, metric, weight_var)
-            if top_n:
-                counts = counts.nlargest(top_n)
-            key = f"{bv}={bval}"
-            views[key] = _views_from_counts(counts, base)
     return Chain(
-        row_var=row_var, break_vars=break_vars, views=views,
+        row_var=row_var, break_vars=break_vars,
+        views=_grouped_counts_views(df, row_var, break_vars, metric, weight_var, top_n),
         table_type=TableType.BANNER, geo_column=geo_column,
     )
