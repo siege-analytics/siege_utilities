@@ -24,7 +24,7 @@ import pandas as pd
 from ..reporting.pages.page_models import Argument, TableType
 
 if TYPE_CHECKING:
-    from .models import Chain, Cluster, Stack
+    from .models import Chain, Stack
 
 
 class RenderError(RuntimeError):

@@ -1,6 +1,4 @@
 """Tests for siege_utilities.survey.significance (SAL-65)."""
-import sys
-
 import pytest
 from siege_utilities.survey.models import Chain, View
 from siege_utilities.survey.significance import (
