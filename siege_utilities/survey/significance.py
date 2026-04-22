@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from siege_utilities.core.logging import log_error
+
 try:
     from scipy.stats import norm as _scipy_norm
     _SCIPY_AVAILABLE = True
@@ -21,6 +23,15 @@ except ImportError:
 
 if TYPE_CHECKING:
     from .models import Chain
+
+
+class SignificanceError(RuntimeError):
+    """Raised when significance testing cannot complete on the given chain."""
+
+
+# Critical z-values for the scipy-less fallback. Only exact matches are honored;
+# any other alpha raises rather than silently using 1.96.
+_FALLBACK_Z_CRIT = {0.05: 1.96, 0.01: 2.576, 0.10: 1.645}
 
 
 def column_proportion_test(chain: "Chain", alpha: float = 0.05) -> "Chain":
@@ -69,9 +80,16 @@ def column_proportion_test(chain: "Chain", alpha: float = 0.05) -> "Chain":
                 z = abs(p1 - p2) / se
                 if _SCIPY_AVAILABLE:
                     z_crit = _scipy_norm.ppf(1 - alpha / 2)
+                elif alpha in _FALLBACK_Z_CRIT:
+                    z_crit = _FALLBACK_Z_CRIT[alpha]
                 else:
-                    # fallback: hardcoded critical values for common alpha levels
-                    z_crit = {0.05: 1.96, 0.01: 2.576, 0.10: 1.645}.get(alpha, 1.96)
+                    # Without scipy, only exact matches are honored — silently
+                    # coercing to 1.96 would run tests at the wrong alpha and
+                    # corrupt the output.
+                    raise SignificanceError(
+                        f"alpha={alpha!r} requires scipy; install scipy or use "
+                        f"one of {sorted(_FALLBACK_Z_CRIT)}"
+                    )
                 if z > z_crit:
                     # Mark the higher column with the lower column's letter
                     higher_key = key_i if p1 > p2 else key_j
@@ -120,10 +138,18 @@ def chi_square_flag(chain: "Chain", alpha: float = 0.05) -> "Chain":
 
     try:
         result = chi_square_test(df)
-        chain.chi_square_significant = result.p_value < alpha  # type: ignore[attr-defined]
-        chain.chi_square_p = result.p_value                    # type: ignore[attr-defined]
-    except Exception:
-        chain.chi_square_significant = False  # type: ignore[attr-defined]
-        chain.chi_square_p = None             # type: ignore[attr-defined]
+    except (ValueError, TypeError, ZeroDivisionError) as e:
+        # A degenerate contingency table (zeros, singleton dimensions) is
+        # distinguishable from "test was run and wasn't significant" — tag
+        # the result as failed rather than collapsing both cases to False.
+        log_error(
+            f"chi_square_test failed on chain row_var={chain.row_var!r}, "
+            f"shape={df.shape}: {e}"
+        )
+        raise SignificanceError(
+            f"chi-square test failed for chain row_var={chain.row_var!r}"
+        ) from e
 
+    chain.chi_square_significant = bool(result.p_value < alpha)
+    chain.chi_square_p = float(result.p_value)
     return chain

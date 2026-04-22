@@ -244,13 +244,20 @@ def _build_ranking(
 def _build_mean_scale(
     df, row_var, break_vars, metric, weight_var, top_n, geo_column
 ) -> Chain:
-    """Computes mean + 95% CI per break variable value."""
-    views: Dict[str, List[View]] = {}
+    """Computes mean + 95% CI per break variable value.
+
+    MEAN_SCALE requires the ``metric`` column — unlike count-based types,
+    there is no fallback to row counts. Missing metric raises so callers
+    don't receive a silently-empty chain that'd render as a blank page
+    with no diagnostic.
+    """
     if metric not in df.columns:
-        return Chain(
-            row_var=row_var, break_vars=break_vars, views={},
-            table_type=TableType.MEAN_SCALE, geo_column=geo_column,
+        raise ValueError(
+            f"MEAN_SCALE requires numeric metric column {metric!r}; "
+            f"available columns: {list(df.columns)}"
         )
+
+    views: Dict[str, List[View]] = {}
 
     for bv in break_vars:
         for bval in df[bv].dropna().unique():

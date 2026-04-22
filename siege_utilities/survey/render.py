@@ -16,7 +16,8 @@ Chart type selection by TableType:
 
 from __future__ import annotations
 
-from typing import Any, List, Optional, TYPE_CHECKING
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 import pandas as pd
 
@@ -24,6 +25,10 @@ from ..reporting.pages.page_models import Argument, TableType
 
 if TYPE_CHECKING:
     from .models import Chain, Cluster, Stack
+
+
+class RenderError(RuntimeError):
+    """Raised when Chain-to-Argument rendering hits a configuration or data issue."""
 
 
 # ---------------------------------------------------------------------------
@@ -57,7 +62,12 @@ def _select_chart_type(chain: "Chain") -> str:
 # ---------------------------------------------------------------------------
 
 def _build_chart(df: pd.DataFrame, chart_type: str, headline: str) -> Optional[Any]:
-    """Attempt to build a matplotlib Figure. Returns None if matplotlib absent."""
+    """Render a matplotlib Figure for ``chart_type``.
+
+    Returns ``None`` when matplotlib is unavailable (optional dependency)
+    OR when ``df`` is empty. Any plotting failure raises :class:`RenderError`
+    so pipelines don't silently produce reports without figures.
+    """
     try:
         import matplotlib
         matplotlib.use("Agg")
@@ -87,9 +97,12 @@ def _build_chart(df: pd.DataFrame, chart_type: str, headline: str) -> Optional[A
             df.iloc[:, 0].plot.bar(ax=ax, color="#2d6a9f")
         else:
             df.plot.bar(ax=ax)
-    except Exception:
+    except (ValueError, TypeError, KeyError) as e:
         plt.close(fig)
-        return None
+        raise RenderError(
+            f"chart rendering failed for chart_type={chart_type!r}, "
+            f"shape={df.shape}, columns={list(df.columns)[:5]}: {e}"
+        ) from e
 
     ax.set_title(headline, fontsize=12, fontweight="bold")
     plt.tight_layout()
@@ -97,22 +110,69 @@ def _build_chart(df: pd.DataFrame, chart_type: str, headline: str) -> Optional[A
 
 
 def _build_map(chain: "Chain") -> Optional[Any]:
-    """Attempt to build a choropleth from chain.geo_column data. Returns None if unavailable."""
+    """Render a choropleth for geographically-keyed Chains.
+
+    The Chain's ``row_var`` MUST equal its ``geo_column`` — otherwise the
+    values in the row index aren't geographic features and labeling them
+    as such would mislabel (e.g. relabeling ``"Democrat"`` / ``"Republican"``
+    as states).
+
+    Returns ``None`` when no ``geo_column`` is set or when the geo-rendering
+    library is unavailable. Raises :class:`RenderError` on a configuration
+    mismatch or a rendering failure — callers should not silently ship
+    reports missing maps.
+    """
     if not chain.geo_column:
         return None
+
+    if chain.row_var != chain.geo_column:
+        raise RenderError(
+            f"Chain.geo_column={chain.geo_column!r} but Chain.row_var="
+            f"{chain.row_var!r}. Map generation requires the row variable "
+            f"to be the geographic key; otherwise row categories would be "
+            f"mislabeled as geo features."
+        )
+
     try:
         from ..reporting.chart_generator import ChartGenerator
-        cg = ChartGenerator()
-        df = chain.to_dataframe()
-        if df.empty:
-            return None
-        # Aggregate first column across all break values
-        agg = df.iloc[:, 0].reset_index()
-        agg.columns = [chain.geo_column, "value"]
-        fig = cg.create_choropleth_map(agg, geo_column=chain.geo_column, value_column="value")
-        return fig
-    except Exception:
+    except ImportError:
         return None
+
+    df = chain.to_dataframe()
+    if df.empty:
+        return None
+
+    # With row_var == geo_column, the DataFrame index holds geographic values
+    # (e.g. state FIPS, state abbreviations). Aggregate across break columns.
+    agg = df.iloc[:, 0].reset_index()
+    agg.columns = [chain.geo_column, "value"]
+
+    try:
+        cg = ChartGenerator()
+        return cg.create_choropleth_map(
+            agg, geo_column=chain.geo_column, value_column="value"
+        )
+    except (ValueError, TypeError, KeyError) as e:
+        raise RenderError(
+            f"choropleth rendering failed for geo_column={chain.geo_column!r}: {e}"
+        ) from e
+
+
+# ---------------------------------------------------------------------------
+# ArgumentCluster — carrier for stack_to_arguments output
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ArgumentCluster:
+    """A named group of rendered :class:`Argument` objects.
+
+    This is the output of :func:`stack_to_arguments` — a typed companion
+    to :class:`models.Cluster` (which holds Chains). Separate type prevents
+    callers from accidentally feeding Argument-bearing objects into code
+    that expects Chain-bearing Clusters.
+    """
+    name: str
+    arguments: List[Argument] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +183,7 @@ def chain_to_argument(
     chain: "Chain",
     headline: str,
     narrative: str,
+    *,
     chart_generator: Any = None,
     map_generator: Any = None,
 ) -> Argument:
@@ -136,19 +197,41 @@ def chain_to_argument(
         Slide headline / section title.
     narrative:
         One-paragraph narrative text for the argument.
-    chart_generator:
-        Optional ChartGenerator instance. Auto-created if None.
-    map_generator:
-        Optional map generator. Uses geo.choropleth if geo_column present.
+    chart_generator, map_generator:
+        Reserved for dependency injection of pre-configured generators.
+        NOT YET IMPLEMENTED — passing a non-None value raises
+        :class:`NotImplementedError` so callers don't silently lose the
+        customization they thought they were providing.
 
     Returns
     -------
-    Argument with chart populated, map_figure populated iff chain.geo_column set.
+    Argument
+        chart populated when matplotlib is available; map_figure populated
+        only when ``chain.geo_column`` is set and equals ``chain.row_var``.
+
+    Raises
+    ------
+    NotImplementedError
+        If ``chart_generator`` or ``map_generator`` is passed; honoring
+        these kwargs requires wiring not yet built.
+    RenderError
+        On plotting failure or geo_column/row_var mismatch.
     """
+    if chart_generator is not None:
+        raise NotImplementedError(
+            "chart_generator injection not yet supported. File an issue "
+            "before relying on it."
+        )
+    if map_generator is not None:
+        raise NotImplementedError(
+            "map_generator injection not yet supported. File an issue "
+            "before relying on it."
+        )
+
     df = chain.to_dataframe()
     chart_type = _select_chart_type(chain)
     chart = _build_chart(df, chart_type, headline)
-    map_figure = _build_map(chain) if chain.geo_column else None
+    map_figure = _build_map(chain)  # None unless geo_column is set
 
     return Argument(
         headline=headline,
@@ -164,10 +247,13 @@ def chain_to_argument(
 
 def stack_to_arguments(
     stack: "Stack",
-    headlines: Optional[dict] = None,
-    narratives: Optional[dict] = None,
-) -> List["Cluster"]:
+    headlines: Optional[Dict] = None,
+    narratives: Optional[Dict] = None,
+) -> List[ArgumentCluster]:
     """Walk all Chains in a Stack, converting each to an Argument.
+
+    Returns a list of :class:`ArgumentCluster` (not :class:`Cluster`) so the
+    result type is explicit: these hold Arguments, not Chains.
 
     Parameters
     ----------
@@ -180,20 +266,16 @@ def stack_to_arguments(
 
     Returns
     -------
-    List of Cluster objects where each chain is replaced by its Argument.
+    List[ArgumentCluster]
+        One per input :class:`Cluster`; preserves cluster name.
     """
-    from .models import Cluster as ClusterModel
-
-    result: List[ClusterModel] = []
+    result: List[ArgumentCluster] = []
     for cluster in stack.clusters:
-        arg_cluster: List[Argument] = []
+        args: List[Argument] = []
         for chain in cluster.chains:
             key = (cluster.name, chain.row_var)
             hl = (headlines or {}).get(key, chain.row_var.replace("_", " ").title())
             na = (narratives or {}).get(key, "")
-            arg_cluster.append(chain_to_argument(chain, headline=hl, narrative=na))
-        # Build a Cluster whose chains slot is repurposed as arguments list
-        c = ClusterModel(name=cluster.name)
-        c.chains = arg_cluster  # type: ignore[assignment]
-        result.append(c)
+            args.append(chain_to_argument(chain, headline=hl, narrative=na))
+        result.append(ArgumentCluster(name=cluster.name, arguments=args))
     return result
