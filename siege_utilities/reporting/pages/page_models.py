@@ -296,19 +296,27 @@ class TableOfContentsPage(Page):
         self.add_paragraph("Table of Contents", header_style)
         self.add_spacer(self.HEADER_SPACING)
 
-        current_section = None
+        # Group entries by section while preserving first-appearance order of
+        # both sections and of titles within each section. This keeps the
+        # output stable even when toc_data interleaves sections
+        # (e.g. ``[A, B, A]`` still produces one A block and one B block).
+        grouped: Dict[str, list] = {}
+        section_order: list = []
         for entry in toc_data:
             section = entry.get("section", "")
-            title = entry.get("title", "")
-            page_num = entry.get("page_num")
+            if section not in grouped:
+                grouped[section] = []
+                section_order.append(section)
+            grouped[section].append(entry)
 
-            if section != current_section:
-                self.add_spacer(self.SECTION_SPACING)
-                self.add_paragraph(section, section_style)
-                current_section = section
-
-            label = f"{title}{'  ·  ' + str(page_num) if page_num else ''}"
-            self.add_paragraph(label, item_style)
+        for section in section_order:
+            self.add_spacer(self.SECTION_SPACING)
+            self.add_paragraph(section, section_style)
+            for entry in grouped[section]:
+                title = entry.get("title", "")
+                page_num = entry.get("page_num")
+                label = f"{title}{'  ·  ' + str(page_num) if page_num else ''}"
+                self.add_paragraph(label, item_style)
 
         self.add_page_break()
         return self.get_content()
