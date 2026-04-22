@@ -36,6 +36,7 @@ _register(['PowerPointGenerator'], '.powerpoint_generator')
 _register(['decode_rl_image', 'show_rl_image', 'save_rl_image'], '.image_utils')
 _register(['ChartTypeRegistry'], '.chart_types')
 _register(['PollingAnalyzer'], '.analytics.polling_analyzer')
+_register(['Argument', 'TableType'], '.pages.page_models')
 
 # IDML (InDesign) export
 _register(['IDMLExporter', 'export_report_idml', 'SIMPLEIDML_AVAILABLE'], '.idml_export')
