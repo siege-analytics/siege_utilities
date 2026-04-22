@@ -5,13 +5,11 @@ Provides comprehensive cross-tabulation and longitudinal analysis capabilities
 """
 
 import pandas as pd
-import numpy as np
-from typing import Dict, List, Tuple, Optional, Union
-from datetime import datetime, timedelta
+from typing import Dict, List, Tuple
 import matplotlib.pyplot as plt
 import seaborn as sns
 from ..chart_generator import ChartGenerator
-from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+from siege_utilities.core.logging import log_error
 
 class PollingAnalyzer:
     """
