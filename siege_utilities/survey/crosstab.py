@@ -93,10 +93,17 @@ def _weighted_counts(
     return df.groupby(group_col).size().astype(float)
 
 
-def _base_respondents(df: pd.DataFrame, weight_var: Optional[str]) -> int:
+def _base_respondents(df: pd.DataFrame, weight_var: Optional[str]) -> float:
+    """Return the effective respondent base — weighted sum or unweighted count.
+
+    Returns a float so fractional weighted bases (e.g. ``1234.7``) are not
+    silently truncated. Callers that need an integer for display should
+    cast explicitly; downstream math (significance tests, CI bounds) now
+    uses the full-precision value.
+    """
     if weight_var and weight_var in df.columns:
-        return int(df[weight_var].sum())
-    return len(df)
+        return float(df[weight_var].sum())
+    return float(len(df))
 
 
 def _views_from_counts(
@@ -169,7 +176,11 @@ def _build_multiple_response(
                 counts, base=n_respondents, pct_base=float(n_respondents)
             )
     n_total = _base_respondents(df, weight_var)
-    base_note = f"n={n_total:,} respondents; multiple responses permitted; percentages sum to more than 100%"
+    # Display-only: round for the base_note; downstream math keeps full precision.
+    base_note = (
+        f"n={int(round(n_total)):,} respondents; multiple responses permitted; "
+        "percentages sum to more than 100%"
+    )
     return Chain(
         row_var=row_var, break_vars=break_vars, views=views,
         table_type=TableType.MULTIPLE_RESPONSE,

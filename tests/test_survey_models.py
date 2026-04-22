@@ -98,5 +98,6 @@ class TestStack:
     def test_add_cluster(self):
         stack = Stack(name="R")
         cluster = Cluster(name="C")
-        stack.add_cluster(cluster)
+        result = stack.add_cluster(cluster)
         assert len(stack.clusters) == 1
+        assert result is stack  # fluent return contract (symmetric with Cluster.add_chain)

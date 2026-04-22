@@ -1,7 +1,13 @@
 """Tests for siege_utilities.survey.significance (SAL-65)."""
+import sys
+
 import pytest
 from siege_utilities.survey.models import Chain, View
-from siege_utilities.survey.significance import column_proportion_test, chi_square_flag
+from siege_utilities.survey.significance import (
+    SignificanceError,
+    column_proportion_test,
+    chi_square_flag,
+)
 from siege_utilities.reporting.pages.page_models import TableType
 
 try:
@@ -55,6 +61,30 @@ class TestColumnProportionTest:
                       table_type=TableType.CROSS_TAB)
         result = column_proportion_test(chain)
         assert result is chain
+
+    def test_scipy_fallback_flags_extreme_difference(self, monkeypatch):
+        """When scipy is absent, the z=1.96 fallback still flags clear
+        differences — the fallback is *correct* for alpha=0.05, just limited.
+        """
+        monkeypatch.setattr(
+            "siege_utilities.survey.significance._SCIPY_AVAILABLE", False
+        )
+        chain = _make_chain_two_cols()
+        column_proportion_test(chain, alpha=0.05)
+        all_flags = [
+            v.sig_flag for vs in chain.views.values() for v in vs if v.sig_flag
+        ]
+        assert len(all_flags) > 0
+
+    def test_scipy_fallback_rejects_unknown_alpha(self, monkeypatch):
+        """alpha=0.02 has no exact fallback z-crit; must raise rather than
+        silently use 1.96."""
+        monkeypatch.setattr(
+            "siege_utilities.survey.significance._SCIPY_AVAILABLE", False
+        )
+        chain = _make_chain_two_cols()
+        with pytest.raises(SignificanceError, match="requires scipy"):
+            column_proportion_test(chain, alpha=0.02)
 
 
 class TestChiSquareFlag:

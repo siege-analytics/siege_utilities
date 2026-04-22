@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 class View:
     """A single statistic in one cell of a cross-tabulation."""
     metric: str                  # column name / statistic label
-    base: int                    # unweighted respondent count
+    base: float                  # effective respondent count (weighted sum or raw count)
     count: float                 # weighted or raw count
     pct: Optional[float] = None  # proportion (0–1); None for non-percent views
     sig_flag: Optional[str] = None  # column letter if significantly different
