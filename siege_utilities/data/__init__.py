@@ -29,7 +29,10 @@ from ..reference.sample_data import (
     SYNTHETIC_SAMPLES,
 )
 
-from .redistricting_data_hub import (
+# RDH provider moved to geo/providers/ under ELE-2438 (D3). Top-level
+# data.* re-export is preserved so existing callers continue to work
+# without a deprecation warning through this path.
+from ..geo.providers.redistricting_data_hub import (
     RDHClient,
     RDHDataset,
     RDHDataFormat,

@@ -1,9 +1,9 @@
-"""Tests for siege_utilities.geo.census_geocoder module."""
+"""Tests for siege_utilities.geo.providers.census_geocoder module."""
 
 import pytest
 from unittest.mock import patch, MagicMock
 
-from siege_utilities.geo.census_geocoder import (
+from siege_utilities.geo.providers.census_geocoder import (
     CensusGeocodeError,
     CensusGeocodeResult,
     CensusVintage,
@@ -105,7 +105,7 @@ class TestCensusGeocodeResult:
 
 
 class TestGeocodeSingle:
-    @patch("siege_utilities.geo.census_geocoder._get_geocoder")
+    @patch("siege_utilities.geo.providers.census_geocoder._get_geocoder")
     def test_successful_match(self, mock_get_geocoder):
         mock_cg = MagicMock()
         mock_cg.onelineaddress.return_value = {
@@ -142,7 +142,7 @@ class TestGeocodeSingle:
         assert result.county_geoid == "11001"
         assert result.tract_geoid == "11001006202"
 
-    @patch("siege_utilities.geo.census_geocoder._get_geocoder")
+    @patch("siege_utilities.geo.providers.census_geocoder._get_geocoder")
     def test_no_match(self, mock_get_geocoder):
         mock_cg = MagicMock()
         mock_cg.onelineaddress.return_value = {
@@ -154,7 +154,7 @@ class TestGeocodeSingle:
         assert not result.matched
         assert result.input_address == "123 Fake St, Nowhere, XX 00000"
 
-    @patch("siege_utilities.geo.census_geocoder._get_geocoder")
+    @patch("siege_utilities.geo.providers.census_geocoder._get_geocoder")
     def test_api_error_raises_census_geocode_error(self, mock_get_geocoder):
         """API failure now raises CensusGeocodeError instead of faking an
         unmatched result — see ELE-2420 FAILURE_MODES.md CC1."""
@@ -177,7 +177,7 @@ class TestGeocodeBatch:
         with pytest.raises(ValueError, match="max 10,000"):
             geocode_batch([{"id": str(i)} for i in range(10_001)])
 
-    @patch("siege_utilities.geo.census_geocoder._get_geocoder")
+    @patch("siege_utilities.geo.providers.census_geocoder._get_geocoder")
     def test_batch_results(self, mock_get_geocoder):
         mock_cg = MagicMock()
         mock_cg.addressbatch.return_value = [
@@ -221,7 +221,7 @@ class TestGeocodeBatch:
 
 
 class TestGeocodeBatchChunked:
-    @patch("siege_utilities.geo.census_geocoder.geocode_batch")
+    @patch("siege_utilities.geo.providers.census_geocoder.geocode_batch")
     def test_chunks_correctly(self, mock_batch):
         mock_batch.return_value = [CensusGeocodeResult(input_id="0")]
 

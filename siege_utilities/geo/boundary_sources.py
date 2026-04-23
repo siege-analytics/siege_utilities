@@ -158,7 +158,7 @@ def stage_census_boundaries(
     -------
     str : path where boundaries were written.
     """
-    from siege_utilities.geo.boundary_providers import CensusTIGERProvider
+    from siege_utilities.geo.providers.boundary_providers import CensusTIGERProvider
 
     s3_path = f"{s3_base}/{boundary_type}/{year}/data.parquet"
 
@@ -190,7 +190,7 @@ def stage_census_boundaries(
 
 def _load_gadm_via_provider(engine, level, country):
     """Fallback: load GADM via provider, convert to engine format."""
-    from siege_utilities.geo.boundary_providers import GADMProvider
+    from siege_utilities.geo.providers.boundary_providers import GADMProvider
     import pandas as pd
 
     provider = GADMProvider()

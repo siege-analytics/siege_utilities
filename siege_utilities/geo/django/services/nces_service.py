@@ -59,7 +59,7 @@ class NCESPopulationService:
         self.cache_dir = cache_dir
 
     def _get_downloader(self):
-        from siege_utilities.geo.nces_download import NCESDownloader
+        from siege_utilities.geo.providers.nces_download import NCESDownloader
 
         return NCESDownloader(cache_dir=self.cache_dir)
 

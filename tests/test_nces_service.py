@@ -4,7 +4,6 @@ Tests focus on the result dataclass and service construction.
 Django-dependent tests (populate methods) require Django setup.
 """
 
-import pytest
 
 
 class TestNCESPopulationResult:
@@ -65,7 +64,7 @@ class TestNCESPopulationService:
         mod = importlib.import_module("siege_utilities.geo.django.services.nces_service")
         NCESPopulationService = mod.NCESPopulationService
 
-        from siege_utilities.geo.nces_download import NCESDownloader
+        from siege_utilities.geo.providers.nces_download import NCESDownloader
 
         service = NCESPopulationService(cache_dir="/tmp/test")
         downloader = service._get_downloader()

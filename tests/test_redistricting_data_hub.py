@@ -1,4 +1,4 @@
-"""Tests for siege_utilities.data.redistricting_data_hub module."""
+"""Tests for siege_utilities.geo.providers.redistricting_data_hub module."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from siege_utilities.data.redistricting_data_hub import (
+from siege_utilities.geo.providers.redistricting_data_hub import (
     RDHClient,
     RDHDataset,
     RDHDataFormat,
@@ -187,7 +187,7 @@ class TestRDHClientInit:
 
     def test_init_missing_requests(self, tmp_path):
         with patch.dict("sys.modules", {"requests": None}):
-            with patch("siege_utilities.data.redistricting_data_hub.HAS_REQUESTS", False):
+            with patch("siege_utilities.geo.providers.redistricting_data_hub.HAS_REQUESTS", False):
                 with pytest.raises(ImportError, match="requests"):
                     RDHClient(username="u", password="p", cache_dir=tmp_path)
 
@@ -453,7 +453,7 @@ class TestLoadCSV:
 class TestLoadShapefile:
 
     def test_load_shapefile_missing_geopandas(self, client, tmp_path):
-        with patch("siege_utilities.data.redistricting_data_hub.HAS_GEOPANDAS", False):
+        with patch("siege_utilities.geo.providers.redistricting_data_hub.HAS_GEOPANDAS", False):
             with pytest.raises(ImportError, match="geopandas"):
                 client.load_shapefile(tmp_path / "test.shp")
 
@@ -834,7 +834,7 @@ class TestDemographicProfile:
             crs="EPSG:4326",
         )
 
-        from siege_utilities.data.redistricting_data_hub import demographic_profile
+        from siege_utilities.geo.providers.redistricting_data_hub import demographic_profile
         result = demographic_profile(plan, census)
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 2
@@ -858,7 +858,7 @@ class TestDemographicProfile:
             crs="EPSG:4326",
         )
 
-        from siege_utilities.data.redistricting_data_hub import demographic_profile
+        from siege_utilities.geo.providers.redistricting_data_hub import demographic_profile
         result = demographic_profile(plan, census)
         assert len(result) == 0
 

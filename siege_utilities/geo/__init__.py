@@ -33,10 +33,14 @@ _register([
 ], '.boundary_result')
 
 # --- boundary_providers (pluggable boundary data sources) ---
+# Moved to geo/providers/ under ELE-2438; the submodule path here points
+# at the new location directly (the old geo/boundary_providers.py remains
+# as a deprecation shim).
 _register([
     'BoundaryProvider', 'CensusTIGERProvider', 'GADMProvider',
+    'RDHProvider', 'BoundaryFetchError',
     'resolve_boundary_provider',
-], '.boundary_providers')
+], '.providers.boundary_providers')
 
 # --- spatial_data ---
 _register([
@@ -97,12 +101,13 @@ _register([
     'get_provider',
 ], '.isochrones')
 
-# --- census_geocoder ---
+# --- census_geocoder (moved to geo/providers/ under ELE-2438) ---
 _register([
+    'CensusGeocodeError',
     'CensusVintage', 'CensusGeocodeResult',
     'select_vintage_for_cycle', 'geocode_single', 'geocode_batch',
     'geocode_batch_chunked',
-], '.census_geocoder')
+], '.providers.census_geocoder')
 
 # --- census_api_client ---
 _register([
@@ -173,7 +178,7 @@ _register([
 ], '.locale')
 
 # --- nces_download ---
-_register(['NCESDownloader', 'NCESDownloadError'], '.nces_download')
+_register(['NCESDownloader', 'NCESDownloadError'], '.providers.nces_download')
 
 # --- databricks_fallback ---
 _register([
