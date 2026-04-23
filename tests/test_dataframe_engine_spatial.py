@@ -56,7 +56,7 @@ class TestPandasSpatial:
 
     @pytest.fixture(autouse=True)
     def setup_engine(self):
-        from siege_utilities.data.dataframe_engine import PandasEngine
+        from siege_utilities.engines.dataframe_engine import PandasEngine
         self.engine = PandasEngine()
 
     def test_read_spatial(self, tmp_geojson):
@@ -148,7 +148,7 @@ class TestDuckDBSpatial:
 
     @pytest.fixture(autouse=True)
     def setup_engine(self):
-        from siege_utilities.data.dataframe_engine import DuckDBEngine
+        from siege_utilities.engines.dataframe_engine import DuckDBEngine
         self.engine = DuckDBEngine()
 
     def test_spatial_join(self, sample_points, sample_polygons):
@@ -193,14 +193,14 @@ class TestEngineConsistency:
     """Verify that Pandas and DuckDB produce equivalent spatial results."""
 
     def test_spatial_join_same_result(self, sample_points, sample_polygons):
-        from siege_utilities.data.dataframe_engine import PandasEngine, DuckDBEngine
+        from siege_utilities.engines.dataframe_engine import PandasEngine, DuckDBEngine
         pd_result = PandasEngine().spatial_join(sample_points, sample_polygons)
         dk_result = DuckDBEngine().spatial_join(sample_points, sample_polygons)
         # Both should find the same point-polygon pairs
         assert len(pd_result) == len(dk_result)
 
     def test_buffer_same_area(self, sample_points):
-        from siege_utilities.data.dataframe_engine import PandasEngine, DuckDBEngine
+        from siege_utilities.engines.dataframe_engine import PandasEngine, DuckDBEngine
         pd_result = PandasEngine().buffer(sample_points, 0.5)
         dk_result = DuckDBEngine().buffer(sample_points, 0.5)
         pd_area = pd_result.geometry.area.sum()

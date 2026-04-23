@@ -105,12 +105,12 @@ def column_proportion_test(chain: "Chain", alpha: float = 0.05) -> "Chain":
 def chi_square_flag(chain: "Chain", alpha: float = 0.05) -> "Chain":
     """Add an overall chi-square flag to *chain*.
 
-    Delegates to siege_utilities.data.cross_tabulation.chi_square_test.
+    Delegates to siege_utilities.data.statistics.cross_tabulation.chi_square_test.
     Sets chain.chi_square_significant = True/False and chain.chi_square_p.
 
     Mutates *chain* in place and returns it.
     """
-    from ..data.cross_tabulation import chi_square_test
+    from ..data.statistics.cross_tabulation import chi_square_test
     import pandas as pd
 
     # Build count-based (not pct-based) contingency table for valid chi-square
