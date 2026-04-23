@@ -14,9 +14,14 @@ Contact info@redistrictingdatahub.org to request access.
 
 Usage::
 
+    import os
     from siege_utilities.data.redistricting_data_hub import RDHClient
 
-    client = RDHClient(username="you@example.com", password="secret")
+    # Prefer env vars (RDH_USERNAME / RDH_PASSWORD); never hardcode
+    client = RDHClient(
+        username=os.environ["RDH_USERNAME"],
+        password=os.environ["RDH_PASSWORD"],
+    )
     datasets = client.list_datasets(states=["VA"], format="csv")
     df = client.download_dataset(datasets[0])
 """
@@ -484,6 +489,7 @@ class RDHClient:
         state: str,
         chamber: str = "congress",
         year: Optional[str] = None,
+        format: str = "shp",
     ) -> List[RDHDataset]:
         """Find enacted redistricting plan datasets for a state.
 
@@ -495,10 +501,14 @@ class RDHClient:
             ``"congress"``, ``"state_senate"``, or ``"state_house"``.
         year : str, optional
             Filter by year.
+        format : str, default "shp"
+            Dataset format filter. Only ``"shp"`` is loadable via
+            :meth:`load_shapefile`; other formats are returned as metadata
+            only.
         """
         datasets = self.list_datasets(
             states=[state],
-            format="shp",
+            format=format,
             year=year,
         )
 

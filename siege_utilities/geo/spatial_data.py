@@ -117,6 +117,52 @@ BOUNDARY_TYPE_CATALOG = {
     'arealm':       {'category': 'general', 'abbrev': 'AREALM',     'name': 'Area Landmarks',                   'geometry_type': 'MultiPolygon'},
 }
 
+# ---------------------------------------------------------------------------
+# TIGER Redistricting (PL 94-171) URL constants
+# ---------------------------------------------------------------------------
+# VTD (Voting Tabulation District) boundaries for decennial census years are
+# published in the PL 94-171 redistricting product, NOT in the standard annual
+# TIGER release.  The standard TIGER{year}/ server has no VTD20/ directory.
+#
+# 2020 URL pattern:
+#   TIGER2020PL/STATE/{FIPS}_{STATE_NAME_UPPER}/{FIPS}/tl_2020_{fips}_vtd20.zip
+# 2010 URL pattern (same structure, different vintage):
+#   TIGER2010PL/tabblock_vtd/{FIPS}_{STATE_NAME_UPPER}/{FIPS}/tl_2010_{fips}_vtd10.zip
+
+TIGER_PL_BASE_URL = "https://www2.census.gov/geo/tiger"
+
+# State names used in TIGER PL directory paths, uppercase with underscores.
+# Territories that publish VTD data in PL files are included; others (GU, AS,
+# VI, MP) do not appear in TIGER2020PL/STATE and are intentionally omitted.
+_VTD_PL_STATE_NAMES: Dict[str, str] = {
+    "01": "ALABAMA",               "02": "ALASKA",
+    "04": "ARIZONA",               "05": "ARKANSAS",
+    "06": "CALIFORNIA",            "08": "COLORADO",
+    "09": "CONNECTICUT",           "10": "DELAWARE",
+    "11": "DISTRICT_OF_COLUMBIA",  "12": "FLORIDA",
+    "13": "GEORGIA",               "15": "HAWAII",
+    "16": "IDAHO",                 "17": "ILLINOIS",
+    "18": "INDIANA",               "19": "IOWA",
+    "20": "KANSAS",                "21": "KENTUCKY",
+    "22": "LOUISIANA",             "23": "MAINE",
+    "24": "MARYLAND",              "25": "MASSACHUSETTS",
+    "26": "MICHIGAN",              "27": "MINNESOTA",
+    "28": "MISSISSIPPI",           "29": "MISSOURI",
+    "30": "MONTANA",               "31": "NEBRASKA",
+    "32": "NEVADA",                "33": "NEW_HAMPSHIRE",
+    "34": "NEW_JERSEY",            "35": "NEW_MEXICO",
+    "36": "NEW_YORK",              "37": "NORTH_CAROLINA",
+    "38": "NORTH_DAKOTA",          "39": "OHIO",
+    "40": "OKLAHOMA",              "41": "OREGON",
+    "42": "PENNSYLVANIA",          "44": "RHODE_ISLAND",
+    "45": "SOUTH_CAROLINA",        "46": "SOUTH_DAKOTA",
+    "47": "TENNESSEE",             "48": "TEXAS",
+    "49": "UTAH",                  "50": "VERMONT",
+    "51": "VIRGINIA",              "53": "WASHINGTON",
+    "54": "WEST_VIRGINIA",         "55": "WISCONSIN",
+    "56": "WYOMING",               "72": "PUERTO_RICO",
+}
+
 
 class CensusDirectoryDiscovery:
     """Discovers available Census TIGER/Line data dynamically."""
@@ -403,6 +449,74 @@ class CensusDirectoryDiscovery:
         
         return patterns
     
+    # ------------------------------------------------------------------
+    # TIGER PL (redistricting) VTD helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _is_vtd_pl_boundary(boundary_type: str, year: int) -> bool:
+        """Return True when *boundary_type* must come from a TIGER PL release.
+
+        VTD data is only published in the decennial PL 94-171 product for
+        census years (2020, 2010).  It does not appear in the standard annual
+        TIGER release for those years. Vintage-specific suffixes must match
+        the requested year: ``'vtd20'`` pairs only with 2020, ``'vtd10'`` only
+        with 2010. The unsuffixed ``'vtd'`` works for either.
+        """
+        if year == 2020:
+            return boundary_type in ('vtd', 'vtd20')
+        if year == 2010:
+            return boundary_type in ('vtd', 'vtd10')
+        return False
+
+    @staticmethod
+    def _construct_vtd_pl_url(year: int, state_fips: str) -> str:
+        """Return the TIGER PL download URL for a state's VTD shapefile.
+
+        Raises:
+            BoundaryInputError: if *state_fips* has no PL state name mapping
+                (i.e. the territory does not publish VTD data).
+            BoundaryDiscoveryError: if *year* is not a supported decennial year.
+        """
+        if year == 2020:
+            suffix = 'vtd20'
+            pl_dir = 'TIGER2020PL'
+        elif year == 2010:
+            # 2010 VTDs are published as county-level files under
+            # TIGER2010/VTD/2010/ (e.g. tl_2010_48001_vtd10.zip), not as a
+            # state-level ZIP under TIGER2010PL/STATE/. The state-level path
+            # does not exist on Census and would 404 at download time.
+            # Until county-level enumeration is implemented, fail fast.
+            raise BoundaryDiscoveryError(
+                "2010 VTD boundaries are published per-county under "
+                "TIGER2010/VTD/2010/ (e.g. tl_2010_<state_fips><county_fips>_vtd10.zip), "
+                "not as a single state-level ZIP. County-level enumeration is not "
+                "yet supported by this routing; fetch the required counties directly.",
+                context={"year": 2010, "boundary_type": "vtd", "state_fips": state_fips},
+            )
+        else:
+            raise BoundaryDiscoveryError(
+                f"VTD PL boundaries are only available for decennial year 2020. "
+                f"Requested year: {year}.",
+                context={"year": year, "boundary_type": "vtd"},
+            )
+
+        state_name = _VTD_PL_STATE_NAMES.get(state_fips)
+        if not state_name:
+            raise BoundaryInputError(
+                f"State FIPS {state_fips!r} does not publish VTD data in "
+                f"{pl_dir}.  Check _VTD_PL_STATE_NAMES for supported states.",
+                context={"year": year, "boundary_type": "vtd", "state_fips": state_fips},
+            )
+
+        url = (
+            f"{TIGER_PL_BASE_URL}/{pl_dir}/STATE/"
+            f"{state_fips}_{state_name}/{state_fips}/"
+            f"tl_{year}_{state_fips}_{suffix}.zip"
+        )
+        log.info("VTD PL URL: %s", url)
+        return url
+
     def construct_download_url(self, year: int, boundary_type: str, state_fips: Optional[str] = None,
                               congress_number: Optional[int] = None) -> str:
         """Construct download URL using FIPS validation and year-specific patterns.
@@ -424,6 +538,17 @@ class CensusDirectoryDiscovery:
 
                 state_info = get_fips_info(state_fips)
                 log.info(f"Constructing URL for {state_info['name']} ({state_info['abbreviation']})")
+
+            # VTD data lives in the decennial PL 94-171 redistricting product,
+            # NOT in the standard annual TIGER release.  Route before doing
+            # directory discovery so we never try to find VTD20/ on tiger.
+            if self._is_vtd_pl_boundary(boundary_type, year):
+                if not state_fips:
+                    raise BoundaryInputError(
+                        "VTD boundaries require a state_fips code.",
+                        context=ctx,
+                    )
+                return self._construct_vtd_pl_url(year, state_fips)
 
             # Get year-specific patterns
             patterns = self.get_year_specific_url_patterns(year)

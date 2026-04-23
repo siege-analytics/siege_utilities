@@ -28,11 +28,17 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 __all__ = [
+    'BoundaryFetchError',
     'BoundaryProvider',
     'CensusTIGERProvider',
     'GADMProvider',
+    'RDHProvider',
     'resolve_boundary_provider',
 ]
+
+
+class BoundaryFetchError(RuntimeError):
+    """Raised when a boundary provider cannot satisfy a request after retries."""
 
 
 class BoundaryProvider(ABC):
@@ -241,3 +247,153 @@ def resolve_boundary_provider(country: str = 'US', **kwargs: Any) -> BoundaryPro
     if country.upper() in _US_CODES:
         return CensusTIGERProvider()
     return GADMProvider(**kwargs)
+
+
+# ---------------------------------------------------------------------------
+# RDH (Redistricting Data Hub) provider
+# ---------------------------------------------------------------------------
+
+
+class RDHProvider(BoundaryProvider):
+    """
+    Redistricting Data Hub boundary provider.
+
+    Wraps :class:`siege_utilities.data.redistricting_data_hub.RDHClient` to
+    expose precinct / VTD boundaries — and enacted legislative plans — through
+    the standard :class:`BoundaryProvider` interface.
+
+    RDH requires a "designated API user" account.  Contact
+    info@redistrictingdatahub.org to request access.  Pass credentials either
+    via constructor arguments or environment variables
+    ``RDH_USERNAME`` / ``RDH_PASSWORD``.
+
+    Supported levels
+    ----------------
+    * ``'precinct'`` — precinct/VTD boundaries with election results
+    * ``'congress'`` — enacted congressional district plans
+    * ``'state_senate'`` — enacted upper-chamber plans
+    * ``'state_house'`` — enacted lower-chamber plans
+
+    Usage::
+
+        import os
+        from siege_utilities.geo.boundary_providers import RDHProvider
+
+        # Prefer env vars (RDH_USERNAME / RDH_PASSWORD); never hardcode
+        provider = RDHProvider(
+            username=os.environ["RDH_USERNAME"],
+            password=os.environ["RDH_PASSWORD"],
+        )
+        gdf = provider.get_boundary('precinct', identifier='TX')
+    """
+
+    _LEVELS = ('precinct', 'congress', 'state_senate', 'state_house')
+
+    def __init__(
+        self,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        cache_dir: Optional[str] = None,
+    ) -> None:
+        import os
+        # Explicit None check so an intentional "" disables env fallback
+        # and doesn't silently pick up ambient RDH_USERNAME / RDH_PASSWORD.
+        self._username = username if username is not None else os.environ.get('RDH_USERNAME', '')
+        self._password = password if password is not None else os.environ.get('RDH_PASSWORD', '')
+        self._cache_dir = cache_dir
+        self._client = None  # lazy-initialised
+
+    def _get_client(self):
+        """Return a cached :class:`RDHClient` instance."""
+        if self._client is None:
+            from siege_utilities.data.redistricting_data_hub import RDHClient
+            self._client = RDHClient(
+                username=self._username,
+                password=self._password,
+                **({"cache_dir": self._cache_dir} if self._cache_dir else {}),
+            )
+        return self._client
+
+    @property
+    def provider_name(self) -> str:
+        return 'Redistricting Data Hub'
+
+    def get_boundary(self, level: str, identifier: Optional[str] = None, **kwargs: Any):
+        """
+        Fetch RDH boundary data for a state.
+
+        Args:
+            level: One of ``'precinct'``, ``'congress'``, ``'state_senate'``,
+                   ``'state_house'``.
+            identifier: Two-letter state abbreviation (e.g. ``'TX'``).
+                        Can also be passed as ``state`` kwarg.
+            **kwargs:
+                ``state`` — alias for *identifier*.
+                ``year`` — filter datasets by year string (e.g. ``'2022'``).
+                ``format`` — ``'shp'`` (default) or ``'csv'``.
+
+        Returns:
+            GeoDataFrame with boundary geometries (shapefiles) or None.
+
+        Raises:
+            ValueError: If *level* is not recognised or *state* is missing.
+            ImportError: If geopandas is not installed.
+        """
+        if level not in self._LEVELS:
+            raise ValueError(
+                f"Unknown RDH level {level!r}. Choose from {self._LEVELS}."
+            )
+
+        state = kwargs.pop('state', None) or identifier
+        if not state:
+            raise ValueError(
+                "RDHProvider.get_boundary() requires a state abbreviation "
+                "(identifier or state= kwarg)."
+            )
+
+        year: Optional[str] = kwargs.pop('year', None)
+        fmt: str = kwargs.pop('format', 'shp')
+        client = self._get_client()
+
+        if level == 'precinct':
+            datasets = client.get_precinct_data(state, year=year, format=fmt)
+        else:
+            chamber_map = {
+                'congress': 'congress',
+                'state_senate': 'state_senate',
+                'state_house': 'state_house',
+            }
+            datasets = client.get_enacted_plans(
+                state, chamber=chamber_map[level], year=year, format=fmt,
+            )
+
+        if not datasets:
+            logger.warning(
+                'RDHProvider: no %s datasets found for state=%s year=%s format=%s',
+                level, state, year, fmt,
+            )
+            return None
+
+        # Load the first matching dataset as a GeoDataFrame. Only shapefile
+        # formats are loadable; other formats would need a different reader.
+        try:
+            return client.load_shapefile(datasets[0], **kwargs)
+        except (OSError, ValueError) as exc:
+            raise BoundaryFetchError(
+                f"RDHProvider: failed to load {level} shapefile for state={state}, "
+                f"year={year}, format={fmt}"
+            ) from exc
+
+    def list_levels(self) -> list[str]:
+        """Return the geographic levels this provider supports."""
+        return list(self._LEVELS)
+
+    def is_available(self) -> bool:
+        """Return True if geopandas is installed and both credentials are set."""
+        if not (self._username and self._password):
+            return False
+        try:
+            import geopandas  # noqa: F401
+            return True
+        except ImportError:
+            return False

@@ -10,8 +10,21 @@ from siege_utilities.geo.boundary_providers import (
     BoundaryProvider,
     CensusTIGERProvider,
     GADMProvider,
+    RDHProvider,
     resolve_boundary_provider,
 )
+
+# Test-only credential placeholders. Marked noqa to tell scanners these
+# are not real secrets; the actual values never leave the test process.
+TEST_USERNAME = "test-user"  # noqa: S105 — test fixture placeholder
+TEST_PASSWORD = "test-password-placeholder"  # noqa: S105 — test fixture placeholder
+
+
+@pytest.fixture(autouse=True)
+def _isolate_rdh_env(monkeypatch):
+    """Strip RDH_USERNAME / RDH_PASSWORD so ambient env doesn't leak in."""
+    monkeypatch.delenv("RDH_USERNAME", raising=False)
+    monkeypatch.delenv("RDH_PASSWORD", raising=False)
 
 
 # ---------------------------------------------------------------------------
@@ -216,3 +229,100 @@ class TestResolveBoundaryProvider:
         provider = resolve_boundary_provider('FR', version='3.6')
         assert isinstance(provider, GADMProvider)
         assert provider._version == '3.6'
+
+
+# ---------------------------------------------------------------------------
+# RDHProvider
+# ---------------------------------------------------------------------------
+
+
+class TestRDHProvider:
+    def test_provider_name(self):
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        assert provider.provider_name == 'Redistricting Data Hub'
+
+    def test_list_levels(self):
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        levels = provider.list_levels()
+        assert 'precinct' in levels
+        assert 'congress' in levels
+        assert 'state_senate' in levels
+        assert 'state_house' in levels
+
+    def test_is_available_with_credentials_and_geopandas(self):
+        provider = RDHProvider(username="u@example.com", password=TEST_PASSWORD)
+        # geopandas is installed in this test environment
+        assert provider.is_available() is True
+
+    def test_is_available_without_credentials(self):
+        provider = RDHProvider(username='', password=TEST_PASSWORD)
+        assert provider.is_available() is False
+
+    def test_is_available_without_password(self):
+        """is_available() requires both username AND password."""
+        provider = RDHProvider(username=TEST_USERNAME, password='')
+        assert provider.is_available() is False
+
+    def test_invalid_level_raises(self):
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        with pytest.raises(ValueError, match='Unknown RDH level'):
+            provider.get_boundary('county', identifier='TX')
+
+    def test_missing_state_raises(self):
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        with pytest.raises(ValueError, match='state abbreviation'):
+            provider.get_boundary('precinct')
+
+    @patch('siege_utilities.geo.boundary_providers.RDHProvider._get_client')
+    def test_get_boundary_precinct_delegates(self, mock_get_client):
+        """get_boundary('precinct') calls client.get_precinct_data then load_shapefile."""
+        sentinel_gdf = MagicMock(name='gdf')
+        mock_client = MagicMock()
+        mock_client.get_precinct_data.return_value = [MagicMock()]
+        mock_client.load_shapefile.return_value = sentinel_gdf
+        mock_get_client.return_value = mock_client
+
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        result = provider.get_boundary('precinct', identifier='TX')
+
+        mock_client.get_precinct_data.assert_called_once_with('TX', year=None, format='shp')
+        assert result is sentinel_gdf
+
+    @patch('siege_utilities.geo.boundary_providers.RDHProvider._get_client')
+    def test_get_boundary_congress_delegates(self, mock_get_client):
+        """get_boundary('congress') calls client.get_enacted_plans."""
+        sentinel_gdf = MagicMock(name='gdf')
+        mock_client = MagicMock()
+        mock_client.get_enacted_plans.return_value = [MagicMock()]
+        mock_client.load_shapefile.return_value = sentinel_gdf
+        mock_get_client.return_value = mock_client
+
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        result = provider.get_boundary('congress', state='TX', year='2022')
+
+        mock_client.get_enacted_plans.assert_called_once_with('TX', chamber='congress', year='2022', format='shp')
+        assert result is sentinel_gdf
+
+    @patch('siege_utilities.geo.boundary_providers.RDHProvider._get_client')
+    def test_get_boundary_no_datasets_returns_none(self, mock_get_client):
+        """When RDH returns no matching datasets, get_boundary returns None."""
+        mock_client = MagicMock()
+        mock_client.get_precinct_data.return_value = []
+        mock_get_client.return_value = mock_client
+
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        result = provider.get_boundary('precinct', identifier='TX')
+        assert result is None
+
+    def test_credentials_from_env(self, monkeypatch):
+        monkeypatch.setenv('RDH_USERNAME', 'env_user')
+        monkeypatch.setenv('RDH_PASSWORD', 'env_pass')  # noqa: S105 — test env
+        provider = RDHProvider()
+        assert provider._username == 'env_user'
+        assert provider._password == 'env_pass'
+
+    def test_explicit_empty_username_disables_env_fallback(self, monkeypatch):
+        """Passing username='' must NOT fall back to RDH_USERNAME env var."""
+        monkeypatch.setenv('RDH_USERNAME', 'should_not_use')
+        provider = RDHProvider(username='', password=TEST_PASSWORD)
+        assert provider._username == ''
