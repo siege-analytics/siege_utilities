@@ -11,8 +11,8 @@ This module provides comprehensive Google Analytics integration capabilities:
 
 import json
 import pathlib
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List, Union
+from datetime import datetime
+from typing import Dict, Any, Optional, List
 import pandas as pd
 
 try:
@@ -40,7 +40,7 @@ except ImportError:
 
 # Import logging functions from main package
 try:
-    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+    from siege_utilities.core.logging import log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if main package not available yet
     def log_info(message): pass
@@ -623,12 +623,36 @@ def create_ga_connector_from_1password(item_title: str = "Google Analytics Servi
     """
     Create a GoogleAnalyticsConnector using service account from 1Password.
 
+    .. deprecated::
+        The auth mechanism (1Password) should not leak into an analytics API
+        surface. Use the explicit two-step path instead:
+
+        .. code-block:: python
+
+            from siege_utilities.config import get_google_service_account_from_1password
+            from siege_utilities.analytics import create_ga_connector_with_service_account
+
+            data = get_google_service_account_from_1password(item_title)
+            connector = create_ga_connector_with_service_account(data)
+
+        This function will be removed in a future minor release. See
+        `docs/INTENT.md` (D1) and ELE-2442 for the rationale.
+
     Args:
         item_title: Title of the 1Password item containing service account
 
     Returns:
         GoogleAnalyticsConnector instance or None if failed
     """
+    import warnings
+    warnings.warn(
+        "create_ga_connector_from_1password is deprecated; use "
+        "get_google_service_account_from_1password() + "
+        "create_ga_connector_with_service_account() explicitly. "
+        "See docs/INTENT.md D1.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     try:
         from ..config import get_google_service_account_from_1password
         service_account_data = get_google_service_account_from_1password(item_title)

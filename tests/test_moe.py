@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from siege_utilities.data.moe_propagation import (
+from siege_utilities.data.statistics.moe_propagation import (
     Estimate,
     flag_unreliable,
     moe_difference,
