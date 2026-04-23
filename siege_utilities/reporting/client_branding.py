@@ -12,6 +12,19 @@ import shutil
 
 log = logging.getLogger(__name__)
 
+
+class ClientBrandingError(RuntimeError):
+    """Raised when a client-branding operation fails unexpectedly.
+
+    Use the `__cause__` attribute (set via `raise ... from e`) to inspect
+    the underlying error (YAMLError, OSError, ValidationError, etc.).
+    """
+
+
+class ClientBrandingNotFoundError(LookupError):
+    """Raised when a named client's branding configuration does not exist."""
+
+
 class ClientBrandingManager:
     """
     Manages client branding configurations for reports.
@@ -215,10 +228,11 @@ class ClientBrandingManager:
             
             log.warning(f"No branding configuration found for client: {client_name}")
             return None
-            
+
         except Exception as e:
-            log.error(f"Error loading branding configuration for {client_name}: {e}")
-            return None
+            raise ClientBrandingError(
+                f"Error loading branding configuration for {client_name}: {e}"
+            ) from e
 
     def update_client_branding(self, client_name: str, updates: Dict[str, Any]) -> bool:
         """
@@ -231,32 +245,34 @@ class ClientBrandingManager:
         Returns:
             True if successful, False otherwise
         """
+        current_config = self.get_client_branding(client_name)
+        if not current_config:
+            raise ClientBrandingNotFoundError(
+                f"No existing branding configuration found for {client_name}"
+            )
+
         try:
-            current_config = self.get_client_branding(client_name)
-            if not current_config:
-                log.warning(f"No existing branding configuration found for {client_name}")
-                return False
-            
             # Apply updates
             for key, value in updates.items():
                 if isinstance(value, dict) and key in current_config:
                     current_config[key].update(value)
                 else:
                     current_config[key] = value
-            
+
             # Save updated configuration
             client_dir = self.config_dir / client_name.lower().replace(' ', '_')
             config_file = client_dir / f"{client_name.lower().replace(' ', '_')}_branding.yaml"
-            
+
             with open(config_file, 'w') as f:
                 yaml.dump(current_config, f, default_flow_style=False, indent=2)
-            
+
             log.info(f"Updated branding configuration for {client_name}")
             return True
-            
+
         except Exception as e:
-            log.error(f"Error updating branding configuration for {client_name}: {e}")
-            return False
+            raise ClientBrandingError(
+                f"Error updating branding configuration for {client_name}: {e}"
+            ) from e
 
     def list_clients(self) -> List[str]:
         """
@@ -303,8 +319,9 @@ class ClientBrandingManager:
                 return False
                 
         except Exception as e:
-            log.error(f"Error deleting branding configuration for {client_name}: {e}")
-            return False
+            raise ClientBrandingError(
+                f"Error deleting branding configuration for {client_name}: {e}"
+            ) from e
 
     def create_branding_from_template(self, client_name: str, template_name: str, 
                                     customizations: Optional[Dict[str, Any]] = None) -> Path:
@@ -392,11 +409,13 @@ class ClientBrandingManager:
         Returns:
             True if successful, False otherwise
         """
+        branding_config = self.get_client_branding(client_name)
+        if not branding_config:
+            raise ClientBrandingNotFoundError(
+                f"No branding configuration found for {client_name}"
+            )
+
         try:
-            branding_config = self.get_client_branding(client_name)
-            if not branding_config:
-                return False
-            
             # Export as YAML
             if export_path.suffix.lower() in ['.yaml', '.yml']:
                 with open(export_path, 'w') as f:
@@ -410,13 +429,14 @@ class ClientBrandingManager:
                 export_path = export_path.with_suffix('.yaml')
                 with open(export_path, 'w') as f:
                     yaml.dump(branding_config, f, default_flow_style=False, indent=2)
-            
+
             log.info(f"Exported branding configuration for {client_name} to {export_path}")
             return True
-            
+
         except Exception as e:
-            log.error(f"Error exporting branding configuration for {client_name}: {e}")
-            return False
+            raise ClientBrandingError(
+                f"Error exporting branding configuration for {client_name}: {e}"
+            ) from e
 
     def import_branding_config(self, import_path: Path, client_name: Optional[str] = None) -> bool:
         """
@@ -456,10 +476,13 @@ class ClientBrandingManager:
             # Create client branding
             self.create_client_branding(branding_config['name'], branding_config)
             return True
-            
+
+        except ClientBrandingError:
+            raise
         except Exception as e:
-            log.error(f"Error importing branding configuration: {e}")
-            return False
+            raise ClientBrandingError(
+                f"Error importing branding configuration: {e}"
+            ) from e
 
     def get_branding_summary(self, client_name: str) -> Dict[str, Any]:
         """
@@ -490,5 +513,6 @@ class ClientBrandingManager:
             return summary
             
         except Exception as e:
-            log.error(f"Error getting branding summary for {client_name}: {e}")
-            return {}
+            raise ClientBrandingError(
+                f"Error getting branding summary for {client_name}: {e}"
+            ) from e
