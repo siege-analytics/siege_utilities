@@ -95,7 +95,7 @@ class TestChainToArgumentWithGeo:
 
         sentinel_fig = object()
 
-        def fake_build_map(chain):
+        def fake_build_map(chain, map_generator=None):
             assert chain.geo_column == chain.row_var, (
                 "render path must only invoke _build_map when "
                 "row_var and geo_column match (data integrity contract)"

@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 import pandas as pd
 
 if TYPE_CHECKING:
-    from ..reporting.pages.page_models import Argument, TableType
+    from ..reporting.pages.page_models import TableType
 
 
 # ---------------------------------------------------------------------------
@@ -85,11 +85,6 @@ class Chain:
         df = pd.DataFrame.from_dict(records, orient="index")
         df.index.name = self.row_var
         return df
-
-    def to_argument(self, headline: str, narrative: str) -> Argument:
-        """Wrap this Chain in an Argument (calls chart + map builders)."""
-        from .render import chain_to_argument
-        return chain_to_argument(self, headline=headline, narrative=narrative)
 
 
 # ---------------------------------------------------------------------------
