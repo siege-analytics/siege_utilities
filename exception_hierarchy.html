@@ -120,7 +120,10 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Exception Hierarchy</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#design-principles">Design principles</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#reporting">Reporting</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#top-level-config-export-import">Top-level config export / import</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#top-level-config-export-import">Top-level config export / import</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.reporting.ReportingConfigError"><code class="docutils literal notranslate"><span class="pre">ReportingConfigError</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="#chart-type-registry">Chart type registry</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#client-branding">Client branding</a></li>
 </ul>
@@ -566,6 +569,23 @@ see the underlying error (<code class="docutils literal notranslate"><span class
 <h2>Reporting<a class="headerlink" href="#reporting" title="Link to this heading"></a></h2>
 <section id="top-level-config-export-import">
 <h3>Top-level config export / import<a class="headerlink" href="#top-level-config-export-import" title="Link to this heading"></a></h3>
+<dl class="py exception">
+<dt class="sig sig-object py" id="siege_utilities.reporting.ReportingConfigError">
+<span class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.reporting.</span></span><span class="sig-name descname"><span class="pre">ReportingConfigError</span></span><a class="reference internal" href="_modules/siege_utilities/reporting.html#ReportingConfigError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.reporting.ReportingConfigError" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">RuntimeError</span></code></p>
+<p>Raised when a reporting configuration export / import cannot complete.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.reporting.ReportingConfigError.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.reporting.ReportingConfigError.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.reporting.ReportingConfigError.__new__">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.reporting.ReportingConfigError.__new__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
 </section>
 <section id="chart-type-registry">
 <h3>Chart type registry<a class="headerlink" href="#chart-type-registry" title="Link to this heading"></a></h3>

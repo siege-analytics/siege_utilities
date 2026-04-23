@@ -1,0 +1,803 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>siege_utilities.reporting &mdash; Siege Utilities 3.13.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=05bc70a9"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Siege Utilities
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../getting_started.html#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../getting_started.html#core-capabilities">Core Capabilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../getting_started.html#core-utilities-16-functions">🔧 <strong>Core Utilities (16 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../getting_started.html#file-operations-22-functions">📁 <strong>File Operations (22 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../getting_started.html#distributed-computing-503-functions">🚀 <strong>Distributed Computing (503+ functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../getting_started.html#geospatial-2-functions">🌍 <strong>Geospatial (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../getting_started.html#configuration-management-15-functions">⚙️ <strong>Configuration Management (15 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../getting_started.html#analytics-integration-6-functions">📊 <strong>Analytics Integration (6 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../getting_started.html#code-hygiene-2-functions">🧹 <strong>Code Hygiene (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../getting_started.html#testing-development-2-functions">🧪 <strong>Testing &amp; Development (2 functions)</strong></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../getting_started.html#real-world-workflow-examples">Real-World Workflow Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../getting_started.html#installation-and-dependencies">Installation and Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../getting_started.html#performance-and-scalability">Performance and Scalability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../getting_started.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation_troubleshooting.html">Installation Troubleshooting</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../installation_troubleshooting.html#system-dependencies-for-geospatial">System Dependencies for Geospatial</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../installation_troubleshooting.html#ubuntu-debian">Ubuntu / Debian</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../installation_troubleshooting.html#macos-homebrew">macOS (Homebrew)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../installation_troubleshooting.html#windows">Windows</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../installation_troubleshooting.html#choosing-the-right-extras">Choosing the Right Extras</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../installation_troubleshooting.html#common-errors">Common Errors</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../architecture_diagram.html">Library Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../architecture_diagram.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../architecture_diagram.html#core-architecture">Core Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../architecture_diagram.html#function-distribution">Function Distribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../architecture_diagram.html#key-features">Key Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../architecture_diagram.html#integration-points">Integration Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../architecture_diagram.html#usage-patterns">Usage Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../autodiscovery.html">Enhanced Auto-Discovery System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../autodiscovery.html#how-it-works">How It Works</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../autodiscovery.html#the-five-phase-discovery-process">The Five-Phase Discovery Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../autodiscovery.html#benefits">Benefits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../autodiscovery.html#monitoring-your-package">Monitoring Your Package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../autodiscovery.html#adding-new-functions">Adding New Functions</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Core Utilities:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../core_utilities.html">Core Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../core_utilities.html#package-discovery">Package Discovery</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../core_utilities.html#functions">Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../core_utilities.html#siege_utilities.core.__init__"><code class="docutils literal notranslate"><span class="pre">__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../core_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../core_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../string_utilities.html">String Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../string_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../string_utilities.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../string_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../string_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../logging_utilities.html">Logging Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../logging_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../logging_utilities.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../logging_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../logging_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../exception_hierarchy.html">Exception Hierarchy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../exception_hierarchy.html#design-principles">Design principles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../exception_hierarchy.html#reporting">Reporting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../exception_hierarchy.html#top-level-config-export-import">Top-level config export / import</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../exception_hierarchy.html#siege_utilities.reporting.ReportingConfigError"><code class="docutils literal notranslate"><span class="pre">ReportingConfigError</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../exception_hierarchy.html#chart-type-registry">Chart type registry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../exception_hierarchy.html#client-branding">Client branding</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../exception_hierarchy.html#geographic">Geographic</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../exception_hierarchy.html#census-bureau-geocoder">Census Bureau geocoder</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../exception_hierarchy.html#spatial-data-sources">Spatial data sources</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../exception_hierarchy.html#boundary-retrieval">Boundary retrieval</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryRetrievalError"><code class="docutils literal notranslate"><span class="pre">BoundaryRetrievalError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryInputError"><code class="docutils literal notranslate"><span class="pre">BoundaryInputError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryDiscoveryError"><code class="docutils literal notranslate"><span class="pre">BoundaryDiscoveryError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryUrlValidationError"><code class="docutils literal notranslate"><span class="pre">BoundaryUrlValidationError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryDownloadError"><code class="docutils literal notranslate"><span class="pre">BoundaryDownloadError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryParseError"><code class="docutils literal notranslate"><span class="pre">BoundaryParseError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryConfigurationError"><code class="docutils literal notranslate"><span class="pre">BoundaryConfigurationError</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../exception_hierarchy.html#migration-guidance">Migration guidance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../exception_hierarchy.html#further-reading">Further reading</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Distributed Computing:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../distributed_computing.html">Distributed Computing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../distributed_computing.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../distributed_computing.html#hdfs-configuration">HDFS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../distributed_computing.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../distributed_computing.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../distributed_computing.html#hdfs-operations">HDFS Operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../distributed_computing.html#id1">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../distributed_computing.html#id2">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../distributed_computing.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../hdfs_operations.html">HDFS Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../hdfs_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../hdfs_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../hdfs_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../hdfs_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../spark_utilities.html">Spark Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../spark_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../spark_utilities.html#functions-by-category">Functions by Category</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../spark_utilities.html#mathematical-functions">Mathematical Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../spark_utilities.html#array-functions">Array Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../spark_utilities.html#aggregation-functions">Aggregation Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../spark_utilities.html#cryptographic-functions">Cryptographic Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../spark_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../spark_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">File Operations:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../file_operations.html">File Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../file_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../file_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../file_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../file_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../file_hashing.html">File Hashing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../file_hashing.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../file_hashing.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../file_hashing.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../file_hashing.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../remote_operations.html">Remote Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../remote_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../remote_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../remote_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../remote_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../shell_operations.html">Shell Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../shell_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../shell_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../shell_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../shell_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Geographic &amp; Analytics:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../geo.html">Geographic Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../geocoding.html">Geocoding</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../geocoding.html#module-overview">Module Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../geocoding.html#functions">Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../geocoding.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../geocoding.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html">Enhanced Census Utilities and Spatial Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html#census-directory-discovery">Census Directory Discovery</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html#census-data-source">Census Data Source</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html#state-information-methods">State Information Methods</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html#spatial-data-source">Spatial Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html#government-data-source">Government Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html#openstreetmap-data-source">OpenStreetMap Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html#convenience-functions">Convenience Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html#global-instances">Global Instances</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html#census_source"><code class="docutils literal notranslate"><span class="pre">census_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html#government_source"><code class="docutils literal notranslate"><span class="pre">government_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html#osm_source"><code class="docutils literal notranslate"><span class="pre">osm_source</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html#basic-census-data-access">Basic Census Data Access</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html#state-information-lookup">State Information Lookup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html#dynamic-discovery">Dynamic Discovery</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html#error-handling">Error Handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html#performance-optimization">Performance Optimization</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/spatial_data.html#integration-with-other-tools">Integration with Other Tools</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/siege_utilities/geo/census_dataset_mapper.html">Census Dataset Mapper</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/census_dataset_mapper.html#classes">Classes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_dataset_mapper.html#censusdatasetmapper">CensusDatasetMapper</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_dataset_mapper.html#censusdataset">CensusDataset</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_dataset_mapper.html#datasetrelationship">DatasetRelationship</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/census_dataset_mapper.html#enums">Enums</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_dataset_mapper.html#surveytype">SurveyType</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_dataset_mapper.html#geographylevel">GeographyLevel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_dataset_mapper.html#datareliability">DataReliability</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/census_dataset_mapper.html#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_dataset_mapper.html#get-census-dataset-mapper">get_census_dataset_mapper</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_dataset_mapper.html#get-best-dataset-for-analysis">get_best_dataset_for_analysis</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_dataset_mapper.html#compare-census-datasets">compare_census_datasets</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/census_dataset_mapper.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_dataset_mapper.html#basic-dataset-information">Basic Dataset Information</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_dataset_mapper.html#dataset-comparison">Dataset Comparison</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_dataset_mapper.html#data-selection-guide">Data Selection Guide</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_dataset_mapper.html#export-dataset-catalog">Export Dataset Catalog</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html">Census Data Selector</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#classes">Classes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#censusdataselector">CensusDataSelector</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#get-census-data-selector">get_census_data_selector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#select-census-datasets">select_census_datasets</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#get-analysis-approach">get_analysis_approach</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#basic-dataset-selection">Basic Dataset Selection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#analysis-approach-recommendations">Analysis Approach Recommendations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#compatibility-matrix">Compatibility Matrix</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#quick-selection">Quick Selection</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#advanced-usage">Advanced Usage</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#custom-reliability-requirements">Custom Reliability Requirements</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#time-sensitive-analysis">Time-Sensitive Analysis</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#variable-specific-selection">Variable-Specific Selection</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#analysis-types-supported">Analysis Types Supported</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#geography-levels-supported">Geography Levels Supported</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#reliability-levels">Reliability Levels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/siege_utilities/geo/census_data_selector.html#output-format">Output Format</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../geo.html#tiered-installation">Tiered Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../geo.html#isochrones-and-crs">Isochrones and CRS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../geo.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../geo.html#key-features">Key Features</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../geo.html#census-data-intelligence">Census Data Intelligence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../geo.html#enhanced-census-utilities">Enhanced Census Utilities</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../geo.html#spatial-data-processing">Spatial Data Processing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../geo.html#geocoding-services">Geocoding Services</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../geo.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../geo.html#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../geo.html#analysis-types-supported">Analysis Types Supported</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../geo.html#geography-levels-supported">Geography Levels Supported</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../geo.html#census-survey-types">Census Survey Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../geo.html#data-quality-and-reliability">Data Quality and Reliability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../geo.html#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../geo.html#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../google_workspace.html">Google Workspace Write APIs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../google_workspace.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../google_workspace.html#authentication">Authentication</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../google_workspace.html#password-integration-recommended">1Password Integration (Recommended)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../google_workspace.html#direct-authentication">Direct Authentication</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../google_workspace.html#google-sheets">Google Sheets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../google_workspace.html#google-slides">Google Slides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../google_workspace.html#google-docs">Google Docs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../google_workspace.html#drive-utilities">Drive Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../google_workspace.html#multi-account-management">Multi-Account Management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../google_workspace.html#notebook">Notebook</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../google_workspace.html#module-siege_utilities.analytics.google_workspace">API Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../analytics.html">Analytics</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../analytics.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../analytics.html#facebook-business-analytics">Facebook Business Analytics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../analytics.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../analytics.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../analytics.html#google-analytics">Google Analytics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../analytics.html#id1">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../analytics.html#id2">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../analytics.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../mapping_and_reporting.html">Mapping and Reporting System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../mapping_and_reporting.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../mapping_and_reporting.html#key-features">Key Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../mapping_and_reporting.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../mapping_and_reporting.html#quick-start">Quick Start</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#basic-bivariate-choropleth-map">Basic Bivariate Choropleth Map</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#marker-map-with-geographic-data">Marker Map with Geographic Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#d-elevation-visualization">3D Elevation Visualization</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../mapping_and_reporting.html#comprehensive-report-generation">Comprehensive Report Generation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#creating-professional-pdf-reports">Creating Professional PDF Reports</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#powerpoint-presentation-creation">PowerPoint Presentation Creation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../mapping_and_reporting.html#map-types-reference">Map Types Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#bivariate-choropleth-maps">Bivariate Choropleth Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#marker-maps">Marker Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#d-maps">3D Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#heatmap-maps">Heatmap Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#cluster-maps">Cluster Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#flow-maps">Flow Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#advanced-choropleth-maps">Advanced Choropleth Maps</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../mapping_and_reporting.html#report-structure">Report Structure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#pdf-report-components">PDF Report Components</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#powerpoint-structure">PowerPoint Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#section-types">Section Types</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../mapping_and_reporting.html#integration-examples">Integration Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#google-analytics-integration">Google Analytics Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#database-integration">Database Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#custom-api-integration">Custom API Integration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../mapping_and_reporting.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#data-preparation">Data Preparation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#map-design">Map Design</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#report-organization">Report Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#performance-optimization">Performance Optimization</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../mapping_and_reporting.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#common-issues">Common Issues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#performance-issues">Performance Issues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mapping_and_reporting.html#error-handling">Error Handling</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../mapping_and_reporting.html#examples-and-recipes">Examples and Recipes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../mapping_and_reporting.html#additional-resources">Additional Resources</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Notebooks &amp; Examples:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../notebooks.html">Jupyter Notebooks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../notebooks.html#configuration-profiles">Configuration &amp; Profiles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../notebooks.html#geospatial-census">Geospatial &amp; Census</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../notebooks.html#political-redistricting">Political &amp; Redistricting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../notebooks.html#data-engines">Data Engines</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../notebooks.html#reporting">Reporting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../notebooks.html#analytics-integrations">Analytics &amp; Integrations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../notebooks.html#data-development">Data &amp; Development</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../notebooks.html#dependency-groups">Dependency Groups</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development &amp; Testing:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contributor_governance.html">Contributor Governance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../coding_style.html">Coding Style</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../pr_review_rubric.html">PR Review Rubric</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../lint_ratchet_plan.html">Lint Ratchet Plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../change_classification_and_release_policy.html">Change Classification and Release Policy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../repository_hygiene.html">Repository Hygiene</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../repository_hygiene.html#policy-goals">Policy goals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../repository_hygiene.html#tracked-vs-ignored-artifacts">Tracked vs ignored artifacts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../repository_hygiene.html#special-exception-notebooks-output">Special exception: notebooks output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../repository_hygiene.html#scripts-policy">Scripts policy</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../coderabbit_workflow.html">CodeRabbit Workflow</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../coderabbit_workflow.html#required-status">Required status</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../coderabbit_workflow.html#review-focus">Review focus</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../coderabbit_workflow.html#merge-readiness">Merge readiness</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../license_model.html">License Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../testing_guide.html">Testing Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../testing_guide.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../testing_guide.html#test-structure">Test Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../testing_guide.html#running-tests">Running Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#basic-test-execution">Basic Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#coverage-and-reporting">Coverage and Reporting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#parallel-execution">Parallel Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../testing_guide.html#test-markers">Test Markers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../testing_guide.html#writing-new-tests">Writing New Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#test-file-structure">Test File Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#test-naming-conventions">Test Naming Conventions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#example-test-patterns">Example Test Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../testing_guide.html#test-fixtures">Test Fixtures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../testing_guide.html#test-configuration">Test Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#pytest-configuration">Pytest Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#coverage-configuration">Coverage Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../testing_guide.html#continuous-integration">Continuous Integration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#ci-pipeline">CI Pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../testing_guide.html#debugging-tests">Debugging Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#verbose-output">Verbose Output</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#debug-mode">Debug Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#single-test-execution">Single Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#test-isolation">Test Isolation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../testing_guide.html#performance-testing">Performance Testing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#benchmark-tests">Benchmark Tests</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#load-testing">Load Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../testing_guide.html#test-data-management">Test Data Management</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#test-data-generation">Test Data Generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#data-cleanup">Data Cleanup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../testing_guide.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#test-organization">Test Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#test-independence">Test Independence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#test-coverage">Test Coverage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#performance-considerations">Performance Considerations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../testing_guide.html#common-patterns">Common Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#configuration-testing">Configuration Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#file-operation-testing">File Operation Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#api-testing">API Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../testing_guide.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../testing_guide.html#common-issues">Common Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../testing_guide.html#getting-help">Getting Help</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Siege Utilities</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">siege_utilities.reporting</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for siege_utilities.reporting</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Reporting utilities — lazy-loaded.</span>
+
+<span class="sd">Comprehensive PDF and PowerPoint report generation with client branding.</span>
+<span class="sd">All submodules load on first attribute access via PEP 562 __getattr__.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">importlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">_LAZY_IMPORTS</span> <span class="o">=</span> <span class="p">{}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_register</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">module</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">names</span><span class="p">:</span>
+        <span class="n">_LAZY_IMPORTS</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">module</span>
+
+
+<span class="n">_register</span><span class="p">([</span><span class="s1">&#39;BaseReportTemplate&#39;</span><span class="p">],</span> <span class="s1">&#39;.templates.base_template&#39;</span><span class="p">)</span>
+<span class="n">_register</span><span class="p">([</span><span class="s1">&#39;ReportGenerator&#39;</span><span class="p">],</span> <span class="s1">&#39;.report_generator&#39;</span><span class="p">)</span>
+<span class="n">_register</span><span class="p">([</span>
+    <span class="s1">&#39;ChartGenerator&#39;</span><span class="p">,</span> <span class="s1">&#39;create_bar_chart&#39;</span><span class="p">,</span> <span class="s1">&#39;create_line_chart&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;create_scatter_plot&#39;</span><span class="p">,</span> <span class="s1">&#39;create_pie_chart&#39;</span><span class="p">,</span> <span class="s1">&#39;create_heatmap&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;create_choropleth_map&#39;</span><span class="p">,</span> <span class="s1">&#39;create_bivariate_choropleth&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;create_marker_map&#39;</span><span class="p">,</span> <span class="s1">&#39;create_flow_map&#39;</span><span class="p">,</span> <span class="s1">&#39;create_convergence_diagram&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;create_dashboard&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;create_dataframe_summary_charts&#39;</span><span class="p">,</span> <span class="s1">&#39;generate_chart_from_dataframe&#39;</span><span class="p">,</span>
+<span class="p">],</span> <span class="s1">&#39;.chart_generator&#39;</span><span class="p">)</span>
+<span class="n">_register</span><span class="p">([</span><span class="s1">&#39;ClientBrandingManager&#39;</span><span class="p">],</span> <span class="s1">&#39;.client_branding&#39;</span><span class="p">)</span>
+<span class="n">_register</span><span class="p">([</span><span class="s1">&#39;AnalyticsReportGenerator&#39;</span><span class="p">],</span> <span class="s1">&#39;.analytics.analytics_reports&#39;</span><span class="p">)</span>
+<span class="n">_register</span><span class="p">([</span><span class="s1">&#39;PowerPointGenerator&#39;</span><span class="p">],</span> <span class="s1">&#39;.powerpoint_generator&#39;</span><span class="p">)</span>
+<span class="n">_register</span><span class="p">([</span><span class="s1">&#39;decode_rl_image&#39;</span><span class="p">,</span> <span class="s1">&#39;show_rl_image&#39;</span><span class="p">,</span> <span class="s1">&#39;save_rl_image&#39;</span><span class="p">],</span> <span class="s1">&#39;.image_utils&#39;</span><span class="p">)</span>
+<span class="n">_register</span><span class="p">([</span><span class="s1">&#39;ChartTypeRegistry&#39;</span><span class="p">],</span> <span class="s1">&#39;.chart_types&#39;</span><span class="p">)</span>
+<span class="n">_register</span><span class="p">([</span><span class="s1">&#39;PollingAnalyzer&#39;</span><span class="p">],</span> <span class="s1">&#39;.analytics.polling_analyzer&#39;</span><span class="p">)</span>
+<span class="n">_register</span><span class="p">([</span><span class="s1">&#39;Argument&#39;</span><span class="p">,</span> <span class="s1">&#39;TableType&#39;</span><span class="p">],</span> <span class="s1">&#39;.pages.page_models&#39;</span><span class="p">)</span>
+
+<span class="c1"># IDML (InDesign) export</span>
+<span class="n">_register</span><span class="p">([</span><span class="s1">&#39;IDMLExporter&#39;</span><span class="p">,</span> <span class="s1">&#39;export_report_idml&#39;</span><span class="p">,</span> <span class="s1">&#39;SIMPLEIDML_AVAILABLE&#39;</span><span class="p">],</span> <span class="s1">&#39;.idml_export&#39;</span><span class="p">)</span>
+
+<span class="c1"># 3D map rendering (pydeck / deck.gl)</span>
+<span class="n">_register</span><span class="p">([</span>
+    <span class="s1">&#39;ThreeDMapRenderer&#39;</span><span class="p">,</span> <span class="s1">&#39;PYDECK_AVAILABLE&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;create_3d_hexbin&#39;</span><span class="p">,</span> <span class="s1">&#39;create_3d_columns&#39;</span><span class="p">,</span>
+<span class="p">],</span> <span class="s1">&#39;.map_3d&#39;</span><span class="p">)</span>
+
+<span class="c1"># Professional page templates</span>
+<span class="n">_register</span><span class="p">([</span><span class="s1">&#39;TitlePageTemplate&#39;</span><span class="p">,</span> <span class="s1">&#39;create_title_page&#39;</span><span class="p">],</span> <span class="s1">&#39;.templates.title_page_template&#39;</span><span class="p">)</span>
+<span class="n">_register</span><span class="p">([</span>
+    <span class="s1">&#39;TableOfContentsTemplate&#39;</span><span class="p">,</span> <span class="s1">&#39;create_table_of_contents&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;generate_sections_from_report_structure&#39;</span><span class="p">,</span>
+<span class="p">],</span> <span class="s1">&#39;.templates.table_of_contents_template&#39;</span><span class="p">)</span>
+<span class="n">_register</span><span class="p">([</span><span class="s1">&#39;ContentPageTemplate&#39;</span><span class="p">,</span> <span class="s1">&#39;create_content_page&#39;</span><span class="p">],</span> <span class="s1">&#39;.templates.content_page_template&#39;</span><span class="p">)</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;BaseReportTemplate&#39;</span><span class="p">,</span> <span class="s1">&#39;ReportGenerator&#39;</span><span class="p">,</span> <span class="s1">&#39;ChartGenerator&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;create_bar_chart&#39;</span><span class="p">,</span> <span class="s1">&#39;create_line_chart&#39;</span><span class="p">,</span> <span class="s1">&#39;create_scatter_plot&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;create_pie_chart&#39;</span><span class="p">,</span> <span class="s1">&#39;create_heatmap&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;create_convergence_diagram&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;ClientBrandingManager&#39;</span><span class="p">,</span> <span class="s1">&#39;AnalyticsReportGenerator&#39;</span><span class="p">,</span> <span class="s1">&#39;PowerPointGenerator&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;get_report_output_directory&#39;</span><span class="p">,</span> <span class="s1">&#39;create_report_generator&#39;</span><span class="p">,</span> <span class="s1">&#39;create_powerpoint_generator&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;export_branding_config&#39;</span><span class="p">,</span> <span class="s1">&#39;import_branding_config&#39;</span><span class="p">,</span> <span class="s1">&#39;export_chart_type_config&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;decode_rl_image&#39;</span><span class="p">,</span> <span class="s1">&#39;show_rl_image&#39;</span><span class="p">,</span> <span class="s1">&#39;save_rl_image&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;TitlePageTemplate&#39;</span><span class="p">,</span> <span class="s1">&#39;create_title_page&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;TableOfContentsTemplate&#39;</span><span class="p">,</span> <span class="s1">&#39;create_table_of_contents&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;generate_sections_from_report_structure&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;ContentPageTemplate&#39;</span><span class="p">,</span> <span class="s1">&#39;create_content_page&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;ThreeDMapRenderer&#39;</span><span class="p">,</span> <span class="s1">&#39;PYDECK_AVAILABLE&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;create_3d_hexbin&#39;</span><span class="p">,</span> <span class="s1">&#39;create_3d_columns&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;IDMLExporter&#39;</span><span class="p">,</span> <span class="s1">&#39;export_report_idml&#39;</span><span class="p">,</span> <span class="s1">&#39;SIMPLEIDML_AVAILABLE&#39;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="fm">__getattr__</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">_LAZY_IMPORTS</span><span class="p">:</span>
+        <span class="n">mod</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">_LAZY_IMPORTS</span><span class="p">[</span><span class="n">name</span><span class="p">],</span> <span class="n">__package__</span><span class="p">)</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="vm">__name__</span><span class="p">],</span> <span class="n">name</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">val</span>
+    <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;module </span><span class="si">{</span><span class="vm">__name__</span><span class="si">!r}</span><span class="s2"> has no attribute </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="fm">__dir__</span><span class="p">():</span>
+    <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">globals</span><span class="p">()</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">_LAZY_IMPORTS</span><span class="o">.</span><span class="n">keys</span><span class="p">())))</span>
+
+
+<span class="c1"># Profile-integrated reporting functions (defined here, use lazy internal imports)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_report_output_directory</span><span class="p">(</span><span class="n">client_code</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the appropriate output directory for reports based on profile system.&quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">..config.enhanced_config</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_download_directory</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+        <span class="n">username</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;SIEGE_USERNAME&#39;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;USER&#39;</span><span class="p">,</span> <span class="s1">&#39;default&#39;</span><span class="p">))</span>
+        <span class="n">base_dir</span> <span class="o">=</span> <span class="n">get_download_directory</span><span class="p">(</span><span class="n">username</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">client_code</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">base_dir</span> <span class="o">/</span> <span class="n">client_code</span> <span class="o">/</span> <span class="s2">&quot;reports&quot;</span>
+        <span class="k">return</span> <span class="n">base_dir</span> <span class="o">/</span> <span class="s2">&quot;reports&quot;</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;reports&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">create_report_generator</span><span class="p">(</span><span class="n">client_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">client_code</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a ReportGenerator with profile-based output directory.&quot;&quot;&quot;</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.report_generator</span><span class="w"> </span><span class="kn">import</span> <span class="n">ReportGenerator</span> <span class="k">as</span> <span class="n">_RG</span>
+    <span class="n">output_dir</span> <span class="o">=</span> <span class="n">get_report_output_directory</span><span class="p">(</span><span class="n">client_code</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_RG</span><span class="p">(</span><span class="n">client_name</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">create_powerpoint_generator</span><span class="p">(</span><span class="n">client_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">client_code</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a PowerPointGenerator with profile-based output directory.&quot;&quot;&quot;</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.powerpoint_generator</span><span class="w"> </span><span class="kn">import</span> <span class="n">PowerPointGenerator</span> <span class="k">as</span> <span class="n">_PG</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">..config.enhanced_config</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_download_directory</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+        <span class="n">username</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;SIEGE_USERNAME&#39;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;USER&#39;</span><span class="p">,</span> <span class="s1">&#39;default&#39;</span><span class="p">))</span>
+        <span class="n">base_dir</span> <span class="o">=</span> <span class="n">get_download_directory</span><span class="p">(</span><span class="n">username</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">client_code</span><span class="p">:</span>
+            <span class="n">output_dir</span> <span class="o">=</span> <span class="n">base_dir</span> <span class="o">/</span> <span class="n">client_code</span> <span class="o">/</span> <span class="s2">&quot;presentations&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">output_dir</span> <span class="o">=</span> <span class="n">base_dir</span> <span class="o">/</span> <span class="s2">&quot;presentations&quot;</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="n">output_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;presentations&quot;</span>
+    <span class="k">return</span> <span class="n">_PG</span><span class="p">(</span><span class="n">client_name</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ReportingConfigError">
+<a class="viewcode-back" href="../../exception_hierarchy.html#siege_utilities.reporting.ReportingConfigError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ReportingConfigError</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when a reporting configuration export / import cannot complete.&quot;&quot;&quot;</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">export_branding_config</span><span class="p">(</span><span class="n">client_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">export_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Export client branding configuration to a file.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    client_name : str</span>
+<span class="sd">        Name of the client whose branding should be exported.</span>
+<span class="sd">    export_path : str</span>
+<span class="sd">        Destination path for the export.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    bool</span>
+<span class="sd">        True on success. (Never returns False — failures raise.)</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ReportingConfigError</span>
+<span class="sd">        On any failure — OS error writing the file, missing client, etc.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.client_branding</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClientBrandingManager</span> <span class="k">as</span> <span class="n">_CBM</span>
+        <span class="n">branding_manager</span> <span class="o">=</span> <span class="n">_CBM</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">branding_manager</span><span class="o">.</span><span class="n">export_branding_config</span><span class="p">(</span><span class="n">client_name</span><span class="p">,</span> <span class="n">Path</span><span class="p">(</span><span class="n">export_path</span><span class="p">))</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+            <span class="s2">&quot;export_branding_config failed (client=</span><span class="si">%s</span><span class="s2">, path=</span><span class="si">%s</span><span class="s2">): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">client_name</span><span class="p">,</span> <span class="n">export_path</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">raise</span> <span class="n">ReportingConfigError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;failed to export branding for client=</span><span class="si">{</span><span class="n">client_name</span><span class="si">!r}</span><span class="s2"> to </span><span class="si">{</span><span class="n">export_path</span><span class="si">!r}</span><span class="s2">&quot;</span>
+        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">import_branding_config</span><span class="p">(</span><span class="n">import_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">client_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Import client branding configuration from a file.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    import_path : str</span>
+<span class="sd">        Source file to read branding from.</span>
+<span class="sd">    client_name : str, optional</span>
+<span class="sd">        Client to associate with the imported branding. When omitted, the</span>
+<span class="sd">        implementation picks a name from the file.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    bool</span>
+<span class="sd">        True on success.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ReportingConfigError</span>
+<span class="sd">        On any failure — file missing, parse error, client collision.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.client_branding</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClientBrandingManager</span> <span class="k">as</span> <span class="n">_CBM</span>
+        <span class="n">branding_manager</span> <span class="o">=</span> <span class="n">_CBM</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">branding_manager</span><span class="o">.</span><span class="n">import_branding_config</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">import_path</span><span class="p">),</span> <span class="n">client_name</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+            <span class="s2">&quot;import_branding_config failed (path=</span><span class="si">%s</span><span class="s2">, client=</span><span class="si">%s</span><span class="s2">): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">import_path</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">raise</span> <span class="n">ReportingConfigError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;failed to import branding from </span><span class="si">{</span><span class="n">import_path</span><span class="si">!r}</span><span class="s2"> (client=</span><span class="si">{</span><span class="n">client_name</span><span class="si">!r}</span><span class="s2">)&quot;</span>
+        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">export_chart_type_config</span><span class="p">(</span><span class="n">chart_type_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">output_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Export chart type configuration to a file.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    chart_type_name : str</span>
+<span class="sd">        Name of the chart type (must exist in the registry).</span>
+<span class="sd">    output_path : str</span>
+<span class="sd">        Destination file path.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    bool</span>
+<span class="sd">        True on success.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ReportingConfigError</span>
+<span class="sd">        On any failure — unknown chart type, OS error writing.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.chart_types</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChartTypeRegistry</span> <span class="k">as</span> <span class="n">_CTR</span>
+        <span class="n">chart_registry</span> <span class="o">=</span> <span class="n">_CTR</span><span class="p">()</span>
+        <span class="n">chart_registry</span><span class="o">.</span><span class="n">export_chart_type_config</span><span class="p">(</span><span class="n">chart_type_name</span><span class="p">,</span> <span class="n">output_path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+            <span class="s2">&quot;export_chart_type_config failed (chart_type=</span><span class="si">%s</span><span class="s2">, path=</span><span class="si">%s</span><span class="s2">): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">chart_type_name</span><span class="p">,</span> <span class="n">output_path</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">raise</span> <span class="n">ReportingConfigError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;failed to export chart type </span><span class="si">{</span><span class="n">chart_type_name</span><span class="si">!r}</span><span class="s2"> to </span><span class="si">{</span><span class="n">output_path</span><span class="si">!r}</span><span class="s2">&quot;</span>
+        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025-2026, Dheeraj Chand.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
