@@ -9,10 +9,8 @@ from __future__ import annotations
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Union, Any, Tuple, TYPE_CHECKING
+from typing import Dict, Optional, Union, Any, Tuple, TYPE_CHECKING
 import warnings
-import os
-from pathlib import Path
 
 # Type checking imports for optional dependencies
 if TYPE_CHECKING:
@@ -20,7 +18,7 @@ if TYPE_CHECKING:
 
 # Import logging functions from main package
 try:
-    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+    from siege_utilities.core.logging import log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if main package not available yet
     def log_info(message): pass
@@ -31,7 +29,6 @@ except ImportError:
 # Try to import optional dependencies
 try:
     from faker import Faker
-    from faker.providers import address, person, company, internet
     FAKER_AVAILABLE = True
 except ImportError:
     FAKER_AVAILABLE = False
@@ -39,17 +36,18 @@ except ImportError:
 
 try:
     import geopandas as gpd
-    from shapely.geometry import Point, Polygon
+    from shapely.geometry import Polygon
     GEOPANDAS_AVAILABLE = True
 except ImportError:
     GEOPANDAS_AVAILABLE = False
     gpd = None  # type: ignore[assignment]
     warnings.warn("GeoPandas not available. Install with: pip install geopandas")
 
-# Import existing Census utilities
+# Import existing Census utilities (kept as availability probe even though
+# the imported names are accessed lazily elsewhere)
 try:
-    from ..geo import get_census_data_selector, select_census_datasets
-    from ..geo.spatial_data import CensusDataSource
+    from ..geo import get_census_data_selector, select_census_datasets  # noqa: F401
+    from ..geo.spatial_data import CensusDataSource  # noqa: F401
     CENSUS_AVAILABLE = True
 except ImportError:
     CENSUS_AVAILABLE = False
