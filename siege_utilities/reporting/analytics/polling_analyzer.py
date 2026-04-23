@@ -46,9 +46,36 @@ def _choose_heatmap_fmt(df: pd.DataFrame) -> str:
 
 
 class PollingAnalyzer:
-    """Cross-dimensional analytics for polling and survey data."""
+    """Cross-dimensional analytics for polling and survey data.
+
+    .. deprecated::
+        PollingAnalyzer predates the :mod:`siege_utilities.survey` module
+        and bundles three unrelated concerns (cross-tabulation, longitudinal
+        analysis, and chart rendering). Use the purpose-built replacements:
+
+        - **Survey pipeline:** :func:`siege_utilities.survey.crosstab.build_chain`
+          followed by :func:`siege_utilities.survey.render.chain_to_argument`
+        - **Stats primitives:** :mod:`siege_utilities.data.statistics.cross_tabulation`
+          and ``siege_utilities.data.statistics.longitudinal`` (coming with
+          the survey waves subsystem, ELE-2440)
+        - **Longitudinal / wave comparisons:** ``siege_utilities.survey.WaveSet``
+          (coming in ELE-2440)
+
+        See ``docs/adr/0006-polling-analyzer-location.md`` for the rationale.
+        This class will be removed in the next minor release.
+    """
 
     def __init__(self) -> None:
+        import warnings
+        warnings.warn(
+            "PollingAnalyzer is deprecated and will be removed in the next "
+            "minor release. Use siege_utilities.survey (build_chain + "
+            "chain_to_argument) for survey pipelines or "
+            "siege_utilities.data.statistics for raw stats primitives. "
+            "See docs/adr/0006-polling-analyzer-location.md.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.chart_generator = ChartGenerator()
         self.analysis_results: Dict[str, object] = {}
 

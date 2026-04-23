@@ -1,33 +1,32 @@
 """
-Data Module for Siege Utilities
+Data module for siege_utilities.
 
-This module provides:
-- Built-in sample datasets for testing, learning, and demonstration purposes.
-- Engine-agnostic DataFrame operations (pandas, DuckDB, Spark, PostGIS).
+After ELE-2437, ``data/`` narrowed to hold statistics primitives
+(``data.statistics``) + the RDH provider shim. Other concerns moved:
+
+- Engine abstractions → :mod:`siege_utilities.engines`
+- Sample datasets + crosswalks → :mod:`siege_utilities.reference`
+
+Top-level imports at this package are preserved (re-exports from the
+new homes) for one deprecation window so existing callers still work.
 """
 
-from .sample_data import (
-    # Core sample data functions
+# Reference data (moved to siege_utilities.reference but re-exported here)
+from ..reference.sample_data import (
     load_sample_data,
     list_available_datasets,
     get_dataset_info,
-    
-    # Census-based sample data
     get_census_boundaries,
     get_census_data,
     join_boundaries_and_data,
     create_sample_dataset,
-    
-    # Synthetic data generation
     generate_synthetic_population,
     generate_synthetic_businesses,
     generate_synthetic_housing,
     HOUSING_LOCALE_PRESETS,
-
-    # Dataset categories
     SAMPLE_DATASETS,
     CENSUS_SAMPLES,
-    SYNTHETIC_SAMPLES
+    SYNTHETIC_SAMPLES,
 )
 
 # RDH provider moved to geo/providers/ under ELE-2438 (D3). Top-level
@@ -56,7 +55,8 @@ from ..geo.providers.redistricting_data_hub import (
     RDH_SITE_URL,
 )
 
-from .dataframe_engine import (
+# Engine abstractions (moved to siege_utilities.engines but re-exported here)
+from ..engines.dataframe_engine import (
     Engine,
     PANDAS,
     DUCKDB,

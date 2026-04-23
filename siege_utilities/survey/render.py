@@ -61,13 +61,27 @@ def _select_chart_type(chain: "Chain") -> str:
 # Figure builders
 # ---------------------------------------------------------------------------
 
-def _build_chart(df: pd.DataFrame, chart_type: str, headline: str) -> Optional[Any]:
-    """Render a matplotlib Figure for ``chart_type``.
+def _build_chart(
+    df: pd.DataFrame,
+    chart_type: str,
+    headline: str,
+    chart_generator: Optional[Any] = None,
+) -> Optional[Any]:
+    """Render a Figure for ``chart_type``.
 
-    Returns ``None`` when matplotlib is unavailable (optional dependency)
-    OR when ``df`` is empty. Any plotting failure raises :class:`RenderError`
-    so pipelines don't silently produce reports without figures.
+    When ``chart_generator`` is provided it must be callable as
+    ``chart_generator(df, chart_type, headline) -> Figure | None`` — the
+    caller's generator is used directly and its return value is the chart.
+
+    When ``chart_generator`` is None, uses the library's default matplotlib
+    path (described below).
+
+    Returns ``None`` when matplotlib is unavailable OR when ``df`` is empty.
+    Any plotting failure raises :class:`RenderError`.
     """
+    if chart_generator is not None:
+        return chart_generator(df, chart_type, headline)
+
     try:
         import matplotlib
         matplotlib.use("Agg")
@@ -109,8 +123,12 @@ def _build_chart(df: pd.DataFrame, chart_type: str, headline: str) -> Optional[A
     return fig
 
 
-def _build_map(chain: "Chain") -> Optional[Any]:
+def _build_map(chain: "Chain", map_generator: Optional[Any] = None) -> Optional[Any]:
     """Render a choropleth for geographically-keyed Chains.
+
+    When ``map_generator`` is provided it must expose a
+    ``create_choropleth_map(df, geo_column, value_column)`` method; it is
+    used instead of the default :class:`ChartGenerator`.
 
     The Chain's ``row_var`` MUST equal its ``geo_column`` — otherwise the
     values in the row index aren't geographic features and labeling them
@@ -133,10 +151,12 @@ def _build_map(chain: "Chain") -> Optional[Any]:
             f"mislabeled as geo features."
         )
 
-    try:
-        from ..reporting.chart_generator import ChartGenerator
-    except ImportError:
-        return None
+    if map_generator is None:
+        try:
+            from ..reporting.chart_generator import ChartGenerator
+            map_generator = ChartGenerator()
+        except ImportError:
+            return None
 
     df = chain.to_dataframe()
     if df.empty:
@@ -148,8 +168,7 @@ def _build_map(chain: "Chain") -> Optional[Any]:
     agg.columns = [chain.geo_column, "value"]
 
     try:
-        cg = ChartGenerator()
-        return cg.create_choropleth_map(
+        return map_generator.create_choropleth_map(
             agg, geo_column=chain.geo_column, value_column="value"
         )
     except (ValueError, TypeError, KeyError) as e:
@@ -184,8 +203,8 @@ def chain_to_argument(
     headline: str,
     narrative: str,
     *,
-    chart_generator: Any = None,
-    map_generator: Any = None,
+    chart_generator: Optional[Any] = None,
+    map_generator: Optional[Any] = None,
 ) -> Argument:
     """Convert a Chain to an Argument with chart and optional map.
 
@@ -197,11 +216,23 @@ def chain_to_argument(
         Slide headline / section title.
     narrative:
         One-paragraph narrative text for the argument.
-    chart_generator, map_generator:
-        Reserved for dependency injection of pre-configured generators.
-        NOT YET IMPLEMENTED — passing a non-None value raises
-        :class:`NotImplementedError` so callers don't silently lose the
-        customization they thought they were providing.
+    chart_generator:
+        Optional callable for chart rendering, invoked as
+        ``chart_generator(df, chart_type, headline) -> Figure | None``.
+        When ``None``, the library's default matplotlib path is used
+        (no branding required for sensible output).
+    map_generator:
+        Optional object exposing
+        ``create_choropleth_map(df, geo_column, value_column)``. When
+        ``None``, a default :class:`ChartGenerator` instance is used.
+
+    These kwargs make three cases work:
+
+    1. *Ad hoc* — both ``None``, no branding configured: defaults run.
+    2. *Override on a one-off* — caller passes a pre-configured generator
+       without mutating global branding state.
+    3. *Alternative backend* — caller passes a Plotly-based callable / object
+       that matches the interface.
 
     Returns
     -------
@@ -211,27 +242,13 @@ def chain_to_argument(
 
     Raises
     ------
-    NotImplementedError
-        If ``chart_generator`` or ``map_generator`` is passed; honoring
-        these kwargs requires wiring not yet built.
     RenderError
         On plotting failure or geo_column/row_var mismatch.
     """
-    if chart_generator is not None:
-        raise NotImplementedError(
-            "chart_generator injection not yet supported. File an issue "
-            "before relying on it."
-        )
-    if map_generator is not None:
-        raise NotImplementedError(
-            "map_generator injection not yet supported. File an issue "
-            "before relying on it."
-        )
-
     df = chain.to_dataframe()
     chart_type = _select_chart_type(chain)
-    chart = _build_chart(df, chart_type, headline)
-    map_figure = _build_map(chain)  # None unless geo_column is set
+    chart = _build_chart(df, chart_type, headline, chart_generator=chart_generator)
+    map_figure = _build_map(chain, map_generator=map_generator)
 
     return Argument(
         headline=headline,

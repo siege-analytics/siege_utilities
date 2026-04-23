@@ -31,7 +31,7 @@ _register([
     'create_dataframe_summary_charts', 'generate_chart_from_dataframe',
 ], '.chart_generator')
 _register(['ClientBrandingManager'], '.client_branding')
-_register(['AnalyticsReportGenerator'], '.analytics.analytics_reports')
+_register(['AnalyticsReportGenerator'], '.analytics_reports')
 _register(['PowerPointGenerator'], '.powerpoint_generator')
 _register(['decode_rl_image', 'show_rl_image', 'save_rl_image'], '.image_utils')
 _register(['ChartTypeRegistry'], '.chart_types')
@@ -127,35 +127,109 @@ def create_powerpoint_generator(client_name: str, client_code: str = None):
     return _PG(client_name, output_dir)
 
 
+class ReportingConfigError(RuntimeError):
+    """Raised when a reporting configuration export / import cannot complete."""
+
+
 def export_branding_config(client_name: str, export_path: str) -> bool:
-    """Export client branding configuration to a file."""
+    """Export client branding configuration to a file.
+
+    Parameters
+    ----------
+    client_name : str
+        Name of the client whose branding should be exported.
+    export_path : str
+        Destination path for the export.
+
+    Returns
+    -------
+    bool
+        True on success. (Never returns False — failures raise.)
+
+    Raises
+    ------
+    ReportingConfigError
+        On any failure — OS error writing the file, missing client, etc.
+    """
     try:
         from .client_branding import ClientBrandingManager as _CBM
         branding_manager = _CBM()
         return branding_manager.export_branding_config(client_name, Path(export_path))
-    except Exception as e:
-        log.error(f"Failed to export branding config: {e}")
-        return False
+    except (OSError, ValueError, KeyError) as e:
+        log.error(
+            "export_branding_config failed (client=%s, path=%s): %s",
+            client_name, export_path, e,
+        )
+        raise ReportingConfigError(
+            f"failed to export branding for client={client_name!r} to {export_path!r}"
+        ) from e
 
 
 def import_branding_config(import_path: str, client_name: str = None) -> bool:
-    """Import client branding configuration from a file."""
+    """Import client branding configuration from a file.
+
+    Parameters
+    ----------
+    import_path : str
+        Source file to read branding from.
+    client_name : str, optional
+        Client to associate with the imported branding. When omitted, the
+        implementation picks a name from the file.
+
+    Returns
+    -------
+    bool
+        True on success.
+
+    Raises
+    ------
+    ReportingConfigError
+        On any failure — file missing, parse error, client collision.
+    """
     try:
         from .client_branding import ClientBrandingManager as _CBM
         branding_manager = _CBM()
         return branding_manager.import_branding_config(Path(import_path), client_name)
-    except Exception as e:
-        log.error(f"Failed to import branding config: {e}")
-        return False
+    except (OSError, ValueError, KeyError) as e:
+        log.error(
+            "import_branding_config failed (path=%s, client=%s): %s",
+            import_path, client_name, e,
+        )
+        raise ReportingConfigError(
+            f"failed to import branding from {import_path!r} (client={client_name!r})"
+        ) from e
 
 
 def export_chart_type_config(chart_type_name: str, output_path: str) -> bool:
-    """Export chart type configuration to a file."""
+    """Export chart type configuration to a file.
+
+    Parameters
+    ----------
+    chart_type_name : str
+        Name of the chart type (must exist in the registry).
+    output_path : str
+        Destination file path.
+
+    Returns
+    -------
+    bool
+        True on success.
+
+    Raises
+    ------
+    ReportingConfigError
+        On any failure — unknown chart type, OS error writing.
+    """
     try:
         from .chart_types import ChartTypeRegistry as _CTR
         chart_registry = _CTR()
         chart_registry.export_chart_type_config(chart_type_name, output_path)
         return True
-    except Exception as e:
-        log.error(f"Failed to export chart type config: {e}")
-        return False
+    except (OSError, ValueError, KeyError) as e:
+        log.error(
+            "export_chart_type_config failed (chart_type=%s, path=%s): %s",
+            chart_type_name, output_path, e,
+        )
+        raise ReportingConfigError(
+            f"failed to export chart type {chart_type_name!r} to {output_path!r}"
+        ) from e

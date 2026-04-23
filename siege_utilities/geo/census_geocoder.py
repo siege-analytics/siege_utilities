@@ -12,3 +12,15 @@ _warnings.warn(
 )
 
 from .providers.census_geocoder import *  # noqa: F401, F403, E402
+from .providers.census_geocoder import (  # noqa: F401, E402
+    CensusGeocodeError,
+    CensusGeocodeResult,
+    CensusVintage,
+    _get_geocoder,
+    _parse_single_result,
+    _safe_float,
+    geocode_batch,
+    geocode_batch_chunked,
+    geocode_single,
+    select_vintage_for_cycle,
+)

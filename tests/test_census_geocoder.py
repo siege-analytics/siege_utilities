@@ -4,13 +4,14 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from siege_utilities.geo.providers.census_geocoder import (
-    CensusVintage,
+    CensusGeocodeError,
     CensusGeocodeResult,
-    select_vintage_for_cycle,
-    geocode_single,
+    CensusVintage,
+    _safe_float,
     geocode_batch,
     geocode_batch_chunked,
-    _safe_float,
+    geocode_single,
+    select_vintage_for_cycle,
 )
 
 
@@ -154,13 +155,15 @@ class TestGeocodeSingle:
         assert result.input_address == "123 Fake St, Nowhere, XX 00000"
 
     @patch("siege_utilities.geo.providers.census_geocoder._get_geocoder")
-    def test_api_error_returns_unmatched(self, mock_get_geocoder):
+    def test_api_error_raises_census_geocode_error(self, mock_get_geocoder):
+        """API failure now raises CensusGeocodeError instead of faking an
+        unmatched result — see ELE-2420 FAILURE_MODES.md CC1."""
         mock_cg = MagicMock()
         mock_cg.onelineaddress.side_effect = Exception("API timeout")
         mock_get_geocoder.return_value = mock_cg
 
-        result = geocode_single("1600 Pennsylvania Ave", "Washington", "DC", "20500")
-        assert not result.matched
+        with pytest.raises(CensusGeocodeError):
+            geocode_single("1600 Pennsylvania Ave", "Washington", "DC", "20500")
 
 
 # --- geocode_batch (mocked) ---
