@@ -9,7 +9,7 @@ For custom boundary sources, call ``engine.load_polygons()`` directly.
 
 Usage::
 
-    from siege_utilities.data.dataframe_engine import get_engine, Engine
+    from siege_utilities.engines.dataframe_engine import get_engine, Engine
     from siege_utilities.geo.boundary_sources import load_census_boundaries
 
     engine = get_engine(Engine.SPARK, enable_sedona=True)
