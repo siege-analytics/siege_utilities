@@ -4,7 +4,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pandas as pd
-import pytest
 
 from siege_utilities.survey.models import Chain, View
 from siege_utilities.reporting.pages.page_models import TableType
