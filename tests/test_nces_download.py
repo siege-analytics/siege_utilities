@@ -12,7 +12,7 @@ class TestNCESDownloader:
 
     def test_init_default_cache(self):
         """NCESDownloader creates temp dir when no cache_dir given."""
-        from siege_utilities.geo.nces_download import NCESDownloader
+        from siege_utilities.geo.providers.nces_download import NCESDownloader
 
         downloader = NCESDownloader()
         assert downloader.cache_dir.exists()
@@ -20,7 +20,7 @@ class TestNCESDownloader:
 
     def test_init_custom_cache(self, tmp_path):
         """NCESDownloader uses provided cache_dir."""
-        from siege_utilities.geo.nces_download import NCESDownloader
+        from siege_utilities.geo.providers.nces_download import NCESDownloader
 
         cache = tmp_path / "nces_cache"
         downloader = NCESDownloader(cache_dir=str(cache))
@@ -29,7 +29,7 @@ class TestNCESDownloader:
 
     def test_validate_year_valid(self):
         """Valid NCES years pass validation (returns None without raising)."""
-        from siege_utilities.geo.nces_download import NCESDownloader
+        from siege_utilities.geo.providers.nces_download import NCESDownloader
 
         downloader = NCESDownloader()
         # _validate_year returns None on success, raises ValueError on failure
@@ -38,7 +38,7 @@ class TestNCESDownloader:
 
     def test_validate_year_invalid(self):
         """Invalid NCES years raise ValueError."""
-        from siege_utilities.geo.nces_download import NCESDownloader
+        from siege_utilities.geo.providers.nces_download import NCESDownloader
 
         downloader = NCESDownloader()
         with pytest.raises(ValueError, match="not available"):
@@ -46,7 +46,7 @@ class TestNCESDownloader:
 
     def test_build_url(self):
         """URL construction uses correct endpoints and patterns."""
-        from siege_utilities.geo.nces_download import NCESDownloader
+        from siege_utilities.geo.providers.nces_download import NCESDownloader
 
         downloader = NCESDownloader()
         url = downloader._build_url("locale_boundaries", 2023)
@@ -55,20 +55,20 @@ class TestNCESDownloader:
 
     def test_build_url_school_locations(self):
         """School location URLs are constructed correctly."""
-        from siege_utilities.geo.nces_download import NCESDownloader
+        from siege_utilities.geo.providers.nces_download import NCESDownloader
 
         downloader = NCESDownloader()
         url = downloader._build_url("school_locations", 2022)
         assert "EDGE_GEOCODE_PUBLICSCH" in url
         assert "2022" in url
 
-    @patch("siege_utilities.geo.nces_download.NCESDownloader._download_and_extract")
+    @patch("siege_utilities.geo.providers.nces_download.NCESDownloader._download_and_extract")
     def test_download_locale_boundaries_cached(self, mock_extract, tmp_path):
         """download_locale_boundaries uses GeoDataFrame from shapefile."""
         import geopandas as gpd
         from shapely.geometry import box
 
-        from siege_utilities.geo.nces_download import NCESDownloader
+        from siege_utilities.geo.providers.nces_download import NCESDownloader
 
         # Create mock shapefile directory with a small GeoDataFrame
         extract_dir = tmp_path / "locale_boundaries_2023"
@@ -96,13 +96,13 @@ class TestNCESDownloader:
         assert "locale_subcategory" in result.columns
         assert set(result["locale_code"]) == set(codes)
 
-    @patch("siege_utilities.geo.nces_download.NCESDownloader._download_and_extract")
+    @patch("siege_utilities.geo.providers.nces_download.NCESDownloader._download_and_extract")
     def test_download_school_locations_from_shapefile(self, mock_extract, tmp_path):
         """download_school_locations reads shapefile with school points."""
         import geopandas as gpd
         from shapely.geometry import Point
 
-        from siege_utilities.geo.nces_download import NCESDownloader
+        from siege_utilities.geo.providers.nces_download import NCESDownloader
 
         extract_dir = tmp_path / "school_locations_2023"
         extract_dir.mkdir()
@@ -130,13 +130,13 @@ class TestNCESDownloader:
         assert "ncessch" in result.columns
         assert "school_name" in result.columns
 
-    @patch("siege_utilities.geo.nces_download.NCESDownloader._download_and_extract")
+    @patch("siege_utilities.geo.providers.nces_download.NCESDownloader._download_and_extract")
     def test_download_school_locations_state_filter(self, mock_extract, tmp_path):
         """download_school_locations filters by state abbreviation."""
         import geopandas as gpd
         from shapely.geometry import Point
 
-        from siege_utilities.geo.nces_download import NCESDownloader
+        from siege_utilities.geo.providers.nces_download import NCESDownloader
 
         extract_dir = tmp_path / "school_locations_2023"
         extract_dir.mkdir()
@@ -163,12 +163,12 @@ class TestNCESDownloader:
         assert len(result) == 1
         assert result.iloc[0]["state_abbr"] == "CA"
 
-    @patch("siege_utilities.geo.nces_download.NCESDownloader._download_and_extract")
+    @patch("siege_utilities.geo.providers.nces_download.NCESDownloader._download_and_extract")
     def test_download_district_data(self, mock_extract, tmp_path):
         """download_district_data reads CSV with district records."""
         import pandas as pd
 
-        from siege_utilities.geo.nces_download import NCESDownloader
+        from siege_utilities.geo.providers.nces_download import NCESDownloader
 
         extract_dir = tmp_path / "district_boundaries_2023"
         extract_dir.mkdir()
@@ -200,7 +200,7 @@ class TestNCESDownloadError:
     """Tests for error handling."""
 
     def test_nces_download_error(self):
-        from siege_utilities.geo.nces_download import NCESDownloadError
+        from siege_utilities.geo.providers.nces_download import NCESDownloadError
 
         err = NCESDownloadError("test message")
         assert str(err) == "test message"
@@ -243,7 +243,7 @@ class TestFromNCESBoundaries:
         )
 
         with patch(
-            "siege_utilities.geo.nces_download.NCESDownloader"
+            "siege_utilities.geo.providers.nces_download.NCESDownloader"
         ) as MockDownloader:
             mock_instance = MagicMock()
             mock_instance.download_locale_boundaries.return_value = boundaries

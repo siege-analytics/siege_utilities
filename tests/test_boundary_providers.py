@@ -1,4 +1,4 @@
-"""Tests for siege_utilities.geo.boundary_providers."""
+"""Tests for siege_utilities.geo.providers.boundary_providers."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from siege_utilities.geo.boundary_providers import (
+from siege_utilities.geo.providers.boundary_providers import (
     BoundaryProvider,
     CensusTIGERProvider,
     GADMProvider,
@@ -73,7 +73,7 @@ class TestCensusTIGERProvider:
         for expected in ('state', 'county', 'tract', 'block_group', 'zcta', 'cd'):
             assert expected in levels
 
-    @patch('siege_utilities.geo.boundary_providers.CensusTIGERProvider.get_boundary')
+    @patch('siege_utilities.geo.providers.boundary_providers.CensusTIGERProvider.get_boundary')
     def test_get_boundary_delegates(self, mock_get):
         """get_boundary forwards to get_census_boundaries."""
         sentinel = MagicMock(name='gdf')
@@ -131,7 +131,7 @@ class TestCensusTIGERProvider:
 
         provider = CensusTIGERProvider()
         import logging
-        with patch.object(logging.getLogger('siege_utilities.geo.boundary_providers'),
+        with patch.object(logging.getLogger('siege_utilities.geo.providers.boundary_providers'),
                           'warning') as mock_warn:
             result = provider.get_boundary('county')
         assert result is None
@@ -273,7 +273,7 @@ class TestRDHProvider:
         with pytest.raises(ValueError, match='state abbreviation'):
             provider.get_boundary('precinct')
 
-    @patch('siege_utilities.geo.boundary_providers.RDHProvider._get_client')
+    @patch('siege_utilities.geo.providers.boundary_providers.RDHProvider._get_client')
     def test_get_boundary_precinct_delegates(self, mock_get_client):
         """get_boundary('precinct') calls client.get_precinct_data then load_shapefile."""
         sentinel_gdf = MagicMock(name='gdf')
@@ -288,7 +288,7 @@ class TestRDHProvider:
         mock_client.get_precinct_data.assert_called_once_with('TX', year=None, format='shp')
         assert result is sentinel_gdf
 
-    @patch('siege_utilities.geo.boundary_providers.RDHProvider._get_client')
+    @patch('siege_utilities.geo.providers.boundary_providers.RDHProvider._get_client')
     def test_get_boundary_congress_delegates(self, mock_get_client):
         """get_boundary('congress') calls client.get_enacted_plans."""
         sentinel_gdf = MagicMock(name='gdf')
@@ -303,7 +303,7 @@ class TestRDHProvider:
         mock_client.get_enacted_plans.assert_called_once_with('TX', chamber='congress', year='2022', format='shp')
         assert result is sentinel_gdf
 
-    @patch('siege_utilities.geo.boundary_providers.RDHProvider._get_client')
+    @patch('siege_utilities.geo.providers.boundary_providers.RDHProvider._get_client')
     def test_get_boundary_no_datasets_returns_none(self, mock_get_client):
         """When RDH returns no matching datasets, get_boundary returns None."""
         mock_client = MagicMock()
