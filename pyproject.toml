@@ -168,6 +168,10 @@ dev = [
     "djangorestframework-gis>=1.0.0",
     "psycopg2-binary>=2.9.0",
 ]
+# Survey/polling report engine (RIM weighting)
+survey = [
+    "weightipy>=0.4.0",
+]
 # Everything — convenience meta-extra for full installs
 all = [
     # data
