@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sample Data and Testing Utilities &mdash; Siege Utilities 3.13.1 documentation</title>
+  <title>Exception Hierarchy &mdash; Siege Utilities 3.13.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
@@ -17,7 +17,9 @@
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
-    <link rel="search" title="Search" href="search.html" /> 
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Distributed Computing" href="distributed_computing.html" />
+    <link rel="prev" title="Logging Utilities" href="logging_utilities.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -90,7 +92,7 @@
 </li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Core Utilities:</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="core_utilities.html">Core Utilities</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="core_utilities.html#package-discovery">Package Discovery</a></li>
 <li class="toctree-l2"><a class="reference internal" href="core_utilities.html#functions">Functions</a><ul>
@@ -115,31 +117,31 @@
 <li class="toctree-l2"><a class="reference internal" href="logging_utilities.html#unit-tests">Unit Tests</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="exception_hierarchy.html">Exception Hierarchy</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="exception_hierarchy.html#design-principles">Design principles</a></li>
-<li class="toctree-l2"><a class="reference internal" href="exception_hierarchy.html#reporting">Reporting</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="exception_hierarchy.html#top-level-config-export-import">Top-level config export / import</a></li>
-<li class="toctree-l3"><a class="reference internal" href="exception_hierarchy.html#chart-type-registry">Chart type registry</a></li>
-<li class="toctree-l3"><a class="reference internal" href="exception_hierarchy.html#client-branding">Client branding</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Exception Hierarchy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#design-principles">Design principles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#reporting">Reporting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#top-level-config-export-import">Top-level config export / import</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chart-type-registry">Chart type registry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#client-branding">Client branding</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="exception_hierarchy.html#geographic">Geographic</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="exception_hierarchy.html#census-bureau-geocoder">Census Bureau geocoder</a></li>
-<li class="toctree-l3"><a class="reference internal" href="exception_hierarchy.html#spatial-data-sources">Spatial data sources</a></li>
-<li class="toctree-l3"><a class="reference internal" href="exception_hierarchy.html#boundary-retrieval">Boundary retrieval</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryRetrievalError"><code class="docutils literal notranslate"><span class="pre">BoundaryRetrievalError</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryInputError"><code class="docutils literal notranslate"><span class="pre">BoundaryInputError</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryDiscoveryError"><code class="docutils literal notranslate"><span class="pre">BoundaryDiscoveryError</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryUrlValidationError"><code class="docutils literal notranslate"><span class="pre">BoundaryUrlValidationError</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryDownloadError"><code class="docutils literal notranslate"><span class="pre">BoundaryDownloadError</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryParseError"><code class="docutils literal notranslate"><span class="pre">BoundaryParseError</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryConfigurationError"><code class="docutils literal notranslate"><span class="pre">BoundaryConfigurationError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#geographic">Geographic</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#census-bureau-geocoder">Census Bureau geocoder</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#spatial-data-sources">Spatial data sources</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#boundary-retrieval">Boundary retrieval</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.boundary_result.BoundaryRetrievalError"><code class="docutils literal notranslate"><span class="pre">BoundaryRetrievalError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.boundary_result.BoundaryInputError"><code class="docutils literal notranslate"><span class="pre">BoundaryInputError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.boundary_result.BoundaryDiscoveryError"><code class="docutils literal notranslate"><span class="pre">BoundaryDiscoveryError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.boundary_result.BoundaryUrlValidationError"><code class="docutils literal notranslate"><span class="pre">BoundaryUrlValidationError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.boundary_result.BoundaryDownloadError"><code class="docutils literal notranslate"><span class="pre">BoundaryDownloadError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.boundary_result.BoundaryParseError"><code class="docutils literal notranslate"><span class="pre">BoundaryParseError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.boundary_result.BoundaryConfigurationError"><code class="docutils literal notranslate"><span class="pre">BoundaryConfigurationError</span></code></a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="exception_hierarchy.html#migration-guidance">Migration guidance</a></li>
-<li class="toctree-l2"><a class="reference internal" href="exception_hierarchy.html#further-reading">Further reading</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#migration-guidance">Migration guidance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#further-reading">Further reading</a></li>
 </ul>
 </li>
 </ul>
@@ -520,7 +522,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Sample Data and Testing Utilities</li>
+      <li class="breadcrumb-item active">Exception Hierarchy</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -529,221 +531,232 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="sample-data-and-testing-utilities">
-<h1>Sample Data and Testing Utilities<a class="headerlink" href="#sample-data-and-testing-utilities" title="Link to this heading"></a></h1>
-<p>The sample data module provides built-in datasets and synthetic data generation capabilities for testing, learning, and development purposes.</p>
-<section id="overview">
-<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
-<p>The sample data utilities combine real Census boundaries with synthetic personal data to create realistic, privacy-safe datasets for development and testing:</p>
-<ul class="simple">
-<li><p><strong>Real Geographic Boundaries</strong>: Actual Census tract, county, and metropolitan area boundaries</p></li>
-<li><p><strong>Synthetic Personal Data</strong>: Generated names, demographics, and characteristics using Faker</p></li>
-<li><p><strong>Privacy Safe</strong>: No real personal information, perfect for development environments</p></li>
-<li><p><strong>Multiple Scales</strong>: Data available at tract, county, and metropolitan levels</p></li>
-</ul>
-</section>
-<section id="key-features">
-<h2>Key Features<a class="headerlink" href="#key-features" title="Link to this heading"></a></h2>
-<section id="built-in-sample-datasets">
-<h3>Built-in Sample Datasets<a class="headerlink" href="#built-in-sample-datasets" title="Link to this heading"></a></h3>
-<ul class="simple">
-<li><p><strong>census_tract_sample</strong>: Sample Census tract with synthetic population</p></li>
-<li><p><strong>census_county_sample</strong>: County with multiple tracts and synthetic data</p></li>
-<li><p><strong>metropolitan_sample</strong>: Metropolitan area with comprehensive data</p></li>
-<li><p><strong>synthetic_population</strong>: Customizable population data</p></li>
-<li><p><strong>synthetic_businesses</strong>: Business data with industry patterns</p></li>
-<li><p><strong>synthetic_housing</strong>: Property data with realistic characteristics</p></li>
-</ul>
-</section>
-<section id="synthetic-data-generation">
-<h3>Synthetic Data Generation<a class="headerlink" href="#synthetic-data-generation" title="Link to this heading"></a></h3>
-<ul class="simple">
-<li><p><strong>Demographic Matching</strong>: Generate data that matches real demographic patterns</p></li>
-<li><p><strong>Locale-Aware Names</strong>: Ethnicity-appropriate names using Faker locales</p></li>
-<li><p><strong>Realistic Distributions</strong>: Age, income, and education patterns that reflect real data</p></li>
-<li><p><strong>Geographic Integration</strong>: Addresses and coordinates within actual boundaries</p></li>
-</ul>
-</section>
-</section>
-<section id="installation">
-<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
-<p>Install with sample data support:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>siege-utilities<span class="o">[</span>data<span class="o">]</span>
-</pre></div>
-</div>
-<p>For full functionality including geospatial features:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>siege-utilities<span class="o">[</span>data,geo<span class="o">]</span>
-</pre></div>
-</div>
-</section>
-<section id="quick-start">
-<h2>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading"></a></h2>
-<ol class="arabic">
-<li><p><strong>List Available Datasets</strong>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">list_available_datasets</span>
-
-<span class="n">datasets</span> <span class="o">=</span> <span class="n">list_available_datasets</span><span class="p">()</span>
-<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">datasets</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-</li>
-<li><p><strong>Load Pre-built Samples</strong>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_sample_data</span>
-
-<span class="c1"># Load Census tract sample</span>
-<span class="n">tract_data</span> <span class="o">=</span> <span class="n">load_sample_data</span><span class="p">(</span><span class="s2">&quot;census_tract_sample&quot;</span><span class="p">,</span> <span class="n">population_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Generated </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">tract_data</span><span class="p">)</span><span class="si">}</span><span class="s2"> synthetic people&quot;</span><span class="p">)</span>
-
-<span class="c1"># Load county sample</span>
-<span class="n">county_data</span> <span class="o">=</span> <span class="n">load_sample_data</span><span class="p">(</span><span class="s2">&quot;census_county_sample&quot;</span><span class="p">,</span> <span class="n">tract_count</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Generated </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">county_data</span><span class="p">)</span><span class="si">}</span><span class="s2"> people across </span><span class="si">{</span><span class="n">county_data</span><span class="p">[</span><span class="s1">&#39;tract_fips&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span><span class="si">}</span><span class="s2"> tracts&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-</li>
-<li><p><strong>Generate Custom Synthetic Data</strong>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_synthetic_population</span>
-
-<span class="c1"># Create population matching specific demographics</span>
-</pre></div>
-</div>
-</li>
+  <section id="exception-hierarchy">
+<h1>Exception Hierarchy<a class="headerlink" href="#exception-hierarchy" title="Link to this heading"></a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">siege_utilities</span></code> follows a <strong>fail-loud-over-silent-swallow</strong> policy: when
+a function cannot deliver its documented output, it raises a typed exception
+rather than returning <code class="docutils literal notranslate"><span class="pre">None</span></code>, <code class="docutils literal notranslate"><span class="pre">False</span></code>, or an empty container that looks
+like a legitimate “no result.” This distinguishes real failures from
+expected empty-input paths and prevents silent data corruption in
+downstream pipelines.</p>
+<p>This page catalogs the typed exceptions across the library. Every exception
+subclasses a standard Python exception (<code class="docutils literal notranslate"><span class="pre">LookupError</span></code>, <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>,
+<code class="docutils literal notranslate"><span class="pre">RuntimeError</span></code>) so broad existing handlers continue to work.</p>
+<section id="design-principles">
+<h2>Design principles<a class="headerlink" href="#design-principles" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p><strong>Lookup failures are ``LookupError``.</strong> Missing chart types, missing
+client configs, and similar “you asked for X but X doesn’t exist” cases.</p></li>
+<li><p><strong>Parameter / input failures are ``ValueError``.</strong> Missing required
+parameters, invalid values, bad config shapes.</p></li>
+<li><p><strong>Operation failures are ``RuntimeError``.</strong> Failed I/O, failed parse,
+failed API call — anything where the inputs were valid but the work
+did not complete.</p></li>
+<li><p><strong>Not-found return values are preserved where semantic.</strong> <code class="docutils literal notranslate"><span class="pre">list_X()</span></code>
+returning <code class="docutils literal notranslate"><span class="pre">[]</span></code>, lookup helpers returning <code class="docutils literal notranslate"><span class="pre">None</span></code> when the caller
+should handle absence as normal — these are unchanged. The rewrite
+only affects sites where absence was <em>masking</em> a transport or parse
+failure.</p></li>
+<li><p><strong>Every raise chains with ``from e``.</strong> Inspect <code class="docutils literal notranslate"><span class="pre">exc.__cause__</span></code> to
+see the underlying error (<code class="docutils literal notranslate"><span class="pre">JSONDecodeError</span></code>, <code class="docutils literal notranslate"><span class="pre">OSError</span></code>,
+<code class="docutils literal notranslate"><span class="pre">HTTPError</span></code>, etc.).</p></li>
 </ol>
-<dl class="simple">
-<dt>population = generate_synthetic_population(</dt><dd><p>demographics={“Hispanic or Latino”: 0.35, “White alone, not Hispanic or Latino”: 0.30, “Asian alone, not Hispanic or Latino”: 0.25, “Black or African American alone, not Hispanic or Latino”: 0.10},
-size=500,
-include_names=True,
-include_income=True,
-include_education=True</p>
-</dd>
-</dl>
-<p>)</p>
-<blockquote>
-<div><p>print(f”Generated {len(population)} people”)
-print(f”Columns: {list(population.columns)}”)</p>
-</div></blockquote>
 </section>
-<section id="dataset-types">
-<h2>Dataset Types<a class="headerlink" href="#dataset-types" title="Link to this heading"></a></h2>
-<section id="census-based-samples">
-<h3>Census-based Samples<a class="headerlink" href="#census-based-samples" title="Link to this heading"></a></h3>
-<p>These datasets combine real Census boundaries with synthetic population data:</p>
-<ul class="simple">
-<li><p><strong>census_tract_sample</strong>: Single tract with configurable population size</p></li>
-<li><p><strong>census_county_sample</strong>: Multiple tracts within a county</p></li>
-<li><p><strong>metropolitan_sample</strong>: Multiple counties within a metropolitan area</p></li>
-</ul>
-<p><strong>Parameters</strong>:
-* <strong>state_fips</strong>: State FIPS code (default: “06” for California)
-* <strong>county_fips</strong>: County FIPS code (default: “037” for Los Angeles)
-* <strong>population_size</strong>: Number of synthetic people to generate
-* <strong>include_geometry</strong>: Whether to include geographic boundaries</p>
+<section id="reporting">
+<h2>Reporting<a class="headerlink" href="#reporting" title="Link to this heading"></a></h2>
+<section id="top-level-config-export-import">
+<h3>Top-level config export / import<a class="headerlink" href="#top-level-config-export-import" title="Link to this heading"></a></h3>
 </section>
-<section id="synthetic-only-datasets">
-<h3>Synthetic-only Datasets<a class="headerlink" href="#synthetic-only-datasets" title="Link to this heading"></a></h3>
-<p>These generate purely synthetic data without geographic boundaries:</p>
-<ul class="simple">
-<li><p><strong>synthetic_population</strong>: Customizable demographic data</p></li>
-<li><p><strong>synthetic_businesses</strong>: Business data with industry patterns</p></li>
-<li><p><strong>synthetic_housing</strong>: Property data with realistic characteristics</p></li>
-</ul>
-<p><strong>Parameters</strong>:
-* <strong>size/count</strong>: Number of records to generate
-* <strong>demographics</strong>: Ethnicity distribution dictionary
-* <strong>include_*</strong>: Boolean flags for optional fields</p>
+<section id="chart-type-registry">
+<h3>Chart type registry<a class="headerlink" href="#chart-type-registry" title="Link to this heading"></a></h3>
+</section>
+<section id="client-branding">
+<h3>Client branding<a class="headerlink" href="#client-branding" title="Link to this heading"></a></h3>
 </section>
 </section>
-<section id="integration-with-spark">
-<h2>Integration with Spark<a class="headerlink" href="#integration-with-spark" title="Link to this heading"></a></h2>
-<p>Sample data works seamlessly with Spark functions:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">SparkSession</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_synthetic_population</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.distributed.spark_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_row_count</span><span class="p">,</span> <span class="n">sanitise_dataframe_column_names</span>
+<section id="geographic">
+<h2>Geographic<a class="headerlink" href="#geographic" title="Link to this heading"></a></h2>
+<section id="census-bureau-geocoder">
+<h3>Census Bureau geocoder<a class="headerlink" href="#census-bureau-geocoder" title="Link to this heading"></a></h3>
+<p>Before this change, <code class="docutils literal notranslate"><span class="pre">geocode_single()</span></code> and <code class="docutils literal notranslate"><span class="pre">geocode_batch()</span></code> caught all
+failures (network, API, parse) and returned
+<code class="docutils literal notranslate"><span class="pre">CensusGeocodeResult(matched=False)</span></code>. Downstream pipelines treated
+unmatched rows as “address not findable” and dropped them — so API
+outages silently poisoned entire batches with fake unmatched rows.
+<code class="docutils literal notranslate"><span class="pre">CensusGeocodeError</span></code> surfaces the real cause.</p>
+</section>
+<section id="spatial-data-sources">
+<h3>Spatial data sources<a class="headerlink" href="#spatial-data-sources" title="Link to this heading"></a></h3>
+<p>Used by <code class="docutils literal notranslate"><span class="pre">GovernmentDataSource</span></code> (CKAN-style portals) and
+<code class="docutils literal notranslate"><span class="pre">OpenStreetMapDataSource</span></code> (Overpass API). Distinct from boundary
+retrieval, which has its own hierarchy below.</p>
+</section>
+<section id="boundary-retrieval">
+<h3>Boundary retrieval<a class="headerlink" href="#boundary-retrieval" title="Link to this heading"></a></h3>
+<dl class="py exception">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryRetrievalError">
+<span class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.boundary_result.</span></span><span class="sig-name descname"><span class="pre">BoundaryRetrievalError</span></span><a class="reference internal" href="_modules/siege_utilities/geo/boundary_result.html#BoundaryRetrievalError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryRetrievalError" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></p>
+<p>Base exception for all boundary retrieval failures.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryRetrievalError.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stage</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/geo/boundary_result.html#BoundaryRetrievalError.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryRetrievalError.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
 
-<span class="c1"># Initialize Spark</span>
-<span class="n">spark</span> <span class="o">=</span> <span class="n">SparkSession</span><span class="o">.</span><span class="n">builder</span><span class="o">.</span><span class="n">appName</span><span class="p">(</span><span class="s2">&quot;SampleDataTest&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">getOrCreate</span><span class="p">()</span>
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryRetrievalError.__new__">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryRetrievalError.__new__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
 
-<span class="c1"># Generate synthetic data</span>
-<span class="n">population</span> <span class="o">=</span> <span class="n">generate_synthetic_population</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+</dd></dl>
 
-<span class="c1"># Convert to Spark DataFrame</span>
-<span class="n">spark_df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">(</span><span class="n">population</span><span class="p">)</span>
+<dl class="py exception">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryInputError">
+<span class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.boundary_result.</span></span><span class="sig-name descname"><span class="pre">BoundaryInputError</span></span><a class="reference internal" href="_modules/siege_utilities/geo/boundary_result.html#BoundaryInputError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryInputError" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#siege_utilities.geo.boundary_result.BoundaryRetrievalError" title="siege_utilities.geo.boundary_result.BoundaryRetrievalError"><code class="xref py py-class docutils literal notranslate"><span class="pre">BoundaryRetrievalError</span></code></a></p>
+<p>Invalid input parameters (state FIPS, year, geographic level).</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryInputError.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/geo/boundary_result.html#BoundaryInputError.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryInputError.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
 
-<span class="c1"># Test Spark functions</span>
-<span class="n">row_count</span> <span class="o">=</span> <span class="n">get_row_count</span><span class="p">(</span><span class="n">spark_df</span><span class="p">)</span>
-<span class="n">clean_df</span> <span class="o">=</span> <span class="n">sanitise_dataframe_column_names</span><span class="p">(</span><span class="n">spark_df</span><span class="p">)</span>
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryInputError.__new__">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryInputError.__new__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Spark DataFrame: </span><span class="si">{</span><span class="n">row_count</span><span class="si">}</span><span class="s2"> rows&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cleaned columns: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">clean_df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryDiscoveryError">
+<span class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.boundary_result.</span></span><span class="sig-name descname"><span class="pre">BoundaryDiscoveryError</span></span><a class="reference internal" href="_modules/siege_utilities/geo/boundary_result.html#BoundaryDiscoveryError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryDiscoveryError" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#siege_utilities.geo.boundary_result.BoundaryRetrievalError" title="siege_utilities.geo.boundary_result.BoundaryRetrievalError"><code class="xref py py-class docutils literal notranslate"><span class="pre">BoundaryRetrievalError</span></code></a></p>
+<p>Failed to discover available boundary types or construct a URL.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryDiscoveryError.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/geo/boundary_result.html#BoundaryDiscoveryError.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryDiscoveryError.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryDiscoveryError.__new__">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryDiscoveryError.__new__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryUrlValidationError">
+<span class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.boundary_result.</span></span><span class="sig-name descname"><span class="pre">BoundaryUrlValidationError</span></span><a class="reference internal" href="_modules/siege_utilities/geo/boundary_result.html#BoundaryUrlValidationError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryUrlValidationError" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#siege_utilities.geo.boundary_result.BoundaryRetrievalError" title="siege_utilities.geo.boundary_result.BoundaryRetrievalError"><code class="xref py py-class docutils literal notranslate"><span class="pre">BoundaryRetrievalError</span></code></a></p>
+<p>Constructed URL is not accessible (HTTP error, timeout, etc.).</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryUrlValidationError.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/geo/boundary_result.html#BoundaryUrlValidationError.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryUrlValidationError.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryUrlValidationError.__new__">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryUrlValidationError.__new__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryDownloadError">
+<span class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.boundary_result.</span></span><span class="sig-name descname"><span class="pre">BoundaryDownloadError</span></span><a class="reference internal" href="_modules/siege_utilities/geo/boundary_result.html#BoundaryDownloadError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryDownloadError" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#siege_utilities.geo.boundary_result.BoundaryRetrievalError" title="siege_utilities.geo.boundary_result.BoundaryRetrievalError"><code class="xref py py-class docutils literal notranslate"><span class="pre">BoundaryRetrievalError</span></code></a></p>
+<p>Download succeeded but the file is corrupt or not a valid zip.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryDownloadError.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/geo/boundary_result.html#BoundaryDownloadError.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryDownloadError.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryDownloadError.__new__">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryDownloadError.__new__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryParseError">
+<span class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.boundary_result.</span></span><span class="sig-name descname"><span class="pre">BoundaryParseError</span></span><a class="reference internal" href="_modules/siege_utilities/geo/boundary_result.html#BoundaryParseError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryParseError" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#siege_utilities.geo.boundary_result.BoundaryRetrievalError" title="siege_utilities.geo.boundary_result.BoundaryRetrievalError"><code class="xref py py-class docutils literal notranslate"><span class="pre">BoundaryRetrievalError</span></code></a></p>
+<p>Downloaded data could not be parsed as a shapefile/GeoDataFrame.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryParseError.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/geo/boundary_result.html#BoundaryParseError.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryParseError.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryParseError.__new__">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryParseError.__new__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryConfigurationError">
+<span class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.boundary_result.</span></span><span class="sig-name descname"><span class="pre">BoundaryConfigurationError</span></span><a class="reference internal" href="_modules/siege_utilities/geo/boundary_result.html#BoundaryConfigurationError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryConfigurationError" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#siege_utilities.geo.boundary_result.BoundaryRetrievalError" title="siege_utilities.geo.boundary_result.BoundaryRetrievalError"><code class="xref py py-class docutils literal notranslate"><span class="pre">BoundaryRetrievalError</span></code></a></p>
+<p>Boundary type requires parameters that were not provided (e.g., state FIPS, congress number).</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryConfigurationError.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/geo/boundary_result.html#BoundaryConfigurationError.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryConfigurationError.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryConfigurationError.__new__">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryConfigurationError.__new__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+<section id="migration-guidance">
+<h2>Migration guidance<a class="headerlink" href="#migration-guidance" title="Link to this heading"></a></h2>
+<p>Callers that relied on the pre-rewrite silent-swallow behavior must
+migrate to <code class="docutils literal notranslate"><span class="pre">try/except</span></code> around the new exception types.</p>
+<p>Before:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">registry</span><span class="o">.</span><span class="n">create_chart</span><span class="p">(</span><span class="s2">&quot;unknown_type&quot;</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;chart creation failed&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
 </pre></div>
 </div>
-</section>
-<section id="testing-and-development">
-<h2>Testing and Development<a class="headerlink" href="#testing-and-development" title="Link to this heading"></a></h2>
-<p>Perfect for function testing without external dependencies:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Test file operations</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.operations</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_file_size</span><span class="p">,</span> <span class="n">count_lines</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_synthetic_businesses</span>
-
-<span class="c1"># Generate test data</span>
-<span class="n">businesses</span> <span class="o">=</span> <span class="n">generate_synthetic_businesses</span><span class="p">(</span><span class="n">business_count</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
-
-<span class="c1"># Save to test file</span>
-<span class="n">businesses</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s2">&quot;test_businesses.csv&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-
-<span class="c1"># Test file functions</span>
-<span class="n">file_size</span> <span class="o">=</span> <span class="n">get_file_size</span><span class="p">(</span><span class="s2">&quot;test_businesses.csv&quot;</span><span class="p">)</span>
-<span class="n">line_count</span> <span class="o">=</span> <span class="n">count_lines</span><span class="p">(</span><span class="s2">&quot;test_businesses.csv&quot;</span><span class="p">)</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Test file: </span><span class="si">{</span><span class="n">file_size</span><span class="si">}</span><span class="s2"> bytes, </span><span class="si">{</span><span class="n">line_count</span><span class="si">}</span><span class="s2"> lines&quot;</span><span class="p">)</span>
+<p>After:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">try</span><span class="p">:</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">registry</span><span class="o">.</span><span class="n">create_chart</span><span class="p">(</span><span class="s2">&quot;unknown_type&quot;</span><span class="p">)</span>
+<span class="k">except</span> <span class="n">UnknownChartTypeError</span><span class="p">:</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;unknown chart type&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
+<span class="k">except</span> <span class="n">ChartCreationError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;chart creation failed: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">__cause__</span><span class="p">)</span>
+    <span class="k">raise</span>
 </pre></div>
 </div>
+<p>Because the exception types subclass standard Python exceptions, you can
+also use a single broad <code class="docutils literal notranslate"><span class="pre">except</span> <span class="pre">LookupError:</span></code> / <code class="docutils literal notranslate"><span class="pre">except</span> <span class="pre">ValueError:</span></code> /
+<code class="docutils literal notranslate"><span class="pre">except</span> <span class="pre">RuntimeError:</span></code> if you do not need to distinguish cases. The
+<code class="docutils literal notranslate"><span class="pre">__cause__</span></code> attribute still gives you the original error.</p>
 </section>
-<section id="census-standards-compliance">
-<h2>Census Standards Compliance<a class="headerlink" href="#census-standards-compliance" title="Link to this heading"></a></h2>
-<p>The synthetic data follows US Census Bureau standards:</p>
+<section id="further-reading">
+<h2>Further reading<a class="headerlink" href="#further-reading" title="Link to this heading"></a></h2>
 <ul class="simple">
-<li><p><strong>Race Categories</strong>: “White alone, not Hispanic or Latino”, “Black or African American alone, not Hispanic or Latino”, “Asian alone, not Hispanic or Latino”, “American Indian and Alaska Native alone, not Hispanic or Latino”, “Native Hawaiian and Other Pacific Islander alone, not Hispanic or Latino”, “Some Other Race alone, not Hispanic or Latino”</p></li>
-<li><p><strong>Hispanic Origin</strong>: “Hispanic or Latino” vs “Not Hispanic or Latino” (separate from race)</p></li>
-<li><p><strong>Age Groups</strong>: Census-standard age brackets (e.g., “18 to 24 years”, “25 to 34 years”)</p></li>
-<li><p><strong>Income Brackets</strong>: Census income categories (e.g., “$50,000 to $59,999”, “$100,000 to $124,999”)</p></li>
-<li><p><strong>Education Attainment</strong>: Census education levels (e.g., “High school graduate (includes equivalency)”, “Bachelor’s degree”)</p></li>
+<li><p><span class="xref std std-doc">../../docs/FAILURE_MODES</span> — complete anti-pattern catalog</p></li>
+<li><p><span class="xref std std-doc">../../docs/ARCHITECTURE</span> — three-layer dependency model</p></li>
 </ul>
-</section>
-<section id="data-quality-features">
-<h2>Data Quality Features<a class="headerlink" href="#data-quality-features" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p><strong>Realistic Patterns</strong>: Demographics match actual Census distributions</p></li>
-<li><p><strong>Consistent Relationships</strong>: Age, income, and education correlations</p></li>
-<li><p><strong>Geographic Accuracy</strong>: Addresses within actual boundary constraints</p></li>
-<li><p><strong>Privacy Compliance</strong>: No real personal information</p></li>
-<li><p><strong>Scalable Generation</strong>: Generate datasets of any size</p></li>
-</ul>
-</section>
-<section id="best-practices">
-<h2>Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p>Use sample data for development and testing</p></li>
-<li><p>Generate appropriate sizes for your testing needs</p></li>
-<li><p>Customize demographics to match your use case</p></li>
-<li><p>Combine with real boundaries for geographic testing</p></li>
-<li><p>Document your synthetic data generation parameters</p></li>
-</ul>
-</section>
-<section id="examples">
-<h2>Examples<a class="headerlink" href="#examples" title="Link to this heading"></a></h2>
-<p>For runnable package examples, see:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">siege_utilities/examples/enhanced_features_demo.py</span></code> - integration-oriented usage examples</p></li>
-</ul>
-<p>For detailed API documentation, see the sample data module functions.</p>
 </section>
 </section>
 
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="logging_utilities.html" class="btn btn-neutral float-left" title="Logging Utilities" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="distributed_computing.html" class="btn btn-neutral float-right" title="Distributed Computing" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 
