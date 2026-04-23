@@ -6,7 +6,7 @@ Provides structured logging with proper configuration management.
 import logging
 import logging.handlers
 from pathlib import Path
-from typing import Optional, Dict, Any, Union, Generator
+from typing import Optional, Dict, Union, Generator
 from dataclasses import dataclass, field
 from contextlib import contextmanager
 import sys

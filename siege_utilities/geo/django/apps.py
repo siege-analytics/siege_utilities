@@ -14,4 +14,3 @@ class SiegeGeoConfig(AppConfig):
     def ready(self):
         """Perform initialization when the app is ready."""
         # Import signals if needed
-        pass

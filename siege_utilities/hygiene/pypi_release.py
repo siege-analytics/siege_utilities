@@ -7,14 +7,12 @@ PyPI Release Management for siege_utilities package.
     and git tagging into a single CLI tool.
 """
 
-import os
 import sys
 import subprocess
 import shutil
 import warnings
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-import json
+from typing import List, Optional, Tuple
 import re
 from datetime import datetime
 
@@ -25,7 +23,7 @@ _DEPRECATION_MSG = (
 
 # Import logging functions from main package
 try:
-    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+    from siege_utilities.core.logging import log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if main package not available yet
     def log_info(message): pass
@@ -370,7 +368,7 @@ def full_release_workflow(
         # 3. Update version in files
         log_info("Updating version in files...")
         setup_updated = update_version_in_setup_py("setup.py", new_version)
-        pyproject_updated = update_version_in_pyproject_toml("pyproject.toml", new_version)
+        update_version_in_pyproject_toml("pyproject.toml", new_version)
 
         if not setup_updated:
             return False, "Failed to update version in setup.py"

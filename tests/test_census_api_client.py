@@ -6,9 +6,8 @@ Tests the CensusAPIClient class and convenience functions with mocked responses.
 
 import pytest
 import pandas as pd
-import json
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import tempfile
 import os
 
@@ -23,7 +22,6 @@ def _has_pyarrow():
 from siege_utilities.geo.census_api_client import (
     CensusAPIClient,
     CensusAPIError,
-    CensusAPIKeyError,
     CensusRateLimitError,
     CensusVariableError,
     CensusGeographyError,
@@ -32,8 +30,6 @@ from siege_utilities.geo.census_api_client import (
     get_demographics,
     get_population,
     get_income_data,
-    get_education_data,
-    get_housing_data,
     get_census_api_client,
 )
 

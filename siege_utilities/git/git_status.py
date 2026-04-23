@@ -4,10 +4,8 @@ Comprehensive repository state analysis and monitoring.
 """
 
 import subprocess
-import os
 from pathlib import Path
 from typing import List, Dict, Optional, Union
-import re
 from datetime import datetime
 
 from siege_utilities.exceptions import GitError

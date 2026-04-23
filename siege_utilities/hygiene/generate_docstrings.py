@@ -3,16 +3,13 @@ Auto-generate docstrings for functions missing them in siege_utilities.
 Part of the hygiene maintenance toolkit.
 """
 import ast
-import os
 import sys
 import inspect
-import textwrap
 from pathlib import Path
-from typing import get_type_hints, Any
 
 # Import logging functions from main package
 try:
-    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+    from siege_utilities.core.logging import log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if main package not available yet
     def log_info(message): pass
@@ -218,7 +215,7 @@ def main():
     log_info('Auto-generating docstrings for siege_utilities')
     log_info('=' * 60)
     try:
-        import astor
+        pass
     except ImportError:
         log_error('Missing dependency: astor')
         log_info('Install with: pip install astor')

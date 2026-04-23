@@ -13,7 +13,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import logging
 
-from .models import UserProfile, ClientProfile, BrandingConfig, ReportPreferences
+from .models import UserProfile, ClientProfile
 try:
     from .hydra_manager import HydraConfigManager
 except ImportError:
@@ -135,7 +135,7 @@ class ConfigurationMigrator:
         try:
             # Migrate user profile
             if not dry_run:
-                user_profile = self.migrate_user_profile()
+                self.migrate_user_profile()
                 results["user_profile"]["migrated"] = True
                 logger.info("User profile migrated successfully")
             else:
@@ -149,7 +149,7 @@ class ConfigurationMigrator:
                     
                     if not dry_run:
                         try:
-                            client_profile = self.migrate_client_profile(client_file, client_code)
+                            self.migrate_client_profile(client_file, client_code)
                             results["client_profiles"]["migrated"].append(client_code)
                             logger.info(f"Client profile migrated: {client_code}")
                         except Exception as e:

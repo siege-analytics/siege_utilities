@@ -5,17 +5,14 @@ Enhanced with Pydantic validation while maintaining backward compatibility.
 """
 
 import logging
-import json
 import warnings
 import yaml
 from pathlib import Path
-from typing import Dict, Any, Optional, Union
+from typing import Optional
 import os
 from dataclasses import dataclass, asdict
-import getpass
 
 # Import enhanced config for validation
-from .enhanced_config import UserProfile as EnhancedUserProfile, load_user_profile as enhanced_load_user_profile
 
 log = logging.getLogger(__name__)
 

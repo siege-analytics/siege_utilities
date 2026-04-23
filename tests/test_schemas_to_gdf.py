@@ -3,8 +3,7 @@
 import pytest
 
 import geopandas as gpd
-import pandas as pd
-from shapely.geometry import box, Point
+from shapely.geometry import box
 
 from siege_utilities.geo.schemas import StateSchema, CountySchema, schemas_to_gdf
 from siege_utilities.geo.schemas.converters import gdf_to_schemas

@@ -1,8 +1,6 @@
 """Tests for TemporalDataStore save/load/query."""
 
-import tempfile
 from datetime import date
-from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd

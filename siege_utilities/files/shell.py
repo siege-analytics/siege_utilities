@@ -9,13 +9,12 @@ import subprocess
 import logging
 import shlex
 from typing import Union, List, Optional
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 # Import logging functions from main package
 try:
-    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+    from siege_utilities.core.logging import log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if main package not available yet
     import logging
@@ -28,7 +27,6 @@ except ImportError:
 
 class SecurityError(Exception):
     """Raised when a security violation is detected."""
-    pass
 
 
 # Whitelist of allowed base commands

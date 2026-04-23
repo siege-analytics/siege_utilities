@@ -8,15 +8,9 @@ Adapted from working GA project implementation
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.colors import HexColor
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import Paragraph, Table, TableStyle
-from reportlab.lib.units import inch
-from datetime import datetime
-from pathlib import Path
-import yaml
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 
-from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+from siege_utilities.core.logging import log_info, log_warning
 
 
 class TableOfContentsTemplate:
@@ -45,7 +39,7 @@ class TableOfContentsTemplate:
         """Load brand configuration from client branding system"""
         try:
             from .client_branding import ClientBrandingManager
-            branding_manager = ClientBrandingManager()
+            ClientBrandingManager()
             return self._default_brand_config()
         except Exception as e:
             log_warning(f"Could not load brand config: {e}")

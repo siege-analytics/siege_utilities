@@ -6,7 +6,7 @@ import hashlib
 import pathlib
 from typing import Optional
 
-from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+from siege_utilities.core.logging import log_info, log_error
 
 
 def generate_sha256_hash_for_file(file_path) ->Optional[str]:
@@ -38,7 +38,7 @@ def generate_sha256_hash_for_file(file_path) ->Optional[str]:
     try:
         # Import validation function
         try:
-            from siege_utilities.files.validation import validate_file_path, PathSecurityError
+            from siege_utilities.files.validation import validate_file_path
         except ImportError:
             # Fallback: use basic Path validation without security checks
             path_obj = pathlib.Path(file_path)
@@ -88,7 +88,7 @@ def get_file_hash(file_path, algorithm='sha256') ->Optional[str]:
     try:
         # Import validation function
         try:
-            from siege_utilities.files.validation import validate_file_path, PathSecurityError
+            from siege_utilities.files.validation import validate_file_path
         except ImportError:
             # Fallback: use basic Path validation without security checks
             path_obj = pathlib.Path(file_path)

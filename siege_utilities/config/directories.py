@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Import logging functions from core logging module
 try:
-    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+    from siege_utilities.core.logging import log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if core logging not available yet
     def log_info(message): logger.info(message)
@@ -57,7 +57,7 @@ def create_directory_structure(base_path: str, structure: Dict[str, Any]) -> Dic
     try:
         # Validate base path
         try:
-            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            from siege_utilities.files.validation import validate_directory_path
             base_path_obj = validate_directory_path(base_path, must_exist=False)
         except ImportError:
             base_path_obj = pathlib.Path(base_path)
@@ -200,7 +200,7 @@ def save_directory_config(paths: Dict[str, str], config_name: str,
     """
     # Validate config directory path
     try:
-        from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+        from siege_utilities.files.validation import validate_directory_path
         config_dir = validate_directory_path(config_directory, must_exist=False)
     except ImportError:
         config_dir = pathlib.Path(config_directory)
@@ -251,7 +251,7 @@ def load_directory_config(config_name: str, config_directory: str = "config") ->
     """
     # Validate config directory path
     try:
-        from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+        from siege_utilities.files.validation import validate_directory_path
         config_dir = validate_directory_path(config_directory, must_exist=False)
     except ImportError:
         config_dir = pathlib.Path(config_directory)
@@ -306,7 +306,7 @@ def ensure_directories_exist(paths: Dict[str, str]) -> bool:
         for name, path in paths.items():
             # Validate each directory path
             try:
-                from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+                from siege_utilities.files.validation import validate_directory_path
                 dir_path = validate_directory_path(path, must_exist=False)
             except ImportError:
                 dir_path = pathlib.Path(path)
@@ -354,7 +354,7 @@ def get_directory_info(directory_path: str) -> Dict[str, Any]:
     """
     # Validate directory path
     try:
-        from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+        from siege_utilities.files.validation import validate_directory_path
         dir_path = validate_directory_path(directory_path, must_exist=False)
     except ImportError:
         dir_path = pathlib.Path(directory_path)
@@ -419,7 +419,7 @@ def clean_empty_directories(base_path: str, keep_gitkeep: bool = True) -> int:
     """
     # Validate base path
     try:
-        from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+        from siege_utilities.files.validation import validate_directory_path
         base_path_obj = validate_directory_path(base_path, must_exist=False)
     except ImportError:
         base_path_obj = pathlib.Path(base_path)
@@ -500,7 +500,7 @@ def list_directory_configs(config_directory: str = "config") -> List[Dict[str, A
     """
     # Validate config directory path
     try:
-        from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+        from siege_utilities.files.validation import validate_directory_path
         config_dir = validate_directory_path(config_directory, must_exist=False)
     except ImportError:
         config_dir = pathlib.Path(config_directory)

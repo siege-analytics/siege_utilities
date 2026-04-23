@@ -9,7 +9,7 @@ from hydra import initialize_config_dir, compose
 from hydra.core.global_hydra import GlobalHydra
 from omegaconf import OmegaConf
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List
 import logging
 
 from .models import (

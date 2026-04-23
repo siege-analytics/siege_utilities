@@ -12,7 +12,6 @@ import pytest
 
 pytestmark = pytest.mark.integration
 from unittest.mock import patch, MagicMock
-import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
 

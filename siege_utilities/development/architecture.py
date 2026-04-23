@@ -2,18 +2,15 @@
 Architecture analysis and diagram generation for siege_utilities package.
 """
 
-import os
-import sys
 import inspect
 import importlib
 from pathlib import Path
-from typing import Dict, List, Any, Optional
-from collections import defaultdict
+from typing import Dict, Any, Optional
 import json
 
 # Import logging functions from main package
 try:
-    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+    from siege_utilities.core.logging import log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if main package not available yet
     def log_info(message): pass

@@ -16,7 +16,6 @@ Based on the approach from: https://github.com/mikhailsirenko/bivariate-chorople
 
 import pandas as pd
 import geopandas as gpd
-from pathlib import Path
 import logging
 
 # Import the ChartGenerator

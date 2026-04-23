@@ -3,7 +3,6 @@ Modern path utilities for siege_utilities.
 Provides clean, type-safe path manipulation utilities.
 """
 
-import pathlib
 import zipfile
 import logging
 from pathlib import Path
@@ -40,7 +39,7 @@ def ensure_path_exists(desired_path: FilePath) -> Path:
     try:
         # Validate path
         try:
-            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            from siege_utilities.files.validation import validate_directory_path
             path_obj = validate_directory_path(desired_path, must_exist=False)
         except ImportError:
             path_obj = Path(desired_path)

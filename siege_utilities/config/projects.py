@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Import logging functions from core logging module
 try:
-    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+    from siege_utilities.core.logging import log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if core logging not available yet
     def log_info(message): logger.info(message)
@@ -59,7 +59,7 @@ def create_project_config(project_name: str, project_code: str,
     try:
         # Validate base directory path
         try:
-            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            from siege_utilities.files.validation import validate_directory_path
             base_path = validate_directory_path(base_directory, must_exist=False)
         except ImportError:
             base_path = pathlib.Path(base_directory)
@@ -130,7 +130,7 @@ def save_project_config(config: Dict[str, Any], config_directory: str = "config"
     try:
         # Validate config directory path
         try:
-            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            from siege_utilities.files.validation import validate_directory_path
             config_dir = validate_directory_path(config_directory, must_exist=False)
         except ImportError:
             config_dir = pathlib.Path(config_directory)
@@ -181,7 +181,7 @@ def load_project_config(project_code: str, config_directory: str = "config") -> 
     try:
         # Validate config directory path
         try:
-            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            from siege_utilities.files.validation import validate_directory_path
             config_dir = validate_directory_path(config_directory, must_exist=False)
         except ImportError:
             config_dir = pathlib.Path(config_directory)
@@ -235,7 +235,7 @@ def setup_project_directories(config: Dict[str, Any]) -> bool:
     try:
         # Import validation function
         try:
-            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            from siege_utilities.files.validation import validate_directory_path
             use_validation = True
         except ImportError:
             use_validation = False
@@ -323,7 +323,7 @@ def list_projects(config_directory: str = "config") -> list:
     try:
         # Validate config directory path
         try:
-            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            from siege_utilities.files.validation import validate_directory_path
             config_dir = validate_directory_path(config_directory, must_exist=False)
         except ImportError:
             config_dir = pathlib.Path(config_directory)

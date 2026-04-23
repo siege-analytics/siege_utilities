@@ -8,7 +8,6 @@ Since these are abstract models, we test their fields, properties, and methods
 by inspecting the class definitions rather than instantiating them directly.
 """
 
-from datetime import date
 
 import pytest
 

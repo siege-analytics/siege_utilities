@@ -7,7 +7,7 @@ import pathlib
 from dataclasses import dataclass
 from typing import Optional, Callable
 
-from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+from siege_utilities.core.logging import log_info, log_error
 
 
 @dataclass

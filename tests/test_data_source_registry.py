@@ -1,7 +1,6 @@
 """Tests for DataSource registry models and manager."""
 
 import pytest
-import tempfile
 from pathlib import Path
 
 from siege_utilities.config.models.data_sources import (

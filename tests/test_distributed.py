@@ -673,7 +673,7 @@ class TestAbstractHDFSOperationsInit:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_dir = os.path.join(tmpdir, 'test_cache')
             config = HDFSConfig(cache_directory=cache_dir)
-            ops = AbstractHDFSOperations(config)
+            AbstractHDFSOperations(config)
             assert os.path.isdir(cache_dir)
 
     def test_sets_up_cache_paths(self):

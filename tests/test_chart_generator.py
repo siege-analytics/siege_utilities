@@ -350,7 +350,6 @@ class TestCreateMethodsWithScaling:
 
     def test_create_dashboard_default_scaled(self, cg_scaled):
         """create_dashboard default 12×8 should be scaled to fit max_width=6."""
-        import pandas as pd
         charts = [
             {"type": "bar", "title": "T1",
              "data": {"labels": ["A", "B"], "datasets": [{"data": [1, 2]}]}},

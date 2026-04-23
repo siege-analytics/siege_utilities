@@ -7,10 +7,7 @@ Tests the dynamic discovery system, data source functionality, and all new featu
 import pytest
 import sys
 import os
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
-import tempfile
-import shutil
+from unittest.mock import Mock, patch
 
 # Add the project root to the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

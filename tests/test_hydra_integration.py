@@ -9,13 +9,12 @@ import pytest
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 import yaml
 
 from siege_utilities.config.hydra_manager import HydraConfigManager
 from siege_utilities.config.models import (
     UserProfile, ClientProfile, BrandingConfig, ReportPreferences,
-    DatabaseConnection, SocialMediaAccount, ContactInfo
+    DatabaseConnection, SocialMediaAccount
 )
 from siege_utilities.config.migration import ConfigurationMigrator
 

@@ -10,7 +10,6 @@ system loads correctly (no regression).
 """
 
 import pytest
-import sys
 
 
 def _pydantic_major_version():
@@ -41,7 +40,7 @@ class TestCoreModulesAvailable:
     """Core modules that do NOT depend on pydantic must always work."""
 
     def test_core_logging(self):
-        from siege_utilities.core.logging import get_logger, log_info, log_warning
+        from siege_utilities.core.logging import get_logger, log_info
         assert callable(get_logger)
         assert callable(log_info)
 

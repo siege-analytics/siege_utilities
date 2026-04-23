@@ -10,7 +10,6 @@ import pandas as pd
 
 # Skip if Django/GDAL not available
 try:
-    import django
     from django.core.cache import cache
 
     _DJANGO_AVAILABLE = True

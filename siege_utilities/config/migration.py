@@ -8,12 +8,11 @@ while maintaining backward compatibility.
 import json
 import yaml
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from datetime import datetime
 import logging
 
-from .models import UserProfile, ClientProfile, BrandingConfig, ReportPreferences
-from .hydra_manager import HydraConfigManager
+from .models import UserProfile, ClientProfile
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +130,7 @@ class ConfigurationMigrator:
         try:
             # Migrate user profile
             if not dry_run:
-                user_profile = self.migrate_user_profile()
+                self.migrate_user_profile()
                 results["user_profile"]["migrated"] = True
                 logger.info("User profile migrated successfully")
             else:
@@ -145,7 +144,7 @@ class ConfigurationMigrator:
                     
                     if not dry_run:
                         try:
-                            client_profile = self.migrate_client_profile(client_file, client_code)
+                            self.migrate_client_profile(client_file, client_code)
                             results["client_profiles"]["migrated"].append(client_code)
                             logger.info(f"Client profile migrated: {client_code}")
                         except Exception as e:

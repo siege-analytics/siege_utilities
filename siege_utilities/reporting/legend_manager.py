@@ -4,7 +4,7 @@ Provides comprehensive legend generation and management for charts, tables, and 
 """
 
 import logging
-from typing import Dict, List, Any, Optional, Union, Tuple
+from typing import Dict, List, Any, Optional
 from enum import Enum
 
 # Core plotting libraries
@@ -177,7 +177,7 @@ class LegendManager:
             log.warning("ReportLab not available for legend table generation")
             return None
         
-        styles = getSampleStyleSheet()
+        getSampleStyleSheet()
         
         # Create legend data
         legend_data = [["Intensity", "Color", f"{value_name} Range"]]

@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Tuple
 
 # Import logging functions from main package
 try:
-    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+    from siege_utilities.core.logging import log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if main package not available yet
     def log_info(message): pass
@@ -268,7 +268,7 @@ def setup_spark_environment() -> bool:
 
     # Ensure required environment variables
     required_vars = ["JAVA_HOME", "SPARK_HOME"]
-    resolved = ensure_env_vars(required_vars)
+    ensure_env_vars(required_vars)
 
     # Check Java compatibility
     java_version, java_compatible = check_java_version()

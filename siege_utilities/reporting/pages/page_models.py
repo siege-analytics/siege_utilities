@@ -66,7 +66,6 @@ class Page(ABC):
     @abstractmethod
     def build(self):
         """Build the page content"""
-        pass
 
     def add_spacer(self, height):
         """Add spacing to the page"""

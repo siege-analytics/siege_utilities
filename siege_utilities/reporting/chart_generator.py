@@ -80,7 +80,6 @@ class ChartGenerator(BaseChartEngine, BarChartMixin, MapChartMixin, StatsChartMi
     - **StatsChartMixin** — statistical heatmap, scatter plot, text heatmap
     - **CompositeChartMixin** — convergence diagram, dashboard, summary charts, subplots
     """
-    pass
 
 
 # Standalone function wrappers for functional access

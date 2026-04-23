@@ -50,7 +50,6 @@ class _SampleClass:
 
     def public_method(self, a: int) -> None:
         """Do something public."""
-        pass
 
     def another_method(self) -> str:
         """Return a string."""
@@ -242,11 +241,9 @@ class TestAnalyzeModule:
 
         def helper():
             """Helper func."""
-            pass
 
         class Widget:
             """Widget class."""
-            pass
 
         mod.helper = helper
         mod.Widget = Widget
@@ -479,7 +476,6 @@ class TestAnalyzePackageStructure:
 
         def greet():
             """Say hi."""
-            pass
 
         sub.greet = greet
         pkg.sub = sub

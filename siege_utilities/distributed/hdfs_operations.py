@@ -2,12 +2,9 @@
 Abstract HDFS Operations - Fully Configurable and Reusable
 Zero hard-coded project dependencies
 """
-import os
 import subprocess
 import pathlib
-import json
 import time
-import zipfile
 import hashlib
 from typing import Optional, Tuple, Dict, List
 

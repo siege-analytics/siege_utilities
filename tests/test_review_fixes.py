@@ -7,7 +7,6 @@ strict year validation, and GEOID preservation.
 
 import pytest
 import pandas as pd
-import numpy as np
 import geopandas as gpd
 from shapely.geometry import box
 from unittest.mock import patch, MagicMock

@@ -18,13 +18,9 @@ To skip integration tests when running the full suite:
 import pytest
 import pandas as pd
 import os
-from datetime import datetime
 
 from siege_utilities.geo.census_api_client import (
     CensusAPIClient,
-    CensusAPIError,
-    CensusGeographyError,
-    VARIABLE_GROUPS,
     get_demographics,
     get_population,
     get_income_data,

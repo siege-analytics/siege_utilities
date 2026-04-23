@@ -13,7 +13,7 @@ Use these validators in all file operations to ensure secure path handling.
 import os
 import logging
 from pathlib import Path
-from typing import Union, Optional, List
+from typing import Union, Optional
 
 # Get logger for this module
 log = logging.getLogger(__name__)
@@ -24,7 +24,6 @@ FilePath = Union[str, Path]
 
 class PathSecurityError(Exception):
     """Raised when a path fails security validation."""
-    pass
 
 
 # Sensitive system paths that should never be accessed

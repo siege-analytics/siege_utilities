@@ -3,7 +3,6 @@
 from datetime import date
 
 import geopandas as gpd
-import pandas as pd
 import pytest
 from shapely.geometry import Point, box
 

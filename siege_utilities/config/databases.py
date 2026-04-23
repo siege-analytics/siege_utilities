@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Import logging functions from core logging module
 try:
-    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+    from siege_utilities.core.logging import log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if core logging not available yet
     def log_info(message): logger.info(message)

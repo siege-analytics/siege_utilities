@@ -6,9 +6,8 @@ Tests the crosswalk client, processor, and relationship types with mocked respon
 
 import pytest
 import pandas as pd
-import numpy as np
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import tempfile
 
 from siege_utilities.geo.crosswalk import (

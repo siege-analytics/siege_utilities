@@ -1,6 +1,5 @@
 """Tests for BOUNDARY_TYPE_CATALOG and TIGER_FILE_PATTERNS consistency."""
 
-import pytest
 
 from siege_utilities.geo.spatial_data import BOUNDARY_TYPE_CATALOG
 from siege_utilities.config.census_constants import TIGER_FILE_PATTERNS

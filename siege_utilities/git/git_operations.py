@@ -4,12 +4,10 @@ Comprehensive git commands and workflow automation.
 """
 
 import subprocess
-import os
-from pathlib import Path
-from typing import List, Dict, Optional, Union
+from typing import Dict, Optional
 import re
 
-from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+from siege_utilities.core.logging import log_info, log_warning, log_error
 from siege_utilities.exceptions import GitError
 
 def run_git_command(*args, repo_path: str = ".", check: bool = True) -> str:
@@ -93,7 +91,7 @@ def switch_branch(branch_name: str, repo_path: str = ".") -> Dict[str, str]:
     """
     # Validate inputs
     try:
-        from siege_utilities.git.validation import validate_branch_name, validate_repo_path, GitSecurityError
+        from siege_utilities.git.validation import validate_branch_name, validate_repo_path
         branch_name = validate_branch_name(branch_name)
         repo_path = str(validate_repo_path(repo_path))
     except ImportError:
@@ -148,7 +146,7 @@ def merge_branch(
     """
     # Validate inputs
     try:
-        from siege_utilities.git.validation import validate_branch_name, validate_repo_path, GitSecurityError
+        from siege_utilities.git.validation import validate_branch_name, validate_repo_path
         source_branch = validate_branch_name(source_branch)
         target_branch = validate_branch_name(target_branch)
         repo_path = str(validate_repo_path(repo_path))
@@ -216,7 +214,7 @@ def rebase_branch(
     """
     # Validate inputs
     try:
-        from siege_utilities.git.validation import validate_branch_name, validate_repo_path, GitSecurityError
+        from siege_utilities.git.validation import validate_branch_name, validate_repo_path
         source_branch = validate_branch_name(source_branch)
         base_branch = validate_branch_name(base_branch)
         repo_path = str(validate_repo_path(repo_path))
@@ -276,7 +274,7 @@ def stash_changes(
     """
     # Validate inputs
     try:
-        from siege_utilities.git.validation import validate_commit_message, validate_repo_path, GitSecurityError
+        from siege_utilities.git.validation import validate_commit_message, validate_repo_path
         if message:
             message = validate_commit_message(message)
         repo_path = str(validate_repo_path(repo_path))
@@ -437,7 +435,7 @@ def reset_to_commit(
     """
     # Validate inputs
     try:
-        from siege_utilities.git.validation import validate_commit_hash, validate_repo_path, GitSecurityError
+        from siege_utilities.git.validation import validate_commit_hash, validate_repo_path
         commit_hash = validate_commit_hash(commit_hash)
         repo_path = str(validate_repo_path(repo_path))
     except ImportError:
@@ -487,7 +485,7 @@ def cherry_pick_commit(
     """
     # Validate inputs
     try:
-        from siege_utilities.git.validation import validate_commit_hash, validate_repo_path, GitSecurityError
+        from siege_utilities.git.validation import validate_commit_hash, validate_repo_path
         if not continue_on_conflict:  # Only validate if we're using the hash
             commit_hash = validate_commit_hash(commit_hash)
         repo_path = str(validate_repo_path(repo_path))
@@ -638,7 +636,7 @@ def push_branch(
     """
     # Validate inputs
     try:
-        from siege_utilities.git.validation import validate_branch_name, validate_remote_name, validate_repo_path, GitSecurityError
+        from siege_utilities.git.validation import validate_branch_name, validate_remote_name, validate_repo_path
         if branch_name:
             branch_name = validate_branch_name(branch_name)
         remote = validate_remote_name(remote)
@@ -697,7 +695,7 @@ def pull_branch(
     """
     # Validate inputs
     try:
-        from siege_utilities.git.validation import validate_branch_name, validate_remote_name, validate_repo_path, GitSecurityError
+        from siege_utilities.git.validation import validate_branch_name, validate_remote_name, validate_repo_path
         if branch_name:
             branch_name = validate_branch_name(branch_name)
         remote = validate_remote_name(remote)

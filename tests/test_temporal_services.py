@@ -1,7 +1,5 @@
 """Tests for pure-Python temporal services."""
 
-import tempfile
-from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -9,7 +7,6 @@ import pytest
 from siege_utilities.geo.temporal.services import (
     TemporalTimeseriesBuilder,
     TemporalDemographicService,
-    TimeseriesBuildResult,
 )
 
 

@@ -2,8 +2,7 @@
 
 import pytest
 import geopandas as gpd
-import pandas as pd
-from shapely.geometry import Point, Polygon, box
+from shapely.geometry import Point, box
 
 from siege_utilities.geo.locale import (
     ALL_LOCALE_CODES,

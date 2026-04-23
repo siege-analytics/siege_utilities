@@ -4,13 +4,11 @@ Standardized workflows for feature development, releases, and hotfixes.
 """
 
 import subprocess
-import os
 from pathlib import Path
 from typing import List, Dict, Optional, Union
 import re
-from datetime import datetime
 
-from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+from siege_utilities.core.logging import log_info, log_warning
 from siege_utilities.exceptions import GitError
 
 
@@ -45,7 +43,6 @@ def validate_branch_naming(branch_name: str) -> Dict[str, Union[bool, str, List[
         "developer": r"^[a-z]+/[a-z0-9-]+$",
     }
 
-    validation_results = {}
     matched_pattern = None
 
     for pattern_name, pattern in patterns.items():

@@ -8,7 +8,6 @@ QuerySet construction without requiring a full PostGIS database.
 
 import inspect
 
-import pytest
 
 
 class TestBoundaryQuerySetNearest:

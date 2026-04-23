@@ -1,4 +1,4 @@
-from typing import Optional, Union, Tuple, Dict, TYPE_CHECKING
+from typing import Optional, Dict, TYPE_CHECKING
 import os
 import pathlib
 from pathlib import Path
@@ -7,7 +7,7 @@ import time
 import logging
 import uuid
 
-from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+from siege_utilities.core.logging import log_info, log_warning, log_error, log_debug
 
 if TYPE_CHECKING:
     from pyspark.sql import DataFrame, SparkSession, Column
@@ -592,8 +592,8 @@ def prepare_dataframe_for_export(df, logger_func=None):
     Returns:
         The transformed DataFrame with all columns as strings or JSON strings.
     """
-    from pyspark.sql.types import BinaryType, StringType, StructType, ArrayType, IntegerType, LongType, DoubleType, FloatType, BooleanType, DateType, TimestampType
-    from pyspark.sql.functions import base64, col, to_json, when, isnan, isnull
+    from pyspark.sql.types import BinaryType, StringType, StructType, ArrayType
+    from pyspark.sql.functions import base64, col, to_json, when, isnan
     _log = logger_func if logger_func else log_info
     try:
         _log('Preparing DataFrame for export...')

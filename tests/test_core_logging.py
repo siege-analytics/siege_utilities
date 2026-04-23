@@ -8,13 +8,13 @@ import tempfile
 import shutil
 from pathlib import Path
 import logging
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from siege_utilities.core.logging import (
     LoggerManager, LoggingConfig, configure_shared_logging,
     get_logger, init_logger, cleanup_logger, cleanup_all_loggers,
     set_default_logger_name, log_debug, log_info, log_warning,
-    log_error, log_critical, temporary_logging_config
+    log_error, log_critical
 )
 
 
@@ -109,7 +109,7 @@ class TestLoggerManager:
     
     def test_cleanup_logger(self):
         """Test logger cleanup."""
-        logger = self.manager.get_logger("test_logger")
+        self.manager.get_logger("test_logger")
         
         assert "test_logger" in self.manager._loggers
         
@@ -194,7 +194,7 @@ class TestGlobalFunctions:
     
     def test_cleanup_logger(self):
         """Test global cleanup_logger function."""
-        logger = get_logger("test_logger")
+        get_logger("test_logger")
         
         result = cleanup_logger("test_logger")
         assert result is True

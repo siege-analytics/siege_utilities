@@ -8,14 +8,11 @@ These tests catch drift between structures — e.g., if someone adds a canonical
 level but forgets to update the enum, GEOGRAPHIC_LEVELS, or TIGER_FILE_PATTERNS.
 """
 
-import pytest
 import pandas as pd
 
 from siege_utilities.config.census_constants import (
     CANONICAL_GEOGRAPHIC_LEVELS,
-    _ALIAS_TO_CANONICAL,
     resolve_geographic_level,
-    validate_geographic_level,
     GEOGRAPHIC_LEVELS,
     GEOGRAPHIC_HIERARCHY,
     TIGER_FILE_PATTERNS,
@@ -24,9 +21,7 @@ from siege_utilities.geo.census_dataset_mapper import GeographyLevel
 from siege_utilities.geo.geoid_utils import (
     GEOID_LENGTHS,
     GEOID_COMPONENT_LENGTHS,
-    normalize_geoid,
     validate_geoid,
-    construct_geoid,
 )
 from siege_utilities.geo.spatial_data import BOUNDARY_TYPE_CATALOG
 from siege_utilities.geo.census_files.pl_downloader import SUMMARY_LEVELS

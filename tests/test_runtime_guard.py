@@ -3,7 +3,6 @@
 See: https://github.com/siege-analytics/siege_utilities/issues/211
 """
 
-import importlib
 import os
 import sys
 from unittest import mock

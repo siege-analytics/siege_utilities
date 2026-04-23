@@ -4,7 +4,6 @@ Provides clean, type-safe file manipulation utilities.
 """
 
 import json
-import pathlib
 import subprocess
 import shutil
 import logging

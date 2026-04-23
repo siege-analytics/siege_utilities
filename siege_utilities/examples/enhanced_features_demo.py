@@ -14,7 +14,6 @@ This script demonstrates the new enhanced features:
 import logging
 import sys
 from pathlib import Path
-import pandas as pd
 import geopandas as gpd
 
 # Add the parent directory to the path to import siege_utilities
@@ -30,9 +29,9 @@ from siege_utilities import (
 
 # Import spatial functions from geo module
 from siege_utilities.geo import (
-    get_census_data, get_census_boundaries, download_osm_data,
-    convert_spatial_format, transform_spatial_crs,
-    simplify_spatial_geometries, buffer_spatial_geometries
+    get_census_data, get_census_boundaries, convert_spatial_format,
+    transform_spatial_crs, simplify_spatial_geometries,
+    buffer_spatial_geometries
 )
 
 # Configure logging

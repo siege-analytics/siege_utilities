@@ -3,15 +3,13 @@ Branch analysis utilities for git repositories.
 Based on the Change-Agent-AI branch status generator.
 """
 
-import os
 import subprocess
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
-import json
+from typing import List, Dict, Optional
 
-from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+from siege_utilities.core.logging import log_info
 from siege_utilities.exceptions import GitError
 
 

@@ -5,10 +5,9 @@ Provides base templates and customization capabilities for different page types.
 
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Union, Callable
+from typing import Dict, Any, Optional, List, Callable
 from dataclasses import dataclass, field
 import yaml
-from abc import ABC, abstractmethod
 
 log = logging.getLogger(__name__)
 

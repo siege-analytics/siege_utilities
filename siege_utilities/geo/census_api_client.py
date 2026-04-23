@@ -60,27 +60,22 @@ log = logging.getLogger(__name__)
 
 class CensusAPIError(Exception):
     """Base exception for Census API errors."""
-    pass
 
 
 class CensusAPIKeyError(CensusAPIError):
     """Error related to API key authentication."""
-    pass
 
 
 class CensusRateLimitError(CensusAPIError):
     """Rate limit exceeded error."""
-    pass
 
 
 class CensusVariableError(CensusAPIError):
     """Invalid or unavailable variable error."""
-    pass
 
 
 class CensusGeographyError(CensusAPIError):
     """Invalid geography specification error."""
-    pass
 
 
 # =============================================================================
