@@ -1,40 +1,20 @@
 # siege_utilities — Architecture
 
-Per **ELE-2417** (audit sub-issue 2/6). Consumes `docs/INTENT.md` (ELE-2416) and `docs/FAILURE_MODES.md` (ELE-2418) as inputs. Ships ADRs in `docs/adr/` for each structural decision.
+**Goal:** three-layer model with a single invariant ("imports go DOWN") and a table of structural decisions.
 
-## The view from 10,000 feet
+**Scope:** ELE-2417 (audit sub-issue 2/6). Consumes [INTENT.md](INTENT.md) and [FAILURE_MODES.md](FAILURE_MODES.md). Ships [ADRs](adr/) for each decision. Snapshot: 2026-04-22 (revised 2026-04-23).
 
-```
-                        ┌──────────────────────────┐
-                        │  siege_utilities (lib)   │
-                        └──────────────────────────┘
-                                    │
-           ┌────────────────────────┼────────────────────────┐
-           │                        │                        │
-   ┌───────▼───────┐        ┌───────▼───────┐        ┌───────▼───────┐
-   │   core +      │        │   data +      │        │   reporting + │
-   │   config +    │        │   geo +       │        │   survey +    │
-   │   files +     │        │   distributed │        │   analytics   │
-   │   testing     │        │               │        │               │
-   └───────────────┘        └───────────────┘        └───────────────┘
-     foundation               ingestion                 analysis +
-     (no deps on              (consumes                  output
-      other subtrees)          foundation)               (consumes
-                                                          foundation +
-                                                          ingestion)
-```
+## Layer model
 
-Three layers:
+| Layer | Modules | Rule |
+|---|---|---|
+| **Foundation** | `core/`, `conf/`, `config/`, `files/`, `testing/`, `exceptions.py`, `runtime.py` | No deps on any other layer |
+| **Ingestion** | `data/`, `geo/`, `distributed/`, `databricks/`, `git/` | Consumes Foundation only |
+| **Analysis + output** | `reporting/`, `survey/`, `analytics/`, `admin/`, `hygiene/`, `development/` | Consumes Foundation + Ingestion |
 
-1. **Foundation** — `core/`, `config/`, `conf/`, `files/`, `testing/`, `exceptions.py`, `runtime.py`. Nothing here depends on `geo/`, `reporting/`, `survey/`, `analytics/`. Imported by everything else.
-2. **Ingestion** — `data/`, `geo/`, `distributed/`, `databricks/`, `git/`. Pulls data in. Consumes foundation but not analysis.
-3. **Analysis + output** — `reporting/`, `survey/`, `analytics/`, `admin/`, `hygiene/`, `development/`. Consumes both lower layers.
+**Invariant:** imports go DOWN. `core/` cannot import from `reporting/`. A utility that would create an upward edge belongs in a lower layer.
 
-**Invariant:** imports go DOWN. `core/` cannot import from `reporting/`. If a new utility is discovered that would create an upward edge, it belongs in a lower layer.
-
-## Dependency diagram (current — per `pydeps` pass)
-
-*(Actual auto-generated diagram belongs in a follow-up PR; this ADR set pins the intended shape. The follow-up will add a CI check that compares actual vs. intended and fails on violations.)*
+## Dependency diagram
 
 ```mermaid
 graph TD
@@ -85,53 +65,44 @@ graph TD
     hygiene --> files
 ```
 
-**Known violations** to be resolved by ADRs below:
-- `survey/` imports `Argument` / `TableType` from `reporting/pages/` — resolved by ADR 0007 (move to `reporting/models.py`, consumers stay stable)
-- `reporting/analytics/polling_analyzer.py` is analytics living inside reporting — ADR 0006 proposes a split
+A follow-up PR will add a `pydeps` CI check that fails on upward edges.
 
-## ADRs
+## ADR register
 
-| # | Title | Status |
+| # | Title | Status | Tracked under |
+|---|---|---|---|
+| [0001](adr/0001-chain-to-argument-pipeline-ownership.md) | Chain → Argument pipeline ownership | **Accepted** | ELE-2441 |
+| [0002](adr/0002-chart-map-generator-injection.md) | Chart / map generator injection | **Accepted** | ELE-2441 |
+| [0003](adr/0003-boundary-provider-registry.md) | BoundaryProvider registry pattern | Proposed | ELE-2438 (structural); later epic for interface |
+| [0004](adr/0004-dataclass-vs-pydantic.md) | Dataclass vs Pydantic boundary | Proposed | ELE-2420 |
+| [0005](adr/0005-lazy-import-convention.md) | Lazy-import convention | Proposed | ELE-2420 |
+| [0006](adr/0006-polling-analyzer-location.md) | PollingAnalyzer deprecation | **Accepted** | ELE-2439 + ELE-2440 |
+| [0007](adr/0007-argument-tabletype-location.md) | Argument + TableType location | Proposed | ELE-2420 |
+
+## Known invariant violations
+
+| Violation | Resolution | Target |
 |---|---|---|
-| 0001 | Chain-to-Argument pipeline ownership | Proposed |
-| 0002 | Chart / map generator injection | Proposed |
-| 0003 | BoundaryProvider registry pattern | Proposed |
-| 0004 | Dataclass vs Pydantic boundary | Proposed |
-| 0005 | Lazy-import convention | Proposed |
-| 0006 | polling_analyzer location | Proposed |
-| 0007 | Argument + TableType location | Proposed |
+| `survey/` imports `Argument` / `TableType` from `reporting/pages/` | Move to `reporting/models.py`; old path re-exports (deprecation shim) | ADR 0007 |
+| `reporting/analytics/polling_analyzer.py` — analytics inside reporting | Deprecate class; redistribute guts by nature | ADR 0006 / ELE-2439 |
+| `data/redistricting_data_hub.py` — provider inside data-ops module | Move to `geo/providers/` | ELE-2438 (D3) |
+| `data/` bundles four natures (stats, reference, infra, provider) | Aggressive split | ELE-2437 (D2) |
 
-## Migration plan
+## Migration phases
 
-Each ADR names its consumers and sequences the rollout so downstream callers (notebooks, client code) don't break mid-refactor.
-
-### Phase M1 — Documentation + invariants (this PR + companion CI)
-- Land all 7 ADRs
-- Land the dependency-direction invariant as a CI check (imports go DOWN)
-- No code changes yet
-
-### Phase M2 — Structural moves (low-risk; under ELE-2420)
-- ADR 0007: move `Argument` / `TableType` to `reporting/models.py` with re-exports from old location for one minor version
-- ADR 0006: split `polling_analyzer` — generic functions to `analytics/polling/`, reporting-specific heatmap/trend chart to stay
-
-### Phase M3 — Ownership consolidation (ELE-2420)
-- ADR 0001: pick one canonical entry point for Chain → Argument; the other delegates
-- ADR 0002: remove the unused injection kwargs
-
-### Phase M4 — Architectural patterns (ELE-2420 + future epic)
-- ADR 0003: registry pattern for BoundaryProvider
-- ADR 0004: where Pydantic begins (new external-facing types)
-- ADR 0005: standardize lazy-import discipline
+| Phase | Work | Risk | Under |
+|---|---|---|---|
+| **M1** | Land ADRs + dep-direction CI check (docs, no code) | None | ELE-2417 (this PR) |
+| **M2** | Structural moves: `data/` split, `geo/providers/`, delete `reporting/analytics/` | Low (re-export shims) | ELE-2437, 2438, 2439 |
+| **M3** | Ownership consolidation: rendering pipeline, PollingAnalyzer deprecation, waves subsystem | Medium (public API) | ELE-2440, 2441 |
+| **M4** | Provider interface unification (common `fetch`/`accepts` shape) | Medium | Post-audit epic |
 
 ## Non-goals for this epic
 
-- No wholesale rewrite of `reporting/` — that's a separate larger effort
-- No change to the public notebooks-facing API during M1/M2 (notebooks will be rewritten in ELE-2421 to use the new shape)
-- No breaking version bump — all phases land as minor versions with deprecation notices where needed
+| Non-goal | Reason |
+|---|---|
+| Wholesale rewrite of `reporting/` | Separate larger effort |
+| Break notebook-facing API during M1/M2 | Notebooks rewritten in ELE-2421 once new shape is in |
+| Major version bump | Every phase ships as minor with deprecation shims |
 
-## See also
-
-- `docs/INTENT.md` — what each module is for
-- `docs/FAILURE_MODES.md` — where silent failures hide
-- `docs/TEST_UPGRADES.md` — test-quality plan
-- `docs/adr/` — individual ADRs
+See also: [INTENT.md](INTENT.md) · [FAILURE_MODES.md](FAILURE_MODES.md) · [TEST_UPGRADES.md](TEST_UPGRADES.md) · [adr/](adr/)
