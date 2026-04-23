@@ -1,46 +1,60 @@
 # ADR 0002 — Chart / map generator injection
 
-**Status:** Proposed
-**Date:** 2026-04-22
-**Epic:** ELE-2415 (sub-issue ELE-2417)
+**Status:** Accepted (supersedes prior "Proposed" draft with reversed conclusion)
+**Date:** 2026-04-22 (revised 2026-04-23)
+**Epic:** ELE-2415 (implemented under ELE-2441)
 
 ## Context
 
-`chain_to_argument(chain, headline, narrative, *, chart_generator=None, map_generator=None)` accepts two optional generator kwargs. Neither is honored at runtime — as of PR #391 both raise `NotImplementedError` if set, so callers don't silently lose customizations they thought they were providing.
+`chain_to_argument(..., chart_generator=None, map_generator=None)` accepts generator kwargs that are not honored at runtime — they either raise `NotImplementedError` on non-None, or silently no-op, depending on which code path you land on. Inconsistency is itself a bug.
 
-The kwargs exist because earlier design imagined plugin-style chart theming via dependency injection. In practice no caller has asked for this, and chart theming today is handled through `reporting.client_branding` (which configures a singleton `ChartGenerator`).
+The kwargs point at real use cases:
+
+1. **Ad hoc charts without branding configured.** Users running a one-off script shouldn't need a `ClientBrandingManager` setup to render a figure.
+2. **Override branding on a one-off basis.** A user with branding configured occasionally wants a chart rendered differently without mutating global state.
+3. **Swap the whole render backend** (matplotlib → Plotly, etc.) without monkeypatching.
+
+An earlier draft of this ADR proposed dropping the kwargs on YAGNI grounds. That was wrong: the kwargs are already in the signature, callers expect them to work, and the use cases are concrete — not speculative.
 
 ## Decision
 
-**Remove the `chart_generator` and `map_generator` kwargs from `chain_to_argument` in the next major version. Until then, keep the `NotImplementedError` guard so callers get a loud signal rather than silent no-op.**
+**Honor `chart_generator` and `map_generator` on `chain_to_argument`. Drop them from `ChartTypeRegistry.create_chart`.**
 
-Chart theming stays in `reporting.client_branding`. A client that wants different chart styling sets the branding config, not injects a different generator.
+- `chart_generator=None` → construct a default `ChartGenerator()` (picks up active profile branding if present; otherwise library defaults). No branding required for sensible output.
+- `chart_generator=<instance>` → use the caller's generator as-is. Caller controls style: differently-branded, un-branded, alternative backend.
+- Same pattern for `map_generator`.
+- `ChartTypeRegistry.create_chart` is an internal dispatcher — generators should be resolved before we reach it. Drop the kwargs from there.
+
+**Type discipline:** duck type the generator interface for now. Document the expected methods (`create_bar_chart`, `create_heatmap`, etc.) in `chain_to_argument`'s docstring. Formalize as a `Protocol` only when a second backend (e.g., Plotly) lands — adding the Protocol is additive and won't break duck-typed callers.
 
 ## Consequences
 
 **Positive:**
-- One less dead knob in the public API
-- `chain_to_argument` signature gets simpler
-- Removes the bait — interface-integrity violation (ADR follows `coding/python-patterns/SKILL.md`)
+- Kwargs do what their names say.
+- Ad hoc use is possible without branding setup.
+- Override path is real; no monkeypatching needed.
+- Room to grow into alternative backends without redesigning the signature.
 
 **Negative:**
-- A future caller who genuinely wants to inject a pre-configured generator has to rebuild that path deliberately
-- Acceptable because we'd re-introduce with a plan at that point, not speculatively
+- Slightly more wiring in `chain_to_argument` (resolve generator, dispatch).
+- Docstring becomes load-bearing — callers rely on it for the interface. Acceptable in a small library.
 
 ## Alternatives considered
 
-1. **Wire the kwargs through** — rejected. No caller today uses them; speculative feature.
-2. **Keep raising NotImplementedError indefinitely** — rejected. Leaving broken optional kwargs in a signature is worse than removing them.
-3. **Replace with a `branding: BrandingConfig | None = None` kwarg** — deferred. If the branding path grows, this ADR can be superseded by a new one that adds per-call branding explicitly.
+1. **Drop the kwargs entirely.** Rejected after reconsideration. Dropping removes real capability (ad hoc / override / backend swap) that the audience actually uses.
+2. **Define a formal `ChartGeneratorProtocol` now.** Rejected for this pass. Premature formalization without a second backend. Revisit when Plotly or another renderer lands.
+3. **Replace with a `branding: BrandingConfig | None = None` kwarg.** Rejected — conflates branding with rendering backend.
 
 ## Migration
 
-- Next minor release: emit `DeprecationWarning` when either kwarg is passed (replacing `NotImplementedError`).
-- Next major release: remove the kwargs from the signature.
-- CHANGELOG entry for both steps.
+- Implement the dispatch in `chain_to_argument`: if generator is None, construct a default; otherwise use as-is.
+- Remove `chart_generator` / `map_generator` from `ChartTypeRegistry.create_chart` signature.
+- Update `chain_to_argument` docstring with the interface contract and examples (no-branding, override, custom backend).
+- Add tests for all three paths.
 
 ## References
 
 - `survey/render.py::chain_to_argument`
-- PR #391 (introduced the NotImplementedError guard)
-- `coding/python-patterns/SKILL.md` — "Interface integrity" section
+- `reporting/chart_types.py::ChartTypeRegistry`
+- `docs/INTENT.md` D9
+- ELE-2441 (implements this decision + ADR 0001)

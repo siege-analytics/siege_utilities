@@ -1,56 +1,44 @@
 # ADR 0001 — Chain → Argument pipeline ownership
 
-**Status:** Proposed
-**Date:** 2026-04-22
-**Epic:** ELE-2415 (sub-issue ELE-2417)
+**Status:** Accepted (supersedes prior "Proposed" draft)
+**Date:** 2026-04-22 (revised 2026-04-23)
+**Epic:** ELE-2415 (implemented under ELE-2441)
 
 ## Context
 
-The `Chain → Argument` pipeline has two entry points today:
-
-1. `survey.render.chain_to_argument(chain, headline, narrative, ...)` — module-level function
-2. `Chain.to_argument(headline, narrative)` — instance method that internally calls (1)
-
-Both do the same thing; the method is a thin convenience. With two entry points, future changes to the pipeline (adding kwargs, changing default behavior) risk drift where one path behaves differently from the other.
+`survey.render.chain_to_argument(chain, ...)` and `Chain.to_argument(headline, narrative)` both produced an `Argument` from a `Chain`. The method delegated to the function. This was a dual-surface API with no compensating value — one behavior, two entry points.
 
 ## Decision
 
-**The module-level function `survey.render.chain_to_argument` is canonical. `Chain.to_argument` is a thin delegate that takes no additional arguments beyond `headline` and `narrative` and forwards everything to the module function.**
+**Delete `Chain.to_argument()`. `chain_to_argument()` is the sole entry point.**
 
-`Chain.to_argument` stays because the fluent form reads nicely in notebooks:
-
-```python
-arg = chain.to_argument("Headline", "Narrative prose")
-# vs
-arg = chain_to_argument(chain, "Headline", "Narrative prose")
-```
-
-All configuration knobs (chart_generator, map_generator once unblocked by ADR 0002) live on the module function. The method does not expose them.
+Chain is a `@dataclass` — its nature is *state*, not *behavior*. Rendering a Chain into an Argument is an operation *performed on* Chain by the render module, not a property of Chain itself.
 
 ## Consequences
 
 **Positive:**
-- One place to change pipeline defaults
-- Method-vs-function choice is ergonomic, not architectural
-- Tests cover both paths with a single fake (`monkeypatch.setattr(render_mod, 'chain_to_argument', fake)`)
+- Single rendering contract; no drift between method and function.
+- Chain stays pure data — consistent with `View`, `Cluster`, `Stack` (none of which carry rendering methods either).
+- `chain_to_argument` is the one place config kwargs (chart_generator, map_generator per ADR 0002) live.
 
 **Negative:**
-- Minor: callers who want to inject a custom chart_generator MUST use the module function, not the method
-- Acceptable: documented in `Chain.to_argument` docstring
+- Callers using `chain.to_argument(...)` must switch to `chain_to_argument(chain, ...)`. Small migration; the method was recent (added in PR #391).
 
 ## Alternatives considered
 
-1. **Method is canonical** — rejected. Methods on data classes should be thin; complex multi-arg rendering doesn't belong on `Chain`.
-2. **Remove the method** — rejected. The fluent form is too useful in notebooks to drop.
-3. **Keep both as first-class siblings** — rejected. Two canonical APIs guarantees drift.
+1. **Keep the method as a thin delegate.** Rejected. Dataclass purity wins — every data model in `survey/models.py` would eventually want its own `.to_X()` method and the model module would become a rendering module.
+2. **Method canonical, function delegates.** Rejected on the same grounds.
+3. **Keep both first-class.** Rejected. Guarantees drift.
 
 ## Migration
 
-- Current code already reflects the decision. Confirm no callers pass config-like kwargs via `chain.to_argument(...)`.
-- Add a note to `Chain.to_argument` docstring: "for full control use `render.chain_to_argument`."
+- Delete `Chain.to_argument` method on `survey/models.py`.
+- Grep every caller using the method form; replace with the function form.
+- CHANGELOG entry: `Chain.to_argument()` removed; use `survey.render.chain_to_argument(chain, ...)`.
 
 ## References
 
 - `survey/render.py`
-- `survey/models.py::Chain.to_argument`
-- `docs/INTENT.md` D9 (dual entry points divergence)
+- `survey/models.py`
+- `docs/INTENT.md` D8
+- ELE-2441 (implements this decision + ADR 0002)
