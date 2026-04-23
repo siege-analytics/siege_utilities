@@ -1,9 +1,13 @@
 """Tests for siege_utilities.reporting.chart_types module."""
 
+import pytest
 from unittest.mock import MagicMock
 from siege_utilities.reporting.chart_types import (
+    ChartCreationError,
+    ChartParameterError,
     ChartType,
     ChartTypeRegistry,
+    UnknownChartTypeError,
     get_chart_registry,
 )
 
@@ -131,20 +135,20 @@ class TestChartTypeRegistryCreateChart:
             required_parameters=["data", "x_column"],
         )
         registry.register_chart_type(ct)
-        result = registry.create_chart("needs_params", data=[1])
-        assert result is None  # missing x_column
+        with pytest.raises(ChartParameterError):
+            registry.create_chart("needs_params", data=[1])
 
     def test_create_no_function(self):
         registry = ChartTypeRegistry()
         ct = ChartType(name="no_fn", category="test", required_parameters=[])
         registry.register_chart_type(ct)
-        result = registry.create_chart("no_fn")
-        assert result is None
+        with pytest.raises(ChartCreationError):
+            registry.create_chart("no_fn")
 
     def test_create_nonexistent_type(self):
         registry = ChartTypeRegistry()
-        result = registry.create_chart("nonexistent")
-        assert result is None
+        with pytest.raises(UnknownChartTypeError):
+            registry.create_chart("nonexistent")
 
     def test_create_function_raises(self):
         registry = ChartTypeRegistry()
@@ -156,8 +160,9 @@ class TestChartTypeRegistryCreateChart:
             create_function=mock_fn,
         )
         registry.register_chart_type(ct)
-        result = registry.create_chart("error_chart")
-        assert result is None
+        with pytest.raises(ChartCreationError) as exc_info:
+            registry.create_chart("error_chart")
+        assert isinstance(exc_info.value.__cause__, RuntimeError)
 
 
 class TestChartTypeRegistryValidation:
@@ -175,7 +180,8 @@ class TestChartTypeRegistryValidation:
 
     def test_nonexistent_type(self):
         registry = ChartTypeRegistry()
-        assert registry.validate_chart_parameters("nonexistent") is False
+        with pytest.raises(UnknownChartTypeError):
+            registry.validate_chart_parameters("nonexistent")
 
     def test_custom_validation_function(self):
         registry = ChartTypeRegistry()
