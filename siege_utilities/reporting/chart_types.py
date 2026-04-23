@@ -23,6 +23,19 @@ import seaborn as sns
 
 log = logging.getLogger(__name__)
 
+
+class UnknownChartTypeError(LookupError):
+    """Raised when a chart type name is not in the registry."""
+
+
+class ChartParameterError(ValueError):
+    """Raised when required parameters are missing or invalid."""
+
+
+class ChartCreationError(RuntimeError):
+    """Raised when the underlying create function fails to produce a Figure."""
+
+
 @dataclass
 class ChartType:
     """Base chart type configuration."""
@@ -318,41 +331,64 @@ class ChartTypeRegistry:
     def create_chart(self, chart_type_name: str, **kwargs) -> Optional[Figure]:
         """
         Create a chart using the specified chart type.
-        
-        Args:
-            chart_type_name: Name of the chart type
-            **kwargs: Chart parameters
-            
-        Returns:
-            Matplotlib Figure object or None if creation fails
+
+        Parameters
+        ----------
+        chart_type_name : str
+            Name of the chart type (must exist in the registry).
+        **kwargs
+            Parameters for the chart; must include every entry in the chart
+            type's ``required_parameters``.
+
+        Returns
+        -------
+        matplotlib.figure.Figure
+
+        Raises
+        ------
+        UnknownChartTypeError
+            If ``chart_type_name`` isn't registered.
+        ChartParameterError
+            If required parameters are missing.
+        ChartCreationError
+            If the chart type has no create function, or the create function
+            raised.
         """
         chart_type = self.get_chart_type(chart_type_name)
         if not chart_type:
-            log.error(f"Chart type not found: {chart_type_name}")
-            return None
-        
+            log.error("Chart type not found: %s", chart_type_name)
+            raise UnknownChartTypeError(
+                f"chart type {chart_type_name!r} not in registry; "
+                f"known: {sorted(self.chart_types.keys())}"
+            )
+
         # Validate required parameters
-        missing_params = [param for param in chart_type.required_parameters 
+        missing_params = [param for param in chart_type.required_parameters
                          if param not in kwargs]
         if missing_params:
-            log.error(f"Missing required parameters: {missing_params}")
-            return None
-        
+            log.error("Missing required parameters for %s: %s", chart_type_name, missing_params)
+            raise ChartParameterError(
+                f"chart type {chart_type_name!r} missing required params: {missing_params}"
+            )
+
         # Apply default values for optional parameters
         for param, default_value in chart_type.optional_parameters.items():
             if param not in kwargs:
                 kwargs[param] = default_value
-        
-        # Create chart using the registered function
-        if chart_type.create_function:
-            try:
-                return chart_type.create_function(**kwargs)
-            except Exception as e:
-                log.error(f"Failed to create chart {chart_type_name}: {e}")
-                return None
-        else:
-            log.warning(f"No create function registered for chart type: {chart_type_name}")
-            return None
+
+        if chart_type.create_function is None:
+            raise ChartCreationError(
+                f"chart type {chart_type_name!r} has no create function registered; "
+                f"call add_chart_creator() first"
+            )
+
+        try:
+            return chart_type.create_function(**kwargs)
+        except (ValueError, TypeError, KeyError, AttributeError) as e:
+            log.error("Create function for %s raised: %s", chart_type_name, e)
+            raise ChartCreationError(
+                f"create function for chart type {chart_type_name!r} failed"
+            ) from e
     
     def add_chart_creator(self, chart_type_name: str, create_function: Callable):
         """
@@ -370,36 +406,51 @@ class ChartTypeRegistry:
             log.warning(f"Chart type not found: {chart_type_name}")
     
     def validate_chart_parameters(self, chart_type_name: str, **kwargs) -> bool:
-        """
-        Validate parameters for a chart type.
-        
-        Args:
-            chart_type_name: Name of the chart type
-            **kwargs: Parameters to validate
-            
-        Returns:
-            True if parameters are valid, False otherwise
+        """Validate parameters for a chart type without creating the chart.
+
+        Parameters
+        ----------
+        chart_type_name : str
+        **kwargs
+            Parameters to validate.
+
+        Returns
+        -------
+        bool
+            True iff required params present AND any custom ``validate_function``
+            returns truthy.
+
+        Raises
+        ------
+        UnknownChartTypeError
+            If ``chart_type_name`` isn't registered. (Legitimately-missing
+            validation returns False; unknown chart type is a caller error.)
+        ChartParameterError
+            If the custom validate function raised.
         """
         chart_type = self.get_chart_type(chart_type_name)
         if not chart_type:
-            return False
-        
+            raise UnknownChartTypeError(
+                f"chart type {chart_type_name!r} not in registry"
+            )
+
         # Check required parameters
-        missing_params = [param for param in chart_type.required_parameters 
+        missing_params = [param for param in chart_type.required_parameters
                          if param not in kwargs]
         if missing_params:
-            log.warning(f"Missing required parameters: {missing_params}")
+            log.warning("Missing required parameters for %s: %s", chart_type_name, missing_params)
             return False
-        
-        # Run custom validation if available
-        if chart_type.validate_function:
-            try:
-                return chart_type.validate_function(**kwargs)
-            except Exception as e:
-                log.error(f"Validation function failed: {e}")
-                return False
-        
-        return True
+
+        if chart_type.validate_function is None:
+            return True
+
+        try:
+            return bool(chart_type.validate_function(**kwargs))
+        except (ValueError, TypeError, KeyError, AttributeError) as e:
+            log.error("validate function for %s raised: %s", chart_type_name, e)
+            raise ChartParameterError(
+                f"validate_function for chart type {chart_type_name!r} raised"
+            ) from e
     
     def get_chart_help(self, chart_type_name: str) -> Dict[str, Any]:
         """
