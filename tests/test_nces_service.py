@@ -4,7 +4,6 @@ Tests focus on the result dataclass and service construction.
 Django-dependent tests (populate methods) require Django setup.
 """
 
-import pytest
 
 
 class TestNCESPopulationResult:

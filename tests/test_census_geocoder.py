@@ -1,6 +1,5 @@
 """Tests for siege_utilities.geo.providers.census_geocoder module."""
 
-import json
 import pytest
 from unittest.mock import patch, MagicMock
 
