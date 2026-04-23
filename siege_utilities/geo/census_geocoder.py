@@ -40,6 +40,16 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+class CensusGeocodeError(RuntimeError):
+    """Raised when the Census geocoder API call fails unexpectedly.
+
+    Distinct from "no match" results (which return a CensusGeocodeResult with
+    matched=False). This exception indicates an API / network / parse failure
+    where the geocoder could not even attempt to match. Use `__cause__` to
+    inspect the underlying exception.
+    """
+
+
 class CensusVintage(str, Enum):
     """Census geocoder benchmark/vintage pairs.
 
@@ -247,8 +257,9 @@ def geocode_single(
         return parsed
 
     except Exception as e:
-        log_error(f"Census geocode failed for {input_addr}: {e}")
-        return CensusGeocodeResult(input_address=input_addr)
+        raise CensusGeocodeError(
+            f"Census geocode failed for {input_addr}: {e}"
+        ) from e
 
 
 def geocode_batch(
@@ -301,14 +312,9 @@ def geocode_batch(
     try:
         result = cg.addressbatch(csv_path, returntype="geographies")
     except Exception as e:
-        log_error(f"Census batch geocode failed: {e}")
-        return [
-            CensusGeocodeResult(
-                input_id=addr.get("id", ""),
-                input_address=f"{addr.get('street', '')}, {addr.get('city', '')}, {addr.get('state', '')} {addr.get('zipcode', '')}",
-            )
-            for addr in addresses
-        ]
+        raise CensusGeocodeError(
+            f"Census batch geocode failed for {len(addresses)} addresses: {e}"
+        ) from e
 
     # Parse batch results
     results_by_id = {}

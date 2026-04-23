@@ -1,4 +1,4 @@
-"""Tests for siege_utilities.data.sample_data module.
+"""Tests for siege_utilities.reference.sample_data module.
 
 Covers: constants, list/info helpers, synthetic generators (population,
 businesses, housing), locale presets, helper functions, and error paths.
@@ -8,7 +8,7 @@ External-service functions (Census boundaries/data) are not tested here.
 import pytest
 import pandas as pd
 
-from siege_utilities.data.sample_data import (
+from siege_utilities.reference.sample_data import (
     HOUSING_LOCALE_PRESETS,
     SAMPLE_DATASETS,
     CENSUS_SAMPLES,
@@ -553,7 +553,7 @@ class TestCreateTractGeoDataFrame:
     def test_creates_geodataframe_from_population(self):
         """Verify that _create_tract_geodataframe adds a tract_geometry column
         when latitude/longitude are present."""
-        from siege_utilities.data.sample_data import _create_tract_geodataframe, GEOPANDAS_AVAILABLE
+        from siege_utilities.reference.sample_data import _create_tract_geodataframe, GEOPANDAS_AVAILABLE
 
         if not GEOPANDAS_AVAILABLE:
             pytest.skip("geopandas not available")
@@ -572,7 +572,7 @@ class TestCreateTractGeoDataFrame:
         assert "tract_geometry" in result.columns
 
     def test_no_lat_lon_returns_dataframe(self):
-        from siege_utilities.data.sample_data import _create_tract_geodataframe
+        from siege_utilities.reference.sample_data import _create_tract_geodataframe
 
         pop_df = pd.DataFrame({"name": ["A", "B"]})
         result = _create_tract_geodataframe(pop_df, {})

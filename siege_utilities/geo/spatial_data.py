@@ -54,6 +54,18 @@ from .boundary_result import (
 # Get logger for this module
 log = logging.getLogger(__name__)
 
+
+class SpatialDataError(RuntimeError):
+    """Raised when a non-boundary spatial data fetch fails unexpectedly.
+
+    Used by GovernmentDataSource and OpenStreetMapDataSource, which load
+    generic portal datasets and OSM Overpass results respectively. Boundary
+    retrieval has its own exception hierarchy in boundary_result.py.
+
+    Use the ``__cause__`` attribute (set via ``raise ... from e``) to inspect
+    the underlying exception (HTTPError, JSONDecodeError, etc.).
+    """
+
 # Type aliases
 FilePath = Union[str, Path]
 GeoDataFrame = gpd.GeoDataFrame
@@ -1392,9 +1404,12 @@ class GovernmentDataSource(SpatialDataSource):
             # Download and process
             return self._download_and_process_dataset(resource_url, format_type)
             
+        except SpatialDataError:
+            raise
         except Exception as e:
-            log.error(f"Failed to download dataset {dataset_id}: {e}")
-            return None
+            raise SpatialDataError(
+                f"Failed to download dataset {dataset_id}: {e}"
+            ) from e
     
     def _get_dataset_metadata(self, url: str) -> Optional[Dict[str, Any]]:
         """Get dataset metadata from the portal."""
@@ -1410,8 +1425,9 @@ class GovernmentDataSource(SpatialDataSource):
                 return None
                 
         except Exception as e:
-            log.error(f"Error getting dataset metadata: {e}")
-            return None
+            raise SpatialDataError(
+                f"Error getting dataset metadata from {url}: {e}"
+            ) from e
     
     def _find_best_format(self, metadata: Dict[str, Any], preferred_format: str) -> Optional[str]:
         """Find the best available format for download."""
@@ -1431,8 +1447,9 @@ class GovernmentDataSource(SpatialDataSource):
             return None
             
         except Exception as e:
-            log.error(f"Error finding format: {e}")
-            return None
+            raise SpatialDataError(
+                f"Error finding format in dataset metadata: {e}"
+            ) from e
     
     def _download_and_process_dataset(self, url: str, format_type: str) -> Optional[GeoDataFrame]:
         """Download and process the dataset."""
@@ -1482,8 +1499,9 @@ class GovernmentDataSource(SpatialDataSource):
             return gdf
             
         except Exception as e:
-            log.error(f"Failed to process dataset: {e}")
-            return None
+            raise SpatialDataError(
+                f"Failed to process dataset from {url}: {e}"
+            ) from e
 
 class OpenStreetMapDataSource(SpatialDataSource):
     """OpenStreetMap data source using Overpass API."""
@@ -1534,8 +1552,9 @@ class OpenStreetMapDataSource(SpatialDataSource):
             return gdf
             
         except Exception as e:
-            log.error(f"Failed to download OSM data: {e}")
-            return None
+            raise SpatialDataError(
+                f"Failed to download OSM data: {e}"
+            ) from e
 
 # Convenience functions for backward compatibility
 def get_census_data(api_key: Optional[str] = None) -> CensusDataSource:
