@@ -8,7 +8,6 @@ import pytest
 from siege_utilities.geo.census_geocoder import (
     CensusGeocodeError,
     CensusGeocodeResult,
-    CensusVintage,
     geocode_batch,
     geocode_single,
 )
