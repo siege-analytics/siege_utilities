@@ -31,7 +31,7 @@ _register([
     'create_dataframe_summary_charts', 'generate_chart_from_dataframe',
 ], '.chart_generator')
 _register(['ClientBrandingManager'], '.client_branding')
-_register(['AnalyticsReportGenerator'], '.analytics.analytics_reports')
+_register(['AnalyticsReportGenerator'], '.analytics_reports')
 _register(['PowerPointGenerator'], '.powerpoint_generator')
 _register(['decode_rl_image', 'show_rl_image', 'save_rl_image'], '.image_utils')
 _register(['ChartTypeRegistry'], '.chart_types')
