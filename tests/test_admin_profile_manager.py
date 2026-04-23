@@ -87,8 +87,6 @@ class TestCreateDefaultProfiles:
 
     def test_defaults_location_to_package(self, tmp_path, monkeypatch):
         called = {}
-        real_save_user = pm.save_user_profile
-        real_save_client = pm.save_client_profile
 
         def fake_save_user(profile, name, location):
             called.setdefault("user", []).append(Path(location))
