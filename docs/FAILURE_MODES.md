@@ -1,22 +1,24 @@
 # siege_utilities — Failure Mode Catalog
 
-Classification of every public function's failure handling. Per **ELE-2418** (audit sub-issue 3/6). Rubric: `coding/python-exceptions/SKILL.md` + `_data-trust-rules.md`.
+**Goal:** classify every public-function failure path. Silent swallows become visible; category-(b) sites get a target fix.
+
+**Scope:** ELE-2418 (audit sub-issue 3/6). Rubric: `coding/python-exceptions/SKILL.md` + `_data-trust-rules.md`. Snapshot: 2026-04-22.
 
 ## Categories
 
-- **(a) Handled correctly** — specific `except` clauses, log-and-raise, or raise a domain exception with `from e`. Typed returns; raises documented in docstring.
-- **(b) Handled silently** — catches (broad or narrow) then returns a sentinel (`None`, `{}`, `[]`, `False`, `""`, `0`) without logging OR without a way for the caller to distinguish "no data" from "error hidden."
-- **(c) Not handled** — no try/except around known failure modes; code will raise an opaque library error (`KeyError`, `ValueError`, `AttributeError`) without domain context.
+| Code | Meaning |
+|---|---|
+| (a) | Handled correctly — specific `except`, typed raise with `from e`, docstring mentions raises |
+| (b) | Silent swallow — broad catch + sentinel return (`None`/`False`/`{}`/`[]`) with no way to distinguish success from hidden error |
+| (c) | Not handled — raises opaque `KeyError` / `ValueError` / `AttributeError` without domain context |
 
-## Library-wide density (branches, not blocks)
+## Library-wide density
 
-Count of typed + broad `except` clauses and "trivial sentinel return" lines per module. Higher numbers are not automatically bad; they're where to look first for category (b) and (c) cases.
-
-| Module | `except X:` count | Sentinel returns | Rough (b) density |
+| Module | `except X:` | Sentinel returns | (b) density |
 |---|---:|---:|---|
-| `reporting/` | 139 | 88 | **Very high** — likely many (b) cases |
-| `geo/` | 131 | 139 | **Very high** |
-| `config/` | 87 | 134 | **High** |
+| `reporting/` | 139 | 88 | Very high |
+| `geo/` | 131 | 139 | Very high |
+| `config/` | 87 | 134 | High |
 | `files/` | 46 | 56 | High |
 | `analytics/` | 46 | 47 | High |
 | `distributed/` | 28 | 21 | Medium |
@@ -26,211 +28,161 @@ Count of typed + broad `except` clauses and "trivial sentinel return" lines per 
 | `data/` | 11 | 22 | Medium |
 | `admin/` | 6 | 2 | Low |
 | `databricks/` | 3 | 1 | Low |
-| `survey/` | 0 | 10 | Low — PR #391 already fixed the excepts; sentinels remain |
+| `survey/` | 0 | 10 | Low (excepts fixed #391) |
 | `core/` | 1 | 2 | Very low |
 
-**Starting order for the per-module deep dive**: `reporting/` → `geo/` → `config/` → `files/` → `analytics/`. Remaining modules get the same treatment under follow-up PRs.
+Starting order for per-module sweep: `reporting/` → `geo/` → `config/` → `files/` → `analytics/`.
 
 ## Cross-cutting patterns
 
-These patterns appear in multiple modules and should be fixed wholesale rather than one file at a time. Each will surface as an issue under ELE-2420.
+Each pattern is tracked by ELE-2420 sub-issues.
 
-### CC1. `except Exception: return <sentinel>`
+| ID | Pattern | Fix |
+|---|---|---|
+| **CC1** | `except Exception: return <sentinel>` — silent swallow | Narrow catch, log, raise domain exception with `from e` |
+| **CC2** | `int(df[col].sum())` — precision loss at return boundaries | Return float; cast only at display |
+| **CC3** | `logger.warning(...); return None` — half-log/half-silence | Raise on real failure; return None only when absence is legitimate and caller can distinguish |
+| **CC4** | `try: import X / except: def stub(): pass` — silent stub when dep missing | OK for logging; anti-pattern for load-bearing functions |
+| **CC5** | `validate_credentials() -> bool` — returns False on missing creds | Raise typed error or return explicit `CredentialStatus` enum |
 
-The "silent swallow" pattern. Caller gets back `None` / `{}` / `[]` / `False` without knowing whether it means "no data" or "the function crashed and I hid it." Fixes per `python-exceptions`: narrow the catch, log, raise a domain exception or return a typed `Result` object.
+### CC1 — confirmed silent-swallow sites
 
-**Confirmed sites** (non-exhaustive, high-value first):
-- `geo/boundary_providers.py:118` — CensusTIGERProvider swallows and returns None
-- `geo/census_geocoder.py:280,393,397` — geocoding failures hidden
-- `geo/geocoding.py:315` — module-level wrapper swallows
-- `reporting/chart_types.py:332,339,352,355` — chart construction silently returns None
-- `reporting/chart_types.py:416` — returns `{}` on error
-- `reporting/client_branding.py:217,221,238,259` — branding lookup swallows
-- `reporting/__init__.py:138,149,161` — top-level convenience returns False on anything
+| File | Lines | Status |
+|---|---|---|
+| `geo/boundary_providers.py` | L118 | CensusTIGERProvider — **fixed** #385 |
+| `geo/census_geocoder.py` | L249, L303 | — **fixed** #401 (ELE-2420) |
+| `geo/spatial_data.py` | L1395, L1412, L1433, L1484, L1536 | — **fixed** #405 (ELE-2420) |
+| `geo/geocoding.py` | L315 | False positive — legitimate not-found return |
+| `reporting/chart_types.py` | create_chart + validate | — **fixed** #399 (ELE-2420) |
+| `reporting/client_branding.py` | L217, L221, L238, L259 + 2 more | — **fixed** #400 (ELE-2420) |
+| `reporting/__init__.py` | L138, L149, L161 | — **fixed** #397 (ELE-2420) |
+| `reporting/powerpoint_generator.py` | 2 sites | Pending ELE-2420 |
+| `reporting/report_generator.py` | 1 site | Pending ELE-2420 |
+| `reporting/engines/base_engine.py` | 1 site | Pending ELE-2420 |
+| `analytics/snowflake_connector.py` | 7 sites | Pending ELE-2420 |
+| `analytics/datadotworld_connector.py` | 11 sites | Pending ELE-2420 |
+| `files/operations.py` | 12 sites | Pending ELE-2420 (high blast radius) |
+| `files/remote.py` | 4 sites | Pending ELE-2420 |
+| `geo/spatial_transformations.py` | 17 sites | Pending ELE-2420 (DRY refactor opportunity) |
+| `geo/census/api.py` | L353, L373 | False positive — legitimate cache-miss |
 
-### CC2. `int(df[weight_var].sum())` / precision loss at return boundaries
-
-Already fixed in `survey/crosstab._base_respondents` (float return) under #391. Likely analogous cases elsewhere — any `int(...)` wrapping a possibly-fractional sum is suspect.
-
-**To audit:** `data/` DataFrame ops, `analytics/google_analytics.py` aggregations.
-
-### CC3. Bare `logger.warning(...)` then `return None`
-
-Half-log, half-silence. Logging at warn level + returning None is only correct when "no result" is a legitimate outcome AND the caller can distinguish it from success. Usually the log-level should be `error` and the function should raise.
-
-**Confirmed sites** (sampled):
-- `geo/boundary_providers.py:113` — `logger.warning(...); return None` — if the boundary fetch actually failed, caller should know via exception, not absent data
-- `reporting/*` — widespread
-
-### CC4. ImportError cascade — `try: import heavy_dep / except: def stub_fn...`
-
-Legitimate pattern for optional dependencies BUT the stub function often does nothing (no raise, no warn) so callers using the module without the dep silently get no-ops.
-
-**Sites (pattern from the code I already know):**
-- `data/redistricting_data_hub.py:51-57` — logging functions stubbed to `pass` when `siege_utilities.core.logging` isn't importable. OK for logging specifically (no-op is fine), but the pattern shouldn't be copied for functions whose output is load-bearing.
-
-### CC5. `validate_credentials() -> bool` without raising on failure
-
-Pattern: `validate_credentials()` returns `False` + logs a warning. Callers then conditionally skip work. This is category (b) — the function call "succeeded" with zero matches when really the user forgot to set env vars.
-
-**Site:** `data/redistricting_data_hub.py:187-192`. Fix: either raise `RDHAuthError` or return an explicit `CredentialStatus` enum with values `{OK, NOT_SET, INVALID}`.
-
-## Per-module: `geo/`
-
-Priority 1 (spatial is core to the library's domain).
+## Per-module deep dive
 
 ### `geo/boundary_providers.py`
 
-| Function | Failure mode | Category | Skill-rubric fix |
+| Function | Failure mode | Category | Fix |
 |---|---|---|---|
-| `CensusTIGERProvider.get_boundary` | Downstream `fetch_geographic_boundaries` returns `result.success=False` | (b) — logs warning + returns None | Raise `BoundaryFetchError` |
-| `GADMProvider.get_boundary` | `geopandas` missing | (a) — raises ImportError with install hint | ✓ keep |
-| `GADMProvider.get_boundary` | Unknown level / missing country | (a) — raises ValueError | ✓ keep |
-| `GADMProvider.is_available` | `geopandas` missing | (a) — returns False, doc'd | ✓ keep |
-| `RDHProvider.get_boundary` | `load_shapefile` raises OSError/ValueError | (a) after #386 — wraps in `BoundaryFetchError` | ✓ fixed on #386 |
-| `RDHProvider.get_boundary` | Credentials are empty string | (b) — logs warning, returns empty list | See CC5 |
-| `resolve_boundary_provider` | Unknown country code | (c) — returns `GADMProvider(country_code=<unknown>)` which then 404s at fetch time | Raise early with list of known codes |
+| `CensusTIGERProvider.get_boundary` | Downstream fetch fails | (a) #385 | Raises `BoundaryFetchError` |
+| `GADMProvider.get_boundary` | geopandas missing | (a) | Raises ImportError with hint |
+| `GADMProvider.get_boundary` | Unknown level / country | (a) | Raises ValueError |
+| `GADMProvider.is_available` | geopandas missing | (a) | Returns False, documented |
+| `RDHProvider.get_boundary` | Shapefile load error | (a) #386 | Wraps in `BoundaryFetchError` |
+| `RDHProvider.get_boundary` | Empty credentials | (b) — CC5 | Return `CredentialStatus` or raise `RDHAuthError` |
+| `resolve_boundary_provider` | Unknown country code | (c) | Raise early with list of known codes |
 
 ### `geo/census_geocoder.py`
 
 | Function | Failure mode | Category | Fix |
 |---|---|---|---|
-| `geocode_address` (line ~280) | Address not found | (b) — returns `[]` | Return `Optional[GeocodeResult]` explicitly; distinguish "not found" from "lookup failed" |
-| `batch_geocode` (line ~393) | HTTP timeout mid-batch | (b) — returns `None` | Retry + raise on final failure |
-| `batch_geocode` (line ~397) | Parse error on response | (b) — returns `None` | Log full response text; raise |
+| `geocode_single` | HTTP/API failure | (a) #401 | Raises `CensusGeocodeError` |
+| `geocode_batch` | HTTP timeout | (a) #401 | Raises `CensusGeocodeError` with batch size in message |
+| `geocode_batch` | Parse error | (a) #401 | Raises `CensusGeocodeError` |
 
-### `geo/geocoding.py`
+### `geo/spatial_data.py`
 
 | Function | Failure mode | Category | Fix |
 |---|---|---|---|
-| `geocode_addresses` (line ~315) | Any error in underlying API | (b) — returns None | Catch specific (`requests.*`, `json.*`), raise `GeocodingError` |
-
-### `geo/spatial_data.py` (touched by #386)
-
-| Function | Failure mode | Category |
-|---|---|---|
-| `_is_vtd_pl_boundary(bt, year)` | Cross-vintage pair | (a) — returns False (fixed on #386) ✓ |
-| `_construct_vtd_pl_url(2010, fips)` | Year 2010 state-level URL doesn't exist | (a) — raises BoundaryDiscoveryError (fixed on #386) ✓ |
-| `CensusDataSource.fetch_geographic_boundaries` | Any stage of the pipeline | (a) — returns BoundaryFetchResult with success/error_stage/context | ✓ keep — good model |
-
-## Per-module: `reporting/`
-
-Priority 2 (highest raw density).
+| `GovernmentDataSource._get_dataset_metadata` | HTTP/parse failure | (a) #405 | Raises `SpatialDataError` |
+| `GovernmentDataSource._find_best_format` | Metadata parse failure | (a) #405 | Raises `SpatialDataError` |
+| `GovernmentDataSource._download_and_process_dataset` | File processing failure | (a) #405 | Raises `SpatialDataError` |
+| `OpenStreetMapDataSource.download_osm_data` | Overpass API failure | (a) #405 | Raises `SpatialDataError` |
+| `CensusDataSource.fetch_geographic_boundaries` | Any stage failure | (a) | Returns `BoundaryFetchResult` with error context |
 
 ### `reporting/chart_types.py`
 
-| Site | Pattern |
-|---|---|
-| L332, 339, 352, 355 | `return None` in chart constructors — callers lose the chart silently |
-| L385, 392, 400 | `return False` on construction failure |
-| L416 | `return {}` — a chart spec dict on error |
-
-All category (b). Need per-function rewrite replacing sentinels with `ChartConstructionError`.
+| Function | Failure mode | Category | Fix |
+|---|---|---|---|
+| `create_chart` | Unknown chart type | (a) #399 | Raises `UnknownChartTypeError` |
+| `create_chart` | Missing required params | (a) #399 | Raises `ChartParameterError` |
+| `create_chart` | No `create_function` registered | (a) #399 | Raises `ChartCreationError` |
+| `create_chart` | `create_function` raised | (a) #399 | Raises `ChartCreationError` with cause chain |
+| `validate_chart_parameters` | Unknown chart type | (a) #399 | Raises `UnknownChartTypeError` |
+| `validate_chart_parameters` | `validate_function` raised | (a) #399 | Raises `ChartParameterError` |
 
 ### `reporting/client_branding.py`
 
-| Site | Pattern |
-|---|---|
-| L217, 221 | Branding lookup returns None on not-found |
-| L238, 259 | Branding returns False |
+| Function | Failure mode | Category | Fix |
+|---|---|---|---|
+| `get_client_branding` | I/O or YAML parse failure | (a) #400 | Raises `ClientBrandingError` |
+| `update_client_branding` | Client not found | (a) #400 | Raises `ClientBrandingNotFoundError` |
+| `update_client_branding` | Save failure | (a) #400 | Raises `ClientBrandingError` |
+| `delete_client_branding` | I/O failure | (a) #400 | Raises `ClientBrandingError` |
+| `export_branding_config` | Not found / I/O failure | (a) #400 | Raises typed errors |
+| `import_branding_config` | YAML parse failure | (a) #400 | Raises `ClientBrandingError` |
+| `get_branding_summary` | I/O failure | (a) #400 | Raises `ClientBrandingError` |
 
-Category (b). Fix: distinguish "no branding configured" (legitimate None) from "branding file corrupted" (should raise).
+### `reporting/__init__.py` (top-level convenience API)
 
-### `reporting/__init__.py`
-
-| Site | Pattern |
-|---|---|
-| L138, 149, 161 | Top-level convenience returns `False` on any error |
-
-These are the public convenience functions most likely to be called from notebooks — worst place for silent failure.
-
-### `reporting/analytics/polling_analyzer.py` (touched by #389)
-
-All (a) after #389 — typed catches raise `PollingAnalysisError`. ✓
+| Function | Failure mode | Category | Fix |
+|---|---|---|---|
+| `export_branding_config` | Any failure | (a) #397 | Raises `ReportingConfigError` |
+| `import_branding_config` | Any failure | (a) #397 | Raises `ReportingConfigError` |
+| `export_chart_type_config` | Any failure | (a) #397 | Raises `ReportingConfigError` |
 
 ### `reporting/engines/*_engine.py`
 
-Deferred to ELE-2420 (shared-core rewrite) — need to read these 5+ files together to avoid duplicating the same fix across copies.
-
-## Per-module: `config/`
-
-Priority 3.
+Deferred — needs shared-core rewrite to avoid duplicating fixes. ELE-2420 follow-up.
 
 ### `config/credential_manager.py`
 
-Expected heavy failure-mode surface (external API calls, 1Password CLI, file I/O). Deferred to dedicated ELE-2418-sub PR. Known smells:
-- L380, L744: hardcoded `"password"` / `"1password"` literals — confirm these are intentional field-name strings, not secrets
-- Broad exception counts (79 `except X`) suggest widespread silent-swallow
+79 `except X:` clauses; many likely (b). Deferred to dedicated rewrite under ELE-2420. Initial audit:
+- `L380`, `L744`: hardcoded `"password"` / `"1password"` — confirm these are field-name strings, not secrets
+- Broad exception counts suggest widespread silent-swallow needing narrow catches
 
-### `config/databases.py`
+### `files/operations.py`
 
-- L235: `password = config['password']` — KeyError propagates (category (a) — correct)
-- Audit all `config['<key>']` for whether missing keys should raise with context or be optional
+12 silent-swallow sites, high blast radius (every file op in the library touches this). Needs careful per-function audit — some `False` returns are legitimate ("file doesn't exist"), others mask real I/O errors. Pending ELE-2420.
 
-## Per-module: `files/`
+### `files/remote.py`, `files/paths.py`, `files/hashing.py`
 
-Priority 4.
+- Download failures → should retry (does) but final failure should raise `DownloadError`, not return None (CC1)
+- Hash mismatches → should raise `IntegrityError`, not silent return
+- Path manipulation → most (a); audit Windows / UNC / symlink loop edge cases
 
-### `files/paths.py`, `files/remote.py`, `files/hashing.py`
+### `analytics/*_connector.py`
 
-46 `except X:` clauses across the package. Pattern to audit:
-- Download failures (`remote.py`) — should retry (which it does per docstring) but on final failure, the silent-None pattern (CC1) is wrong — should raise `DownloadError`
-- Hash mismatches — should be `IntegrityError`, not silent return
-- Path manipulation — most are (a); audit for edge cases like Windows path separators, UNC paths, symlink loops
-
-## Per-module: `analytics/`
-
-Priority 5.
-
-### `analytics/google_analytics.py`, `analytics/google_slides.py`, `analytics/snowflake_connector.py`, `analytics/datadotworld_connector.py`, `analytics/facebook_business.py`
-
-All wrap external APIs → broad except common + sentinel returns common. Each gets its own rewrite PR under ELE-2420, with the consistent pattern:
+All wrap external APIs. Common pattern: broad except + `return {}`. Each gets its own rewrite PR with:
 
 ```python
-# BEFORE
-try:
-    return external_api_call(...)
-except Exception as e:
-    log_error(f"call failed: {e}")
-    return {}
-
-# AFTER
-try:
-    return external_api_call(...)
-except (RequestException, ValueError) as e:
-    log_error(f"GA list_properties failed for account={account_id}: {e}")
-    raise AnalyticsAPIError(f"GA list_properties failed for account={account_id}") from e
+# Before:   try/except Exception: return {}
+# After:    try/except (RequestException, ValueError): raise AnalyticsAPIError from e
 ```
 
-## Edge cases called out in ELE-2418 intake
+## Edge cases validated post-recent PRs
 
-Validated where each currently stands post-recent PRs:
-
-| Edge case | Module | Status |
+| Edge case | Where | Status |
 |---|---|---|
-| Empty DataFrame → `pd.crosstab` | `reporting/analytics/polling_analyzer.py::create_cross_tabulation_matrix` | (a) after #389 — raises `PollingAnalysisError` ✓ |
-| Mixed dtype cross-tabs in heatmap | same file | (a) after #389 — `_choose_heatmap_fmt` + cast ✓ |
-| Cross-vintage FIPS / GEOID20 vs 10 | `geo/` | **Partial** — `_is_vtd_pl_boundary` done (#386); broader cross-vintage join safety is TBD under ELE-2418-geo-deep |
-| Zero-baseline change detection | `reporting/analytics/polling_analyzer.py::create_change_detection_data` | (a) after #389 — `growth_from_zero` direction ✓ |
-| `geo_column ≠ row_var` in chain_to_argument | `survey/render.py` | (a) after #391 — raises `RenderError` ✓ |
-| Unknown `alpha` in significance test | `survey/significance.py` | (a) after #391 — raises `SignificanceError` ✓ |
-| Missing metric column in `_build_mean_scale` | `survey/crosstab.py` | (a) after #391 — raises `ValueError` ✓ |
-| `geopandas` absent | `geo/boundary_providers.py::GADMProvider.is_available` | (a) ✓ |
-| `reportlab` absent at module load | `reporting/analytics/polling_analyzer.py` | **(c)** — module import fails if reportlab missing. Test imports work via `pytest.importorskip('reportlab')` added #389. Runtime fix: wrap the `chart_generator` import in a lazy-load or move ChartGenerator out of polling_analyzer's import chain. Under ELE-2420 |
+| Empty DataFrame → `pd.crosstab` | `polling_analyzer::create_cross_tabulation_matrix` | (a) #389 |
+| Mixed dtype heatmap | same | (a) #389 |
+| Cross-vintage FIPS join safety | `geo/` | Partial — `_is_vtd_pl_boundary` done #386; broader join safety TBD |
+| Zero-baseline change detection | `polling_analyzer::create_change_detection_data` | (a) #389 |
+| `geo_column ≠ row_var` in chain_to_argument | `survey/render.py` | (a) #391 |
+| Unknown `alpha` in significance test | `survey/significance.py` | (a) #391 |
+| Missing metric column in `_build_mean_scale` | `survey/crosstab.py` | (a) #391 |
+| `geopandas` absent | `boundary_providers::GADMProvider` | (a) |
+| `reportlab` absent at module load | `reporting/analytics/polling_analyzer.py` | (c) — deprecated entirely under ELE-2439/0006 |
 
-## Output
+## Method notes
 
-Next PRs will:
-1. Land this catalog (this PR).
-2. Per-module rewrites under ELE-2420 that convert category-(b) sites to (a).
-3. Each such rewrite references the relevant row(s) of this table so a future diff-reader can see which category (b) was fixed.
+```bash
+# Find broad catches
+rg "except Exception" siege_utilities/<module>/
 
-## Method notes for the next reviewer
+# Find sentinel returns
+rg -nE "return (None|False|\\{\\}|\\[\\]|'')\\s*$" siege_utilities/<module>/
 
-- Run `rg "except Exception" siege_utilities/<module>/` to find broad catches
-- Run `rg -nE "return (None|False|\\{\\}|\\[\\]|'')\\s*$" siege_utilities/<module>/` to find sentinel returns
-- Pair with: `rg "log_warning|log_error" siege_utilities/<module>/` to identify pattern CC3 (half-log, half-silence)
+# Find CC3 (half-log / half-silence)
+rg "log_warning|log_error" siege_utilities/<module>/
+```
 
-## Attribution
-
-Per `skills/_output-rules.md`: no AI attribution in this document or any commit / PR body produced under this audit.
+See also: [INTENT.md](INTENT.md) · [ARCHITECTURE.md](ARCHITECTURE.md) · [adr/](adr/)
