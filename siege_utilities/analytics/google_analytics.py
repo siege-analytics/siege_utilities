@@ -11,8 +11,8 @@ This module provides comprehensive Google Analytics integration capabilities:
 
 import json
 import pathlib
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List, Union
+from datetime import datetime
+from typing import Dict, Any, Optional, List
 import pandas as pd
 
 try:
@@ -40,7 +40,7 @@ except ImportError:
 
 # Import logging functions from main package
 try:
-    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+    from siege_utilities.core.logging import log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if main package not available yet
     def log_info(message): pass

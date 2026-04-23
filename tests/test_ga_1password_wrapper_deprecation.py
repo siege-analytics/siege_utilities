@@ -4,8 +4,6 @@ from __future__ import annotations
 import warnings
 from unittest.mock import patch
 
-import pytest
-
 from siege_utilities.analytics.google_analytics import (
     create_ga_connector_from_1password,
 )
