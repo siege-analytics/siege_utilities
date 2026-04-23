@@ -4,12 +4,9 @@ Provides base chart types and easy extension capabilities.
 """
 
 import logging
-from pathlib import Path
-from typing import Dict, Any, Optional, List, Union, Callable, Type
+from typing import Dict, Any, Optional, List, Callable
 from dataclasses import dataclass, field
 import yaml
-from abc import ABC, abstractmethod
-import pandas as pd
 from matplotlib.figure import Figure
 
 try:
@@ -18,8 +15,6 @@ try:
 except ImportError:
     gpd = None
     _GEOPANDAS_AVAILABLE = False
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 log = logging.getLogger(__name__)
 
