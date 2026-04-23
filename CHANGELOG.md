@@ -7,6 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — ELE-2415 library audit
+
+- **Typed exception hierarchies** across silent-swallow sites in `reporting/` and `geo/`:
+  - `siege_utilities.reporting.ReportingConfigError` (new) — raised by top-level
+    `export_branding_config` / `import_branding_config` / `export_chart_type_config`
+    instead of returning `False` on failure.
+  - `siege_utilities.reporting.chart_types.UnknownChartTypeError` /
+    `ChartParameterError` / `ChartCreationError` — raised by
+    `ChartTypeRegistry.create_chart()` and `validate_chart_parameters()`
+    instead of returning `None` / `False`.
+  - `siege_utilities.reporting.client_branding.ClientBrandingError` /
+    `ClientBrandingNotFoundError` — raised by `ClientBrandingManager`
+    methods for unexpected I/O and missing-client paths.
+  - `siege_utilities.geo.census_geocoder.CensusGeocodeError` — raised by
+    `geocode_single()` / `geocode_batch()` on API/network failure. Previously,
+    failures returned `CensusGeocodeResult(matched=False)`, indistinguishable
+    from genuine no-match results.
+  - `siege_utilities.geo.spatial_data.SpatialDataError` — raised by
+    `GovernmentDataSource` and `OpenStreetMapDataSource` download helpers on
+    HTTP/parse failures instead of returning `None`.
+
+  All new exceptions use `raise ... from e` chaining. See
+  `docs/FAILURE_MODES.md` (pattern CC1) for the full catalog.
+
+### Documentation
+
+- **`docs/INTENT.md`** — per-module purpose and 9 divergence candidates.
+- **`docs/FAILURE_MODES.md`** — 5 cross-cutting anti-pattern categories (CC1–CC5)
+  with per-module site inventory.
+- **`docs/TEST_UPGRADES.md`** — coverage scorecard and 5 test-upgrade patterns
+  (PU1–PU5); zero-coverage modules identified.
+- **`docs/ARCHITECTURE.md`** — three-layer model (core → domain → consumers),
+  imports-go-DOWN invariant.
+- **`docs/adr/0001–0007`** — Architecture Decision Records covering Chain
+  pipeline ownership, chart/map generator injection, BoundaryProvider
+  registration, dataclass-vs-Pydantic, lazy-import convention, analytics
+  location split, and model type location.
+- **`docs/NOTEBOOKS.md`** — inventory of 27 notebooks, consolidation plan
+  to 12 canonical + 7 focused specializations.
+
+### Test coverage
+
+New dedicated test modules for previously-untested code:
+- `tests/test_admin_profile_manager.py` (16 tests)
+- `tests/test_hygiene_generate_docstrings.py` (22 tests)
+- `tests/test_files_paths.py` (28 tests)
+- `tests/test_reporting_config_exports.py` (10 tests)
+- `tests/test_chart_types_errors.py` (10 tests)
+- `tests/test_client_branding_errors.py` (14 tests)
+- `tests/test_census_geocoder_errors.py` (6 tests)
+- `tests/test_spatial_data_errors.py` (7 tests)
+
+### Changed
+
+- `pytest-randomly`, `hypothesis`, `nbmake` added to `dev` extras.
+
+### Migration notes
+
+Callers that relied on the old silent-swallow behavior (checking for
+`None` / `False` return) must migrate to `try/except` around the new
+exception types. The exception types are subclasses of standard Python
+exceptions (`LookupError`, `ValueError`, `RuntimeError`) so broad
+existing handlers will still catch them.
+
 ## [3.13.0] - 2026-03-30
 
 ### Added
