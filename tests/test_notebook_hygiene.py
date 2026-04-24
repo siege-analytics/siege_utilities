@@ -31,6 +31,11 @@ RE_WRITTEN: list[str] = [
     # PR 1 (ELE-2457): foundations
     "foundations/01_configuration.ipynb",
     "foundations/02_profiles_branding.ipynb",
+    # PR 2 (ELE-2458): data acquisition
+    "spatial/01_boundaries.ipynb",
+    "spatial/02_geocoding.ipynb",
+    "analytics/01_connectors.ipynb",
+    "engines/04_statistics_primitives.ipynb",
     # Already in the ELE-2456 template shape from prior work:
     "reports/03_polling_survey_analysis.ipynb",
 ]
