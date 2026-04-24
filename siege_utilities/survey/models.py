@@ -10,6 +10,7 @@ View    = one cell statistic (count, pct, sig flag)
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date as _date
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import pandas as pd
@@ -150,3 +151,74 @@ class Stack:
     @property
     def all_chains(self) -> List[Chain]:
         return [chain for cluster in self.clusters for chain in cluster.chains]
+
+
+# ---------------------------------------------------------------------------
+# Wave — one survey fielding
+# ---------------------------------------------------------------------------
+
+@dataclass
+class Wave:
+    """One survey wave: the same questionnaire fielded at a point in time.
+
+    ``df`` is the respondent-level DataFrame for this wave and is what
+    :meth:`WaveSet.compare_chain` consumes. ``stack`` is optional: callers
+    that have already built a per-wave Stack (with its own weight scheme)
+    can attach it for later retrieval; longitudinal comparison does not
+    require it.
+    """
+
+    id: str
+    date: _date
+    df: Optional[pd.DataFrame] = None
+    stack: Optional[Stack] = None
+    weight_scheme: Optional[WeightScheme] = None
+
+
+# ---------------------------------------------------------------------------
+# WaveSet — ordered waves of the same survey
+# ---------------------------------------------------------------------------
+
+@dataclass
+class WaveSet:
+    """An ordered set of Waves from the same survey instrument.
+
+    Waves are sorted by ``date`` on access so longitudinal output is always
+    chronological regardless of insertion order.
+    """
+
+    name: str
+    waves: List[Wave] = field(default_factory=list)
+
+    def add_wave(self, wave: Wave) -> "WaveSet":
+        self.waves.append(wave)
+        return self
+
+    @property
+    def ordered(self) -> List[Wave]:
+        return sorted(self.waves, key=lambda w: w.date)
+
+    def compare_chain(
+        self,
+        row_var: str,
+        break_vars: Optional[List[str]] = None,
+        *,
+        metric: str = "value",
+        weight_var: Optional[str] = None,
+        top_n: Optional[int] = None,
+    ) -> Chain:
+        """Return a LONGITUDINAL Chain aligned across waves.
+
+        Columns are ``wave_id`` keys (ordered by date); rows are ``row_var``
+        categories. Delegates to :mod:`siege_utilities.survey.waves` so the
+        primitive lives in one place.
+        """
+        from .waves import compare_waves
+        return compare_waves(
+            self,
+            row_var=row_var,
+            break_vars=break_vars,
+            metric=metric,
+            weight_var=weight_var,
+            top_n=top_n,
+        )

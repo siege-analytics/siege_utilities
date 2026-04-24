@@ -31,6 +31,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   All new exceptions use `raise ... from e` chaining. See
   `docs/FAILURE_MODES.md` (pattern CC1) for the full catalog.
 
+- **Survey waves subsystem** (ELE-2440 / D7 part 2):
+  - `siege_utilities.survey.Wave` — one fielding: `id`, `date`, optional
+    respondent-level `df`, optional per-wave `stack` and `weight_scheme`.
+  - `siege_utilities.survey.WaveSet` — ordered set of Waves with
+    `compare_chain(row_var, break_vars=…)` returning a LONGITUDINAL Chain
+    aligned across waves (columns = wave ids in date order, trailing Δ
+    column when ≥2 waves).
+  - `siege_utilities.survey.waves.compare_waves` — primitive the WaveSet
+    method delegates to; raises `WavesError` on empty WaveSet or missing
+    per-wave DataFrame.
+  - `siege_utilities.reporting.wave_charts` — `trend_chart` and `heatmap`
+    rendering helpers consuming a LONGITUDINAL Chain.
+
+  Completes the PollingAnalyzer migration path: longitudinal polling
+  analysis is now a WaveSet composition on top of the survey primitives
+  rather than a separate analyzer class.
+
 ### Documentation
 
 - **`docs/INTENT.md`** — per-module purpose and 9 divergence candidates.
