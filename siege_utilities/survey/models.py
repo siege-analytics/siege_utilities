@@ -189,6 +189,7 @@ class WaveSet:
 
     name: str
     waves: List[Wave] = field(default_factory=list)
+    client_id: Optional[str] = None  # key into ClientBrandingManager / ClientSurveyRegistry
 
     def add_wave(self, wave: Wave) -> "WaveSet":
         self.waves.append(wave)
