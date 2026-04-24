@@ -36,7 +36,13 @@ RE_WRITTEN: list[str] = [
     "spatial/02_geocoding.ipynb",
     "analytics/01_connectors.ipynb",
     "engines/04_statistics_primitives.ipynb",
-    # Already in the ELE-2456 template shape from prior work:
+    # PR 3 (ELE-2459): analysis
+    "engines/01_multi_engine_dataframes.ipynb",
+    "engines/02_distributed_spark.ipynb",
+    "engines/03_databricks_geo.ipynb",
+    "spatial/05_multi_source_joins.ipynb",
+    "spatial/03_choropleth_maps.ipynb",
+    "spatial/04_redistricting.ipynb",
     "reports/03_polling_survey_analysis.ipynb",
 ]
 
