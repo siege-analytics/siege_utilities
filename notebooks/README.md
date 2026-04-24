@@ -5,6 +5,29 @@ by module tree. Each notebook opens with a standard `What this shows / Why it
 matters / Prereqs / Next` header and ends with a `## Related` footer pointing
 at source, tests, and architectural decisions.
 
+## Running example — two Siege Analytics partner firms
+
+The notebooks tell a single story threaded through two partner firms of Siege
+Analytics. A first-time reader sees how the library's modules compose end-to-end
+for realistic work, not 17 disconnected demos.
+
+- **ElectInfo** ([elect.info](https://elect.info)) — political / civic analytics. Owns the spatial,
+  redistricting, survey, FEC / campaign-finance, engine-scaling, PDF reporting,
+  and statistics-primitives notebooks (roughly 13 of 17).
+- **Masai Interactive** ([masaiinteractive.com](https://masaiinteractive.com)) — web / social analytics.
+  Owns the external-connector, GA end-to-end, and slides / Google Workspace
+  delivery notebooks (3 of 17).
+
+Both firms ship as predefined branding templates in
+`siege_utilities/reporting/client_branding.py` (`elect_info` and
+`masai_interactive`); `foundations/02_profiles_branding.ipynb` registers both
+explicitly and proves the wire-up by rendering the same chart under each brand.
+
+Spatial and other larger datasets are **not committed** to the repo — each
+notebook that needs one calls `siege_utilities.cache.ensure_sample_dataset`,
+which downloads on first run into `~/.cache/siege_utilities/notebooks/` (or
+wherever `SIEGE_UTILITIES_CACHE_DIR` points).
+
 ## Layout
 
 ```
