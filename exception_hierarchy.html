@@ -129,7 +129,10 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#geographic">Geographic</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#census-bureau-geocoder">Census Bureau geocoder</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#census-bureau-geocoder">Census Bureau geocoder</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.census_geocoder.CensusGeocodeError"><code class="docutils literal notranslate"><span class="pre">CensusGeocodeError</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="#spatial-data-sources">Spatial data sources</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#boundary-retrieval">Boundary retrieval</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.boundary_result.BoundaryRetrievalError"><code class="docutils literal notranslate"><span class="pre">BoundaryRetrievalError</span></code></a></li>
@@ -598,6 +601,27 @@ see the underlying error (<code class="docutils literal notranslate"><span class
 <h2>Geographic<a class="headerlink" href="#geographic" title="Link to this heading"></a></h2>
 <section id="census-bureau-geocoder">
 <h3>Census Bureau geocoder<a class="headerlink" href="#census-bureau-geocoder" title="Link to this heading"></a></h3>
+<dl class="py exception">
+<dt class="sig sig-object py" id="siege_utilities.geo.census_geocoder.CensusGeocodeError">
+<span class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.census_geocoder.</span></span><span class="sig-name descname"><span class="pre">CensusGeocodeError</span></span><a class="reference internal" href="_modules/siege_utilities/geo/census_geocoder.html#CensusGeocodeError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.census_geocoder.CensusGeocodeError" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">RuntimeError</span></code></p>
+<p>Raised when the Census geocoder API call fails unexpectedly.</p>
+<p>Distinct from “no match” results (which return a CensusGeocodeResult with
+matched=False). This exception indicates an API / network / parse failure
+where the geocoder could not even attempt to match. Use <cite>__cause__</cite> to
+inspect the underlying exception.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.census_geocoder.CensusGeocodeError.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.census_geocoder.CensusGeocodeError.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.census_geocoder.CensusGeocodeError.__new__">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.census_geocoder.CensusGeocodeError.__new__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
 <p>Before this change, <code class="docutils literal notranslate"><span class="pre">geocode_single()</span></code> and <code class="docutils literal notranslate"><span class="pre">geocode_batch()</span></code> caught all
 failures (network, API, parse) and returned
 <code class="docutils literal notranslate"><span class="pre">CensusGeocodeResult(matched=False)</span></code>. Downstream pipelines treated

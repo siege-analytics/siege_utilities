@@ -1,0 +1,974 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>siege_utilities.geo.census_geocoder &mdash; Siege Utilities 3.13.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=05bc70a9"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Siege Utilities
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#core-capabilities">Core Capabilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#core-utilities-16-functions">🔧 <strong>Core Utilities (16 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#file-operations-22-functions">📁 <strong>File Operations (22 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#distributed-computing-503-functions">🚀 <strong>Distributed Computing (503+ functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#geospatial-2-functions">🌍 <strong>Geospatial (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#configuration-management-15-functions">⚙️ <strong>Configuration Management (15 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#analytics-integration-6-functions">📊 <strong>Analytics Integration (6 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#code-hygiene-2-functions">🧹 <strong>Code Hygiene (2 functions)</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../getting_started.html#testing-development-2-functions">🧪 <strong>Testing &amp; Development (2 functions)</strong></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#real-world-workflow-examples">Real-World Workflow Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#installation-and-dependencies">Installation and Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#performance-and-scalability">Performance and Scalability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation_troubleshooting.html">Installation Troubleshooting</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../installation_troubleshooting.html#system-dependencies-for-geospatial">System Dependencies for Geospatial</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../installation_troubleshooting.html#ubuntu-debian">Ubuntu / Debian</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../installation_troubleshooting.html#macos-homebrew">macOS (Homebrew)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../installation_troubleshooting.html#windows">Windows</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../installation_troubleshooting.html#choosing-the-right-extras">Choosing the Right Extras</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../installation_troubleshooting.html#common-errors">Common Errors</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../architecture_diagram.html">Library Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#core-architecture">Core Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#function-distribution">Function Distribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#key-features">Key Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#integration-points">Integration Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../architecture_diagram.html#usage-patterns">Usage Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../autodiscovery.html">Enhanced Auto-Discovery System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#how-it-works">How It Works</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#the-five-phase-discovery-process">The Five-Phase Discovery Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#benefits">Benefits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#monitoring-your-package">Monitoring Your Package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../autodiscovery.html#adding-new-functions">Adding New Functions</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Core Utilities:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../core_utilities.html">Core Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../core_utilities.html#package-discovery">Package Discovery</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../core_utilities.html#functions">Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../core_utilities.html#siege_utilities.core.__init__"><code class="docutils literal notranslate"><span class="pre">__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../core_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../core_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../string_utilities.html">String Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../string_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../string_utilities.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../string_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../string_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../logging_utilities.html">Logging Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../logging_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../logging_utilities.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../logging_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../logging_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../exception_hierarchy.html">Exception Hierarchy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../exception_hierarchy.html#design-principles">Design principles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../exception_hierarchy.html#reporting">Reporting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../exception_hierarchy.html#top-level-config-export-import">Top-level config export / import</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../exception_hierarchy.html#siege_utilities.reporting.ReportingConfigError"><code class="docutils literal notranslate"><span class="pre">ReportingConfigError</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../exception_hierarchy.html#chart-type-registry">Chart type registry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../exception_hierarchy.html#client-branding">Client branding</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../exception_hierarchy.html#geographic">Geographic</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../exception_hierarchy.html#census-bureau-geocoder">Census Bureau geocoder</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../exception_hierarchy.html#siege_utilities.geo.census_geocoder.CensusGeocodeError"><code class="docutils literal notranslate"><span class="pre">CensusGeocodeError</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../exception_hierarchy.html#spatial-data-sources">Spatial data sources</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../exception_hierarchy.html#boundary-retrieval">Boundary retrieval</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryRetrievalError"><code class="docutils literal notranslate"><span class="pre">BoundaryRetrievalError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryInputError"><code class="docutils literal notranslate"><span class="pre">BoundaryInputError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryDiscoveryError"><code class="docutils literal notranslate"><span class="pre">BoundaryDiscoveryError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryUrlValidationError"><code class="docutils literal notranslate"><span class="pre">BoundaryUrlValidationError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryDownloadError"><code class="docutils literal notranslate"><span class="pre">BoundaryDownloadError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryParseError"><code class="docutils literal notranslate"><span class="pre">BoundaryParseError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryConfigurationError"><code class="docutils literal notranslate"><span class="pre">BoundaryConfigurationError</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../exception_hierarchy.html#migration-guidance">Migration guidance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../exception_hierarchy.html#further-reading">Further reading</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Distributed Computing:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../distributed_computing.html">Distributed Computing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#hdfs-configuration">HDFS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#hdfs-operations">HDFS Operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#id1">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#id2">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../distributed_computing.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../hdfs_operations.html">HDFS Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../hdfs_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../hdfs_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../hdfs_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../hdfs_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../spark_utilities.html">Spark Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../spark_utilities.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../spark_utilities.html#functions-by-category">Functions by Category</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../spark_utilities.html#mathematical-functions">Mathematical Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../spark_utilities.html#array-functions">Array Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../spark_utilities.html#aggregation-functions">Aggregation Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../spark_utilities.html#cryptographic-functions">Cryptographic Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../spark_utilities.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../spark_utilities.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">File Operations:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../file_operations.html">File Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../file_hashing.html">File Hashing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_hashing.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_hashing.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_hashing.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../file_hashing.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../remote_operations.html">Remote Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../remote_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../remote_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../remote_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../remote_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../shell_operations.html">Shell Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../shell_operations.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../shell_operations.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../shell_operations.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../shell_operations.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Geographic &amp; Analytics:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../geo.html">Geographic Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../geocoding.html">Geocoding</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../geocoding.html#module-overview">Module Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../geocoding.html#functions">Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../geocoding.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../geocoding.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html">Enhanced Census Utilities and Spatial Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#census-directory-discovery">Census Directory Discovery</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#census-data-source">Census Data Source</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#state-information-methods">State Information Methods</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#spatial-data-source">Spatial Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#government-data-source">Government Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#openstreetmap-data-source">OpenStreetMap Data Source</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#convenience-functions">Convenience Functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#global-instances">Global Instances</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#census_source"><code class="docutils literal notranslate"><span class="pre">census_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#government_source"><code class="docutils literal notranslate"><span class="pre">government_source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#osm_source"><code class="docutils literal notranslate"><span class="pre">osm_source</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#basic-census-data-access">Basic Census Data Access</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#state-information-lookup">State Information Lookup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#dynamic-discovery">Dynamic Discovery</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#error-handling">Error Handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#performance-optimization">Performance Optimization</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/spatial_data.html#integration-with-other-tools">Integration with Other Tools</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html">Census Dataset Mapper</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#classes">Classes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#censusdatasetmapper">CensusDatasetMapper</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#censusdataset">CensusDataset</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#datasetrelationship">DatasetRelationship</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#enums">Enums</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#surveytype">SurveyType</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#geographylevel">GeographyLevel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#datareliability">DataReliability</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#get-census-dataset-mapper">get_census_dataset_mapper</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#get-best-dataset-for-analysis">get_best_dataset_for_analysis</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#compare-census-datasets">compare_census_datasets</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#basic-dataset-information">Basic Dataset Information</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#dataset-comparison">Dataset Comparison</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#data-selection-guide">Data Selection Guide</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_dataset_mapper.html#export-dataset-catalog">Export Dataset Catalog</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html">Census Data Selector</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#classes">Classes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#censusdataselector">CensusDataSelector</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#get-census-data-selector">get_census_data_selector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#select-census-datasets">select_census_datasets</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#get-analysis-approach">get_analysis_approach</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#usage-examples">Usage Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#basic-dataset-selection">Basic Dataset Selection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#analysis-approach-recommendations">Analysis Approach Recommendations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#compatibility-matrix">Compatibility Matrix</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#quick-selection">Quick Selection</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#advanced-usage">Advanced Usage</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#custom-reliability-requirements">Custom Reliability Requirements</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#time-sensitive-analysis">Time-Sensitive Analysis</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#variable-specific-selection">Variable-Specific Selection</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#analysis-types-supported">Analysis Types Supported</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#geography-levels-supported">Geography Levels Supported</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#reliability-levels">Reliability Levels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/siege_utilities/geo/census_data_selector.html#output-format">Output Format</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#tiered-installation">Tiered Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#isochrones-and-crs">Isochrones and CRS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#key-features">Key Features</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../geo.html#census-data-intelligence">Census Data Intelligence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../geo.html#enhanced-census-utilities">Enhanced Census Utilities</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../geo.html#spatial-data-processing">Spatial Data Processing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../geo.html#geocoding-services">Geocoding Services</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#analysis-types-supported">Analysis Types Supported</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#geography-levels-supported">Geography Levels Supported</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#census-survey-types">Census Survey Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#data-quality-and-reliability">Data Quality and Reliability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../geo.html#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../google_workspace.html">Google Workspace Write APIs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../google_workspace.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../google_workspace.html#authentication">Authentication</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../google_workspace.html#password-integration-recommended">1Password Integration (Recommended)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../google_workspace.html#direct-authentication">Direct Authentication</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../google_workspace.html#google-sheets">Google Sheets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../google_workspace.html#google-slides">Google Slides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../google_workspace.html#google-docs">Google Docs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../google_workspace.html#drive-utilities">Drive Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../google_workspace.html#multi-account-management">Multi-Account Management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../google_workspace.html#notebook">Notebook</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../google_workspace.html#module-siege_utilities.analytics.google_workspace">API Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../analytics.html">Analytics</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#module-overview">Module Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#facebook-business-analytics">Facebook Business Analytics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#google-analytics">Google Analytics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#id1">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#id2">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../analytics.html#unit-tests">Unit Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mapping_and_reporting.html">Mapping and Reporting System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#key-features">Key Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#quick-start">Quick Start</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#basic-bivariate-choropleth-map">Basic Bivariate Choropleth Map</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#marker-map-with-geographic-data">Marker Map with Geographic Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#d-elevation-visualization">3D Elevation Visualization</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#comprehensive-report-generation">Comprehensive Report Generation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#creating-professional-pdf-reports">Creating Professional PDF Reports</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#powerpoint-presentation-creation">PowerPoint Presentation Creation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#map-types-reference">Map Types Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#bivariate-choropleth-maps">Bivariate Choropleth Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#marker-maps">Marker Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#d-maps">3D Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#heatmap-maps">Heatmap Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#cluster-maps">Cluster Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#flow-maps">Flow Maps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#advanced-choropleth-maps">Advanced Choropleth Maps</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#report-structure">Report Structure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#pdf-report-components">PDF Report Components</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#powerpoint-structure">PowerPoint Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#section-types">Section Types</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#integration-examples">Integration Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#google-analytics-integration">Google Analytics Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#database-integration">Database Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#custom-api-integration">Custom API Integration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#data-preparation">Data Preparation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#map-design">Map Design</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#report-organization">Report Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#performance-optimization">Performance Optimization</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#common-issues">Common Issues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#performance-issues">Performance Issues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mapping_and_reporting.html#error-handling">Error Handling</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#examples-and-recipes">Examples and Recipes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mapping_and_reporting.html#additional-resources">Additional Resources</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Notebooks &amp; Examples:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks.html">Jupyter Notebooks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../notebooks.html#configuration-profiles">Configuration &amp; Profiles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../notebooks.html#geospatial-census">Geospatial &amp; Census</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../notebooks.html#political-redistricting">Political &amp; Redistricting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../notebooks.html#data-engines">Data Engines</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../notebooks.html#reporting">Reporting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../notebooks.html#analytics-integrations">Analytics &amp; Integrations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../notebooks.html#data-development">Data &amp; Development</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../notebooks.html#dependency-groups">Dependency Groups</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development &amp; Testing:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributor_governance.html">Contributor Governance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../coding_style.html">Coding Style</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../pr_review_rubric.html">PR Review Rubric</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../lint_ratchet_plan.html">Lint Ratchet Plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../change_classification_and_release_policy.html">Change Classification and Release Policy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../repository_hygiene.html">Repository Hygiene</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../repository_hygiene.html#policy-goals">Policy goals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../repository_hygiene.html#tracked-vs-ignored-artifacts">Tracked vs ignored artifacts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../repository_hygiene.html#special-exception-notebooks-output">Special exception: notebooks output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../repository_hygiene.html#scripts-policy">Scripts policy</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../coderabbit_workflow.html">CodeRabbit Workflow</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../coderabbit_workflow.html#required-status">Required status</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../coderabbit_workflow.html#review-focus">Review focus</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../coderabbit_workflow.html#merge-readiness">Merge readiness</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license_model.html">License Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../testing_guide.html">Testing Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-structure">Test Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#running-tests">Running Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#basic-test-execution">Basic Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#coverage-and-reporting">Coverage and Reporting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#parallel-execution">Parallel Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-markers">Test Markers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#writing-new-tests">Writing New Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-file-structure">Test File Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-naming-conventions">Test Naming Conventions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#example-test-patterns">Example Test Patterns</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-fixtures">Test Fixtures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-configuration">Test Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#pytest-configuration">Pytest Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#coverage-configuration">Coverage Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#continuous-integration">Continuous Integration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#ci-pipeline">CI Pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#debugging-tests">Debugging Tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#verbose-output">Verbose Output</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#debug-mode">Debug Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#single-test-execution">Single Test Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-isolation">Test Isolation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#performance-testing">Performance Testing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#benchmark-tests">Benchmark Tests</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#load-testing">Load Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#test-data-management">Test Data Management</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-data-generation">Test Data Generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#data-cleanup">Data Cleanup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-organization">Test Organization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-independence">Test Independence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#test-coverage">Test Coverage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#performance-considerations">Performance Considerations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#common-patterns">Common Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#configuration-testing">Configuration Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#file-operation-testing">File Operation Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#api-testing">API Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../testing_guide.html#common-issues">Common Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../testing_guide.html#getting-help">Getting Help</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Siege Utilities</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">siege_utilities.geo.census_geocoder</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for siege_utilities.geo.census_geocoder</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Census Bureau Geocoder integration with historical vintage support.</span>
+
+<span class="sd">Wraps the Census Bureau&#39;s geocoding API for US address geocoding. Returns</span>
+<span class="sd">FIPS codes directly (state, county, tract, block) so most addresses don&#39;t</span>
+<span class="sd">need a spatial join. Supports historical vintages for temporal accuracy.</span>
+
+<span class="sd">Usage:</span>
+<span class="sd">    from siege_utilities.geo import (</span>
+<span class="sd">        CensusVintage, select_vintage_for_cycle,</span>
+<span class="sd">        geocode_single, geocode_batch, CensusGeocodeResult,</span>
+<span class="sd">    )</span>
+
+<span class="sd">    # Single address</span>
+<span class="sd">    result = geocode_single(&quot;1600 Pennsylvania Ave&quot;, &quot;Washington&quot;, &quot;DC&quot;, &quot;20500&quot;)</span>
+
+<span class="sd">    # Batch (up to 10,000)</span>
+<span class="sd">    results = geocode_batch(addresses, vintage=CensusVintage.CENSUS_2020)</span>
+
+<span class="sd">    # Auto-select vintage for an FEC cycle year</span>
+<span class="sd">    vintage = select_vintage_for_cycle(2018)  # -&gt; CensusVintage.CENSUS_2020</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">csv</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities</span><span class="w"> </span><span class="kn">import</span> <span class="n">log_warning</span><span class="p">,</span> <span class="n">log_info</span><span class="p">,</span> <span class="n">log_debug</span><span class="p">,</span> <span class="n">log_error</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_warning</span><span class="p">(</span><span class="n">message</span><span class="p">):</span> <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;WARNING: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_info</span><span class="p">(</span><span class="n">message</span><span class="p">):</span> <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;INFO: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_debug</span><span class="p">(</span><span class="n">message</span><span class="p">):</span> <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;DEBUG: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_error</span><span class="p">(</span><span class="n">message</span><span class="p">):</span> <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ERROR: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="CensusGeocodeError">
+<a class="viewcode-back" href="../../../exception_hierarchy.html#siege_utilities.geo.census_geocoder.CensusGeocodeError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CensusGeocodeError</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when the Census geocoder API call fails unexpectedly.</span>
+
+<span class="sd">    Distinct from &quot;no match&quot; results (which return a CensusGeocodeResult with</span>
+<span class="sd">    matched=False). This exception indicates an API / network / parse failure</span>
+<span class="sd">    where the geocoder could not even attempt to match. Use `__cause__` to</span>
+<span class="sd">    inspect the underlying exception.</span>
+<span class="sd">    &quot;&quot;&quot;</span></div>
+
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">CensusVintage</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Census geocoder benchmark/vintage pairs.</span>
+
+<span class="sd">    Each value is the benchmark string accepted by the Census Geocoder API.</span>
+<span class="sd">    The vintage determines which geographic boundaries are used for matching.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">CENSUS_2010</span> <span class="o">=</span> <span class="s2">&quot;Census2010_Census2010&quot;</span>
+    <span class="n">CENSUS_2020</span> <span class="o">=</span> <span class="s2">&quot;Census2020_Census2020&quot;</span>
+    <span class="n">CURRENT</span> <span class="o">=</span> <span class="s2">&quot;Public_Current&quot;</span>
+    <span class="n">ACS_2022</span> <span class="o">=</span> <span class="s2">&quot;Public_ACS2022&quot;</span>
+    <span class="n">ACS_2023</span> <span class="o">=</span> <span class="s2">&quot;Public_ACS2023&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">benchmark</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract the benchmark portion (before underscore).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">vintage</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract the vintage portion (after underscore).&quot;&quot;&quot;</span>
+        <span class="n">parts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+
+<span class="c1"># Year boundaries for vintage selection</span>
+<span class="n">_VINTAGE_THRESHOLDS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="n">CensusVintage</span><span class="o">.</span><span class="n">CURRENT</span><span class="p">),</span>
+    <span class="p">(</span><span class="mi">2012</span><span class="p">,</span> <span class="n">CensusVintage</span><span class="o">.</span><span class="n">CENSUS_2020</span><span class="p">),</span>
+    <span class="p">(</span><span class="mi">1980</span><span class="p">,</span> <span class="n">CensusVintage</span><span class="o">.</span><span class="n">CENSUS_2010</span><span class="p">),</span>
+<span class="p">]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">select_vintage_for_cycle</span><span class="p">(</span><span class="n">year</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CensusVintage</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Select the appropriate Census vintage for an FEC cycle year.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        year: The FEC election cycle year.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        CensusVintage matching the boundaries in effect for that cycle.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; select_vintage_for_cycle(2024)</span>
+<span class="sd">        &lt;CensusVintage.CURRENT: &#39;Public_Current&#39;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; select_vintage_for_cycle(2016)</span>
+<span class="sd">        &lt;CensusVintage.CENSUS_2020: &#39;Census2020_Census2020&#39;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; select_vintage_for_cycle(2008)</span>
+<span class="sd">        &lt;CensusVintage.CENSUS_2010: &#39;Census2010_Census2010&#39;&gt;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">threshold</span><span class="p">,</span> <span class="n">vintage</span> <span class="ow">in</span> <span class="n">_VINTAGE_THRESHOLDS</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">year</span> <span class="o">&gt;=</span> <span class="n">threshold</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">vintage</span>
+    <span class="k">return</span> <span class="n">CensusVintage</span><span class="o">.</span><span class="n">CENSUS_2010</span>
+
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CensusGeocodeResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Result from Census Bureau geocoding.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        matched: Whether the address was matched.</span>
+<span class="sd">        input_address: The original input address string.</span>
+<span class="sd">        matched_address: The standardized matched address (if matched).</span>
+<span class="sd">        lat: Latitude (if matched).</span>
+<span class="sd">        lon: Longitude (if matched).</span>
+<span class="sd">        state_fips: 2-digit state FIPS code.</span>
+<span class="sd">        county_fips: 3-digit county FIPS code.</span>
+<span class="sd">        tract: 6-digit tract code.</span>
+<span class="sd">        block: 4-digit block code.</span>
+<span class="sd">        match_type: &quot;Exact&quot;, &quot;Non_Exact&quot;, or &quot;No_Match&quot;.</span>
+<span class="sd">        side: Street side (&quot;L&quot; or &quot;R&quot;, from TIGER).</span>
+<span class="sd">        tiger_line_id: TIGER/Line feature ID.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">matched</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">input_address</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">matched_address</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">lat</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">lon</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">state_fips</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">county_fips</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">tract</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">block</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">match_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;No_Match&quot;</span>
+    <span class="n">side</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">tiger_line_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="c1"># Populated by id if provided in batch input</span>
+    <span class="n">input_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">state_geoid</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;2-digit state GEOID.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_fips</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_fips</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">county_geoid</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;5-digit county GEOID (state + county FIPS).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_fips</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">county_fips</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">state_fips</span><span class="si">}{</span><span class="bp">self</span><span class="o">.</span><span class="n">county_fips</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">tract_geoid</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;11-digit tract GEOID (state + county + tract).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_fips</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">county_fips</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">tract</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">state_fips</span><span class="si">}{</span><span class="bp">self</span><span class="o">.</span><span class="n">county_fips</span><span class="si">}{</span><span class="bp">self</span><span class="o">.</span><span class="n">tract</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">block_geoid</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;15-digit block GEOID (state + county + tract + block).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_fips</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">county_fips</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">tract</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">block</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">state_fips</span><span class="si">}{</span><span class="bp">self</span><span class="o">.</span><span class="n">county_fips</span><span class="si">}{</span><span class="bp">self</span><span class="o">.</span><span class="n">tract</span><span class="si">}{</span><span class="bp">self</span><span class="o">.</span><span class="n">block</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">block_group_geoid</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;12-digit block group GEOID (block GEOID truncated to 12 chars).&quot;&quot;&quot;</span>
+        <span class="n">bg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_geoid</span>
+        <span class="k">return</span> <span class="n">bg</span><span class="p">[:</span><span class="mi">12</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bg</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">12</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_get_geocoder</span><span class="p">(</span><span class="n">vintage</span><span class="p">:</span> <span class="n">CensusVintage</span> <span class="o">=</span> <span class="n">CensusVintage</span><span class="o">.</span><span class="n">CURRENT</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get a censusgeocode.CensusGeocode instance with the specified vintage.&quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">censusgeocode</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+            <span class="s2">&quot;censusgeocode is required for Census geocoding. &quot;</span>
+            <span class="s2">&quot;Install it with: pip install &#39;siege-utilities[geo]&#39; or pip install censusgeocode&quot;</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">censusgeocode</span><span class="o">.</span><span class="n">CensusGeocode</span><span class="p">(</span>
+        <span class="n">benchmark</span><span class="o">=</span><span class="n">vintage</span><span class="o">.</span><span class="n">benchmark</span><span class="p">,</span>
+        <span class="n">vintage</span><span class="o">=</span><span class="n">vintage</span><span class="o">.</span><span class="n">vintage</span><span class="p">,</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_parse_single_result</span><span class="p">(</span><span class="n">result</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CensusGeocodeResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parse a single result dict from censusgeocode into a CensusGeocodeResult.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">CensusGeocodeResult</span><span class="p">()</span>
+
+    <span class="n">matched_address</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;matchedAddress&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">coords</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;coordinates&quot;</span><span class="p">,</span> <span class="p">{})</span>
+    <span class="n">geographies</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;geographies&quot;</span><span class="p">,</span> <span class="p">{})</span>
+    <span class="n">tiger</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;addressComponents&quot;</span><span class="p">,</span> <span class="p">{})</span>
+
+    <span class="c1"># Census Blocks is the most detailed geography; extract FIPS from there</span>
+    <span class="n">blocks</span> <span class="o">=</span> <span class="n">geographies</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Census Blocks&quot;</span><span class="p">,</span> <span class="n">geographies</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;2020 Census Blocks&quot;</span><span class="p">,</span> <span class="p">[]))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">blocks</span><span class="p">:</span>
+        <span class="c1"># Try other geography keys</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">geographies</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;block&quot;</span> <span class="ow">in</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">or</span> <span class="s2">&quot;tract&quot;</span> <span class="ow">in</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+                <span class="n">blocks</span> <span class="o">=</span> <span class="n">geographies</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                <span class="k">break</span>
+
+    <span class="n">geo_data</span> <span class="o">=</span> <span class="n">blocks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">blocks</span> <span class="k">else</span> <span class="p">{}</span>
+
+    <span class="k">return</span> <span class="n">CensusGeocodeResult</span><span class="p">(</span>
+        <span class="n">matched</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">matched_address</span><span class="o">=</span><span class="n">matched_address</span><span class="p">,</span>
+        <span class="n">lat</span><span class="o">=</span><span class="n">coords</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">),</span>
+        <span class="n">lon</span><span class="o">=</span><span class="n">coords</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">),</span>
+        <span class="n">state_fips</span><span class="o">=</span><span class="n">geo_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;STATE&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">county_fips</span><span class="o">=</span><span class="n">geo_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;COUNTY&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">tract</span><span class="o">=</span><span class="n">geo_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;TRACT&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">block</span><span class="o">=</span><span class="n">geo_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;BLOCK&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">match_type</span><span class="o">=</span><span class="s2">&quot;Exact&quot;</span><span class="p">,</span>
+        <span class="n">side</span><span class="o">=</span><span class="n">tiger</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;side&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">tiger_line_id</span><span class="o">=</span><span class="n">tiger</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tigerLineId&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">geocode_single</span><span class="p">(</span>
+    <span class="n">street</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">city</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">state</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">zipcode</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">vintage</span><span class="p">:</span> <span class="n">CensusVintage</span> <span class="o">=</span> <span class="n">CensusVintage</span><span class="o">.</span><span class="n">CURRENT</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CensusGeocodeResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Geocode a single address via the Census Bureau API.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        street: Street address (e.g., &quot;1600 Pennsylvania Ave NW&quot;).</span>
+<span class="sd">        city: City name.</span>
+<span class="sd">        state: State abbreviation or name.</span>
+<span class="sd">        zipcode: ZIP code.</span>
+<span class="sd">        vintage: Census vintage for boundary matching.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        CensusGeocodeResult with lat/lon and FIPS codes if matched.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cg</span> <span class="o">=</span> <span class="n">_get_geocoder</span><span class="p">(</span><span class="n">vintage</span><span class="p">)</span>
+    <span class="n">input_addr</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">street</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">city</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">zipcode</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">cg</span><span class="o">.</span><span class="n">onelineaddress</span><span class="p">(</span><span class="n">input_addr</span><span class="p">,</span> <span class="n">returntype</span><span class="o">=</span><span class="s2">&quot;geographies&quot;</span><span class="p">)</span>
+        <span class="n">matches</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;result&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;addressMatches&quot;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">matches</span><span class="p">:</span>
+            <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No match for: </span><span class="si">{</span><span class="n">input_addr</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">CensusGeocodeResult</span><span class="p">(</span><span class="n">input_address</span><span class="o">=</span><span class="n">input_addr</span><span class="p">)</span>
+
+        <span class="n">parsed</span> <span class="o">=</span> <span class="n">_parse_single_result</span><span class="p">(</span><span class="n">matches</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">parsed</span><span class="o">.</span><span class="n">input_address</span> <span class="o">=</span> <span class="n">input_addr</span>
+        <span class="n">log_debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Matched: </span><span class="si">{</span><span class="n">input_addr</span><span class="si">}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="n">parsed</span><span class="o">.</span><span class="n">matched_address</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">parsed</span>
+
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">CensusGeocodeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Census geocode failed for </span><span class="si">{</span><span class="n">input_addr</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">geocode_batch</span><span class="p">(</span>
+    <span class="n">addresses</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">],</span>
+    <span class="n">vintage</span><span class="p">:</span> <span class="n">CensusVintage</span> <span class="o">=</span> <span class="n">CensusVintage</span><span class="o">.</span><span class="n">CURRENT</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">CensusGeocodeResult</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Geocode a batch of addresses via the Census Bureau batch API.</span>
+
+<span class="sd">    The Census batch API accepts up to 10,000 addresses per request.</span>
+<span class="sd">    Each address dict should have keys: id, street, city, state, zipcode.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        addresses: List of dicts with keys {id, street, city, state, zipcode}.</span>
+<span class="sd">        vintage: Census vintage for boundary matching.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of CensusGeocodeResult, one per input address (order preserved).</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If batch exceeds 10,000 addresses.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">addresses</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">10_000</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Census batch API accepts max 10,000 addresses, got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">addresses</span><span class="p">)</span><span class="si">}</span><span class="s2">. &quot;</span>
+            <span class="s2">&quot;Use geocode_batch_chunked() for larger sets.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">addresses</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[]</span>
+
+    <span class="n">cg</span> <span class="o">=</span> <span class="n">_get_geocoder</span><span class="p">(</span><span class="n">vintage</span><span class="p">)</span>
+
+    <span class="c1"># Build CSV for batch submission</span>
+    <span class="n">csv_buffer</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+    <span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">csv_buffer</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">addr</span> <span class="ow">in</span> <span class="n">addresses</span><span class="p">:</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span>
+            <span class="n">addr</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+            <span class="n">addr</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;street&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+            <span class="n">addr</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;city&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+            <span class="n">addr</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;state&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+            <span class="n">addr</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;zipcode&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="p">])</span>
+
+    <span class="c1"># Write to temp file for censusgeocode</span>
+    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;.csv&quot;</span><span class="p">,</span> <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">csv_buffer</span><span class="o">.</span><span class="n">getvalue</span><span class="p">())</span>
+        <span class="n">csv_path</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">cg</span><span class="o">.</span><span class="n">addressbatch</span><span class="p">(</span><span class="n">csv_path</span><span class="p">,</span> <span class="n">returntype</span><span class="o">=</span><span class="s2">&quot;geographies&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">CensusGeocodeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Census batch geocode failed for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">addresses</span><span class="p">)</span><span class="si">}</span><span class="s2"> addresses: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+
+    <span class="c1"># Parse batch results</span>
+    <span class="n">results_by_id</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+            <span class="n">row_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">))</span>
+            <span class="n">matched</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;is_match&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;match&quot;</span>
+            <span class="k">if</span> <span class="n">matched</span><span class="p">:</span>
+                <span class="n">parsed</span> <span class="o">=</span> <span class="n">CensusGeocodeResult</span><span class="p">(</span>
+                    <span class="n">matched</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">input_id</span><span class="o">=</span><span class="n">row_id</span><span class="p">,</span>
+                    <span class="n">input_address</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;address&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                    <span class="n">matched_address</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;match_address&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                    <span class="n">lat</span><span class="o">=</span><span class="n">_safe_float</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;lat&quot;</span><span class="p">)),</span>
+                    <span class="n">lon</span><span class="o">=</span><span class="n">_safe_float</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;lon&quot;</span><span class="p">)),</span>
+                    <span class="n">state_fips</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;statefp&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                    <span class="n">county_fips</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;countyfp&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                    <span class="n">tract</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tract&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                    <span class="n">block</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;block&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                    <span class="n">match_type</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;match_type&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                    <span class="n">tiger_line_id</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tigerlineid&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                    <span class="n">side</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;side&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">parsed</span> <span class="o">=</span> <span class="n">CensusGeocodeResult</span><span class="p">(</span>
+                    <span class="n">input_id</span><span class="o">=</span><span class="n">row_id</span><span class="p">,</span>
+                    <span class="n">input_address</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;address&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                <span class="p">)</span>
+            <span class="n">results_by_id</span><span class="p">[</span><span class="n">row_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">parsed</span>
+
+    <span class="c1"># Return in input order</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">addr</span> <span class="ow">in</span> <span class="n">addresses</span><span class="p">:</span>
+        <span class="n">addr_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">addr</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">addr_id</span> <span class="ow">in</span> <span class="n">results_by_id</span><span class="p">:</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">results_by_id</span><span class="p">[</span><span class="n">addr_id</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">CensusGeocodeResult</span><span class="p">(</span>
+                <span class="n">input_id</span><span class="o">=</span><span class="n">addr_id</span><span class="p">,</span>
+                <span class="n">input_address</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">addr</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;street&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">addr</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;city&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">addr</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;state&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">addr</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;zipcode&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="p">))</span>
+
+    <span class="n">matched_count</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">output</span> <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">matched</span><span class="p">)</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Census batch: </span><span class="si">{</span><span class="n">matched_count</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">)</span><span class="si">}</span><span class="s2"> matched&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">output</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">geocode_batch_chunked</span><span class="p">(</span>
+    <span class="n">addresses</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">],</span>
+    <span class="n">vintage</span><span class="p">:</span> <span class="n">CensusVintage</span> <span class="o">=</span> <span class="n">CensusVintage</span><span class="o">.</span><span class="n">CURRENT</span><span class="p">,</span>
+    <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10_000</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">CensusGeocodeResult</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Geocode addresses in chunks of up to chunk_size (default 10,000).</span>
+
+<span class="sd">    Convenience wrapper around geocode_batch() for larger datasets.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        addresses: List of dicts with keys {id, street, city, state, zipcode}.</span>
+<span class="sd">        vintage: Census vintage for boundary matching.</span>
+<span class="sd">        chunk_size: Max addresses per API call (max 10,000).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of CensusGeocodeResult, one per input address.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">chunk_size</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">chunk_size</span><span class="p">,</span> <span class="mi">10_000</span><span class="p">)</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">addresses</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">total</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">):</span>
+        <span class="n">chunk</span> <span class="o">=</span> <span class="n">addresses</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span> <span class="o">+</span> <span class="n">chunk_size</span><span class="p">]</span>
+        <span class="n">chunk_num</span> <span class="o">=</span> <span class="p">(</span><span class="n">i</span> <span class="o">//</span> <span class="n">chunk_size</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">total_chunks</span> <span class="o">=</span> <span class="p">(</span><span class="n">total</span> <span class="o">+</span> <span class="n">chunk_size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="n">chunk_size</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Census batch chunk </span><span class="si">{</span><span class="n">chunk_num</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">total_chunks</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span><span class="si">}</span><span class="s2"> addresses)&quot;</span><span class="p">)</span>
+        <span class="n">results</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">geocode_batch</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span> <span class="n">vintage</span><span class="o">=</span><span class="n">vintage</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">results</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_safe_float</span><span class="p">(</span><span class="n">val</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Safely convert a value to float, returning None on failure.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">val</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025-2026, Dheeraj Chand.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
