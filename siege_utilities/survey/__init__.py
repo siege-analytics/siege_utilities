@@ -69,6 +69,8 @@ _LAZY = {
     "stack_to_arguments":  ".render",
     "compare_waves":   ".waves",
     "WavesError":      ".waves",
+    "ClientSurveyRegistry": ".registry",
+    "ClientSurveyError":    ".registry",
 }
 
 __all__ = list(_LAZY.keys())

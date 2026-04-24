@@ -48,6 +48,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   analysis is now a WaveSet composition on top of the survey primitives
   rather than a separate analyzer class.
 
+- **Client ↔ Survey registry** (`siege_utilities.survey.registry`):
+  - `WaveSet.client_id` — optional string keying into the branding /
+    profile system or an external CRM.
+  - `ClientSurveyRegistry` — in-memory map of ``client_id → {name →
+    WaveSet}`` with `register` / `register_for` / `surveys_for` /
+    `get_survey` / `require_survey` / `unregister` / `client_of`.
+    Supports `"acme" in reg` and `("acme", "Tracker") in reg`
+    membership checks; `len(reg)` counts all surveys across clients.
+  - `ClientSurveyError` (subclass of `KeyError`) raised on missing
+    lookups, duplicate survey names within a client, or registration
+    without a client_id.
+
+  Survey names are scoped per-client: ``("Acme", "Tracker Q2")`` and
+  ``("Beacon", "Tracker Q2")`` coexist fine. Branding / display info
+  stays in `reporting/client_branding`; the registry only answers
+  "which surveys belong to this client".
+
 ### Documentation
 
 - **`docs/INTENT.md`** — per-module purpose and 9 divergence candidates.
