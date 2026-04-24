@@ -163,7 +163,48 @@ class ClientBrandingManager:
                     'left': 0.75,
                     'right': 0.75
                 }
-            }
+            },
+            # elect.info was unreachable when this template was seeded
+            # (2026-04-24). Colors / fonts / logo are civic-tech placeholders —
+            # swap in real brand assets when the site is up.
+            'elect_info': {
+                'name': 'ElectInfo',
+                'colors': {
+                    'primary': '#0B3D91',
+                    'secondary': '#D32F2F',
+                    'accent': '#FFB300',
+                    'text_color': '#1A1A1A',
+                    'header_footer_text_color': '#555555',
+                    'background': '#FFFFFF',
+                },
+                'fonts': {
+                    'default_font': 'Helvetica',
+                    'h1': {'font_size': 24, 'leading': 28},
+                    'h2': {'font_size': 18, 'leading': 22},
+                    'h3': {'font_size': 14, 'leading': 18},
+                    'BodyText': {'font_size': 11, 'leading': 14},
+                },
+                'logo': {
+                    'image_url': 'https://elect.info/logo.png',
+                    'width': 1.5,
+                    'height': 0.6,
+                },
+                'header': {
+                    'left_text': 'ElectInfo Analysis',
+                    'right_text': 'Political & Civic Analytics',
+                },
+                'footer': {
+                    'left_text': 'Prepared by: ElectInfo',
+                    'right_text': 'elect.info',
+                    'page_number_format': 'Page %s',
+                },
+                'page_margins': {
+                    'top': 1.0,
+                    'bottom': 1.0,
+                    'left': 0.75,
+                    'right': 0.75,
+                },
+            },
         }
 
     def create_client_branding(self, client_name: str, branding_config: Dict[str, Any]) -> Path:
