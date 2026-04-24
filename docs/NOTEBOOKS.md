@@ -1,127 +1,134 @@
-# siege_utilities — Notebook organization
+# siege_utilities — Notebook system
 
-**Outcome:** 27 flat legacy notebooks → 17 canonical notebooks across 5 themed
-folders + 12 archived. Every user-facing module has a notebook home; nothing
-duplicates.
+**Status:** Complete (ELE-2456 shipped 2026-04-24 across PRs #418 / #419 / #420 / #421).
 
-**Snapshot:** 2026-04-23 (post-reorg). Supersedes the 2026-04-22 plan.
+## Shape
 
-## Final layout
+17 canonical notebooks across 5 themed folders. Every notebook is a capability
+showcase, not an API tour: one user intent, 10–15 cells, one coherent
+deliverable. Structural rules are enforced by `tests/test_notebook_hygiene.py`
+(102 checks at time of writing).
 
 ```
 notebooks/
   foundations/   config, profiles, branding
-  spatial/       geographies, geocoding, maps, spatial joins, GeoDjango
-  reports/       chart gallery + PDF, slides (PPTX & Google), polling/survey
-  analytics/     external data connectors, GA end-to-end
-  engines/       pandas ↔ DuckDB ↔ Spark ↔ Databricks, statistics primitives
-  archive/       retired / superseded notebooks — not part of CI
+  spatial/       boundaries, geocoding, maps, joins, redistricting, GeoDjango
+  reports/       charts+PDF, slides (PPTX + Google), polling/survey
+  analytics/     external connectors, GA end-to-end
+  engines/       multi-engine DF, Spark, Databricks, statistics primitives
+  archive/       retired / superseded — not part of CI
 ```
 
-## Canonical set (17)
+## Running example — two Siege Analytics partner firms
 
-| Folder | Slot | Notebook | Capability |
+- **ElectInfo** — political / civic analytics. 13 of 17 notebooks: foundations,
+  all spatial, engines, statistics, PDF reports, polling waves.
+- **Masai Interactive** — web / social analytics. 3 notebooks: external
+  connectors, GA end-to-end, slides/Google Workspace delivery.
+
+Both firms ship as branding templates in `siege_utilities/reporting/client_branding.py`
+(`elect_info` and `masai_interactive`). `foundations/02_profiles_branding.ipynb`
+introduces both and proves the wire-up by rendering the same chart under each brand.
+
+## Canonical set
+
+| Folder | Slot | Task | Firm |
 |---|---|---|---|
-| foundations | 01 | `01_configuration` | Hydra + Pydantic config |
-| foundations | 02 | `02_profiles_branding` | Users, clients, Actor model, branding |
-| spatial | 01 | `01_boundaries` | Census TIGER + demographics + GADM |
-| spatial | 02 | `02_geocoding` | Census geocoder + SpatiaLite cache |
-| spatial | 03 | `03_choropleth_maps` | Choropleth + bivariate + flow |
-| spatial | 04 | `04_redistricting` | RDH + VTD routing |
-| spatial | 05 | `05_multi_source_joins` | Cross-source spatial joins |
-| spatial | 06 | `06_geodjango` | GeoDjango + PostGIS |
-| reports | 01 | `01_charts_and_pdf` | ChartGenerator gallery + ReportLab PDF |
-| reports | 02 | `02_slides_pptx_and_google` | `Argument` → PPTX + Google Slides |
-| reports | 03 | `03_polling_survey_analysis` | Survey pipeline incl. `WaveSet.compare_chain` |
-| analytics | 01 | `01_connectors` | External analytics source zoo |
-| analytics | 02 | `02_ga_end_to_end` | GA → report showcase |
-| engines | 01 | `01_multi_engine_dataframes` | pandas / DuckDB / Spark via one abstraction |
-| engines | 02 | `02_distributed_spark` | Spark + Sedona at scale |
-| engines | 03 | `03_databricks_geo` | Databricks bridges, LakeBase, Unity Catalog (no Sedona) |
-| engines | 04 | `04_statistics_primitives` | MOE propagation, NAICS/SOC, cross-tab primitive |
+| foundations | 01 | Bootstrap reporting env — Hydra + Pydantic config | ElectInfo |
+| foundations | 02 | Onboard two clients as branded profiles | Both |
+| spatial | 01 | Pull TX boundaries (TIGER + ACS demographics + GADM) | ElectInfo |
+| spatial | 02 | Resolve donor list to FIPS (Census batch geocoder) | ElectInfo |
+| spatial | 03 | Bivariate choropleth (dem share × turnout) | ElectInfo |
+| spatial | 04 | Redistricting diff — 116th vs 118th TX-32 | ElectInfo |
+| spatial | 05 | Unify 3 polling vendors onto TX-32 precincts | ElectInfo |
+| spatial | 06 | GeoDjango API for TX-32 precincts | ElectInfo |
+| analytics | 01 | Three connectors, one call-shape pattern | Masai |
+| analytics | 02 | Weekly GA digest PDF | Masai |
+| engines | 01 | Same ranking, pandas vs DuckDB | ElectInfo |
+| engines | 02 | Scale to Spark (call shape) | ElectInfo |
+| engines | 03 | Azure Databricks — no Sedona workaround | ElectInfo |
+| engines | 04 | MOE + NAICS + cross-tab primitives | ElectInfo |
+| reports | 01 | Assemble Q1 PDF for Acme Campaign | ElectInfo |
+| reports | 02 | Same data as branded deck (PPTX + Google Slides) | Masai |
+| reports | 03 | 3-wave TX-32 party-ID tracker | ElectInfo |
 
-## What changed (old flat → new themed)
+## Data policy
 
-Consolidations performed in the reorg PR:
+**No spatial or large data is committed to the repo.** Every notebook that needs
+a dataset uses one of three paths:
 
-| Merge | Result |
-|---|---|
-| 02 + 03 + 10 | `foundations/02_profiles_branding` |
-| 04 + 15 + 26 | `spatial/01_boundaries` |
-| 07 + 25 | `spatial/02_geocoding` |
-| 06 + 11 | `reports/01_charts_and_pdf` |
-| 12 + 18 | `reports/02_slides_pptx_and_google` |
-| 27 (rename) | `engines/04_statistics_primitives` (+ new cross-tab section) |
+1. The library's own cache (e.g. `CensusDataSource` downloads + caches TIGER
+   shapefiles under `~/Downloads/siege_utilities/`)
+2. `siege_utilities.cache.ensure_sample_dataset(name, url)` — download-on-first-run,
+   user-scoped cache under `~/.cache/siege_utilities/notebooks/`
+   (overridable via `SIEGE_UTILITIES_CACHE_DIR`)
+3. Synthetic data generated inline (small CSVs / DataFrames)
 
-New capability coverage (previously unnotebooked):
+Small non-spatial fixtures (under ~50 KB each) may be committed under
+`notebooks/fixtures/` when truly needed.
 
-| Target | Notebook |
-|---|---|
-| `siege_utilities/databricks/` | `engines/03_databricks_geo` (new) |
-| `data/statistics/cross_tabulation` primitive | appended section in `engines/04_statistics_primitives` |
+## Structural rules (enforced by `test_notebook_hygiene.py`)
 
-Retired / dissolved:
+Every canonical notebook must:
 
-| Notebook | Reason |
-|---|---|
-| `08_Sample_Data_Generation` | Fixture utility, not a capability — inline where used |
-| `17_Developer_Tooling` | Meta; belongs in `docs/development/` |
-| `19_NLRB_Data_Integration` | Narrow dataset |
-| `21_Enterprise_Onboarding_Presentation` | Marketing |
-| `22_Temporal_Political_Models` | Superseded by `WaveSet` in `reports/03` |
+- Open with `# Title` markdown
+- Have a `## What this shows` cell in the first two cells
+- Have exactly one `## Related` cell at the end
+- Have no `NB0\d` / `NB1\d` / `NB2\d` stale cross-references
+- Have no `try: import X` guards at cell top level
+- Have no `if HAS_X:` guards wrapping main content
 
-Full old→new path map lives in [`notebooks/README.md`](../notebooks/README.md#old-path--new-path).
+Violations fail CI.
 
-## Per-notebook canonical structure
+## Credentials & graceful fallback
 
-Every canonical notebook opens with:
+Notebooks that need credentials gate the live path behind an env var / config
+check and fall back to either a fixture (for analytics) or a synthetic
+stand-in (for spatial). The user-visible call shape always runs, whether or
+not credentials are present.
 
-```markdown
-# <Title>
+| Credential | Used by | Absent behavior |
+|---|---|---|
+| `CENSUS_API_KEY` | `spatial/01` (ACS demographics) | Skip income join, render boundary map without overlay |
+| `GOOGLE_APPLICATION_CREDENTIALS` | `analytics/01`, `analytics/02` | Call shape printed; analysis runs on fixture |
+| `SNOWFLAKE_CONFIG_FILE` | `analytics/01` | Call shape printed |
+| `DW_AUTH_TOKEN` | `analytics/01` | Call shape printed |
+| RDH API | `spatial/04` | Synthetic stand-in polygons with call shape in comments |
+| Azure Databricks workspace | `engines/03` | Pure-Python URL / SQL builder cells run; cluster-dependent cells conceptual |
+| Local PostGIS | `spatial/06` | Full call-shape recipe, not executed inline (needs live DB) |
 
-## What this shows
-<one sentence>
+## Why `engines/02` and `spatial/06` don't execute their primary cells
 
-## Why it matters
-<one paragraph>
+Local Spark inside nbconvert is fragile (JVM startup, Py4J gateway lifetime,
+serializer registration). Likewise a Django + PostGIS server spun up inside a
+notebook is unsafe to provision from CI. Both notebooks ship complete,
+copy-pasteable call shapes rather than fake execution. The analysis pattern
+is the point; provisioning is out-of-band.
 
-## Prereqs
-- pip install siege-utilities[<extras>]
-- <env vars / credentials>
-
-## Next
-- See <neighbor notebook> for <related capability>
-```
-
-And ends with:
-
-```markdown
-## Related
-- Source: siege_utilities/<module>/
-- Tests: tests/test_<module>*.py
-- ADR / docs as relevant
-```
-
-## CI
+## CI (follow-up)
 
 ```yaml
-- name: Run canonical notebooks
+- name: Structural hygiene
+  run: pytest tests/test_notebook_hygiene.py
+
+- name: Execute canonical notebooks  # gated on credentials being wired
   run: |
     uv pip install -e '.[all,dev]'
     pytest --nbmake \
       notebooks/foundations/*.ipynb \
-      notebooks/spatial/*.ipynb \
-      notebooks/reports/*.ipynb \
-      notebooks/analytics/*.ipynb \
-      notebooks/engines/*.ipynb
+      notebooks/analytics/01_connectors.ipynb \
+      notebooks/engines/01_multi_engine_dataframes.ipynb \
+      notebooks/engines/04_statistics_primitives.ipynb \
+      notebooks/reports/03_polling_survey_analysis.ipynb \
+      notebooks/spatial/02_geocoding.ipynb \
+      notebooks/spatial/03_choropleth_maps.ipynb \
+      notebooks/spatial/04_redistricting.ipynb \
+      notebooks/spatial/05_multi_source_joins.ipynb
 ```
 
-Gating is the follow-up step: enabling nbmake requires first wiring credentials
-for the notebooks that hit external services (GA, LakeBase, GeoDjango).
-Non-credentialed notebooks that already execute clean in this PR:
-- `reports/03_polling_survey_analysis.ipynb`
-- `engines/03_databricks_geo.ipynb` (pure-Python string builders + conceptual cells)
-- `engines/04_statistics_primitives.ipynb`
+`nbmake` gating is the explicit next step. Notebooks that need external
+credentials (`spatial/01` for ACS, `analytics/02` for GA, etc.) are excluded
+until secrets are wired in CI.
 
 ## See also
 

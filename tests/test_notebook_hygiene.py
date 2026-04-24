@@ -28,21 +28,22 @@ NOTEBOOK_ROOT = REPO_ROOT / "notebooks"
 
 
 RE_WRITTEN: list[str] = [
-    # PR 1 (ELE-2457): foundations
     "foundations/01_configuration.ipynb",
     "foundations/02_profiles_branding.ipynb",
-    # PR 2 (ELE-2458): data acquisition
     "spatial/01_boundaries.ipynb",
     "spatial/02_geocoding.ipynb",
+    "spatial/03_choropleth_maps.ipynb",
+    "spatial/04_redistricting.ipynb",
+    "spatial/05_multi_source_joins.ipynb",
+    "spatial/06_geodjango.ipynb",
     "analytics/01_connectors.ipynb",
-    "engines/04_statistics_primitives.ipynb",
-    # PR 3 (ELE-2459): analysis
+    "analytics/02_ga_end_to_end.ipynb",
     "engines/01_multi_engine_dataframes.ipynb",
     "engines/02_distributed_spark.ipynb",
     "engines/03_databricks_geo.ipynb",
-    "spatial/05_multi_source_joins.ipynb",
-    "spatial/03_choropleth_maps.ipynb",
-    "spatial/04_redistricting.ipynb",
+    "engines/04_statistics_primitives.ipynb",
+    "reports/01_charts_and_pdf.ipynb",
+    "reports/02_slides_pptx_and_google.ipynb",
     "reports/03_polling_survey_analysis.ipynb",
 ]
 
