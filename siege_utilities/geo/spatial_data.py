@@ -202,6 +202,144 @@ _VTD_PL_STATE_NAMES: Dict[str, str] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Census inventory: crawled directory map + disk-backed fallback
+# ---------------------------------------------------------------------------
+
+_DEFAULT_INVENTORY_PATH = Path.home() / ".cache" / "siege_utilities" / "census_inventory.json"
+_TIGER_BASE = "https://www2.census.gov/geo/tiger/"
+_GENZ_BASE = "https://www2.census.gov/geo/tiger/"   # GENZ lives under the same tree
+
+
+def update_census_inventory(
+    years: Optional[List[int]] = None,
+    include_genz: bool = True,
+    save_path: Optional[Path] = None,
+    request_delay: float = 0.5,
+    timeout: int = 15,
+) -> dict:
+    """Crawl the Census FTP and return a timestamped directory inventory.
+
+    Fetches the TIGER (and optionally GENZ) year→layers structure using
+    BeautifulSoup and saves it as JSON so callers can use it as a fallback
+    when live Census requests are blocked (403) or rate-limited (429).
+
+    Parameters
+    ----------
+    years:
+        Specific years to crawl.  Defaults to 2010 through the current year.
+    include_genz:
+        Also crawl the Cartographic Boundary File (GENZ) tree.
+    save_path:
+        Where to save the JSON.  Defaults to
+        ``~/.cache/siege_utilities/census_inventory.json``.
+    request_delay:
+        Seconds to sleep between HTTP requests to avoid hammering the Census
+        server.
+    timeout:
+        Per-request timeout in seconds.
+
+    Returns
+    -------
+    dict with keys ``updated_at``, ``tiger``, and (optionally) ``genz``.
+    ``tiger[year]`` is a sorted list of layer directory names.
+    ``genz[year]`` is a sorted list of available CB file name stems.
+    """
+    import json
+
+    if years is None:
+        years = list(range(2010, datetime.now().year + 1))
+
+    def _parse_dir_links(html: bytes) -> List[str]:
+        soup = BeautifulSoup(html, "html.parser")
+        return sorted(
+            href.rstrip("/")
+            for a in soup.find_all("a")
+            if (href := a.get("href", "")).endswith("/") and href != "../"
+        )
+
+    def _get(url: str) -> Optional[bytes]:
+        try:
+            r = requests.get(url, timeout=timeout)
+            if r.status_code == 200:
+                return r.content
+            log.debug("census inventory crawl: %s → %s", url, r.status_code)
+        except Exception as exc:
+            log.debug("census inventory crawl: %s → %s", url, exc)
+        return None
+
+    inventory: dict = {
+        "updated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "tiger": {},
+    }
+    if include_genz:
+        inventory["genz"] = {}
+
+    for year in years:
+        time.sleep(request_delay)
+        tiger_url = f"{_TIGER_BASE}TIGER{year}/"
+        html = _get(tiger_url)
+        if html:
+            dirs = _parse_dir_links(html)
+            inventory["tiger"][str(year)] = dirs
+            log.info("census inventory: TIGER%s → %d dirs", year, len(dirs))
+        else:
+            log.warning("census inventory: TIGER%s listing unavailable", year)
+
+        if include_genz:
+            time.sleep(request_delay)
+            genz_url = f"{_TIGER_BASE}GENZ{year}/shp/"
+            html = _get(genz_url)
+            if html is None:
+                # 2013 and earlier store files directly in the year dir, no shp/
+                genz_url = f"{_TIGER_BASE}GENZ{year}/"
+                html = _get(genz_url)
+            if html:
+                soup = BeautifulSoup(html, "html.parser")
+                stems = sorted(set(
+                    re.sub(r"\.(zip|shp|dbf|shx|prj)$", "", a.get("href", ""), flags=re.I)
+                    for a in soup.find_all("a")
+                    if a.get("href", "").lower().endswith(".zip")
+                ))
+                inventory["genz"][str(year)] = stems
+                log.info("census inventory: GENZ%s → %d files", year, len(stems))
+
+    save_path = Path(save_path or _DEFAULT_INVENTORY_PATH)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(save_path, "w") as fh:
+        json.dump(inventory, fh, indent=2)
+    log.info("census inventory saved to %s", save_path)
+    return inventory
+
+
+def load_census_inventory(path: Optional[Path] = None) -> Optional[dict]:
+    """Load the saved Census inventory from disk.  Returns None if absent."""
+    import json
+    p = Path(path or _DEFAULT_INVENTORY_PATH)
+    if not p.exists():
+        return None
+    try:
+        with open(p) as fh:
+            return json.load(fh)
+    except Exception as exc:
+        log.warning("could not load census inventory from %s: %s", p, exc)
+        return None
+
+
+def _dirs_from_inventory(year: int, inventory: Optional[dict] = None) -> Optional[List[str]]:
+    """Return cached TIGER layer dirs for *year* from the on-disk inventory.
+
+    Returns None if the inventory is unavailable or has no entry for the year.
+    """
+    inv = inventory or load_census_inventory()
+    if inv is None:
+        return None
+    dirs = inv.get("tiger", {}).get(str(year))
+    if dirs is not None:
+        log.debug("census fallback: using inventory dirs for TIGER%s (%d entries)", year, len(dirs))
+    return dirs
+
+
 def _known_tiger_directories_for_year(year: int) -> List[str]:
     """Static fallback directory list for a TIGER/Line annual release.
 
@@ -383,19 +521,19 @@ class CensusDirectoryDiscovery:
             # instead of returning [] (which silently skips every boundary type).
             # Only override "skip" callers — "raise"/"warn" callers still see
             # the error so their error strategy is honoured.
-            if (on_error == "skip"
-                    and isinstance(e, requests.exceptions.HTTPError)
-                    and getattr(e.response, "status_code", None) == 429):
-                fallback = _known_tiger_directories_for_year(year)
+            _status = getattr(getattr(e, "response", None), "status_code", None)
+            if on_error == "skip" and isinstance(e, requests.exceptions.HTTPError) and _status in (429, 403):
+                # 429 = rate-limited; 403 = directory browsing blocked.
+                # In both cases the individual layer files almost certainly
+                # exist — use the crawled inventory first, then the static list.
+                fallback = _dirs_from_inventory(year) or _known_tiger_directories_for_year(year)
+                reason = "rate-limited (429)" if _status == 429 else "directory browsing blocked (403)"
                 log.warning(
-                    "Census TIGER directory listing rate-limited (429) for year %s; "
-                    "using built-in fallback (%d directories): %s",
-                    year, len(fallback), fallback,
+                    "Census TIGER%s directory listing %s; "
+                    "using fallback (%d directories)",
+                    year, reason, len(fallback),
                 )
-                # Cache with a short TTL so a recovered Census endpoint is
-                # retried promptly (24-hour normal TTL would poison the cache
-                # for hours after a transient rate-limit burst).
-                _FALLBACK_CACHE_TTL = 300  # 5 minutes
+                _FALLBACK_CACHE_TTL = 300  # 5-minute TTL so a recovered endpoint is retried soon
                 self.cache[cache_key] = (time.time() - self.cache_timeout + _FALLBACK_CACHE_TTL, fallback)
                 return fallback
             return handle_error(
