@@ -248,9 +248,9 @@ class TestCensusDirectoryDiscovery:
         url = self.discovery.construct_download_url(2020, 'tract', state_fips='06')
         assert url == "https://www2.census.gov/geo/tiger/TIGER2020/TRACT/tl_2020_06_tract.zip"
         
-        # Test block groups for Texas (FIPS 48)
+        # Test block groups for Texas (FIPS 48) — Census uses 'bg' not 'block_group' in filenames.
         url = self.discovery.construct_download_url(2020, 'block_group', state_fips='48')
-        assert url == "https://www2.census.gov/geo/tiger/TIGER2020/BG/tl_2020_48_block_group.zip"
+        assert url == "https://www2.census.gov/geo/tiger/TIGER2020/BG/tl_2020_48_bg.zip"
     
     def test_construct_download_url_congressional_districts(self):
         """Test URL construction for congressional districts."""
