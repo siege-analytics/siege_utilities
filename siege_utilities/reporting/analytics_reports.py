@@ -6,7 +6,7 @@ Integrates with Google Analytics, databases, and other data sources.
 import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
-from datetime import datetime, timedelta
+from datetime import datetime
 import pandas as pd
 
 from .report_generator import ReportGenerator
