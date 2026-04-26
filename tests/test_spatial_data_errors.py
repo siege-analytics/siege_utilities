@@ -11,10 +11,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import requests
+
 from siege_utilities.geo.spatial_data import (
+    CensusDirectoryDiscovery,
     GovernmentDataSource,
     OpenStreetMapDataSource,
     SpatialDataError,
+    _known_tiger_directories_for_year,
 )
 
 
@@ -95,3 +99,77 @@ class TestOpenStreetMapDataSource:
         ):
             result = src.download_osm_data("node[highway]")
         assert result is None
+
+
+class TestKnownTigerDirectories:
+    """Unit tests for the static 429-fallback directory list."""
+
+    def test_core_dirs_present_for_all_years(self):
+        for year in [2010, 2015, 2018, 2020, 2022, 2024]:
+            dirs = _known_tiger_directories_for_year(year)
+            for expected in ["BG", "CD", "COUNTY", "SLDL", "SLDU", "STATE", "TRACT"]:
+                assert expected in dirs, f"{expected} missing for year {year}"
+
+    def test_zcta5_added_from_2012(self):
+        assert "ZCTA5" not in _known_tiger_directories_for_year(2011)
+        assert "ZCTA5" in _known_tiger_directories_for_year(2012)
+        assert "ZCTA5" in _known_tiger_directories_for_year(2024)
+
+    def test_2020_decennial_extras(self):
+        dirs = _known_tiger_directories_for_year(2020)
+        assert "TABBLOCK20" in dirs
+        assert "VTD20" in dirs
+
+    def test_2010_decennial_extras(self):
+        dirs = _known_tiger_directories_for_year(2010)
+        assert "TABBLOCK10" in dirs
+        assert "VTD10" in dirs
+
+    def test_returns_sorted_list(self):
+        dirs = _known_tiger_directories_for_year(2022)
+        assert dirs == sorted(dirs)
+
+
+class TestCensusDirectoryDiscovery429Fallback:
+    """get_year_directory_contents() must return the static fallback on 429."""
+
+    def _make_429_error(self):
+        resp = MagicMock()
+        resp.status_code = 429
+        err = requests.exceptions.HTTPError(response=resp)
+        return err
+
+    def test_returns_fallback_on_429(self):
+        discovery = CensusDirectoryDiscovery()
+        with patch(
+            "siege_utilities.geo.spatial_data.requests.get",
+            side_effect=self._make_429_error(),
+        ):
+            result = discovery.get_year_directory_contents(2020)
+        assert "CD" in result
+        assert "BG" in result
+        assert "SLDL" in result
+        assert "SLDU" in result
+
+    def test_fallback_is_cached(self):
+        discovery = CensusDirectoryDiscovery()
+        with patch(
+            "siege_utilities.geo.spatial_data.requests.get",
+            side_effect=self._make_429_error(),
+        ):
+            first = discovery.get_year_directory_contents(2018)
+        # Second call should come from cache, not trigger another request
+        second = discovery.get_year_directory_contents(2018)
+        assert first == second
+
+    def test_non_429_http_error_still_returns_empty(self):
+        discovery = CensusDirectoryDiscovery()
+        resp = MagicMock()
+        resp.status_code = 503
+        err = requests.exceptions.HTTPError(response=resp)
+        with patch(
+            "siege_utilities.geo.spatial_data.requests.get",
+            side_effect=err,
+        ):
+            result = discovery.get_year_directory_contents(2020, on_error="skip")
+        assert result == []
