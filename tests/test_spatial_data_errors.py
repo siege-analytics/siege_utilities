@@ -133,11 +133,10 @@ class TestKnownTigerDirectories:
 class TestCensusDirectoryDiscovery429Fallback:
     """get_year_directory_contents() must return the static fallback on 429."""
 
-    def _make_429_error(self):
+    def _make_429_error(self) -> requests.exceptions.HTTPError:
         resp = MagicMock()
         resp.status_code = 429
-        err = requests.exceptions.HTTPError(response=resp)
-        return err
+        return requests.exceptions.HTTPError(response=resp)
 
     def test_returns_fallback_on_429(self):
         discovery = CensusDirectoryDiscovery()
@@ -156,20 +155,29 @@ class TestCensusDirectoryDiscovery429Fallback:
         with patch(
             "siege_utilities.geo.spatial_data.requests.get",
             side_effect=self._make_429_error(),
-        ):
+        ) as mock_get:
             first = discovery.get_year_directory_contents(2018)
-        # Second call should come from cache, not trigger another request
-        second = discovery.get_year_directory_contents(2018)
-        assert first == second
+            second = discovery.get_year_directory_contents(2018)
+            assert first == second
+            assert mock_get.call_count == 1, "second call must hit the cache, not the network"
+
+    def test_429_fallback_only_for_skip_strategy(self):
+        """Callers with on_error='raise' must still receive the HTTPError."""
+        discovery = CensusDirectoryDiscovery()
+        with patch(
+            "siege_utilities.geo.spatial_data.requests.get",
+            side_effect=self._make_429_error(),
+        ):
+            with pytest.raises(Exception):
+                discovery.get_year_directory_contents(2020, on_error="raise")
 
     def test_non_429_http_error_still_returns_empty(self):
         discovery = CensusDirectoryDiscovery()
         resp = MagicMock()
         resp.status_code = 503
-        err = requests.exceptions.HTTPError(response=resp)
         with patch(
             "siege_utilities.geo.spatial_data.requests.get",
-            side_effect=err,
+            side_effect=requests.exceptions.HTTPError(response=resp),
         ):
             result = discovery.get_year_directory_contents(2020, on_error="skip")
         assert result == []
