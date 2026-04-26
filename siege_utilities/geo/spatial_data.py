@@ -691,8 +691,7 @@ class CensusDirectoryDiscovery:
         }
 
         # Define flexible types (can be national or state-specific)
-        flexible_types = {'place', 'anrc', 'concity'}
-
+        flexible_types = {'place', 'zcta', 'anrc', 'concity'}
         # Census uses short abbreviations in filenames that differ from the canonical type name.
         _FILENAME_ABBREVS = {'block_group': 'bg'}
 
@@ -704,9 +703,6 @@ class CensusDirectoryDiscovery:
             elif congress_number:
                 # Congress number provided separately — zero-pad to 3 digits
                 congress_num = f"{congress_number:03d}"
-            elif year in YEAR_TO_CONGRESS:
-                # Auto-lookup from verified year→congress mapping
-                congress_num = str(YEAR_TO_CONGRESS[year])
             else:
                 max_known = max(YEAR_TO_CONGRESS.keys())
                 congress_num = str(YEAR_TO_CONGRESS[max_known])
@@ -746,7 +742,6 @@ class CensusDirectoryDiscovery:
                         "requires": "state_fips",
                     },
                 )
-            
             filename_part = _FILENAME_ABBREVS.get(boundary_type, boundary_type)
             return patterns['filename_patterns']['state'].format(
                 year=year, state_fips=state_fips, boundary_type=filename_part

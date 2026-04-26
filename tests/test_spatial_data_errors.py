@@ -21,6 +21,8 @@ from siege_utilities.geo.spatial_data import (
     _known_tiger_directories_for_year,
 )
 
+from unittest.mock import PropertyMock
+
 
 class TestExceptionHierarchy:
     def test_is_runtime_error(self):
@@ -210,3 +212,33 @@ class TestCensusDirectoryDiscoveryValidateUrl:
         ):
             with pytest.raises(BoundaryUrlValidationError):
                 discovery.validate_download_url("https://www2.census.gov/geo/tiger/TIGER2020/CD/tl_2020_us_cd116.zip")
+
+
+class TestCensusUrlConstruction:
+    """URL construction edge cases: filename abbreviations and per-state CD 2022+."""
+
+    def _make_discovery(self, available_types: dict) -> CensusDirectoryDiscovery:
+        d = CensusDirectoryDiscovery()
+        d.discover_boundary_types = MagicMock(return_value=available_types)
+        return d
+
+    def test_block_group_uses_bg_abbreviation(self):
+        """Census filenames use 'bg' not 'block_group' — URL must reflect that."""
+        discovery = self._make_discovery({"block_group": "BG"})
+        url = discovery.construct_download_url(2020, "block_group", state_fips="01")
+        assert "block_group" not in url
+        assert url.endswith("tl_2020_01_bg.zip")
+
+    def test_cd_2022_uses_per_state_url(self):
+        """Census dropped the national CD file for 2022+; per-state URL must be used."""
+        discovery = self._make_discovery({"cd": "CD"})
+        url = discovery.construct_download_url(2022, "cd", state_fips="01", congress_number=118)
+        assert "_us_" not in url
+        assert url.endswith("tl_2022_01_cd118.zip")
+
+    def test_cd_pre_2022_uses_national_url(self):
+        """Before 2022, CD is a single national file."""
+        discovery = self._make_discovery({"cd": "CD"})
+        url = discovery.construct_download_url(2020, "cd", congress_number=116)
+        assert "_us_" in url
+        assert url.endswith("tl_2020_us_cd116.zip")
