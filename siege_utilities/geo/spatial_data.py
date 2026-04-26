@@ -379,9 +379,12 @@ class CensusDirectoryDiscovery:
                 )
 
         except Exception as e:
-            # On rate-limit (429) use the known static directory list rather
-            # than returning [] which silently skips every boundary type.
-            if (isinstance(e, requests.exceptions.HTTPError)
+            # On rate-limit (429), substitute the static known-directory list
+            # instead of returning [] (which silently skips every boundary type).
+            # Only override "skip" callers — "raise"/"warn" callers still see
+            # the error so their error strategy is honoured.
+            if (on_error == "skip"
+                    and isinstance(e, requests.exceptions.HTTPError)
                     and getattr(e.response, "status_code", None) == 429):
                 fallback = _known_tiger_directories_for_year(year)
                 log.warning(
@@ -389,7 +392,11 @@ class CensusDirectoryDiscovery:
                     "using built-in fallback (%d directories): %s",
                     year, len(fallback), fallback,
                 )
-                self.cache[cache_key] = (time.time(), fallback)
+                # Cache with a short TTL so a recovered Census endpoint is
+                # retried promptly (24-hour normal TTL would poison the cache
+                # for hours after a transient rate-limit burst).
+                _FALLBACK_CACHE_TTL = 300  # 5 minutes
+                self.cache[cache_key] = (time.time() - self.cache_timeout + _FALLBACK_CACHE_TTL, fallback)
                 return fallback
             return handle_error(
                 SiegeGeoError(f"Failed to get contents for year {year}: {e}"),
