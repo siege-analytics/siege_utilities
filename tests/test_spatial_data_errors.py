@@ -181,3 +181,32 @@ class TestCensusDirectoryDiscovery429Fallback:
         ):
             result = discovery.get_year_directory_contents(2020, on_error="skip")
         assert result == []
+
+
+class TestCensusDirectoryDiscoveryValidateUrl:
+    """validate_download_url() must pass through on 429 (rate-limit ≠ file absent)."""
+
+    def test_429_returns_true(self):
+        """A 429 response means rate-limited, not missing — validation should pass."""
+        discovery = CensusDirectoryDiscovery()
+        fake_response = MagicMock()
+        fake_response.status_code = 429
+        with patch(
+            "siege_utilities.geo.spatial_data.requests.get",
+            return_value=fake_response,
+        ):
+            result = discovery.validate_download_url("https://www2.census.gov/geo/tiger/TIGER2020/CD/tl_2020_us_cd116.zip")
+        assert result is True
+
+    def test_404_raises(self):
+        """A genuine 404 must still raise BoundaryUrlValidationError."""
+        from siege_utilities.geo.spatial_data import BoundaryUrlValidationError
+        discovery = CensusDirectoryDiscovery()
+        fake_response = MagicMock()
+        fake_response.status_code = 404
+        with patch(
+            "siege_utilities.geo.spatial_data.requests.get",
+            return_value=fake_response,
+        ):
+            with pytest.raises(BoundaryUrlValidationError):
+                discovery.validate_download_url("https://www2.census.gov/geo/tiger/TIGER2020/CD/tl_2020_us_cd116.zip")

@@ -812,6 +812,13 @@ class CensusDirectoryDiscovery:
             response.close()
             if response.status_code == 200:
                 return True
+            if response.status_code == 429:
+                log.warning(
+                    "Census rate-limited (429) URL validation for %s; "
+                    "assuming URL is valid and proceeding with download",
+                    url,
+                )
+                return True
             ctx["http_status"] = response.status_code
             raise BoundaryUrlValidationError(
                 f"URL returned HTTP {response.status_code}: {url}",
