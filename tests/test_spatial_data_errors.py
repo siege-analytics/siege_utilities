@@ -21,8 +21,6 @@ from siege_utilities.geo.spatial_data import (
     _known_tiger_directories_for_year,
 )
 
-from unittest.mock import PropertyMock
-
 
 class TestExceptionHierarchy:
     def test_is_runtime_error(self):
