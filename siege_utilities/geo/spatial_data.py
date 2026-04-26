@@ -478,7 +478,9 @@ class CensusDirectoryDiscovery:
                 # State-specific files (state FIPS required)
                 'state': 'tl_{year}_{state_fips}_{boundary_type}.zip',
                 # Congressional districts with number
-                'congress': 'tl_{year}_us_cd{congress_num}.zip'
+                'congress': 'tl_{year}_us_cd{congress_num}.zip',
+                # Per-state congressional districts (2022+, Census dropped the national file)
+                'congress_state': 'tl_{year}_{state_fips}_cd{congress_num}.zip'
             },
             'directory_mappings': {}
         }
@@ -665,19 +667,17 @@ class CensusDirectoryDiscovery:
         # Define flexible types (can be national or state-specific)
         flexible_types = {'place', 'zcta', 'anrc', 'concity'}
         
+        # Census uses short abbreviations in filenames that differ from the canonical type name.
+        _FILENAME_ABBREVS = {'block_group': 'bg'}
+
         # Handle congressional districts specially
         if boundary_type.startswith('cd'):
             if len(boundary_type) > 2:
                 # Specific congress number in boundary type (cd118, cd119, etc.)
                 congress_num = boundary_type[2:]
-                return patterns['filename_patterns']['congress'].format(
-                    year=year, congress_num=congress_num
-                )
             elif congress_number:
-                # Congress number provided separately
-                return patterns['filename_patterns']['congress'].format(
-                    year=year, congress_num=congress_number
-                )
+                # Congress number provided separately — zero-pad to 3 digits
+                congress_num = f"{congress_number:03d}"
             else:
                 raise BoundaryConfigurationError(
                     f"Congressional district boundary type '{boundary_type}' requires a "
@@ -685,6 +685,14 @@ class CensusDirectoryDiscovery:
                     f"or the congress_number parameter.",
                     context={"boundary_type": boundary_type, "year": year},
                 )
+            # Census dropped the national CD file after 2021; 2022+ only publishes 56 per-state files.
+            if state_fips and year >= 2022:
+                return patterns['filename_patterns']['congress_state'].format(
+                    year=year, state_fips=state_fips, congress_num=congress_num
+                )
+            return patterns['filename_patterns']['congress'].format(
+                year=year, congress_num=congress_num
+            )
 
         # Handle state-required types
         elif boundary_type in state_required_types:
@@ -702,9 +710,9 @@ class CensusDirectoryDiscovery:
                         "requires": "state_fips",
                     },
                 )
-            
+            filename_part = _FILENAME_ABBREVS.get(boundary_type, boundary_type)
             return patterns['filename_patterns']['state'].format(
-                year=year, state_fips=state_fips, boundary_type=boundary_type
+                year=year, state_fips=state_fips, boundary_type=filename_part
             )
         
         # Handle national-only types
