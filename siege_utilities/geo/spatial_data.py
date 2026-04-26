@@ -176,6 +176,26 @@ _VTD_PL_STATE_NAMES: Dict[str, str] = {
 }
 
 
+def _known_tiger_directories_for_year(year: int) -> List[str]:
+    """Static fallback directory list for a TIGER/Line annual release.
+
+    Used when the Census FTP returns 429 (rate-limit) on the top-level
+    ``TIGER{year}/`` directory listing.  These subdirectories exist in every
+    annual TIGER release from 2010 onward.  The generic ``CD`` directory is
+    included because Census uses it for both national pre-2022 files
+    (``tl_{year}_us_cd{congress}.zip``) and per-state 2022+ files
+    (``tl_{year}_{fips}_cd{congress}.zip``).
+    """
+    dirs = ["BG", "CD", "COUNTY", "PLACE", "SLDL", "SLDU", "STATE", "TRACT"]
+    if year >= 2012:
+        dirs.append("ZCTA5")
+    if year == 2020:
+        dirs += ["TABBLOCK20", "VTD20"]
+    elif year == 2010:
+        dirs += ["TABBLOCK10", "VTD10"]
+    return sorted(dirs)
+
+
 class CensusDirectoryDiscovery:
     """Discovers available Census TIGER/Line data dynamically."""
     
@@ -333,6 +353,18 @@ class CensusDirectoryDiscovery:
                 )
 
         except Exception as e:
+            # On rate-limit (429) use the known static directory list rather
+            # than returning [] which silently skips every boundary type.
+            if (isinstance(e, requests.exceptions.HTTPError)
+                    and getattr(e.response, "status_code", None) == 429):
+                fallback = _known_tiger_directories_for_year(year)
+                log.warning(
+                    "Census TIGER directory listing rate-limited (429) for year %s; "
+                    "using built-in fallback (%d directories): %s",
+                    year, len(fallback), fallback,
+                )
+                self.cache[cache_key] = (time.time(), fallback)
+                return fallback
             return handle_error(
                 SiegeGeoError(f"Failed to get contents for year {year}: {e}"),
                 on_error=on_error, fallback=[], context=f"TIGER directory listing for {year}",
