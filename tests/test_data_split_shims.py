@@ -71,7 +71,7 @@ class TestDeprecationShims:
     def test_data_naics_soc_crosswalk_shim(self):
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
-            mod = _reimport("siege_utilities.data.naics_soc_crosswalk")
+            _reimport("siege_utilities.data.naics_soc_crosswalk")
         assert any(issubclass(w.category, DeprecationWarning) for w in caught)
 
 

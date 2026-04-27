@@ -4,8 +4,14 @@ Provides clean, type-safe access to Census, Government, and OpenStreetMap data.
 """
 
 import logging
-import geopandas as gpd
 from pathlib import Path
+
+try:
+    import geopandas as gpd
+    _GEOPANDAS_AVAILABLE = True
+except ImportError:
+    gpd = None
+    _GEOPANDAS_AVAILABLE = False
 
 from siege_utilities.geo.crs import reproject_if_needed
 from typing import Dict, Any, Optional, List, Union
@@ -14,7 +20,14 @@ import time
 import warnings as _warnings_mod
 from datetime import datetime
 import requests
-from bs4 import BeautifulSoup
+
+try:
+    from bs4 import BeautifulSoup
+    _BS4_AVAILABLE = True
+except ImportError:
+    BeautifulSoup = None
+    _BS4_AVAILABLE = False
+
 import re
 import warnings
 
@@ -176,6 +189,166 @@ _VTD_PL_STATE_NAMES: Dict[str, str] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Census inventory: crawled directory map + disk-backed fallback
+# ---------------------------------------------------------------------------
+
+_DEFAULT_INVENTORY_PATH = Path.home() / ".cache" / "siege_utilities" / "census_inventory.json"
+_TIGER_BASE = "https://www2.census.gov/geo/tiger/"
+_GENZ_BASE = "https://www2.census.gov/geo/tiger/"   # GENZ lives under the same tree
+
+
+def update_census_inventory(
+    years: Optional[List[int]] = None,
+    include_genz: bool = True,
+    save_path: Optional[Path] = None,
+    request_delay: float = 0.5,
+    timeout: int = 15,
+) -> dict:
+    """Crawl the Census FTP and return a timestamped directory inventory.
+
+    Fetches the TIGER (and optionally GENZ) year→layers structure using
+    BeautifulSoup and saves it as JSON so callers can use it as a fallback
+    when live Census requests are blocked (403) or rate-limited (429).
+
+    Parameters
+    ----------
+    years:
+        Specific years to crawl.  Defaults to 2010 through the current year.
+    include_genz:
+        Also crawl the Cartographic Boundary File (GENZ) tree.
+    save_path:
+        Where to save the JSON.  Defaults to
+        ``~/.cache/siege_utilities/census_inventory.json``.
+    request_delay:
+        Seconds to sleep between HTTP requests to avoid hammering the Census
+        server.
+    timeout:
+        Per-request timeout in seconds.
+
+    Returns
+    -------
+    dict with keys ``updated_at``, ``tiger``, and (optionally) ``genz``.
+    ``tiger[year]`` is a sorted list of layer directory names.
+    ``genz[year]`` is a sorted list of available CB file name stems.
+    """
+    import json
+
+    if years is None:
+        years = list(range(2010, datetime.now().year + 1))
+
+    def _parse_dir_links(html: bytes) -> List[str]:
+        soup = BeautifulSoup(html, "html.parser")
+        return sorted(
+            href.rstrip("/")
+            for a in soup.find_all("a")
+            if (href := a.get("href", "")).endswith("/") and href != "../"
+        )
+
+    def _get(url: str) -> Optional[bytes]:
+        try:
+            r = requests.get(url, timeout=timeout)
+            if r.status_code == 200:
+                return r.content
+            log.debug("census inventory crawl: %s → %s", url, r.status_code)
+        except Exception as exc:
+            log.debug("census inventory crawl: %s → %s", url, exc)
+        return None
+
+    inventory: dict = {
+        "updated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "tiger": {},
+    }
+    if include_genz:
+        inventory["genz"] = {}
+
+    for year in years:
+        time.sleep(request_delay)
+        tiger_url = f"{_TIGER_BASE}TIGER{year}/"
+        html = _get(tiger_url)
+        if html:
+            dirs = _parse_dir_links(html)
+            inventory["tiger"][str(year)] = dirs
+            log.info("census inventory: TIGER%s → %d dirs", year, len(dirs))
+        else:
+            log.warning("census inventory: TIGER%s listing unavailable", year)
+
+        if include_genz:
+            time.sleep(request_delay)
+            genz_url = f"{_TIGER_BASE}GENZ{year}/shp/"
+            html = _get(genz_url)
+            if html is None:
+                # 2013 and earlier store files directly in the year dir, no shp/
+                genz_url = f"{_TIGER_BASE}GENZ{year}/"
+                html = _get(genz_url)
+            if html:
+                soup = BeautifulSoup(html, "html.parser")
+                stems = sorted(set(
+                    re.sub(r"\.(zip|shp|dbf|shx|prj)$", "", a.get("href", ""), flags=re.I)
+                    for a in soup.find_all("a")
+                    if a.get("href", "").lower().endswith(".zip")
+                ))
+                inventory["genz"][str(year)] = stems
+                log.info("census inventory: GENZ%s → %d files", year, len(stems))
+
+    save_path = Path(save_path or _DEFAULT_INVENTORY_PATH)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(save_path, "w") as fh:
+        json.dump(inventory, fh, indent=2)
+    log.info("census inventory saved to %s", save_path)
+    return inventory
+
+
+def load_census_inventory(path: Optional[Path] = None) -> Optional[dict]:
+    """Load the saved Census inventory from disk.  Returns None if absent."""
+    import json
+    p = Path(path or _DEFAULT_INVENTORY_PATH)
+    if not p.exists():
+        return None
+    try:
+        with open(p) as fh:
+            return json.load(fh)
+    except Exception as exc:
+        log.warning("could not load census inventory from %s: %s", p, exc)
+        return None
+
+
+def _dirs_from_inventory(year: int, inventory: Optional[dict] = None) -> Optional[List[str]]:
+    """Return cached TIGER layer dirs for *year* from the on-disk inventory.
+
+    Returns None if the inventory is unavailable or has no entry for the year.
+    """
+    inv = inventory or load_census_inventory()
+    if inv is None:
+        return None
+    dirs = inv.get("tiger", {}).get(str(year))
+    if dirs is not None:
+        log.debug("census fallback: using inventory dirs for TIGER%s (%d entries)", year, len(dirs))
+    return dirs
+
+
+def _known_tiger_directories_for_year(year: int) -> List[str]:
+    """Static fallback directory list for a TIGER/Line annual release.
+
+    Used when the Census FTP returns 429 (rate-limit) on the top-level
+    ``TIGER{year}/`` directory listing.  These subdirectories exist in every
+    annual TIGER release from 2010 onward.  The generic ``CD`` directory is
+    included because Census uses it for both national pre-2022 files
+    (``tl_{year}_us_cd{congress}.zip``) and per-state 2022+ files
+    (``tl_{year}_{fips}_cd{congress}.zip``).
+    """
+    dirs = ["BG", "CD", "COUNTY", "PLACE", "SLDL", "SLDU", "STATE", "TRACT"]
+    if year >= 2012:
+        dirs.append("ZCTA5")
+    if year >= 2020:
+        dirs += ["TABBLOCK20", "UAC20"]
+        if year == 2020:
+            dirs.append("VTD20")  # VTD only published for decennial vintages
+    elif year == 2010:
+        dirs += ["TABBLOCK10", "UAC10", "VTD10"]
+    return sorted(dirs)
+
+
 class CensusDirectoryDiscovery:
     """Discovers available Census TIGER/Line data dynamically."""
     
@@ -333,6 +506,25 @@ class CensusDirectoryDiscovery:
                 )
 
         except Exception as e:
+            # On rate-limit (429), substitute the static known-directory list
+            # instead of returning [] (which silently skips every boundary type).
+            # Only override "skip" callers — "raise"/"warn" callers still see
+            # the error so their error strategy is honoured.
+            _status = getattr(getattr(e, "response", None), "status_code", None)
+            if on_error == "skip" and isinstance(e, requests.exceptions.HTTPError) and _status in (429, 403):
+                # 429 = rate-limited; 403 = directory browsing blocked.
+                # In both cases the individual layer files almost certainly
+                # exist — use the crawled inventory first, then the static list.
+                fallback = _dirs_from_inventory(year) or _known_tiger_directories_for_year(year)
+                reason = "rate-limited (429)" if _status == 429 else "directory browsing blocked (403)"
+                log.warning(
+                    "Census TIGER%s directory listing %s; "
+                    "using fallback (%d directories)",
+                    year, reason, len(fallback),
+                )
+                _FALLBACK_CACHE_TTL = 300  # 5-minute TTL so a recovered endpoint is retried soon
+                self.cache[cache_key] = (time.time() - self.cache_timeout + _FALLBACK_CACHE_TTL, fallback)
+                return fallback
             return handle_error(
                 SiegeGeoError(f"Failed to get contents for year {year}: {e}"),
                 on_error=on_error, fallback=[], context=f"TIGER directory listing for {year}",
@@ -439,7 +631,9 @@ class CensusDirectoryDiscovery:
                 # State-specific files (state FIPS required)
                 'state': 'tl_{year}_{state_fips}_{boundary_type}.zip',
                 # Congressional districts with number
-                'congress': 'tl_{year}_us_cd{congress_num}.zip'
+                'congress': 'tl_{year}_us_cd{congress_num}.zip',
+                # Per-state congressional districts (2022+, Census dropped the national file)
+                'congress_state': 'tl_{year}_{state_fips}_cd{congress_num}.zip'
             },
             'directory_mappings': {}
         }
@@ -626,19 +820,17 @@ class CensusDirectoryDiscovery:
         # Define flexible types (can be national or state-specific)
         flexible_types = {'place', 'zcta', 'anrc', 'concity'}
         
+        # Census uses short abbreviations in filenames that differ from the canonical type name.
+        _FILENAME_ABBREVS = {'block_group': 'bg'}
+
         # Handle congressional districts specially
         if boundary_type.startswith('cd'):
             if len(boundary_type) > 2:
                 # Specific congress number in boundary type (cd118, cd119, etc.)
                 congress_num = boundary_type[2:]
-                return patterns['filename_patterns']['congress'].format(
-                    year=year, congress_num=congress_num
-                )
             elif congress_number:
-                # Congress number provided separately
-                return patterns['filename_patterns']['congress'].format(
-                    year=year, congress_num=congress_number
-                )
+                # Congress number provided separately — zero-pad to 3 digits
+                congress_num = f"{congress_number:03d}"
             else:
                 raise BoundaryConfigurationError(
                     f"Congressional district boundary type '{boundary_type}' requires a "
@@ -646,6 +838,14 @@ class CensusDirectoryDiscovery:
                     f"or the congress_number parameter.",
                     context={"boundary_type": boundary_type, "year": year},
                 )
+            # Census dropped the national CD file after 2021; 2022+ only publishes 56 per-state files.
+            if state_fips and year >= 2022:
+                return patterns['filename_patterns']['congress_state'].format(
+                    year=year, state_fips=state_fips, congress_num=congress_num
+                )
+            return patterns['filename_patterns']['congress'].format(
+                year=year, congress_num=congress_num
+            )
 
         # Handle state-required types
         elif boundary_type in state_required_types:
@@ -663,9 +863,9 @@ class CensusDirectoryDiscovery:
                         "requires": "state_fips",
                     },
                 )
-            
+            filename_part = _FILENAME_ABBREVS.get(boundary_type, boundary_type)
             return patterns['filename_patterns']['state'].format(
-                year=year, state_fips=state_fips, boundary_type=boundary_type
+                year=year, state_fips=state_fips, boundary_type=filename_part
             )
         
         # Handle national-only types
@@ -717,6 +917,13 @@ class CensusDirectoryDiscovery:
             response = requests.get(url, timeout=self.timeout, stream=True, headers=headers)
             response.close()
             if response.status_code == 200:
+                return True
+            if response.status_code == 429:
+                log.warning(
+                    "Census rate-limited (429) URL validation for %s; "
+                    "assuming URL is valid and proceeding with download",
+                    url,
+                )
                 return True
             ctx["http_status"] = response.status_code
             raise BoundaryUrlValidationError(

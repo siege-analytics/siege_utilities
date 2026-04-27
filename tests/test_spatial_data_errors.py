@@ -11,10 +11,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import requests
+
 from siege_utilities.geo.spatial_data import (
+    CensusDirectoryDiscovery,
     GovernmentDataSource,
     OpenStreetMapDataSource,
     SpatialDataError,
+    _known_tiger_directories_for_year,
 )
 
 
@@ -95,3 +99,144 @@ class TestOpenStreetMapDataSource:
         ):
             result = src.download_osm_data("node[highway]")
         assert result is None
+
+
+class TestKnownTigerDirectories:
+    """Unit tests for the static 429-fallback directory list."""
+
+    def test_core_dirs_present_for_all_years(self):
+        for year in [2010, 2015, 2018, 2020, 2022, 2024]:
+            dirs = _known_tiger_directories_for_year(year)
+            for expected in ["BG", "CD", "COUNTY", "SLDL", "SLDU", "STATE", "TRACT"]:
+                assert expected in dirs, f"{expected} missing for year {year}"
+
+    def test_zcta5_added_from_2012(self):
+        assert "ZCTA5" not in _known_tiger_directories_for_year(2011)
+        assert "ZCTA5" in _known_tiger_directories_for_year(2012)
+        assert "ZCTA5" in _known_tiger_directories_for_year(2024)
+
+    def test_2020_decennial_extras(self):
+        dirs = _known_tiger_directories_for_year(2020)
+        assert "TABBLOCK20" in dirs
+        assert "VTD20" in dirs
+
+    def test_2010_decennial_extras(self):
+        dirs = _known_tiger_directories_for_year(2010)
+        assert "TABBLOCK10" in dirs
+        assert "VTD10" in dirs
+
+    def test_returns_sorted_list(self):
+        dirs = _known_tiger_directories_for_year(2022)
+        assert dirs == sorted(dirs)
+
+
+class TestCensusDirectoryDiscovery429Fallback:
+    """get_year_directory_contents() must return the static fallback on 429."""
+
+    def _make_429_error(self) -> requests.exceptions.HTTPError:
+        resp = MagicMock()
+        resp.status_code = 429
+        return requests.exceptions.HTTPError(response=resp)
+
+    def test_returns_fallback_on_429(self):
+        discovery = CensusDirectoryDiscovery()
+        with patch(
+            "siege_utilities.geo.spatial_data.requests.get",
+            side_effect=self._make_429_error(),
+        ):
+            result = discovery.get_year_directory_contents(2020)
+        assert "CD" in result
+        assert "BG" in result
+        assert "SLDL" in result
+        assert "SLDU" in result
+
+    def test_fallback_is_cached(self):
+        discovery = CensusDirectoryDiscovery()
+        with patch(
+            "siege_utilities.geo.spatial_data.requests.get",
+            side_effect=self._make_429_error(),
+        ) as mock_get:
+            first = discovery.get_year_directory_contents(2018)
+            second = discovery.get_year_directory_contents(2018)
+            assert first == second
+            assert mock_get.call_count == 1, "second call must hit the cache, not the network"
+
+    def test_429_fallback_only_for_skip_strategy(self):
+        """Callers with on_error='raise' must still receive the HTTPError."""
+        discovery = CensusDirectoryDiscovery()
+        with patch(
+            "siege_utilities.geo.spatial_data.requests.get",
+            side_effect=self._make_429_error(),
+        ):
+            with pytest.raises(Exception):
+                discovery.get_year_directory_contents(2020, on_error="raise")
+
+    def test_non_429_http_error_still_returns_empty(self):
+        discovery = CensusDirectoryDiscovery()
+        resp = MagicMock()
+        resp.status_code = 503
+        with patch(
+            "siege_utilities.geo.spatial_data.requests.get",
+            side_effect=requests.exceptions.HTTPError(response=resp),
+        ):
+            result = discovery.get_year_directory_contents(2020, on_error="skip")
+        assert result == []
+
+
+class TestCensusDirectoryDiscoveryValidateUrl:
+    """validate_download_url() must pass through on 429 (rate-limit ≠ file absent)."""
+
+    def test_429_returns_true(self):
+        """A 429 response means rate-limited, not missing — validation should pass."""
+        discovery = CensusDirectoryDiscovery()
+        fake_response = MagicMock()
+        fake_response.status_code = 429
+        with patch(
+            "siege_utilities.geo.spatial_data.requests.get",
+            return_value=fake_response,
+        ):
+            result = discovery.validate_download_url("https://www2.census.gov/geo/tiger/TIGER2020/CD/tl_2020_us_cd116.zip")
+        assert result is True
+
+    def test_404_raises(self):
+        """A genuine 404 must still raise BoundaryUrlValidationError."""
+        from siege_utilities.geo.spatial_data import BoundaryUrlValidationError
+        discovery = CensusDirectoryDiscovery()
+        fake_response = MagicMock()
+        fake_response.status_code = 404
+        with patch(
+            "siege_utilities.geo.spatial_data.requests.get",
+            return_value=fake_response,
+        ):
+            with pytest.raises(BoundaryUrlValidationError):
+                discovery.validate_download_url("https://www2.census.gov/geo/tiger/TIGER2020/CD/tl_2020_us_cd116.zip")
+
+
+class TestCensusUrlConstruction:
+    """URL construction edge cases: filename abbreviations and per-state CD 2022+."""
+
+    def _make_discovery(self, available_types: dict) -> CensusDirectoryDiscovery:
+        d = CensusDirectoryDiscovery()
+        d.discover_boundary_types = MagicMock(return_value=available_types)
+        return d
+
+    def test_block_group_uses_bg_abbreviation(self):
+        """Census filenames use 'bg' not 'block_group' — URL must reflect that."""
+        discovery = self._make_discovery({"block_group": "BG"})
+        url = discovery.construct_download_url(2020, "block_group", state_fips="01")
+        assert "block_group" not in url
+        assert url.endswith("tl_2020_01_bg.zip")
+
+    def test_cd_2022_uses_per_state_url(self):
+        """Census dropped the national CD file for 2022+; per-state URL must be used."""
+        discovery = self._make_discovery({"cd": "CD"})
+        url = discovery.construct_download_url(2022, "cd", state_fips="01", congress_number=118)
+        assert "_us_" not in url
+        assert url.endswith("tl_2022_01_cd118.zip")
+
+    def test_cd_pre_2022_uses_national_url(self):
+        """Before 2022, CD is a single national file."""
+        discovery = self._make_discovery({"cd": "CD"})
+        url = discovery.construct_download_url(2020, "cd", congress_number=116)
+        assert "_us_" in url
+        assert url.endswith("tl_2020_us_cd116.zip")

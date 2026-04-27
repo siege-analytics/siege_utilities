@@ -19,6 +19,7 @@ Functions:
     create_bivariate_analysis        -- Orchestrator returning all artifacts
     save_map                         -- Save figure to file with sensible defaults
 """
+from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
@@ -27,7 +28,17 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+
+try:
+    import matplotlib.pyplot as plt
+    import matplotlib.colors as mcolors
+    import matplotlib.figure
+    _MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    plt = None
+    mcolors = None
+    matplotlib = None  # type: ignore[assignment]
+    _MATPLOTLIB_AVAILABLE = False
 
 try:
     import geopandas as gpd
@@ -35,8 +46,6 @@ try:
 except ImportError:
     gpd = None
     _GEOPANDAS_AVAILABLE = False
-import matplotlib.colors as mcolors
-import matplotlib.figure
 
 try:
     from siege_utilities.core.logging import log_info, log_warning
