@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import pytest
+pytest.importorskip("matplotlib")
 
 from siege_utilities.reporting.chart_types import (
     ChartCreationError,

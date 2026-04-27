@@ -6,8 +6,7 @@ actionable, machine-readable failure information instead of silent None returns.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
+from unittest.mock import Mock, patch
 
 from siege_utilities.geo.boundary_result import (
     BoundaryFetchResult,
