@@ -71,6 +71,30 @@ FilePath = Union[str, Path]
 GeoDataFrame = gpd.GeoDataFrame
 
 # ---------------------------------------------------------------------------
+# Congressional District number by TIGER year
+# ---------------------------------------------------------------------------
+# All values verified by direct URL probing against Census FTP (2026-04-26).
+# cd117 (117th Congress) is entirely absent from TIGER — Census held on
+# the pre-redistricting 116th boundaries for 2020 and 2021, then jumped
+# directly to cd118 when per-state files appeared for 2022.
+YEAR_TO_CONGRESS: Dict[int, int] = {
+    2011: 112,
+    2012: 112,  # 113th elected Nov 2012 but TIGER 2012 still uses seated 112th
+    2013: 113,  # 113th seated Jan 2013; direct URL confirmed 200
+    2014: 114,
+    2015: 114,
+    2016: 115,
+    2017: 115,
+    2018: 116,
+    2019: 116,
+    2020: 116,  # pre-redistricting hold; 117th elected but old districts kept
+    2021: 116,  # still pre-redistricting; cd117 entirely absent from TIGER
+    2022: 118,  # post-redistricting; per-state files only (national = 404)
+    2023: 118,
+    2024: 119,
+}
+
+# ---------------------------------------------------------------------------
 # Boundary Type Catalog
 # ---------------------------------------------------------------------------
 # Reference data for Census TIGER/Line boundary types.
@@ -90,7 +114,6 @@ BOUNDARY_TYPE_CATALOG = {
     'place':        {'category': 'redistricting', 'abbrev': 'PLACE',      'name': 'Places (cities/towns)',              'geometry_type': 'MultiPolygon'},
     'cd':           {'category': 'redistricting', 'abbrev': 'CD',         'name': 'Congressional Districts',            'geometry_type': 'MultiPolygon'},
     'cd116':        {'category': 'redistricting', 'abbrev': 'CD116',      'name': 'Congressional Districts (116th)',    'geometry_type': 'MultiPolygon'},
-    'cd117':        {'category': 'redistricting', 'abbrev': 'CD117',      'name': 'Congressional Districts (117th)',    'geometry_type': 'MultiPolygon'},
     'cd118':        {'category': 'redistricting', 'abbrev': 'CD118',      'name': 'Congressional Districts (118th)',    'geometry_type': 'MultiPolygon'},
     'cd119':        {'category': 'redistricting', 'abbrev': 'CD119',      'name': 'Congressional Districts (119th)',    'geometry_type': 'MultiPolygon'},
     'sldu':         {'category': 'redistricting', 'abbrev': 'SLDU',       'name': 'State Legislative Upper (Senate)',   'geometry_type': 'MultiPolygon'},
@@ -355,7 +378,8 @@ class CensusDirectoryDiscovery:
             'TABBLOCK10': 'tabblock10',  # 2010 naming
             'PLACE': 'place',
             'ZCTA5': 'zcta',
-            'ZCTA': 'zcta',  # Alternative naming
+            'ZCTA': 'zcta',    # Alternative naming
+            'ZCTA520': 'zcta', # 2020+ directory name (Census renamed from ZCTA5)
             
             # Legislative boundaries
             'SLDU': 'sldu',  # State Legislative District Upper
@@ -370,7 +394,6 @@ class CensusDirectoryDiscovery:
             'CD114': 'cd114', # 114th Congress
             'CD115': 'cd115', # 115th Congress
             'CD116': 'cd116', # 116th Congress
-            'CD117': 'cd117', # 117th Congress
             'CD118': 'cd118', # 118th Congress
             'CD119': 'cd119', # 119th Congress
             
@@ -439,7 +462,9 @@ class CensusDirectoryDiscovery:
                 # State-specific files (state FIPS required)
                 'state': 'tl_{year}_{state_fips}_{boundary_type}.zip',
                 # Congressional districts with number
-                'congress': 'tl_{year}_us_cd{congress_num}.zip'
+                'congress': 'tl_{year}_us_cd{congress_num}.zip',
+                # Per-state congressional districts (2022+, Census dropped the national file)
+                'congress_state': 'tl_{year}_{state_fips}_cd{congress_num}.zip'
             },
             'directory_mappings': {}
         }
@@ -624,21 +649,22 @@ class CensusDirectoryDiscovery:
         }
 
         # Define flexible types (can be national or state-specific)
-        flexible_types = {'place', 'zcta', 'anrc', 'concity'}
-        
+        flexible_types = {'place', 'anrc', 'concity'}
+
+        # Census uses short abbreviations in filenames that differ from the canonical type name.
+        _FILENAME_ABBREVS = {'block_group': 'bg'}
+
         # Handle congressional districts specially
         if boundary_type.startswith('cd'):
             if len(boundary_type) > 2:
                 # Specific congress number in boundary type (cd118, cd119, etc.)
                 congress_num = boundary_type[2:]
-                return patterns['filename_patterns']['congress'].format(
-                    year=year, congress_num=congress_num
-                )
             elif congress_number:
-                # Congress number provided separately
-                return patterns['filename_patterns']['congress'].format(
-                    year=year, congress_num=congress_number
-                )
+                # Congress number provided separately — zero-pad to 3 digits
+                congress_num = f"{congress_number:03d}"
+            elif year in YEAR_TO_CONGRESS:
+                # Auto-lookup from verified year→congress mapping
+                congress_num = str(YEAR_TO_CONGRESS[year])
             else:
                 raise BoundaryConfigurationError(
                     f"Congressional district boundary type '{boundary_type}' requires a "
@@ -646,6 +672,14 @@ class CensusDirectoryDiscovery:
                     f"or the congress_number parameter.",
                     context={"boundary_type": boundary_type, "year": year},
                 )
+            # Census dropped the national CD file after 2021; 2022+ only publishes 56 per-state files.
+            if state_fips and year >= 2022:
+                return patterns['filename_patterns']['congress_state'].format(
+                    year=year, state_fips=state_fips, congress_num=congress_num
+                )
+            return patterns['filename_patterns']['congress'].format(
+                year=year, congress_num=congress_num
+            )
 
         # Handle state-required types
         elif boundary_type in state_required_types:
@@ -664,16 +698,27 @@ class CensusDirectoryDiscovery:
                     },
                 )
             
+            filename_part = _FILENAME_ABBREVS.get(boundary_type, boundary_type)
             return patterns['filename_patterns']['state'].format(
-                year=year, state_fips=state_fips, boundary_type=boundary_type
+                year=year, state_fips=state_fips, boundary_type=filename_part
             )
-        
+
+        # Handle ZCTA: filename abbreviation and directory are year-dependent.
+        # 2020+: ZCTA520 directory + zcta520 abbreviation.
+        # pre-2020: ZCTA5 directory + zcta510 abbreviation.
+        # ZCTA files are always national (no per-state variant exists).
+        elif boundary_type == 'zcta':
+            zcta_abbrev = 'zcta520' if year >= 2020 else 'zcta510'
+            return patterns['filename_patterns']['national'].format(
+                year=year, boundary_type=zcta_abbrev
+            )
+
         # Handle national-only types
         elif boundary_type in national_only_types:
             return patterns['filename_patterns']['national'].format(
                 year=year, boundary_type=boundary_type
             )
-        
+
         # Handle flexible types
         elif boundary_type in flexible_types:
             if state_fips:

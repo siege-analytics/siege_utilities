@@ -73,8 +73,8 @@ class TestBoundaryTypeCatalog:
             assert BOUNDARY_TYPE_CATALOG[key]["geometry_type"] == "MultiPolygon"
 
     def test_minimum_entry_count(self):
-        """Catalog should have at least 47 entries (original + new)."""
-        assert len(BOUNDARY_TYPE_CATALOG) >= 47
+        """Catalog should have at least 46 entries (cd117 removed: 117th Congress absent from TIGER)."""
+        assert len(BOUNDARY_TYPE_CATALOG) >= 46
 
 
 class TestTigerFilePatterns:

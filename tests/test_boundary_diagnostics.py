@@ -480,25 +480,46 @@ class TestBoundaryConfigurationError:
         disc.cache_timeout = 3600
         return disc
 
-    def test_cd_without_congress_number_raises(self):
-        """Congressional district without congress number raises BoundaryConfigurationError."""
+    def test_cd_without_congress_number_raises_for_unknown_year(self):
+        """Congressional district without congress_number raises for years not in YEAR_TO_CONGRESS."""
         disc = self._make_discovery()
         patterns = {
-            'base_url': 'https://www2.census.gov/geo/tiger/TIGER2020',
+            'base_url': 'https://www2.census.gov/geo/tiger/TIGER2000',
             'filename_patterns': {
                 'congress': 'tl_{year}_us_cd{congress_num}_shp.zip',
+                'congress_state': 'tl_{year}_{state_fips}_cd{congress_num}_shp.zip',
                 'state': 'tl_{year}_{state_fips}_{boundary_type}_shp.zip',
                 'national': 'tl_{year}_us_{boundary_type}_shp.zip',
             }
         }
+        # year=2000 is not in YEAR_TO_CONGRESS, so no auto-lookup is possible
         with pytest.raises(BoundaryConfigurationError) as exc_info:
             disc._construct_filename_with_fips_validation(
-                year=2020, boundary_type='cd', state_fips=None,
+                year=2000, boundary_type='cd', state_fips=None,
                 congress_number=None, patterns=patterns,
             )
         assert exc_info.value.stage == "configuration"
         assert "congress number" in str(exc_info.value).lower()
         assert exc_info.value.context["boundary_type"] == "cd"
+
+    def test_cd_auto_resolves_congress_for_known_year(self):
+        """For years in YEAR_TO_CONGRESS, congress number is auto-resolved without explicit parameter."""
+        disc = self._make_discovery()
+        patterns = {
+            'base_url': 'https://www2.census.gov/geo/tiger/TIGER2020',
+            'filename_patterns': {
+                'congress': 'tl_{year}_us_cd{congress_num}.zip',
+                'congress_state': 'tl_{year}_{state_fips}_cd{congress_num}.zip',
+                'state': 'tl_{year}_{state_fips}_{boundary_type}.zip',
+                'national': 'tl_{year}_us_{boundary_type}.zip',
+            }
+        }
+        # year=2020 → YEAR_TO_CONGRESS[2020] = 116 (NOT 117; cd117 absent from TIGER)
+        filename = disc._construct_filename_with_fips_validation(
+            year=2020, boundary_type='cd', state_fips=None,
+            congress_number=None, patterns=patterns,
+        )
+        assert filename == 'tl_2020_us_cd116.zip'
 
     def test_tract_without_state_fips_raises(self):
         """State-required type without state FIPS raises BoundaryConfigurationError."""

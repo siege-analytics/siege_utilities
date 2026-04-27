@@ -248,9 +248,9 @@ class TestCensusDirectoryDiscovery:
         url = self.discovery.construct_download_url(2020, 'tract', state_fips='06')
         assert url == "https://www2.census.gov/geo/tiger/TIGER2020/TRACT/tl_2020_06_tract.zip"
         
-        # Test block groups for Texas (FIPS 48)
+        # Test block groups for Texas (FIPS 48) — Census uses 'bg' not 'block_group' in filenames.
         url = self.discovery.construct_download_url(2020, 'block_group', state_fips='48')
-        assert url == "https://www2.census.gov/geo/tiger/TIGER2020/BG/tl_2020_48_block_group.zip"
+        assert url == "https://www2.census.gov/geo/tiger/TIGER2020/BG/tl_2020_48_bg.zip"
     
     def test_construct_download_url_congressional_districts(self):
         """Test URL construction for congressional districts."""
@@ -345,6 +345,52 @@ class TestCensusDirectoryDiscovery:
 
         with pytest.raises(BoundaryUrlValidationError):
             self.discovery.validate_download_url("https://example.com/test.zip")
+
+    def test_construct_download_url_zcta_pre2020(self):
+        """ZCTA pre-2020: directory ZCTA5, filename abbreviation zcta510."""
+        self.discovery.discover_boundary_types = Mock(return_value={'zcta': 'ZCTA5'})
+        url = self.discovery.construct_download_url(2019, 'zcta')
+        assert url == "https://www2.census.gov/geo/tiger/TIGER2019/ZCTA5/tl_2019_us_zcta510.zip"
+
+    def test_construct_download_url_zcta_2020plus(self):
+        """ZCTA 2020+: directory ZCTA520, filename abbreviation zcta520."""
+        self.discovery.discover_boundary_types = Mock(return_value={'zcta': 'ZCTA520'})
+        url = self.discovery.construct_download_url(2022, 'zcta')
+        assert url == "https://www2.census.gov/geo/tiger/TIGER2022/ZCTA520/tl_2022_us_zcta520.zip"
+
+    def test_year_to_congress_2012_is_cd112(self):
+        """Year 2012 uses cd112, NOT cd113 (113th elected Nov 2012 but not seated until Jan 2013)."""
+        self.discovery.discover_boundary_types = Mock(return_value={'cd': 'CD'})
+        url = self.discovery.construct_download_url(2012, 'cd')
+        assert 'cd112' in url, f"Expected cd112 in URL for year 2012, got: {url}"
+        assert url == "https://www2.census.gov/geo/tiger/TIGER2012/CD/tl_2012_us_cd112.zip"
+
+    def test_year_to_congress_2021_is_cd116(self):
+        """Year 2021 uses cd116, NOT cd117 (117th Congress is entirely absent from TIGER)."""
+        self.discovery.discover_boundary_types = Mock(return_value={'cd': 'CD'})
+        url = self.discovery.construct_download_url(2021, 'cd')
+        assert 'cd116' in url, f"Expected cd116 in URL for year 2021, got: {url}"
+        assert url == "https://www2.census.gov/geo/tiger/TIGER2021/CD/tl_2021_us_cd116.zip"
+
+    def test_cd_2022_per_state(self):
+        """CD 2022+: Census dropped the national file; per-state files only."""
+        self.discovery.discover_boundary_types = Mock(return_value={'cd': 'CD'})
+        url = self.discovery.construct_download_url(2022, 'cd', state_fips='48')
+        assert url == "https://www2.census.gov/geo/tiger/TIGER2022/CD/tl_2022_48_cd118.zip"
+
+    def test_cd_2022_national_uses_congress_pattern(self):
+        """CD 2022 without state_fips still constructs with national pattern (caller's responsibility)."""
+        self.discovery.discover_boundary_types = Mock(return_value={'cd': 'CD'})
+        url = self.discovery.construct_download_url(2022, 'cd')
+        assert url == "https://www2.census.gov/geo/tiger/TIGER2022/CD/tl_2022_us_cd118.zip"
+
+    def test_zcta520_directory_recognized(self):
+        """ZCTA520 directory name (2020+) should map to 'zcta' boundary type."""
+        # When Census returns ZCTA520 as directory, boundary_mapping must recognize it.
+        self.discovery.discover_boundary_types = Mock(return_value={'zcta': 'ZCTA520'})
+        url = self.discovery.construct_download_url(2021, 'zcta')
+        assert 'zcta520' in url
+        assert url == "https://www2.census.gov/geo/tiger/TIGER2021/ZCTA520/tl_2021_us_zcta520.zip"
 
 
 class TestCensusDataSource:
