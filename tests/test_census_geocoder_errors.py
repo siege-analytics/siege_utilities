@@ -23,7 +23,7 @@ class TestGeocodeSingle:
         fake = MagicMock()
         fake.onelineaddress.side_effect = ConnectionError("network down")
         with patch(
-            "siege_utilities.geo.census_geocoder._get_geocoder",
+            "siege_utilities.geo.providers.census_geocoder._get_geocoder",
             return_value=fake,
         ):
             with pytest.raises(CensusGeocodeError) as exc_info:
@@ -36,7 +36,7 @@ class TestGeocodeSingle:
         fake = MagicMock()
         fake.onelineaddress.return_value = {"result": {"addressMatches": []}}
         with patch(
-            "siege_utilities.geo.census_geocoder._get_geocoder",
+            "siege_utilities.geo.providers.census_geocoder._get_geocoder",
             return_value=fake,
         ):
             result = geocode_single("garbage", "nowhere", "ZZ", "00000")
@@ -54,7 +54,7 @@ class TestGeocodeBatch:
             {"id": "2", "street": "e", "city": "f", "state": "g", "zipcode": "h"},
         ]
         with patch(
-            "siege_utilities.geo.census_geocoder._get_geocoder",
+            "siege_utilities.geo.providers.census_geocoder._get_geocoder",
             return_value=fake,
         ):
             with pytest.raises(CensusGeocodeError) as exc_info:
