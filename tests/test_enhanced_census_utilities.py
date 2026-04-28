@@ -13,9 +13,11 @@ from unittest.mock import Mock, patch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from siege_utilities.geo.spatial_data import (
-    CensusDirectoryDiscovery, 
+    CensusDirectoryDiscovery,
     CensusDataSource,
-    SpatialDataSource
+    SpatialDataSource,
+    BoundaryConfigurationError,
+    YEAR_TO_CONGRESS,
 )
 
 
@@ -375,11 +377,17 @@ class TestCensusDirectoryDiscovery:
         url = self.discovery.construct_download_url(2022, 'cd', state_fips='48')
         assert url == "https://www2.census.gov/geo/tiger/TIGER2022/CD/tl_2022_48_cd118.zip"
 
-    def test_cd_2022_national_uses_congress_pattern(self):
-        """CD 2022 without state_fips still constructs with national pattern (caller's responsibility)."""
+    def test_cd_2022_without_state_fips_raises(self):
+        """CD 2022+ without state_fips must raise: Census dropped the national file after 2021."""
         self.discovery.discover_boundary_types = Mock(return_value={'cd': 'CD'})
-        url = self.discovery.construct_download_url(2022, 'cd')
-        assert url == "https://www2.census.gov/geo/tiger/TIGER2022/CD/tl_2022_us_cd118.zip"
+        with pytest.raises(BoundaryConfigurationError):
+            self.discovery.construct_download_url(2022, 'cd')
+
+    def test_year_to_congress_new_entries(self):
+        """YEAR_TO_CONGRESS must include 2010, 2025, and 2026."""
+        assert YEAR_TO_CONGRESS[2010] == 111
+        assert YEAR_TO_CONGRESS[2025] == 119
+        assert YEAR_TO_CONGRESS[2026] == 119
 
     def test_zcta520_directory_recognized(self):
         """ZCTA520 directory name (2020+) should map to 'zcta' boundary type."""

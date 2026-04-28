@@ -78,6 +78,7 @@ GeoDataFrame = gpd.GeoDataFrame
 # the pre-redistricting 116th boundaries for 2020 and 2021, then jumped
 # directly to cd118 when per-state files appeared for 2022.
 YEAR_TO_CONGRESS: Dict[int, int] = {
+    2010: 111,
     2011: 112,
     2012: 112,  # 113th elected Nov 2012 but TIGER 2012 still uses seated 112th
     2013: 113,  # 113th seated Jan 2013; direct URL confirmed 200
@@ -92,6 +93,8 @@ YEAR_TO_CONGRESS: Dict[int, int] = {
     2022: 118,  # post-redistricting; per-state files only (national = 404)
     2023: 118,
     2024: 119,
+    2025: 119,
+    2026: 119,
 }
 
 # ---------------------------------------------------------------------------
@@ -666,13 +669,20 @@ class CensusDirectoryDiscovery:
                 # Auto-lookup from verified year→congress mapping
                 congress_num = str(YEAR_TO_CONGRESS[year])
             else:
-                raise BoundaryConfigurationError(
-                    f"Congressional district boundary type '{boundary_type}' requires a "
-                    f"congress number. Provide it via the boundary_type name (e.g., 'cd118') "
-                    f"or the congress_number parameter.",
-                    context={"boundary_type": boundary_type, "year": year},
+                max_known = max(YEAR_TO_CONGRESS.keys())
+                congress_num = str(YEAR_TO_CONGRESS[max_known])
+                log.warning(
+                    "Year %d not in YEAR_TO_CONGRESS; falling back to %d (congress %s). "
+                    "Add the year to YEAR_TO_CONGRESS if this is incorrect.",
+                    year, max_known, congress_num,
                 )
             # Census dropped the national CD file after 2021; 2022+ only publishes 56 per-state files.
+            if year >= 2022 and not state_fips:
+                raise BoundaryConfigurationError(
+                    f"Congressional district national file is unavailable for {year}+. "
+                    f"Provide state_fips to download the per-state file.",
+                    context={"boundary_type": boundary_type, "year": year},
+                )
             if state_fips and year >= 2022:
                 return patterns['filename_patterns']['congress_state'].format(
                     year=year, state_fips=state_fips, congress_num=congress_num
