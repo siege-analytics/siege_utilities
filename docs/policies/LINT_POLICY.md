@@ -9,7 +9,7 @@ See [LINT_RATCHET_PLAN.md](LINT_RATCHET_PLAN.md) for the phased rollout strategy
 
 ## Why CI Lint Keeps Failing When Local Checks Pass
 
-Three root causes account for nearly every "passed locally, failed in CI" lint incident:
+Four root causes account for nearly every "passed locally, failed in CI" lint or release incident:
 
 ### 1. The CONTRIBUTING.md pre-PR checklist was incomplete
 
@@ -37,6 +37,22 @@ because the baseline references fingerprints that no longer exist.
 
 **Fix:** regenerate the baseline in a dedicated debt-cleanup PR using
 `python scripts/check_lint_ratchet.py --phase phase4 --update-baseline`.
+
+### 4. Version bump omitted from the release PR (release-mechanics gap)
+
+CI's "Verify release tag matches package version" step runs only on the `release` event —
+it never fires on a normal PR push. This means a PR that forgets to bump
+`pyproject.toml` passes all pre-merge checks, the tag gets created, and only then does
+the release job fail before PyPI upload.
+
+**Fix:** the version bump (`pyproject.toml` + any `__version__` literals) belongs in the
+**same PR** as the code being released, committed before the GitHub Release is created.
+Checklist addition for release PRs:
+
+```bash
+# Confirm version in pyproject.toml matches the intended tag before merging
+grep '^version' pyproject.toml
+```
 
 ---
 
