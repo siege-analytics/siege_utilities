@@ -5,6 +5,8 @@ import importlib
 import sys
 import warnings
 
+import pytest
+
 
 def _reimport(module_name: str):
     if module_name in sys.modules:
@@ -13,6 +15,10 @@ def _reimport(module_name: str):
 
 
 class TestPollingAnalyzerDeprecation:
+    @pytest.fixture(autouse=True)
+    def _require_matplotlib(self):
+        pytest.importorskip("matplotlib")
+
     def test_construction_emits_deprecation_warning(self):
         from siege_utilities.reporting.analytics.polling_analyzer import (
             PollingAnalyzer,
@@ -30,6 +36,10 @@ class TestPollingAnalyzerDeprecation:
 
 
 class TestAnalyticsReportsPromotion:
+    @pytest.fixture(autouse=True)
+    def _require_reportlab(self):
+        pytest.importorskip("reportlab")
+
     def test_new_import_path_works(self):
         from siege_utilities.reporting.analytics_reports import (
             AnalyticsReportGenerator,

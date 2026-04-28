@@ -86,11 +86,13 @@ class TestColumnProportionTest:
 
 
 class TestChiSquareFlag:
+    @requires_scipy
     def test_returns_chain(self):
         chain = _make_chain_two_cols()
         result = chi_square_flag(chain)
         assert result is chain
 
+    @requires_scipy
     def test_sets_chi_square_significant(self):
         chain = _make_chain_two_cols()
         chi_square_flag(chain)
