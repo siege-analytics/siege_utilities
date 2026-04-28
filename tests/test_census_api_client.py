@@ -829,8 +829,8 @@ class TestGEOIDValidationFromAPI:
         client = CensusAPIClient.__new__(CensusAPIClient)
         df = pd.DataFrame([{'state': '06', 'county': '037'}])
         result = client._construct_geoid(df, 'county')
-        assert result['GEOID'].dtype == 'object', (
-            f"GEOID column dtype is {result['GEOID'].dtype}, expected 'object' (string)"
+        assert pd.api.types.is_string_dtype(result['GEOID']), (
+            f"GEOID column dtype is {result['GEOID'].dtype}, expected a string dtype"
         )
 
     def test_all_mock_geoids_pass_validation(self):

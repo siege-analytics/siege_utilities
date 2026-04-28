@@ -16,8 +16,8 @@ def _reimport(module_name: str):
 
 class TestPollingAnalyzerDeprecation:
     @pytest.fixture(autouse=True)
-    def _require_matplotlib(self):
-        pytest.importorskip("matplotlib")
+    def _require_reportlab(self):
+        pytest.importorskip("reportlab")
 
     def test_construction_emits_deprecation_warning(self):
         from siege_utilities.reporting.analytics.polling_analyzer import (
