@@ -8,8 +8,6 @@ import os
 import sys
 from unittest.mock import patch, Mock, MagicMock
 
-import pytest
-
 from siege_utilities.testing.environment import (
     _get_sdkman_root,
     _get_system_java_paths,

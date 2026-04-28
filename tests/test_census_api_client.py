@@ -6,9 +6,8 @@ Tests the CensusAPIClient class and convenience functions with mocked responses.
 
 import pytest
 import pandas as pd
-import json
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import tempfile
 import os
 
@@ -23,7 +22,6 @@ def _has_pyarrow():
 from siege_utilities.geo.census_api_client import (
     CensusAPIClient,
     CensusAPIError,
-    CensusAPIKeyError,
     CensusRateLimitError,
     CensusVariableError,
     CensusGeographyError,
@@ -32,8 +30,6 @@ from siege_utilities.geo.census_api_client import (
     get_demographics,
     get_population,
     get_income_data,
-    get_education_data,
-    get_housing_data,
     get_census_api_client,
 )
 
@@ -132,7 +128,7 @@ class TestCensusAPIClientInit:
         with tempfile.TemporaryDirectory() as temp_dir:
             cache_path = Path(temp_dir) / 'census_cache'
             assert not cache_path.exists()
-            client = CensusAPIClient(cache_dir=cache_path)
+            CensusAPIClient(cache_dir=cache_path)
             assert cache_path.exists()
 
     def test_init_with_custom_timeout(self, temp_cache_dir):
@@ -595,7 +591,7 @@ class TestConvenienceFunctions:
         })
         mock_fetch.return_value = mock_df
 
-        df = get_demographics(state='California', geography='county', year=2020)
+        get_demographics(state='California', geography='county', year=2020)
 
         assert mock_fetch.called
         call_kwargs = mock_fetch.call_args.kwargs
@@ -612,7 +608,7 @@ class TestConvenienceFunctions:
         })
         mock_fetch.return_value = mock_df
 
-        df = get_population(state='CA', geography='tract', year=2020)
+        get_population(state='CA', geography='tract', year=2020)
 
         assert mock_fetch.called
         call_kwargs = mock_fetch.call_args.kwargs
@@ -628,7 +624,7 @@ class TestConvenienceFunctions:
         })
         mock_fetch.return_value = mock_df
 
-        df = get_income_data(state='06', geography='tract', year=2020)
+        get_income_data(state='06', geography='tract', year=2020)
 
         assert mock_fetch.called
         call_kwargs = mock_fetch.call_args.kwargs
