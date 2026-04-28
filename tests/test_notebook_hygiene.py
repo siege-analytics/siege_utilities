@@ -45,6 +45,7 @@ RE_WRITTEN: list[str] = [
     "reports/01_charts_and_pdf.ipynb",
     "reports/02_slides_pptx_and_google.ipynb",
     "reports/03_polling_survey_analysis.ipynb",
+    "reports/04_survey_full_showcase.ipynb",
 ]
 
 
