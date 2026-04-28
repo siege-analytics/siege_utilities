@@ -29,7 +29,7 @@ try:
     from importlib.metadata import version as _meta_version
     __version__ = _meta_version("siege-utilities")
 except Exception:
-    __version__ = "3.13.1"  # fallback for editable installs without metadata
+    __version__ = "3.13.2"  # fallback for editable installs without metadata
 __author__ = "Siege Analytics"
 __description__ = "Comprehensive utilities for data engineering, analytics, and distributed computing"
 
