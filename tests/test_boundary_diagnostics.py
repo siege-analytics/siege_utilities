@@ -479,8 +479,8 @@ class TestBoundaryConfigurationError:
         disc.cache_timeout = 3600
         return disc
 
-    def test_cd_without_congress_number_raises_for_unknown_year(self):
-        """Congressional district without congress_number raises for years not in YEAR_TO_CONGRESS."""
+    def test_cd_without_congress_number_uses_fallback_for_unknown_year(self):
+        """For years not in YEAR_TO_CONGRESS, congress number falls back to the max known year."""
         disc = self._make_discovery()
         patterns = {
             'base_url': 'https://www2.census.gov/geo/tiger/TIGER2000',
@@ -491,15 +491,12 @@ class TestBoundaryConfigurationError:
                 'national': 'tl_{year}_us_{boundary_type}_shp.zip',
             }
         }
-        # year=2000 is not in YEAR_TO_CONGRESS, so no auto-lookup is possible
-        with pytest.raises(BoundaryConfigurationError) as exc_info:
-            disc._construct_filename_with_fips_validation(
-                year=2000, boundary_type='cd', state_fips=None,
-                congress_number=None, patterns=patterns,
-            )
-        assert exc_info.value.stage == "configuration"
-        assert "congress number" in str(exc_info.value).lower()
-        assert exc_info.value.context["boundary_type"] == "cd"
+        # year=2000 is not in YEAR_TO_CONGRESS; falls back to max known year (2026 → congress 119)
+        result = disc._construct_filename_with_fips_validation(
+            year=2000, boundary_type='cd', state_fips=None,
+            congress_number=None, patterns=patterns,
+        )
+        assert result == 'tl_2000_us_cd119_shp.zip'
 
     def test_cd_auto_resolves_congress_for_known_year(self):
         """For years in YEAR_TO_CONGRESS, congress number is auto-resolved without explicit parameter."""
