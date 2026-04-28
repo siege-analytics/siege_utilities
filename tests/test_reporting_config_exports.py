@@ -80,6 +80,10 @@ class TestImportBrandingConfig:
 
 
 class TestExportChartTypeConfig:
+    @pytest.fixture(autouse=True)
+    def _require_matplotlib(self):
+        pytest.importorskip("matplotlib")
+
     def test_raises_on_unknown_chart_type(self, tmp_path):
         class _Boom:
             def export_chart_type_config(self, *a, **kw):

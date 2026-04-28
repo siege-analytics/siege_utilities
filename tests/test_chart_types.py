@@ -1,6 +1,7 @@
 """Tests for siege_utilities.reporting.chart_types module."""
 
 import pytest
+pytest.importorskip("matplotlib")
 from unittest.mock import MagicMock
 from siege_utilities.reporting.chart_types import (
     ChartCreationError,
