@@ -1,1 +1,529 @@
-"""\nExtensible chart type system for siege_utilities.\nProvides base chart types and easy extension capabilities.\n"""\nfrom __future__ import annotations\n\nimport logging\nfrom typing import TYPE_CHECKING, Dict, Any, Optional, List, Callable\nfrom dataclasses import dataclass, field\nimport yaml\n\nif TYPE_CHECKING:\n    from matplotlib.figure import Figure\n\ntry:\n    import geopandas as gpd\n    _GEOPANDAS_AVAILABLE = True\nexcept ImportError:\n    gpd = None\n    _GEOPANDAS_AVAILABLE = False\n\nlog = logging.getLogger(__name__)\n\n\nclass UnknownChartTypeError(LookupError):\n    \"\"\"Raised when a chart type name is not in the registry.\"\"\"\n\n\nclass ChartParameterError(ValueError):\n    \"\"\"Raised when required parameters are missing or invalid.\"\"\"\n\n\nclass ChartCreationError(RuntimeError):\n    \"\"\"Raised when the underlying create function fails to produce a Figure.\"\"\"\n\n\n@dataclass\nclass ChartType:\n    \"\"\"Base chart type configuration.\"\"\"\n    \n    name: str\n    category: str  # 'geographic', 'statistical', 'temporal', 'comparative'\n    description: str = \"\"\n    \n    # Required parameters\n    required_parameters: List[str] = field(default_factory=list)\n    \n    # Optional parameters with defaults\n    optional_parameters: Dict[str, Any] = field(default_factory=dict)\n    \n    # Chart properties\n    supports_interactive: bool = False\n    supports_3d: bool = False\n    supports_animation: bool = False\n    \n    # Rendering options\n    default_width: float = 10.0\n    default_height: float = 8.0\n    default_dpi: int = 300\n    \n    # Custom elements\n    custom_options: Dict[str, Any] = field(default_factory=dict)\n    \n    # Chart functions\n    create_function: Optional[Callable] = None\n    validate_function: Optional[Callable] = None\n    customize_function: Optional[Callable] = None\n\nclass ChartTypeRegistry:\n    \"\"\"\n    Registry for chart types and their implementations.\n    Provides easy extension and customization of chart types.\n    \"\"\"\n    \n    def __init__(self):\n        \"\"\"Initialize the chart type registry.\"\"\"\n        self.chart_types: Dict[str, ChartType] = {}\n        self._register_default_chart_types()\n    \n    def _register_default_chart_types(self):\n        \"\"\"Register built-in default chart types.\"\"\"\n        \n        # Geographic Chart Types\n        self.register_chart_type(ChartType(\n            name='bivariate_choropleth',\n            category='geographic',\n            description='Two-variable choropleth map showing relationships between variables',\n            required_parameters=['data', 'location_column', 'value_column1', 'value_column2'],\n            optional_parameters={\n                'geodata': None,\n                'title': '',\n                'width': 12.0,\n                'height': 10.0,\n                'color_scheme': 'custom',\n                'classification': 'natural_breaks',\n                'bins': 5\n            },\n            supports_interactive=True,\n            custom_options={\n                'map_projection': 'mercator',\n                'legend_position': 'right',\n                'boundary_style': 'solid'\n            }\n        ))\n        \n        self.register_chart_type(ChartType(\n            name='marker_map',\n            category='geographic',\n            description='Point-based map with customizable markers',\n            required_parameters=['data', 'latitude_column', 'longitude_column'],\n            optional_parameters={\n                'value_column': None,\n                'label_column': None,\n                'title': '',\n                'map_style': 'open-street-map',\n                'zoom_level': 10\n            },\n            supports_interactive=True,\n            custom_options={\n                'marker_style': 'circle',\n                'popup_content': True,\n                'cluster_markers': False\n            }\n        ))\n        \n        self.register_chart_type(ChartType(\n            name='3d_map',\n            category='geographic',\n            description='Three-dimensional elevation visualization',\n            required_parameters=['data', 'latitude_column', 'longitude_column', 'elevation_column'],\n            optional_parameters={\n                'title': '',\n                'view_angle': 45,\n                'elevation_scale': 1.0\n            },\n            supports_3d=True,\n            custom_options={\n                'surface_type': 'triangulation',\n                'color_map': 'terrain',\n                'axis_labels': True\n            }\n        ))\n        \n        self.register_chart_type(ChartType(\n            name='heatmap_map',\n            category='geographic',\n            description='Density and intensity heatmap',\n            required_parameters=['data', 'latitude_column', 'longitude_column', 'value_column'],\n            optional_parameters={\n                'title': '',\n                'grid_size': 50,\n                'blur_radius': 0.5\n            },\n            supports_interactive=True,\n            custom_options={\n                'color_gradient': 'blue_to_red',\n                'intensity_scale': 'logarithmic',\n                'smoothing': True\n            }\n        ))\n        \n        self.register_chart_type(ChartType(\n            name='cluster_map',\n            category='geographic',\n            description='Clustered point data visualization',\n            required_parameters=['data', 'latitude_column', 'longitude_column'],\n            optional_parameters={\n                'cluster_column': None,\n                'label_column': None,\n                'title': '',\n                'max_cluster_radius': 80\n            },\n            supports_interactive=True,\n            custom_options={\n                'cluster_algorithm': 'kmeans',\n                'cluster_colors': True,\n                'expand_on_click': True\n            }\n        ))\n        \n        self.register_chart_type(ChartType(\n            name='flow_map',\n            category='geographic',\n            description='Movement and connection flow visualization',\n            required_parameters=['data', 'origin_lat_column', 'origin_lon_column', \n                              'dest_lat_column', 'dest_lon_column'],\n            optional_parameters={\n                'flow_value_column': None,\n                'title': ''\n            },\n            supports_interactive=True,\n            custom_options={\n                'flow_style': 'curved',\n                'arrow_heads': True,\n                'flow_colors': True\n            }\n        ))\n        \n        # Statistical Chart Types\n        self.register_chart_type(ChartType(\n            name='bar_chart',\n            category='statistical',\n            description='Bar chart for categorical data comparison',\n            required_parameters=['data', 'x_column', 'y_column'],\n            optional_parameters={\n                'title': '',\n                'orientation': 'vertical',\n                'color': 'steelblue'\n            },\n            custom_options={\n                'bar_width': 0.8,\n                'error_bars': False,\n                'stacked': False\n            }\n        ))\n        \n        self.register_chart_type(ChartType(\n            name='line_chart',\n            category='statistical',\n            description='Line chart for trend visualization',\n            required_parameters=['data', 'x_column', 'y_column'],\n            optional_parameters={\n                'title': '',\n                'line_style': '-',\n                'markers': False\n            },\n            custom_options={\n                'smooth_lines': False,\n                'confidence_interval': False,\n                'multiple_lines': False\n            }\n        ))\n        \n        self.register_chart_type(ChartType(\n            name='scatter_plot',\n            category='statistical',\n            description='Scatter plot for correlation analysis',\n            required_parameters=['data', 'x_column', 'y_column'],\n            optional_parameters={\n                'title': '',\n                'color_column': None,\n                'size_column': None\n            },\n            custom_options={\n                'trend_line': False,\n                'regression': False,\n                'density_contours': False\n            }\n        ))\n        \n        # Temporal Chart Types\n        self.register_chart_type(ChartType(\n            name='time_series',\n            category='temporal',\n            description='Time series visualization',\n            required_parameters=['data', 'time_column', 'value_column'],\n            optional_parameters={\n                'title': '',\n                'frequency': 'daily',\n                'rolling_window': None\n            },\n            custom_options={\n                'seasonal_decomposition': False,\n                'forecast': False,\n                'anomaly_detection': False\n            }\n        ))\n        \n        # Comparative Chart Types\n        self.register_chart_type(ChartType(\n            name='comparison_chart',\n            category='comparative',\n            description='Side-by-side comparison visualization',\n            required_parameters=['data', 'comparison_column', 'value_column'],\n            optional_parameters={\n                'title': '',\n                'chart_type': 'grouped_bar',\n                'baseline': None\n            },\n            custom_options={\n                'statistical_test': False,\n                'effect_size': False,\n                'confidence_intervals': True\n            }\n        ))\n    \n    def register_chart_type(self, chart_type: ChartType):\n        \"\"\"\n        Register a new chart type.\n        \n        Args:\n            chart_type: ChartType object to register\n        \"\"\"\n        self.chart_types[chart_type.name] = chart_type\n        log.info(f\"Registered chart type: {chart_type.name}\")\n    \n    def get_chart_type(self, chart_type_name: str) -> Optional[ChartType]:\n        \"\"\"\n        Get a chart type by name.\n        \n        Args:\n            chart_type_name: Name of the chart type\n            \n        Returns:\n            ChartType object or None if not found\n        \"\"\"\n        return self.chart_types.get(chart_type_name)\n    \n    def list_chart_types(self, category: Optional[str] = None) -> List[str]:\n        \"\"\"\n        List available chart types.\n        \n        Args:\n            category: Filter by category\n            \n        Returns:\n            List of chart type names\n        \"\"\"\n        if category:\n            return [name for name, chart_type in self.chart_types.items() \n                   if chart_type.category == category]\n        return list(self.chart_types.keys())\n    \n    def get_chart_categories(self) -> List[str]:\n        \"\"\"Get list of available chart categories.\"\"\"\n        categories = set(chart_type.category for chart_type in self.chart_types.values())\n        return sorted(list(categories))\n    \n    def create_chart(self, chart_type_name: str, **kwargs) -> Optional[Figure]:\n        \"\"\"\n        Create a chart using the specified chart type.\n\n        Parameters\n        ----------\n        chart_type_name : str\n            Name of the chart type (must exist in the registry).\n        **kwargs\n            Parameters for the chart; must include every entry in the chart\n            type's ``required_parameters``.\n\n        Returns\n        -------\n        matplotlib.figure.Figure\n\n        Raises\n        ------\n        UnknownChartTypeError\n            If ``chart_type_name`` isn't registered.\n        ChartParameterError\n            If required parameters are missing.\n        ChartCreationError\n            If the chart type has no create function, or the create function\n            raised.\n        \"\"\"\n        chart_type = self.get_chart_type(chart_type_name)\n        if not chart_type:\n            log.error(\"Chart type not found: %s\", chart_type_name)\n            raise UnknownChartTypeError(\n                f\"chart type {chart_type_name!r} not in registry; \"\n                f\"known: {sorted(self.chart_types.keys())}\"\n            )\n\n        # Validate required parameters\n        missing_params = [param for param in chart_type.required_parameters\n                         if param not in kwargs]\n        if missing_params:\n            log.error(\"Missing required parameters for %s: %s\", chart_type_name, missing_params)\n            raise ChartParameterError(\n                f\"chart type {chart_type_name!r} missing required params: {missing_params}\"\n            )\n\n        # Apply default values for optional parameters\n        for param, default_value in chart_type.optional_parameters.items():\n            if param not in kwargs:\n                kwargs[param] = default_value\n\n        if chart_type.create_function is None:\n            raise ChartCreationError(\n                f\"chart type {chart_type_name!r} has no create function registered; \"\n                f\"call add_chart_creator() first\"\n            )\n\n        try:\n            return chart_type.create_function(**kwargs)\n        except Exception as e:\n            log.error(\"Create function for %s raised: %s\", chart_type_name, e)\n            raise ChartCreationError(\n                f\"create function for chart type {chart_type_name!r} failed\"\n            ) from e\n    \n    def add_chart_creator(self, chart_type_name: str, create_function: Callable):\n        \"\"\"\n        Add or update the create function for a chart type.\n        \n        Args:\n            chart_type_name: Name of the chart type\n            create_function: Function to create the chart\n        \"\"\"\n        chart_type = self.get_chart_type(chart_type_name)\n        if chart_type:\n            chart_type.create_function = create_function\n            log.info(f\"Updated create function for chart type: {chart_type_name}\")\n        else:\n            log.warning(f\"Chart type not found: {chart_type_name}\")\n    \n    def validate_chart_parameters(self, chart_type_name: str, **kwargs) -> bool:\n        \"\"\"Validate parameters for a chart type without creating the chart.\n\n        Parameters\n        ----------\n        chart_type_name : str\n        **kwargs\n            Parameters to validate.\n\n        Returns\n        -------\n        bool\n            True iff required params present AND any custom ``validate_function``\n            returns truthy.\n\n        Raises\n        ------\n        UnknownChartTypeError\n            If ``chart_type_name`` isn't registered. (Legitimately-missing\n            validation returns False; unknown chart type is a caller error.)\n        ChartParameterError\n            If the custom validate function raised.\n        \"\"\"\n        chart_type = self.get_chart_type(chart_type_name)\n        if not chart_type:\n            raise UnknownChartTypeError(\n                f\"chart type {chart_type_name!r} not in registry\"\n            )\n\n        # Check required parameters\n        missing_params = [param for param in chart_type.required_parameters\n                         if param not in kwargs]\n        if missing_params:\n            log.warning(\"Missing required parameters for %s: %s\", chart_type_name, missing_params)\n            return False\n\n        if chart_type.validate_function is None:\n            return True\n\n        try:\n            return bool(chart_type.validate_function(**kwargs))\n        except (ValueError, TypeError, KeyError, AttributeError) as e:\n            log.error(\"validate function for %s raised: %s\", chart_type_name, e)\n            raise ChartParameterError(\n                f\"validate_function for chart type {chart_type_name!r} raised\"\n            ) from e\n    \n    def get_chart_help(self, chart_type_name: str) -> Dict[str, Any]:\n        \"\"\"\n        Get help information for a chart type.\n        \n        Args:\n            chart_type_name: Name of the chart type\n            \n        Returns:\n            Dictionary with help information\n        \"\"\"\n        chart_type = self.get_chart_type(chart_type_name)\n        if not chart_type:\n            return {}\n        \n        return {\n            'name': chart_type.name,\n            'category': chart_type.category,\n            'description': chart_type.description,\n            'required_parameters': chart_type.required_parameters,\n            'optional_parameters': chart_type.optional_parameters,\n            'custom_options': chart_type.custom_options,\n            'supports_interactive': chart_type.supports_interactive,\n            'supports_3d': chart_type.supports_3d,\n            'supports_animation': chart_type.supports_animation\n        }\n    \n    def export_chart_type_config(self, chart_type_name: str, output_path: str):\n        \"\"\"\n        Export chart type configuration to a file.\n        \n        Args:\n            chart_type_name: Name of the chart type to export\n            output_path: Path to export the configuration\n        \"\"\"\n        chart_type = self.get_chart_type(chart_type_name)\n        if not chart_type:\n            log.warning(f\"Chart type not found: {chart_type_name}\")\n            return\n        \n        try:\n            # Convert to dict, excluding function references\n            config_data = {\n                'name': chart_type.name,\n                'category': chart_type.category,\n                'description': chart_type.description,\n                'required_parameters': chart_type.required_parameters,\n                'optional_parameters': chart_type.optional_parameters,\n                'supports_interactive': chart_type.supports_interactive,\n                'supports_3d': chart_type.supports_3d,\n                'supports_animation': chart_type.supports_animation,\n                'default_width': chart_type.default_width,\n                'default_height': chart_type.default_height,\n                'default_dpi': chart_type.default_dpi,\n                'custom_options': chart_type.custom_options\n            }\n            \n            with open(output_path, 'w') as f:\n                yaml.dump(config_data, f, default_flow_style=False)\n            \n            log.info(f\"Exported chart type configuration to: {output_path}\")\n        except Exception as e:\n            log.error(f\"Failed to export chart type configuration: {e}\")\n\n# Global instance\nchart_registry = ChartTypeRegistry()\n\ndef get_chart_registry() -> ChartTypeRegistry:\n    \"\"\"Get the global chart type registry.\"\"\"\n    return chart_registry\n\ndef register_chart_type(chart_type: ChartType):\n    \"\"\"Register a new chart type.\"\"\"\n    chart_registry.register_chart_type(chart_type)\n\ndef create_chart(chart_type_name: str, **kwargs) -> Optional[Figure]:\n    \"\"\"Create a chart using the specified chart type.\"\"\"\n    return chart_registry.create_chart(chart_type_name, **kwargs)\n
+"""
+Extensible chart type system for siege_utilities.
+Provides base chart types and easy extension capabilities.
+"""
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING, Dict, Any, Optional, List, Callable
+from dataclasses import dataclass, field
+import yaml
+
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure
+
+try:
+    import geopandas as gpd
+    _GEOPANDAS_AVAILABLE = True
+except ImportError:
+    gpd = None
+    _GEOPANDAS_AVAILABLE = False
+
+log = logging.getLogger(__name__)
+
+
+class UnknownChartTypeError(LookupError):
+    """Raised when a chart type name is not in the registry."""
+
+
+class ChartParameterError(ValueError):
+    """Raised when required parameters are missing or invalid."""
+
+
+class ChartCreationError(RuntimeError):
+    """Raised when the underlying create function fails to produce a Figure."""
+
+
+@dataclass
+class ChartType:
+    """Base chart type configuration."""
+    
+    name: str
+    category: str  # 'geographic', 'statistical', 'temporal', 'comparative'
+    description: str = ""
+    
+    # Required parameters
+    required_parameters: List[str] = field(default_factory=list)
+    
+    # Optional parameters with defaults
+    optional_parameters: Dict[str, Any] = field(default_factory=dict)
+    
+    # Chart properties
+    supports_interactive: bool = False
+    supports_3d: bool = False
+    supports_animation: bool = False
+    
+    # Rendering options
+    default_width: float = 10.0
+    default_height: float = 8.0
+    default_dpi: int = 300
+    
+    # Custom elements
+    custom_options: Dict[str, Any] = field(default_factory=dict)
+    
+    # Chart functions
+    create_function: Optional[Callable] = None
+    validate_function: Optional[Callable] = None
+    customize_function: Optional[Callable] = None
+
+class ChartTypeRegistry:
+    """
+    Registry for chart types and their implementations.
+    Provides easy extension and customization of chart types.
+    """
+    
+    def __init__(self):
+        """Initialize the chart type registry."""
+        self.chart_types: Dict[str, ChartType] = {}
+        self._register_default_chart_types()
+    
+    def _register_default_chart_types(self):
+        """Register built-in default chart types."""
+        
+        # Geographic Chart Types
+        self.register_chart_type(ChartType(
+            name='bivariate_choropleth',
+            category='geographic',
+            description='Two-variable choropleth map showing relationships between variables',
+            required_parameters=['data', 'location_column', 'value_column1', 'value_column2'],
+            optional_parameters={
+                'geodata': None,
+                'title': '',
+                'width': 12.0,
+                'height': 10.0,
+                'color_scheme': 'custom',
+                'classification': 'natural_breaks',
+                'bins': 5
+            },
+            supports_interactive=True,
+            custom_options={
+                'map_projection': 'mercator',
+                'legend_position': 'right',
+                'boundary_style': 'solid'
+            }
+        ))
+        
+        self.register_chart_type(ChartType(
+            name='marker_map',
+            category='geographic',
+            description='Point-based map with customizable markers',
+            required_parameters=['data', 'latitude_column', 'longitude_column'],
+            optional_parameters={
+                'value_column': None,
+                'label_column': None,
+                'title': '',
+                'map_style': 'open-street-map',
+                'zoom_level': 10
+            },
+            supports_interactive=True,
+            custom_options={
+                'marker_style': 'circle',
+                'popup_content': True,
+                'cluster_markers': False
+            }
+        ))
+        
+        self.register_chart_type(ChartType(
+            name='3d_map',
+            category='geographic',
+            description='Three-dimensional elevation visualization',
+            required_parameters=['data', 'latitude_column', 'longitude_column', 'elevation_column'],
+            optional_parameters={
+                'title': '',
+                'view_angle': 45,
+                'elevation_scale': 1.0
+            },
+            supports_3d=True,
+            custom_options={
+                'surface_type': 'triangulation',
+                'color_map': 'terrain',
+                'axis_labels': True
+            }
+        ))
+        
+        self.register_chart_type(ChartType(
+            name='heatmap_map',
+            category='geographic',
+            description='Density and intensity heatmap',
+            required_parameters=['data', 'latitude_column', 'longitude_column', 'value_column'],
+            optional_parameters={
+                'title': '',
+                'grid_size': 50,
+                'blur_radius': 0.5
+            },
+            supports_interactive=True,
+            custom_options={
+                'color_gradient': 'blue_to_red',
+                'intensity_scale': 'logarithmic',
+                'smoothing': True
+            }
+        ))
+        
+        self.register_chart_type(ChartType(
+            name='cluster_map',
+            category='geographic',
+            description='Clustered point data visualization',
+            required_parameters=['data', 'latitude_column', 'longitude_column'],
+            optional_parameters={
+                'cluster_column': None,
+                'label_column': None,
+                'title': '',
+                'max_cluster_radius': 80
+            },
+            supports_interactive=True,
+            custom_options={
+                'cluster_algorithm': 'kmeans',
+                'cluster_colors': True,
+                'expand_on_click': True
+            }
+        ))
+        
+        self.register_chart_type(ChartType(
+            name='flow_map',
+            category='geographic',
+            description='Movement and connection flow visualization',
+            required_parameters=['data', 'origin_lat_column', 'origin_lon_column', 
+                              'dest_lat_column', 'dest_lon_column'],
+            optional_parameters={
+                'flow_value_column': None,
+                'title': ''
+            },
+            supports_interactive=True,
+            custom_options={
+                'flow_style': 'curved',
+                'arrow_heads': True,
+                'flow_colors': True
+            }
+        ))
+        
+        # Statistical Chart Types
+        self.register_chart_type(ChartType(
+            name='bar_chart',
+            category='statistical',
+            description='Bar chart for categorical data comparison',
+            required_parameters=['data', 'x_column', 'y_column'],
+            optional_parameters={
+                'title': '',
+                'orientation': 'vertical',
+                'color': 'steelblue'
+            },
+            custom_options={
+                'bar_width': 0.8,
+                'error_bars': False,
+                'stacked': False
+            }
+        ))
+        
+        self.register_chart_type(ChartType(
+            name='line_chart',
+            category='statistical',
+            description='Line chart for trend visualization',
+            required_parameters=['data', 'x_column', 'y_column'],
+            optional_parameters={
+                'title': '',
+                'line_style': '-',
+                'markers': False
+            },
+            custom_options={
+                'smooth_lines': False,
+                'confidence_interval': False,
+                'multiple_lines': False
+            }
+        ))
+        
+        self.register_chart_type(ChartType(
+            name='scatter_plot',
+            category='statistical',
+            description='Scatter plot for correlation analysis',
+            required_parameters=['data', 'x_column', 'y_column'],
+            optional_parameters={
+                'title': '',
+                'color_column': None,
+                'size_column': None
+            },
+            custom_options={
+                'trend_line': False,
+                'regression': False,
+                'density_contours': False
+            }
+        ))
+        
+        # Temporal Chart Types
+        self.register_chart_type(ChartType(
+            name='time_series',
+            category='temporal',
+            description='Time series visualization',
+            required_parameters=['data', 'time_column', 'value_column'],
+            optional_parameters={
+                'title': '',
+                'frequency': 'daily',
+                'rolling_window': None
+            },
+            custom_options={
+                'seasonal_decomposition': False,
+                'forecast': False,
+                'anomaly_detection': False
+            }
+        ))
+        
+        # Comparative Chart Types
+        self.register_chart_type(ChartType(
+            name='comparison_chart',
+            category='comparative',
+            description='Side-by-side comparison visualization',
+            required_parameters=['data', 'comparison_column', 'value_column'],
+            optional_parameters={
+                'title': '',
+                'chart_type': 'grouped_bar',
+                'baseline': None
+            },
+            custom_options={
+                'statistical_test': False,
+                'effect_size': False,
+                'confidence_intervals': True
+            }
+        ))
+    
+    def register_chart_type(self, chart_type: ChartType):
+        """
+        Register a new chart type.
+        
+        Args:
+            chart_type: ChartType object to register
+        """
+        self.chart_types[chart_type.name] = chart_type
+        log.info(f"Registered chart type: {chart_type.name}")
+    
+    def get_chart_type(self, chart_type_name: str) -> Optional[ChartType]:
+        """
+        Get a chart type by name.
+        
+        Args:
+            chart_type_name: Name of the chart type
+            
+        Returns:
+            ChartType object or None if not found
+        """
+        return self.chart_types.get(chart_type_name)
+    
+    def list_chart_types(self, category: Optional[str] = None) -> List[str]:
+        """
+        List available chart types.
+        
+        Args:
+            category: Filter by category
+            
+        Returns:
+            List of chart type names
+        """
+        if category:
+            return [name for name, chart_type in self.chart_types.items() 
+                   if chart_type.category == category]
+        return list(self.chart_types.keys())
+    
+    def get_chart_categories(self) -> List[str]:
+        """Get list of available chart categories."""
+        categories = set(chart_type.category for chart_type in self.chart_types.values())
+        return sorted(list(categories))
+    
+    def create_chart(self, chart_type_name: str, **kwargs) -> Optional[Figure]:
+        """
+        Create a chart using the specified chart type.
+
+        Parameters
+        ----------
+        chart_type_name : str
+            Name of the chart type (must exist in the registry).
+        **kwargs
+            Parameters for the chart; must include every entry in the chart
+            type's ``required_parameters``.
+
+        Returns
+        -------
+        matplotlib.figure.Figure
+
+        Raises
+        ------
+        UnknownChartTypeError
+            If ``chart_type_name`` isn't registered.
+        ChartParameterError
+            If required parameters are missing.
+        ChartCreationError
+            If the chart type has no create function, or the create function
+            raised.
+        """
+        chart_type = self.get_chart_type(chart_type_name)
+        if not chart_type:
+            log.error("Chart type not found: %s", chart_type_name)
+            raise UnknownChartTypeError(
+                f"chart type {chart_type_name!r} not in registry; "
+                f"known: {sorted(self.chart_types.keys())}"
+            )
+
+        # Validate required parameters
+        missing_params = [param for param in chart_type.required_parameters
+                         if param not in kwargs]
+        if missing_params:
+            log.error("Missing required parameters for %s: %s", chart_type_name, missing_params)
+            raise ChartParameterError(
+                f"chart type {chart_type_name!r} missing required params: {missing_params}"
+            )
+
+        # Apply default values for optional parameters
+        for param, default_value in chart_type.optional_parameters.items():
+            if param not in kwargs:
+                kwargs[param] = default_value
+
+        if chart_type.create_function is None:
+            raise ChartCreationError(
+                f"chart type {chart_type_name!r} has no create function registered; "
+                f"call add_chart_creator() first"
+            )
+
+        try:
+            return chart_type.create_function(**kwargs)
+        except Exception as e:
+            log.error("Create function for %s raised: %s", chart_type_name, e)
+            raise ChartCreationError(
+                f"create function for chart type {chart_type_name!r} failed"
+            ) from e
+    
+    def add_chart_creator(self, chart_type_name: str, create_function: Callable):
+        """
+        Add or update the create function for a chart type.
+        
+        Args:
+            chart_type_name: Name of the chart type
+            create_function: Function to create the chart
+        """
+        chart_type = self.get_chart_type(chart_type_name)
+        if chart_type:
+            chart_type.create_function = create_function
+            log.info(f"Updated create function for chart type: {chart_type_name}")
+        else:
+            log.warning(f"Chart type not found: {chart_type_name}")
+    
+    def validate_chart_parameters(self, chart_type_name: str, **kwargs) -> bool:
+        """Validate parameters for a chart type without creating the chart.
+
+        Parameters
+        ----------
+        chart_type_name : str
+        **kwargs
+            Parameters to validate.
+
+        Returns
+        -------
+        bool
+            True iff required params present AND any custom ``validate_function``
+            returns truthy.
+
+        Raises
+        ------
+        UnknownChartTypeError
+            If ``chart_type_name`` isn't registered. (Legitimately-missing
+            validation returns False; unknown chart type is a caller error.)
+        ChartParameterError
+            If the custom validate function raised.
+        """
+        chart_type = self.get_chart_type(chart_type_name)
+        if not chart_type:
+            raise UnknownChartTypeError(
+                f"chart type {chart_type_name!r} not in registry"
+            )
+
+        # Check required parameters
+        missing_params = [param for param in chart_type.required_parameters
+                         if param not in kwargs]
+        if missing_params:
+            log.warning("Missing required parameters for %s: %s", chart_type_name, missing_params)
+            return False
+
+        if chart_type.validate_function is None:
+            return True
+
+        try:
+            return bool(chart_type.validate_function(**kwargs))
+        except (ValueError, TypeError, KeyError, AttributeError) as e:
+            log.error("validate function for %s raised: %s", chart_type_name, e)
+            raise ChartParameterError(
+                f"validate_function for chart type {chart_type_name!r} raised"
+            ) from e
+    
+    def get_chart_help(self, chart_type_name: str) -> Dict[str, Any]:
+        """
+        Get help information for a chart type.
+        
+        Args:
+            chart_type_name: Name of the chart type
+            
+        Returns:
+            Dictionary with help information
+        """
+        chart_type = self.get_chart_type(chart_type_name)
+        if not chart_type:
+            return {}
+        
+        return {
+            'name': chart_type.name,
+            'category': chart_type.category,
+            'description': chart_type.description,
+            'required_parameters': chart_type.required_parameters,
+            'optional_parameters': chart_type.optional_parameters,
+            'custom_options': chart_type.custom_options,
+            'supports_interactive': chart_type.supports_interactive,
+            'supports_3d': chart_type.supports_3d,
+            'supports_animation': chart_type.supports_animation
+        }
+    
+    def export_chart_type_config(self, chart_type_name: str, output_path: str):
+        """
+        Export chart type configuration to a file.
+        
+        Args:
+            chart_type_name: Name of the chart type to export
+            output_path: Path to export the configuration
+        """
+        chart_type = self.get_chart_type(chart_type_name)
+        if not chart_type:
+            log.warning(f"Chart type not found: {chart_type_name}")
+            return
+        
+        try:
+            # Convert to dict, excluding function references
+            config_data = {
+                'name': chart_type.name,
+                'category': chart_type.category,
+                'description': chart_type.description,
+                'required_parameters': chart_type.required_parameters,
+                'optional_parameters': chart_type.optional_parameters,
+                'supports_interactive': chart_type.supports_interactive,
+                'supports_3d': chart_type.supports_3d,
+                'supports_animation': chart_type.supports_animation,
+                'default_width': chart_type.default_width,
+                'default_height': chart_type.default_height,
+                'default_dpi': chart_type.default_dpi,
+                'custom_options': chart_type.custom_options
+            }
+            
+            with open(output_path, 'w') as f:
+                yaml.dump(config_data, f, default_flow_style=False)
+            
+            log.info(f"Exported chart type configuration to: {output_path}")
+        except Exception as e:
+            log.error(f"Failed to export chart type configuration: {e}")
+
+# Global instance
+chart_registry = ChartTypeRegistry()
+
+def get_chart_registry() -> ChartTypeRegistry:
+    """Get the global chart type registry."""
+    return chart_registry
+
+def register_chart_type(chart_type: ChartType):
+    """Register a new chart type."""
+    chart_registry.register_chart_type(chart_type)
+
+def create_chart(chart_type_name: str, **kwargs) -> Optional[Figure]:
+    """Create a chart using the specified chart type."""
+    return chart_registry.create_chart(chart_type_name, **kwargs)
