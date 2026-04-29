@@ -68,7 +68,7 @@ class SpatialDataError(RuntimeError):
 
 # Type aliases
 FilePath = Union[str, Path]
-GeoDataFrame = gpd.GeoDataFrame
+GeoDataFrame = gpd.GeoDataFrame if gpd is not None else None
 
 # ---------------------------------------------------------------------------
 # Congressional District number by TIGER year
