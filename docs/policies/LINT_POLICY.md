@@ -9,7 +9,7 @@ See [LINT_RATCHET_PLAN.md](LINT_RATCHET_PLAN.md) for the phased rollout strategy
 
 ## Why CI Lint Keeps Failing When Local Checks Pass
 
-Four root causes account for nearly every "passed locally, failed in CI" lint or release incident:
+Five root causes account for nearly every "passed locally, failed in CI" lint or release incident:
 
 ### 1. The CONTRIBUTING.md pre-PR checklist was incomplete
 
@@ -53,6 +53,31 @@ Checklist addition for release PRs:
 # Confirm version in pyproject.toml matches the intended tag before merging
 grep '^version' pyproject.toml
 ```
+
+### 5. Bypassing the canonical release script
+
+`scripts/release_manager.py` atomically updates all six version-bearing files
+(`pyproject.toml`, `setup.py`, `siege_utilities/__init__.py`, `docs/conf.py`,
+`docs/source/conf.py`, `docs/source/conf_fast.py`) in a single `--set-version` or
+`--bump` call. When version bumps are done file-by-file across multiple PRs instead,
+at least one file is always missed. CI's "Verify version consistency" step then fails
+every release attempt until all six are aligned.
+
+**Fix:** always use the release script for version management:
+
+```bash
+# Check current consistency
+python scripts/release_manager.py --check
+
+# Bump (updates all 6 files at once)
+python scripts/release_manager.py --bump patch
+
+# Or set an explicit version
+python scripts/release_manager.py --set-version 3.13.2
+```
+
+The `--release` workflow does the full 12-step dance (version bump → tests → build →
+merge develop → tag → PyPI → GitHub Release). Use `--dry-run` to preview.
 
 ---
 
