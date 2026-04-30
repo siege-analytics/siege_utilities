@@ -89,13 +89,14 @@ Run these in order. Stop and fix before continuing if any step fails.
 # Phase 1 — runtime-safety errors on changed files (matches CI lint-ratchet-phase1)
 flake8 siege_utilities --count --select=E9,F63,F7,F82 --show-source --statistics
 
-# Phases 2-4 — hygiene + module ratchet + full-repo fingerprint (matches CI lint-ratchet-phases2-4)
+# Phases 2-4 — hygiene + module ratchet + full-repo fingerprint
+# (local aggregate; CI runs each phase separately with explicit --base-sha/--head-sha)
 python scripts/check_lint_ratchet.py --phase phase2
 python scripts/check_lint_ratchet.py --phase phase3
 python scripts/check_lint_ratchet.py --phase phase4
 ```
 
-Or run all phases in one call (the script accepts `all`):
+Or run all phases in one call:
 
 ```bash
 python scripts/check_lint_ratchet.py --phase all
@@ -139,7 +140,7 @@ easy to identify in git history.
 
 | Phase | Rules enforced | Scope |
 |-------|---------------|-------|
-| 1 | `E722, F601, F403, F405` | Files touched by the PR |
+| 1 | `E9, F63, F7, F82` | Full package (`flake8 siege_utilities --select=E9,F63,F7,F82`) |
 | 2 | `F401, F841, F541` | Files touched by the PR |
-| 3 | All of phase 1 + 2 | Entire domain (`siege_utilities/geo/`, `config/`, `files/`) if any file in domain is touched |
-| 4 | All of phase 1 + 2 | Full repo, fingerprint-matched against baseline |
+| 3 | `E722, F601, F403, F405` + phase 2 | Entire domain (`siege_utilities/geo/`, `config/`, `files/`) if any file in domain is touched |
+| 4 | `E722, F601, F403, F405` + phase 2 | Full repo, fingerprint-matched against baseline |
