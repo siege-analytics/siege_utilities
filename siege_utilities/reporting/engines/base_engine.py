@@ -36,9 +36,16 @@ except ImportError:
     pd = None
     np = None
 
-from reportlab.platypus import Image, Paragraph, Spacer
-from reportlab.lib.units import inch
-from reportlab.lib.styles import getSampleStyleSheet
+try:
+    from reportlab.platypus import Image, Paragraph, Spacer
+    from reportlab.lib.units import inch
+    from reportlab.lib.styles import getSampleStyleSheet
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+    Image = Paragraph = Spacer = None
+    inch = None
+    getSampleStyleSheet = None
 
 log = logging.getLogger(__name__)
 

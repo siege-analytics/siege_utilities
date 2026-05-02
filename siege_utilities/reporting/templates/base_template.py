@@ -8,16 +8,30 @@ import yaml
 from pathlib import Path
 import requests
 from hashlib import md5
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, PageBreak
-from reportlab.lib.units import inch, cm, mm, pica
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus.flowables import Flowable
-from reportlab.platypus import PageTemplate, Frame
-from reportlab.lib.colors import HexColor
+try:
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, PageBreak
+    from reportlab.lib.units import inch, cm, mm, pica
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.platypus.flowables import Flowable
+    from reportlab.platypus import PageTemplate, Frame
+    from reportlab.lib.colors import HexColor
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+    getSampleStyleSheet = ParagraphStyle = None
+    TA_LEFT = TA_CENTER = TA_RIGHT = None
+    pdfmetrics = None
+    TTFont = None
+    SimpleDocTemplate = Paragraph = Spacer = Image = PageBreak = None
+    inch = cm = mm = pica = None
+    letter = A4 = None
+    Flowable = None
+    PageTemplate = Frame = None
+    HexColor = None
 from typing import Dict, Any, Optional, List
 
 # Import PIL for image dimension auto-calculation
