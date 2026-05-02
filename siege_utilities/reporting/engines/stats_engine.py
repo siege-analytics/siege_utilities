@@ -2,6 +2,8 @@
 Statistical chart mixins — heatmap, scatter plot, and text heatmap.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Dict, Any, Union
 

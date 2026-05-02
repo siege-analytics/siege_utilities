@@ -2,6 +2,8 @@
 Bar, line, pie, and proportional text bar chart mixins.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Dict, List, Any, Union
 

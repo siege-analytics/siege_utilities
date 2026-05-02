@@ -2,6 +2,8 @@
 Map chart mixins — choropleth, marker, 3D, heatmap, cluster, flow, and bivariate maps.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from pathlib import Path

@@ -75,7 +75,7 @@ class BaseChartEngine:
         self.output_dir = Path(output_dir) if output_dir is not None else Path.home() / ".siege_utilities"
         self.max_chart_width = max_chart_width
         self.max_chart_height = max_chart_height
-        self.styles = getSampleStyleSheet()
+        self.styles = getSampleStyleSheet() if REPORTLAB_AVAILABLE else None
         self._setup_default_colors()
         self._setup_plotting_style()
 
