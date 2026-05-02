@@ -54,7 +54,12 @@ except ImportError:
     pd = None
     np = None
 
-from reportlab.platypus import Image
+try:
+    from reportlab.platypus import Image
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+    Image = None
 
 log = logging.getLogger(__name__)
 
