@@ -12,6 +12,12 @@ backend by routing the query through ``engine.query(sql)``:
 - ``DuckDBEngine`` — ``postgres_scanner`` extension (ATTACH plus query)
 - ``PandasEngine`` — falls back to SQLAlchemy + pandas.read_sql
 
+**Parameter binding:** Readers pass ``params=`` to ``engine.query()``.
+This works correctly on ``PostGISEngine`` (psycopg) and ``PandasEngine``
+(SQLAlchemy). ``SparkEngine`` and ``DuckDBEngine`` currently ignore the
+``params`` kwarg — callers targeting those backends must apply filters
+through the engine's own mechanisms rather than relying on these helpers.
+
 Callers hand an already-configured engine to these readers; engine
 construction (connection strings, Spark sessions, DuckDB ATTACH) stays
 the caller's responsibility.
@@ -73,7 +79,10 @@ def seats(
         params.append(jurisdiction_code)
 
     where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
-    sql = f"SELECT * FROM {_qualified('seats')} {where} ORDER BY office_code, state_code, district_label, senate_class"
+    sql = (
+        f"SELECT * FROM {_qualified('seats')} {where}"
+        " ORDER BY office_code, state_code, district_label, senate_class, id"
+    )
     return engine.query(sql, params=params)
 
 
@@ -115,7 +124,7 @@ def office_terms(
         params.extend([as_of_date, as_of_date])
 
     where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
-    sql = f"SELECT * FROM {_qualified('office_terms')} {where} ORDER BY term_start DESC"
+    sql = f"SELECT * FROM {_qualified('office_terms')} {where} ORDER BY term_start DESC, id"
     return engine.query(sql, params=params)
 
 
@@ -144,7 +153,10 @@ def congressional_terms(
         params.append(bool(is_presidential))
 
     where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
-    sql = f"SELECT * FROM {_qualified('congressional_terms')} {where} ORDER BY congress_number DESC"
+    sql = (
+        f"SELECT * FROM {_qualified('congressional_terms')} {where}"
+        " ORDER BY congress_number DESC, office_term_id"
+    )
     return engine.query(sql, params=params)
 
 
@@ -172,7 +184,10 @@ def redistricting_plans(
         clauses.append("effective_to_date IS NULL")
 
     where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
-    sql = f"SELECT * FROM {_qualified('redistricting_plans')} {where} ORDER BY effective_from_date DESC"
+    sql = (
+        f"SELECT * FROM {_qualified('redistricting_plans')} {where}"
+        " ORDER BY effective_from_date DESC, id"
+    )
     return engine.query(sql, params=params)
 
 
@@ -193,7 +208,10 @@ def plan_district_assignments(
         params.append(seat_id)
 
     where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
-    sql = f"SELECT * FROM {_qualified('plan_district_assignments')} {where} ORDER BY plan_id, seat_id"
+    sql = (
+        f"SELECT * FROM {_qualified('plan_district_assignments')} {where}"
+        " ORDER BY plan_id, seat_id, id"
+    )
     return engine.query(sql, params=params)
 
 
@@ -222,7 +240,10 @@ def state_election_calendars(
         params.append(int(election_year))
 
     where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
-    sql = f"SELECT * FROM {_qualified('state_election_calendars')} {where} ORDER BY general_date DESC"
+    sql = (
+        f"SELECT * FROM {_qualified('state_election_calendars')} {where}"
+        " ORDER BY general_date DESC, id"
+    )
     return engine.query(sql, params=params)
 
 

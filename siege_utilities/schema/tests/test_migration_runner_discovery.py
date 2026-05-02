@@ -77,9 +77,9 @@ def test_validate_identifier_rejects_invalid():
 def test_validate_identifier_accepts_reserved_words():
     """Reserved SQL words match the identifier regex and pass validation.
 
-    Callers must not use reserved words as tracking schema/table names
-    without quoting. The runner's _q() helper does not currently
-    double-quote identifiers — see Item 4 in CodeRabbit review #381.
+    _validate_identifier is intentionally permissive about reserved words —
+    _q() double-quotes all identifiers before interpolation, making reserved
+    words safe to use as tracking schema/table names.
     """
     _validate_identifier("order", "test")
     _validate_identifier("table", "test")

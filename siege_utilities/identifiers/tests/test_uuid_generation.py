@@ -46,6 +46,29 @@ def test_uuid5_from_seed_rejects_empty_seed():
         uuid5_from_seed(THING_NS, "")
 
 
+def test_uuid5_from_seed_rejects_whitespace_only_seed():
+    with pytest.raises(ValueError, match="seed"):
+        uuid5_from_seed(THING_NS, "   ")
+    with pytest.raises(ValueError, match="seed"):
+        uuid5_from_seed(THING_NS, "\t\n")
+
+
+def test_attestation_uuid_rejects_whitespace_only_inputs():
+    for bad_artifact, bad_parser, bad_values in [
+        ("   ", "v1", "h"),
+        ("a", "   ", "h"),
+        ("a", "v1", "   "),
+    ]:
+        with pytest.raises(ValueError):
+            attestation_uuid(
+                namespace=ATTESTATION_NS,
+                source_artifact_hash=bad_artifact,
+                record_line=1,
+                parser_version=bad_parser,
+                values_hash=bad_values,
+            )
+
+
 def test_attestation_uuid_is_idempotent_same_parser():
     a = attestation_uuid(
         namespace=ATTESTATION_NS,

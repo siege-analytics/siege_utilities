@@ -35,8 +35,8 @@ def uuid5_from_seed(namespace: UUID, seed: str) -> UUID:
     Raises:
         ValueError: if ``seed`` is empty.
     """
-    if not seed:
-        raise ValueError("UUID5 seed must be non-empty")
+    if not seed or not seed.strip():
+        raise ValueError("UUID5 seed must be non-empty (whitespace-only is not valid)")
     return uuid5(namespace, seed)
 
 
@@ -78,12 +78,12 @@ def attestation_uuid(
     Raises:
         ValueError: if any of the non-int inputs is empty.
     """
-    if not source_artifact_hash:
-        raise ValueError("source_artifact_hash is required")
-    if not parser_version:
-        raise ValueError("parser_version is required")
-    if not values_hash:
-        raise ValueError("values_hash is required")
+    if not source_artifact_hash or not source_artifact_hash.strip():
+        raise ValueError("source_artifact_hash is required and must not be whitespace-only")
+    if not parser_version or not parser_version.strip():
+        raise ValueError("parser_version is required and must not be whitespace-only")
+    if not values_hash or not values_hash.strip():
+        raise ValueError("values_hash is required and must not be whitespace-only")
     seed = ":".join([
         _esc_colon(source_artifact_hash),
         str(record_line),

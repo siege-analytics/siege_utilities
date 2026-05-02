@@ -86,9 +86,10 @@ def _runner(pg_dsn: str, migrations_dir: Path, tracking_schema: str) -> Migratio
 def test_apply_all_on_empty_tracking_creates_tracking_then_applies(
     pg_dsn, migrations_dir, tracking_schema
 ):
-    _write(migrations_dir, "V0001__create_thing.sql", textwrap.dedent("""\
-        CREATE SCHEMA IF NOT EXISTS sut_target;
-        CREATE TABLE sut_target.thing (id INT PRIMARY KEY);
+    target_schema = f"sut_target_{secrets.token_hex(6)}"
+    _write(migrations_dir, "V0001__create_thing.sql", textwrap.dedent(f"""\
+        CREATE SCHEMA IF NOT EXISTS {target_schema};
+        CREATE TABLE {target_schema}.thing (id INT PRIMARY KEY);
         """))
     runner = _runner(pg_dsn, migrations_dir, tracking_schema)
 
@@ -105,12 +106,20 @@ def test_apply_all_on_empty_tracking_creates_tracking_then_applies(
             )
             rows = [r[0] for r in cur.fetchall()]
             assert rows == ["0001"]
-            cur.execute("SELECT to_regclass('sut_target.thing')")
-            assert cur.fetchone()[0] == "sut_target.thing"
+            cur.execute(
+                psycopg_sql.SQL("SELECT to_regclass({})").format(
+                    psycopg_sql.Literal(f"{target_schema}.thing")
+                )
+            )
+            assert cur.fetchone()[0] == f"{target_schema}.thing"
     finally:
         with psycopg.connect(pg_dsn) as conn:
             with conn.cursor() as cur:
-                cur.execute("DROP SCHEMA IF EXISTS sut_target CASCADE")
+                cur.execute(
+                    psycopg_sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
+                        psycopg_sql.Identifier(target_schema)
+                    )
+                )
             conn.commit()
 
 

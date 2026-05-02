@@ -131,6 +131,10 @@ database = [
     "psycopg2-binary>=2.9.0",
     "sqlalchemy>=1.4.0",
 ]
+# Schema migration runner — psycopg v3 (distinct package from psycopg2)
+schema = [
+    "psycopg[binary]>=3.1.0",
+]
 credentials = [
     # 1Password CLI integration (requires 1Password CLI to be installed separately)
     # macOS Keychain integration (built-in on macOS)

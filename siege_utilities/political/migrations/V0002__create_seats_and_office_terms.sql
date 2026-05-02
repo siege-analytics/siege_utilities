@@ -51,8 +51,6 @@ CREATE TABLE political.seats (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    -- Seat identity is the natural tuple.
-    UNIQUE (office_code, state_code, district_label, senate_class)
 );
 
 COMMENT ON TABLE political.seats IS
@@ -61,6 +59,18 @@ COMMENT ON TABLE political.seats IS
 CREATE TRIGGER seats_touch_updated_at
     BEFORE UPDATE ON political.seats
     FOR EACH ROW EXECUTE FUNCTION political._touch_updated_at();
+
+-- Seat natural-key uniqueness. A plain UNIQUE (office_code, state_code, district_label,
+-- senate_class) would allow duplicates when state_code or senate_class is NULL because
+-- PostgreSQL treats NULL as distinct in UNIQUE indexes. COALESCE normalizes NULLs to
+-- sentinel values ('', -1) so every seat gets exactly one row.
+CREATE UNIQUE INDEX uq_seats_natural_key
+    ON political.seats (
+        office_code,
+        COALESCE(state_code, ''),
+        district_label,
+        COALESCE(senate_class, -1)
+    );
 
 CREATE INDEX idx_seats_office_state
     ON political.seats (office_code, state_code);
@@ -120,9 +130,10 @@ CREATE TABLE political.office_terms (
     -- as incumbent_agent_id.
     produced_by_election_id UUID NULL,
 
-    -- Chain for same seat
-    next_term_id UUID NULL
-        REFERENCES political.office_terms (id) ON DELETE SET NULL,
+    -- Chain for same seat. The compound FK (next_term_id, seat_id) references
+    -- the UNIQUE (id, seat_id) on this table — enforcing that next_term_id,
+    -- when set, must belong to the same seat. NULL next_term_id is exempt.
+    next_term_id UUID NULL,
 
     notes TEXT NOT NULL DEFAULT '',
 
@@ -133,6 +144,15 @@ CREATE TABLE political.office_terms (
     -- below) via composite FK.
     UNIQUE (id, seat_id)
 );
+
+-- Enforce the same-seat invariant on next_term_id. The compound FK references
+-- UNIQUE (id, seat_id) on this same table: when next_term_id is not NULL it must
+-- point at a row whose seat_id matches the current row's seat_id.
+ALTER TABLE political.office_terms
+    ADD CONSTRAINT fk_office_terms_next_same_seat
+        FOREIGN KEY (next_term_id, seat_id)
+        REFERENCES political.office_terms (id, seat_id)
+        ON DELETE SET NULL;
 
 COMMENT ON TABLE political.office_terms IS
     'Generic service period on a Seat. Handles odd-term offices (2-year NH/VT gov, 4-year most states, 5-year some appointed positions, 3-year administrator rotations, mid-term fills from specials).';

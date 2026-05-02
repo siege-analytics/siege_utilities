@@ -315,6 +315,12 @@ class MigrationRunner:
         """Apply a single migration + record it in the tracking table in one transaction."""
         sql_text = migration.path.read_text(encoding="utf-8")
         apply_time_checksum = hashlib.sha256(sql_text.encode("utf-8")).hexdigest()
+        if apply_time_checksum != migration.checksum:
+            raise RuntimeError(
+                f"Migration {migration.version!r} changed on disk between discovery and "
+                f"apply time (expected {migration.checksum[:8]}…, "
+                f"got {apply_time_checksum[:8]}…). Refusing to apply."
+            )
         with psycopg.connect(self._dsn) as conn:
             with conn.transaction():
                 with conn.cursor() as cur:
