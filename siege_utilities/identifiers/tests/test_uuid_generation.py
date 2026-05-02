@@ -165,3 +165,31 @@ def test_attestation_uuid_uses_supplied_namespace():
         values_hash="deadbeef",
     )
     assert actual == expected
+
+
+def test_attestation_uuid_colon_delimiter_collision():
+    """Document known limitation: ':' in component values can cause UUID collisions.
+
+    The current seed format ``f"{artifact}:{line}:{parser}:{values}"`` is
+    ambiguous when any component contains the ':' separator. These two
+    distinct attestations produce the same seed and therefore the same UUID.
+
+    Fix pending Dheeraj's decision (Item 1 in CodeRabbit review #381):
+    length-prefix, null-byte delimiter, or ':' escaping.
+    """
+    uuid_a = attestation_uuid(
+        namespace=ATTESTATION_NS,
+        source_artifact_hash="abc",
+        record_line=1,
+        parser_version="v1.0:patched",  # contains ':'
+        values_hash="xyz",
+    )
+    uuid_b = attestation_uuid(
+        namespace=ATTESTATION_NS,
+        source_artifact_hash="abc",
+        record_line=1,
+        parser_version="v1.0",
+        values_hash="patched:xyz",  # ':' shifted to next component
+    )
+    # Both produce seed "abc:1:v1.0:patched:xyz" — collision documents the bug.
+    assert uuid_a == uuid_b

@@ -35,7 +35,7 @@ def derive_root(seed: str) -> UUID:
     Raises:
         ValueError: if ``seed`` is empty.
     """
-    if not seed:
+    if not seed or not seed.strip():
         raise ValueError("root seed must be non-empty")
     return uuid5(NAMESPACE_URL, seed)
 
@@ -65,6 +65,6 @@ def derive_sub_namespace(root: UUID, name: str) -> UUID:
     Raises:
         ValueError: if ``name`` is empty.
     """
-    if not name:
+    if not name or not name.strip():
         raise ValueError("sub-namespace name must be non-empty")
     return uuid5(root, name)

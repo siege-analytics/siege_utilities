@@ -14,6 +14,11 @@ def test_empty_input_returns_empty():
     assert normalize_name_v1(None) == ""  # type: ignore[arg-type]
 
 
+def test_whitespace_only_input_returns_empty():
+    assert normalize_name_v1("   ") == ""
+    assert normalize_name_v1("\t\n") == ""
+
+
 def test_casefold_lowercases():
     assert normalize_name_v1("JOHN SMITH") == "john smith"
 

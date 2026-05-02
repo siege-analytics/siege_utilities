@@ -24,6 +24,9 @@ Typical usage from a consumer project::
     # generate a deterministic person UUID from a canonical seed:
     pid = uuid5_from_seed(PERSON_NS, "FEC_CAND:H4VA07136")
 
+    # derive the attestation sub-namespace (like any other sub-namespace):
+    ATTESTATION_NS = derive_sub_namespace(ROOT, "attestation")
+
     # generate an idempotent attestation UUID:
     aid = attestation_uuid(
         namespace=ATTESTATION_NS,
@@ -48,10 +51,10 @@ from siege_utilities.identifiers.uuid_generation import (
 )
 
 __all__ = [
+    "NORMALIZER_VERSIONS",
+    "attestation_uuid",
     "derive_root",
     "derive_sub_namespace",
-    "uuid5_from_seed",
-    "attestation_uuid",
     "normalize_name_v1",
-    "NORMALIZER_VERSIONS",
+    "uuid5_from_seed",
 ]

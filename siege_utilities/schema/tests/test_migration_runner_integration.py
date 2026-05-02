@@ -20,8 +20,10 @@ import pytest
 
 try:
     import psycopg
+    from psycopg import sql as psycopg_sql
 except ImportError:
     psycopg = None  # type: ignore[assignment]
+    psycopg_sql = None  # type: ignore[assignment]
 
 from siege_utilities.schema.migration_runner import (
     MigrationRunner,
@@ -51,7 +53,11 @@ def tracking_schema(pg_dsn: str):
     yield schema
     with psycopg.connect(pg_dsn) as conn:
         with conn.cursor() as cur:
-            cur.execute(f"DROP SCHEMA IF EXISTS {schema} CASCADE")
+            cur.execute(
+                psycopg_sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
+                    psycopg_sql.Identifier(schema)
+                )
+            )
         conn.commit()
 
 
@@ -89,17 +95,23 @@ def test_apply_all_on_empty_tracking_creates_tracking_then_applies(
     applied = runner.apply_all()
 
     assert [m.version for m in applied] == ["0001"]
-    # Tracking table exists and has the row.
-    with psycopg.connect(pg_dsn) as conn, conn.cursor() as cur:
-        cur.execute(f"SELECT version FROM {tracking_schema}._schema_migrations ORDER BY version")
-        rows = [r[0] for r in cur.fetchall()]
-        assert rows == ["0001"]
-        # Target table also exists.
-        cur.execute("SELECT to_regclass('sut_target.thing')")
-        assert cur.fetchone()[0] == "sut_target.thing"
-        # Clean up the target.
-        cur.execute("DROP SCHEMA IF EXISTS sut_target CASCADE")
-        conn.commit()
+    try:
+        with psycopg.connect(pg_dsn) as conn, conn.cursor() as cur:
+            cur.execute(
+                psycopg_sql.SQL("SELECT version FROM {}.{} ORDER BY version").format(
+                    psycopg_sql.Identifier(tracking_schema),
+                    psycopg_sql.Identifier("_schema_migrations"),
+                )
+            )
+            rows = [r[0] for r in cur.fetchall()]
+            assert rows == ["0001"]
+            cur.execute("SELECT to_regclass('sut_target.thing')")
+            assert cur.fetchone()[0] == "sut_target.thing"
+    finally:
+        with psycopg.connect(pg_dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute("DROP SCHEMA IF EXISTS sut_target CASCADE")
+            conn.commit()
 
 
 def test_apply_all_is_idempotent_second_call_applies_nothing(
@@ -156,7 +168,7 @@ def test_failed_migration_rolls_back_and_is_not_recorded(
     _write(migrations_dir, "V0003__should_not_run.sql", "SELECT 1;")
     runner = _runner(pg_dsn, migrations_dir, tracking_schema)
 
-    with pytest.raises(Exception):
+    with pytest.raises(psycopg.Error):
         runner.apply_all()
 
     applied = runner.applied_migrations()

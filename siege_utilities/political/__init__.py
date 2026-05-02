@@ -22,6 +22,8 @@ Django models — per the project principle "ontology → DB → Django last."
 
 from pathlib import Path
 
+from siege_utilities.political import readers  # noqa: F401
+
 
 def schema_migrations_dir() -> Path:
     """Return the path to the raw-SQL migrations directory for this module.
@@ -48,6 +50,4 @@ def schema_migrations_dir() -> Path:
     return Path(__file__).resolve().parent / "migrations"
 
 
-from siege_utilities.political import readers  # noqa: F401
-
-__all__ = ["schema_migrations_dir", "readers"]
+__all__ = ["readers", "schema_migrations_dir"]

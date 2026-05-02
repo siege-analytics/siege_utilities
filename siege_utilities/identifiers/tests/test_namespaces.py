@@ -30,6 +30,13 @@ def test_derive_root_rejects_empty_seed():
         derive_root("")
 
 
+def test_derive_root_rejects_whitespace_only_seed():
+    with pytest.raises(ValueError, match="root seed"):
+        derive_root("   ")
+    with pytest.raises(ValueError, match="root seed"):
+        derive_root("\t\n")
+
+
 def test_derive_sub_namespace_matches_uuid5_from_root():
     root = derive_root("example.com")
     assert derive_sub_namespace(root, "thing") == uuid5(root, "thing")
@@ -55,3 +62,11 @@ def test_derive_sub_namespace_rejects_empty_name():
     root = derive_root("example.com")
     with pytest.raises(ValueError, match="sub-namespace"):
         derive_sub_namespace(root, "")
+
+
+def test_derive_sub_namespace_rejects_whitespace_only_name():
+    root = derive_root("example.com")
+    with pytest.raises(ValueError, match="sub-namespace"):
+        derive_sub_namespace(root, "   ")
+    with pytest.raises(ValueError, match="sub-namespace"):
+        derive_sub_namespace(root, "\t")

@@ -74,6 +74,18 @@ def test_validate_identifier_rejects_invalid():
             _validate_identifier(bad, "test")
 
 
+def test_validate_identifier_accepts_reserved_words():
+    """Reserved SQL words match the identifier regex and pass validation.
+
+    Callers must not use reserved words as tracking schema/table names
+    without quoting. The runner's _q() helper does not currently
+    double-quote identifiers — see Item 4 in CodeRabbit review #381.
+    """
+    _validate_identifier("order", "test")
+    _validate_identifier("table", "test")
+    _validate_identifier("select", "test")
+
+
 def test_migration_status_enum_values():
     assert MigrationStatus.APPLIED.value == "applied"
     assert MigrationStatus.PENDING.value == "pending"
