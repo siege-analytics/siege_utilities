@@ -50,6 +50,9 @@ CREATE TABLE political.redistricting_plans (
 
     CONSTRAINT chk_redistricting_plans_date_order
         CHECK (effective_to_date IS NULL OR effective_from_date <= effective_to_date),
+    CONSTRAINT chk_redistricting_plans_congress_range
+        CHECK ((effective_from_congress IS NULL OR effective_from_congress > 0)
+            AND (effective_to_congress IS NULL OR effective_to_congress > 0)),
     CONSTRAINT chk_redistricting_plans_congress_order
         CHECK (effective_from_congress IS NULL
             OR effective_to_congress IS NULL

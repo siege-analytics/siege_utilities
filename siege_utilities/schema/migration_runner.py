@@ -82,6 +82,8 @@ class MigrationFile:
 
 @dataclasses.dataclass(frozen=True)
 class AppliedMigration:
+    """A migration row read from the tracking table."""
+
     version: str
     description: str
     checksum: str
@@ -90,6 +92,8 @@ class AppliedMigration:
 
 @dataclasses.dataclass(frozen=True)
 class PendingMigration:
+    """A migration file that has not yet been applied to the database."""
+
     version: str
     description: str
     checksum: str
@@ -252,6 +256,14 @@ class MigrationRunner:
         Apply every pending migration in version order.
 
         Returns the list of migrations that were applied during this call.
+
+        **Concurrency:** This method is intended for single-process use.
+        There is a TOCTOU gap between ``pending_migrations()`` and the
+        per-migration apply: a second concurrent caller that sees the same
+        pending set will attempt to apply the same migrations and fail on
+        the ``version`` PRIMARY KEY constraint. Use an external serialization
+        mechanism (OS-level lock file, advisory lock, deploy-time mutex) if
+        concurrent callers are possible.
         """
         applied: list[PendingMigration] = []
         pending = self.pending_migrations()
@@ -271,11 +283,18 @@ class MigrationRunner:
         """
         Apply pending migrations in order, stopping once ``target_version`` is applied.
 
+        Returns an empty list if ``target_version`` is already applied.
         Raises ``ValueError`` if ``target_version`` is not on disk.
+
+        **Concurrency:** Same single-process caveat as :meth:`apply_all`.
         """
         on_disk_versions = [m.version for m in self.discover_migrations()]
         if target_version not in on_disk_versions:
             raise ValueError(f"target_version {target_version!r} not found in migrations dir")
+
+        applied_versions = {m.version for m in self.applied_migrations()}
+        if target_version in applied_versions:
+            return []
 
         self._ensure_tracking_table()
 
@@ -295,6 +314,7 @@ class MigrationRunner:
     def _apply_one(self, migration: PendingMigration) -> None:
         """Apply a single migration + record it in the tracking table in one transaction."""
         sql_text = migration.path.read_text(encoding="utf-8")
+        apply_time_checksum = hashlib.sha256(sql_text.encode("utf-8")).hexdigest()
         with psycopg.connect(self._dsn) as conn:
             with conn.transaction():
                 with conn.cursor() as cur:
@@ -308,7 +328,7 @@ class MigrationRunner:
                         (
                             migration.version,
                             migration.description,
-                            migration.checksum,
+                            apply_time_checksum,
                             datetime.now(timezone.utc),
                         ),
                     )
@@ -331,6 +351,7 @@ class MigrationRunner:
             conn.commit()
 
     def _tracking_table_exists(self, cur) -> bool:
+        """Return True if the tracking table exists in information_schema."""
         cur.execute(
             "SELECT 1 FROM information_schema.tables "
             "WHERE table_schema = %s AND table_name = %s",
@@ -342,11 +363,14 @@ class MigrationRunner:
         """
         Interpolate validated schema / table identifiers into a SQL template.
 
-        Uses ``.format(...)`` safely because the identifiers are validated
-        by :func:`_validate_identifier` at construction time — the
-        interpolation cannot introduce SQL injection.
+        Identifiers are double-quoted so reserved SQL words (e.g. ``order``,
+        ``table``) are safe. Injection is prevented by
+        :func:`_validate_identifier` rejecting any name that contains ``"``
+        or other non-identifier characters.
         """
-        return template.format(schema=self._tracking_schema, table=self._tracking_table)
+        schema = f'"{self._tracking_schema}"'
+        table = f'"{self._tracking_table}"'
+        return template.format(schema=schema, table=table)
 
 
 def _validate_identifier(name: str, label: str) -> None:

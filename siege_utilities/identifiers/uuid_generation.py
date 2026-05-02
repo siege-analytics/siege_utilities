@@ -14,6 +14,11 @@ directly, not these helpers.
 from uuid import UUID, uuid5
 
 
+def _esc_colon(s: str) -> str:
+    # Escape ':' as '::' so the ':' delimiter in attestation seeds is unambiguous.
+    return s.replace(":", "::")
+
+
 def uuid5_from_seed(namespace: UUID, seed: str) -> UUID:
     """
     Generate a deterministic UUID5 under a given namespace.
@@ -79,5 +84,10 @@ def attestation_uuid(
         raise ValueError("parser_version is required")
     if not values_hash:
         raise ValueError("values_hash is required")
-    seed = f"{source_artifact_hash}:{record_line}:{parser_version}:{values_hash}"
+    seed = ":".join([
+        _esc_colon(source_artifact_hash),
+        str(record_line),
+        _esc_colon(parser_version),
+        _esc_colon(values_hash),
+    ])
     return uuid5_from_seed(namespace, seed)

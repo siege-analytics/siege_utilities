@@ -111,7 +111,7 @@ def office_terms(
     if current_only:
         clauses.append("term_end IS NULL")
     if as_of_date is not None:
-        clauses.append("term_start <= %s AND (term_end IS NULL OR term_end > %s)")
+        clauses.append("(term_start <= %s AND (term_end IS NULL OR term_end > %s))")
         params.extend([as_of_date, as_of_date])
 
     where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
@@ -193,7 +193,7 @@ def plan_district_assignments(
         params.append(seat_id)
 
     where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
-    sql = f"SELECT * FROM {_qualified('plan_district_assignments')} {where}"
+    sql = f"SELECT * FROM {_qualified('plan_district_assignments')} {where} ORDER BY plan_id, seat_id"
     return engine.query(sql, params=params)
 
 

@@ -165,15 +165,10 @@ CREATE TABLE political.congressional_terms (
     office_term_id UUID PRIMARY KEY,
     seat_id UUID NOT NULL,
 
-    congress_number SMALLINT NOT NULL UNIQUE
+    congress_number SMALLINT NOT NULL
         CHECK (congress_number >= 1 AND congress_number <= 300),
-    -- 1st Congress through (eventually) the 300th. Generous upper
-    -- bound. UNIQUE ensures one OfficeTerm per Congress per Seat pair
-    -- is captured cleanly — but actually there can be multiple Seats
-    -- with the same congress_number (one per seat); the UNIQUE here
-    -- is wrong. Correcting: UNIQUE on (congress_number, seat_id)
-    -- is the natural key. TODO revisit — leaving UNIQUE off congress_number
-    -- alone because House has 435 seats × same congress number.
+    -- 1st Congress through (eventually) the 300th. Generous upper bound.
+    -- Uniqueness is (congress_number, seat_id) — see partial index below.
 
     senate_classes_up SMALLINT[] NOT NULL DEFAULT ARRAY[]::SMALLINT[],
     -- Array of Senate classes with seats up for election in this
@@ -192,10 +187,6 @@ CREATE TABLE political.congressional_terms (
         REFERENCES political.office_terms (id, seat_id)
         ON DELETE CASCADE
 );
-
--- Correct the UNIQUE above — it's wrong. Drop implicit and add the right one.
-ALTER TABLE political.congressional_terms
-    DROP CONSTRAINT congressional_terms_congress_number_key;
 
 CREATE UNIQUE INDEX uq_congressional_terms_congress_seat
     ON political.congressional_terms (congress_number, seat_id);

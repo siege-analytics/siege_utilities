@@ -23,5 +23,5 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION political._touch_updated_at IS
+COMMENT ON FUNCTION political._touch_updated_at() IS
     'Set updated_at = NOW() on BEFORE UPDATE triggers. Reusable across political.* tables.';
