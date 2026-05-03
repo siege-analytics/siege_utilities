@@ -11,6 +11,7 @@ from siege_utilities.identifiers.namespaces import (
     derive_sub_namespace,
 )
 from siege_utilities.identifiers.uuid_generation import (
+    _RS,
     attestation_uuid,
     uuid5_from_seed,
 )
@@ -54,12 +55,13 @@ def test_uuid5_from_seed_rejects_whitespace_only_seed():
 
 
 def test_attestation_uuid_rejects_whitespace_only_inputs():
-    for bad_artifact, bad_parser, bad_values in [
-        ("   ", "v1", "h"),
-        ("a", "   ", "h"),
-        ("a", "v1", "   "),
-    ]:
-        with pytest.raises(ValueError):
+    cases = [
+        ("   ", "v1", "h", "source_artifact_hash"),
+        ("a", "   ", "h", "parser_version"),
+        ("a", "v1", "   ", "values_hash"),
+    ]
+    for bad_artifact, bad_parser, bad_values, field in cases:
+        with pytest.raises(ValueError, match=field):
             attestation_uuid(
                 namespace=ATTESTATION_NS,
                 source_artifact_hash=bad_artifact,
@@ -175,10 +177,10 @@ def test_attestation_uuid_requires_values_hash():
 
 
 def test_attestation_uuid_uses_supplied_namespace():
-    """Attestation helper composes a deterministic seed and uses the caller's namespace."""
+    """Attestation helper composes a deterministic RS-delimited seed."""
     expected = uuid5_from_seed(
         ATTESTATION_NS,
-        "abc123:42:parser-v1.0.0:deadbeef",
+        _RS.join(["abc123", "42", "parser-v1.0.0", "deadbeef"]),
     )
     actual = attestation_uuid(
         namespace=ATTESTATION_NS,
@@ -191,17 +193,16 @@ def test_attestation_uuid_uses_supplied_namespace():
 
 
 def test_attestation_uuid_colon_delimiter_no_collision():
-    """':' in component values does NOT cause collisions after Option-C fix.
+    """':' anywhere in component values does not cause UUID collisions.
 
-    Seed format escapes ':' as '::' in all string components before joining
-    with ':', making the delimiter unambiguous. These two distinct attestations
-    that previously collided now produce distinct seeds and distinct UUIDs.
+    The RS (0x1E) delimiter cannot appear in hash strings or version tags,
+    so component boundaries are always unambiguous regardless of content.
     """
     uuid_a = attestation_uuid(
         namespace=ATTESTATION_NS,
         source_artifact_hash="abc",
         record_line=1,
-        parser_version="v1.0:patched",  # contains ':'
+        parser_version="v1.0:patched",
         values_hash="xyz",
     )
     uuid_b = attestation_uuid(
@@ -209,7 +210,30 @@ def test_attestation_uuid_colon_delimiter_no_collision():
         source_artifact_hash="abc",
         record_line=1,
         parser_version="v1.0",
-        values_hash="patched:xyz",  # ':' shifted to next component
+        values_hash="patched:xyz",
     )
-    # After escaping: seed_a="abc:1:v1.0::patched:xyz", seed_b="abc:1:v1.0:patched::xyz"
+    assert uuid_a != uuid_b
+
+
+def test_attestation_uuid_colon_boundary_no_collision():
+    """Component-boundary collision: trailing ':' in one component + leading ':' in next.
+
+    Old '::'-escaping scheme: 'p:' escaped to 'p::' then joined with ':' produces
+    'p:::q' for both (parser='p:', values='q') and (parser='p', values=':q').
+    RS delimiter has no such boundary ambiguity.
+    """
+    uuid_a = attestation_uuid(
+        namespace=ATTESTATION_NS,
+        source_artifact_hash="abc",
+        record_line=1,
+        parser_version="p:",   # trailing colon
+        values_hash="q",
+    )
+    uuid_b = attestation_uuid(
+        namespace=ATTESTATION_NS,
+        source_artifact_hash="abc",
+        record_line=1,
+        parser_version="p",
+        values_hash=":q",      # leading colon
+    )
     assert uuid_a != uuid_b

@@ -224,6 +224,42 @@ def test_tracking_table_invalid_identifier_rejected(pg_dsn, migrations_dir):
         )
 
 
+def test_apply_up_to_already_applied_returns_empty(
+    pg_dsn, migrations_dir, tracking_schema
+):
+    """apply_up_to() must return [] and not over-apply when target already applied."""
+    _write(migrations_dir, "V0001__a.sql", "SELECT 1;")
+    _write(migrations_dir, "V0002__b.sql", "SELECT 1;")
+    runner = _runner(pg_dsn, migrations_dir, tracking_schema)
+
+    runner.apply_up_to("0001")
+    result = runner.apply_up_to("0001")
+
+    assert result == []
+    pending = runner.pending_migrations()
+    assert [m.version for m in pending] == ["0002"]
+
+
+def test_apply_one_raises_on_file_changed_between_discovery_and_apply(
+    pg_dsn, migrations_dir, tracking_schema
+):
+    """RuntimeError raised if migration file changes between discover and apply."""
+    path = _write(migrations_dir, "V0001__a.sql", "SELECT 1;")
+    runner = _runner(pg_dsn, migrations_dir, tracking_schema)
+
+    pending = runner.pending_migrations()
+    assert len(pending) == 1
+
+    # Mutate the file on disk after discovery captured its checksum.
+    path.write_text("SELECT 2;", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="changed on disk"):
+        runner.apply_all()
+
+    # No tracking row should have been committed.
+    assert runner.applied_migrations() == []
+
+
 def test_duplicate_version_rejected(
     pg_dsn, migrations_dir, tracking_schema
 ):

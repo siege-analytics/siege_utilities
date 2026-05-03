@@ -13,10 +13,9 @@ directly, not these helpers.
 
 from uuid import UUID, uuid5
 
-
-def _esc_colon(s: str) -> str:
-    # Escape ':' as '::' so the ':' delimiter in attestation seeds is unambiguous.
-    return s.replace(":", "::")
+# ASCII Record Separator — never appears in hash strings, version tags, or
+# file paths, so it is an unambiguous component delimiter in attestation seeds.
+_RS = "\x1e"
 
 
 def uuid5_from_seed(namespace: UUID, seed: str) -> UUID:
@@ -33,7 +32,7 @@ def uuid5_from_seed(namespace: UUID, seed: str) -> UUID:
         The UUID5 derived from ``namespace`` and ``seed``.
 
     Raises:
-        ValueError: if ``seed`` is empty.
+        ValueError: if ``seed`` is empty or whitespace-only.
     """
     if not seed or not seed.strip():
         raise ValueError("UUID5 seed must be non-empty (whitespace-only is not valid)")
@@ -56,6 +55,12 @@ def attestation_uuid(
     version produces a new UUID, so the re-parse is correctly treated
     as a new attestation rather than silently clobbering the old one.
 
+    The seed is built as ``RS``-delimited components
+    (``source_artifact_hash RS record_line RS parser_version RS values_hash``),
+    where ``RS`` is ASCII 0x1E (Record Separator). This delimiter cannot
+    appear in hash strings, version tags, or file paths, so there are no
+    component-boundary collisions regardless of component content.
+
     This helper is deliberately generic about what an "attestation" is —
     it just requires a namespace and four stable inputs. Consumers with
     different attestation structures (e.g., different record identifiers
@@ -76,7 +81,7 @@ def attestation_uuid(
         A deterministic UUID5 combining the inputs.
 
     Raises:
-        ValueError: if any of the non-int inputs is empty.
+        ValueError: if any of the non-int inputs is empty or whitespace-only.
     """
     if not source_artifact_hash or not source_artifact_hash.strip():
         raise ValueError("source_artifact_hash is required and must not be whitespace-only")
@@ -84,10 +89,10 @@ def attestation_uuid(
         raise ValueError("parser_version is required and must not be whitespace-only")
     if not values_hash or not values_hash.strip():
         raise ValueError("values_hash is required and must not be whitespace-only")
-    seed = ":".join([
-        _esc_colon(source_artifact_hash),
+    seed = _RS.join([
+        source_artifact_hash,
         str(record_line),
-        _esc_colon(parser_version),
-        _esc_colon(values_hash),
+        parser_version,
+        values_hash,
     ])
     return uuid5_from_seed(namespace, seed)
