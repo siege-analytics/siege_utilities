@@ -7,7 +7,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Import directly from the geocoding module to avoid package import issues
-from siege_utilities.geo.geocoding import get_country_name, get_country_code, list_countries, get_coordinates
+from siege_utilities.geo.geocoding import get_country_name, get_country_code, list_countries
 
 def test_country_code_functionality():
     """Test the country code functionality"""
