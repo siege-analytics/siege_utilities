@@ -11,7 +11,7 @@
 
 ## Version Floor
 
-The library requires `python_requires >= "3.11"`. This is set in both `pyproject.toml` and `setup.py`.
+The library requires `python_requires >= "3.11"`. This is set in `pyproject.toml`.
 
 Python 3.11 is the floor because:
 - It is the oldest version still receiving security updates
@@ -79,6 +79,6 @@ We follow the [NumPy Enhancement Proposal 29 (NEP 29)](https://numpy.org/neps/ne
 
 Before dropping a version:
 1. Announce deprecation in the changelog one minor release before removal
-2. Update `python_requires` in both `pyproject.toml` and `setup.py`
+2. Update `python_requires` in `pyproject.toml`
 3. Remove the version from CI matrix
 4. Update classifiers and README badge

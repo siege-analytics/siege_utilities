@@ -328,10 +328,9 @@ Coverage settings in `pytest.ini`:
 
    [coverage:run]
    source = siege_utilities
-   omit = 
+   omit =
        */tests/*
        */test_*
-       setup.py
        */__init__.py
 
    [coverage:report]
@@ -376,8 +375,7 @@ CI Pipeline
        
        - name: Install dependencies
          run: |
-           pip install -r test_requirements.txt
-           pip install -e .
+           pip install -e '.[dev]'
        
        - name: Run tests
          run: |
@@ -640,7 +638,7 @@ Common Issues
 **Missing dependencies**: Install test requirements
    .. code-block:: bash
 
-      pip install -r test_requirements.txt
+      pip install -e '.[dev]'
 
 **Test discovery issues**: Check test file naming and structure
    .. code-block:: bash

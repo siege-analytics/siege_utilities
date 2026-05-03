@@ -259,7 +259,7 @@ def run_test_suite(
     if install_deps:
         log_info("Installing test dependencies...")
         success = run_command([
-            sys.executable, "-m", "pip", "install", "-r", "test_requirements.txt"
+            sys.executable, "-m", "pip", "install", "-e", ".[dev]"
         ], "Installing test dependencies")
 
         if not success:
