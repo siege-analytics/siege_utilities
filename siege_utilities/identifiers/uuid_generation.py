@@ -81,7 +81,8 @@ def attestation_uuid(
         A deterministic UUID5 combining the inputs.
 
     Raises:
-        ValueError: if any of the non-int inputs is empty or whitespace-only.
+        ValueError: if any string input is empty, whitespace-only, or contains
+            the RS delimiter (``\\x1e``).
     """
     if not source_artifact_hash or not source_artifact_hash.strip():
         raise ValueError("source_artifact_hash is required and must not be whitespace-only")
@@ -89,6 +90,12 @@ def attestation_uuid(
         raise ValueError("parser_version is required and must not be whitespace-only")
     if not values_hash or not values_hash.strip():
         raise ValueError("values_hash is required and must not be whitespace-only")
+    if _RS in source_artifact_hash:
+        raise ValueError("source_artifact_hash must not contain the RS delimiter (\\x1e)")
+    if _RS in parser_version:
+        raise ValueError("parser_version must not contain the RS delimiter (\\x1e)")
+    if _RS in values_hash:
+        raise ValueError("values_hash must not contain the RS delimiter (\\x1e)")
     seed = _RS.join([
         source_artifact_hash,
         str(record_line),

@@ -251,11 +251,22 @@ class MigrationRunner:
     # Mutation
     # ------------------------------------------------------------------
 
-    def apply_all(self) -> list[PendingMigration]:
+    def apply_all(
+        self,
+        *,
+        _pending: list[PendingMigration] | None = None,
+    ) -> list[PendingMigration]:
         """
         Apply every pending migration in version order.
 
         Returns the list of migrations that were applied during this call.
+
+        Args:
+            _pending: Optional pre-discovered pending list. Pass the result of
+                a prior ``pending_migrations()`` call to let ``_apply_one``'s
+                divergence guard detect mid-flight file mutations. When
+                ``None`` (the default), ``pending_migrations()`` is called
+                internally. This parameter is primarily intended for testing.
 
         **Concurrency:** This method is intended for single-process use.
         There is a TOCTOU gap between ``pending_migrations()`` and the
@@ -266,7 +277,7 @@ class MigrationRunner:
         concurrent callers are possible.
         """
         applied: list[PendingMigration] = []
-        pending = self.pending_migrations()
+        pending = _pending if _pending is not None else self.pending_migrations()
         if not pending:
             log.info("schema runner: no pending migrations")
             return []

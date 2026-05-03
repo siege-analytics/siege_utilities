@@ -45,7 +45,7 @@ def pg_dsn() -> str:
 
 
 @pytest.fixture
-def tracking_schema(pg_dsn: str):
+def tracking_schema(pg_dsn: str) -> str:
     """
     Provide a randomized tracking schema name per test; drop it in teardown.
     """
@@ -58,7 +58,6 @@ def tracking_schema(pg_dsn: str):
                     psycopg_sql.Identifier(schema)
                 )
             )
-        conn.commit()
 
 
 @pytest.fixture
@@ -120,7 +119,6 @@ def test_apply_all_on_empty_tracking_creates_tracking_then_applies(
                         psycopg_sql.Identifier(target_schema)
                     )
                 )
-            conn.commit()
 
 
 def test_apply_all_is_idempotent_second_call_applies_nothing(
@@ -243,18 +241,28 @@ def test_apply_up_to_already_applied_returns_empty(
 def test_apply_one_raises_on_file_changed_between_discovery_and_apply(
     pg_dsn, migrations_dir, tracking_schema
 ):
-    """RuntimeError raised if migration file changes between discover and apply."""
+    """RuntimeError raised if migration file changes between discover and apply.
+
+    apply_all() is given the pre-discovered pending list (checksums from the
+    original file). When the file is mutated before _apply_one() reads it,
+    the apply-time checksum diverges from the discovery-time checksum and
+    RuntimeError is raised. apply_all() must re-discover internally for this
+    test to work, so we pass the stale list via the _pending parameter.
+    """
     path = _write(migrations_dir, "V0001__a.sql", "SELECT 1;")
     runner = _runner(pg_dsn, migrations_dir, tracking_schema)
 
-    pending = runner.pending_migrations()
-    assert len(pending) == 1
+    # Discover with original content — this captures the original checksum.
+    pre_discovered = runner.pending_migrations()
+    assert len(pre_discovered) == 1
 
-    # Mutate the file on disk after discovery captured its checksum.
+    # Mutate the file on disk AFTER discovery captured its checksum.
     path.write_text("SELECT 2;", encoding="utf-8")
 
+    # Pass the pre-discovered list so _apply_one sees the original checksum
+    # against the now-mutated file content.
     with pytest.raises(RuntimeError, match="changed on disk"):
-        runner.apply_all()
+        runner.apply_all(_pending=pre_discovered)
 
     # No tracking row should have been committed.
     assert runner.applied_migrations() == []

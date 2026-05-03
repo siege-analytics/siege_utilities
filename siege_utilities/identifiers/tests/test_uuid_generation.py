@@ -143,6 +143,18 @@ def test_attestation_uuid_differs_on_record_line():
     assert a != b
 
 
+def test_attestation_uuid_rejects_rs_in_inputs():
+    """Inputs containing RS (\\x1e) are rejected to preserve seed boundaries."""
+    rs = "\x1e"
+    for kw in [
+        {"source_artifact_hash": f"hash{rs}bad", "parser_version": "v1", "values_hash": "h"},
+        {"source_artifact_hash": "h", "parser_version": f"v1{rs}bad", "values_hash": "h"},
+        {"source_artifact_hash": "h", "parser_version": "v1", "values_hash": f"h{rs}bad"},
+    ]:
+        with pytest.raises(ValueError, match="RS delimiter"):
+            attestation_uuid(namespace=ATTESTATION_NS, record_line=1, **kw)
+
+
 def test_attestation_uuid_requires_artifact_hash():
     with pytest.raises(ValueError, match="source_artifact_hash"):
         attestation_uuid(
