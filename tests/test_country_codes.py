@@ -33,7 +33,7 @@ def test_get_country_code_known_names():
 
 
 def test_round_trip():
-    for code, name in CODE_TO_NAME.items():
+    for code in CODE_TO_NAME:
         assert get_country_code(get_country_name(code)) == code
 
 
