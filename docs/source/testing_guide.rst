@@ -346,7 +346,7 @@ Continuous Integration
 
 GitHub Actions automatically run tests on:
 
-- **Python versions**: 3.8, 3.9, 3.10, 3.11, 3.12
+- **Python versions**: 3.11, 3.12, 3.13
 - **Test coverage**: Minimum 85% coverage required
 - **Code quality**: Flake8 and black formatting checks
 - **Documentation**: Sphinx build verification
@@ -364,7 +364,7 @@ CI Pipeline
        runs-on: ubuntu-latest
        strategy:
          matrix:
-           python-version: [3.8, 3.9, 3.10, 3.11, 3.12]
+           python-version: ["3.11", "3.12", "3.13"]
        
        steps:
        - uses: actions/checkout@v3
