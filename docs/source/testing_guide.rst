@@ -635,7 +635,7 @@ Common Issues
 
       pip install -e .
 
-**Missing dependencies**: Install test requirements
+**Missing dependencies**: Install dev/test extras
    .. code-block:: bash
 
       pip install -e '.[dev]'
