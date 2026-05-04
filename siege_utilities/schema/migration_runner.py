@@ -42,6 +42,7 @@ log = logging.getLogger(__name__)
 
 _IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 _FILENAME_RE = re.compile(r"^V(?P<version>[^_]+)__(?P<description>.+)\.sql$")
+_PG_IDENTIFIER_MAX_LEN = 63  # PostgreSQL silently truncates names longer than this
 
 
 class MigrationStatus(enum.Enum):
@@ -396,4 +397,9 @@ def _validate_identifier(name: str, label: str) -> None:
         raise ValueError(
             f"{label}={name!r} is not a valid SQL identifier "
             "(must match [a-zA-Z_][a-zA-Z0-9_]*)"
+        )
+    if len(name.encode("utf-8")) > _PG_IDENTIFIER_MAX_LEN:
+        raise ValueError(
+            f"{label}={name!r} exceeds PostgreSQL's {_PG_IDENTIFIER_MAX_LEN}-byte "
+            "identifier limit and would be silently truncated"
         )

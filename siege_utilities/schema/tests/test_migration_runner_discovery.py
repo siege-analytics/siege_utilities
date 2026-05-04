@@ -86,6 +86,19 @@ def test_validate_identifier_accepts_reserved_words():
     _validate_identifier("select", "test")
 
 
+def test_validate_identifier_accepts_exactly_63_chars():
+    """63-char ASCII identifier is at the PostgreSQL limit and must pass."""
+    name = "a" * 63
+    _validate_identifier(name, "test")  # must not raise
+
+
+def test_validate_identifier_rejects_64_chars():
+    """64-char identifier exceeds PostgreSQL's 63-byte limit and must be rejected."""
+    name = "a" * 64
+    with pytest.raises(ValueError, match="63-byte identifier limit"):
+        _validate_identifier(name, "test")
+
+
 def test_migration_status_enum_values():
     assert MigrationStatus.APPLIED.value == "applied"
     assert MigrationStatus.PENDING.value == "pending"
