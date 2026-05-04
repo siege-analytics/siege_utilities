@@ -2,6 +2,8 @@
 Statistical chart mixins — heatmap, scatter plot, and text heatmap.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Dict, Any, Union
 
@@ -25,7 +27,12 @@ except ImportError:
     pd = None
     np = None
 
-from reportlab.platypus import Image
+try:
+    from reportlab.platypus import Image
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+    Image = None
 
 log = logging.getLogger(__name__)
 

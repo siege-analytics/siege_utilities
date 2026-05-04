@@ -10,9 +10,21 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
 
-import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
+
+try:
+    import matplotlib.pyplot as plt
+    _MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    plt = None
+    _MATPLOTLIB_AVAILABLE = False
+
+try:
+    import seaborn as sns
+    _SEABORN_AVAILABLE = True
+except ImportError:
+    sns = None
+    _SEABORN_AVAILABLE = False
 
 from siege_utilities.core.logging import log_error
 

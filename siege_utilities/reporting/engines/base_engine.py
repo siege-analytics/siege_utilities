@@ -36,9 +36,16 @@ except ImportError:
     pd = None
     np = None
 
-from reportlab.platypus import Image, Paragraph, Spacer
-from reportlab.lib.units import inch
-from reportlab.lib.styles import getSampleStyleSheet
+try:
+    from reportlab.platypus import Image, Paragraph, Spacer
+    from reportlab.lib.units import inch
+    from reportlab.lib.styles import getSampleStyleSheet
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+    Image = Paragraph = Spacer = None
+    inch = None
+    getSampleStyleSheet = None
 
 log = logging.getLogger(__name__)
 
@@ -68,7 +75,7 @@ class BaseChartEngine:
         self.output_dir = Path(output_dir) if output_dir is not None else Path.home() / ".siege_utilities"
         self.max_chart_width = max_chart_width
         self.max_chart_height = max_chart_height
-        self.styles = getSampleStyleSheet()
+        self.styles = getSampleStyleSheet() if REPORTLAB_AVAILABLE else None
         self._setup_default_colors()
         self._setup_plotting_style()
 

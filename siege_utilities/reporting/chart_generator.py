@@ -52,7 +52,10 @@ except ImportError:
     pd = None
     np = None
 
-from reportlab.platypus import Image
+try:
+    from reportlab.platypus import Image
+except ImportError:
+    Image = None
 
 # Legend management will be added later
 # from .legend_manager import LegendManager, LegendPosition, ColorScheme

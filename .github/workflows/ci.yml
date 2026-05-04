@@ -230,7 +230,7 @@ jobs:
     name: "api contract regression"
 
     env:
-      BASELINE_VERSION: "3.8.0"
+      BASELINE_VERSION: "3.13.2"
 
     steps:
     - uses: actions/checkout@v4

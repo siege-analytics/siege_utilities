@@ -2,12 +2,15 @@
 Extensible chart type system for siege_utilities.
 Provides base chart types and easy extension capabilities.
 """
+from __future__ import annotations
 
 import logging
-from typing import Dict, Any, Optional, List, Callable
+from typing import TYPE_CHECKING, Dict, Any, Optional, List, Callable
 from dataclasses import dataclass, field
 import yaml
-from matplotlib.figure import Figure
+
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure
 
 try:
     import geopandas as gpd

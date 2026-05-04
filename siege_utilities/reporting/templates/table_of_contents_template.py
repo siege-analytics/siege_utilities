@@ -5,18 +5,25 @@ Creates clean, organized TOCs with proper typography and page numbering
 Adapted from working GA project implementation
 """
 
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.colors import HexColor
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import Paragraph, Table, TableStyle
-from reportlab.lib.units import inch
-from datetime import datetime
-from pathlib import Path
-import yaml
-from typing import List, Dict, Any, Tuple
+try:
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.colors import HexColor
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import Paragraph, Table, TableStyle
+    from reportlab.lib.units import inch
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+    canvas = None
+    letter = None
+    HexColor = None
+    getSampleStyleSheet = ParagraphStyle = None
+    Paragraph = Table = TableStyle = None
+    inch = None
+from typing import List, Dict, Any
 
-from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+from siege_utilities.core.logging import log_info, log_warning
 
 
 class TableOfContentsTemplate:
@@ -44,8 +51,7 @@ class TableOfContentsTemplate:
     def _load_brand_config(self) -> Dict[str, Any]:
         """Load brand configuration from client branding system"""
         try:
-            from .client_branding import ClientBrandingManager
-            branding_manager = ClientBrandingManager()
+            from .client_branding import ClientBrandingManager  # noqa: F401
             return self._default_brand_config()
         except Exception as e:
             log_warning(f"Could not load brand config: {e}")
