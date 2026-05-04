@@ -2,7 +2,7 @@
 """
 Release Manager for Siege Utilities
 
-Updates version across all five locations (pyproject.toml, setup.py, __init__.py, docs/conf.py x2),
+Updates version across all five locations (pyproject.toml, __init__.py, docs/conf.py, docs/source/conf.py, docs/source/conf_fast.py),
 runs tests, builds the package, validates with twine, merges develop → main (gitflow),
 tags the release, uploads to PyPI, and creates GitHub releases.
 
@@ -51,10 +51,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 VERSION_FILES = {
     'pyproject.toml': {
         'path': PROJECT_ROOT / 'pyproject.toml',
-        'pattern': r'(version\s*=\s*")[^"]+(")',
-    },
-    'setup.py': {
-        'path': PROJECT_ROOT / 'setup.py',
         'pattern': r'(version\s*=\s*")[^"]+(")',
     },
     '__init__.py __version__': {
