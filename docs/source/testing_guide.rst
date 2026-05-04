@@ -331,7 +331,6 @@ Coverage settings in `pytest.ini`:
    omit =
        */tests/*
        */test_*
-       */__init__.py
 
    [coverage:report]
    exclude_lines =

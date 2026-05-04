@@ -43,3 +43,23 @@ def test_list_countries_returns_nonempty_dict_with_known_codes():
     assert len(countries) >= len(CODE_TO_NAME)
     for code in CODE_TO_NAME:
         assert code in countries
+
+
+def test_get_country_name_is_case_insensitive():
+    assert get_country_name("US") == "United States"
+    assert get_country_name("Us") == "United States"
+
+
+def test_get_country_code_is_case_insensitive():
+    assert get_country_code("united states") == "us"
+    assert get_country_code("UNITED STATES") == "us"
+
+
+def test_unknown_inputs_have_documented_fallbacks():
+    # Pin the current contract: unknown code returns the input unchanged;
+    # unknown name returns None. A change in either direction is a breaking
+    # API change and should fail this test.
+    assert get_country_name("zz") == "zz"
+    assert get_country_name("") == ""
+    assert get_country_code("Atlantis") is None
+    assert get_country_code("") is None

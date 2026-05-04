@@ -49,3 +49,20 @@ def test_list_countries_returns_nonempty_dict_with_known_codes():
     assert len(countries) >= len(CODE_TO_NAME)
     for code in CODE_TO_NAME:
         assert code in countries
+
+
+def test_get_country_name_is_case_insensitive():
+    assert geocoding.get_country_name("US") == "United States"
+    assert geocoding.get_country_name("Us") == "United States"
+
+
+def test_get_country_code_is_case_insensitive():
+    assert geocoding.get_country_code("united states") == "us"
+    assert geocoding.get_country_code("UNITED STATES") == "us"
+
+
+def test_unknown_inputs_have_documented_fallbacks():
+    assert geocoding.get_country_name("zz") == "zz"
+    assert geocoding.get_country_name("") == ""
+    assert geocoding.get_country_code("Atlantis") is None
+    assert geocoding.get_country_code("") is None
