@@ -110,11 +110,12 @@ python scripts/check_test_file_hygiene.py
 flake8 siege_utilities --count --select=E9,F63,F7,F82 --show-source --statistics
 
 # 4. Lint — phases 2-4 (hygiene + module ratchet + full-repo fingerprint)
-#    This is what CI's "lint ratchet phases2-4" job runs. Skipping it is the
-#    most common reason a PR passes locally but fails CI lint.
+#    Local aggregate equivalent; CI runs phase2, phase3, phase4 as separate
+#    steps with explicit --base-sha/--head-sha. Skipping this is the most
+#    common reason a PR passes locally but fails CI lint.
 python scripts/check_lint_ratchet.py --phase all
 
-# 4. API contract check (if you changed public API)
+# 5. API contract check (if you changed public API)
 python -m venv /tmp/.venv_baseline
 /tmp/.venv_baseline/bin/pip install siege-utilities==3.8.0
 /tmp/.venv_baseline/bin/python scripts/contracts/generate_public_api_contract.py \

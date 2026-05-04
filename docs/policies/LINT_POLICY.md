@@ -9,7 +9,7 @@ See [LINT_RATCHET_PLAN.md](LINT_RATCHET_PLAN.md) for the phased rollout strategy
 
 ## Why CI Lint Keeps Failing When Local Checks Pass
 
-Three root causes account for nearly every "passed locally, failed in CI" lint incident:
+Five root causes account for nearly every "passed locally, failed in CI" lint or release incident:
 
 ### 1. The CONTRIBUTING.md pre-PR checklist was incomplete
 
@@ -38,6 +38,47 @@ because the baseline references fingerprints that no longer exist.
 **Fix:** regenerate the baseline in a dedicated debt-cleanup PR using
 `python scripts/check_lint_ratchet.py --phase phase4 --update-baseline`.
 
+### 4. Version bump omitted from the release PR (release-mechanics gap)
+
+CI's "Verify release tag matches package version" step runs only on the `release` event —
+it never fires on a normal PR push. This means a PR that forgets to bump
+`pyproject.toml` passes all pre-merge checks, the tag gets created, and only then does
+the release job fail before PyPI upload.
+
+**Fix:** the version bump (`pyproject.toml` + any `__version__` literals) belongs in the
+**same PR** as the code being released, committed before the GitHub Release is created.
+Checklist addition for release PRs:
+
+```bash
+# Confirm version in pyproject.toml matches the intended tag before merging
+grep '^version' pyproject.toml
+```
+
+### 5. Bypassing the canonical release script
+
+`scripts/release_manager.py` atomically updates all six version-bearing files
+(`pyproject.toml`, `setup.py`, `siege_utilities/__init__.py`, `docs/conf.py`,
+`docs/source/conf.py`, `docs/source/conf_fast.py`) in a single `--set-version` or
+`--bump` call. When version bumps are done file-by-file across multiple PRs instead,
+at least one file is always missed. CI's "Verify version consistency" step then fails
+every release attempt until all six are aligned.
+
+**Fix:** always use the release script for version management:
+
+```bash
+# Check current consistency
+python scripts/release_manager.py --check
+
+# Bump (updates all 6 files at once)
+python scripts/release_manager.py --bump patch
+
+# Or set an explicit version
+python scripts/release_manager.py --set-version 3.13.2
+```
+
+The `--release` workflow does the full 12-step dance (version bump → tests → build →
+merge develop → tag → PyPI → GitHub Release). Use `--dry-run` to preview.
+
 ---
 
 ## Commands to Run Before Every Push
@@ -48,13 +89,14 @@ Run these in order. Stop and fix before continuing if any step fails.
 # Phase 1 — runtime-safety errors on changed files (matches CI lint-ratchet-phase1)
 flake8 siege_utilities --count --select=E9,F63,F7,F82 --show-source --statistics
 
-# Phases 2-4 — hygiene + module ratchet + full-repo fingerprint (matches CI lint-ratchet-phases2-4)
+# Phases 2-4 — hygiene + module ratchet + full-repo fingerprint
+# (local aggregate; CI runs each phase separately with explicit --base-sha/--head-sha)
 python scripts/check_lint_ratchet.py --phase phase2
 python scripts/check_lint_ratchet.py --phase phase3
 python scripts/check_lint_ratchet.py --phase phase4
 ```
 
-Or run all phases in one call (the script accepts `all`):
+Or run all phases in one call:
 
 ```bash
 python scripts/check_lint_ratchet.py --phase all
@@ -98,7 +140,7 @@ easy to identify in git history.
 
 | Phase | Rules enforced | Scope |
 |-------|---------------|-------|
-| 1 | `E722, F601, F403, F405` | Files touched by the PR |
+| 1 | `E9, F63, F7, F82` | Full package (`flake8 siege_utilities --select=E9,F63,F7,F82`) |
 | 2 | `F401, F841, F541` | Files touched by the PR |
-| 3 | All of phase 1 + 2 | Entire domain (`siege_utilities/geo/`, `config/`, `files/`) if any file in domain is touched |
-| 4 | All of phase 1 + 2 | Full repo, fingerprint-matched against baseline |
+| 3 | `E722, F601, F403, F405` + phase 2 | Entire domain (`siege_utilities/geo/`, `config/`, `files/`) if any file in domain is touched |
+| 4 | `E722, F601, F403, F405` + phase 2 | Full repo, fingerprint-matched against baseline |

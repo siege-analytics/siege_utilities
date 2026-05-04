@@ -179,7 +179,7 @@ def check_phase4(update_baseline: bool) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Lint ratchet checks for phases 2-4")
-    parser.add_argument("--phase", required=True, choices=["phase2", "phase3", "phase4"])
+    parser.add_argument("--phase", required=True, choices=["phase2", "phase3", "phase4", "all"])
     parser.add_argument("--base-sha", default="")
     parser.add_argument("--head-sha", default="")
     parser.add_argument("--base-ref", default="origin/main")
@@ -195,6 +195,15 @@ def main() -> int:
         return check_phase2(base, head)
     if args.phase == "phase3":
         return check_phase3(base, head)
+
+    if args.phase == "all":
+        rc = check_phase2(base, head)
+        if rc != 0:
+            return rc
+        rc = check_phase3(base, head)
+        if rc != 0:
+            return rc
+        return check_phase4(update_baseline=args.update_baseline)
 
     print(f"Unknown phase: {args.phase}")
     return 2
