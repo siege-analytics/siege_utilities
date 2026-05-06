@@ -20,7 +20,6 @@ except ImportError:
 try:
     from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, PageBreak
     from reportlab.platypus import Image as RLImage
-    from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.lib import colors
     from reportlab.lib.units import inch
     REPORTLAB_AVAILABLE = True
@@ -486,7 +485,6 @@ class ReportGenerator:
             return []
 
         import io
-        import tempfile
 
         result = []
 
@@ -513,12 +511,17 @@ class ReportGenerator:
                     buf.seek(0)
                     img = RLImage(buf, width=width*inch, height=height*inch)
                     result.append(img)
-                    # Close the figure to free memory
+                    # Close the figure to free memory. If matplotlib
+                    # isn't installed the import raises ImportError; if
+                    # close() fails on a malformed figure it raises
+                    # something matplotlib-specific. Either way memory
+                    # cleanup isn't worth aborting the report — but log
+                    # so we can spot it when it happens.
                     try:
                         import matplotlib.pyplot as plt
                         plt.close(chart)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        log.debug("Could not close matplotlib figure: %s", e)
                     continue
 
                 # Handle PIL Image
@@ -642,7 +645,6 @@ class ReportGenerator:
             charts = content.get('charts', [])
             image_path = content.get('image_path')
             description = content.get('description', '')
-            layout = content.get('layout', 'vertical')
 
             # Add description if provided
             if description:

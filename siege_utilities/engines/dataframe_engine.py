@@ -4,6 +4,19 @@ Engine-agnostic DataFrame operations.
 Provides a thin abstraction so the same analytical operations can run on
 DuckDB, Spark, or PostGIS instead of only pandas/GeoPandas.
 
+Why one abstraction
+-------------------
+The point is **not** that the back-ends are interchangeable in performance —
+they are not. The point is that **consumer code should not branch on
+back-end**. A reporting module asked to summarise voter rolls should not
+care whether the frame came from a 10-million-row Spark job or a 5-row
+pandas test fixture; it calls ``engine.groupby_agg(...)`` and is done.
+
+This is load-bearing. The anti-pattern to avoid: ``if isinstance(df,
+pd.DataFrame): ... else: ...`` scattered through ``reporting/``. If you
+find yourself reaching for it, the right fix is a new method on the
+``DataFrameEngine`` interface — not a special case in the consumer.
+
 Usage::
 
     from siege_utilities.engines.dataframe_engine import get_engine, Engine

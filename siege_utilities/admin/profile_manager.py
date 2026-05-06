@@ -9,9 +9,8 @@ from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 from ..config.enhanced_config import (
     UserProfile, ClientProfile,
-    load_user_profile, save_user_profile,
-    load_client_profile, save_client_profile,
-    list_client_profiles
+    save_user_profile,
+    save_client_profile,
 )
 from ..config.models import ContactInfo, BrandingConfig, ReportPreferences
 
@@ -316,13 +315,24 @@ def get_profile_summary(profile_location: Optional[Path] = None) -> Dict[str, an
         summary["client_profiles"] = len(client_files)
         summary["client_codes"] = [f.stem for f in client_files]
     
-    # Calculate total size
+    # Calculate total size. Best-effort: a stat() can fail on a single
+    # file (broken symlink, perms, race) without us wanting to abort the
+    # whole summary. Narrow to OSError so genuine bugs (TypeError, etc.)
+    # propagate, and log so a 0 isn't silently indistinguishable from
+    # an empty profile.
     try:
         total_size = sum(
             f.stat().st_size for f in profile_location.rglob("*") if f.is_file()
         )
         summary["total_size_mb"] = round(total_size / (1024 * 1024), 2)
-    except Exception:
+    except OSError as e:
+        # Keep the numeric type so existing callers (and the
+        # test_admin_profile_manager.py >= 0 assertion) don't break.
+        # The log line is the actual fix — silent 0 was the bug.
+        log.warning(
+            "Could not compute size of profile location %s: %s",
+            profile_location, e,
+        )
         summary["total_size_mb"] = 0
     
     return summary

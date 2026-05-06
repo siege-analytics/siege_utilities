@@ -826,17 +826,14 @@ class AnalyticsReportGenerator:
                 ]
             }
             
-        except Exception as e:
-            log.error(f"Error processing DataFrame data: {e}")
-            return {
-                'title': 'DataFrame Analysis Report',
-                'subtitle': 'Error processing data',
-                'sections': [{
-                    'type': 'text',
-                    'title': 'Error',
-                    'content': f'Error processing DataFrame: {str(e)}'
-                }]
-            }
+        except Exception:
+            # Don't swallow into a dict that says "Error" but still
+            # claims to be a report — the outer caller (and the public
+            # API at create_custom_analytics_report) re-raises, and a
+            # downstream report builder can't tell a success report
+            # from an error-dict by shape alone. Fail-fast.
+            log.exception("Error processing DataFrame data")
+            raise
 
     def _process_dict_data(self, data: Dict[str, Any], 
                           report_config: Dict[str, Any]) -> Dict[str, Any]:
@@ -886,17 +883,9 @@ class AnalyticsReportGenerator:
                 'sections': sections
             }
             
-        except Exception as e:
-            log.error(f"Error processing dictionary data: {e}")
-            return {
-                'title': 'Dictionary Analysis Report',
-                'subtitle': 'Error processing data',
-                'sections': [{
-                    'type': 'text',
-                    'title': 'Error',
-                    'content': f'Error processing dictionary: {str(e)}'
-                }]
-            }
+        except Exception:
+            log.exception("Error processing dictionary data")
+            raise
 
     def _process_json_data(self, json_data: str, 
                           report_config: Dict[str, Any]) -> Dict[str, Any]:
@@ -905,17 +894,9 @@ class AnalyticsReportGenerator:
             import json
             data = json.loads(json_data)
             return self._process_dict_data(data, report_config)
-        except Exception as e:
-            log.error(f"Error processing JSON data: {e}")
-            return {
-                'title': 'JSON Analysis Report',
-                'subtitle': 'Error processing data',
-                'sections': [{
-                    'type': 'text',
-                    'title': 'Error',
-                    'content': f'Error processing JSON: {str(e)}'
-                }]
-            }
+        except Exception:
+            log.exception("Error processing JSON data")
+            raise
 
     def _process_csv_data(self, csv_path: str, 
                          report_config: Dict[str, Any]) -> Dict[str, Any]:
@@ -923,17 +904,9 @@ class AnalyticsReportGenerator:
         try:
             df = pd.read_csv(csv_path)
             return self._process_dataframe_data(df, report_config)
-        except Exception as e:
-            log.error(f"Error processing CSV data: {e}")
-            return {
-                'title': 'CSV Analysis Report',
-                'subtitle': 'Error processing data',
-                'sections': [{
-                    'type': 'text',
-                    'title': 'Error',
-                    'content': f'Error processing CSV: {str(e)}'
-                }]
-            }
+        except Exception:
+            log.exception("Error processing CSV data")
+            raise
 
     def _get_metric_status(self, change_value: float) -> str:
         """Get status for a metric based on change value."""

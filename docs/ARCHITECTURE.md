@@ -79,6 +79,36 @@ A follow-up PR will add a `pydeps` CI check that fails on upward edges.
 | [0006](adr/0006-polling-analyzer-location.md) | PollingAnalyzer deprecation | **Accepted** | ELE-2439 + ELE-2440 |
 | [0007](adr/0007-argument-tabletype-location.md) | Argument + TableType location | Proposed | ELE-2420 |
 
+## Consumer extras and the upward-import trap
+
+The "Analysis + output" layer (`reporting/`, `survey/`, `analytics/`,
+`admin/`, `hygiene/`) ships as **optional extras** in `pyproject.toml`
+(`[reporting]`, `[survey]`, `[analytics]`, …). The trap that catches
+agents and refactor-happy contributors is:
+
+> *"This helper in `reporting/` is generic. Let me move it down into
+> `core/` or `data/` so other code can use it."*
+
+Don't. Even if the helper is technically generic, moving it down pulls
+the heavy reporting-extra deps (matplotlib, seaborn, folium, reportlab)
+into a layer that's supposed to install with no graphics stack. The
+foundation has to be installable on a Spark worker without a display
+server; an upward edge breaks that.
+
+**Rules of thumb:**
+
+1. If consumer code wants something from a lower layer, **the lower
+   layer adds the abstraction** (see `DataFrameEngine` for why we don't
+   special-case backends in `reporting/`).
+2. If two consumer modules genuinely share a helper, the helper lives
+   in **whichever consumer module owns the larger half** of the
+   surface — not in a foundation layer.
+3. The `[all]` extra exists for end-user convenience. It is not an
+   excuse for an internal module to assume `[all]` is installed.
+
+The single invariant — **imports go DOWN** — is what keeps a `pip install
+"siege-utilities[geo]"` lean and predictable on a 4 GB EC2 image.
+
 ## Known invariant violations
 
 | Violation | Resolution | Target |
