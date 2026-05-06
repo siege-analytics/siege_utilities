@@ -9,9 +9,8 @@ from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 from ..config.enhanced_config import (
     UserProfile, ClientProfile,
-    load_user_profile, save_user_profile,
-    load_client_profile, save_client_profile,
-    list_client_profiles
+    save_user_profile,
+    save_client_profile,
 )
 from ..config.models import ContactInfo, BrandingConfig, ReportPreferences
 

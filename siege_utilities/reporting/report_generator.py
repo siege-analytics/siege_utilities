@@ -20,7 +20,6 @@ except ImportError:
 try:
     from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, PageBreak
     from reportlab.platypus import Image as RLImage
-    from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.lib import colors
     from reportlab.lib.units import inch
     REPORTLAB_AVAILABLE = True
@@ -486,7 +485,6 @@ class ReportGenerator:
             return []
 
         import io
-        import tempfile
 
         result = []
 
@@ -647,7 +645,6 @@ class ReportGenerator:
             charts = content.get('charts', [])
             image_path = content.get('image_path')
             description = content.get('description', '')
-            layout = content.get('layout', 'vertical')
 
             # Add description if provided
             if description:
