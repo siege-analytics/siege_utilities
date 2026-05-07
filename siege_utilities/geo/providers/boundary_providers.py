@@ -289,6 +289,15 @@ class RDHProvider(BoundaryProvider):
 
     _LEVELS = ('precinct', 'congress', 'state_senate', 'state_house')
 
+    # RDH "level" maps onto the PlanRegistry "district_type" vocabulary.
+    # The PlanRegistry uses lowercase Census-aligned types ('cd', 'sldu',
+    # 'sldl'); 'precinct' has no plan-level analog, so it isn't mapped.
+    _LEVEL_TO_DISTRICT_TYPE = {
+        'congress': 'cd',
+        'state_senate': 'sldu',
+        'state_house': 'sldl',
+    }
+
     def __init__(
         self,
         username: Optional[str] = None,
@@ -353,6 +362,19 @@ class RDHProvider(BoundaryProvider):
 
         year: Optional[str] = kwargs.pop('year', None)
         fmt: str = kwargs.pop('format', 'shp')
+        when = kwargs.pop('when', None)
+        plan_registry = kwargs.pop('plan_registry', None)
+
+        if when is not None:
+            # Date-driven resolution: consult the PlanRegistry for the
+            # plan in effect on `when`, derive the RDH year filter from
+            # its effective_from. The registry raises PlanResolutionError
+            # if no plan covers the date — we let that bubble up so
+            # callers can react.
+            year = self._resolve_year_from_registry(
+                level=level, state=state, when=when, registry=plan_registry,
+            )
+
         client = self._get_client()
 
         if level == 'precinct':
@@ -397,3 +419,41 @@ class RDHProvider(BoundaryProvider):
             return True
         except ImportError:
             return False
+
+    def _resolve_year_from_registry(
+        self,
+        *,
+        level: str,
+        state: str,
+        when,
+        registry,
+    ) -> str:
+        """Look up the plan in effect on *when* and return its year as a string.
+
+        Helper for the ``when=`` keyword on :meth:`get_boundary`. Imports
+        are deferred so callers that never use ``when`` don't pay them.
+        """
+        from ..plans import get_default_plan_registry
+        from ..spatial_data import normalize_state_identifier
+
+        district_type = self._LEVEL_TO_DISTRICT_TYPE.get(level)
+        if district_type is None:
+            raise ValueError(
+                f"RDHProvider: when= keyword is not supported for level "
+                f"{level!r}. Only district levels "
+                f"{list(self._LEVEL_TO_DISTRICT_TYPE)} have plan-level "
+                "temporal resolution."
+            )
+
+        # Two-letter abbreviation -> 2-digit FIPS for registry lookup.
+        state_fips = normalize_state_identifier(state)
+        if not state_fips:
+            raise ValueError(
+                f"RDHProvider: could not resolve state {state!r} to a FIPS "
+                "code for plan-registry lookup."
+            )
+
+        active = (registry or get_default_plan_registry()).resolve_plan_at_date(
+            state_fips, district_type, when,
+        )
+        return str(active.effective_from.year)

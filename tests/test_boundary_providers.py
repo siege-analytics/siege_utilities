@@ -326,3 +326,133 @@ class TestRDHProvider:
         monkeypatch.setenv('RDH_USERNAME', 'should_not_use')
         provider = RDHProvider(username='', password=TEST_PASSWORD)
         assert provider._username == ''
+
+
+class TestRDHProviderPlanRegistryIntegration:
+    """RDHProvider.get_boundary(when=...) resolves through PlanRegistry (#361)."""
+
+    @staticmethod
+    def _alabama_registry():
+        """A registry with the Alabama 2022/2023 congressional fixture."""
+        import datetime as _dt
+        from siege_utilities.geo.plans import (
+            PlanAuthority, PlanDistrict, PlanRegistry, RedistrictingPlan,
+        )
+
+        AL = "01"
+
+        def make_districts(plan_name, authority, start, end):
+            return tuple(
+                PlanDistrict(
+                    state_fips=AL, district_type="cd", district_id=str(i),
+                    plan_name=plan_name, authority=authority,
+                    effective_from=start, effective_to=end,
+                )
+                for i in range(1, 8)
+            )
+
+        enacted = RedistrictingPlan(
+            plan_name="AL_2022_CD_ENACTED", state_fips=AL, district_type="cd",
+            authority=PlanAuthority.LEGISLATURE,
+            effective_from=_dt.date(2022, 1, 28),
+            effective_to=_dt.date(2023, 6, 7),
+            districts=make_districts(
+                "AL_2022_CD_ENACTED", PlanAuthority.LEGISLATURE,
+                _dt.date(2022, 1, 28), _dt.date(2023, 6, 7),
+            ),
+        )
+        interim = RedistrictingPlan(
+            plan_name="AL_2023_CD_INTERIM", state_fips=AL, district_type="cd",
+            authority=PlanAuthority.COURT,
+            effective_from=_dt.date(2023, 6, 8),
+            effective_to=None,
+            districts=make_districts(
+                "AL_2023_CD_INTERIM", PlanAuthority.COURT,
+                _dt.date(2023, 6, 8), None,
+            ),
+        )
+        registry = PlanRegistry()
+        registry.register_plans([enacted, interim])
+        return registry
+
+    @patch('siege_utilities.geo.providers.boundary_providers.RDHProvider._get_client')
+    def test_when_resolves_enacted_plan_year(self, mock_get_client):
+        """when= mid-2022 → enacted plan → year='2022' passed to RDH client."""
+        import datetime as _dt
+        sentinel = MagicMock(name='gdf')
+        mock_client = MagicMock()
+        mock_client.get_enacted_plans.return_value = [MagicMock()]
+        mock_client.load_shapefile.return_value = sentinel
+        mock_get_client.return_value = mock_client
+
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        result = provider.get_boundary(
+            'congress', state='AL',
+            when=_dt.date(2022, 5, 1),
+            plan_registry=self._alabama_registry(),
+        )
+
+        # The enacted plan's effective_from year is 2022.
+        mock_client.get_enacted_plans.assert_called_once_with(
+            'AL', chamber='congress', year='2022', format='shp',
+        )
+        assert result is sentinel
+
+    @patch('siege_utilities.geo.providers.boundary_providers.RDHProvider._get_client')
+    def test_when_resolves_interim_plan_year(self, mock_get_client):
+        """when= post-court-order → interim plan → year='2023'."""
+        import datetime as _dt
+        sentinel = MagicMock(name='gdf')
+        mock_client = MagicMock()
+        mock_client.get_enacted_plans.return_value = [MagicMock()]
+        mock_client.load_shapefile.return_value = sentinel
+        mock_get_client.return_value = mock_client
+
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        result = provider.get_boundary(
+            'congress', state='AL',
+            when=_dt.date(2023, 9, 15),
+            plan_registry=self._alabama_registry(),
+        )
+
+        mock_client.get_enacted_plans.assert_called_once_with(
+            'AL', chamber='congress', year='2023', format='shp',
+        )
+        assert result is sentinel
+
+    def test_when_unknown_date_propagates_resolution_error(self):
+        """A date with no plan must raise PlanResolutionError, not silently return."""
+        import datetime as _dt
+        from siege_utilities.geo.plans import PlanResolutionError
+
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        with pytest.raises(PlanResolutionError, match="No registered plan"):
+            provider.get_boundary(
+                'congress', state='AL',
+                when=_dt.date(2019, 1, 1),  # before any registered plan
+                plan_registry=self._alabama_registry(),
+            )
+
+    def test_when_with_precinct_level_rejected(self):
+        """RDH precinct files aren't plan-aware — when= must raise."""
+        import datetime as _dt
+
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        with pytest.raises(ValueError, match="not supported for level 'precinct'"):
+            provider.get_boundary(
+                'precinct', state='AL',
+                when=_dt.date(2023, 9, 15),
+                plan_registry=self._alabama_registry(),
+            )
+
+    def test_when_unknown_state_raises(self):
+        """A state name that doesn't normalize to a FIPS raises before registry."""
+        import datetime as _dt
+
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        with pytest.raises((ValueError, Exception)):
+            provider.get_boundary(
+                'congress', state='ZZ',  # not a real state
+                when=_dt.date(2023, 9, 15),
+                plan_registry=self._alabama_registry(),
+            )
