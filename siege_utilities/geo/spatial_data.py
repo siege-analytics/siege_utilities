@@ -377,7 +377,7 @@ def _known_tiger_directories_for_year(year: int) -> List[str]:
         "METDIV", "NECTA", "NECTADIV",
         "PUMA", "SUBMCD",
         "TBG", "TTRACT",
-        "MIL", "FEATNAMES", "LINEARWATER", "AREALWATER", "AREAWATER",
+        "MIL", "FEATNAMES", "LINEARWATER", "AREAWATER",
         "CONCITY", "CD",
     }
 
