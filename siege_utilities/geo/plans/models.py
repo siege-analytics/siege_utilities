@@ -128,10 +128,14 @@ class RedistrictingPlan:
         effective_from: First date the plan is in legal effect.
         effective_to: Last date in effect, or ``None`` if currently active.
         districts: Tuple of :class:`PlanDistrict` rows under this plan.
-            A frozen tuple so the dataclass remains hashable.
         metadata: Free-form mapping for citation, source URLs, court
             docket numbers, etc. Not used for resolution — consumers can
             stuff whatever they want here.
+
+    Note: ``frozen=True`` only forbids attribute reassignment; the
+    ``metadata`` dict remains mutable in place. Instances are therefore
+    *not* hashable and should be treated as value objects, never used
+    as dict keys or set members.
     """
 
     plan_name: str
@@ -142,6 +146,10 @@ class RedistrictingPlan:
     effective_to: Optional[_dt.date] = None
     districts: Tuple[PlanDistrict, ...] = field(default_factory=tuple)
     metadata: Mapping[str, str] = field(default_factory=dict)
+
+    # Mutable metadata dict means dataclass.__hash__ would silently
+    # accept hashing and then collide unpredictably; mark unhashable.
+    __hash__ = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
         if self.effective_to is not None and self.effective_to < self.effective_from:
