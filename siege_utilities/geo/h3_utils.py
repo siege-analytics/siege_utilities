@@ -305,6 +305,95 @@ def h3_hex_to_boundary(hex_id: str) -> list:
     return list(boundary)
 
 
+# ---------------------------------------------------------------------------
+# Admin-geography → H3 resolution mapping
+#
+# Average areas are approximate, drawn from US Census Bureau publications:
+#   - State: 9.83 M km^2 / 50 states ≈ 196,600 km^2 (mainland weighted differs;
+#     here we take the simple average across 50 states + DC).
+#   - County: ~3,000 km^2 average across ~3,143 counties.
+#   - ZCTA (ZIP Code Tabulation Area): ~110 km^2 average across ~33,000 ZCTAs
+#     (highly variable; rural ZCTAs can exceed 1,000 km^2).
+#   - Census Tract: ~5 km^2 average across ~85,000 tracts.
+#   - Block Group: ~1 km^2 average across ~240,000 BGs.
+#   - Census Block: ~0.04 km^2 average across ~11.1 M blocks.
+#
+# These are intentionally rough — within an order of magnitude is sufficient
+# for selecting an H3 resolution. The H3 documentation
+# (https://h3geo.org/docs/comparisons/admin) makes the point that admin
+# boundaries are an *unreliable* unit of analysis precisely because the
+# variance within a level (e.g. NY tract vs WY tract) is huge. The resolution
+# returned here is a starting point; tune up or down by ±1 if the polygons
+# you actually have are systematically larger or smaller than the average.
+# ---------------------------------------------------------------------------
+ADMIN_LEVEL_AVG_AREA_KM2 = {
+    "state": 196_600.0,
+    "county": 3_000.0,
+    "zcta": 110.0,
+    "tract": 5.0,
+    "block_group": 1.0,
+    "block": 0.04,
+}
+
+# Aliases that map common variants to the canonical key above.
+_ADMIN_LEVEL_ALIASES = {
+    "states": "state",
+    "us_state": "state",
+    "counties": "county",
+    "us_county": "county",
+    "zip": "zcta",
+    "zip_code": "zcta",
+    "zipcode": "zcta",
+    "zctas": "zcta",
+    "tracts": "tract",
+    "census_tract": "tract",
+    "bg": "block_group",
+    "block_groups": "block_group",
+    "blockgroup": "block_group",
+    "blocks": "block",
+    "census_block": "block",
+}
+
+
+def h3_resolution_for_admin_level(level: str) -> int:
+    """
+    Suggest an H3 resolution whose average hex area matches a US admin level.
+
+    Useful when you want to bin point data into hexes that are roughly the
+    same scale as a familiar admin unit (e.g. "give me hexes the size of
+    counties"). The mapping is deliberately approximate — admin polygons
+    vary by orders of magnitude within a single level, so this is a
+    starting point, not a precision tool.
+
+    Recognised levels (case-insensitive):
+      ``state``, ``county``, ``zcta``, ``tract``, ``block_group``, ``block``.
+    Common aliases are accepted (``zip`` → ``zcta``, ``bg`` →
+    ``block_group``, plurals, etc.).
+
+    Args:
+        level: Admin geography level name.
+
+    Returns:
+        int: H3 resolution (0-15) closest in average hex area to the
+        average polygon area at the requested admin level.
+
+    Raises:
+        ImportError: If h3 is not installed.
+        ValueError: If ``level`` is not recognised.
+    """
+    _require_h3()
+
+    normalized = level.strip().lower()
+    canonical = _ADMIN_LEVEL_ALIASES.get(normalized, normalized)
+    if canonical not in ADMIN_LEVEL_AVG_AREA_KM2:
+        valid = sorted(ADMIN_LEVEL_AVG_AREA_KM2)
+        raise ValueError(
+            f"Unknown admin level {level!r}. "
+            f"Recognised levels: {valid}."
+        )
+    return h3_resolution_for_area(ADMIN_LEVEL_AVG_AREA_KM2[canonical])
+
+
 def h3_resolution_for_area(target_area_km2: float) -> int:
     """
     Suggest the H3 resolution whose hex area best matches a target area.
