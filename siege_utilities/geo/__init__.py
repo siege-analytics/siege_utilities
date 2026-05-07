@@ -180,6 +180,13 @@ _register([
 # --- nces_download ---
 _register(['NCESDownloader', 'NCESDownloadError'], '.providers.nces_download')
 
+# --- etter_filter (natural-language geographic query parsing via LLM) ---
+_register([
+    'ETTER_AVAILABLE',
+    'EtterError', 'EtterParseError', 'EtterLowConfidenceError',
+    'EtterFilter', 'EtterParser', 'default_llm',
+], '.providers.etter_filter')
+
 # --- databricks_fallback ---
 _register([
     'SpatialLoaderPlan', 'select_spatial_loader',
@@ -232,6 +239,23 @@ _register([
     'h3_hex_to_boundary', 'h3_resolution_for_area',
     'h3_resolution_for_admin_level', 'ADMIN_LEVEL_AVG_AREA_KM2',
 ], '.h3_utils')
+
+# --- s2_utils (S2 cell-grid spatial index) ---
+_register([
+    'S2_AVAILABLE', 'S2_LEVEL_AREA_KM2',
+    's2_index_points', 's2_index_polygon', 's2_region_cover',
+    's2_spatial_join', 's2_cell_to_boundary',
+    's2_level_for_area', 's2_level_for_admin_level',
+    's2_kring', 's2_distance', 's2_parent', 's2_children',
+    's2_cell_id_to_uint64', 's2_uint64_to_cell_id',
+    's2_cell_id_to_token', 's2_token_to_cell_id',
+    's2_bbox_to_cells', 's2_cells_to_ranges',
+], '.s2_utils')
+
+# --- grids (grid-agnostic dispatch wrappers) ---
+_register([
+    'index_points', 'index_polygon', 'infer_grid',
+], '.grids')
 
 # --- plans (redistricting plan resolution by date) ---
 _register([
