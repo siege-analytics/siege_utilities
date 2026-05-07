@@ -233,6 +233,13 @@ _register([
     'h3_resolution_for_admin_level', 'ADMIN_LEVEL_AVG_AREA_KM2',
 ], '.h3_utils')
 
+# --- plans (redistricting plan resolution by date) ---
+_register([
+    'PlanAuthority', 'PlanDistrict', 'RedistrictingPlan',
+    'PlanRegistry', 'PlanResolutionError', 'PlanOverlapError',
+    'get_default_plan_registry',
+], '.plans')
+
 # --- temporal (pure-Python temporal data management) ---
 _register([
     'TemporalDataStore', 'get_temporal_store',
