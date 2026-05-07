@@ -227,3 +227,32 @@ class TestHighLevelMethods:
         c = VistaSocialConnector(api_token=TEST_TOKEN)
         with pytest.raises(ValueError, match="account_id"):
             c.list_posts("")
+
+
+class TestNonJsonBody:
+    """A 2xx with non-JSON body must raise rather than silently empty
+    (Phase-3 silent-swallow discipline)."""
+
+    def test_non_json_body_raises(self):
+        c = VistaSocialConnector(api_token=TEST_TOKEN)
+        bad = MagicMock()
+        bad.status_code = 200
+        bad.content = b"<html>oops</html>"
+        bad.json.side_effect = ValueError("Expecting value")
+        bad.headers = {}
+        bad.text = "<html>oops</html>"
+        with patch.object(c._session, "request", return_value=bad):
+            with pytest.raises(VistaSocialError, match="non-JSON body"):
+                c._request("GET", "/v1/accounts")
+
+    def test_empty_body_ok(self):
+        """204 No Content — empty body returns empty data, not an error."""
+        c = VistaSocialConnector(api_token=TEST_TOKEN)
+        empty = MagicMock()
+        empty.status_code = 204
+        empty.content = b""
+        empty.headers = {}
+        with patch.object(c._session, "request", return_value=empty):
+            resp = c._request("GET", "/v1/accounts")
+        assert resp.status_code == 204
+        assert resp.data == {}

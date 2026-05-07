@@ -240,10 +240,21 @@ class VistaSocialConnector:
                     f"{resp.text[:200]}"
                 )
 
-            try:
-                data = resp.json() if resp.content else {}
-            except ValueError:
-                data = {}
+            if not resp.content:
+                # 204 No Content / empty body — legitimately empty.
+                data: Mapping[str, Any] = {}
+            else:
+                try:
+                    data = resp.json()
+                except ValueError as exc:
+                    # 2xx with non-JSON body. Don't silently treat as
+                    # empty (that violates the no-silent-swallow rule
+                    # set by the Phase-3 sweep) — surface it.
+                    raise VistaSocialError(
+                        f"Vista Social {method} {url} returned "
+                        f"{resp.status_code} with non-JSON body "
+                        f"(first 200 chars: {resp.text[:200]!r})."
+                    ) from exc
             return VistaSocialResponse(
                 status_code=resp.status_code,
                 data=data,
