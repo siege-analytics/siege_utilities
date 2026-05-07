@@ -230,6 +230,7 @@ _register([
     'H3_AVAILABLE',
     'h3_index_points', 'h3_index_polygon', 'h3_spatial_join',
     'h3_hex_to_boundary', 'h3_resolution_for_area',
+    'h3_resolution_for_admin_level', 'ADMIN_LEVEL_AVG_AREA_KM2',
 ], '.h3_utils')
 
 # --- temporal (pure-Python temporal data management) ---
