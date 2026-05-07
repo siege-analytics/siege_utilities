@@ -110,10 +110,22 @@ class TestKnownTigerDirectories:
             for expected in ["BG", "CD", "COUNTY", "SLDL", "SLDU", "STATE", "TRACT"]:
                 assert expected in dirs, f"{expected} missing for year {year}"
 
-    def test_zcta5_added_from_2012(self):
+    def test_zcta_dir_name_changes_at_2020_vintage(self):
+        # 2010-2011: ZCTA tied to redistricting release schedule, not in
+        # the annual fallback — expect neither.
         assert "ZCTA5" not in _known_tiger_directories_for_year(2011)
+        assert "ZCTA520" not in _known_tiger_directories_for_year(2011)
+        # 2012-2019: legacy directory + filename suffix (zcta510).
         assert "ZCTA5" in _known_tiger_directories_for_year(2012)
-        assert "ZCTA5" in _known_tiger_directories_for_year(2024)
+        assert "ZCTA5" in _known_tiger_directories_for_year(2019)
+        assert "ZCTA520" not in _known_tiger_directories_for_year(2019)
+        # 2020: transition year — both directories are published.
+        dirs_2020 = _known_tiger_directories_for_year(2020)
+        assert "ZCTA5" in dirs_2020
+        assert "ZCTA520" in dirs_2020
+        # 2021+: only the 2020-vintage directory.
+        assert "ZCTA5" not in _known_tiger_directories_for_year(2024)
+        assert "ZCTA520" in _known_tiger_directories_for_year(2024)
 
     def test_2020_decennial_extras(self):
         dirs = _known_tiger_directories_for_year(2020)
@@ -124,6 +136,35 @@ class TestKnownTigerDirectories:
         dirs = _known_tiger_directories_for_year(2010)
         assert "TABBLOCK10" in dirs
         assert "VTD10" in dirs
+
+    def test_uac_dir_tracks_decennial_vintage(self):
+        # 2010-vintage UAC10 published 2011-2019.
+        assert "UAC10" in _known_tiger_directories_for_year(2015)
+        # 2020-2021 transitional unsuffixed UAC.
+        assert "UAC" in _known_tiger_directories_for_year(2020)
+        assert "UAC" in _known_tiger_directories_for_year(2021)
+        # 2020-vintage UAC20 published 2022 onward.
+        assert "UAC20" in _known_tiger_directories_for_year(2022)
+        assert "UAC20" in _known_tiger_directories_for_year(2024)
+        # No suffix mixing.
+        assert "UAC10" not in _known_tiger_directories_for_year(2022)
+        assert "UAC20" not in _known_tiger_directories_for_year(2015)
+
+    def test_expanded_layer_coverage(self):
+        """The conservative baseline should cover ~30+ layers, not just ~10."""
+        dirs = _known_tiger_directories_for_year(2022)
+        # Sample of layers a downstream user is plausibly going to ask for
+        # via a directory listing fallback.
+        for layer in [
+            "PUMA", "AIANNH", "ANRC", "CBSA", "CSA", "METDIV", "NECTA",
+            "PRIMARYROADS", "PRISECROADS", "ROADS", "RAILS",
+            "ELSD", "SCSD", "SDELM", "SDSEC", "SDUNI", "UNSD",
+            "EDGES", "FACES", "POINTLM", "LINEARWATER", "AREAWATER",
+            "TBG", "TTRACT", "COUNTYSUB",
+        ]:
+            assert layer in dirs, f"{layer} missing from 2022 fallback list"
+        # Sanity floor: at least 30 layers in the modern era.
+        assert len(dirs) >= 30, f"only {len(dirs)} layers in 2022 fallback"
 
     def test_returns_sorted_list(self):
         dirs = _known_tiger_directories_for_year(2022)

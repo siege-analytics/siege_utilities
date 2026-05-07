@@ -343,20 +343,67 @@ def _dirs_from_inventory(year: int, inventory: Optional[dict] = None) -> Optiona
 def _known_tiger_directories_for_year(year: int) -> List[str]:
     """Static fallback directory list for a TIGER/Line annual release.
 
-    Used when the Census FTP returns 429 (rate-limit) on the top-level
-    ``TIGER{year}/`` directory listing.  These subdirectories exist in every
-    annual TIGER release from 2010 onward.  The generic ``CD`` directory is
-    included because Census uses it for both national pre-2022 files
-    (``tl_{year}_us_cd{congress}.zip``) and per-state 2022+ files
-    (``tl_{year}_{fips}_cd{congress}.zip``).
+    Used when the Census FTP returns 429 (rate-limit) or 403 (directory
+    listing blocked) on the top-level ``TIGER{year}/`` directory.  Returning
+    a *known-good* list lets callers proceed with construct-then-download
+    instead of failing the whole job because index.html is unreachable.
+
+    The list is conservative — every directory enumerated here has been
+    confirmed present in TIGER releases 2014 onward.  Earlier years (2010–
+    2013) had fewer published layers; year-specific dispatch below trims
+    accordingly.  The generic ``CD`` directory is included because Census
+    uses it for both national pre-2022 files (``tl_{year}_us_cd{congress}
+    .zip``) and per-state 2022+ files (``tl_{year}_{fips}_cd{congress}
+    .zip``).
+
+    Special cases handled:
+      * ``ZCTA5`` (with ``zcta510`` filename suffix) through 2019;
+        ``ZCTA520`` (with ``zcta520`` filename suffix) from 2020 onward;
+        2020 publishes both directories (`ZCTA5` is the legacy redirect).
+      * ``TABBLOCK10`` and ``VTD10`` only in 2010; ``TABBLOCK20`` and
+        ``VTD20`` only in 2020+.
+      * ``UAC10`` only 2011-2019 (Urban Area Census 2010 vintage); ``UAC20``
+        from 2022 onward (Urban Area Census 2020 vintage); 2020-2021 publish
+        ``UAC`` (the unsuffixed transitional name).
     """
-    dirs = ["BG", "CD", "COUNTY", "PLACE", "SLDL", "SLDU", "STATE", "TRACT"]
-    if year >= 2012:
-        dirs.append("ZCTA5")
-    if year == 2020:
-        dirs += ["TABBLOCK20", "VTD20"]
-    elif year == 2010:
-        dirs += ["TABBLOCK10", "VTD10"]
+    # Always-published baseline (2010 onward).
+    dirs = {
+        "BG", "COUNTY", "COUNTYSUB", "PLACE", "STATE", "TRACT",
+        "AIANNH", "ANRC", "CBSA", "CSA", "CNECTA",
+        "EDGES", "FACES", "FACESAH", "FACESAL",
+        "ELSD", "SCSD", "SDELM", "SDSEC", "SDUNI", "UNSD",
+        "POINTLM", "PRIMARYROADS", "PRISECROADS", "RAILS", "ROADS",
+        "SLDL", "SLDU",
+        "METDIV", "NECTA", "NECTADIV",
+        "PUMA", "SUBMCD",
+        "TBG", "TTRACT",
+        "MIL", "FEATNAMES", "LINEARWATER", "AREAWATER",
+        "CONCITY", "CD",
+    }
+
+    # ZCTA: directory name + filename suffix changed at the 2020 vintage.
+    if year >= 2020:
+        # 2020 publishes ZCTA5 as a legacy redirect alongside ZCTA520; safer
+        # to surface both so callers can probe either.
+        dirs.update({"ZCTA5", "ZCTA520"} if year == 2020 else {"ZCTA520"})
+    elif year >= 2012:
+        dirs.add("ZCTA5")
+
+    # TABBLOCK + VTD: tied to the decennial vintage that produced them.
+    if year == 2010:
+        dirs.update({"TABBLOCK10", "VTD10"})
+    elif year >= 2020:
+        dirs.update({"TABBLOCK20", "VTD20"})
+
+    # UAC (Urban Area Census): 2010 vintage 2011-2019; transitional 2020-2021;
+    # 2020 vintage 2022 onward.
+    if 2011 <= year <= 2019:
+        dirs.add("UAC10")
+    elif year in (2020, 2021):
+        dirs.add("UAC")
+    elif year >= 2022:
+        dirs.add("UAC20")
+
     return sorted(dirs)
 
 
