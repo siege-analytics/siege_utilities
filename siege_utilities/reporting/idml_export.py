@@ -417,9 +417,22 @@ class IDMLExporter:
                 f'ParentStory="{sid}" '
                 f'GeometricBounds="{bounds}"/>'
             )
+        from pathlib import Path
+        from urllib.parse import quote
+        from xml.sax.saxutils import quoteattr
+
         for img in self._image_frames:
             sid = story_ids[idx]; idx += 1
             bounds = self._geo_bounds(img)
+            # Build a safe file:// URI:
+            # 1. Resolve to absolute → prevents ``..`` smuggling.
+            # 2. percent-encode path components (whitespace, non-ASCII,
+            #    XML metacharacters all become %XX).
+            # 3. xml.sax quoteattr produces a properly-escaped XML
+            #    attribute value (handles & < > and the surrounding
+            #    quotes).
+            abs_path = Path(img["image_path"]).resolve().as_posix()
+            link_uri = "file://" + quote(abs_path)
             lines.append(
                 f'    <Rectangle Self="rect_{img["uid"]}" '
                 f'GeometricBounds="{bounds}">'
@@ -430,7 +443,7 @@ class IDMLExporter:
             )
             lines.append(
                 f'        <Link Self="link_{img["uid"]}" '
-                f'LinkResourceURI="file://{img["image_path"]}"/>'
+                f'LinkResourceURI={quoteattr(link_uri)}/>'
             )
             lines.append('      </Image>')
             lines.append('    </Rectangle>')
