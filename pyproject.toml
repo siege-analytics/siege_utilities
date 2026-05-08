@@ -64,6 +64,12 @@ h3 = [
 s2 = [
     "s2sphere>=0.2.5",
 ]
+# WKLS (Well Known Locations) — global admin-boundary gazetteer.
+# Pulls sedonadb (Rust + Arrow), pyarrow, geoarrow-pyarrow. NO Spark/JVM.
+# ~302 MB install. Data fetched on-demand from public Overture Maps S3.
+wkls = [
+    "wkls>=1.1.0",
+]
 # Etter — natural-language geographic query parser (LLM-driven)
 etter = [
     "etter>=0.1.0",

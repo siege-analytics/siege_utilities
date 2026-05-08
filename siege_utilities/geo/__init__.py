@@ -180,6 +180,14 @@ _register([
 # --- nces_download ---
 _register(['NCESDownloader', 'NCESDownloadError'], '.providers.nces_download')
 
+# --- gazetteers (name → geometry resolution; WKLS / Nominatim / Census / Wikidata) ---
+_register([
+    'Gazetteer', 'GazetteerResult', 'GazetteerCandidate',
+    'GazetteerError', 'GazetteerNotFoundError',
+    'GazetteerAmbiguousError', 'GazetteerBackendError',
+    'resolve_gazetteer',
+], '.gazetteers')
+
 # --- etter_filter (natural-language geographic query parsing via LLM) ---
 _register([
     'ETTER_AVAILABLE',
