@@ -544,11 +544,11 @@ def s2_cell_id_to_uint64(cell_or_token) -> int:
         return _s2.CellId.from_token(cell_or_token).id()
     try:
         return int(cell_or_token)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as exc:
         raise TypeError(
             f"Expected int64 cell id or hex token string, got "
             f"{type(cell_or_token).__name__}"
-        )
+        ) from exc
 
 
 def s2_uint64_to_cell_id(n: int):
@@ -627,34 +627,56 @@ def _coerce_cell_id(value):
     # Try integer-like (covers Python int, numpy.int64, numpy.uint64).
     try:
         return _s2.CellId(int(value))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as exc:
         raise TypeError(
             f"Expected CellId, int64, or token string, got "
             f"{type(value).__name__}"
-        )
+        ) from exc
+
+
+_POLYGON_TYPES = ("Polygon", "MultiPolygon")
 
 
 def _coerce_polygon(geometry):
-    """Convert input to a shapely shape (Polygon / MultiPolygon)."""
+    """Convert input to a shapely Polygon / MultiPolygon.
+
+    Rejects Point / LineString / GeometryCollection — they have ``.bounds``
+    and ``.contains`` so a duck-typed check would let them through, but
+    a Point's bbox is degenerate and ``s2_index_polygon`` would silently
+    return the wrong cells.
+    """
     try:
         from shapely.geometry import shape, mapping  # noqa: F401
-    except ImportError:
+    except ImportError as exc:
         raise ImportError(
             "shapely is required for S2 polygon coverage. Install with: "
             "pip install 'siege-utilities[geo]' or pip install 'shapely>=2.0'."
-        )
-    if hasattr(geometry, "bounds") and hasattr(geometry, "contains"):
-        return geometry  # already a shapely shape
+        ) from exc
+
+    # Convert to a shapely object first.
     if isinstance(geometry, dict):
         from shapely.geometry import shape
-        return shape(geometry)
-    if hasattr(geometry, "__geo_interface__"):
+        candidate = shape(geometry)
+    elif hasattr(geometry, "__geo_interface__"):
         from shapely.geometry import shape
-        return shape(geometry.__geo_interface__)
-    raise TypeError(
-        f"Cannot coerce {type(geometry).__name__} to a polygon. "
-        "Provide a shapely shape or a GeoJSON dict."
-    )
+        candidate = shape(geometry.__geo_interface__)
+    elif hasattr(geometry, "geom_type") and hasattr(geometry, "bounds"):
+        candidate = geometry  # already a shapely shape
+    else:
+        raise TypeError(
+            f"Cannot coerce {type(geometry).__name__} to a polygon. "
+            "Provide a shapely shape or a GeoJSON dict."
+        )
+
+    # Now enforce the polygon type — duck typing is too permissive here.
+    geom_type = getattr(candidate, "geom_type", None)
+    if geom_type not in _POLYGON_TYPES:
+        raise TypeError(
+            f"S2 polygon coverage requires a Polygon or MultiPolygon, got "
+            f"{geom_type!r}. Convert points/lines via .buffer(...) first if "
+            "you want a non-zero-area region."
+        )
+    return candidate
 
 
 def _expand_to_level(cell_id, target_level: int) -> Iterable[int]:

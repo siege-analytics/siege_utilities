@@ -325,3 +325,73 @@ class TestSpatialJoin:
         joined = s2_utils.s2_spatial_join(points, gdf, "lat", "lon", level=12)
         assert len(joined) == 2
         assert set(joined["name"]) == {"west", "east"}
+
+    def test_no_matches_returns_empty_with_schema(self):
+        """Empty-match path keeps the polygon-attrs columns on the result
+        (early-return at lines 415-419 of s2_utils — caught by CodeRabbit)."""
+        try:
+            import geopandas as gpd
+            from shapely.geometry import box
+        except ImportError:
+            pytest.skip("geopandas / shapely not installed")
+        gdf = gpd.GeoDataFrame({
+            "name": ["far_away"],
+            "geometry": [box(50, 50, 51, 51)],
+        })
+        points = pd.DataFrame({
+            "id": ["p1"],
+            "lat": [0.5],
+            "lon": [0.5],  # not in any polygon
+        })
+        joined = s2_utils.s2_spatial_join(points, gdf, "lat", "lon", level=12)
+        assert len(joined) == 0
+        # Schema must still expose the polygon-attrs column even on empty.
+        assert "name" in joined.columns
+
+    def test_first_polygon_wins_on_overlap(self):
+        """Two overlapping polygons — first one registered wins for shared cells."""
+        try:
+            import geopandas as gpd
+            from shapely.geometry import box
+        except ImportError:
+            pytest.skip("geopandas / shapely not installed")
+        # Two polygons that overlap; point lands inside both.
+        gdf = gpd.GeoDataFrame({
+            "name": ["first", "second"],
+            "geometry": [box(0, 0, 1, 1), box(0.5, 0, 1.5, 1)],
+        })
+        points = pd.DataFrame({
+            "id": ["p1"],
+            "lat": [0.5],
+            "lon": [0.7],  # inside both
+        })
+        joined = s2_utils.s2_spatial_join(points, gdf, "lat", "lon", level=12)
+        assert len(joined) == 1
+        assert joined["name"].iloc[0] == "first"
+
+
+class TestCoercePolygonRejects:
+    """_coerce_polygon must reject Points/LineStrings — duck-typing by
+    .bounds + .contains was too permissive (CodeRabbit major)."""
+
+    def test_point_rejected(self):
+        try:
+            from shapely.geometry import Point
+        except ImportError:
+            pytest.skip("shapely not installed")
+        with pytest.raises(TypeError, match="Polygon or MultiPolygon"):
+            s2_utils.s2_index_polygon(Point(0, 0), level=10)
+
+    def test_linestring_rejected(self):
+        try:
+            from shapely.geometry import LineString
+        except ImportError:
+            pytest.skip("shapely not installed")
+        with pytest.raises(TypeError, match="Polygon or MultiPolygon"):
+            s2_utils.s2_index_polygon(LineString([(0, 0), (1, 1)]), level=10)
+
+    def test_geojson_point_rejected(self):
+        with pytest.raises(TypeError, match="Polygon or MultiPolygon"):
+            s2_utils.s2_index_polygon(
+                {"type": "Point", "coordinates": [0, 0]}, level=10,
+            )

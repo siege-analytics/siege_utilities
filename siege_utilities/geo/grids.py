@@ -48,16 +48,32 @@ _H3_ONLY_KWARGS = frozenset({"resolution"})
 def infer_grid(grid: Grid, kwargs: dict) -> str:
     """Resolve ``grid=`` per the documented inference rules.
 
-    Returns ``"h3"`` or ``"s2"``; raises :class:`ValueError` on
-    ambiguous input. Pure function — does not mutate *kwargs*.
+    Returns ``"h3"`` or ``"s2"``; raises :class:`ValueError` if the
+    inputs contradict the chosen grid. Pure function — does not mutate
+    *kwargs*.
     """
+    has_s2 = any(k in kwargs and kwargs[k] is not None for k in _S2_ONLY_KWARGS)
+    has_h3 = any(k in kwargs and kwargs[k] is not None for k in _H3_ONLY_KWARGS)
+
     if grid is not None:
         if grid not in ("h3", "s2"):
             raise ValueError(f"grid must be 'h3' or 's2' (or None), got {grid!r}")
+        # Explicit grid wins, but reject foreign kwargs rather than silently
+        # dropping them (a hard-to-diagnose 'why didn't max_cells take effect?'
+        # bug otherwise).
+        if grid == "h3" and has_s2:
+            offenders = [k for k in _S2_ONLY_KWARGS if kwargs.get(k) is not None]
+            raise ValueError(
+                f"grid='h3' was passed alongside S2-only kwargs {offenders}. "
+                "Either drop the S2 kwargs or switch to grid='s2'."
+            )
+        if grid == "s2" and has_h3:
+            offenders = [k for k in _H3_ONLY_KWARGS if kwargs.get(k) is not None]
+            raise ValueError(
+                f"grid='s2' was passed alongside H3-only kwargs {offenders}. "
+                "Either drop the H3 kwargs or switch to grid='h3'."
+            )
         return grid
-
-    has_s2 = any(k in kwargs and kwargs[k] is not None for k in _S2_ONLY_KWARGS)
-    has_h3 = any(k in kwargs and kwargs[k] is not None for k in _H3_ONLY_KWARGS)
 
     if has_s2 and has_h3:
         raise ValueError(
@@ -99,6 +115,14 @@ def index_points(
         if level is not None and resolution is None:
             # Caller asked for grid='h3' but used 'level'; honour it.
             resolution = level
+        if kwargs:
+            # Reject silent kwarg dropping — symmetric with the S2 path,
+            # which forwards them. h3_index_points has no extra kwargs to
+            # forward, so anything here is caller error.
+            raise TypeError(
+                f"index_points(grid='h3') got unexpected keyword argument(s): "
+                f"{sorted(kwargs)}"
+            )
         return h3_index_points(df, lat_col, lon_col, resolution or 8)
     else:
         from .s2_utils import s2_index_points

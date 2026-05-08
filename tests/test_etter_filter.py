@@ -95,6 +95,7 @@ class TestFromGeoQuery:
         assert f.confidence == 1.0
 
     def test_frozen(self):
+        from dataclasses import FrozenInstanceError
         gq = SimpleNamespace(
             spatial_relation="in",
             reference_location="X",
@@ -102,7 +103,7 @@ class TestFromGeoQuery:
             overall_confidence=1.0,
         )
         f = ef.EtterFilter.from_geoquery("q", gq)
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             f.spatial_relation = "near"
 
 
@@ -173,6 +174,24 @@ class TestEtterParser:
             p = ef.EtterParser(llm=MagicMock(), confidence_threshold=0.6, strict_mode=True)
             with pytest.raises(ef.EtterLowConfidenceError, match="0.40"):
                 p.parse("q")
+
+    def test_upstream_low_confidence_translated(self):
+        """An upstream LowConfidenceError surfaces as our typed exception,
+        even though we don't forward strict_mode to upstream — defends
+        against the case where a future upstream version raises despite
+        our local guard."""
+        # Synthesize a class that *looks* like upstream's LowConfidenceError
+        # (matched by class name, not isinstance — see comment in parse()).
+        class LowConfidenceError(Exception):
+            pass
+
+        upstream = MagicMock()
+        upstream.parse.side_effect = LowConfidenceError("0.42 < 0.6")
+        with patch.object(ef, "ETTER_AVAILABLE", True), \
+             patch.object(ef, "_UpstreamParser", return_value=upstream):
+            p = ef.EtterParser(llm=MagicMock())
+            with pytest.raises(ef.EtterLowConfidenceError, match="Upstream rejected"):
+                p.parse("ambiguous query")
 
     def test_low_confidence_non_strict_returns_with_warning(self):
         upstream = MagicMock()

@@ -176,13 +176,13 @@ def default_llm(
     """
     try:
         from langchain.chat_models import init_chat_model
-    except ImportError:
+    except ImportError as exc:
         raise ImportError(
             "default_llm requires langchain. Install with: "
             "pip install 'siege-utilities[etter]' "
             "(which pulls langchain via etter), or pass your own "
             "configured chat model directly to EtterParser."
-        )
+        ) from exc
 
     name = model.lower()
     if "claude" in name:
@@ -245,12 +245,14 @@ class EtterParser:
             )
         if llm is None:
             llm = default_llm()
-        self._parser = _UpstreamParser(
-            llm=llm,
-            confidence_threshold=confidence_threshold,
-            strict_mode=strict_mode,
-            **upstream_kwargs,
-        )
+        # Do NOT forward strict_mode/confidence_threshold to the upstream
+        # parser. If we did, the upstream's own LowConfidenceError would
+        # be raised inside parse() and caught by our `except Exception`,
+        # surfacing as EtterParseError — making our local strict-mode
+        # check unreachable. Local enforcement keeps the exception class
+        # contract on this side of the boundary, and means a future
+        # upstream rename of LowConfidenceError won't silently break us.
+        self._parser = _UpstreamParser(llm=llm, **upstream_kwargs)
         self._confidence_threshold = confidence_threshold
         self._strict_mode = strict_mode
         log.info("EtterParser initialised (threshold=%s)", confidence_threshold)
@@ -259,19 +261,29 @@ class EtterParser:
         """Parse *query* into an :class:`EtterFilter`.
 
         Raises:
-            EtterParseError: Upstream parser raised. The original
-                exception is chained via ``__cause__``.
+            EtterParseError: Upstream parser raised an unexpected error.
+                The original exception is chained via ``__cause__``.
             EtterLowConfidenceError: Parser succeeded but confidence is
                 below the threshold and ``strict_mode=True``. (When
                 ``strict_mode`` is False, this case logs and returns
                 normally; check :attr:`EtterFilter.confidence` if the
-                caller needs to gate.)
+                caller needs to gate.) Also raised if a future upstream
+                exposes its own ``LowConfidenceError`` and our local
+                check wasn't reached — we re-raise it as our type so
+                consumers don't have to know about upstream class names.
         """
         if not query or not query.strip():
             raise EtterParseError("Empty query string")
         try:
             geo_query = self._parser.parse(query)
         except Exception as exc:
+            # If the upstream raised its own low-confidence error
+            # (matching by class name to avoid a hard import dependency
+            # on a moving target), surface it as our typed exception.
+            if type(exc).__name__ == "LowConfidenceError":
+                raise EtterLowConfidenceError(
+                    f"Upstream rejected {query!r} as low-confidence: {exc}"
+                ) from exc
             raise EtterParseError(
                 f"Etter failed to parse {query!r}: {exc}"
             ) from exc
