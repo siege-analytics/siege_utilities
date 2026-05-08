@@ -27,7 +27,6 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-import pandas as pd
 
 log = logging.getLogger(__name__)
 
@@ -88,15 +87,16 @@ def infer_grid(grid: Grid, kwargs: dict) -> str:
 
 
 def index_points(
-    df: pd.DataFrame,
+    df: Any,
     lat_col: str,
     lon_col: str,
     *,
     grid: Grid = None,
     resolution: Optional[int] = None,
     level: Optional[int] = None,
+    engine: Any = None,
     **kwargs: Any,
-) -> pd.Series:
+) -> Any:
     """Compute a grid cell ID for each row in *df*.
 
     Dispatches to :func:`h3_index_points` or :func:`s2_index_points`
@@ -109,6 +109,16 @@ def index_points(
         ``pd.Series`` of cell IDs (H3 hex strings or S2 cell tokens by
         default).
     """
+    if engine is not None:
+        # Engine path: hand off to the DataFrameEngine.index_points override.
+        # The default on the ABC round-trips through pandas; concrete engines
+        # may have native fast paths.
+        return engine.index_points(
+            df, lat_col, lon_col,
+            grid=grid, resolution=resolution, level=level,
+            **kwargs,
+        )
+
     chosen = infer_grid(grid, {"resolution": resolution, "level": level})
     if chosen == "h3":
         from .h3_utils import h3_index_points

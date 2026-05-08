@@ -192,6 +192,87 @@ class DataFrameEngine(ABC):
         Always returns a ``geopandas.GeoDataFrame`` regardless of engine.
         """
 
+    # -- Grid indexing (concrete defaults; engines may override) -----------
+
+    def index_points(
+        self,
+        df: Any,
+        lat_col: str,
+        lon_col: str,
+        *,
+        grid: Optional[str] = None,
+        resolution: Optional[int] = None,
+        level: Optional[int] = None,
+        as_token: bool = True,
+    ) -> Any:
+        """Compute a grid (H3 or S2) cell ID for each row.
+
+        Default: round-trip through pandas. Engines that benefit from a
+        native path (Spark via pandas UDF, DuckDB via SQL when the
+        spatial extension is loaded) should override.
+
+        See :func:`siege_utilities.geo.grids.index_points` for the kwarg
+        inference rules — pass ``resolution=`` for H3, ``level=`` for S2,
+        or set ``grid=`` explicitly.
+
+        Returns the same engine-native frame type as ``df`` would have
+        been augmented with — for the default, that's a column appended
+        to a pandas-converted copy. Engines that override return their
+        native shape.
+        """
+        from ..geo.grids import index_points as _index_points, infer_grid
+        pdf = self.to_pandas(df).copy()
+        if grid is None and resolution is None and level is None:
+            # No hint at all → default to S2 level 12 (the most useful
+            # data-warehouse path; H3 callers are expected to pass
+            # resolution=).
+            level = 12
+            grid = "s2"
+        # Resolve the chosen grid up front so the output column name
+        # matches what was computed (otherwise resolution=8 alone would
+        # produce h3_index in the data but be labelled s2_index).
+        chosen = infer_grid(grid, {"resolution": resolution, "level": level})
+        cells = _index_points(
+            pdf, lat_col, lon_col,
+            grid=grid, resolution=resolution, level=level,
+            **({"as_token": as_token} if chosen == "s2" else {}),
+        )
+        col = "h3_index" if chosen == "h3" else "s2_index"
+        pdf[col] = cells.values
+        return pdf
+
+    def index_polygon(
+        self,
+        geometry: Any,
+        *,
+        grid: Optional[str] = None,
+        resolution: Optional[int] = None,
+        level: Optional[int] = None,
+        max_cells: Optional[int] = None,
+        min_level: Optional[int] = None,
+        max_level: Optional[int] = None,
+        refine: bool = True,
+    ) -> Any:
+        """Cover a polygon with grid cells.
+
+        Engine-agnostic by construction — the input is a single geometry,
+        not a frame, so no engine-specific dispatch is required at this
+        level. Provided here for API symmetry with :meth:`index_points`
+        and so consumer code can accept ``engine`` as a config knob and
+        call ``engine.index_polygon(...)`` uniformly.
+        """
+        from ..geo.grids import index_polygon as _index_polygon
+        return _index_polygon(
+            geometry,
+            grid=grid,
+            resolution=resolution,
+            level=level,
+            max_cells=max_cells,
+            min_level=min_level,
+            max_level=max_level,
+            refine=refine,
+        )
+
     # -- Spatial sugar (concrete defaults) ---------------------------------
 
     def point_in_polygon(
@@ -1007,6 +1088,41 @@ class PostGISEngine(DataFrameEngine):
     @property
     def name(self) -> str:
         return POSTGIS
+
+    # -- Grid indexing (overrides the ABC default to surface a useful path) -
+
+    def index_points(
+        self,
+        df: Any,
+        lat_col: str,
+        lon_col: str,
+        *,
+        grid: Optional[str] = None,
+        resolution: Optional[int] = None,
+        level: Optional[int] = None,
+        as_token: bool = True,
+    ) -> Any:
+        """PostGIS does not natively compute H3 / S2 cell IDs.
+
+        For S2-keyed warehouse joins, the recommended pattern is:
+
+          1. Compute cell IDs ONCE during ingest (e.g. via the PandasEngine
+             or in your ETL job using ``s2_index_points``).
+          2. Store as a ``BIGINT`` column on the row.
+          3. For region queries, generate ``(range_min, range_max)`` pairs
+             via :func:`s2_cells_to_ranges` and filter with
+             ``WHERE s2_cell BETWEEN range_min AND range_max``.
+
+        Computing cell IDs at query time over PostGIS would defeat the
+        whole point — the database can't index a value it has to compute
+        per-row. Hence this engine raises rather than silently degrade.
+        """
+        raise NotImplementedError(
+            "PostGISEngine.index_points: compute cell IDs at ingest time "
+            "(via PandasEngine or s2_index_points), store as BIGINT column, "
+            "and use s2_cells_to_ranges() for region queries. "
+            "See engine.index_points docstring for the pattern."
+        )
 
     # -- I/O ----------------------------------------------------------------
 
