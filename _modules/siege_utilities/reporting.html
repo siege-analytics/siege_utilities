@@ -576,6 +576,12 @@
 <span class="n">_register</span><span class="p">([</span><span class="s1">&#39;PollingAnalyzer&#39;</span><span class="p">],</span> <span class="s1">&#39;.analytics.polling_analyzer&#39;</span><span class="p">)</span>
 <span class="n">_register</span><span class="p">([</span><span class="s1">&#39;Argument&#39;</span><span class="p">,</span> <span class="s1">&#39;TableType&#39;</span><span class="p">],</span> <span class="s1">&#39;.pages.page_models&#39;</span><span class="p">)</span>
 
+<span class="c1"># Hex cartograms (tile maps): one hexagon per admin unit, three sizing modes.</span>
+<span class="n">_register</span><span class="p">([</span>
+    <span class="s1">&#39;Algorithm&#39;</span><span class="p">,</span> <span class="s1">&#39;Sizing&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;BUILTIN_LAYOUTS&#39;</span><span class="p">,</span> <span class="s1">&#39;hex_tile_layout&#39;</span><span class="p">,</span> <span class="s1">&#39;hex_tile_map&#39;</span><span class="p">,</span> <span class="s1">&#39;register_layout&#39;</span><span class="p">,</span>
+<span class="p">],</span> <span class="s1">&#39;.hex_cartogram&#39;</span><span class="p">)</span>
+
 <span class="c1"># IDML (InDesign) export</span>
 <span class="n">_register</span><span class="p">([</span><span class="s1">&#39;IDMLExporter&#39;</span><span class="p">,</span> <span class="s1">&#39;export_report_idml&#39;</span><span class="p">,</span> <span class="s1">&#39;SIMPLEIDML_AVAILABLE&#39;</span><span class="p">],</span> <span class="s1">&#39;.idml_export&#39;</span><span class="p">)</span>
 
