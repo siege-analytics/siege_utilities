@@ -475,7 +475,11 @@ def run_command(command: Union[str, List[str]],
         timeout: Timeout in seconds (default: 30)
         capture_output: Whether to capture command output
         allow_list: Optional custom whitelist of allowed commands
-        unsafe: If True, bypass security validation (DANGEROUS - use with caution)
+        unsafe: If True, bypass the allow-list check. The command is
+            still executed via argv (shell=False) — string commands are
+            shlex-split and run without shell expansion. Use this when
+            you legitimately need a binary that isn't in the allow-list,
+            not when you need shell features.
 
     Returns:
         CompletedProcess object, or None if failed
@@ -532,26 +536,27 @@ def run_command(command: Union[str, List[str]],
             try:
                 validated_command = validate_command_safety(command_list, allow_list)
                 command_to_run = validated_command
-                use_shell = False
             except (SecurityError, ValueError) as e:
                 log.error(f"Security validation failed: {e}")
                 raise
         else:
-            # Unsafe mode: log warning and proceed
+            # Unsafe mode: skip the allow-list but still run the command
+            # via argv (shell=False). Bypassing the whitelist is the
+            # caller's risk to take; bypassing argv-level argument
+            # parsing would let the string be interpreted by /bin/sh,
+            # which is a separate (and worse) class of vulnerability we
+            # don't expose here.
             log.warning(
-                f"⚠️ SECURITY WARNING: Running command without validation: {command}"
+                "run_command(unsafe=True): allow-list bypassed; "
+                "argv-level execution preserved (no shell expansion)"
             )
-            if isinstance(command, str):
-                command_to_run = command
-                use_shell = True  # DANGER: Required for string commands in unsafe mode
-            else:
-                command_to_run = command_list
-                use_shell = False
+            command_to_run = command_list
 
-        # Execute command
+        # Execute command. shell=False unconditionally — argv list, no
+        # /bin/sh interpretation of the command string.
         result = subprocess.run(
             command_to_run,
-            shell=use_shell,
+            shell=False,
             cwd=cwd,
             timeout=timeout,
             capture_output=capture_output,
