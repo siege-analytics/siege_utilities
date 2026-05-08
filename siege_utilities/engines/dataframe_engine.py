@@ -442,10 +442,24 @@ class DataFrameEngine(ABC):
         # Compute intersection
         overlay = gpd.overlay(src, tgt, how="intersection")
 
-        # Area ratio: intersection_area / source_area
+        # Area ratio: intersection_area / source_area. Zero-area source
+        # polygons (degenerate inputs) would produce NaN ratios that
+        # silently drop the polygon's weight from the aggregation —
+        # invisible data loss. Surface them: warn, then drop explicitly
+        # so the downstream sum is honest about its inputs.
+        import logging as _logging
+        _log = _logging.getLogger(__name__)
         overlay["_src_area"] = src.loc[overlay.index].geometry.area
         overlay["_isect_area"] = overlay.geometry.area
-        overlay["_ratio"] = overlay["_isect_area"] / overlay["_src_area"].replace(0, float("nan"))
+        zero_area = overlay["_src_area"] <= 0
+        if zero_area.any():
+            _log.warning(
+                "apportion: %d source polygon(s) have zero area; their "
+                "weights are dropped (would otherwise propagate NaN).",
+                int(zero_area.sum()),
+            )
+            overlay = overlay.loc[~zero_area].copy()
+        overlay["_ratio"] = overlay["_isect_area"] / overlay["_src_area"]
         overlay[f"apportioned_{weight_col}"] = overlay[weight_col] * overlay["_ratio"]
 
         # Aggregate by target
@@ -811,7 +825,11 @@ class DuckDBEngine(DataFrameEngine):
         if isinstance(df, pd.DataFrame) and geometry_col in df.columns:
             from shapely import wkt as shapely_wkt, wkb as shapely_wkb
             from shapely.geometry.base import BaseGeometry
-            sample = df[geometry_col].dropna().iloc[0] if len(df) > 0 else None
+            # Predicate must be on the dropped Series — len(df) > 0 can
+            # be true while df[geometry_col] is all-null, which would
+            # IndexError on .iloc[0].
+            non_null = df[geometry_col].dropna()
+            sample = non_null.iloc[0] if not non_null.empty else None
             if sample is not None and not isinstance(sample, BaseGeometry):
                 if isinstance(sample, bytes):
                     geoms = df[geometry_col].apply(lambda g: shapely_wkb.loads(g) if g is not None else None)
