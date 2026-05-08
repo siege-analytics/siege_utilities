@@ -38,6 +38,12 @@ _register(['ChartTypeRegistry'], '.chart_types')
 _register(['PollingAnalyzer'], '.analytics.polling_analyzer')
 _register(['Argument', 'TableType'], '.pages.page_models')
 
+# Hex cartograms (tile maps): one hexagon per admin unit, three sizing modes.
+_register([
+    'Algorithm', 'Sizing',
+    'BUILTIN_LAYOUTS', 'hex_tile_layout', 'hex_tile_map', 'register_layout',
+], '.hex_cartogram')
+
 # IDML (InDesign) export
 _register(['IDMLExporter', 'export_report_idml', 'SIMPLEIDML_AVAILABLE'], '.idml_export')
 
