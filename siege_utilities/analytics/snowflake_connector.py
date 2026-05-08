@@ -214,13 +214,18 @@ class SnowflakeConnector:
             if not self.connect():
                 return False
         
+        from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
+        validate_identifier(table_name, label="table name")
         try:
-            # Set database and schema context
+            # Set database and schema context. Snowflake doesn't permit
+            # parameter-bound identifiers for USE; validation must do it.
             if database:
+                validate_identifier(database, label="database name")
                 self.cursor.execute(f"USE DATABASE {database}")
             if schema:
+                validate_identifier(schema, label="schema name")
                 self.cursor.execute(f"USE SCHEMA {schema}")
-            
+
             # Create table if needed
             if auto_create_table:
                 self._create_table_from_dataframe(df, table_name, overwrite)
@@ -277,16 +282,19 @@ class SnowflakeConnector:
     
     def _create_table_from_dataframe(self, df: 'pd.DataFrame', table_name: str, overwrite: bool) -> None:
         """Create Snowflake table based on DataFrame structure."""
+        from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
+        validate_identifier(table_name, label="table name")
         if overwrite:
             self.cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
-        
+
         # Generate CREATE TABLE statement
         columns = []
         for col_name, dtype in df.dtypes.items():
-            # Map pandas dtypes to Snowflake types
+            # Validate every DataFrame column name before it lands in DDL.
+            validate_identifier(str(col_name), label="column name", allow_dotted=False)
             snowflake_type = self._map_pandas_to_snowflake_type(dtype)
             columns.append(f"{col_name} {snowflake_type}")
-        
+
         create_statement = f"CREATE TABLE IF NOT EXISTS {table_name} ({', '.join(columns)})"
         self.cursor.execute(create_statement)
         log.info(f"Created table {table_name} with {len(columns)} columns")
@@ -324,23 +332,31 @@ class SnowflakeConnector:
             if not self.connect():
                 return None
         
+        from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
+        validate_identifier(table_name, label="table name")
         try:
-            # Set context
+            # Set context (identifiers cannot be parameter-bound).
             if database:
+                validate_identifier(database, label="database name")
                 self.cursor.execute(f"USE DATABASE {database}")
             if schema:
+                validate_identifier(schema, label="schema name")
                 self.cursor.execute(f"USE SCHEMA {schema}")
-            
+
             # Get table description
             self.cursor.execute(f"DESCRIBE TABLE {table_name}")
             columns = self.cursor.fetchall()
-            
+
             # Get row count
             self.cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
             row_count = self.cursor.fetchone()[0]
-            
-            # Get table size
-            self.cursor.execute(f"SELECT BYTES, ROWS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{table_name}'")
+
+            # Get table size — table_name in WHERE is a string literal,
+            # so parameter-bind it instead of interpolating.
+            self.cursor.execute(
+                "SELECT BYTES, ROWS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = %s",
+                (table_name,),
+            )
             size_info = self.cursor.fetchone()
             
             table_info = {
@@ -372,13 +388,16 @@ class SnowflakeConnector:
             if not self.connect():
                 return None
         
+        from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
         try:
-            # Set context
+            # Set context (identifiers cannot be parameter-bound).
             if database:
+                validate_identifier(database, label="database name")
                 self.cursor.execute(f"USE DATABASE {database}")
             if schema:
+                validate_identifier(schema, label="schema name")
                 self.cursor.execute(f"USE SCHEMA {schema}")
-            
+
             # List tables
             self.cursor.execute("SHOW TABLES")
             tables = [row[1] for row in self.cursor.fetchall()]

@@ -31,6 +31,8 @@ _register([
 # --- sql_safety ---
 _register([
     'validate_sql_identifier',
+    'validate_sql_identifier_in',
+    'escape_sql_string_literal',
 ], '.sql_safety')
 
 __all__ = list(_LAZY_IMPORTS.keys())

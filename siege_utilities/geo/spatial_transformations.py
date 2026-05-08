@@ -195,11 +195,15 @@ class SpatialDataTransformer:
             # For now, just save as SQL file that can be imported
             output_path = kwargs.get('output_path', 'output.sql')
             
-            # Generate SQL INSERT statements
+            # Generate SQL INSERT statements. WKT comes from shapely
+            # which can't normally produce single quotes, but the file
+            # is written for human inspection / re-import — escape
+            # defensively so a hand-edited row can't break out of the
+            # literal.
+            from siege_utilities.core.sql_safety import escape_sql_string_literal as escape_string_literal
             sql_statements = []
             for idx, row in gdf.iterrows():
-                geom_wkt = row.geometry.wkt
-                # Basic SQL generation - in practice you'd want more sophisticated handling
+                geom_wkt = escape_string_literal(row.geometry.wkt)
                 sql = f"INSERT INTO spatial_table (geom) VALUES (ST_GeomFromText('{geom_wkt}'));"
                 sql_statements.append(sql)
             
@@ -223,14 +227,19 @@ class SpatialDataTransformer:
             db_path = kwargs.get('db_path') or self.user_config.get_database_connection('duckdb') or ':memory:'
             table_name = kwargs.get('table_name', 'spatial_data')
             
+            # Validate the user-supplied table name before it lands in
+            # DDL — DuckDB doesn't permit parameter-bound identifiers.
+            from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
+            validate_identifier(table_name, label="table name", allow_dotted=False)
+
             # Connect to DuckDB
             con = duckdb.connect(db_path)
-            
+
             # Convert to pandas DataFrame with WKT geometries
             df = gdf.copy()
             df['geometry_wkt'] = df.geometry.apply(lambda geom: geom.wkt)
             df = df.drop(columns=['geometry'])
-            
+
             # Upload to DuckDB
             con.execute(f"CREATE TABLE IF NOT EXISTS {table_name} AS SELECT * FROM df")
             
@@ -289,7 +298,15 @@ class PostGISConnector:
 
         if_exists = kwargs.get('if_exists', 'replace')
         schema = kwargs.get('schema', 'public')
+
+        # Validate identifiers before they reach SQL, then use
+        # psycopg2.sql.Identifier for safe quoting in interpolation.
+        from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
+        from psycopg2 import sql as _pg_sql
+        validate_identifier(schema, label="schema name", allow_dotted=False)
+        validate_identifier(table_name, label="table name", allow_dotted=False)
         qualified_table = f"{schema}.{table_name}"
+        qualified_ident = _pg_sql.Identifier(schema, table_name)
 
         try:
             cursor = self.connection.cursor()
@@ -305,7 +322,9 @@ class PostGISConnector:
                     )
 
             if if_exists == 'replace':
-                cursor.execute(f"DROP TABLE IF EXISTS {qualified_table}")
+                cursor.execute(
+                    _pg_sql.SQL("DROP TABLE IF EXISTS {}").format(qualified_ident)
+                )
                 self.connection.commit()
 
             if if_exists in ('replace', 'fail'):
@@ -314,12 +333,12 @@ class PostGISConnector:
             # Upload data
             cursor = self.connection.cursor()
 
+            insert_stmt = _pg_sql.SQL(
+                "INSERT INTO {} (geom) VALUES (ST_GeomFromText(%s))"
+            ).format(qualified_ident)
             for idx, row in gdf.iterrows():
                 geom_wkt = row.geometry.wkt
-                cursor.execute(
-                    f"INSERT INTO {qualified_table} (geom) VALUES (ST_GeomFromText(%s))",
-                    (geom_wkt,),
-                )
+                cursor.execute(insert_stmt, (geom_wkt,))
 
             self.connection.commit()
             log.info(f"Successfully uploaded to PostGIS table: {qualified_table}")
@@ -348,9 +367,15 @@ class PostGISConnector:
             log.error("No PostGIS connection available")
             return None
 
+        from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
+        from psycopg2 import sql as _pg_sql
+        validate_identifier(table_name, label="table name")
         try:
             cursor = self.connection.cursor()
-            cursor.execute(f"SELECT ST_AsText(geom) as geometry FROM {table_name}")
+            cursor.execute(
+                _pg_sql.SQL("SELECT ST_AsText(geom) as geometry FROM {}")
+                .format(_pg_sql.Identifier(*table_name.split(".")))
+            )
 
             rows = cursor.fetchall()
             geometries = []
