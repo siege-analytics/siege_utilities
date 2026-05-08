@@ -8,6 +8,20 @@ from typing import Optional
 
 from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
 
+# 64 KiB — matches stdlib hashlib's recommended buffered-read size and
+# what the reference filehash recipe uses. Centralised so we don't
+# drift across the four hash helpers below.
+_HASH_CHUNK_SIZE = 64 * 1024
+
+
+def _update_from_file(hash_obj, fp) -> None:
+    """Feed *fp* into *hash_obj* in fixed-size chunks until EOF."""
+    while True:
+        chunk = fp.read(_HASH_CHUNK_SIZE)
+        if not chunk:
+            return
+        hash_obj.update(chunk)
+
 
 def generate_sha256_hash_for_file(file_path) ->Optional[str]:
     """
@@ -50,8 +64,7 @@ def generate_sha256_hash_for_file(file_path) ->Optional[str]:
             return None
         sha256_hash = hashlib.sha256()
         with open(path_obj, 'rb') as f:
-            for chunk in iter(lambda : f.read(65536), b''):
-                sha256_hash.update(chunk)
+            _update_from_file(sha256_hash, f)
         return sha256_hash.hexdigest()
     except Exception as e:
         log_error(f'Error generating SHA256 hash for {file_path}: {e}')
@@ -107,8 +120,7 @@ def get_file_hash(file_path, algorithm='sha256') ->Optional[str]:
         else:
             hash_func = hashlib.new(algorithm)
         with open(path_obj, 'rb') as f:
-            for chunk in iter(lambda : f.read(65536), b''):
-                hash_func.update(chunk)
+            _update_from_file(hash_func, f)
         return hash_func.hexdigest()
     except Exception as e:
         log_error(f'Error generating {algorithm} hash for {file_path}: {e}')
@@ -165,11 +177,11 @@ def get_quick_file_signature(file_path) ->str:
                 ) or f'stat_{stat.st_size}_{stat.st_mtime}'
         hash_obj = hashlib.sha256()
         with open(path_obj, 'rb') as f:
-            first_chunk = f.read(65536)
+            first_chunk = f.read(_HASH_CHUNK_SIZE)
             hash_obj.update(first_chunk)
-            if stat.st_size > 131072:
-                f.seek(-65536, 2)
-                last_chunk = f.read(65536)
+            if stat.st_size > 2 * _HASH_CHUNK_SIZE:
+                f.seek(-_HASH_CHUNK_SIZE, 2)
+                last_chunk = f.read(_HASH_CHUNK_SIZE)
                 hash_obj.update(last_chunk)
         stat_string = f'{stat.st_size}_{stat.st_mtime}_{len(first_chunk)}'
         hash_obj.update(stat_string.encode())
