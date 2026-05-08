@@ -63,20 +63,28 @@ class ConfigurationMigrator:
         try:
             with open(legacy_file, 'r') as f:
                 legacy_data = yaml.safe_load(f)
-            
+
+            # safe_load returns None for empty docs, lists/scalars for
+            # malformed ones — both crash the field mapper with a
+            # cryptic AttributeError downstream. Validate up front.
+            if not isinstance(legacy_data, dict):
+                logger.error(
+                    "Legacy user profile %s is not a YAML mapping (got %s); "
+                    "falling back to default profile.",
+                    legacy_file, type(legacy_data).__name__,
+                )
+                return self._create_default_user_profile()
+
             logger.info(f"Loading legacy user profile from: {legacy_file}")
-            
-            # Map legacy fields to new UserProfile fields
             new_data = self._map_user_profile_fields(legacy_data)
-            
-            # Create new UserProfile
             profile = UserProfile(**new_data)
-            
             logger.info("Successfully migrated user profile")
             return profile
-            
-        except Exception as e:
-            logger.error(f"Failed to migrate user profile: {e}")
+
+        except Exception:
+            # exception() preserves the traceback; the previous
+            # error(f"...: {e}") string lost it.
+            logger.exception("Failed to migrate user profile from %s", legacy_file)
             return self._create_default_user_profile()
     
     def migrate_client_profile(self, legacy_file: Path, client_code: str) -> ClientProfile:
@@ -96,21 +104,30 @@ class ConfigurationMigrator:
         
         try:
             with open(legacy_file, 'r') as f:
-                legacy_data = yaml.safe_load(f) if legacy_file.suffix in ['.yaml', '.yml'] else json.load(f)
-            
+                legacy_data = (
+                    yaml.safe_load(f) if legacy_file.suffix in ['.yaml', '.yml']
+                    else json.load(f)
+                )
+
+            if not isinstance(legacy_data, dict):
+                logger.error(
+                    "Legacy client profile %s is not a mapping (got %s); "
+                    "falling back to default profile for %s.",
+                    legacy_file, type(legacy_data).__name__, client_code,
+                )
+                return self._create_default_client_profile(client_code)
+
             logger.info(f"Loading legacy client profile from: {legacy_file}")
-            
-            # Map legacy fields to new ClientProfile fields
             new_data = self._map_client_profile_fields(legacy_data, client_code)
-            
-            # Create new ClientProfile
             profile = ClientProfile(**new_data)
-            
             logger.info(f"Successfully migrated client profile for: {client_code}")
             return profile
-            
-        except Exception as e:
-            logger.error(f"Failed to migrate client profile for {client_code}: {e}")
+
+        except Exception:
+            logger.exception(
+                "Failed to migrate client profile for %s from %s",
+                client_code, legacy_file,
+            )
             return self._create_default_client_profile(client_code)
     
     def migrate_all_configurations(self, dry_run: bool = False) -> Dict[str, Any]:
