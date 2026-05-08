@@ -119,19 +119,22 @@ def unzip_file_to_directory(zip_file_path: FilePath,
         # Create target directory
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        # Extract files (with zip slip protection)
+        # Extract files (with zip slip protection). Validate AND extract
+        # per-member — extractall() would ignore the validation loop
+        # below and re-process every entry without the guard.
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            # Validate each member to prevent zip slip attacks
+            target_resolved = target_dir.resolve()
             for member in zip_ref.namelist():
-                member_path = target_dir / member
-                # Resolve to absolute path and check it's within target_dir
+                # Reject absolute paths and any traversal that escapes
+                # target_dir. Path.resolve() collapses '..' segments;
+                # if the result isn't a child of target_dir, it's
+                # malicious.
                 try:
-                    member_path.resolve().relative_to(target_dir.resolve())
+                    (target_dir / member).resolve().relative_to(target_resolved)
                 except ValueError:
-                    log.error(f"Zip slip attempt detected: {member}")
+                    log.error(f"Zip slip attempt detected, skipping: {member!r}")
                     continue
-            # If all members are safe, extract
-            zip_ref.extractall(target_dir)
+                zip_ref.extract(member, target_dir)
 
         log.info(f"Extracted {zip_path} to {target_dir}")
         return target_dir
