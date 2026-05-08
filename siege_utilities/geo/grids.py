@@ -112,9 +112,8 @@ def index_points(
     chosen = infer_grid(grid, {"resolution": resolution, "level": level})
     if chosen == "h3":
         from .h3_utils import h3_index_points
-        if level is not None and resolution is None:
-            # Caller asked for grid='h3' but used 'level'; honour it.
-            resolution = level
+        # The "grid='h3' with level=" mismatch is now rejected by infer_grid,
+        # so by the time we get here level is None on the H3 path.
         if kwargs:
             # Reject silent kwarg dropping — symmetric with the S2 path,
             # which forwards them. h3_index_points has no extra kwargs to
@@ -126,8 +125,8 @@ def index_points(
         return h3_index_points(df, lat_col, lon_col, resolution or 8)
     else:
         from .s2_utils import s2_index_points
-        if resolution is not None and level is None:
-            level = resolution
+        # Ditto for S2: 'resolution=' with grid='s2' is rejected by infer_grid,
+        # so on the S2 path resolution is None.
         return s2_index_points(df, lat_col, lon_col, level or 12, **kwargs)
 
 
@@ -141,7 +140,7 @@ def index_polygon(
     min_level: Optional[int] = None,
     max_level: Optional[int] = None,
     refine: bool = True,
-):
+) -> "set | list":
     """Cover a polygon with grid cells.
 
     With H3: returns a :class:`set` of hex IDs at the requested
@@ -168,9 +167,9 @@ def index_polygon(
 
     if chosen == "h3":
         from .h3_utils import h3_index_polygon
-        # Caller may have used 'level' under grid='h3' — honour it.
-        res = resolution if resolution is not None else level
-        return h3_index_polygon(geometry, res or 8)
+        # `level` is rejected by infer_grid when grid='h3'; resolution is
+        # the only path here.
+        return h3_index_polygon(geometry, resolution or 8)
 
     # S2 path
     from .s2_utils import s2_index_polygon, s2_region_cover
@@ -182,6 +181,6 @@ def index_polygon(
             max_level=max_level if max_level is not None else 30,
             max_cells=max_cells if max_cells is not None else 100,
         )
-    # Single-level coverage
-    lvl = level if level is not None else (resolution if resolution is not None else 12)
-    return s2_index_polygon(geometry, lvl, refine=refine)
+    # Single-level coverage. `resolution` is rejected by infer_grid when
+    # grid='s2', so only `level` reaches here.
+    return s2_index_polygon(geometry, level or 12, refine=refine)

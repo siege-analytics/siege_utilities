@@ -172,7 +172,7 @@ class TestEtterParser:
         with patch.object(ef, "ETTER_AVAILABLE", True), \
              patch.object(ef, "_UpstreamParser", return_value=upstream):
             p = ef.EtterParser(llm=MagicMock(), confidence_threshold=0.6, strict_mode=True)
-            with pytest.raises(ef.EtterLowConfidenceError, match="0.40"):
+            with pytest.raises(ef.EtterLowConfidenceError, match=r"0\.40"):
                 p.parse("q")
 
     def test_upstream_low_confidence_translated(self):

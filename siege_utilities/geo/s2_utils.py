@@ -38,9 +38,17 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Iterable, List, Optional, Tuple
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Optional
 
-import pandas as pd
+if TYPE_CHECKING:  # pragma: no cover
+    # pandas is only needed for the DataFrame-batch helpers (e.g.
+    # s2_index_points, s2_spatial_join). Cell-level functions —
+    # s2_cell_to_boundary, s2_kring, s2_parent / _children, the ID
+    # converters — work without it. We don't want `pip install
+    # siege-utilities[s2]` to require pandas just to import this module,
+    # so the actual import lives inside the functions that need it.
+    import pandas as pd
 
 log = logging.getLogger(__name__)
 
@@ -190,13 +198,13 @@ def s2_level_for_admin_level(level: str) -> int:
 # ---------------------------------------------------------------------------
 
 def s2_index_points(
-    df: pd.DataFrame,
+    df: "pd.DataFrame",
     lat_col: str,
     lon_col: str,
     level: int = 12,
     *,
     as_token: bool = True,
-) -> pd.Series:
+) -> "pd.Series":
     """Compute the S2 cell ID for each point.
 
     Args:
@@ -312,7 +320,7 @@ def s2_region_cover(
     min_level: int = 0,
     max_level: int = 30,
     max_cells: int = 100,
-) -> List[int]:
+) -> list[int]:
     """Cover *geometry*'s bounding box with at most *max_cells* S2 cells.
 
     The S2-specific operation: returns a *mixed-resolution* set of cells
@@ -357,7 +365,7 @@ def s2_region_cover(
     return [c.id() for c in coverer.get_covering(rect)]
 
 
-def s2_cells_to_ranges(cell_ids: Iterable[int]) -> List[Tuple[int, int]]:
+def s2_cells_to_ranges(cell_ids: Iterable[int]) -> list[tuple[int, int]]:
     """Convert cell IDs to ``(range_min, range_max)`` pairs for SQL.
 
     Each S2 cell, regardless of level, has a contiguous range of leaf
@@ -380,13 +388,13 @@ def s2_cells_to_ranges(cell_ids: Iterable[int]) -> List[Tuple[int, int]]:
 # ---------------------------------------------------------------------------
 
 def s2_spatial_join(
-    points_df: pd.DataFrame,
+    points_df: "pd.DataFrame",
     polygons_gdf,
     lat_col: str,
     lon_col: str,
     level: int = 12,
     polygon_id_col: Optional[str] = None,
-) -> pd.DataFrame:
+) -> "pd.DataFrame":
     """Join points to polygons via S2 cell matching (approximate PiP).
 
     Same shape as :func:`h3_spatial_join`. Points and polygons sharing
@@ -395,6 +403,7 @@ def s2_spatial_join(
     """
     _require_s2()
     _validate_level(level)
+    import pandas as pd  # local import; see TYPE_CHECKING note at top
     point_cells = s2_index_points(points_df, lat_col, lon_col, level, as_token=False)
     indexed = points_df.copy()
     indexed["_s2_index"] = point_cells
@@ -430,7 +439,7 @@ def s2_spatial_join(
 # Cell metadata
 # ---------------------------------------------------------------------------
 
-def s2_cell_to_boundary(cell_id) -> List[Tuple[float, float]]:
+def s2_cell_to_boundary(cell_id) -> list[tuple[float, float]]:
     """Return the 4 vertex coordinates of a cell as ``(lat, lng)`` tuples.
 
     Accepts an int64 cell ID or a hex token string.
@@ -445,7 +454,7 @@ def s2_cell_to_boundary(cell_id) -> List[Tuple[float, float]]:
     return out
 
 
-def s2_kring(cell_id, k: int = 1) -> List[int]:
+def s2_kring(cell_id, k: int = 1) -> list[int]:
     """Return cell IDs within k steps of *cell_id* on the same level.
 
     The k-ring is approximate for S2 (squares don't tile uniformly); we
@@ -516,7 +525,7 @@ def s2_parent(cell_id, level: int) -> int:
     return cid.parent(level).id()
 
 
-def s2_children(cell_id) -> List[int]:
+def s2_children(cell_id) -> list[int]:
     """Return the four immediate children of a cell.
 
     Raises if called on a leaf cell (level 30).
@@ -581,7 +590,7 @@ def s2_bbox_to_cells(
     *,
     max_level: int = 18,
     max_cells: int = 64,
-) -> List[int]:
+) -> list[int]:
     """Cover an axis-aligned bounding box with at most *max_cells* cells.
 
     Convenience wrapper around :func:`s2_region_cover` for the common

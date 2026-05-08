@@ -160,7 +160,7 @@ def default_llm(
     model: str = "gpt-4o",
     temperature: float = 0.0,
     api_key: Optional[str] = None,
-):
+) -> Any:
     """Return a langchain chat model suitable for :class:`EtterParser`.
 
     Picks the right adapter based on the model name. ``api_key`` falls
