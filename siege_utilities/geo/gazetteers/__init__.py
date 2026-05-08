@@ -71,17 +71,15 @@ def resolve_gazetteer(
         from .wkls_gazetteer import WklsGazetteer
         return WklsGazetteer(cache_size=cache_size)
     if prefer == "nominatim":
-        # Nominatim adapter lives in providers/ for now and exposes the
-        # Gazetteer protocol via a thin wrapper. Future: refactor to a
-        # native sibling module under gazetteers/.
-        raise NotImplementedError(
-            "NominatimGazetteer adapter is queued for ELE-2483 PR-B. "
-            "For now, pass prefer='wkls' (the default backend) or use "
-            "the existing NominatimGeoClassifier directly."
-        )
+        from .nominatim_gazetteer import NominatimGazetteer
+        return NominatimGazetteer(cache_size=cache_size)
     if prefer in ("census", "wikidata"):
         raise NotImplementedError(
-            f"{prefer!r} gazetteer backend is queued for ELE-2483 PR-B."
+            f"{prefer!r} gazetteer backend is queued for ELE-2483 PR-B2 — "
+            "Census uses an address-geocoder + TIGERWeb shape lookup and "
+            "Wikidata is SPARQL + OSM relation deref, both worth a focused "
+            "PR each. For now use prefer='wkls' (global) or "
+            "prefer='nominatim' (OSM)."
         )
     if prefer is not None:
         raise ValueError(
@@ -89,16 +87,18 @@ def resolve_gazetteer(
             f"'wikidata', got {prefer!r}"
         )
 
-    # Auto-select: try WKLS first. wkls_gazetteer catches its own
-    # ImportError on the wkls package, so the module import itself
-    # never raises — guard via WKLS_AVAILABLE instead.
+    # Auto-select: try WKLS first (global, no rate limit), then
+    # Nominatim (OSM, public, rate-limited). Both modules catch their
+    # own ImportError on optional deps and expose an *_AVAILABLE flag.
     from .wkls_gazetteer import WklsGazetteer, WKLS_AVAILABLE
     if WKLS_AVAILABLE:
         return WklsGazetteer(cache_size=cache_size)
+    from .nominatim_gazetteer import NominatimGazetteer, GEOPY_AVAILABLE
+    if GEOPY_AVAILABLE:
+        return NominatimGazetteer(cache_size=cache_size)
 
     raise RuntimeError(
         "No gazetteer backend available. Install with: "
-        "pip install 'siege-utilities[wkls]' (recommended) "
-        "or wait for the Nominatim/Census/Wikidata adapters in "
-        "ELE-2483 PR-B."
+        "pip install 'siege-utilities[wkls]' (recommended, global) or "
+        "pip install 'siege-utilities[geo]' (Nominatim via geopy)."
     )
