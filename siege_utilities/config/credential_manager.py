@@ -20,6 +20,7 @@ from pathlib import Path
 
 # Import logging functions
 import logging
+import re
 _logger = logging.getLogger(__name__)
 
 try:
@@ -29,6 +30,30 @@ except ImportError:
     def log_info(message): _logger.info(message)
     def log_warning(message): _logger.warning(message)
     def log_error(message): _logger.error(message)
+
+
+# Redact patterns that look like secrets from log lines. The CLIs we
+# call (`op`, `security`, gcloud-style stderr) usually print field
+# names rather than secret values, but any error path can echo back
+# tokens — better to be paranoid for the small cost of a regex pass.
+_REDACT_PATTERNS = [
+    # Long alphanumeric runs (API keys, tokens, JWTs)
+    re.compile(r"\b[A-Za-z0-9_\-]{32,}\b"),
+    # Anything inside double quotes after a key-like word
+    re.compile(r"(?i)(token|secret|password|api[_-]?key|auth)[\"\':=\s]+[^\s\"\']+"),
+]
+
+
+def _redact(text: str, *, max_len: int = 300) -> str:
+    """Redact likely-secret substrings and clamp length for logging."""
+    if not text:
+        return ""
+    s = str(text)
+    for p in _REDACT_PATTERNS:
+        s = p.sub("[REDACTED]", s)
+    if len(s) > max_len:
+        s = s[:max_len] + "...[truncated]"
+    return s
 
 
 class CredentialManager:
@@ -436,7 +461,7 @@ class CredentialManager:
                 log_info(f"Stored {field} for {service} in 1Password")
                 return True
             else:
-                log_error(f"Failed to store in 1Password: {result.stderr}")
+                log_error(f"Failed to store in 1Password: {_redact(result.stderr)}")
                 return False
                 
         except Exception as e:
@@ -458,7 +483,7 @@ class CredentialManager:
                 log_info(f"Stored credential for {service} in Keychain")
                 return True
             else:
-                log_error(f"Failed to store in Keychain: {result.stderr}")
+                log_error(f"Failed to store in Keychain: {_redact(result.stderr)}")
                 return False
                 
         except Exception as e:
@@ -535,7 +560,7 @@ class CredentialManager:
                     log_warning("Could not verify GA credential storage")
                     return False
             else:
-                log_error(f"Failed to store GA credentials: {result.stderr}")
+                log_error(f"Failed to store GA credentials: {_redact(result.stderr)}")
                 return False
                 
         except Exception as e:
