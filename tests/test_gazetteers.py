@@ -290,7 +290,9 @@ class TestResolveGazetteer:
         assert gz.provider_name == "wkls"
 
     def test_prefer_unimplemented_backends_raise(self, fake_wkls):
-        for name in ("nominatim", "census", "wikidata"):
+        # Nominatim shipped in PR-B; Census and Wikidata are still
+        # deferred to PR-B2.
+        for name in ("census", "wikidata"):
             with pytest.raises(NotImplementedError):
                 resolve_gazetteer(prefer=name)
 
@@ -303,6 +305,10 @@ class TestResolveGazetteer:
         assert gz.provider_name == "wkls"
 
     def test_auto_select_no_backend_raises(self, monkeypatch):
+        # Disable both WKLS and Nominatim so the factory has nothing to
+        # fall back to.
+        from siege_utilities.geo.gazetteers import nominatim_gazetteer as ng
         monkeypatch.setattr(wg, "WKLS_AVAILABLE", False)
+        monkeypatch.setattr(ng, "GEOPY_AVAILABLE", False)
         with pytest.raises(RuntimeError, match="No gazetteer backend"):
             resolve_gazetteer()
