@@ -48,7 +48,7 @@ def find_components(
     """
     if len(gdf) == 0:
         return []
-    by_code: dict[str, "gpd.geoseries.GeoSeries.Geometry"] = {  # type: ignore[name-defined]
+    by_code: dict[str, object] = {
         str(row[code_col]): row.geometry
         for _, row in gdf.iterrows()
     }

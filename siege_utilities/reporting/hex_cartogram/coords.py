@@ -18,7 +18,6 @@ Conventions
 from __future__ import annotations
 
 import math
-from collections.abc import Iterable
 
 __all__ = [
     "AxialCoord",
@@ -105,7 +104,7 @@ def bounding_grid(
     n_cells: int,
     *,
     aspect_ratio: float = 1.3,
-) -> Iterable[AxialCoord]:
+) -> list[AxialCoord]:
     """Generate enough hex cells to plausibly hold ``n_cells`` polygons.
 
     Picks a roughly oval grid sized to ``aspect_ratio`` (slightly wider

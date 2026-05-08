@@ -115,17 +115,18 @@ def hex_tile_map(
         def scale_for(v: float) -> float:
             return 1.0
     elif sizing == Sizing.VALUE_PROPORTIONAL:
-        # Area ∝ value → side ∝ √(value / max).
+        # Area ∝ value → side ∝ √(value / max). Tilegram-style; faithful
+        # to the data but the eye reads area non-linearly.
         v_max = max(abs(vmax), 1e-9)
         def scale_for(v: float) -> float:
             return math.sqrt(max(v, 0.0) / v_max) if v == v else 0.0
     elif sizing == Sizing.VALUE_SQRT:
-        # Side ∝ √value (perception-correct).
+        # Perception-correct: human area perception scales sublinearly
+        # with true area, so to make perceived size track value linearly
+        # we want area ∝ √value ⇒ side ∝ value^(1/4).
         v_max = max(abs(vmax), 1e-9)
         def scale_for(v: float) -> float:
-            # Side scales as the 4th root of value (since "side ∝ √value"
-            # but we normalize against the max, so scale = √(v / v_max)).
-            return math.sqrt(max(v, 0.0) / v_max) if v == v else 0.0
+            return (max(v, 0.0) / v_max) ** 0.25 if v == v else 0.0
     else:  # pragma: no cover - exhaustive enum
         raise ValueError(f"Unknown sizing mode: {sizing!r}")
 
@@ -163,12 +164,15 @@ def hex_tile_map(
                 fontsize=8, color="white" if scale > 0.6 else "black",
             )
 
-    # Frame the figure.
-    qs = [int(r["q"]) for _, r in layout.iterrows()]
-    rs = [int(r["r"]) for _, r in layout.iterrows()]
-    if qs and rs:
-        xs = [axial_to_cartesian((q, r))[0] for q in qs for r in rs]
-        ys = [axial_to_cartesian((q, r))[1] for q in qs for r in rs]
+    # Frame the figure: iterate the actual placed cells, not the
+    # Cartesian product of every q with every r.
+    cell_xy = [
+        axial_to_cartesian((int(r["q"]), int(r["r"])))
+        for _, r in layout.iterrows()
+    ]
+    if cell_xy:
+        xs = [x for x, _ in cell_xy]
+        ys = [y for _, y in cell_xy]
         pad = 1.5
         ax.set_xlim(min(xs) - pad, max(xs) + pad)
         ax.set_ylim(min(ys) - pad, max(ys) + pad)

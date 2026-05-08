@@ -246,21 +246,30 @@ def _anneal(
     rng = random.Random(seed)
     adjacency = _polygon_adjacency(gdf, code_col, codes)
     cell_xy = {c: axial_to_cartesian(c) for c in cells}
+    # Per-code adjacency for O(deg) incremental cost updates.
+    adj_by_code: dict[str, set[str]] = {c: set() for c in codes}
+    for a, b in adjacency:
+        adj_by_code[a].add(b)
+        adj_by_code[b].add(a)
+
+    def centroid_term(code: str, cell: AxialCoord) -> float:
+        cx, cy = centroids[code]
+        xx, yy = cell_xy[cell]
+        return math.hypot(cx - xx, cy - yy)
+
+    def local_violations(code: str, assignment: dict[str, AxialCoord]) -> int:
+        """Count violating edges incident to *code* (each edge once)."""
+        cell = assignment[code]
+        return sum(
+            1 for nb in adj_by_code[code]
+            if nb in assignment and axial_distance(cell, assignment[nb]) > 1
+        )
 
     def total_cost(assignment: dict[str, AxialCoord]) -> float:
-        # Centroid term.
-        c_term = 0.0
-        for code, cell in assignment.items():
-            cx, cy = centroids[code]
-            xx, yy = cell_xy[cell]
-            c_term += math.hypot(cx - xx, cy - yy)
-        # Topology term: count adjacent-pairs not preserved.
-        violations = 0
-        for a, b in adjacency:
-            if a not in assignment or b not in assignment:
-                continue
-            if axial_distance(assignment[a], assignment[b]) > 1:
-                violations += 1
+        c_term = sum(centroid_term(code, cell) for code, cell in assignment.items())
+        # Sum local violations and halve — each violating pair is touched
+        # from both endpoints.
+        violations = sum(local_violations(c, assignment) for c in assignment) // 2
         return centroid_weight * c_term + topology_weight * violations
 
     current = dict(initial)
@@ -275,15 +284,24 @@ def _anneal(
         b = rng.choice(code_list)
         if a == b:
             continue
-        # Swap a and b.
+        # Compute the delta from swapping a and b without rescanning the
+        # whole assignment. Only edges incident to {a, b} can change
+        # state, and only a's and b's centroid terms change.
+        affected = {a, b} | adj_by_code[a] | adj_by_code[b]
+        old_v = _violation_pairs_in(affected, adj_by_code, current)
+        old_c = centroid_term(a, current[a]) + centroid_term(b, current[b])
         current[a], current[b] = current[b], current[a]
-        new_cost = total_cost(current)
-        delta = new_cost - current_cost
+        new_v = _violation_pairs_in(affected, adj_by_code, current)
+        new_c = centroid_term(a, current[a]) + centroid_term(b, current[b])
+        delta = (
+            centroid_weight * (new_c - old_c)
+            + topology_weight * (new_v - old_v)
+        )
         if delta < 0 or rng.random() < math.exp(-delta / max(temperature, 1e-9)):
-            current_cost = new_cost
-            if new_cost < best_cost:
+            current_cost += delta
+            if current_cost < best_cost:
                 best = dict(current)
-                best_cost = new_cost
+                best_cost = current_cost
         else:
             # Reject: undo.
             current[a], current[b] = current[b], current[a]
@@ -300,6 +318,33 @@ def _anneal(
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _violation_pairs_in(
+    codes: set[str],
+    adj_by_code: dict[str, set[str]],
+    assignment: dict[str, AxialCoord],
+) -> int:
+    """Count violating adjacency pairs with at least one endpoint in *codes*.
+
+    Each pair is counted once even when both endpoints are in *codes*.
+    """
+    seen: set[tuple[str, str]] = set()
+    n = 0
+    for code in codes:
+        if code not in assignment:
+            continue
+        cell = assignment[code]
+        for nb in adj_by_code[code]:
+            if nb not in assignment:
+                continue
+            key = (code, nb) if code < nb else (nb, code)
+            if key in seen:
+                continue
+            seen.add(key)
+            if axial_distance(cell, assignment[nb]) > 1:
+                n += 1
+    return n
+
+
 def _normalized_centroids(
     gdf: "gpd.GeoDataFrame",
     code_col: str,
@@ -312,9 +357,17 @@ def _normalized_centroids(
     """
     raw = []
     codes: list[str] = []
+    polygonal = {"Polygon", "MultiPolygon"}
     for _, row in gdf.iterrows():
+        geom = row.geometry
+        gtype = getattr(geom, "geom_type", None)
+        if gtype not in polygonal:
+            raise ValueError(
+                f"hex cartogram requires Polygon/MultiPolygon geometries; "
+                f"row {row[code_col]!r} has {gtype!r}"
+            )
         codes.append(str(row[code_col]))
-        c = row.geometry.centroid
+        c = geom.centroid
         raw.append((float(c.x), float(c.y)))
     xs = [p[0] for p in raw]
     ys = [p[1] for p in raw]
