@@ -184,6 +184,33 @@ class TestWklsGazetteerLookup:
             gz.lookup("Birmingham")  # no country_hint → ambiguous
         assert len(exc_info.value.candidates) == 2
 
+    def test_lookup_ambiguous_after_hints_still_raises(self, fake_wkls, monkeypatch):
+        """Ambiguity after hints must still surface — hints narrow, they
+        don't promise uniqueness."""
+        # Two US Birminghams (both legitimately exist in real data).
+        rows = [
+            {"id": "uuid-bham-al", "country": "US", "region": "US-AL",
+             "subtype": "locality", "name_primary": "Birmingham",
+             "name_en": "Birmingham"},
+            {"id": "uuid-bham-mi", "country": "US", "region": "US-MI",
+             "subtype": "locality", "name_primary": "Birmingham",
+             "name_en": "Birmingham"},
+        ]
+        fake = _FakeChainable(rows, {})
+        monkeypatch.setattr(wg, "wkls", fake)
+        gz = wg.WklsGazetteer()
+        with pytest.raises(GazetteerAmbiguousError) as exc_info:
+            gz.lookup("Birmingham", country_hint="US")
+        assert "country_hint='US'" in str(exc_info.value)
+        assert len(exc_info.value.candidates) == 2
+
+    def test_lookup_unknown_iso3_raises_value_error(self, fake_wkls):
+        """Unknown ISO-3 should be rejected as a caller error, not
+        translated to a backend error."""
+        gz = wg.WklsGazetteer()
+        with pytest.raises(ValueError, match="unknown ISO-3"):
+            gz.lookup("Birmingham", country_hint="XYZ")
+
     def test_lookup_unknown_raises_not_found(self, fake_wkls):
         gz = wg.WklsGazetteer()
         with pytest.raises(GazetteerNotFoundError):

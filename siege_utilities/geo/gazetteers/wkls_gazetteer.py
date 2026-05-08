@@ -102,12 +102,19 @@ class WklsGazetteer:
                 f"WKLS: no match for {name!r}"
                 + (f" (country={country_hint!r})" if country_hint else "")
             )
-        if len(candidates) > 1 and not (country_hint or admin_hint):
-            # Ambiguous — surface candidates rather than silently picking.
+        if len(candidates) > 1:
+            # Always surface ambiguity rather than silently picking the
+            # first match — hints narrow the search space, they don't
+            # promise uniqueness.
+            hint_note = ""
+            if country_hint or admin_hint:
+                hint_note = (
+                    f" (after country_hint={country_hint!r}, "
+                    f"admin_hint={admin_hint!r})"
+                )
             raise GazetteerAmbiguousError(
-                f"WKLS: {len(candidates)} matches for {name!r}; "
-                "pass country_hint/admin_hint to disambiguate or use "
-                "search() and pick.",
+                f"WKLS: {len(candidates)} matches for {name!r}{hint_note}; "
+                "pass tighter hints, or use search() and pick a candidate.",
                 candidates=[self._row_to_candidate(r) for r in candidates],
             )
         chosen = candidates[0]
@@ -141,24 +148,42 @@ class WklsGazetteer:
     ) -> list[dict[str, Any]]:
         """Run the WKLS wildcard search; return the top-N rows.
 
+        ``limit`` bounds the rows we materialize into Python; it does
+        NOT bound the upstream sedonadb scan, which is driven by the
+        wildcard pattern and any preceding country/admin chain access.
+        Tight ``country_hint`` / ``admin_hint`` are the right way to
+        keep the upstream cost down.
+
         Tolerant of upstream API drift: catches all exceptions and
         translates into :class:`GazetteerBackendError`.
         """
+        # Resolve country_hint outside the upstream-error try/except so
+        # caller errors (unknown ISO-3) surface as ValueError rather than
+        # being relabeled as backend failures.
+        country_code: Optional[str] = None
+        if country_hint:
+            country_code = country_hint.strip()
+            if len(country_code) == 3:
+                iso2 = _ISO3_TO_ISO2.get(country_code.upper())
+                if iso2 is None:
+                    raise ValueError(
+                        f"WKLS: unknown ISO-3 country code {country_code!r}; "
+                        f"pass an ISO-2 code or extend _ISO3_TO_ISO2."
+                    )
+                country_code = iso2.lower()
+            else:
+                country_code = country_code.lower()
         try:
             # Walk the chain top-down using the hints we have. Both
             # hints are best-effort; missing hints just mean a wider
             # search.
             df = wkls
-            if country_hint:
-                code = country_hint.strip().lower()
-                if len(code) == 3:
-                    # ISO-3 → ISO-2 — wkls uses ISO-2 codes for chains.
-                    code = _ISO3_TO_ISO2.get(code.upper(), code[:2])
+            if country_code:
                 # Try direct chain access; fall back to wildcard.
                 try:
-                    df = getattr(wkls, code)
+                    df = getattr(wkls, country_code)
                 except AttributeError:
-                    df = wkls[f"%{code}%"]
+                    df = wkls[f"%{country_code}%"]
             if admin_hint:
                 admin = admin_hint.strip().lower()
                 # Admin hints can be region codes ("al"), full names
@@ -223,9 +248,15 @@ class WklsGazetteer:
     def _row_to_result(self, row: dict[str, Any]) -> GazetteerResult:
         place_id = str(row["id"])
         geometry = self._cached_geometry(place_id)
+        # `centroid` only fails for empty / structurally invalid GEOS
+        # geometries; let everything else propagate as a real bug.
+        try:
+            from shapely.errors import GEOSException
+        except ImportError:  # pragma: no cover - shapely already required upstream
+            GEOSException = Exception  # type: ignore[assignment, misc]
         try:
             centroid = geometry.centroid
-        except Exception as exc:
+        except (GEOSException, ValueError) as exc:
             raise GazetteerBackendError(
                 f"WKLS: cannot compute centroid for id={place_id!r}: {exc}"
             ) from exc

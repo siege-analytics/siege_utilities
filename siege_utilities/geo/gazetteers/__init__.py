@@ -89,14 +89,12 @@ def resolve_gazetteer(
             f"'wikidata', got {prefer!r}"
         )
 
-    # Auto-select: try WKLS first, then NotImplementedError stops us
-    # since the alternates aren't ready in this PR.
-    try:
-        from .wkls_gazetteer import WklsGazetteer, WKLS_AVAILABLE
-        if WKLS_AVAILABLE:
-            return WklsGazetteer(cache_size=cache_size)
-    except ImportError:
-        pass
+    # Auto-select: try WKLS first. wkls_gazetteer catches its own
+    # ImportError on the wkls package, so the module import itself
+    # never raises — guard via WKLS_AVAILABLE instead.
+    from .wkls_gazetteer import WklsGazetteer, WKLS_AVAILABLE
+    if WKLS_AVAILABLE:
+        return WklsGazetteer(cache_size=cache_size)
 
     raise RuntimeError(
         "No gazetteer backend available. Install with: "
