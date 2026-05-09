@@ -67,19 +67,27 @@ def _check_package(pkg_name: str, quiet: bool) -> list[str]:
                 attr_name = name
             try:
                 mod = importlib.import_module(modpath, package=pkg_name)
-            except ModuleNotFoundError:
-                continue  # optional dep missing in this env
+            except (ModuleNotFoundError, ImportError, AttributeError):
+                # Module-level optional-dep failures land here:
+                # - ModuleNotFoundError: `import optdep`
+                # - ImportError: `from optdep import x` when optdep is partial
+                # - AttributeError: the canonical
+                #     `try: import gpd; except ImportError: gpd = None`
+                #     `GeoDataFrame = gpd.GeoDataFrame   # at module load`
+                # idiom — `gpd is None` makes the alias raise AttributeError.
+                # None of these indicate structural drift; the module is
+                # waiting on a missing extra.
+                continue
             except Exception as exc:
                 failures.append(
                     f"{pkg_name}: failed to import {modpath} for {name!r}: {exc!r}"
                 )
                 continue
             # hasattr() on a lazy package triggers its __getattr__,
-            # which can chain into another optional-dep ModuleNotFoundError;
-            # treat that as "not a structural problem".
+            # which can chain into another optional-dep ModuleNotFoundError.
             try:
                 resolved = hasattr(mod, attr_name)
-            except ModuleNotFoundError:
+            except (ModuleNotFoundError, ImportError):
                 continue
             if not resolved:
                 failures.append(

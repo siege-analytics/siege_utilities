@@ -14,7 +14,6 @@ and database connections with a unified interface.
 import subprocess
 import json
 import os
-import tempfile
 from typing import Dict, Any, Optional, List, Union, Tuple
 from pathlib import Path
 
@@ -241,9 +240,9 @@ class CredentialManager:
             f"{service}_credentials.json",
             f"{service}.json",
             f"client_secret_{service}.json",  # Google-style
-            f"client_secret_*.json",  # Google wildcard
+            "client_secret_*.json",  # Google wildcard
             f"{field}.txt",
-            f"credentials.json"
+            "credentials.json"
         ]
         
         for path in search_paths:
@@ -912,9 +911,10 @@ def store_ga_service_account_from_file(credentials_file: Union[str, Path],
         if 'token_uri' in service_account_data:
             cmd.append(f'token_uri={service_account_data["token_uri"]}')
         
-        # Execute 1Password command
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        
+        # Execute 1Password command — check=True raises on non-zero so
+        # we don't need to bind the result to a name.
+        subprocess.run(cmd, capture_output=True, text=True, check=True)
+
         log_info(f"Stored Google Analytics service account: '{item_title}'")
         
         # Verify storage by retrieving client_email

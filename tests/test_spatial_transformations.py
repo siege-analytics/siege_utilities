@@ -64,14 +64,20 @@ class TestSpatialDataTransformerInit:
         assert base_formats.issubset(set(transformer.supported_formats["output"]))
 
     def test_user_config_failure_handled(self):
-        """When get_user_config raises, the transformer falls back to empty dict."""
+        """When get_user_config raises, user_config is None.
+
+        Previously the fallback was {}, which silently AttributeError'd
+        on .get_database_connection() in the converters. None lets
+        downstream code branch on `is None` uniformly across all three
+        connector classes.
+        """
         with patch(
             "siege_utilities.geo.spatial_transformations.get_user_config",
             side_effect=RuntimeError("no config"),
         ):
             from siege_utilities.geo.spatial_transformations import SpatialDataTransformer
             t = SpatialDataTransformer()
-            assert t.user_config == {}
+            assert t.user_config is None
 
 
 # ---------------------------------------------------------------------------
@@ -378,8 +384,15 @@ class TestPostGISConnector:
         connector = self._make_connector(mock_conn)
         with patch.object(connector, "_create_spatial_table"):
             connector.upload_spatial_data(sample_gdf, "test_table")
+        # SQL is now built with psycopg2.sql.Identifier(schema, table),
+        # which str()s as `Identifier('public', 'test_table')`. Match
+        # both the dotted form (legacy) and the Identifier repr (new).
         calls = [str(c) for c in mock_conn.cursor.return_value.execute.call_args_list]
-        assert any("public.test_table" in c for c in calls)
+        assert any(
+            "public.test_table" in c or
+            ("'public'" in c and "'test_table'" in c)
+            for c in calls
+        )
 
     def test_upload_custom_schema(self, sample_gdf):
         mock_conn = MagicMock()
@@ -390,7 +403,11 @@ class TestPostGISConnector:
                 sample_gdf, "test_table", schema="staging"
             )
         calls = [str(c) for c in mock_conn.cursor.return_value.execute.call_args_list]
-        assert any("staging.test_table" in c for c in calls)
+        assert any(
+            "staging.test_table" in c or
+            ("'staging'" in c and "'test_table'" in c)
+            for c in calls
+        )
 
     def test_upload_if_exists_replace_drops_table(self, sample_gdf):
         mock_conn = MagicMock()

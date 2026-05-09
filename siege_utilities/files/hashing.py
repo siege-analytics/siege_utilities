@@ -6,7 +6,7 @@ import hashlib
 import pathlib
 from typing import Optional
 
-from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+from siege_utilities.core.logging import log_info, log_error
 
 # 64 KiB — matches stdlib hashlib's recommended buffered-read size and
 # what the reference filehash recipe uses. Centralised so we don't
@@ -52,7 +52,7 @@ def generate_sha256_hash_for_file(file_path) ->Optional[str]:
     try:
         # Import validation function
         try:
-            from siege_utilities.files.validation import validate_file_path, PathSecurityError
+            from siege_utilities.files.validation import validate_file_path, PathSecurityError  # noqa: F401  -- PathSecurityError used in outer except clause
         except ImportError:
             # Fallback: use basic Path validation without security checks
             path_obj = pathlib.Path(file_path)
@@ -101,7 +101,7 @@ def get_file_hash(file_path, algorithm='sha256') ->Optional[str]:
     try:
         # Import validation function
         try:
-            from siege_utilities.files.validation import validate_file_path, PathSecurityError
+            from siege_utilities.files.validation import validate_file_path, PathSecurityError  # noqa: F401  -- PathSecurityError used in outer except clause
         except ImportError:
             # Fallback: use basic Path validation without security checks
             path_obj = pathlib.Path(file_path)
