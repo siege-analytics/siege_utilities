@@ -7,6 +7,154 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.15.0] - 2026-05-11
+
+A combined feature + hardening release. Five new substantive surfaces
+(grid utilities, gazetteers, hex cartograms, NL→geometry resolver) plus
+the full landing of the 2026-05-08 hostile code review (15 Blockers,
+≈11 Major-tier findings, 20+ CodeRabbit follow-ups, stub-docstring
+cleanup).
+
+### Added — new public surfaces
+
+- **H3 + S2 grid utilities** with grid-agnostic dispatcher (`#438`):
+  `siege_utilities.geo.grids.index_points` / `index_polygon` /
+  `infer_grid`. Pass `resolution=` for H3, `level=` for S2, or
+  `grid=` explicit. Wired through the multi-engine
+  `DataFrameEngine.index_points` / `index_polygon` (`#439`).
+- **Hex cartograms** (`#440`) — `siege_utilities.reporting.hex_cartogram`
+  with `hex_tile_layout`, `hex_tile_map`, three algorithms
+  (`Algorithm.GREEDY` / `HUNGARIAN` / `ANNEALING`) and three sizing
+  modes (`Sizing.EQUAL` / `VALUE_PROPORTIONAL` / `VALUE_SQRT`).
+  Connected-component splitting handles non-contiguous admin sets
+  (CONUS + AK + HI).
+- **Gazetteer protocol** (`#441` + `#442`) —
+  `siege_utilities.geo.gazetteers`: a typed `Gazetteer` Protocol with
+  `lookup` / `search`, two backends:
+  - `WklsGazetteer` (Overture Maps admin boundaries via embedded
+    sedonadb, no API key, no rate limit).
+  - `NominatimGazetteer` (geopy wrapper requesting
+    `geometry='geojson'`).
+  Plus `resolve_gazetteer(prefer='wkls' | 'nominatim')` factory and
+  typed error hierarchy (`GazetteerError` / `NotFoundError` /
+  `AmbiguousError` / `BackendError`).
+- **`etter_to_geometry` resolver** (`#447`) —
+  `siege_utilities.geo.providers.etter_to_geometry`. Turns an Etter
+  `EtterFilter` plus a `Gazetteer` into a shapely geometry. Three
+  relation-semantics modes:
+  - `RelationSemantics.BOUNDED` (default) — finite directional buffer
+    suitable for indexed-lookup workloads.
+  - `RelationSemantics.HALFPLANE` — unbounded halfplane clipped to
+    world bbox.
+  - `RelationSemantics.CONTAINS_CENTROID` — returns a
+    `PointPredicate` callable instead of a polygon.
+- **End-to-end NL→geometry showcase notebook** (`#448`) —
+  `notebooks/spatial/07_natural_language_to_geometry.ipynb` chains
+  Gazetteer → Etter → resolver → grid dispatcher in one demo.
+
+### Security & correctness
+
+- **SQL injection sweep** (`#443` B1) — parameterized or
+  allow-list-validated identifier interpolation at 8 sites across
+  DuckDB, Snowflake, PostGIS, and Spark/Sedona.
+- **Zip-slip protection** (`#443` B2) — `unzip_file_to_directory`
+  now validates AND extracts per member; previous validate-then-
+  `extractall` ignored the check.
+- **`run_command(unsafe=True)` no longer implies `shell=True`**
+  (`#443` B4) — the two are now orthogonal; argv-level execution
+  preserved for safety even when bypassing the allow-list.
+- **SSL `verify=False` fallback is now opt-in** (`#444`) — controlled
+  by `SIEGE_INSECURE_SSL=1`. Previously the spatial-data downloader
+  silently disabled verification on every SSL error, which is exactly
+  the case a MITM proxy creates.
+- **Env-path traversal guard** (`#444`) — `SIEGE_OUTPUT`,
+  `SIEGE_DATA`, `SIEGE_CACHE` etc. refuse paths outside `$HOME` by
+  default; `SIEGE_ALLOW_UNSAFE_PATHS=1` to override.
+- **`_slugify_client_name`** (`#444`) — branding directory names are
+  now allow-list normalised. Previously `replace(' ', '_')` left
+  `../` and OS path separators free to escape `config_dir`.
+- **Platform-aware Liberation font lookup** (`#444`) — was hardcoded
+  to `/usr/share/fonts/truetype/liberation` (Linux-only).
+- **`print()` log fallbacks removed** (`#444`) — `geo/geocoding.py`
+  and `providers/census_geocoder.py` previously bypassed user
+  logging config when the package-level helpers couldn't be
+  imported. Stdlib `logging.getLogger` is a hard requirement now.
+- **PostGIS uploads pass SRID** (`#443` review-followup) —
+  `PostGISConnector.upload_spatial_data` now calls
+  `ST_GeomFromText(wkt, srid)`. Previously the 1-arg form returned
+  SRID=0 and failed against `_create_spatial_table`'s
+  `GEOMETRY(<type>, <srid>)` constraint.
+- **DuckDBConnector / PostGISConnector init repair** (`#443` B5) —
+  both classes used `self.user_config` before initialising it and
+  crashed on construction. Now actually usable.
+- **DuckDB connection lifecycle** (`#443` B6) —
+  `SpatialDataTransformer._convert_to_duckdb` wraps `duckdb.connect`
+  in a context manager.
+- **NaN-drop fix in `apportion`** (`#443` B8) — zero-area source
+  polygons are detected and logged BEFORE `gpd.overlay`; previously
+  they silently disappeared from the weighted aggregation.
+- **`to_geodataframe` IndexError fix** (`#443` B10) — predicate
+  evaluated on the dropna result, not on `len(df)`.
+- **Survey significance SE underflow** (`#443` B9) — guard
+  tightened from `se == 0` to `not finite or se <= 1e-12` so
+  underflowed-but-nonzero SEs don't produce inf/NaN z-scores.
+
+### Changed — architecture
+
+- **`BoundaryRetrievalError` now inherits from `SiegeGeoError`**
+  (`#445`) — `except SiegeError` now catches the entire geo
+  exception family. Previously this stood alone outside the
+  documented hierarchy.
+- **Spark temp views get uuid-suffixed names** (`#445`) — 8 sites
+  (`spatial_join`, `buffer`, `distance`, `assign_boundaries`,
+  `nearest`). Concurrent calls no longer clobber each other's
+  catalog state.
+- **`apportion` NaN-drop detection moved to pre-overlay** (`#445`).
+- **matplotlib figure cleanup in `try/finally`** (`#445`) — leaks
+  on `savefig()` exceptions are gone.
+- **Cache LRU + atomic write** (`#445`) —
+  `siege_utilities.cache.ensure_sample_dataset` enforces a per-call
+  size budget (default 5 GiB; configurable via
+  `SIEGE_UTILITIES_CACHE_MAX_BYTES`) and atomic-renames via
+  `tempfile.mkstemp` instead of a predictable `.part` filename.
+
+### Tooling
+
+- **`scripts/check_no_stub_docstrings.py`** — CI gate that fails
+  any new placeholder docstring (`"Description needed"`,
+  `"Auto-discovered and available"`). Initial backlog of 18
+  placeholders rewritten in `#449`; baseline drained to `{}`.
+- **`scripts/check_lazy_imports.py`** — CI gate that verifies every
+  `_LAZY_IMPORTS` registry entry resolves to a real attribute.
+  Tolerates optional-dep failures; fails on registry drift.
+- **`siege_utilities.core.sql_safety`** extended:
+  `validate_sql_identifier_in(name, allowed)`,
+  `escape_sql_string_literal(value)`, and `allow_dotted=True`.
+- **`[credentials]` extra populated** (`#444`) — now pulls
+  `keyring>=24.0.0` so `pip install siege-utilities[credentials]`
+  isn't a no-op.
+
+### Notable behaviour changes (for library consumers)
+
+- `SIEGE_INSECURE_SSL=1` is required to restore the legacy
+  verify=False fallback in `siege_utilities/geo/spatial_data.py`.
+- `SIEGE_ALLOW_UNSAFE_PATHS=1` is required for any `SIEGE_*` env-var
+  path outside `$HOME` (CI / Docker setups pointing at `/data` or
+  `/var/cache/X` need this).
+- `siege_utilities.cache.ensure_sample_dataset` evicts LRU when the
+  cache exceeds 5 GiB; tune via `SIEGE_UTILITIES_CACHE_MAX_BYTES`.
+- Connector identifiers (`table_name`, `schema`, column names) are
+  now validated against `[A-Za-z_][A-Za-z0-9_]*`. Identifiers
+  containing spaces / dashes raise `ValueError` rather than landing
+  in SQL.
+- Nominatim timestamps are timezone-aware (`datetime.now(timezone.utc)`).
+  Code comparing returned timestamps to naive `datetime.now()` will
+  raise `TypeError` — call `isoformat()` or use tz-aware comparisons.
+- `BoundaryRetrievalError` now inherits from `SiegeGeoError`. Code
+  catching `except BoundaryRetrievalError` still works; broader
+  `except SiegeError` now catches it where it didn't before. Net
+  additive.
+
 ### Added — ELE-2415 library audit
 
 - **Typed exception hierarchies** across silent-swallow sites in `reporting/` and `geo/`:

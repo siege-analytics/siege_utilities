@@ -258,7 +258,7 @@ jobs:
     name: "api contract regression"
 
     env:
-      BASELINE_VERSION: "3.13.2"
+      BASELINE_VERSION: "3.14.0"
 
     steps:
     - uses: actions/checkout@v4
