@@ -669,27 +669,13 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.backup_full_dataframe">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">backup_full_dataframe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/spark_utils.html#backup_full_dataframe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.backup_full_dataframe" title="Link to this definition"></a></dt>
-<dd><p>“””
-Utility function: backup full dataframe.</p>
-<p>Part of Siege Utilities Utilities module.
-Auto-discovered and available at package level.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Description needed</p>
-</dd>
-</dl>
-<p class="rubric">Example</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">siege_utilities</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">backup_full_dataframe</span><span class="p">()</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
-</pre></div>
-</div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>This function is auto-discovered and available without imports
-across all siege_utilities modules.</p>
-</div>
-<p>“””</p>
+<dd><p>Persist <em>df</em> to <code class="docutils literal notranslate"><span class="pre">DEBUG_SUBDIRECTORY/{step_name}_full_persisted</span></code>.</p>
+<p>A debug-mode helper: long Spark pipelines occasionally need an
+out-of-band snapshot of an intermediate frame (the canonical
+<code class="docutils literal notranslate"><span class="pre">.cache()</span></code> lives in memory and dies with the job). This writes
+the snapshot to the configured debug directory in the project’s
+standard output format so it can be inspected after the run.</p>
+<p>No return value — purely a side-effect (write + log line).</p>
 </dd></dl>
 
 <dl class="py function">
@@ -706,27 +692,15 @@ across all siege_utilities modules.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.compute_walkability">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">compute_walkability</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">distance</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/spark_utils.html#compute_walkability"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.compute_walkability" title="Link to this definition"></a></dt>
-<dd><p>“””
-Utility function: compute walkability.</p>
-<p>Part of Siege Utilities Utilities module.
-Auto-discovered and available at package level.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Description needed</p>
-</dd>
-</dl>
-<p class="rubric">Example</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">siege_utilities</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">compute_walkability</span><span class="p">()</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
-</pre></div>
-</div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>This function is auto-discovered and available without imports
-across all siege_utilities modules.</p>
-</div>
-<p>“””</p>
+<dd><p>Bucket a distance-in-meters into a walkability grade label.</p>
+<p>Used to classify how far one place is from another in pedestrian
+terms — the thresholds come from urban-planning literature:
+Trivial (&lt;100m), Tolerable, Moderate, Borderline, Outside (&gt;500m).
+Returns a <code class="docutils literal notranslate"><span class="pre">{&quot;grade&quot;:</span> <span class="pre">...,</span> <span class="pre">&quot;label&quot;:</span> <span class="pre">...}</span></code> dict, or <code class="docutils literal notranslate"><span class="pre">None</span></code> when
+<em>distance</em> is <code class="docutils literal notranslate"><span class="pre">None</span></code> (so the caller’s <code class="docutils literal notranslate"><span class="pre">.withColumn(...</span> <span class="pre">apply</span>
+<span class="pre">udf)</span></code> produces a null instead of crashing).</p>
+<p>The actual thresholds live in <code class="docutils literal notranslate"><span class="pre">walkability_config</span></code> above for
+audit / per-deployment tweaking.</p>
 </dd></dl>
 
 <dl class="py function">
@@ -865,27 +839,13 @@ Defaults to “is_valid”.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.move_column_to_front_of_dataframe">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">move_column_to_front_of_dataframe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">column_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/spark_utils.html#move_column_to_front_of_dataframe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.move_column_to_front_of_dataframe" title="Link to this definition"></a></dt>
-<dd><p>“””
-Utility function: move column to front of dataframe.</p>
-<p>Part of Siege Utilities Utilities module.
-Auto-discovered and available at package level.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Description needed</p>
-</dd>
-</dl>
-<p class="rubric">Example</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">siege_utilities</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">move_column_to_front_of_dataframe</span><span class="p">()</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
-</pre></div>
-</div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>This function is auto-discovered and available without imports
-across all siege_utilities modules.</p>
-</div>
-<p>“””</p>
+<dd><p>Reorder <em>df</em> so <em>column_name</em> is the leftmost column.</p>
+<p>The Spark schema order is what most CSV / parquet readers surface
+first, and downstream consumers (notebook displays, exports) read
+left-to-right. Moving the join key / identifier to the front makes
+the rest of the pipeline more readable without changing semantics.</p>
+<p>Returns the reordered DataFrame, or <code class="docutils literal notranslate"><span class="pre">None</span></code> on failure (logged).
+The original <em>df</em> is unchanged.</p>
 </dd></dl>
 
 <dl class="py function">

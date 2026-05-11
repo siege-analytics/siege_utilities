@@ -1053,23 +1053,15 @@
 <div class="viewcode-block" id="NominatimGeoClassifier.get_place_ranks_by_label">
 <a class="viewcode-back" href="../../../api/siege_utilities/geo/geocoding/index.html#siege_utilities.NominatimGeoClassifier.get_place_ranks_by_label">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_place_ranks_by_label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Utility function: get place ranks by label.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reverse lookup on ``place_rank_dict``: label → matching rank IDs.</span>
 
-<span class="sd">        Part of Siege Utilities Utilities module.</span>
-<span class="sd">        Auto-discovered and available at package level.</span>
+<span class="sd">        Nominatim returns an integer ``place_rank`` per result (0=country</span>
+<span class="sd">        … 10=building). This helper goes the other direction so callers</span>
+<span class="sd">        can write ``filter(rank=cls.get_place_ranks_by_label(&quot;City&quot;))``</span>
+<span class="sd">        without hard-coding the integer.</span>
 
-<span class="sd">        Returns:</span>
-<span class="sd">            Description needed</span>
-
-<span class="sd">        Example:</span>
-<span class="sd">            &gt;&gt;&gt; import siege_utilities</span>
-<span class="sd">            &gt;&gt;&gt; result = siege_utilities.get_place_ranks_by_label()</span>
-<span class="sd">            &gt;&gt;&gt; print(result)</span>
-
-<span class="sd">        Note:</span>
-<span class="sd">            This function is auto-discovered and available without imports</span>
-<span class="sd">            across all siege_utilities modules.</span>
+<span class="sd">        Returns ``[]`` (not ``None``) when the label is unknown so the</span>
+<span class="sd">        caller can ``in`` / iterate without a None-check.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">place_rank_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="p">[])</span></div>
 
@@ -1077,23 +1069,17 @@
 <div class="viewcode-block" id="NominatimGeoClassifier.get_importance_threshold_by_label">
 <a class="viewcode-back" href="../../../api/siege_utilities/geo/geocoding/index.html#siege_utilities.NominatimGeoClassifier.get_importance_threshold_by_label">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_importance_threshold_by_label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Utility function: get importance threshold by label.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reverse lookup on ``importance_dict``: label → importance threshold.</span>
 
-<span class="sd">        Part of Siege Utilities Utilities module.</span>
-<span class="sd">        Auto-discovered and available at package level.</span>
+<span class="sd">        Nominatim&#39;s ``importance`` field is a float in [0, 1] that mixes</span>
+<span class="sd">        Wikipedia hit-count, place type, and population. We bucket those</span>
+<span class="sd">        floats into ordinal labels (``Country`` / ``State`` / …) and</span>
+<span class="sd">        this method returns the float threshold that corresponds to a</span>
+<span class="sd">        label — useful when filtering a Nominatim result set</span>
+<span class="sd">        programmatically.</span>
 
-<span class="sd">        Returns:</span>
-<span class="sd">            Description needed</span>
-
-<span class="sd">        Example:</span>
-<span class="sd">            &gt;&gt;&gt; import siege_utilities</span>
-<span class="sd">            &gt;&gt;&gt; result = siege_utilities.get_importance_threshold_by_label()</span>
-<span class="sd">            &gt;&gt;&gt; print(result)</span>
-
-<span class="sd">        Note:</span>
-<span class="sd">            This function is auto-discovered and available without imports</span>
-<span class="sd">            across all siege_utilities modules.</span>
+<span class="sd">        Returns ``None`` when no label matches; callers should treat</span>
+<span class="sd">        that as &quot;don&#39;t filter on importance.&quot;</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">importance_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="n">label</span><span class="p">:</span>
@@ -1104,23 +1090,11 @@
 <div class="viewcode-block" id="NominatimGeoClassifier.to_json">
 <a class="viewcode-back" href="../../../api/siege_utilities/geo/geocoding/index.html#siege_utilities.NominatimGeoClassifier.to_json">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">to_json</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Utility function: to json.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Serialize the classifier&#39;s lookup tables to a JSON string.</span>
 
-<span class="sd">        Part of Siege Utilities Utilities module.</span>
-<span class="sd">        Auto-discovered and available at package level.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            Description needed</span>
-
-<span class="sd">        Example:</span>
-<span class="sd">            &gt;&gt;&gt; import siege_utilities</span>
-<span class="sd">            &gt;&gt;&gt; result = siege_utilities.to_json()</span>
-<span class="sd">            &gt;&gt;&gt; print(result)</span>
-
-<span class="sd">        Note:</span>
-<span class="sd">            This function is auto-discovered and available without imports</span>
-<span class="sd">            across all siege_utilities modules.</span>
+<span class="sd">        Used to persist customised rank/importance overrides between</span>
+<span class="sd">        runs or to ship a classifier configuration to a worker process.</span>
+<span class="sd">        The result round-trips through :meth:`from_json`.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span>
             <span class="s1">&#39;place_ranks&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">place_rank_dict</span><span class="p">,</span>
@@ -1129,23 +1103,13 @@
 
 
     <span class="k">def</span><span class="w"> </span><span class="nf">from_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">json_string</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Utility function: from json.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Replace the classifier&#39;s lookup tables from a JSON string.</span>
 
-<span class="sd">        Part of Siege Utilities Utilities module.</span>
-<span class="sd">        Auto-discovered and available at package level.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            Description needed</span>
-
-<span class="sd">        Example:</span>
-<span class="sd">            &gt;&gt;&gt; import siege_utilities</span>
-<span class="sd">            &gt;&gt;&gt; result = siege_utilities.from_json()</span>
-<span class="sd">            &gt;&gt;&gt; print(result)</span>
-
-<span class="sd">        Note:</span>
-<span class="sd">            This function is auto-discovered and available without imports</span>
-<span class="sd">            across all siege_utilities modules.</span>
+<span class="sd">        Inverse of :meth:`to_json` — overwrites ``place_rank_dict`` and</span>
+<span class="sd">        ``importance_dict`` in place. Unknown top-level keys are</span>
+<span class="sd">        ignored; missing keys leave the corresponding table empty</span>
+<span class="sd">        rather than raising, so a partial payload doesn&#39;t poison the</span>
+<span class="sd">        classifier.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">json_string</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">place_rank_dict</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;place_ranks&#39;</span><span class="p">,</span> <span class="p">{})</span>

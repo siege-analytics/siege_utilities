@@ -555,8 +555,13 @@
 
 <span class="k">try</span><span class="p">:</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">SparkSession</span><span class="p">,</span> <span class="n">Column</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql.types</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql.functions</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
+    <span class="c1"># PySpark&#39;s published surface is star-import-shaped (every doc / example</span>
+    <span class="c1"># uses it); replacing with explicit imports would mean tracking every</span>
+    <span class="c1"># F.col / when / lit / DataType across this large module on every</span>
+    <span class="c1"># PySpark version bump. Suppress the unavoidable F403/F405 here rather</span>
+    <span class="c1"># than fighting the upstream convention.</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql.types</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>  <span class="c1"># noqa: F401, F403</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql.functions</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>  <span class="c1"># noqa: F401, F403</span>
     <span class="n">PYSPARK_AVAILABLE</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
     <span class="n">PYSPARK_AVAILABLE</span> <span class="o">=</span> <span class="kc">False</span>
@@ -703,24 +708,16 @@
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/spark_utils/index.html#siege_utilities.move_column_to_front_of_dataframe">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">move_column_to_front_of_dataframe</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">,</span> <span class="n">column_name</span><span class="p">:</span> <span class="nb">str</span>
     <span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;DataFrame&quot;</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
-<span class="sd">Utility function: move column to front of dataframe.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reorder *df* so *column_name* is the leftmost column.</span>
 
-<span class="sd">Part of Siege Utilities Utilities module.</span>
-<span class="sd">Auto-discovered and available at package level.</span>
+<span class="sd">    The Spark schema order is what most CSV / parquet readers surface</span>
+<span class="sd">    first, and downstream consumers (notebook displays, exports) read</span>
+<span class="sd">    left-to-right. Moving the join key / identifier to the front makes</span>
+<span class="sd">    the rest of the pipeline more readable without changing semantics.</span>
 
-<span class="sd">Returns:</span>
-<span class="sd">    Description needed</span>
-
-<span class="sd">Example:</span>
-<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
-<span class="sd">    &gt;&gt;&gt; result = siege_utilities.move_column_to_front_of_dataframe()</span>
-<span class="sd">    &gt;&gt;&gt; print(result)</span>
-
-<span class="sd">Note:</span>
-<span class="sd">    This function is auto-discovered and available without imports</span>
-<span class="sd">    across all siege_utilities modules.</span>
-<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+<span class="sd">    Returns the reordered DataFrame, or ``None`` on failure (logged).</span>
+<span class="sd">    The original *df* is unchanged.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">columns</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
         <span class="n">column_to_move</span> <span class="o">=</span> <span class="n">column_name</span>
@@ -869,24 +866,13 @@
                     <span class="p">)</span>
 
                 <span class="k">def</span><span class="w"> </span><span class="nf">validate_json</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
-<span class="w">                    </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
-<span class="sd">Utility function: validate json.</span>
+<span class="w">                    </span><span class="sd">&quot;&quot;&quot;Pass-through with parse-check: return *s* if it</span>
+<span class="sd">                    decodes as JSON, ``None`` otherwise.</span>
 
-<span class="sd">Part of Siege Utilities Utilities module.</span>
-<span class="sd">Auto-discovered and available at package level.</span>
-
-<span class="sd">Returns:</span>
-<span class="sd">    Description needed</span>
-
-<span class="sd">Example:</span>
-<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
-<span class="sd">    &gt;&gt;&gt; result = siege_utilities.validate_json()</span>
-<span class="sd">    &gt;&gt;&gt; print(result)</span>
-
-<span class="sd">Note:</span>
-<span class="sd">    This function is auto-discovered and available without imports</span>
-<span class="sd">    across all siege_utilities modules.</span>
-<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+<span class="sd">                    Used to filter the corrupt-records path so the</span>
+<span class="sd">                    subsequent ``from_json`` doesn&#39;t choke on rows that</span>
+<span class="sd">                    arrived with malformed payloads.</span>
+<span class="sd">                    &quot;&quot;&quot;</span>
                     <span class="k">if</span> <span class="n">s</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                         <span class="k">return</span> <span class="kc">None</span>
                     <span class="k">try</span><span class="p">:</span>
@@ -912,24 +898,14 @@
         <span class="k">try</span><span class="p">:</span>
 
             <span class="k">def</span><span class="w"> </span><span class="nf">validate_json</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
-<span class="w">                </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
-<span class="sd">Utility function: validate json.</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;Same JSON pass-through validator as above.</span>
 
-<span class="sd">Part of Siege Utilities Utilities module.</span>
-<span class="sd">Auto-discovered and available at package level.</span>
-
-<span class="sd">Returns:</span>
-<span class="sd">    Description needed</span>
-
-<span class="sd">Example:</span>
-<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
-<span class="sd">    &gt;&gt;&gt; result = siege_utilities.validate_json()</span>
-<span class="sd">    &gt;&gt;&gt; print(result)</span>
-
-<span class="sd">Note:</span>
-<span class="sd">    This function is auto-discovered and available without imports</span>
-<span class="sd">    across all siege_utilities modules.</span>
-<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+<span class="sd">                Defined locally inside the fallback path so it doesn&#39;t</span>
+<span class="sd">                shadow the outer one when the corrupt-record branch</span>
+<span class="sd">                takes a different schema. Both definitions are</span>
+<span class="sd">                semantically identical — they exist as separate</span>
+<span class="sd">                closures to match the surrounding try/except scope.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
                 <span class="k">if</span> <span class="n">s</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="k">return</span> <span class="kc">None</span>
                 <span class="k">try</span><span class="p">:</span>
@@ -1444,24 +1420,18 @@
 <div class="viewcode-block" id="compute_walkability">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/spark_utils/index.html#siege_utilities.compute_walkability">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">compute_walkability</span><span class="p">(</span><span class="n">distance</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
-<span class="sd">Utility function: compute walkability.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Bucket a distance-in-meters into a walkability grade label.</span>
 
-<span class="sd">Part of Siege Utilities Utilities module.</span>
-<span class="sd">Auto-discovered and available at package level.</span>
+<span class="sd">    Used to classify how far one place is from another in pedestrian</span>
+<span class="sd">    terms — the thresholds come from urban-planning literature:</span>
+<span class="sd">    Trivial (&lt;100m), Tolerable, Moderate, Borderline, Outside (&gt;500m).</span>
+<span class="sd">    Returns a ``{&quot;grade&quot;: ..., &quot;label&quot;: ...}`` dict, or ``None`` when</span>
+<span class="sd">    *distance* is ``None`` (so the caller&#39;s ``.withColumn(... apply</span>
+<span class="sd">    udf)`` produces a null instead of crashing).</span>
 
-<span class="sd">Returns:</span>
-<span class="sd">    Description needed</span>
-
-<span class="sd">Example:</span>
-<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
-<span class="sd">    &gt;&gt;&gt; result = siege_utilities.compute_walkability()</span>
-<span class="sd">    &gt;&gt;&gt; print(result)</span>
-
-<span class="sd">Note:</span>
-<span class="sd">    This function is auto-discovered and available without imports</span>
-<span class="sd">    across all siege_utilities modules.</span>
-<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+<span class="sd">    The actual thresholds live in ``walkability_config`` above for</span>
+<span class="sd">    audit / per-deployment tweaking.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">distance</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span> <span class="kc">None</span>
     <span class="k">if</span> <span class="n">distance</span> <span class="o">&lt;</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Trivial&#39;</span><span class="p">][</span><span class="s1">&#39;max&#39;</span><span class="p">]:</span>
@@ -1514,24 +1484,16 @@
 <div class="viewcode-block" id="backup_full_dataframe">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/spark_utils/index.html#siege_utilities.backup_full_dataframe">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">backup_full_dataframe</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">step_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;&quot;&quot;\&quot;</span>
-<span class="sd">Utility function: backup full dataframe.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Persist *df* to ``DEBUG_SUBDIRECTORY/{step_name}_full_persisted``.</span>
 
-<span class="sd">Part of Siege Utilities Utilities module.</span>
-<span class="sd">Auto-discovered and available at package level.</span>
+<span class="sd">    A debug-mode helper: long Spark pipelines occasionally need an</span>
+<span class="sd">    out-of-band snapshot of an intermediate frame (the canonical</span>
+<span class="sd">    ``.cache()`` lives in memory and dies with the job). This writes</span>
+<span class="sd">    the snapshot to the configured debug directory in the project&#39;s</span>
+<span class="sd">    standard output format so it can be inspected after the run.</span>
 
-<span class="sd">Returns:</span>
-<span class="sd">    Description needed</span>
-
-<span class="sd">Example:</span>
-<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
-<span class="sd">    &gt;&gt;&gt; result = siege_utilities.backup_full_dataframe()</span>
-<span class="sd">    &gt;&gt;&gt; print(result)</span>
-
-<span class="sd">Note:</span>
-<span class="sd">    This function is auto-discovered and available without imports</span>
-<span class="sd">    across all siege_utilities modules.</span>
-<span class="sd">&quot;&quot;\&quot;&quot;&quot;</span><span class="s2">&quot;</span>
+<span class="sd">    No return value — purely a side-effect (write + log line).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">backup_path</span> <span class="o">=</span> <span class="n">DEBUG_SUBDIRECTORY</span> <span class="o">/</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">step_name</span><span class="si">}</span><span class="s1">_full_persisted&#39;</span>
     <span class="n">df</span><span class="o">.</span><span class="n">write</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">RESULTS_OUTPUT_FORMAT</span><span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s1">&#39;header&#39;</span><span class="p">,</span> <span class="s1">&#39;true&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span>
         <span class="s1">&#39;delimiter&#39;</span><span class="p">,</span> <span class="n">RESULTS_OUTPUT_DELIMITER</span><span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">backup_path</span><span class="p">))</span>
@@ -1553,7 +1515,7 @@
         <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">staging_directory</span><span class="p">):</span>
             <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">staging_directory</span><span class="p">)</span>
         <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">staging_directory</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Writing data to staging directory&#39;</span><span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;Writing data to staging directory&#39;</span><span class="p">)</span>
         <span class="n">writer</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">write</span><span class="o">.</span><span class="n">mode</span><span class="p">(</span><span class="n">mode</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">file_format</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;csv&#39;</span><span class="p">:</span>
             <span class="n">writer</span> <span class="o">=</span> <span class="n">writer</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;csv&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s1">&#39;header&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">header</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
@@ -1572,7 +1534,7 @@
                 <span class="n">final_destination</span><span class="p">):</span>
                 <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Backing up existing data to </span><span class="si">{</span><span class="n">backup_dir</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
                 <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">final_destination</span><span class="p">,</span> <span class="n">backup_dir</span><span class="p">)</span>
-                <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Existing data backed up successfully&#39;</span><span class="p">)</span>
+                <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;Existing data backed up successfully&#39;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">final_destination</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
                 <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;Removed empty destination directory&#39;</span><span class="p">)</span>
@@ -1589,7 +1551,7 @@
             <span class="n">files_moved</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Successfully moved </span><span class="si">{</span><span class="n">files_moved</span><span class="si">}</span><span class="s1"> items to final destination&#39;</span>
             <span class="p">)</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Atomic write operation completed successfully&#39;</span><span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;Atomic write operation completed successfully&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">True</span>
     <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error in atomic write operation: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
