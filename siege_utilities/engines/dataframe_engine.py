@@ -439,13 +439,27 @@ class DataFrameEngine(ABC):
         src = self.to_geodataframe(source_polys, source_geom)
         tgt = self.to_geodataframe(target_polys, target_geom)
 
-        # Compute intersection
-        overlay = gpd.overlay(src, tgt, how="intersection")
+        # Detect zero-area sources BEFORE gpd.overlay. A degenerate source
+        # polygon that produces no intersection rows would otherwise
+        # disappear entirely — the post-overlay check missed exactly the
+        # data-loss case it was trying to surface.
+        import logging as _logging
+        _log = _logging.getLogger(__name__)
+        src = src.assign(_src_area=src.geometry.area)
+        zero_area_src = src["_src_area"] <= 0
+        if zero_area_src.any():
+            _log.warning(
+                "apportion: %d source polygon(s) have zero area; their "
+                "weights are dropped before overlay.",
+                int(zero_area_src.sum()),
+            )
+            src = src.loc[~zero_area_src].copy()
 
-        # Area ratio: intersection_area / source_area
-        overlay["_src_area"] = src.loc[overlay.index].geometry.area
+        # Compute intersection. We carry _src_area through so the ratio
+        # computation doesn't have to re-index against the original src.
+        overlay = gpd.overlay(src, tgt, how="intersection")
         overlay["_isect_area"] = overlay.geometry.area
-        overlay["_ratio"] = overlay["_isect_area"] / overlay["_src_area"].replace(0, float("nan"))
+        overlay["_ratio"] = overlay["_isect_area"] / overlay["_src_area"]
         overlay[f"apportioned_{weight_col}"] = overlay[weight_col] * overlay["_ratio"]
 
         # Aggregate by target
@@ -664,13 +678,15 @@ class DuckDBEngine(DataFrameEngine):
     # -- I/O ----------------------------------------------------------------
 
     def read_csv(self, path: str, **kwargs: Any) -> Any:
+        # Parameter-bind the path so it can't break out of the string
+        # literal in read_csv_auto's argument slot.
         return self._connection.execute(
-            f"SELECT * FROM read_csv_auto('{path}')"
+            "SELECT * FROM read_csv_auto(?)", [path]
         ).fetchdf()
 
     def read_parquet(self, path: str, **kwargs: Any) -> Any:
         return self._connection.execute(
-            f"SELECT * FROM read_parquet('{path}')"
+            "SELECT * FROM read_parquet(?)", [path]
         ).fetchdf()
 
     # -- SQL ----------------------------------------------------------------
@@ -809,7 +825,11 @@ class DuckDBEngine(DataFrameEngine):
         if isinstance(df, pd.DataFrame) and geometry_col in df.columns:
             from shapely import wkt as shapely_wkt, wkb as shapely_wkb
             from shapely.geometry.base import BaseGeometry
-            sample = df[geometry_col].dropna().iloc[0] if len(df) > 0 else None
+            # Predicate must be on the dropped Series — len(df) > 0 can
+            # be true while df[geometry_col] is all-null, which would
+            # IndexError on .iloc[0].
+            non_null = df[geometry_col].dropna()
+            sample = non_null.iloc[0] if not non_null.empty else None
             if sample is not None and not isinstance(sample, BaseGeometry):
                 if isinstance(sample, bytes):
                     geoms = df[geometry_col].apply(lambda g: shapely_wkb.loads(g) if g is not None else None)
@@ -936,10 +956,26 @@ class SparkEngine(DataFrameEngine):
     def spatial_join(self, left, right, how="inner", predicate="intersects",
                      *, left_geom="geometry", right_geom="geometry"):
         self._ensure_sedona()
+        from siege_utilities.core.sql_safety import (
+            validate_sql_identifier_in as validate_identifier_in,
+        )
+        validate_identifier_in(left_geom, left.columns, label="left geometry column")
+        validate_identifier_in(right_geom, right.columns, label="right geometry column")
+        # `validate_sql_identifier` only checks shape — Sedona doesn't have
+        # ``ST_Foo``, so accept only the documented predicate set.
+        supported_predicates = {
+            "intersects", "contains", "within", "touches", "crosses", "overlaps",
+        }
+        if predicate.lower() not in supported_predicates:
+            raise ValueError(
+                f"unsupported spatial predicate {predicate!r} — "
+                f"expected one of {sorted(supported_predicates)}"
+            )
+        if how.lower() not in ("inner", "left", "right", "outer", "full"):
+            raise ValueError(f"unsupported join type {how!r}")
         left.createOrReplaceTempView("_sjoin_left")
         right.createOrReplaceTempView("_sjoin_right")
         st_func = f"ST_{predicate.capitalize()}"
-        # Avoid column name collision by aliasing right geometry
         sql = (
             f"SELECT l.*, r.* "
             f"FROM _sjoin_left l {how.upper()} JOIN _sjoin_right r "
@@ -949,9 +985,14 @@ class SparkEngine(DataFrameEngine):
 
     def buffer(self, df, distance, geometry_col="geometry", *, crs=None):
         self._ensure_sedona()
+        from siege_utilities.core.sql_safety import validate_sql_identifier_in as validate_identifier_in
+        validate_identifier_in(geometry_col, df.columns, label="geometry column")
+        # `distance` is interpolated as a float — coerce so a malicious
+        # caller can't sneak SQL via a string.
+        distance_lit = float(distance)
         df.createOrReplaceTempView("_buf_tbl")
         sql = (
-            f"SELECT *, ST_AsText(ST_Buffer(ST_GeomFromText({geometry_col}), {distance})) "
+            f"SELECT *, ST_AsText(ST_Buffer(ST_GeomFromText({geometry_col}), {distance_lit})) "
             f"AS {geometry_col}_buffered FROM _buf_tbl"
         )
         return self._session.sql(sql)
@@ -959,14 +1000,21 @@ class SparkEngine(DataFrameEngine):
     def distance(self, df, other, geometry_col="geometry", other_geom="geometry"):
         self._ensure_sedona()
         from shapely.geometry.base import BaseGeometry
+        from siege_utilities.core.sql_safety import (
+            escape_sql_string_literal as escape_string_literal,
+            validate_sql_identifier_in as validate_identifier_in,
+        )
+        validate_identifier_in(geometry_col, df.columns, label="geometry column")
         df.createOrReplaceTempView("_dist_left")
         if isinstance(other, (BaseGeometry, str)):
             wkt_str = other.wkt if isinstance(other, BaseGeometry) else other
+            wkt_escaped = escape_string_literal(wkt_str)
             sql = (
                 f"SELECT *, ST_Distance(ST_GeomFromText({geometry_col}), "
-                f"ST_GeomFromText('{wkt_str}')) AS _distance FROM _dist_left"
+                f"ST_GeomFromText('{wkt_escaped}')) AS _distance FROM _dist_left"
             )
         else:
+            validate_identifier_in(other_geom, other.columns, label="other geometry column")
             other.createOrReplaceTempView("_dist_right")
             sql = (
                 f"SELECT ST_Distance(ST_GeomFromText(l.{geometry_col}), "
@@ -1014,6 +1062,11 @@ class SparkEngine(DataFrameEngine):
         """Point-in-polygon — Sedona ST_Contains with optional broadcast."""
         self._ensure_sedona()
         from pyspark.sql.functions import broadcast
+        from siege_utilities.core.sql_safety import validate_sql_identifier_in as validate_identifier_in
+        validate_identifier_in(point_geom, points.columns, label="point geometry column")
+        validate_identifier_in(polygon_geom, polygons.columns, label="polygon geometry column")
+        if how.lower() not in ("inner", "left", "right", "outer", "full"):
+            raise ValueError(f"unsupported join type {how!r}")
         points.createOrReplaceTempView("_assign_pts")
         broadcast(polygons).createOrReplaceTempView("_assign_poly")
         return self._session.sql(
@@ -1027,9 +1080,23 @@ class SparkEngine(DataFrameEngine):
                 point_geom="geometry", target_geom="geometry"):
         """K-nearest — Sedona ST_Distance with window function."""
         self._ensure_sedona()
+        from siege_utilities.core.sql_safety import validate_sql_identifier_in as validate_identifier_in
+        validate_identifier_in(point_geom, points.columns, label="point geometry column")
+        validate_identifier_in(target_geom, targets.columns, label="target geometry column")
+        # Coerce numeric inputs so they can't carry SQL.
+        k_lit = int(k)
+        max_distance_lit = float(max_distance) if max_distance is not None else None
         points.createOrReplaceTempView("_nn_pts")
         targets.createOrReplaceTempView("_nn_tgt")
-        dist_filter = f"WHERE d <= {max_distance}" if max_distance else ""
+        # WHERE on a SELECT-list alias is invalid in Spark SQL; re-expand
+        # the ST_Distance expression in the predicate.
+        if max_distance_lit is not None:
+            dist_filter = (
+                f"WHERE ST_Distance(ST_GeomFromText(p.{point_geom}), "
+                f"ST_GeomFromText(t.{target_geom})) <= {max_distance_lit}"
+            )
+        else:
+            dist_filter = ""
         return self._session.sql(f"""
             SELECT * FROM (
                 SELECT p.*, t.*,
@@ -1042,7 +1109,7 @@ class SparkEngine(DataFrameEngine):
                     ) AS rn
                 FROM _nn_pts p, _nn_tgt t
                 {dist_filter}
-            ) WHERE rn <= {k}
+            ) WHERE rn <= {k_lit}
         """)
 
 

@@ -14,12 +14,13 @@ and database connections with a unified interface.
 import subprocess
 import json
 import os
-import tempfile
+import tempfile  # noqa: F401 -- used by create_temporary_service_account_file; test_credential_manager patches at module scope
 from typing import Dict, Any, Optional, List, Union, Tuple
 from pathlib import Path
 
 # Import logging functions
 import logging
+import re
 _logger = logging.getLogger(__name__)
 
 try:
@@ -29,6 +30,30 @@ except ImportError:
     def log_info(message): _logger.info(message)
     def log_warning(message): _logger.warning(message)
     def log_error(message): _logger.error(message)
+
+
+# Redact patterns that look like secrets from log lines. The CLIs we
+# call (`op`, `security`, gcloud-style stderr) usually print field
+# names rather than secret values, but any error path can echo back
+# tokens — better to be paranoid for the small cost of a regex pass.
+_REDACT_PATTERNS = [
+    # Long alphanumeric runs (API keys, tokens, JWTs)
+    re.compile(r"\b[A-Za-z0-9_\-]{32,}\b"),
+    # Anything inside double quotes after a key-like word
+    re.compile(r"(?i)(token|secret|password|api[_-]?key|auth)[\"\':=\s]+[^\s\"\']+"),
+]
+
+
+def _redact(text: str, *, max_len: int = 300) -> str:
+    """Redact likely-secret substrings and clamp length for logging."""
+    if not text:
+        return ""
+    s = str(text)
+    for p in _REDACT_PATTERNS:
+        s = p.sub("[REDACTED]", s)
+    if len(s) > max_len:
+        s = s[:max_len] + "...[truncated]"
+    return s
 
 
 class CredentialManager:
@@ -216,9 +241,9 @@ class CredentialManager:
             f"{service}_credentials.json",
             f"{service}.json",
             f"client_secret_{service}.json",  # Google-style
-            f"client_secret_*.json",  # Google wildcard
+            "client_secret_*.json",  # Google wildcard
             f"{field}.txt",
-            f"credentials.json"
+            "credentials.json"
         ]
         
         for path in search_paths:
@@ -436,7 +461,7 @@ class CredentialManager:
                 log_info(f"Stored {field} for {service} in 1Password")
                 return True
             else:
-                log_error(f"Failed to store in 1Password: {result.stderr}")
+                log_error(f"Failed to store in 1Password: {_redact(result.stderr)}")
                 return False
                 
         except Exception as e:
@@ -458,7 +483,7 @@ class CredentialManager:
                 log_info(f"Stored credential for {service} in Keychain")
                 return True
             else:
-                log_error(f"Failed to store in Keychain: {result.stderr}")
+                log_error(f"Failed to store in Keychain: {_redact(result.stderr)}")
                 return False
                 
         except Exception as e:
@@ -535,7 +560,7 @@ class CredentialManager:
                     log_warning("Could not verify GA credential storage")
                     return False
             else:
-                log_error(f"Failed to store GA credentials: {result.stderr}")
+                log_error(f"Failed to store GA credentials: {_redact(result.stderr)}")
                 return False
                 
         except Exception as e:
@@ -887,9 +912,10 @@ def store_ga_service_account_from_file(credentials_file: Union[str, Path],
         if 'token_uri' in service_account_data:
             cmd.append(f'token_uri={service_account_data["token_uri"]}')
         
-        # Execute 1Password command
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        
+        # Execute 1Password command — check=True raises on non-zero so
+        # we don't need to bind the result to a name.
+        subprocess.run(cmd, capture_output=True, text=True, check=True)
+
         log_info(f"Stored Google Analytics service account: '{item_title}'")
         
         # Verify storage by retrieving client_email
@@ -1138,9 +1164,9 @@ def create_temporary_service_account_file(service_account_data: Dict[str, str]) 
         Path to temporary file or None if failed
     """
     try:
-        import tempfile
-        import json
-        
+        # `tempfile` and `json` are imported at module scope so tests can
+        # monkeypatch `tempfile.NamedTemporaryFile` via the module
+        # attribute.
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
             json.dump(service_account_data, f, indent=2)
             temp_file_path = f.name

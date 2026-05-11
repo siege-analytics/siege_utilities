@@ -4,7 +4,7 @@ Enhanced User Profile model with comprehensive validation.
 
 from pydantic import BaseModel, Field, field_validator
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Tuple
 import re
 
 

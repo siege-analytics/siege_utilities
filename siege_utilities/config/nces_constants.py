@@ -5,7 +5,7 @@ Centralized configuration for NCES data sources and urbanicity calculations.
 This module supports the planned NCES urbanicity integration described in IMPROVEMENTS.md.
 """
 
-from typing import Dict, List, Tuple, Any
+from typing import Dict, Any
 
 # =============================================================================
 # NCES DATA SOURCES

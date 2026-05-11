@@ -13,7 +13,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import logging
 
-from .models import UserProfile, ClientProfile, BrandingConfig, ReportPreferences
+from .models import UserProfile, ClientProfile
 try:
     from .hydra_manager import HydraConfigManager
 except ImportError:
@@ -63,20 +63,28 @@ class ConfigurationMigrator:
         try:
             with open(legacy_file, 'r') as f:
                 legacy_data = yaml.safe_load(f)
-            
+
+            # safe_load returns None for empty docs, lists/scalars for
+            # malformed ones — both crash the field mapper with a
+            # cryptic AttributeError downstream. Validate up front.
+            if not isinstance(legacy_data, dict):
+                logger.error(
+                    "Legacy user profile %s is not a YAML mapping (got %s); "
+                    "falling back to default profile.",
+                    legacy_file, type(legacy_data).__name__,
+                )
+                return self._create_default_user_profile()
+
             logger.info(f"Loading legacy user profile from: {legacy_file}")
-            
-            # Map legacy fields to new UserProfile fields
             new_data = self._map_user_profile_fields(legacy_data)
-            
-            # Create new UserProfile
             profile = UserProfile(**new_data)
-            
             logger.info("Successfully migrated user profile")
             return profile
-            
-        except Exception as e:
-            logger.error(f"Failed to migrate user profile: {e}")
+
+        except Exception:
+            # exception() preserves the traceback; the previous
+            # error(f"...: {e}") string lost it.
+            logger.exception("Failed to migrate user profile from %s", legacy_file)
             return self._create_default_user_profile()
     
     def migrate_client_profile(self, legacy_file: Path, client_code: str) -> ClientProfile:
@@ -95,22 +103,42 @@ class ConfigurationMigrator:
             return self._create_default_client_profile(client_code)
         
         try:
+            # Pick the parser by extension explicitly — falling through to
+            # json.load on .toml/.cfg/anything-else and silently raising
+            # JSONDecodeError hides the real cause.
+            suffix = legacy_file.suffix.lower()
             with open(legacy_file, 'r') as f:
-                legacy_data = yaml.safe_load(f) if legacy_file.suffix in ['.yaml', '.yml'] else json.load(f)
-            
+                if suffix in ('.yaml', '.yml'):
+                    legacy_data = yaml.safe_load(f)
+                elif suffix == '.json':
+                    legacy_data = json.load(f)
+                else:
+                    logger.error(
+                        "Unsupported legacy client profile extension %r on %s; "
+                        "expected .yaml/.yml/.json. Falling back to default profile.",
+                        suffix, legacy_file,
+                    )
+                    return self._create_default_client_profile(client_code)
+
+            if not isinstance(legacy_data, dict):
+                logger.error(
+                    "Legacy client profile %s is not a mapping (got %s); "
+                    "falling back to default profile for %s.",
+                    legacy_file, type(legacy_data).__name__, client_code,
+                )
+                return self._create_default_client_profile(client_code)
+
             logger.info(f"Loading legacy client profile from: {legacy_file}")
-            
-            # Map legacy fields to new ClientProfile fields
             new_data = self._map_client_profile_fields(legacy_data, client_code)
-            
-            # Create new ClientProfile
             profile = ClientProfile(**new_data)
-            
             logger.info(f"Successfully migrated client profile for: {client_code}")
             return profile
-            
-        except Exception as e:
-            logger.error(f"Failed to migrate client profile for {client_code}: {e}")
+
+        except Exception:
+            logger.exception(
+                "Failed to migrate client profile for %s from %s",
+                client_code, legacy_file,
+            )
             return self._create_default_client_profile(client_code)
     
     def migrate_all_configurations(self, dry_run: bool = False) -> Dict[str, Any]:
@@ -135,7 +163,7 @@ class ConfigurationMigrator:
         try:
             # Migrate user profile
             if not dry_run:
-                user_profile = self.migrate_user_profile()
+                self.migrate_user_profile()
                 results["user_profile"]["migrated"] = True
                 logger.info("User profile migrated successfully")
             else:
@@ -149,7 +177,7 @@ class ConfigurationMigrator:
                     
                     if not dry_run:
                         try:
-                            client_profile = self.migrate_client_profile(client_file, client_code)
+                            self.migrate_client_profile(client_file, client_code)
                             results["client_profiles"]["migrated"].append(client_code)
                             logger.info(f"Client profile migrated: {client_code}")
                         except Exception as e:
@@ -394,11 +422,17 @@ def load_user_profile(username: str, config_dir: Optional[Path] = None) -> Optio
             
         with open(config_file, 'r') as f:
             data = yaml.safe_load(f)
-            
+
+        if not isinstance(data, dict):
+            logger.error(
+                "User profile %s is not a YAML mapping (got %s); cannot load.",
+                config_file, type(data).__name__,
+            )
+            return None
         return UserProfile(**data)
-        
-    except Exception as e:
-        logger.error(f"Failed to load user profile {username}: {e}")
+
+    except Exception:
+        logger.exception("Failed to load user profile %s", username)
         return None
 
 
@@ -507,11 +541,17 @@ def load_client_profile(client_code: str, config_dir: Optional[Path] = None) -> 
             
         with open(config_file, 'r') as f:
             data = yaml.safe_load(f)
-            
+
+        if not isinstance(data, dict):
+            logger.error(
+                "Client profile %s is not a YAML mapping (got %s); cannot load.",
+                config_file, type(data).__name__,
+            )
+            return None
         return ClientProfile(**data)
-        
-    except Exception as e:
-        logger.error(f"Failed to load client profile {client_code}: {e}")
+
+    except Exception:
+        logger.exception("Failed to load client profile %s", client_code)
         return None
 
 

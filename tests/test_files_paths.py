@@ -179,3 +179,43 @@ class TestUnzipFileToDirectory:
         fake.write_text("not a real zip")
         result = unzip_file_to_directory(fake)
         assert result is None
+
+    def test_zip_slip_member_skipped(self, tmp_path):
+        """Zip-slip member with traversal must NOT escape target_dir."""
+        archive = tmp_path / "evil.zip"
+        # Mix one safe entry with one zip-slip entry; only the safe
+        # entry should be written.
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("safe.txt", "ok")
+            zf.writestr("../escaped.txt", "should not land")
+
+        target = tmp_path / "out"
+        result = unzip_file_to_directory(archive, extract_to=target,
+                                         create_subdirectory=False)
+        assert result is not None
+        assert (result / "safe.txt").read_text() == "ok"
+        # The escaped entry must not appear under target_dir, NOR in
+        # the parent (which is what zip-slip exploits).
+        assert not (target.parent / "escaped.txt").exists()
+        assert not (result / ".." / "escaped.txt").resolve().exists()
+
+    def test_zip_slip_absolute_path_skipped(self, tmp_path):
+        """Absolute-path entries must also be rejected."""
+        archive = tmp_path / "absolute.zip"
+        # Note: zipfile normally strips a leading '/'; we test the
+        # behaviour we get from a maliciously-crafted archive that
+        # includes one anyway via direct namelist insertion.
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("safe.txt", "ok")
+            # ZipFile strips leading slashes; simulate the threat with
+            # a deeply traversed relative path instead.
+            zf.writestr("../../../etc_imposter.txt", "boom")
+
+        target = tmp_path / "out2"
+        result = unzip_file_to_directory(archive, extract_to=target,
+                                         create_subdirectory=False)
+        assert result is not None
+        # Walk every parent of target_dir and confirm the imposter file
+        # didn't land anywhere on the path.
+        for ancestor in [target] + list(target.parents):
+            assert not (ancestor / "etc_imposter.txt").exists()

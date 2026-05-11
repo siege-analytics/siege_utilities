@@ -13,7 +13,7 @@ Use these validators in all file operations to ensure secure path handling.
 import os
 import logging
 from pathlib import Path
-from typing import Union, Optional, List
+from typing import Union, Optional
 
 # Get logger for this module
 log = logging.getLogger(__name__)

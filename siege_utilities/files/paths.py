@@ -3,7 +3,6 @@ Modern path utilities for siege_utilities.
 Provides clean, type-safe path manipulation utilities.
 """
 
-import pathlib
 import zipfile
 import logging
 from pathlib import Path
@@ -40,7 +39,7 @@ def ensure_path_exists(desired_path: FilePath) -> Path:
     try:
         # Validate path
         try:
-            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
             path_obj = validate_directory_path(desired_path, must_exist=False)
         except ImportError:
             path_obj = Path(desired_path)
@@ -86,7 +85,7 @@ def unzip_file_to_directory(zip_file_path: FilePath,
     try:
         # Validate paths
         try:
-            from siege_utilities.files.validation import validate_file_path, validate_directory_path, PathSecurityError
+            from siege_utilities.files.validation import validate_file_path, validate_directory_path, PathSecurityError  # noqa: F401, F811
             zip_path = validate_file_path(zip_file_path, must_exist=True)
         except ImportError:
             zip_path = Path(zip_file_path)
@@ -104,7 +103,7 @@ def unzip_file_to_directory(zip_file_path: FilePath,
             extract_to = zip_path.parent
 
         try:
-            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
             extract_dir = validate_directory_path(extract_to, must_exist=False)
         except ImportError:
             extract_dir = Path(extract_to)
@@ -119,19 +118,26 @@ def unzip_file_to_directory(zip_file_path: FilePath,
         # Create target directory
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        # Extract files (with zip slip protection)
+        # Extract files (with zip slip protection). Validate AND extract
+        # per-member — extractall() would ignore the validation loop
+        # below and re-process every entry without the guard.
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            # Validate each member to prevent zip slip attacks
+            target_resolved = target_dir.resolve()
             for member in zip_ref.namelist():
-                member_path = target_dir / member
-                # Resolve to absolute path and check it's within target_dir
+                # Reject absolute paths and any traversal that escapes
+                # target_dir. Path.resolve() collapses '..' segments;
+                # if the result isn't a child of target_dir, it's
+                # malicious.
                 try:
-                    member_path.resolve().relative_to(target_dir.resolve())
+                    (target_dir / member).resolve().relative_to(target_resolved)
                 except ValueError:
-                    log.error(f"Zip slip attempt detected: {member}")
+                    # Detected-and-skipped → recoverable anomaly, not a
+                    # user-visible failure. Use warning + lazy format.
+                    log.warning(
+                        "Zip slip attempt detected, skipping member: %r", member,
+                    )
                     continue
-            # If all members are safe, extract
-            zip_ref.extractall(target_dir)
+                zip_ref.extract(member, target_dir)
 
         log.info(f"Extracted {zip_path} to {target_dir}")
         return target_dir
@@ -170,7 +176,7 @@ def get_file_extension(file_path: FilePath) -> str:
     try:
         # Validate path
         try:
-            from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+            from siege_utilities.files.validation import validate_safe_path, PathSecurityError  # noqa: F401, F811
             path_obj = validate_safe_path(file_path, allow_absolute=True)
         except ImportError:
             path_obj = Path(file_path)
@@ -207,7 +213,7 @@ def get_file_name_without_extension(file_path: FilePath) -> str:
     try:
         # Validate path
         try:
-            from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+            from siege_utilities.files.validation import validate_safe_path, PathSecurityError  # noqa: F401, F811
             path_obj = validate_safe_path(file_path, allow_absolute=True)
         except ImportError:
             path_obj = Path(file_path)
@@ -244,7 +250,7 @@ def is_hidden_file(file_path: FilePath) -> bool:
     try:
         # Validate path
         try:
-            from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+            from siege_utilities.files.validation import validate_safe_path, PathSecurityError  # noqa: F401, F811
             path_obj = validate_safe_path(file_path, allow_absolute=True)
         except ImportError:
             path_obj = Path(file_path)
@@ -282,7 +288,7 @@ def get_relative_path(base_path: FilePath, target_path: FilePath) -> Optional[Pa
     try:
         # Validate paths
         try:
-            from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+            from siege_utilities.files.validation import validate_safe_path, PathSecurityError  # noqa: F401, F811
             base = validate_safe_path(base_path, allow_absolute=True)
             target = validate_safe_path(target_path, allow_absolute=True)
         except ImportError:
@@ -330,7 +336,7 @@ def find_files_by_pattern(directory: FilePath,
     try:
         # Validate directory path
         try:
-            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
             dir_path = validate_directory_path(directory, must_exist=True)
         except ImportError:
             dir_path = Path(directory)
@@ -384,7 +390,7 @@ def create_backup_path(original_path: FilePath,
     try:
         # Validate original path
         try:
-            from siege_utilities.files.validation import validate_safe_path, validate_directory_path, PathSecurityError
+            from siege_utilities.files.validation import validate_safe_path, validate_directory_path, PathSecurityError  # noqa: F401, F811
             original = validate_safe_path(original_path, allow_absolute=True)
         except ImportError:
             original = Path(original_path)
@@ -394,7 +400,7 @@ def create_backup_path(original_path: FilePath,
 
         # Validate backup directory
         try:
-            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+            from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
             backup_dir_path = validate_directory_path(backup_dir, must_exist=False)
         except ImportError:
             backup_dir_path = Path(backup_dir)

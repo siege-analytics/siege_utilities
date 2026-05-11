@@ -4,13 +4,31 @@ Handles client profiles, contact information, and associated design artifacts.
 """
 
 import json
+import os
 import pathlib
+import re
 import logging
+import tempfile
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 import uuid
 
 logger = logging.getLogger(__name__)
+
+# Client code becomes part of a filename — restrict to a safe
+# alphanumeric+underscore+dash form so callers can't smuggle path
+# components like "../etc" into client_<code>.json.
+_CLIENT_CODE_RE = re.compile(r"^[A-Za-z0-9_\-]{1,64}$")
+
+
+def _validate_client_code(code: str) -> str:
+    if not isinstance(code, str) or not _CLIENT_CODE_RE.match(code):
+        raise ValueError(
+            f"client_code {code!r} must match [A-Za-z0-9_-]{{1,64}} — "
+            "it becomes part of a filename, so path separators, dots, "
+            "and shell metacharacters are rejected."
+        )
+    return code
 
 
 def create_client_profile(
@@ -116,16 +134,35 @@ def save_client_profile(
     
     config_dir = pathlib.Path(config_directory)
     config_dir.mkdir(parents=True, exist_ok=True)
-    
-    client_code = profile['client_code']
+
+    client_code = _validate_client_code(profile['client_code'])
     config_file = config_dir / f"client_{client_code}.json"
-    
+
     # Update last_updated timestamp
     profile['metadata']['last_updated'] = datetime.now().isoformat()
-    
-    with open(config_file, 'w') as f:
-        json.dump(profile, f, indent=2)
-    
+
+    # Atomic write: serialize to a temp file in the same directory,
+    # fsync, then os.replace into place. Without this, two concurrent
+    # callers can interleave writes and produce a half-written JSON
+    # file or silently overwrite each other mid-stream.
+    fd, tmp_path = tempfile.mkstemp(
+        prefix=f".client_{client_code}_", suffix=".json.tmp",
+        dir=str(config_dir),
+    )
+    try:
+        with os.fdopen(fd, 'w') as f:
+            json.dump(profile, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, config_file)
+    except Exception:
+        # Clean up the orphan tmp on failure so we don't leak.
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
     log_info(f"Saved client profile to: {config_file}")
     return str(config_file)
 
@@ -150,8 +187,9 @@ def load_client_profile(
         ...     print(f"Loaded: {profile['client_name']}")
     """
     
+    client_code = _validate_client_code(client_code)
     config_file = pathlib.Path(config_directory) / f"client_{client_code}.json"
-    
+
     if not config_file.exists():
         log_warning(f"Client profile not found: {config_file}")
         return None

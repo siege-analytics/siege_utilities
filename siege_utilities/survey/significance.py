@@ -74,8 +74,12 @@ def column_proportion_test(chain: "Chain", alpha: float = 0.05) -> "Chain":
                 if n1 == 0 or n2 == 0:
                     continue
                 p_pool = (p1 * n1 + p2 * n2) / (n1 + n2)
+                # se can underflow to a tiny non-zero float for
+                # degenerate p_pool (0 or 1), which then produces
+                # inf/NaN z-scores. Use <= 0 plus a numerical-noise
+                # threshold instead of an exact-zero check.
                 se = np.sqrt(p_pool * (1 - p_pool) * (1 / n1 + 1 / n2))
-                if se == 0:
+                if not np.isfinite(se) or se <= 1e-12:
                     continue
                 z = abs(p1 - p2) / se
                 if _SCIPY_AVAILABLE:

@@ -109,3 +109,29 @@ class TestChiSquareFlag:
                       table_type=TableType.CROSS_TAB)
         chi_square_flag(chain)
         assert bool(chain.chi_square_significant) is False
+
+
+# ---------------------------------------------------------------------------
+# SE underflow guard (PR #443 B9 — regression test per CR feedback)
+# ---------------------------------------------------------------------------
+
+class TestSEUnderflowGuard:
+    """se <= 1e-12 used to mean exact-zero only; now covers underflow + NaN."""
+
+    def test_degenerate_pool_does_not_produce_inf_z(self):
+        """When p_pool == 0 (or 1), SE underflows to 0 or a tiny float.
+        Without the guard, z = abs(p1 - p2) / se → inf/NaN that leaks
+        into the chain. With the guard the pair is skipped."""
+        from types import SimpleNamespace
+        from siege_utilities.survey.significance import column_proportion_test
+
+        # Two columns with all-zero proportions, identical bases.
+        # p_pool = 0, se = 0 → triggers the underflow guard.
+        chain = SimpleNamespace(
+            views={"A": [SimpleNamespace(metric="m", pct=0.0, base=100, sig_flag=None, count=0)],
+                   "B": [SimpleNamespace(metric="m", pct=0.0, base=100, sig_flag=None, count=0)]},
+        )
+        out = column_proportion_test(chain, alpha=0.05)
+        for col in out.views.values():
+            for v in col:
+                assert v.sig_flag is None or v.sig_flag == ""

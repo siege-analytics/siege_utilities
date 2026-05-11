@@ -45,8 +45,13 @@ class SpatialDataTransformer:
             self.user_config = get_user_config()
         except Exception as e:
             log.warning(f"Failed to load user config: {e}")
-            self.user_config = {}
-        
+            # Use None (not {}) so callers branching on `is None` work
+            # uniformly across SpatialDataTransformer / PostGISConnector
+            # / DuckDBConnector. {} would silently AttributeError on
+            # .get_database_connection() in the converters.
+            self.user_config = None
+
+
         # Supported output formats (using core geospatial stack + optional DuckDB)
         self.supported_formats = {
             'output': ['shp', 'geojson', 'gpkg', 'kml', 'gml', 'wkt', 'wkb', 'postgis']
@@ -195,11 +200,15 @@ class SpatialDataTransformer:
             # For now, just save as SQL file that can be imported
             output_path = kwargs.get('output_path', 'output.sql')
             
-            # Generate SQL INSERT statements
+            # Generate SQL INSERT statements. WKT comes from shapely
+            # which can't normally produce single quotes, but the file
+            # is written for human inspection / re-import — escape
+            # defensively so a hand-edited row can't break out of the
+            # literal.
+            from siege_utilities.core.sql_safety import escape_sql_string_literal as escape_string_literal
             sql_statements = []
             for idx, row in gdf.iterrows():
-                geom_wkt = row.geometry.wkt
-                # Basic SQL generation - in practice you'd want more sophisticated handling
+                geom_wkt = escape_string_literal(row.geometry.wkt)
                 sql = f"INSERT INTO spatial_table (geom) VALUES (ST_GeomFromText('{geom_wkt}'));"
                 sql_statements.append(sql)
             
@@ -219,24 +228,33 @@ class SpatialDataTransformer:
             return False
             
         try:
-            # Get database parameters from user config or kwargs
-            db_path = kwargs.get('db_path') or self.user_config.get_database_connection('duckdb') or ':memory:'
+            # Get database parameters from user config or kwargs.
+            db_path = kwargs.get('db_path')
+            if db_path is None and self.user_config is not None:
+                try:
+                    db_path = self.user_config.get_database_connection('duckdb')
+                except Exception as e:
+                    log.warning(f"user_config.get_database_connection('duckdb') failed: {e}")
+            db_path = db_path or ':memory:'
             table_name = kwargs.get('table_name', 'spatial_data')
-            
-            # Connect to DuckDB
-            con = duckdb.connect(db_path)
-            
-            # Convert to pandas DataFrame with WKT geometries
-            df = gdf.copy()
-            df['geometry_wkt'] = df.geometry.apply(lambda geom: geom.wkt)
-            df = df.drop(columns=['geometry'])
-            
-            # Upload to DuckDB
-            con.execute(f"CREATE TABLE IF NOT EXISTS {table_name} AS SELECT * FROM df")
-            
+
+            # Validate the user-supplied table name before it lands in
+            # DDL — DuckDB doesn't permit parameter-bound identifiers.
+            from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
+            validate_identifier(table_name, label="table name", allow_dotted=False)
+
+            # Connect to DuckDB inside a context manager so the
+            # connection is closed even on exception. Without this, the
+            # connection leaks for the lifetime of the process.
+            with duckdb.connect(db_path) as con:
+                df = gdf.copy()
+                df['geometry_wkt'] = df.geometry.apply(lambda geom: geom.wkt)
+                df = df.drop(columns=['geometry'])
+                con.execute(f"CREATE TABLE IF NOT EXISTS {table_name} AS SELECT * FROM df")
+
             log.info(f"Successfully uploaded to DuckDB table: {table_name}")
             return True
-            
+
         except Exception as e:
             log.error(f"Failed to convert to DuckDB: {e}")
             return False
@@ -248,12 +266,33 @@ class PostGISConnector:
     def __init__(self, connection_string: Optional[str] = None):
         """
         Initialize PostGIS connector.
-        
+
         Args:
-            connection_string: PostgreSQL connection string
+            connection_string: PostgreSQL connection string. When omitted,
+                we look up the configured ``postgresql`` connection from
+                the user-config; if that's unavailable too, the connector
+                stays uninitialized (``self.connection is None``).
         """
-        self.connection_string = connection_string or self.user_config.get_database_connection('postgresql')
-        
+        try:
+            self.user_config = get_user_config()
+        except Exception as e:
+            log.warning(f"Failed to load user config: {e}")
+            self.user_config = None
+
+        if connection_string is None and self.user_config is not None:
+            try:
+                connection_string = self.user_config.get_database_connection('postgresql')
+            except Exception as e:
+                log.warning(f"user_config.get_database_connection('postgresql') failed: {e}")
+                connection_string = None
+        self.connection_string = connection_string
+
+        self.psycopg2 = None
+        self.connection = None
+        if self.connection_string is None:
+            log.error("PostGISConnector: no connection_string and none configured")
+            return
+
         try:
             import psycopg2
             self.psycopg2 = psycopg2
@@ -261,11 +300,8 @@ class PostGISConnector:
             log.info("Successfully connected to PostGIS")
         except ImportError:
             log.error("psycopg2 not available. Install with: pip install psycopg2-binary")
-            self.psycopg2 = None
-            self.connection = None
         except Exception as e:
             log.error(f"Failed to connect to PostGIS: {e}")
-            self.connection = None
     
     def upload_spatial_data(self, gdf: GeoDataFrame, table_name: str, **kwargs) -> bool:
         """
@@ -289,7 +325,15 @@ class PostGISConnector:
 
         if_exists = kwargs.get('if_exists', 'replace')
         schema = kwargs.get('schema', 'public')
+
+        # Validate identifiers before they reach SQL, then use
+        # psycopg2.sql.Identifier for safe quoting in interpolation.
+        from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
+        from psycopg2 import sql as _pg_sql
+        validate_identifier(schema, label="schema name", allow_dotted=False)
+        validate_identifier(table_name, label="table name", allow_dotted=False)
         qualified_table = f"{schema}.{table_name}"
+        qualified_ident = _pg_sql.Identifier(schema, table_name)
 
         try:
             cursor = self.connection.cursor()
@@ -305,21 +349,34 @@ class PostGISConnector:
                     )
 
             if if_exists == 'replace':
-                cursor.execute(f"DROP TABLE IF EXISTS {qualified_table}")
+                cursor.execute(
+                    _pg_sql.SQL("DROP TABLE IF EXISTS {}").format(qualified_ident)
+                )
                 self.connection.commit()
 
             if if_exists in ('replace', 'fail'):
                 self._create_spatial_table(qualified_table, gdf)
 
-            # Upload data
+            # Upload data. _create_spatial_table writes the column as
+            # GEOMETRY(<type>, <srid>) and rejects mismatched SRIDs, so
+            # we must pass the same SRID to ST_GeomFromText here. Prefer
+            # gdf.crs's EPSG code; fall back to STORAGE_CRS.
             cursor = self.connection.cursor()
+            srid = None
+            try:
+                crs = getattr(gdf, "crs", None)
+                if crs is not None:
+                    srid = crs.to_epsg()
+            except Exception:
+                srid = None
+            srid = srid or settings.STORAGE_CRS
 
+            insert_stmt = _pg_sql.SQL(
+                "INSERT INTO {} (geom) VALUES (ST_GeomFromText(%s, %s))"
+            ).format(qualified_ident)
             for idx, row in gdf.iterrows():
                 geom_wkt = row.geometry.wkt
-                cursor.execute(
-                    f"INSERT INTO {qualified_table} (geom) VALUES (ST_GeomFromText(%s))",
-                    (geom_wkt,),
-                )
+                cursor.execute(insert_stmt, (geom_wkt, srid))
 
             self.connection.commit()
             log.info(f"Successfully uploaded to PostGIS table: {qualified_table}")
@@ -348,9 +405,17 @@ class PostGISConnector:
             log.error("No PostGIS connection available")
             return None
 
+        from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
+        from psycopg2 import sql as _pg_sql
+        # `allow_dotted=True` because the line below explicitly handles
+        # schema-qualified names by splitting on '.'.
+        validate_identifier(table_name, label="table name", allow_dotted=True)
         try:
             cursor = self.connection.cursor()
-            cursor.execute(f"SELECT ST_AsText(geom) as geometry FROM {table_name}")
+            cursor.execute(
+                _pg_sql.SQL("SELECT ST_AsText(geom) as geometry FROM {}")
+                .format(_pg_sql.Identifier(*table_name.split(".")))
+            )
 
             rows = cursor.fetchall()
             geometries = []
@@ -456,9 +521,15 @@ class DuckDBConnector:
             self.user_config = get_user_config()
         except Exception as e:
             log.warning(f"Failed to load user config: {e}")
-            self.user_config = {}
-        
-        self.db_path = db_path or self.user_config.get_database_connection('duckdb') or ':memory:'
+            self.user_config = None
+
+        if db_path is None and self.user_config is not None:
+            try:
+                db_path = self.user_config.get_database_connection('duckdb')
+            except Exception as e:
+                log.warning(f"user_config.get_database_connection('duckdb') failed: {e}")
+                db_path = None
+        self.db_path = db_path or ':memory:'
         self.connection = None
     
     def connect(self):
@@ -487,23 +558,26 @@ class DuckDBConnector:
             if not self.connect():
                 return False
         
+        from siege_utilities.core.sql_safety import validate_sql_identifier
+        validate_sql_identifier(table_name, "table name")
+
         try:
             # Convert to pandas DataFrame with WKT geometries
-            df = gdf.copy()
+            df = gdf.copy()  # noqa: F841 -- duckdb register reads name `df` from caller frame
             df['geometry_wkt'] = df.geometry.apply(lambda geom: geom.wkt)
             df = df.drop(columns=['geometry'])
-            
+
             # Handle table replacement
             if_exists = kwargs.get('if_exists', 'replace')
             if if_exists == 'replace':
                 self.connection.execute(f"DROP TABLE IF EXISTS {table_name}")
-            
-            # Upload to DuckDB
+
+            # Upload to DuckDB — table_name validated above
             self.connection.execute(f"CREATE TABLE {table_name} AS SELECT * FROM df")
-            
+
             log.info(f"Successfully uploaded to DuckDB: {table_name}")
             return True
-            
+
         except Exception as e:
             log.error(f"Failed to upload to DuckDB: {e}")
             return False
@@ -527,11 +601,19 @@ class DuckDBConnector:
             if not self.connect():
                 return None
 
+        from siege_utilities.core.sql_safety import validate_sql_identifier
+        validate_sql_identifier(table_name, "table name")
+
         try:
-            # Construct query
+            # Construct query. `table_name` is identifier-validated above.
+            # `where_clause` is intentionally a free-form SQL fragment for
+            # caller flexibility, but the docstring should warn that it's
+            # interpolated as-is — callers must not pass untrusted input.
             query = f"SELECT * FROM {table_name}"
             where_clause = kwargs.get('where_clause')
             if where_clause:
+                if not isinstance(where_clause, str):
+                    raise TypeError("where_clause must be str")
                 query += f" WHERE {where_clause}"
 
             # Execute query
