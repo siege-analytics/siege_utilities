@@ -195,6 +195,14 @@ _register([
     'EtterFilter', 'EtterParser', 'default_llm',
 ], '.providers.etter_filter')
 
+# --- etter_to_geometry (EtterFilter → shapely geometry via Gazetteer) ---
+_register([
+    'RelationSemantics', 'EtterGeometryResult', 'PointPredicate',
+    'EtterToGeometryError', 'EtterReferenceNotFoundError',
+    'EtterUnknownRelationError',
+    'etter_to_geometry',
+], '.providers.etter_to_geometry')
+
 # --- databricks_fallback ---
 _register([
     'SpatialLoaderPlan', 'select_spatial_loader',
