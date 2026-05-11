@@ -505,44 +505,30 @@ class NominatimGeoClassifier:
         }
 
     def get_place_ranks_by_label(self, label):
-        """
-        Utility function: get place ranks by label.
+        """Reverse lookup on ``place_rank_dict``: label → matching rank IDs.
 
-        Part of Siege Utilities Utilities module.
-        Auto-discovered and available at package level.
+        Nominatim returns an integer ``place_rank`` per result (0=country
+        … 10=building). This helper goes the other direction so callers
+        can write ``filter(rank=cls.get_place_ranks_by_label("City"))``
+        without hard-coding the integer.
 
-        Returns:
-            Description needed
-
-        Example:
-            >>> import siege_utilities
-            >>> result = siege_utilities.get_place_ranks_by_label()
-            >>> print(result)
-
-        Note:
-            This function is auto-discovered and available without imports
-            across all siege_utilities modules.
+        Returns ``[]`` (not ``None``) when the label is unknown so the
+        caller can ``in`` / iterate without a None-check.
         """
         return self.place_rank_dict.get(label, [])
 
     def get_importance_threshold_by_label(self, label):
-        """
-        Utility function: get importance threshold by label.
+        """Reverse lookup on ``importance_dict``: label → importance threshold.
 
-        Part of Siege Utilities Utilities module.
-        Auto-discovered and available at package level.
+        Nominatim's ``importance`` field is a float in [0, 1] that mixes
+        Wikipedia hit-count, place type, and population. We bucket those
+        floats into ordinal labels (``Country`` / ``State`` / …) and
+        this method returns the float threshold that corresponds to a
+        label — useful when filtering a Nominatim result set
+        programmatically.
 
-        Returns:
-            Description needed
-
-        Example:
-            >>> import siege_utilities
-            >>> result = siege_utilities.get_importance_threshold_by_label()
-            >>> print(result)
-
-        Note:
-            This function is auto-discovered and available without imports
-            across all siege_utilities modules.
+        Returns ``None`` when no label matches; callers should treat
+        that as "don't filter on importance."
         """
         for k, v in self.importance_dict.items():
             if v == label:
@@ -550,23 +536,11 @@ class NominatimGeoClassifier:
         return None
 
     def to_json(self):
-        """
-        Utility function: to json.
+        """Serialize the classifier's lookup tables to a JSON string.
 
-        Part of Siege Utilities Utilities module.
-        Auto-discovered and available at package level.
-
-        Returns:
-            Description needed
-
-        Example:
-            >>> import siege_utilities
-            >>> result = siege_utilities.to_json()
-            >>> print(result)
-
-        Note:
-            This function is auto-discovered and available without imports
-            across all siege_utilities modules.
+        Used to persist customised rank/importance overrides between
+        runs or to ship a classifier configuration to a worker process.
+        The result round-trips through :meth:`from_json`.
         """
         return json.dumps({
             'place_ranks': self.place_rank_dict,
@@ -574,23 +548,13 @@ class NominatimGeoClassifier:
         })
 
     def from_json(self, json_string):
-        """
-        Utility function: from json.
+        """Replace the classifier's lookup tables from a JSON string.
 
-        Part of Siege Utilities Utilities module.
-        Auto-discovered and available at package level.
-
-        Returns:
-            Description needed
-
-        Example:
-            >>> import siege_utilities
-            >>> result = siege_utilities.from_json()
-            >>> print(result)
-
-        Note:
-            This function is auto-discovered and available without imports
-            across all siege_utilities modules.
+        Inverse of :meth:`to_json` — overwrites ``place_rank_dict`` and
+        ``importance_dict`` in place. Unknown top-level keys are
+        ignored; missing keys leave the corresponding table empty
+        rather than raising, so a partial payload doesn't poison the
+        classifier.
         """
         data = json.loads(json_string)
         self.place_rank_dict = data.get('place_ranks', {})

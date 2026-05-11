@@ -45,16 +45,10 @@ _EXEMPT_FILES = frozenset({
 # detect *new* stubs (count goes up) while ignoring line shifts.
 # To drive the backlog down: fix a stub, decrement the cap; CI then
 # blocks regressions.
-_BASELINE_FILE_CAPS: dict[str, dict[str, int]] = {
-    "siege_utilities/distributed/spark_utils.py": {
-        "Auto-discovered and available": 5,
-        "Description needed": 5,
-    },
-    "siege_utilities/geo/geocoding.py": {
-        "Auto-discovered and available": 4,
-        "Description needed": 4,
-    },
-}
+#
+# Empty — the backlog has been cleared. Future placeholder docstrings
+# fail CI on first appearance; there's no exempt file.
+_BASELINE_FILE_CAPS: dict[str, dict[str, int]] = {}
 
 
 def main() -> int:
