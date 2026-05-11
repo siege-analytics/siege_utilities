@@ -544,7 +544,55 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.core.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_logger</span><span class="p">,</span> <span class="n">log_info</span><span class="p">,</span> <span class="n">log_warning</span><span class="p">,</span> <span class="n">log_error</span><span class="p">,</span> <span class="n">log_debug</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.core.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">log_info</span><span class="p">,</span> <span class="n">log_error</span>
+
+<span class="c1"># Module-level validation import. Falling open to raw pathlib.Path</span>
+<span class="c1"># inside each function when the validation module is missing would</span>
+<span class="c1"># silently disable the security guardrail; if validation is unavailable</span>
+<span class="c1"># we want to know about it at import time instead of letting individual</span>
+<span class="c1"># call sites silently downgrade.</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+        <span class="n">validate_file_path</span><span class="p">,</span>
+        <span class="n">PathSecurityError</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">_VALIDATION_AVAILABLE</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>  <span class="c1"># pragma: no cover - validation should always be present</span>
+    <span class="n">validate_file_path</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: ignore[assignment]</span>
+
+    <span class="k">class</span><span class="w"> </span><span class="nc">PathSecurityError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>  <span class="c1"># type: ignore[no-redef]</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Placeholder when siege_utilities.files.validation is unavailable.&quot;&quot;&quot;</span>
+
+    <span class="n">_VALIDATION_AVAILABLE</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">log_error</span><span class="p">(</span>
+        <span class="s2">&quot;siege_utilities.files.validation not importable; &quot;</span>
+        <span class="s2">&quot;hashing.py will operate WITHOUT path security guards. &quot;</span>
+        <span class="s2">&quot;This is almost certainly a packaging bug — investigate.&quot;</span>
+    <span class="p">)</span>
+
+<span class="c1"># 64 KiB — matches stdlib hashlib&#39;s recommended buffered-read size and</span>
+<span class="c1"># what the reference filehash recipe uses. Centralised so we don&#39;t</span>
+<span class="c1"># drift across the four hash helpers below.</span>
+<span class="n">_HASH_CHUNK_SIZE</span> <span class="o">=</span> <span class="mi">64</span> <span class="o">*</span> <span class="mi">1024</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_validated_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">must_exist</span><span class="p">:</span> <span class="nb">bool</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply path validation if available; otherwise fall through.</span>
+
+<span class="sd">    Centralising the per-function try/except blocks here.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">_VALIDATION_AVAILABLE</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">validate_file_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="n">must_exist</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_update_from_file</span><span class="p">(</span><span class="n">hash_obj</span><span class="p">,</span> <span class="n">fp</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Feed *fp* into *hash_obj* in fixed-size chunks until EOF.&quot;&quot;&quot;</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">chunk</span> <span class="o">=</span> <span class="n">fp</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">_HASH_CHUNK_SIZE</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">chunk</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">hash_obj</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="generate_sha256_hash_for_file">
@@ -576,22 +624,12 @@
 <span class="sd">        - Blocks access to sensitive system files</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="c1"># Import validation function</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
-        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-            <span class="c1"># Fallback: use basic Path validation without security checks</span>
-            <span class="n">path_obj</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Validate path with security checks</span>
-            <span class="n">path_obj</span> <span class="o">=</span> <span class="n">validate_file_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
+        <span class="n">path_obj</span> <span class="o">=</span> <span class="n">_validated_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
             <span class="k">return</span> <span class="kc">None</span>
         <span class="n">sha256_hash</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">()</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path_obj</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="k">lambda</span> <span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">65536</span><span class="p">),</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
-                <span class="n">sha256_hash</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+            <span class="n">_update_from_file</span><span class="p">(</span><span class="n">sha256_hash</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">sha256_hash</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
     <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error generating SHA256 hash for </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
@@ -629,16 +667,7 @@
 <span class="sd">        - Blocks access to sensitive system files</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="c1"># Import validation function</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
-        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-            <span class="c1"># Fallback: use basic Path validation without security checks</span>
-            <span class="n">path_obj</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Validate path with security checks</span>
-            <span class="n">path_obj</span> <span class="o">=</span> <span class="n">validate_file_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
+        <span class="n">path_obj</span> <span class="o">=</span> <span class="n">_validated_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
             <span class="k">return</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="n">algorithm</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;sha256&#39;</span><span class="p">:</span>
@@ -650,8 +679,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">hash_func</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">algorithm</span><span class="p">)</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path_obj</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="k">lambda</span> <span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">65536</span><span class="p">),</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
-                <span class="n">hash_func</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+            <span class="n">_update_from_file</span><span class="p">(</span><span class="n">hash_func</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">hash_func</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
     <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error generating </span><span class="si">{</span><span class="n">algorithm</span><span class="si">}</span><span class="s1"> hash for </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
@@ -699,27 +727,23 @@
 <span class="sd">        - Blocks access to sensitive system files</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="c1"># Validate path</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
-            <span class="n">path_obj</span> <span class="o">=</span> <span class="n">validate_file_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-            <span class="n">path_obj</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+        <span class="n">path_obj</span> <span class="o">=</span> <span class="n">_validated_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
             <span class="k">return</span> <span class="s1">&#39;missing&#39;</span>
         <span class="n">stat</span> <span class="o">=</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">stat</span><span class="o">.</span><span class="n">st_size</span> <span class="o">&lt;=</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">get_file_hash</span><span class="p">(</span><span class="n">file_path</span>
-                <span class="p">)</span> <span class="ow">or</span> <span class="sa">f</span><span class="s1">&#39;stat_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_mtime</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="k">return</span> <span class="n">get_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span> <span class="ow">or</span> <span class="sa">f</span><span class="s1">&#39;stat_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_mtime</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="c1"># Past 1 MiB we always read both ends — the previous inner guard</span>
+        <span class="c1"># `stat.st_size &gt; 2 * _HASH_CHUNK_SIZE` was always true here</span>
+        <span class="c1"># (2 * 64 KiB = 128 KiB &lt; 1 MiB), so it was dead code.</span>
         <span class="n">hash_obj</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">()</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path_obj</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">first_chunk</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">65536</span><span class="p">)</span>
+            <span class="n">first_chunk</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">_HASH_CHUNK_SIZE</span><span class="p">)</span>
             <span class="n">hash_obj</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">first_chunk</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">stat</span><span class="o">.</span><span class="n">st_size</span> <span class="o">&gt;</span> <span class="mi">131072</span><span class="p">:</span>
-                <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="o">-</span><span class="mi">65536</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-                <span class="n">last_chunk</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">65536</span><span class="p">)</span>
-                <span class="n">hash_obj</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">last_chunk</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="o">-</span><span class="n">_HASH_CHUNK_SIZE</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">last_chunk</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">_HASH_CHUNK_SIZE</span><span class="p">)</span>
+            <span class="n">hash_obj</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">last_chunk</span><span class="p">)</span>
         <span class="n">stat_string</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_mtime</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">first_chunk</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
         <span class="n">hash_obj</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">stat_string</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span>
         <span class="k">return</span> <span class="n">hash_obj</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>

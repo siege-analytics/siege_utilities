@@ -542,7 +542,6 @@
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
@@ -1019,7 +1018,11 @@
 <span class="sd">        timeout: Timeout in seconds (default: 30)</span>
 <span class="sd">        capture_output: Whether to capture command output</span>
 <span class="sd">        allow_list: Optional custom whitelist of allowed commands</span>
-<span class="sd">        unsafe: If True, bypass security validation (DANGEROUS - use with caution)</span>
+<span class="sd">        unsafe: If True, bypass the allow-list check. The command is</span>
+<span class="sd">            still executed via argv (shell=False) — string commands are</span>
+<span class="sd">            shlex-split and run without shell expansion. Use this when</span>
+<span class="sd">            you legitimately need a binary that isn&#39;t in the allow-list,</span>
+<span class="sd">            not when you need shell features.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        CompletedProcess object, or None if failed</span>
@@ -1061,8 +1064,21 @@
                 <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Cannot validate command: security module not available&quot;</span><span class="p">)</span>
                 <span class="k">raise</span> <span class="n">SecurityError</span><span class="p">(</span><span class="s2">&quot;Security validation unavailable&quot;</span><span class="p">)</span>
 
-        <span class="c1"># Parse command</span>
+        <span class="c1"># Parse command. In unsafe mode we additionally reject string</span>
+        <span class="c1"># commands that contain shell metacharacters — callers that</span>
+        <span class="c1"># previously relied on pipes / redirects / globs / $VAR under</span>
+        <span class="c1"># shell=True now get a clear error instead of silently-different</span>
+        <span class="c1"># argv-level behaviour. The remediation is documented: pass a</span>
+        <span class="c1"># list directly.</span>
+        <span class="n">_SHELL_META</span> <span class="o">=</span> <span class="s2">&quot;|&amp;;&lt;&gt;()</span><span class="si">{}</span><span class="s2">$`*?#~&quot;</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">unsafe</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">ch</span> <span class="ow">in</span> <span class="n">command</span> <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">_SHELL_META</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;run_command(unsafe=True) refuses string commands &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;containing shell metacharacters (</span><span class="si">{</span><span class="n">_SHELL_META</span><span class="si">!r}</span><span class="s2">); &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;pass a list[str] argv to run those, or invoke &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;subprocess directly with shell=True.&quot;</span>
+                <span class="p">)</span>
             <span class="kn">import</span><span class="w"> </span><span class="nn">shlex</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">command_list</span> <span class="o">=</span> <span class="n">shlex</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
@@ -1076,26 +1092,27 @@
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">validated_command</span> <span class="o">=</span> <span class="n">validate_command_safety</span><span class="p">(</span><span class="n">command_list</span><span class="p">,</span> <span class="n">allow_list</span><span class="p">)</span>
                 <span class="n">command_to_run</span> <span class="o">=</span> <span class="n">validated_command</span>
-                <span class="n">use_shell</span> <span class="o">=</span> <span class="kc">False</span>
             <span class="k">except</span> <span class="p">(</span><span class="n">SecurityError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Security validation failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
                 <span class="k">raise</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Unsafe mode: log warning and proceed</span>
+            <span class="c1"># Unsafe mode: skip the allow-list but still run the command</span>
+            <span class="c1"># via argv (shell=False). Bypassing the whitelist is the</span>
+            <span class="c1"># caller&#39;s risk to take; bypassing argv-level argument</span>
+            <span class="c1"># parsing would let the string be interpreted by /bin/sh,</span>
+            <span class="c1"># which is a separate (and worse) class of vulnerability we</span>
+            <span class="c1"># don&#39;t expose here.</span>
             <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;⚠️ SECURITY WARNING: Running command without validation: </span><span class="si">{</span><span class="n">command</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="s2">&quot;run_command(unsafe=True): allow-list bypassed; &quot;</span>
+                <span class="s2">&quot;argv-level execution preserved (no shell expansion)&quot;</span>
             <span class="p">)</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-                <span class="n">command_to_run</span> <span class="o">=</span> <span class="n">command</span>
-                <span class="n">use_shell</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># DANGER: Required for string commands in unsafe mode</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">command_to_run</span> <span class="o">=</span> <span class="n">command_list</span>
-                <span class="n">use_shell</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">command_to_run</span> <span class="o">=</span> <span class="n">command_list</span>
 
-        <span class="c1"># Execute command</span>
+        <span class="c1"># Execute command. shell=False unconditionally — argv list, no</span>
+        <span class="c1"># /bin/sh interpretation of the command string.</span>
         <span class="n">result</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
             <span class="n">command_to_run</span><span class="p">,</span>
-            <span class="n">shell</span><span class="o">=</span><span class="n">use_shell</span><span class="p">,</span>
+            <span class="n">shell</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="n">cwd</span><span class="o">=</span><span class="n">cwd</span><span class="p">,</span>
             <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span>
             <span class="n">capture_output</span><span class="o">=</span><span class="n">capture_output</span><span class="p">,</span>

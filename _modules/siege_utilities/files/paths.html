@@ -541,7 +541,6 @@
 <span class="sd">Provides clean, type-safe path manipulation utilities.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">zipfile</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
@@ -580,7 +579,7 @@
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># Validate path</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
             <span class="n">path_obj</span> <span class="o">=</span> <span class="n">validate_directory_path</span><span class="p">(</span><span class="n">desired_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
             <span class="n">path_obj</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">desired_path</span><span class="p">)</span>
@@ -627,7 +626,7 @@
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># Validate paths</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span><span class="p">,</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span><span class="p">,</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
             <span class="n">zip_path</span> <span class="o">=</span> <span class="n">validate_file_path</span><span class="p">(</span><span class="n">zip_file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
             <span class="n">zip_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">zip_file_path</span><span class="p">)</span>
@@ -645,7 +644,7 @@
             <span class="n">extract_to</span> <span class="o">=</span> <span class="n">zip_path</span><span class="o">.</span><span class="n">parent</span>
 
         <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
             <span class="n">extract_dir</span> <span class="o">=</span> <span class="n">validate_directory_path</span><span class="p">(</span><span class="n">extract_to</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
             <span class="n">extract_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">extract_to</span><span class="p">)</span>
@@ -660,19 +659,26 @@
         <span class="c1"># Create target directory</span>
         <span class="n">target_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-        <span class="c1"># Extract files (with zip slip protection)</span>
+        <span class="c1"># Extract files (with zip slip protection). Validate AND extract</span>
+        <span class="c1"># per-member — extractall() would ignore the validation loop</span>
+        <span class="c1"># below and re-process every entry without the guard.</span>
         <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">zip_path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">zip_ref</span><span class="p">:</span>
-            <span class="c1"># Validate each member to prevent zip slip attacks</span>
+            <span class="n">target_resolved</span> <span class="o">=</span> <span class="n">target_dir</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
             <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">zip_ref</span><span class="o">.</span><span class="n">namelist</span><span class="p">():</span>
-                <span class="n">member_path</span> <span class="o">=</span> <span class="n">target_dir</span> <span class="o">/</span> <span class="n">member</span>
-                <span class="c1"># Resolve to absolute path and check it&#39;s within target_dir</span>
+                <span class="c1"># Reject absolute paths and any traversal that escapes</span>
+                <span class="c1"># target_dir. Path.resolve() collapses &#39;..&#39; segments;</span>
+                <span class="c1"># if the result isn&#39;t a child of target_dir, it&#39;s</span>
+                <span class="c1"># malicious.</span>
                 <span class="k">try</span><span class="p">:</span>
-                    <span class="n">member_path</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">target_dir</span><span class="o">.</span><span class="n">resolve</span><span class="p">())</span>
+                    <span class="p">(</span><span class="n">target_dir</span> <span class="o">/</span> <span class="n">member</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">target_resolved</span><span class="p">)</span>
                 <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Zip slip attempt detected: </span><span class="si">{</span><span class="n">member</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="c1"># Detected-and-skipped → recoverable anomaly, not a</span>
+                    <span class="c1"># user-visible failure. Use warning + lazy format.</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                        <span class="s2">&quot;Zip slip attempt detected, skipping member: </span><span class="si">%r</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">member</span><span class="p">,</span>
+                    <span class="p">)</span>
                     <span class="k">continue</span>
-            <span class="c1"># If all members are safe, extract</span>
-            <span class="n">zip_ref</span><span class="o">.</span><span class="n">extractall</span><span class="p">(</span><span class="n">target_dir</span><span class="p">)</span>
+                <span class="n">zip_ref</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="n">target_dir</span><span class="p">)</span>
 
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Extracted </span><span class="si">{</span><span class="n">zip_path</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">target_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">target_dir</span>
@@ -713,7 +719,7 @@
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># Validate path</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
             <span class="n">path_obj</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
             <span class="n">path_obj</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
@@ -751,7 +757,7 @@
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># Validate path</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
             <span class="n">path_obj</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
             <span class="n">path_obj</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
@@ -788,7 +794,7 @@
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># Validate path</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
             <span class="n">path_obj</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
             <span class="n">path_obj</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
@@ -826,7 +832,7 @@
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># Validate paths</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
             <span class="n">base</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span><span class="n">base_path</span><span class="p">,</span> <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="n">target</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span><span class="n">target_path</span><span class="p">,</span> <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
@@ -874,7 +880,7 @@
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># Validate directory path</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
             <span class="n">dir_path</span> <span class="o">=</span> <span class="n">validate_directory_path</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
             <span class="n">dir_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">directory</span><span class="p">)</span>
@@ -928,7 +934,7 @@
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># Validate original path</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
             <span class="n">original</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span><span class="n">original_path</span><span class="p">,</span> <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
             <span class="n">original</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">original_path</span><span class="p">)</span>
@@ -938,7 +944,7 @@
 
         <span class="c1"># Validate backup directory</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
             <span class="n">backup_dir_path</span> <span class="o">=</span> <span class="n">validate_directory_path</span><span class="p">(</span><span class="n">backup_dir</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
             <span class="n">backup_dir_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">backup_dir</span><span class="p">)</span>
