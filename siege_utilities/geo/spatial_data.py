@@ -557,7 +557,7 @@ class CensusDirectoryDiscovery:
             self.cache[cache_key] = (time.time(), directories)
             return directories
 
-        except requests.exceptions.SSLError as ssl_err:
+        except requests.exceptions.SSLError:
             if not _ALLOW_INSECURE_SSL:
                 log.error(
                     "SSL verification failed for year %s; refusing to "
