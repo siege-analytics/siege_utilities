@@ -35,6 +35,9 @@ def _slugify_client_name(client_name: str) -> str:
         raise ValueError(f"client_name must be a non-empty string, got {client_name!r}")
     s = client_name.strip().lower().replace(" ", "_")
     s = _SLUG_SAFE.sub("_", s)
+    # Collapse runs of underscores produced by adjacent unsafe chars
+    # (e.g., "Acme  Corp" → "acme__corp" → "acme_corp").
+    s = re.sub(r"_+", "_", s)
     s = s.strip("_")
     if not s:
         raise ValueError(

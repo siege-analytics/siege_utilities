@@ -158,22 +158,32 @@ class TestCensusDirectoryDiscovery:
     
     @patch('requests.get')
     def test_get_year_directory_contents_ssl_fallback(self, mock_get):
-        """Test SSL fallback for directory contents."""
+        """Test SSL fallback for directory contents.
+
+        The legacy verify=False fallback is now gated behind
+        SIEGE_INSECURE_SSL=1. Patch the module-level flag directly so
+        we exercise the fallback path without needing module reload.
+        """
+        from siege_utilities.geo import spatial_data
+        with patch.object(spatial_data, "_ALLOW_INSECURE_SSL", True):
+            self._run_ssl_fallback_for_directory(mock_get)
+
+    def _run_ssl_fallback_for_directory(self, mock_get):
         # First call fails with SSL error
         from requests.exceptions import SSLError
         ssl_error = SSLError("SSL error")
-        
+
         # Second call succeeds
         success_response = Mock()
         success_response.content = """
         <html><body><a href="STATE/">STATE</a></body></html>
         """.encode()
         success_response.raise_for_status.return_value = None
-        
+
         mock_get.side_effect = [ssl_error, success_response]
-        
+
         contents = self.discovery.get_year_directory_contents(2020)
-        
+
         assert 'STATE' in contents
     
     def test_discover_boundary_types(self):
@@ -322,19 +332,33 @@ class TestCensusDirectoryDiscovery:
 
     @patch('requests.get')
     def test_validate_download_url_ssl_fallback(self, mock_get):
-        """Test SSL fallback for URL validation."""
-        # First call fails with SSL error
+        """Test SSL fallback for URL validation when opted in."""
+        from siege_utilities.geo import spatial_data
+        with patch.object(spatial_data, "_ALLOW_INSECURE_SSL", True):
+            # First call fails with SSL error
+            from requests.exceptions import SSLError
+            ssl_error = SSLError("SSL error")
+
+            # Second call succeeds
+            success_response = Mock()
+            success_response.status_code = 200
+
+            mock_get.side_effect = [ssl_error, success_response]
+
+            is_valid = self.discovery.validate_download_url("https://example.com/test.zip")
+            assert is_valid is True
+
+    @patch('requests.get')
+    def test_validate_download_url_ssl_refused_by_default(self, mock_get):
+        """Without SIEGE_INSECURE_SSL=1, an SSL failure is no longer
+        silently bypassed; the URL is reported as not valid."""
         from requests.exceptions import SSLError
-        ssl_error = SSLError("SSL error")
-
-        # Second call succeeds
-        success_response = Mock()
-        success_response.status_code = 200
-
-        mock_get.side_effect = [ssl_error, success_response]
-
-        is_valid = self.discovery.validate_download_url("https://example.com/test.zip")
-        assert is_valid is True
+        from siege_utilities.geo.boundary_result import BoundaryUrlValidationError
+        from siege_utilities.geo import spatial_data
+        with patch.object(spatial_data, "_ALLOW_INSECURE_SSL", False):
+            mock_get.side_effect = SSLError("SSL error")
+            with pytest.raises((BoundaryUrlValidationError, SSLError)):
+                self.discovery.validate_download_url("https://example.com/test.zip")
 
     @patch('requests.get')
     def test_validate_download_url_failure(self, mock_get):

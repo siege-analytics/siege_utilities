@@ -17,6 +17,7 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import os
+import warnings
 
 # Opt-in TLS-verification bypass for environments behind broken
 # corporate MITM proxies. Defaults to False — the previous
@@ -26,7 +27,6 @@ import os
 # set SIEGE_INSECURE_SSL=1 in the environment (and own the risk).
 _ALLOW_INSECURE_SSL = os.environ.get("SIEGE_INSECURE_SSL", "").lower() in ("1", "true", "yes")
 if _ALLOW_INSECURE_SSL:
-    import warnings
     warnings.filterwarnings('ignore', message='Unverified HTTPS request')
 
 # Import existing library functions
