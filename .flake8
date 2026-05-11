@@ -1,0 +1,11 @@
+[flake8]
+# Per-file ignores. flake8 reads this even when invoked with --select=;
+# the ignores act as a denylist on top of the selected rules.
+per-file-ignores =
+    # PySpark's published API surface is star-import-shaped. Every
+    # tutorial example uses `from pyspark.sql.functions import *` and
+    # references `col`, `when`, `lit`, etc. unqualified. Switching to
+    # explicit imports would mean tracking every PySpark function name
+    # across this large module on every version bump. Exempt this one
+    # file rather than fight the upstream convention.
+    siege_utilities/distributed/spark_utils.py:F401,F403,F405

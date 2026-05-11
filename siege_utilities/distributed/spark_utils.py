@@ -17,8 +17,13 @@ py_round = round
 
 try:
     from pyspark.sql import DataFrame, SparkSession, Column
-    from pyspark.sql.types import *
-    from pyspark.sql.functions import *
+    # PySpark's published surface is star-import-shaped (every doc / example
+    # uses it); replacing with explicit imports would mean tracking every
+    # F.col / when / lit / DataType across this large module on every
+    # PySpark version bump. Suppress the unavoidable F403/F405 here rather
+    # than fighting the upstream convention.
+    from pyspark.sql.types import *  # noqa: F401, F403
+    from pyspark.sql.functions import *  # noqa: F401, F403
     PYSPARK_AVAILABLE = True
 except ImportError:
     PYSPARK_AVAILABLE = False
@@ -898,7 +903,7 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
         if os.path.exists(staging_directory):
             shutil.rmtree(staging_directory)
         os.makedirs(staging_directory, exist_ok=True)
-        log_info(f'Writing data to staging directory')
+        log_info('Writing data to staging directory')
         writer = df.write.mode(mode)
         if file_format.lower() == 'csv':
             writer = writer.format('csv').option('header', str(header).lower()
@@ -917,7 +922,7 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
                 final_destination):
                 log_info(f'Backing up existing data to {backup_dir}')
                 shutil.move(final_destination, backup_dir)
-                log_info(f'Existing data backed up successfully')
+                log_info('Existing data backed up successfully')
             else:
                 shutil.rmtree(final_destination, ignore_errors=True)
                 log_info('Removed empty destination directory')
@@ -934,7 +939,7 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
             files_moved += 1
         log_info(f'Successfully moved {files_moved} items to final destination'
             )
-        log_info(f'Atomic write operation completed successfully')
+        log_info('Atomic write operation completed successfully')
         return True
     except Exception as e:
         log_error(f'Error in atomic write operation: {e}')
