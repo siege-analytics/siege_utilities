@@ -973,12 +973,20 @@ class SparkEngine(DataFrameEngine):
             )
         if how.lower() not in ("inner", "left", "right", "outer", "full"):
             raise ValueError(f"unsupported join type {how!r}")
-        left.createOrReplaceTempView("_sjoin_left")
-        right.createOrReplaceTempView("_sjoin_right")
+        # Unique per-call temp-view names so concurrent calls don't
+        # collide on a shared `_sjoin_left` and so a failed previous
+        # call doesn't leave stale state in the catalog. The returned
+        # DataFrame is lazy — we can't drop the views in this scope.
+        import uuid as _uuid
+        tag = _uuid.uuid4().hex[:8]
+        lv = f"_sjoin_left_{tag}"
+        rv = f"_sjoin_right_{tag}"
+        left.createOrReplaceTempView(lv)
+        right.createOrReplaceTempView(rv)
         st_func = f"ST_{predicate.capitalize()}"
         sql = (
             f"SELECT l.*, r.* "
-            f"FROM _sjoin_left l {how.upper()} JOIN _sjoin_right r "
+            f"FROM {lv} l {how.upper()} JOIN {rv} r "
             f"ON {st_func}(ST_GeomFromText(l.{left_geom}), ST_GeomFromText(r.{right_geom}))"
         )
         return self._session.sql(sql)
@@ -990,10 +998,12 @@ class SparkEngine(DataFrameEngine):
         # `distance` is interpolated as a float — coerce so a malicious
         # caller can't sneak SQL via a string.
         distance_lit = float(distance)
-        df.createOrReplaceTempView("_buf_tbl")
+        import uuid as _uuid
+        view = f"_buf_tbl_{_uuid.uuid4().hex[:8]}"
+        df.createOrReplaceTempView(view)
         sql = (
             f"SELECT *, ST_AsText(ST_Buffer(ST_GeomFromText({geometry_col}), {distance_lit})) "
-            f"AS {geometry_col}_buffered FROM _buf_tbl"
+            f"AS {geometry_col}_buffered FROM {view}"
         )
         return self._session.sql(sql)
 
@@ -1005,21 +1015,24 @@ class SparkEngine(DataFrameEngine):
             validate_sql_identifier_in as validate_identifier_in,
         )
         validate_identifier_in(geometry_col, df.columns, label="geometry column")
-        df.createOrReplaceTempView("_dist_left")
+        import uuid as _uuid
+        lv = f"_dist_left_{_uuid.uuid4().hex[:8]}"
+        df.createOrReplaceTempView(lv)
         if isinstance(other, (BaseGeometry, str)):
             wkt_str = other.wkt if isinstance(other, BaseGeometry) else other
             wkt_escaped = escape_string_literal(wkt_str)
             sql = (
                 f"SELECT *, ST_Distance(ST_GeomFromText({geometry_col}), "
-                f"ST_GeomFromText('{wkt_escaped}')) AS _distance FROM _dist_left"
+                f"ST_GeomFromText('{wkt_escaped}')) AS _distance FROM {lv}"
             )
         else:
             validate_identifier_in(other_geom, other.columns, label="other geometry column")
-            other.createOrReplaceTempView("_dist_right")
+            rv = f"_dist_right_{_uuid.uuid4().hex[:8]}"
+            other.createOrReplaceTempView(rv)
             sql = (
                 f"SELECT ST_Distance(ST_GeomFromText(l.{geometry_col}), "
                 f"ST_GeomFromText(r.{other_geom})) AS _distance "
-                f"FROM _dist_left l, _dist_right r"
+                f"FROM {lv} l, {rv} r"
             )
         return self._session.sql(sql)
 
@@ -1067,11 +1080,15 @@ class SparkEngine(DataFrameEngine):
         validate_identifier_in(polygon_geom, polygons.columns, label="polygon geometry column")
         if how.lower() not in ("inner", "left", "right", "outer", "full"):
             raise ValueError(f"unsupported join type {how!r}")
-        points.createOrReplaceTempView("_assign_pts")
-        broadcast(polygons).createOrReplaceTempView("_assign_poly")
+        import uuid as _uuid
+        tag = _uuid.uuid4().hex[:8]
+        pv = f"_assign_pts_{tag}"
+        poly_v = f"_assign_poly_{tag}"
+        points.createOrReplaceTempView(pv)
+        broadcast(polygons).createOrReplaceTempView(poly_v)
         return self._session.sql(
             f"SELECT p.*, poly.* "
-            f"FROM _assign_pts p {how.upper()} JOIN _assign_poly poly "
+            f"FROM {pv} p {how.upper()} JOIN {poly_v} poly "
             f"ON ST_Contains(ST_GeomFromText(poly.{polygon_geom}), "
             f"ST_GeomFromText(p.{point_geom}))"
         )
@@ -1086,8 +1103,12 @@ class SparkEngine(DataFrameEngine):
         # Coerce numeric inputs so they can't carry SQL.
         k_lit = int(k)
         max_distance_lit = float(max_distance) if max_distance is not None else None
-        points.createOrReplaceTempView("_nn_pts")
-        targets.createOrReplaceTempView("_nn_tgt")
+        import uuid as _uuid
+        tag = _uuid.uuid4().hex[:8]
+        pv = f"_nn_pts_{tag}"
+        tv = f"_nn_tgt_{tag}"
+        points.createOrReplaceTempView(pv)
+        targets.createOrReplaceTempView(tv)
         # WHERE on a SELECT-list alias is invalid in Spark SQL; re-expand
         # the ST_Distance expression in the predicate.
         if max_distance_lit is not None:
@@ -1107,7 +1128,7 @@ class SparkEngine(DataFrameEngine):
                         ORDER BY ST_Distance(ST_GeomFromText(p.{point_geom}),
                                              ST_GeomFromText(t.{target_geom}))
                     ) AS rn
-                FROM _nn_pts p, _nn_tgt t
+                FROM {pv} p, {tv} t
                 {dist_filter}
             ) WHERE rn <= {k_lit}
         """)
