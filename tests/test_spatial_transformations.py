@@ -388,9 +388,12 @@ class TestPostGISConnector:
         # which str()s as `Identifier('public', 'test_table')`. Match
         # both the dotted form (legacy) and the Identifier repr (new).
         calls = [str(c) for c in mock_conn.cursor.return_value.execute.call_args_list]
+        # Match exactly the legacy dotted form OR the exact psycopg2
+        # Identifier repr — separate-token tests would pass even if the
+        # qualified identifier was built incorrectly.
         assert any(
-            "public.test_table" in c or
-            ("'public'" in c and "'test_table'" in c)
+            ("public.test_table" in c)
+            or ("Identifier('public', 'test_table')" in c)
             for c in calls
         )
 
@@ -404,8 +407,8 @@ class TestPostGISConnector:
             )
         calls = [str(c) for c in mock_conn.cursor.return_value.execute.call_args_list]
         assert any(
-            "staging.test_table" in c or
-            ("'staging'" in c and "'test_table'" in c)
+            ("staging.test_table" in c)
+            or ("Identifier('staging', 'test_table')" in c)
             for c in calls
         )
 

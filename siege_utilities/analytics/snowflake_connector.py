@@ -351,10 +351,16 @@ class SnowflakeConnector:
             self.cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
             row_count = self.cursor.fetchone()[0]
 
-            # Get table size — table_name in WHERE is a string literal,
-            # so parameter-bind it instead of interpolating.
+            # Get table size — scope to the active database+schema so we
+            # don't return a different schema's table with the same name.
             self.cursor.execute(
-                "SELECT BYTES, ROWS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = %s",
+                """
+                SELECT BYTES, ROWS
+                FROM INFORMATION_SCHEMA.TABLES
+                WHERE TABLE_NAME = %s
+                  AND TABLE_SCHEMA = CURRENT_SCHEMA()
+                  AND TABLE_CATALOG = CURRENT_DATABASE()
+                """,
                 (table_name,),
             )
             size_info = self.cursor.fetchone()

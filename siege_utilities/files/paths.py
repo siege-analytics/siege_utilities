@@ -131,7 +131,11 @@ def unzip_file_to_directory(zip_file_path: FilePath,
                 try:
                     (target_dir / member).resolve().relative_to(target_resolved)
                 except ValueError:
-                    log.error(f"Zip slip attempt detected, skipping: {member!r}")
+                    # Detected-and-skipped → recoverable anomaly, not a
+                    # user-visible failure. Use warning + lazy format.
+                    log.warning(
+                        "Zip slip attempt detected, skipping member: %r", member,
+                    )
                     continue
                 zip_ref.extract(member, target_dir)
 

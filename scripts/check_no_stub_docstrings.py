@@ -39,12 +39,30 @@ _EXEMPT_FILES = frozenset({
     "siege_utilities/hygiene/generate_docstrings.py",
 })
 
-# Ratchet: known-bad files we accept as a backlog. New stubs in any
-# OTHER file fail CI; cleaning up an entry from this set is the way
-# to drive the count down. Do NOT add to this set.
-_BASELINE_FILES = frozenset({
-    "siege_utilities/distributed/spark_utils.py",
-    "siege_utilities/geo/geocoding.py",
+# Per-occurrence ratchet baseline: known stub markers we accept as a
+# backlog, keyed on "path:line:marker". A NEW stub at any other path:line
+# fails CI, including new stubs in the same file as a baselined one —
+# whole-file exemptions create a permanent blind spot. Driving an entry
+# off this list is how the count shrinks.
+_BASELINE_OCCURRENCES = frozenset({
+    "siege_utilities/distributed/spark_utils.py:155:Auto-discovered and available",
+    "siege_utilities/distributed/spark_utils.py:158:Description needed",
+    "siege_utilities/distributed/spark_utils.py:312:Auto-discovered and available",
+    "siege_utilities/distributed/spark_utils.py:315:Description needed",
+    "siege_utilities/distributed/spark_utils.py:355:Auto-discovered and available",
+    "siege_utilities/distributed/spark_utils.py:358:Description needed",
+    "siege_utilities/distributed/spark_utils.py:848:Auto-discovered and available",
+    "siege_utilities/distributed/spark_utils.py:851:Description needed",
+    "siege_utilities/distributed/spark_utils.py:912:Auto-discovered and available",
+    "siege_utilities/distributed/spark_utils.py:915:Description needed",
+    "siege_utilities/geo/geocoding.py:501:Auto-discovered and available",
+    "siege_utilities/geo/geocoding.py:504:Description needed",
+    "siege_utilities/geo/geocoding.py:522:Auto-discovered and available",
+    "siege_utilities/geo/geocoding.py:525:Description needed",
+    "siege_utilities/geo/geocoding.py:546:Auto-discovered and available",
+    "siege_utilities/geo/geocoding.py:549:Description needed",
+    "siege_utilities/geo/geocoding.py:570:Auto-discovered and available",
+    "siege_utilities/geo/geocoding.py:573:Description needed",
 })
 
 
@@ -65,7 +83,7 @@ def main() -> int:
             if "__pycache__" in py.parts:
                 continue
             rel = py.relative_to(repo).as_posix()
-            if rel in _EXEMPT_FILES or rel in _BASELINE_FILES:
+            if rel in _EXEMPT_FILES:
                 continue
             files_scanned += 1
             try:
@@ -76,6 +94,9 @@ def main() -> int:
             for lineno, line in enumerate(lines, start=1):
                 for bad in _BAD_PHRASES:
                     if bad in line:
+                        key = f"{rel}:{lineno}:{bad}"
+                        if key in _BASELINE_OCCURRENCES:
+                            continue
                         failures.append((py.relative_to(repo), lineno, bad, line.strip()))
 
     if not args.quiet:

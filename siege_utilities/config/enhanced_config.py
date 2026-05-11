@@ -103,11 +103,22 @@ class ConfigurationMigrator:
             return self._create_default_client_profile(client_code)
         
         try:
+            # Pick the parser by extension explicitly — falling through to
+            # json.load on .toml/.cfg/anything-else and silently raising
+            # JSONDecodeError hides the real cause.
+            suffix = legacy_file.suffix.lower()
             with open(legacy_file, 'r') as f:
-                legacy_data = (
-                    yaml.safe_load(f) if legacy_file.suffix in ['.yaml', '.yml']
-                    else json.load(f)
-                )
+                if suffix in ('.yaml', '.yml'):
+                    legacy_data = yaml.safe_load(f)
+                elif suffix == '.json':
+                    legacy_data = json.load(f)
+                else:
+                    logger.error(
+                        "Unsupported legacy client profile extension %r on %s; "
+                        "expected .yaml/.yml/.json. Falling back to default profile.",
+                        suffix, legacy_file,
+                    )
+                    return self._create_default_client_profile(client_code)
 
             if not isinstance(legacy_data, dict):
                 logger.error(
@@ -411,11 +422,17 @@ def load_user_profile(username: str, config_dir: Optional[Path] = None) -> Optio
             
         with open(config_file, 'r') as f:
             data = yaml.safe_load(f)
-            
+
+        if not isinstance(data, dict):
+            logger.error(
+                "User profile %s is not a YAML mapping (got %s); cannot load.",
+                config_file, type(data).__name__,
+            )
+            return None
         return UserProfile(**data)
-        
-    except Exception as e:
-        logger.error(f"Failed to load user profile {username}: {e}")
+
+    except Exception:
+        logger.exception("Failed to load user profile %s", username)
         return None
 
 
@@ -524,11 +541,17 @@ def load_client_profile(client_code: str, config_dir: Optional[Path] = None) -> 
             
         with open(config_file, 'r') as f:
             data = yaml.safe_load(f)
-            
+
+        if not isinstance(data, dict):
+            logger.error(
+                "Client profile %s is not a YAML mapping (got %s); cannot load.",
+                config_file, type(data).__name__,
+            )
+            return None
         return ClientProfile(**data)
-        
-    except Exception as e:
-        logger.error(f"Failed to load client profile {client_code}: {e}")
+
+    except Exception:
+        logger.exception("Failed to load client profile %s", client_code)
         return None
 
 

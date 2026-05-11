@@ -187,8 +187,9 @@ def load_client_profile(
         ...     print(f"Loaded: {profile['client_name']}")
     """
     
+    client_code = _validate_client_code(client_code)
     config_file = pathlib.Path(config_directory) / f"client_{client_code}.json"
-    
+
     if not config_file.exists():
         log_warning(f"Client profile not found: {config_file}")
         return None

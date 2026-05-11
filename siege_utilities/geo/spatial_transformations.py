@@ -357,15 +357,26 @@ class PostGISConnector:
             if if_exists in ('replace', 'fail'):
                 self._create_spatial_table(qualified_table, gdf)
 
-            # Upload data
+            # Upload data. _create_spatial_table writes the column as
+            # GEOMETRY(<type>, <srid>) and rejects mismatched SRIDs, so
+            # we must pass the same SRID to ST_GeomFromText here. Prefer
+            # gdf.crs's EPSG code; fall back to STORAGE_CRS.
             cursor = self.connection.cursor()
+            srid = None
+            try:
+                crs = getattr(gdf, "crs", None)
+                if crs is not None:
+                    srid = crs.to_epsg()
+            except Exception:
+                srid = None
+            srid = srid or settings.STORAGE_CRS
 
             insert_stmt = _pg_sql.SQL(
-                "INSERT INTO {} (geom) VALUES (ST_GeomFromText(%s))"
+                "INSERT INTO {} (geom) VALUES (ST_GeomFromText(%s, %s))"
             ).format(qualified_ident)
             for idx, row in gdf.iterrows():
                 geom_wkt = row.geometry.wkt
-                cursor.execute(insert_stmt, (geom_wkt,))
+                cursor.execute(insert_stmt, (geom_wkt, srid))
 
             self.connection.commit()
             log.info(f"Successfully uploaded to PostGIS table: {qualified_table}")
@@ -396,7 +407,9 @@ class PostGISConnector:
 
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
         from psycopg2 import sql as _pg_sql
-        validate_identifier(table_name, label="table name")
+        # `allow_dotted=True` because the line below explicitly handles
+        # schema-qualified names by splitting on '.'.
+        validate_identifier(table_name, label="table name", allow_dotted=True)
         try:
             cursor = self.connection.cursor()
             cursor.execute(
@@ -545,23 +558,26 @@ class DuckDBConnector:
             if not self.connect():
                 return False
         
+        from siege_utilities.core.sql_safety import validate_sql_identifier
+        validate_sql_identifier(table_name, "table name")
+
         try:
             # Convert to pandas DataFrame with WKT geometries
-            df = gdf.copy()
+            df = gdf.copy()  # noqa: F841 -- duckdb register reads name `df` from caller frame
             df['geometry_wkt'] = df.geometry.apply(lambda geom: geom.wkt)
             df = df.drop(columns=['geometry'])
-            
+
             # Handle table replacement
             if_exists = kwargs.get('if_exists', 'replace')
             if if_exists == 'replace':
                 self.connection.execute(f"DROP TABLE IF EXISTS {table_name}")
-            
-            # Upload to DuckDB
+
+            # Upload to DuckDB — table_name validated above
             self.connection.execute(f"CREATE TABLE {table_name} AS SELECT * FROM df")
-            
+
             log.info(f"Successfully uploaded to DuckDB: {table_name}")
             return True
-            
+
         except Exception as e:
             log.error(f"Failed to upload to DuckDB: {e}")
             return False
@@ -585,11 +601,19 @@ class DuckDBConnector:
             if not self.connect():
                 return None
 
+        from siege_utilities.core.sql_safety import validate_sql_identifier
+        validate_sql_identifier(table_name, "table name")
+
         try:
-            # Construct query
+            # Construct query. `table_name` is identifier-validated above.
+            # `where_clause` is intentionally a free-form SQL fragment for
+            # caller flexibility, but the docstring should warn that it's
+            # interpolated as-is — callers must not pass untrusted input.
             query = f"SELECT * FROM {table_name}"
             where_clause = kwargs.get('where_clause')
             if where_clause:
+                if not isinstance(where_clause, str):
+                    raise TypeError("where_clause must be str")
                 query += f" WHERE {where_clause}"
 
             # Execute query

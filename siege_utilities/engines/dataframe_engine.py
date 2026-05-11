@@ -439,26 +439,26 @@ class DataFrameEngine(ABC):
         src = self.to_geodataframe(source_polys, source_geom)
         tgt = self.to_geodataframe(target_polys, target_geom)
 
-        # Compute intersection
-        overlay = gpd.overlay(src, tgt, how="intersection")
-
-        # Area ratio: intersection_area / source_area. Zero-area source
-        # polygons (degenerate inputs) would produce NaN ratios that
-        # silently drop the polygon's weight from the aggregation —
-        # invisible data loss. Surface them: warn, then drop explicitly
-        # so the downstream sum is honest about its inputs.
+        # Detect zero-area sources BEFORE gpd.overlay. A degenerate source
+        # polygon that produces no intersection rows would otherwise
+        # disappear entirely — the post-overlay check missed exactly the
+        # data-loss case it was trying to surface.
         import logging as _logging
         _log = _logging.getLogger(__name__)
-        overlay["_src_area"] = src.loc[overlay.index].geometry.area
-        overlay["_isect_area"] = overlay.geometry.area
-        zero_area = overlay["_src_area"] <= 0
-        if zero_area.any():
+        src = src.assign(_src_area=src.geometry.area)
+        zero_area_src = src["_src_area"] <= 0
+        if zero_area_src.any():
             _log.warning(
                 "apportion: %d source polygon(s) have zero area; their "
-                "weights are dropped (would otherwise propagate NaN).",
-                int(zero_area.sum()),
+                "weights are dropped before overlay.",
+                int(zero_area_src.sum()),
             )
-            overlay = overlay.loc[~zero_area].copy()
+            src = src.loc[~zero_area_src].copy()
+
+        # Compute intersection. We carry _src_area through so the ratio
+        # computation doesn't have to re-index against the original src.
+        overlay = gpd.overlay(src, tgt, how="intersection")
+        overlay["_isect_area"] = overlay.geometry.area
         overlay["_ratio"] = overlay["_isect_area"] / overlay["_src_area"]
         overlay[f"apportioned_{weight_col}"] = overlay[weight_col] * overlay["_ratio"]
 
@@ -958,11 +958,19 @@ class SparkEngine(DataFrameEngine):
         self._ensure_sedona()
         from siege_utilities.core.sql_safety import (
             validate_sql_identifier_in as validate_identifier_in,
-            validate_sql_identifier as validate_identifier,
         )
         validate_identifier_in(left_geom, left.columns, label="left geometry column")
         validate_identifier_in(right_geom, right.columns, label="right geometry column")
-        validate_identifier(predicate, label="spatial predicate", allow_dotted=False)
+        # `validate_sql_identifier` only checks shape — Sedona doesn't have
+        # ``ST_Foo``, so accept only the documented predicate set.
+        supported_predicates = {
+            "intersects", "contains", "within", "touches", "crosses", "overlaps",
+        }
+        if predicate.lower() not in supported_predicates:
+            raise ValueError(
+                f"unsupported spatial predicate {predicate!r} — "
+                f"expected one of {sorted(supported_predicates)}"
+            )
         if how.lower() not in ("inner", "left", "right", "outer", "full"):
             raise ValueError(f"unsupported join type {how!r}")
         left.createOrReplaceTempView("_sjoin_left")
@@ -1080,7 +1088,15 @@ class SparkEngine(DataFrameEngine):
         max_distance_lit = float(max_distance) if max_distance is not None else None
         points.createOrReplaceTempView("_nn_pts")
         targets.createOrReplaceTempView("_nn_tgt")
-        dist_filter = f"WHERE d <= {max_distance_lit}" if max_distance_lit is not None else ""
+        # WHERE on a SELECT-list alias is invalid in Spark SQL; re-expand
+        # the ST_Distance expression in the predicate.
+        if max_distance_lit is not None:
+            dist_filter = (
+                f"WHERE ST_Distance(ST_GeomFromText(p.{point_geom}), "
+                f"ST_GeomFromText(t.{target_geom})) <= {max_distance_lit}"
+            )
+        else:
+            dist_filter = ""
         return self._session.sql(f"""
             SELECT * FROM (
                 SELECT p.*, t.*,

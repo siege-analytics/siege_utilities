@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import importlib
+import importlib.util
 import pkgutil
 import sys
 from pathlib import Path
@@ -65,18 +66,32 @@ def _check_package(pkg_name: str, quiet: bool) -> list[str]:
             else:
                 modpath = value
                 attr_name = name
+            # Resolve modpath so we can tell "registry points at a
+            # missing module" (drift) from "an optional transitive dep
+            # is missing" (environment).
+            try:
+                resolved_modpath = importlib.util.resolve_name(modpath, pkg_name)
+            except (ImportError, ValueError):
+                resolved_modpath = modpath  # best effort
             try:
                 mod = importlib.import_module(modpath, package=pkg_name)
-            except (ModuleNotFoundError, ImportError, AttributeError):
-                # Module-level optional-dep failures land here:
-                # - ModuleNotFoundError: `import optdep`
-                # - ImportError: `from optdep import x` when optdep is partial
-                # - AttributeError: the canonical
-                #     `try: import gpd; except ImportError: gpd = None`
-                #     `GeoDataFrame = gpd.GeoDataFrame   # at module load`
-                # idiom — `gpd is None` makes the alias raise AttributeError.
-                # None of these indicate structural drift; the module is
-                # waiting on a missing extra.
+            except ModuleNotFoundError as exc:
+                if exc.name == resolved_modpath:
+                    # Target itself is missing — registry drift, not env.
+                    failures.append(
+                        f"{pkg_name}: registry maps {name!r} -> {modpath!r}, "
+                        f"but module {modpath} cannot be imported "
+                        f"(ModuleNotFoundError: {exc.name})"
+                    )
+                continue
+            except ImportError:
+                # Partial-module ImportError ("cannot import name X from
+                # optdep") — env, not drift.
+                continue
+            except AttributeError:
+                # `gpd = None; GeoDataFrame = gpd.GeoDataFrame` at module
+                # load raises AttributeError when the optional dep is
+                # missing. Env, not drift.
                 continue
             except Exception as exc:
                 failures.append(

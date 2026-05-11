@@ -520,8 +520,21 @@ def run_command(command: Union[str, List[str]],
                 log.error("Cannot validate command: security module not available")
                 raise SecurityError("Security validation unavailable")
 
-        # Parse command
+        # Parse command. In unsafe mode we additionally reject string
+        # commands that contain shell metacharacters — callers that
+        # previously relied on pipes / redirects / globs / $VAR under
+        # shell=True now get a clear error instead of silently-different
+        # argv-level behaviour. The remediation is documented: pass a
+        # list directly.
+        _SHELL_META = "|&;<>(){}$`*?#~"
         if isinstance(command, str):
+            if unsafe and any(ch in command for ch in _SHELL_META):
+                raise ValueError(
+                    f"run_command(unsafe=True) refuses string commands "
+                    f"containing shell metacharacters ({_SHELL_META!r}); "
+                    f"pass a list[str] argv to run those, or invoke "
+                    f"subprocess directly with shell=True."
+                )
             import shlex
             try:
                 command_list = shlex.split(command)

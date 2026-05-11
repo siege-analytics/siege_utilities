@@ -402,7 +402,8 @@ class IDMLExporter:
 
         idx = 0
         for frame in self._text_frames:
-            sid = story_ids[idx]; idx += 1
+            sid = story_ids[idx]
+            idx += 1
             bounds = self._geo_bounds(frame)
             lines.append(
                 f'    <TextFrame Self="tf_{frame["uid"]}" '
@@ -410,7 +411,8 @@ class IDMLExporter:
                 f'GeometricBounds="{bounds}"/>'
             )
         for table in self._tables:
-            sid = story_ids[idx]; idx += 1
+            sid = story_ids[idx]
+            idx += 1
             bounds = self._geo_bounds(table)
             lines.append(
                 f'    <TextFrame Self="tf_{table["uid"]}" '
@@ -418,21 +420,17 @@ class IDMLExporter:
                 f'GeometricBounds="{bounds}"/>'
             )
         from pathlib import Path
-        from urllib.parse import quote
         from xml.sax.saxutils import quoteattr
 
         for img in self._image_frames:
-            sid = story_ids[idx]; idx += 1
+            sid = story_ids[idx]
+            idx += 1
             bounds = self._geo_bounds(img)
-            # Build a safe file:// URI:
-            # 1. Resolve to absolute → prevents ``..`` smuggling.
-            # 2. percent-encode path components (whitespace, non-ASCII,
-            #    XML metacharacters all become %XX).
-            # 3. xml.sax quoteattr produces a properly-escaped XML
-            #    attribute value (handles & < > and the surrounding
-            #    quotes).
-            abs_path = Path(img["image_path"]).resolve().as_posix()
-            link_uri = "file://" + quote(abs_path)
+            # Build a safe file:// URI. Path.as_uri() handles Windows drive
+            # letters (`C:/foo` → `file:///C:/foo`), percent-encodes the
+            # path, and uses the correct authority slashes; quoteattr wraps
+            # it as a properly-escaped XML attribute value.
+            link_uri = Path(img["image_path"]).resolve().as_uri()
             lines.append(
                 f'    <Rectangle Self="rect_{img["uid"]}" '
                 f'GeometricBounds="{bounds}">'
@@ -463,18 +461,21 @@ class IDMLExporter:
         """Yield (story_id, xml_string) for each story."""
         idx = 0
         for frame in self._text_frames:
-            sid = story_ids[idx]; idx += 1
+            sid = story_ids[idx]
+            idx += 1
             text = self._apply_replacements(frame["text"])
             yield sid, self._story_xml(sid, text, frame["style"])
 
         for table in self._tables:
-            sid = story_ids[idx]; idx += 1
+            sid = story_ids[idx]
+            idx += 1
             text = self._table_to_text(table)
             text = self._apply_replacements(text)
             yield sid, self._story_xml(sid, text, "NormalParagraphStyle")
 
         for img in self._image_frames:
-            sid = story_ids[idx]; idx += 1
+            sid = story_ids[idx]
+            idx += 1
             yield sid, self._story_xml(sid, "", "NormalParagraphStyle")
 
         # If nothing was added, emit one empty story

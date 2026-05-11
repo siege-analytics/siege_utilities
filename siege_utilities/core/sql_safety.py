@@ -98,7 +98,10 @@ def validate_sql_identifier_in(
     """
     validate_sql_identifier(name, label, allow_dotted=False)
     if name not in allowed:
-        sample = sorted(allowed)[:10]
+        # Build the sample without sorting raw objects — a pandas Index
+        # with mixed int+str columns is non-comparable and would raise
+        # TypeError instead of the documented ValueError.
+        sample = sorted(str(a) for a in allowed)[:10]
         more = "..." if len(allowed) > 10 else ""
         raise ValueError(
             f"SQL {label} {name!r} not in allowed set ({sample}{more})"

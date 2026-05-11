@@ -1524,3 +1524,48 @@ class TestFetchRealGA4DataOAuth2Fallback:
         mock_oauth.assert_called_once_with(vault='Private', account='Dheeraj_Chand_Family')
         # Both credential strategies failed, so result should be None
         assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _redact (PR #443 — B13 follow-up per CR feedback)
+# ---------------------------------------------------------------------------
+
+class TestRedact:
+    def test_short_strings_pass_through(self):
+        from siege_utilities.config.credential_manager import _redact
+        assert _redact("hi") == "hi"
+        assert _redact("op: item not found") == "op: item not found"
+
+    def test_long_alphanumeric_run_redacted(self):
+        from siege_utilities.config.credential_manager import _redact
+        token = "a" * 40
+        out = _redact(f"got token {token}")
+        assert token not in out
+        assert "[REDACTED]" in out
+
+    def test_key_value_pattern_redacted(self):
+        from siege_utilities.config.credential_manager import _redact
+        out = _redact("password=hunter2 other text")
+        assert "hunter2" not in out
+        assert "[REDACTED]" in out
+        # Variants
+        assert "secret" not in _redact("secret: abc123def456")
+        assert "Bearer" in _redact("Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig") \
+               or "[REDACTED]" in _redact("Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig")
+
+    def test_truncation_at_max_len(self):
+        from siege_utilities.config.credential_manager import _redact
+        long = "x" * 500
+        out = _redact(long, max_len=100)
+        assert len(out) <= 100 + len("...[truncated]")
+        assert out.endswith("[truncated]")
+
+    def test_empty_returns_empty(self):
+        from siege_utilities.config.credential_manager import _redact
+        assert _redact("") == ""
+        assert _redact(None) == ""
+
+    def test_non_string_coerced(self):
+        from siege_utilities.config.credential_manager import _redact
+        # str() coercion should keep this working
+        assert _redact(123) == "123"
