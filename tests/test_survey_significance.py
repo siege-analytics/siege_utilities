@@ -122,21 +122,16 @@ class TestSEUnderflowGuard:
         """When p_pool == 0 (or 1), SE underflows to 0 or a tiny float.
         Without the guard, z = abs(p1 - p2) / se → inf/NaN that leaks
         into the chain. With the guard the pair is skipped."""
-        import math
         from types import SimpleNamespace
         from siege_utilities.survey.significance import column_proportion_test
 
         # Two columns with all-zero proportions, identical bases.
-        # That makes p_pool = 0, se = 0, and triggers the underflow guard.
-        view = SimpleNamespace(metric="m", pct=0.0, base=100, sig_flag=None, count=0)
+        # p_pool = 0, se = 0 → triggers the underflow guard.
         chain = SimpleNamespace(
             views={"A": [SimpleNamespace(metric="m", pct=0.0, base=100, sig_flag=None, count=0)],
                    "B": [SimpleNamespace(metric="m", pct=0.0, base=100, sig_flag=None, count=0)]},
         )
-        # Should run without raising or producing inf flags.
         out = column_proportion_test(chain, alpha=0.05)
         for col in out.views.values():
             for v in col:
-                # The signal we'd see if the guard failed: sig_flag set or
-                # non-finite values landing in the chain.
                 assert v.sig_flag is None or v.sig_flag == ""
