@@ -567,10 +567,19 @@
 <span class="c1"># Typed Exceptions</span>
 <span class="c1"># ---------------------------------------------------------------------------</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">..exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">SiegeGeoError</span>
+
+
 <div class="viewcode-block" id="BoundaryRetrievalError">
 <a class="viewcode-back" href="../../../exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryRetrievalError">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">BoundaryRetrievalError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base exception for all boundary retrieval failures.&quot;&quot;&quot;</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BoundaryRetrievalError</span><span class="p">(</span><span class="n">SiegeGeoError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base exception for all boundary retrieval failures.</span>
+
+<span class="sd">    Inherits from :class:`SiegeGeoError` so callers can catch the entire</span>
+<span class="sd">    siege_utilities exception family with a single</span>
+<span class="sd">    ``except SiegeError:``. Previously this stood alone outside the</span>
+<span class="sd">    documented hierarchy and slipped past ``except SiegeError`` blocks.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="BoundaryRetrievalError.__init__">
 <a class="viewcode-back" href="../../../exception_hierarchy.html#siege_utilities.geo.boundary_result.BoundaryRetrievalError.__init__">[docs]</a>

@@ -640,8 +640,12 @@ retrieval, which has its own hierarchy below.</p>
 <dl class="py exception">
 <dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryRetrievalError">
 <span class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.boundary_result.</span></span><span class="sig-name descname"><span class="pre">BoundaryRetrievalError</span></span><a class="reference internal" href="_modules/siege_utilities/geo/boundary_result.html#BoundaryRetrievalError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryRetrievalError" title="Link to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></p>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">SiegeGeoError</span></code></p>
 <p>Base exception for all boundary retrieval failures.</p>
+<p>Inherits from <code class="xref py py-class docutils literal notranslate"><span class="pre">SiegeGeoError</span></code> so callers can catch the entire
+siege_utilities exception family with a single
+<code class="docutils literal notranslate"><span class="pre">except</span> <span class="pre">SiegeError:</span></code>. Previously this stood alone outside the
+documented hierarchy and slipped past <code class="docutils literal notranslate"><span class="pre">except</span> <span class="pre">SiegeError</span></code> blocks.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.boundary_result.BoundaryRetrievalError.__init__">
 <span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stage</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/geo/boundary_result.html#BoundaryRetrievalError.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.boundary_result.BoundaryRetrievalError.__init__" title="Link to this definition"></a></dt>
