@@ -4,7 +4,7 @@ import sqlite3
 import time
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -12,16 +12,27 @@ import pandas as pd
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 
-# Import logging functions - use package-level imports
-try:
-    from siege_utilities import log_warning, log_info, log_debug, log_error
-except ImportError:
-    def log_warning(message): print(f"WARNING: {message}")
-    def log_info(message): print(f"INFO: {message}")
-    def log_debug(message): print(f"DEBUG: {message}")
-    def log_error(message): print(f"ERROR: {message}")
-
+# Logging — bind the module logger directly. The previous fallback to
+# print() if the package-level helpers couldn't be imported routed
+# diagnostics around the user's logging configuration and bypassed log
+# levels. The stdlib logger is a hard requirement; no fallback needed.
 logger = logging.getLogger(__name__)
+
+
+def log_warning(message: str) -> None:
+    logger.warning(message)
+
+
+def log_info(message: str) -> None:
+    logger.info(message)
+
+
+def log_debug(message: str) -> None:
+    logger.debug(message)
+
+
+def log_error(message: str) -> None:
+    logger.error(message)
 
 # Country code mapping for Nominatim geocoding
 COUNTRY_CODES = {
@@ -813,7 +824,7 @@ class SpatiaLiteCache:
         """Store a geocoding result. Returns the address hash."""
         addr_hash = _address_hash(address)
         point_wkt = f"POINT({longitude} {latitude})"
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         conn = self._get_conn()
         conn.execute(
@@ -938,7 +949,7 @@ class SpatiaLiteCache:
             VALUES (?, ?, ?, ?, ?, ?)
             """,
             (geoid, vintage_year, point_wkt, boundary_wkt, source,
-             datetime.utcnow().isoformat()),
+             datetime.now(timezone.utc).isoformat()),
         )
         conn.commit()
 
@@ -987,7 +998,7 @@ class SpatiaLiteCache:
             VALUES (?, ?, ?, ?, ?)
             """,
             (source_geoid, target_geoid, weight, source,
-             datetime.utcnow().isoformat()),
+             datetime.now(timezone.utc).isoformat()),
         )
         conn.commit()
 

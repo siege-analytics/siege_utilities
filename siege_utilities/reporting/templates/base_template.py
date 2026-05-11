@@ -107,15 +107,26 @@ class BaseReportTemplate:
 
     def _register_fonts(self):
         """Registers fonts specified in branding config or uses defaults."""
-        # Default font registration
+        # Default font registration. Candidate locations differ per OS:
+        # Linux ships Liberation under /usr/share/fonts/truetype/liberation,
+        # macOS under /Library/Fonts (and /System/Library/Fonts since
+        # Catalina), Windows under C:\Windows\Fonts. Probe each in turn —
+        # the previous hard-coded Linux path silently failed everywhere
+        # else and fell through to ReportLab's defaults with no warning.
         try:
-            # Try to register Liberation fonts if available
+            import sys
+            _LIBERATION_CANDIDATES = {
+                "linux": "/usr/share/fonts/truetype/liberation",
+                "darwin": "/Library/Fonts",
+                "win32": r"C:\Windows\Fonts",
+            }
+            base = _LIBERATION_CANDIDATES.get(sys.platform, _LIBERATION_CANDIDATES["linux"])
             font_paths = {
                 "Liberation-Serif": {
-                    "normal": "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
-                    "bold": "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf",
-                    "italic": "/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf",
-                    "bold_italic": "/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf",
+                    "normal": f"{base}/LiberationSerif-Regular.ttf",
+                    "bold": f"{base}/LiberationSerif-Bold.ttf",
+                    "italic": f"{base}/LiberationSerif-Italic.ttf",
+                    "bold_italic": f"{base}/LiberationSerif-BoldItalic.ttf",
                 }
             }
             

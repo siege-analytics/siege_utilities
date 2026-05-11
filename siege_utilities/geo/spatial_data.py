@@ -12,14 +12,22 @@ from typing import Dict, Any, Optional, List, Union
 import os
 import time
 import warnings as _warnings_mod
-from datetime import datetime
+from datetime import datetime, timezone
 import requests
 from bs4 import BeautifulSoup
 import re
+import os
 import warnings
 
-# Suppress SSL warnings when using verify=False
-warnings.filterwarnings('ignore', message='Unverified HTTPS request')
+# Opt-in TLS-verification bypass for environments behind broken
+# corporate MITM proxies. Defaults to False — the previous
+# implementation silently disabled verification on the first SSL
+# failure, which is exactly the case where a MITM is in play and we
+# should refuse rather than oblige. To restore the legacy behaviour
+# set SIEGE_INSECURE_SSL=1 in the environment (and own the risk).
+_ALLOW_INSECURE_SSL = os.environ.get("SIEGE_INSECURE_SSL", "").lower() in ("1", "true", "yes")
+if _ALLOW_INSECURE_SSL:
+    warnings.filterwarnings('ignore', message='Unverified HTTPS request')
 
 # Import existing library functions
 from ..files.remote import download_file, generate_local_path_from_url
@@ -269,7 +277,7 @@ def update_census_inventory(
         return None
 
     inventory: dict = {
-        "updated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "tiger": {},
     }
     if include_genz:
@@ -463,9 +471,13 @@ class CensusDirectoryDiscovery:
                 self.cache[cache_key] = (time.time(), years)
                 return years
 
-            except requests.exceptions.SSLError:
-                if verify_ssl:
-                    log.warning("SSL verification failed, retrying without verification...")
+            except requests.exceptions.SSLError as e:
+                last_exception = e
+                if _ALLOW_INSECURE_SSL and verify_ssl:
+                    log.warning(
+                        "SSL verification failed; SIEGE_INSECURE_SSL=1 set, "
+                        "retrying without verification (legacy behaviour)."
+                    )
                     verify_ssl = False
                     try:
                         response = requests.get(self.base_url, timeout=self.timeout, verify=False)
@@ -473,8 +485,15 @@ class CensusDirectoryDiscovery:
                         years = self._parse_year_links(response.content)
                         self.cache[cache_key] = (time.time(), years)
                         return years
-                    except Exception as e:
-                        last_exception = e
+                    except Exception as e2:
+                        last_exception = e2
+                else:
+                    log.error(
+                        "SSL verification failed against %s; refusing to "
+                        "fall back to verify=False. Set SIEGE_INSECURE_SSL=1 "
+                        "if you're behind a corporate MITM proxy and accept "
+                        "the risk.", self.base_url,
+                    )
 
             except requests.exceptions.Timeout as e:
                 last_exception = e
@@ -539,9 +558,20 @@ class CensusDirectoryDiscovery:
             return directories
 
         except requests.exceptions.SSLError:
-            log.warning(f"SSL verification failed for year {year}, trying without verification...")
+            if not _ALLOW_INSECURE_SSL:
+                log.error(
+                    "SSL verification failed for year %s; refusing to "
+                    "fall back to verify=False. Set SIEGE_INSECURE_SSL=1 "
+                    "to opt into the legacy bypass.", year,
+                )
+                raise
+            log.warning(
+                "SSL verification failed for year %s; SIEGE_INSECURE_SSL=1 "
+                "set, retrying without verification.", year,
+            )
             try:
-                # Fallback: try without SSL verification
+                # Fallback: try without SSL verification (legacy behaviour
+                # behind the env-var opt-in).
                 year_url = f"{self.base_url}/TIGER{year}/"
                 response = requests.get(year_url, timeout=self.timeout, verify=False)
                 response.raise_for_status()
@@ -1010,8 +1040,15 @@ class CensusDirectoryDiscovery:
         except BoundaryUrlValidationError:
             raise
         except requests.exceptions.SSLError as ssl_err:
-            log.debug(f"SSL verification failed for {url}, trying without verification...")
             ctx["ssl_error"] = str(ssl_err)
+            if not _ALLOW_INSECURE_SSL:
+                log.error(
+                    "SSL verification failed for %s; refusing the "
+                    "verify=False fallback (set SIEGE_INSECURE_SSL=1 "
+                    "to opt in).", url,
+                )
+                raise
+            log.debug("SSL verification failed for %s, retrying without verification (env opt-in).", url)
             try:
                 response = requests.get(url, timeout=self.timeout, stream=True,
                                         headers=headers, verify=False)

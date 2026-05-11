@@ -39,31 +39,22 @@ _EXEMPT_FILES = frozenset({
     "siege_utilities/hygiene/generate_docstrings.py",
 })
 
-# Per-occurrence ratchet baseline: known stub markers we accept as a
-# backlog, keyed on "path:line:marker". A NEW stub at any other path:line
-# fails CI, including new stubs in the same file as a baselined one —
-# whole-file exemptions create a permanent blind spot. Driving an entry
-# off this list is how the count shrinks.
-_BASELINE_OCCURRENCES = frozenset({
-    "siege_utilities/distributed/spark_utils.py:155:Auto-discovered and available",
-    "siege_utilities/distributed/spark_utils.py:158:Description needed",
-    "siege_utilities/distributed/spark_utils.py:312:Auto-discovered and available",
-    "siege_utilities/distributed/spark_utils.py:315:Description needed",
-    "siege_utilities/distributed/spark_utils.py:355:Auto-discovered and available",
-    "siege_utilities/distributed/spark_utils.py:358:Description needed",
-    "siege_utilities/distributed/spark_utils.py:848:Auto-discovered and available",
-    "siege_utilities/distributed/spark_utils.py:851:Description needed",
-    "siege_utilities/distributed/spark_utils.py:912:Auto-discovered and available",
-    "siege_utilities/distributed/spark_utils.py:915:Description needed",
-    "siege_utilities/geo/geocoding.py:501:Auto-discovered and available",
-    "siege_utilities/geo/geocoding.py:504:Description needed",
-    "siege_utilities/geo/geocoding.py:522:Auto-discovered and available",
-    "siege_utilities/geo/geocoding.py:525:Description needed",
-    "siege_utilities/geo/geocoding.py:546:Auto-discovered and available",
-    "siege_utilities/geo/geocoding.py:549:Description needed",
-    "siege_utilities/geo/geocoding.py:570:Auto-discovered and available",
-    "siege_utilities/geo/geocoding.py:573:Description needed",
-})
+# Per-file count cap: how many occurrences of each marker we tolerate
+# in a baselined file. Line-based baselines drifted on every commit
+# that added/removed lines above the marker; count-based baselines
+# detect *new* stubs (count goes up) while ignoring line shifts.
+# To drive the backlog down: fix a stub, decrement the cap; CI then
+# blocks regressions.
+_BASELINE_FILE_CAPS: dict[str, dict[str, int]] = {
+    "siege_utilities/distributed/spark_utils.py": {
+        "Auto-discovered and available": 5,
+        "Description needed": 5,
+    },
+    "siege_utilities/geo/geocoding.py": {
+        "Auto-discovered and available": 4,
+        "Description needed": 4,
+    },
+}
 
 
 def main() -> int:
@@ -74,6 +65,9 @@ def main() -> int:
     repo = Path(__file__).resolve().parents[1]
     failures: list[tuple[Path, int, str, str]] = []
     files_scanned = 0
+
+    # Track per-file counts so we can compare against the baseline caps.
+    counts: dict[str, dict[str, list[tuple[int, str]]]] = {}
 
     for root in _ROOTS:
         root_dir = repo / root
@@ -94,21 +88,29 @@ def main() -> int:
             for lineno, line in enumerate(lines, start=1):
                 for bad in _BAD_PHRASES:
                     if bad in line:
-                        key = f"{rel}:{lineno}:{bad}"
-                        if key in _BASELINE_OCCURRENCES:
-                            continue
-                        failures.append((py.relative_to(repo), lineno, bad, line.strip()))
+                        counts.setdefault(rel, {}).setdefault(bad, []).append((lineno, line.strip()))
+
+    for rel, markers in counts.items():
+        caps = _BASELINE_FILE_CAPS.get(rel, {})
+        for bad, occs in markers.items():
+            cap = caps.get(bad, 0)
+            if len(occs) > cap:
+                # Flag the new ones (anything beyond the cap).
+                for lineno, text in occs[cap:]:
+                    failures.append((Path(rel), lineno, bad, text))
 
     if not args.quiet:
         print(f"scanned {files_scanned} files under {_ROOTS}")
 
     if failures:
-        print(f"\nFAIL: {len(failures)} stub-docstring marker(s) found:\n")
+        print(f"\nFAIL: {len(failures)} stub-docstring marker(s) over cap:\n")
         for path, lineno, marker, text in failures:
             print(f"  {path}:{lineno}  [{marker!r}]  {text}")
         print(
             "\nRewrite each placeholder docstring to describe the *why* of "
-            "the function. See CLAUDE.md for the project's docstring policy."
+            "the function. See CLAUDE.md for the project's docstring policy. "
+            "Cleaning up a stub means decrementing the cap in "
+            "_BASELINE_FILE_CAPS so CI prevents regressions."
         )
         return 1
 
