@@ -4,6 +4,7 @@ Handles client-specific configurations, logos, colors, and styling.
 """
 
 import logging
+import re
 import yaml
 from pathlib import Path
 from typing import Dict, Any, Optional, List
@@ -11,6 +12,35 @@ import json
 import shutil
 
 log = logging.getLogger(__name__)
+
+# Client-name slug: lowercase alphanumeric + underscore. Spaces collapse
+# to underscores; other punctuation (``.``, ``/``, ``\``, ``..``, etc.)
+# is stripped rather than passed through into a filesystem path.
+_SLUG_SAFE = re.compile(r"[^a-z0-9_]+")
+
+
+def _slugify_client_name(client_name: str) -> str:
+    """Return a filesystem-safe slug for *client_name*.
+
+    Previously the branding manager wrote to a directory whose name was
+    just `client_name.lower().replace(" ", "_")`. That left every other
+    piece of punctuation untouched — including `../` and OS path
+    separators — so a hostile client_name could escape config_dir.
+    The new normaliser is an allow-list: lowercase, spaces → `_`,
+    everything else stripped. Two inputs that slugify to the same value
+    collide; that's the same behaviour as before for spaces, just now
+    consistent for all punctuation.
+    """
+    if not isinstance(client_name, str) or not client_name.strip():
+        raise ValueError(f"client_name must be a non-empty string, got {client_name!r}")
+    s = client_name.strip().lower().replace(" ", "_")
+    s = _SLUG_SAFE.sub("_", s)
+    s = s.strip("_")
+    if not s:
+        raise ValueError(
+            f"client_name {client_name!r} contains no slug-safe characters"
+        )
+    return s
 
 
 class ClientBrandingError(RuntimeError):
@@ -226,11 +256,11 @@ class ClientBrandingManager:
                     raise ValueError(f"Missing required field: {field}")
             
             # Create client directory
-            client_dir = self.config_dir / client_name.lower().replace(' ', '_')
+            client_dir = self.config_dir / _slugify_client_name(client_name)
             client_dir.mkdir(exist_ok=True)
             
             # Create branding config file
-            config_file = client_dir / f"{client_name.lower().replace(' ', '_')}_branding.yaml"
+            config_file = client_dir / f"{_slugify_client_name(client_name)}_branding.yaml"
             
             with open(config_file, 'w') as f:
                 yaml.dump(branding_config, f, default_flow_style=False, indent=2)
@@ -258,7 +288,7 @@ class ClientBrandingManager:
                 return self.branding_templates[client_name.lower()]
             
             # Check for custom client configurations
-            client_dir = self.config_dir / client_name.lower().replace(' ', '_')
+            client_dir = self.config_dir / _slugify_client_name(client_name)
             if client_dir.exists():
                 # Look for branding config files
                 for config_file in client_dir.glob("*_branding.yaml"):
@@ -301,8 +331,8 @@ class ClientBrandingManager:
                     current_config[key] = value
 
             # Save updated configuration
-            client_dir = self.config_dir / client_name.lower().replace(' ', '_')
-            config_file = client_dir / f"{client_name.lower().replace(' ', '_')}_branding.yaml"
+            client_dir = self.config_dir / _slugify_client_name(client_name)
+            config_file = client_dir / f"{_slugify_client_name(client_name)}_branding.yaml"
 
             with open(config_file, 'w') as f:
                 yaml.dump(current_config, f, default_flow_style=False, indent=2)
@@ -350,7 +380,7 @@ class ClientBrandingManager:
                 log.warning(f"Cannot delete predefined template: {client_name}")
                 return False
             
-            client_dir = self.config_dir / client_name.lower().replace(' ', '_')
+            client_dir = self.config_dir / _slugify_client_name(client_name)
             if client_dir.exists():
                 shutil.rmtree(client_dir)
                 log.info(f"Deleted branding configuration for {client_name}")

@@ -29,15 +29,23 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
-try:
-    from siege_utilities import log_warning, log_info, log_debug, log_error
-except ImportError:
-    def log_warning(message): print(f"WARNING: {message}")
-    def log_info(message): print(f"INFO: {message}")
-    def log_debug(message): print(f"DEBUG: {message}")
-    def log_error(message): print(f"ERROR: {message}")
-
 logger = logging.getLogger(__name__)
+
+
+def log_warning(message: str) -> None:
+    logger.warning(message)
+
+
+def log_info(message: str) -> None:
+    logger.info(message)
+
+
+def log_debug(message: str) -> None:
+    logger.debug(message)
+
+
+def log_error(message: str) -> None:
+    logger.error(message)
 
 
 class CensusGeocodeError(RuntimeError):

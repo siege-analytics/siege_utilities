@@ -154,8 +154,13 @@ database = [
     "sqlalchemy>=1.4.0",
 ]
 credentials = [
-    # 1Password CLI integration (requires 1Password CLI to be installed separately)
-    # macOS Keychain integration (built-in on macOS)
+    # `pip install siege-utilities[credentials]` was previously a no-op
+    # because the extra was empty — the comment listed integrations
+    # that don't ship as Python packages (`op`, macOS Keychain). Pull
+    # in `keyring` so the Python-side credential manager has its
+    # generic backend available; the 1Password / Keychain CLIs are
+    # still expected to be installed separately by ops.
+    "keyring>=24.0.0",
 ]
 # S3-compatible object storage (MinIO, AWS S3)
 s3 = [
