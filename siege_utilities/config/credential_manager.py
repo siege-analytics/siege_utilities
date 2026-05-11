@@ -14,6 +14,7 @@ and database connections with a unified interface.
 import subprocess
 import json
 import os
+import tempfile  # noqa: F401 -- used by create_temporary_service_account_file; test_credential_manager patches at module scope
 from typing import Dict, Any, Optional, List, Union, Tuple
 from pathlib import Path
 
@@ -1163,9 +1164,9 @@ def create_temporary_service_account_file(service_account_data: Dict[str, str]) 
         Path to temporary file or None if failed
     """
     try:
-        import tempfile
-        import json
-        
+        # `tempfile` and `json` are imported at module scope so tests can
+        # monkeypatch `tempfile.NamedTemporaryFile` via the module
+        # attribute.
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
             json.dump(service_account_data, f, indent=2)
             temp_file_path = f.name
