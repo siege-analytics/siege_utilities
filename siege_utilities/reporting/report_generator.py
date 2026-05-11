@@ -505,23 +505,25 @@ class ReportGenerator:
 
                 # Handle matplotlib Figure
                 if hasattr(chart, 'savefig'):
-                    # matplotlib Figure
+                    # Always close the figure and the buffer, even on
+                    # savefig() exceptions — long-running pipelines that
+                    # raise mid-render were leaking the entire figure
+                    # graph until interpreter exit.
                     buf = io.BytesIO()
-                    chart.savefig(buf, format='png', dpi=150, bbox_inches='tight')
-                    buf.seek(0)
-                    img = RLImage(buf, width=width*inch, height=height*inch)
-                    result.append(img)
-                    # Close the figure to free memory. If matplotlib
-                    # isn't installed the import raises ImportError; if
-                    # close() fails on a malformed figure it raises
-                    # something matplotlib-specific. Either way memory
-                    # cleanup isn't worth aborting the report — but log
-                    # so we can spot it when it happens.
                     try:
-                        import matplotlib.pyplot as plt
-                        plt.close(chart)
-                    except Exception as e:
-                        log.debug("Could not close matplotlib figure: %s", e)
+                        chart.savefig(buf, format='png', dpi=150, bbox_inches='tight')
+                        buf.seek(0)
+                        img = RLImage(buf, width=width*inch, height=height*inch)
+                        result.append(img)
+                    finally:
+                        try:
+                            import matplotlib.pyplot as plt
+                            plt.close(chart)
+                        except Exception as exc:
+                            log.debug("Could not close matplotlib figure: %s", exc)
+                        # The BytesIO is now referenced by the RLImage —
+                        # ReportLab keeps a handle for the build pass and
+                        # closes it itself. Nothing to do here.
                     continue
 
                 # Handle PIL Image
