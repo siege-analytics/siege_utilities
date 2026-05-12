@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.15.1] - 2026-05-12
+
+Patch release: Sprint A reliability fixes (#452, shipped via #457). Nine
+small correctness improvements flagged in the 2026-05-08 hostile review
+but deferred from v3.15.0. Each fix carries a regression test in
+`tests/test_sprint_a_reliability.py`.
+
+### Fixed
+
+- **`survey/crosstab.build_chain`** rejects empty / schema-incompatible
+  input with `CrosstabInputError` instead of returning a silent blank
+  `Chain` indistinguishable from "no significant results."
+- **`engines/dataframe_engine.SparkEngine.groupby_agg`** validates
+  aggregation function names against a known set; unknown names raise
+  `ValueError` up-front instead of cryptic `AttributeError` from
+  `getattr(F, func)` deep in the Spark call stack.
+- **`survey/weights.apply_rim_weights`** pre-validates target columns
+  and categories before handing off to weightipy, which otherwise fails
+  to converge with an opaque message after a long run. NaN target keys
+  are skipped (NaN != NaN was tripping false positives).
+- **`analytics/google_analytics`** validates GA date parameters as
+  `YYYY-MM-DD` or recognized relative keyword (`today`, `yesterday`,
+  `NdaysAgo`) before the API call. Docstrings now state that GA dates
+  are interpreted in the property's configured timezone.
+- **`reporting/report_generator`** escapes `<` and `&` in user text
+  before passing to ReportLab `Paragraph` at every call site
+  (mini-HTML parser would otherwise crash on `Q&A` / `<3`-style
+  content). Applies to titles, text sections, bullets, image / map
+  descriptions, and the default-section fallback.
+- **`reporting/powerpoint_generator`** appends a `uuid4` fragment to
+  the timestamp filename so two reports generated in the same second
+  no longer overwrite each other (cron batch hazard).
+- **`reporting/report_generator.generate_pdf_report`** pre-checks
+  output-directory writability and builds the PDF into a sibling
+  `.part` temp before `os.replace` into the final path. Partial PDFs
+  no longer appear on disk on failure; the temp is cleaned up on
+  rename error.
+- **`config/credential_manager._redact`** carves out 40-char Git
+  SHA-1s from the "long hex run" redaction rule so commit IDs pass
+  through in error messages, while still redacting other long hex
+  tokens and base64/JWT-style secrets.
+
+### Notes
+
+- IDML `add_text_frame` `style_name` parameter was already addressed in
+  v3.15.0 (a525ba2); verified and tested in this release.
+- `scripts/check_no_stub_docstrings.py` / `scripts/check_lazy_imports.py`
+  remain clean.
+
 ## [3.15.0] - 2026-05-11
 
 A combined feature + hardening release. Five new substantive surfaces
