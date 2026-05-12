@@ -14,8 +14,6 @@ try:
     from pptx import Presentation
     from pptx.util import Inches, Pt
     from pptx.enum.text import PP_ALIGN
-    from pptx.dml.color import RGBColor
-    from pptx.enum.shapes import MSO_SHAPE
     PPTX_AVAILABLE = True
 except ImportError:
     PPTX_AVAILABLE = False
@@ -1014,7 +1012,7 @@ class PowerPointGenerator:
         
         # Set content
         content_shape = slide.placeholders[1]
-        content_text = f"Dataset Information:\n\n"
+        content_text = "Dataset Information:\n\n"
         content_text += f"• Number of rows: {len(df):,}\n"
         content_text += f"• Number of columns: {len(df.columns)}\n"
         content_text += f"• Data types: {', '.join(df.dtypes.astype(str).unique())}\n"
