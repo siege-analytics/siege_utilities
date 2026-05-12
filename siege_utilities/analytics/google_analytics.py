@@ -17,9 +17,11 @@ from typing import Dict, Any, Optional, List
 import pandas as pd
 
 # GA4 accepts these relative-date keywords in place of an absolute date.
-# ``NdaysAgo`` (e.g. ``"7daysAgo"``) is the documented form; keep the
-# regex permissive on whitespace so a stray ``"7 daysAgo"`` from a config
-# file doesn't silently become a 400 from the API.
+# Only the strict documented forms are accepted: ``today``, ``yesterday``,
+# or ``NdaysAgo`` (e.g. ``"7daysAgo"``). The GA API itself rejects spaced
+# variants like ``"7 daysAgo"`` with a 400 — we mirror that strictness
+# locally so the failure happens at validation time, not deep in a batch
+# run.
 _GA_RELATIVE_DATE_RE = re.compile(r"^(today|yesterday|\d+daysAgo)$")
 
 try:

@@ -85,7 +85,9 @@ def apply_rim_weights(
                 f"({list(df.columns)[:10]}{'...' if len(df.columns) > 10 else ''})"
             )
         df_cats = set(df[col].dropna().unique())
-        missing = [c for c in cats if c not in df_cats]
+        # NaN keys in ``targets`` would always compare unequal (NaN != NaN)
+        # and falsely trip the missing-category branch; skip them.
+        missing = [c for c in cats if not pd.isna(c) and c not in df_cats]
         if missing:
             raise ValueError(
                 f"apply_rim_weights: targets[{col!r}] references "

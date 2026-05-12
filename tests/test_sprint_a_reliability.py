@@ -41,6 +41,14 @@ def test_build_chain_rejects_missing_break_var():
         build_chain(df, row_var="a", break_vars=["nope"])
 
 
+def test_build_chain_rejects_missing_weight_var():
+    from siege_utilities.survey.crosstab import build_chain, CrosstabInputError
+
+    df = pd.DataFrame({"a": [1, 2], "b": ["x", "y"]})
+    with pytest.raises(CrosstabInputError, match="weight_var 'w'"):
+        build_chain(df, row_var="a", break_vars=["b"], weight_var="w")
+
+
 # ---------------------------------------------------------------------------
 # Item 2 — SparkEngine.groupby_agg validates unknown functions up-front
 # ---------------------------------------------------------------------------
@@ -147,8 +155,8 @@ def test_powerpoint_filename_unique_within_same_second(tmp_path):
         "siege_utilities.reporting.powerpoint_generator.datetime"
     ) as mock_dt:
         mock_dt.now.return_value.strftime.return_value = fixed
-        p1 = gen.create_presentation_from_data({}, "Test")
-        p2 = gen.create_presentation_from_data({}, "Test")
+        p1 = gen.create_analytics_presentation({}, "Test")
+        p2 = gen.create_analytics_presentation({}, "Test")
     assert p1 != p2, "uuid suffix must make same-second filenames unique"
 
 
@@ -183,11 +191,19 @@ def test_redact_passes_through_git_sha():
     assert sha in out, f"Git SHA was redacted: {out!r}"
 
 
-def test_redact_passes_through_decimal_id():
+def test_redact_redacts_long_hex_token():
+    """32+ char hex strings other than Git SHA-1 length are redacted.
+
+    Many real API tokens are hex; the only carve-out is exactly 40
+    chars (SHA-1) because Git commit IDs appear in legitimate log
+    messages and shouldn't be lost.
+    """
     from siege_utilities.config.credential_manager import _redact
 
-    out = _redact("user id 12345678901234567890123456789012345")
-    assert "12345678901234567890123456789012345" in out
+    hex32 = "a1b2c3d4e5f6789012345678abcdef01"
+    out = _redact(f"token {hex32}")
+    assert hex32 not in out
+    assert "[REDACTED]" in out
 
 
 def test_redact_still_catches_jwt_like_token():

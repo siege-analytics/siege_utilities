@@ -37,22 +37,26 @@ except ImportError:
 # names rather than secret values, but any error path can echo back
 # tokens — better to be paranoid for the small cost of a regex pass.
 #
-# The "long alphanumeric run" pattern is deliberately narrower than
-# ``[A-Za-z0-9_-]{32,}``: pure-hex strings (Git SHAs) and pure-decimal
-# IDs are NOT secrets and used to be redacted unhelpfully, breaking
-# error messages that legitimately quoted a commit ID. We now require
-# the run to contain at least one character outside ``[0-9a-fA-F]`` —
-# either a non-hex letter (``g-z`` / ``G-Z``) or a base64/JWT delimiter
-# (``_-+/=``) — so SHAs and decimals pass through but actual tokens
-# (which mix in non-hex chars) still get caught.
+# Two branches:
+#   1. Pure-hex runs of 32+ chars EXCEPT exactly 40 chars (Git SHA-1).
+#      Many real API tokens are hex; we previously redacted them
+#      unconditionally, which lost legitimate commit IDs in error
+#      messages. Carving out the exact SHA-1 length keeps those
+#      readable without weakening token redaction.
+#   2. Mixed-class runs of 32+ chars: at least one non-hex letter
+#      (``g-z`` / ``G-Z``) or base64/JWT delimiter (``_-+/=``). Catches
+#      JWTs, base64-encoded secrets, GitHub PATs, etc.
+# The key=value rule still catches anything quoted after token=/secret=/etc.
 _REDACT_PATTERNS = [
     re.compile(
-        r"\b(?=[A-Za-z0-9_\-+/=]{32,}\b)"
+        r"\b(?:"
+        r"(?![A-Fa-f0-9]{40}\b)[A-Fa-f0-9]{32,}"
+        r"|"
+        r"(?=[A-Za-z0-9_\-+/=]{32,}\b)"
         r"[A-Za-z0-9_\-+/=]*[g-zG-Z_\-+/=]"
-        r"[A-Za-z0-9_\-+/=]*\b"
+        r"[A-Za-z0-9_\-+/=]*"
+        r")\b"
     ),
-    # Anything inside quotes or after = after a key-like word — runs
-    # even when the value would otherwise pass the narrower rule above.
     re.compile(r"(?i)(token|secret|password|api[_-]?key|auth)[\"\':=\s]+[^\s\"\']+"),
 ]
 

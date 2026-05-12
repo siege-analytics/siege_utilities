@@ -508,6 +508,11 @@ class ReportGenerator:
                     "generate_pdf_report: built %s but could not rename "
                     "to %s: %s", tmp_path, final, exc,
                 )
+                try:
+                    if tmp_path.exists():
+                        tmp_path.unlink()
+                except OSError:
+                    pass
                 return False
 
             log.info(f"PDF report generated successfully: {output_path}")
@@ -653,7 +658,7 @@ class ReportGenerator:
         level = section.get('level', 1)
         if title:
             heading_style = styles.get(f'Heading{level}', styles['Heading1'])
-            story.append(Paragraph(title, heading_style))
+            story.append(Paragraph(_escape_paragraph(title), heading_style))
             story.append(Spacer(1, 12))
 
         # Handle different section types
@@ -717,7 +722,7 @@ class ReportGenerator:
 
             # Add description if provided
             if description:
-                story.append(Paragraph(description, styles['Normal']))
+                story.append(Paragraph(_escape_paragraph(description), styles['Normal']))
                 story.append(Spacer(1, 8))
 
             # Handle single image path (legacy support)
@@ -739,7 +744,7 @@ class ReportGenerator:
             description = content.get('description', '')
 
             if description:
-                story.append(Paragraph(description, styles['Normal']))
+                story.append(Paragraph(_escape_paragraph(description), styles['Normal']))
                 story.append(Spacer(1, 8))
 
             if maps:
@@ -752,9 +757,9 @@ class ReportGenerator:
             # Default: treat as text
             content = section.get('content', '')
             if isinstance(content, str):
-                story.append(Paragraph(content, styles['Normal']))
+                story.append(Paragraph(_escape_paragraph(content), styles['Normal']))
             elif isinstance(content, dict) and 'text' in content:
-                story.append(Paragraph(content['text'], styles['Normal']))
+                story.append(Paragraph(_escape_paragraph(content['text']), styles['Normal']))
             story.append(Spacer(1, 12))
 
         return story
