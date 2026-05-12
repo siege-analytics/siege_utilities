@@ -911,6 +911,25 @@ class SparkEngine(DataFrameEngine):
         agg_dict: Dict[str, str],
     ) -> Any:
         from pyspark.sql import functions as F
+        # Validate every aggregation name upfront; the previous
+        # `getattr(F, func)` raised AttributeError deep inside the
+        # comprehension when callers passed e.g. "median" (which lives
+        # in `F.percentile_approx`, not at the top level). A clear
+        # ValueError surfaces the offending name and the supported set.
+        _SUPPORTED_AGG = {
+            "sum", "mean", "avg", "count", "min", "max",
+            "first", "last", "stddev", "variance", "approx_count_distinct",
+        }
+        unknown = [
+            f for f in agg_dict.values()
+            if f not in _SUPPORTED_AGG or not hasattr(F, f)
+        ]
+        if unknown:
+            raise ValueError(
+                f"SparkEngine.groupby_agg: unsupported aggregation "
+                f"function(s) {sorted(set(unknown))}. Supported: "
+                f"{sorted(_SUPPORTED_AGG)}."
+            )
         agg_exprs = [
             getattr(F, func)(col).alias(f"{col}")
             for col, func in agg_dict.items()

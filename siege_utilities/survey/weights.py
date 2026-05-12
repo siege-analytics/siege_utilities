@@ -74,6 +74,29 @@ def apply_rim_weights(
             "Install it with: pip install siege-utilities[survey]"
         ) from exc
 
+    # Pre-validate targets against the DataFrame. weightipy would
+    # otherwise fail to converge with an opaque message hours into a
+    # large run; a fast structural check catches typos / column-name
+    # drift before any iteration starts.
+    for col, cats in targets.items():
+        if col not in df.columns:
+            raise ValueError(
+                f"apply_rim_weights: target column {col!r} not in df.columns "
+                f"({list(df.columns)[:10]}{'...' if len(df.columns) > 10 else ''})"
+            )
+        df_cats = set(df[col].dropna().unique())
+        # NaN keys in ``targets`` would always compare unequal (NaN != NaN)
+        # and falsely trip the missing-category branch; skip them.
+        missing = [c for c in cats if not pd.isna(c) and c not in df_cats]
+        if missing:
+            raise ValueError(
+                f"apply_rim_weights: targets[{col!r}] references "
+                f"categor{'y' if len(missing) == 1 else 'ies'} {missing!r} "
+                f"that do not appear in df[{col!r}]. weightipy would fail "
+                f"to converge with an opaque error. Drop the missing "
+                f"category from targets or fix the upstream filter."
+            )
+
     # Map our convergence param to weightipy's Rim-class ``convcrit`` via
     # the rim_params passthrough. See weightipy.internal.rim.Rim.__init__.
     scheme = wp.scheme_from_dict(

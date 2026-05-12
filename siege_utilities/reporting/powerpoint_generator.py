@@ -4,6 +4,7 @@ Creates presentations from analytics data and report configurations.
 """
 
 import logging
+import uuid
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 from datetime import datetime
@@ -13,8 +14,6 @@ try:
     from pptx import Presentation
     from pptx.util import Inches, Pt
     from pptx.enum.text import PP_ALIGN
-    from pptx.dml.color import RGBColor
-    from pptx.enum.shapes import MSO_SHAPE
     PPTX_AVAILABLE = True
 except ImportError:
     PPTX_AVAILABLE = False
@@ -71,9 +70,18 @@ class PowerPointGenerator:
             Path to the generated PowerPoint file
         """
         try:
-            # Generate filename
+            # Generate filename. Second-resolution timestamps collided
+            # when two reports were generated in the same second
+            # (cron-driven batch runs hit this), silently overwriting
+            # the first. Append a short uuid4 fragment to make the path
+            # unique even at sub-second cadence; the timestamp still
+            # provides human-readable sortability.
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{self.client_name.lower().replace(' ', '_')}_analytics_presentation_{timestamp}.pptx"
+            suffix = uuid.uuid4().hex[:8]
+            filename = (
+                f"{self.client_name.lower().replace(' ', '_')}"
+                f"_analytics_presentation_{timestamp}_{suffix}.pptx"
+            )
             output_path = self.output_dir / filename
             
             # Create presentation
@@ -1004,7 +1012,7 @@ class PowerPointGenerator:
         
         # Set content
         content_shape = slide.placeholders[1]
-        content_text = f"Dataset Information:\n\n"
+        content_text = "Dataset Information:\n\n"
         content_text += f"• Number of rows: {len(df):,}\n"
         content_text += f"• Number of columns: {len(df.columns)}\n"
         content_text += f"• Data types: {', '.join(df.dtypes.astype(str).unique())}\n"

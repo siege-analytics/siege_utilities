@@ -11,9 +11,18 @@ This module provides comprehensive Google Analytics integration capabilities:
 
 import json
 import pathlib
+import re
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 import pandas as pd
+
+# GA4 accepts these relative-date keywords in place of an absolute date.
+# Only the strict documented forms are accepted: ``today``, ``yesterday``,
+# or ``NdaysAgo`` (e.g. ``"7daysAgo"``). The GA API itself rejects spaced
+# variants like ``"7 daysAgo"`` with a 400 — we mirror that strictness
+# locally so the failure happens at validation time, not deep in a batch
+# run.
+_GA_RELATIVE_DATE_RE = re.compile(r"^(today|yesterday|\d+daysAgo)$")
 
 try:
     from google.oauth2.credentials import Credentials
@@ -202,6 +211,30 @@ class GoogleAnalyticsConnector:
             log_error(f"Service account authentication failed: {e}")
             return False
 
+    @staticmethod
+    def _validate_ga_date(value: str, field: str) -> None:
+        """Reject malformed GA date strings before the API call.
+
+        GA4 silently accepts and then 400s on bad date strings, often
+        deep inside a batch run. Catch the obvious mistakes — wrong
+        format, swapped components, locale-formatted dates — up front.
+        """
+        if not isinstance(value, str) or not value:
+            raise ValueError(
+                f"{field} must be a non-empty string (YYYY-MM-DD or GA "
+                f"relative keyword like 'today'/'7daysAgo'); got {value!r}"
+            )
+        if _GA_RELATIVE_DATE_RE.match(value):
+            return
+        try:
+            datetime.strptime(value, "%Y-%m-%d")
+        except ValueError as e:
+            raise ValueError(
+                f"{field}={value!r} is not a valid YYYY-MM-DD date or "
+                f"recognized GA relative keyword (today, yesterday, "
+                f"NdaysAgo): {e}"
+            ) from e
+
     def get_ga4_data(self, property_id: str, start_date: str, end_date: str,
                      metrics: List[str], dimensions: List[str] = None,
                      row_limit: int = 100000) -> pd.DataFrame:
@@ -210,15 +243,26 @@ class GoogleAnalyticsConnector:
 
         Args:
             property_id: GA4 property ID
-            start_date: Start date (YYYY-MM-DD)
-            end_date: End date (YYYY-MM-DD)
+            start_date: Start date as ``YYYY-MM-DD`` (also accepts the GA4
+                relative keywords ``today``, ``yesterday``, or ``NdaysAgo``).
+                Interpreted in the **property's configured timezone**, not
+                the caller's local time — set this in the GA admin UI.
+            end_date: End date, same format / TZ rules as ``start_date``.
             metrics: List of metrics to retrieve
             dimensions: List of dimensions to retrieve
             row_limit: Maximum rows to retrieve
 
         Returns:
             Pandas DataFrame with GA4 data
+
+        Raises:
+            ValueError: If ``start_date`` / ``end_date`` is not a valid
+                ``YYYY-MM-DD`` date or recognized GA4 relative keyword.
+                Previously, malformed dates were forwarded raw to the GA
+                API and returned an opaque 400 hours later in a batch run.
         """
+        self._validate_ga_date(start_date, "start_date")
+        self._validate_ga_date(end_date, "end_date")
         try:
             if not self.ga4_client:
                 raise ValueError("Not authenticated. Call authenticate() first.")
@@ -275,7 +319,13 @@ class GoogleAnalyticsConnector:
 
         Returns:
             Pandas DataFrame with UA data
+
+        Raises:
+            ValueError: If ``start_date`` / ``end_date`` is not a valid
+                ``YYYY-MM-DD`` date or recognized GA relative keyword.
         """
+        self._validate_ga_date(start_date, "start_date")
+        self._validate_ga_date(end_date, "end_date")
         try:
             if not self.analytics_service:
                 raise ValueError("Not authenticated. Call authenticate() first.")
