@@ -14,6 +14,17 @@ from ..reporting.pages.page_models import TableType
 from .models import Chain, View
 
 
+class CrosstabInputError(ValueError):
+    """Raised when build_chain receives an empty or schema-incompatible DataFrame.
+
+    Distinct from a successful Chain that happens to contain no rows
+    (e.g., every category was filtered out downstream). This signals
+    the caller fed in something the builder cannot work with at all —
+    typically an upstream filter that returned nothing, or a column
+    name typo.
+    """
+
+
 def build_chain(
     df: pd.DataFrame,
     row_var: str,
@@ -49,6 +60,33 @@ def build_chain(
     -------
     Chain
     """
+    # Up-front shape check. The dispatchers downstream assume `df` has
+    # rows and that `row_var` / `break_vars` / `metric` / `weight_var`
+    # are real columns; without this guard an empty input produces a
+    # silent blank Chain that callers can't distinguish from "no
+    # significant results."
+    if df is None or len(df) == 0:
+        raise CrosstabInputError(
+            "build_chain: empty DataFrame. The upstream filter / query "
+            "returned nothing; a Chain built from an empty frame would "
+            "be indistinguishable from one where every category was "
+            "filtered out by downstream logic."
+        )
+    if row_var not in df.columns:
+        raise CrosstabInputError(
+            f"build_chain: row_var {row_var!r} not in df.columns "
+            f"({list(df.columns)[:10]}{'...' if len(df.columns) > 10 else ''})"
+        )
+    missing_breaks = [b for b in break_vars if b not in df.columns]
+    if missing_breaks:
+        raise CrosstabInputError(
+            f"build_chain: break_vars {missing_breaks!r} not in df.columns"
+        )
+    if weight_var is not None and weight_var not in df.columns:
+        raise CrosstabInputError(
+            f"build_chain: weight_var {weight_var!r} not in df.columns"
+        )
+
     dispatchers = {
         TableType.SINGLE_RESPONSE:   _build_single_response,
         TableType.MULTIPLE_RESPONSE: _build_multiple_response,

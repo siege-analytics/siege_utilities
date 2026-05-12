@@ -36,10 +36,23 @@ except ImportError:
 # call (`op`, `security`, gcloud-style stderr) usually print field
 # names rather than secret values, but any error path can echo back
 # tokens — better to be paranoid for the small cost of a regex pass.
+#
+# The "long alphanumeric run" pattern is deliberately narrower than
+# ``[A-Za-z0-9_-]{32,}``: pure-hex strings (Git SHAs) and pure-decimal
+# IDs are NOT secrets and used to be redacted unhelpfully, breaking
+# error messages that legitimately quoted a commit ID. We now require
+# the run to contain at least one character outside ``[0-9a-fA-F]`` —
+# either a non-hex letter (``g-z`` / ``G-Z``) or a base64/JWT delimiter
+# (``_-+/=``) — so SHAs and decimals pass through but actual tokens
+# (which mix in non-hex chars) still get caught.
 _REDACT_PATTERNS = [
-    # Long alphanumeric runs (API keys, tokens, JWTs)
-    re.compile(r"\b[A-Za-z0-9_\-]{32,}\b"),
-    # Anything inside double quotes after a key-like word
+    re.compile(
+        r"\b(?=[A-Za-z0-9_\-+/=]{32,}\b)"
+        r"[A-Za-z0-9_\-+/=]*[g-zG-Z_\-+/=]"
+        r"[A-Za-z0-9_\-+/=]*\b"
+    ),
+    # Anything inside quotes or after = after a key-like word — runs
+    # even when the value would otherwise pass the narrower rule above.
     re.compile(r"(?i)(token|secret|password|api[_-]?key|auth)[\"\':=\s]+[^\s\"\']+"),
 ]
 

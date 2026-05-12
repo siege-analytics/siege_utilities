@@ -4,6 +4,8 @@ Orchestrates the creation of comprehensive reports with charts, tables, and bran
 """
 
 import logging
+import os
+import uuid
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 from datetime import datetime
@@ -32,6 +34,21 @@ from .chart_generator import ChartGenerator
 from .client_branding import ClientBrandingManager
 
 log = logging.getLogger(__name__)
+
+
+def _escape_paragraph(text: str) -> str:
+    """Escape characters ReportLab Paragraph parses as mini-HTML markup.
+
+    Paragraph treats ``<`` as a tag start and ``&`` as an entity start;
+    a raw user string like ``"Q&A about <3 favorites"`` raises a parse
+    error mid-render. We escape both before they reach the parser.
+    Order matters — escape ``&`` first so the ``&`` introduced by
+    ``&lt;`` / ``&gt;`` is not re-escaped.
+    """
+    if not isinstance(text, str):
+        text = str(text)
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
 
 class ReportGenerator:
     """
@@ -425,8 +442,35 @@ class ReportGenerator:
             True if successful, False otherwise
         """
         try:
-            # Initialize template with output path
-            template = self._get_template(output_path, template_config)
+            # Pre-check writability: ReportLab buffers the entire PDF in
+            # memory and only attempts disk I/O at the very end. A
+            # missing parent dir or a read-only mount that was
+            # discoverable up-front would otherwise burn a full
+            # generation pass (slow on multi-hundred-page reports)
+            # before failing. Build to a sibling temp file and rename
+            # atomically so a partial PDF never appears at *output_path*.
+            final = Path(output_path)
+            parent = final.parent if str(final.parent) else Path(".")
+            try:
+                parent.mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                log.error(
+                    "generate_pdf_report: cannot create output directory "
+                    "%s: %s", parent, exc,
+                )
+                return False
+            if not os.access(parent, os.W_OK):
+                log.error(
+                    "generate_pdf_report: output directory %s is not "
+                    "writable", parent,
+                )
+                return False
+
+            tmp_path = parent / f".{final.name}.{uuid.uuid4().hex[:8]}.part"
+
+            # Initialize template with the temp path; we rename to the
+            # final name only after a successful build.
+            template = self._get_template(str(tmp_path), template_config)
 
             # Build document content
             story = []
@@ -454,11 +498,30 @@ class ReportGenerator:
             # Build PDF using the template's build_document method
             template.build_document(story)
 
+            # Atomic rename. os.replace is atomic on POSIX and on Windows
+            # (per docs) when source and dest live on the same FS — which
+            # they do, since we created the temp alongside the target.
+            try:
+                os.replace(tmp_path, final)
+            except OSError as exc:
+                log.error(
+                    "generate_pdf_report: built %s but could not rename "
+                    "to %s: %s", tmp_path, final, exc,
+                )
+                return False
+
             log.info(f"PDF report generated successfully: {output_path}")
             return True
 
         except Exception as e:
             log.error(f"Error generating PDF report: {e}")
+            # Best-effort cleanup of the partial file. The variable may
+            # not be bound yet if we failed before assigning it.
+            try:
+                if 'tmp_path' in locals() and tmp_path.exists():
+                    tmp_path.unlink()
+            except OSError:
+                pass
             return False
 
     def _process_chart_list(self, charts: List[Any], width: float = 6,
@@ -604,11 +667,15 @@ class ReportGenerator:
                     if not stripped:
                         story.append(Spacer(1, 6))
                     elif stripped.startswith('- ') or stripped.startswith('* '):
-                        # Bullet point
-                        bullet_text = stripped[2:]
+                        # Bullet point — escape user text before concatenating
+                        # the literal ``&bull;`` entity. ReportLab's mini-HTML
+                        # parser treats ``<`` and ``&`` as markup; raw user
+                        # text containing ``<3`` or ``Q&A`` would otherwise
+                        # raise a parse error mid-render.
+                        bullet_text = _escape_paragraph(stripped[2:])
                         story.append(Paragraph(f'&bull; {bullet_text}', styles['Normal']))
                     else:
-                        story.append(Paragraph(stripped, styles['Normal']))
+                        story.append(Paragraph(_escape_paragraph(stripped), styles['Normal']))
             story.append(Spacer(1, 12))
 
         elif section_type == 'table':
