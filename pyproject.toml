@@ -303,6 +303,7 @@ markers = [
     "smoke: quick validation tests for critical paths (no network, no GDAL)",
     "slow: tests that take >10s (network, large data)",
     "databricks: tests requiring Databricks runtime or SDK",
+    "requires_api_key: connector smoke tests that hit a live external API; require ~/.siege-test-credentials.yaml. Skipped by default; opt in with `pytest -m requires_api_key`.",
 ]
 
 [tool.coverage.report]

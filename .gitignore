@@ -112,6 +112,10 @@ celerybeat.pid
 *credentials*.json
 *service_account*.json
 *token*.json
+# Sprint B (issue #453) developer-local connector test credentials —
+# never commit, never expand into CI. See docs/testing/sprint-b-credentials.md.
+.siege-test-credentials.yaml
+siege-test-credentials.yaml
 *client_secret*.json
 *.pem
 !tests/fixtures/**
