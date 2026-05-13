@@ -86,6 +86,47 @@ def _siege_test_directories():
 
 
 @pytest.fixture
+def api_credentials():
+    """Load connector API credentials from a developer-local YAML file.
+
+    Looked up at ``~/.siege-test-credentials.yaml`` (or the path in the
+    ``SIEGE_TEST_CREDENTIALS`` env var). When the file is absent, tests
+    decorated with ``@pytest.mark.requires_api_key`` and consuming this
+    fixture are skipped — by design, Sprint B's strategy is
+    developer-local creds, not CI secrets. CI is expected to run only
+    the mock unit tests; the live-API path is opt-in via
+    ``pytest -m requires_api_key``.
+
+    Returns the parsed dict; individual connectors look up their own
+    sub-keys (e.g. ``creds["snowflake"]["account"]``) and skip if
+    their section is missing.
+    """
+    import yaml  # local import — yaml is in extras_require, not core
+
+    path = os.environ.get("SIEGE_TEST_CREDENTIALS") or os.path.expanduser(
+        "~/.siege-test-credentials.yaml"
+    )
+    if not os.path.exists(path):
+        pytest.skip(
+            f"requires_api_key: no credentials file at {path}. "
+            "Create one with the per-connector keys you want to exercise; "
+            "see docs/testing/sprint-b-credentials.md for the schema."
+        )
+    try:
+        with open(path) as f:
+            return yaml.safe_load(f) or {}
+    except yaml.YAMLError as exc:
+        # A malformed file is a real configuration error, not a missing
+        # one — surface it as a skip with the parser error so the
+        # developer fixes the file rather than chasing an opaque
+        # uncaught exception during fixture setup.
+        pytest.skip(
+            f"requires_api_key: credentials file at {path} is not valid "
+            f"YAML — {exc}. Fix the syntax and re-run."
+        )
+
+
+@pytest.fixture
 def mock_spark_session():
     """Mock Spark session for distributed computing tests."""
     mock_spark = Mock()
