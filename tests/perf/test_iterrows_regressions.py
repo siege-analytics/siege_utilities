@@ -44,45 +44,7 @@ def test_convert_to_postgis_output_matches_iterrows_baseline(tmp_path):
     assert out_path.read_text() == expected
 
 
-def test_enrich_districts_lookup_matches_iterrows_baseline():
-    """Drives the real `enrich_school_districts` lookup-dict
-    construction by re-extracting the vectorised body and comparing
-    to the iterrows baseline on the same input.
-
-    The production function is hard to call directly because it
-    requires Django models. The vectorised dict-build was extracted
-    inline; this test pins the algorithm at the point of refactor
-    by running the same expression and comparing to the row-by-row
-    output."""
-    df = pd.DataFrame({
-        "lea_id": [f"{i:07d}" if i % 7 else "" for i in range(200)],
-        "locale_code": [i % 50 if i % 11 else None for i in range(200)],
-        "locale_category": ["city"] * 200,
-        "locale_subcategory": ["large"] * 200,
-    })
-
-    baseline: dict = {}
-    for _, row in df.iterrows():
-        lea = str(row.get("lea_id", ""))
-        if lea and row.get("locale_code") is not None:
-            baseline[lea] = {
-                "locale_code": str(int(row["locale_code"])),
-                "locale_category": str(row.get("locale_category", "")),
-                "locale_subcategory": str(row.get("locale_subcategory", "")),
-            }
-
-    mask = df["lea_id"].astype(str).str.len().gt(0) & df["locale_code"].notna()
-    sub = df.loc[mask, ["lea_id", "locale_code", "locale_category", "locale_subcategory"]].fillna("")
-    vectorised = {
-        str(lea): {
-            "locale_code": str(int(code)),
-            "locale_category": str(cat),
-            "locale_subcategory": str(s),
-        }
-        for lea, code, cat, s in zip(
-            sub["lea_id"], sub["locale_code"],
-            sub["locale_category"], sub["locale_subcategory"],
-        )
-    }
-
-    assert baseline == vectorised
+# The enrich_school_districts vectorisation is exercised by the Django
+# regression test in tests/test_nces_service_bulk_update_timestamp.py
+# rather than re-inlined here. A perf test that doesn't import the
+# production function it claims to guard is worse than no test.

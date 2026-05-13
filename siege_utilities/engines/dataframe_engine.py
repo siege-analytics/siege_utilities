@@ -66,6 +66,11 @@ _SUPPORTED_AGG_NAMES = frozenset({
 
 
 def _validate_agg_names(agg_dict: "Dict[str, str]", engine_name: str) -> None:
+    if not agg_dict:
+        raise ValueError(
+            f"{engine_name}.groupby_agg: agg_dict must not be empty; "
+            f"pass at least one column -> aggregation name mapping."
+        )
     unknown = sorted({f for f in agg_dict.values() if f not in _SUPPORTED_AGG_NAMES})
     if unknown:
         raise ValueError(
@@ -603,7 +608,11 @@ class PandasEngine(DataFrameEngine):
         group_cols: Sequence[str],
         agg_dict: Dict[str, str],
     ) -> Any:
-        return df.groupby(list(group_cols)).agg(agg_dict).reset_index()
+        _validate_agg_names(agg_dict, "PandasEngine")
+        # pandas accepts "mean" but not "avg"; normalise so the shared
+        # agg-name set is honored across engines.
+        normalised = {col: ("mean" if fn == "avg" else fn) for col, fn in agg_dict.items()}
+        return df.groupby(list(group_cols)).agg(normalised).reset_index()
 
     def filter(self, df: Any, condition: Any) -> Any:
         return df.loc[condition].reset_index(drop=True)
@@ -742,8 +751,9 @@ class DuckDBEngine(DataFrameEngine):
     ) -> Any:
         _validate_agg_names(agg_dict, "DuckDBEngine")
         import pandas as pd
+        normalised = {col: ("mean" if fn == "avg" else fn) for col, fn in agg_dict.items()}
         if isinstance(df, pd.DataFrame):
-            return df.groupby(list(group_cols)).agg(agg_dict).reset_index()
+            return df.groupby(list(group_cols)).agg(normalised).reset_index()
         raise TypeError(
             "DuckDBEngine.groupby_agg expects a pandas DataFrame "
             "(use .query() with GROUP BY for pure-SQL workflows)"
@@ -1296,7 +1306,9 @@ class PostGISEngine(DataFrameEngine):
         group_cols: Sequence[str],
         agg_dict: Dict[str, str],
     ) -> Any:
-        return df.groupby(list(group_cols)).agg(agg_dict).reset_index()
+        _validate_agg_names(agg_dict, "PostGISEngine")
+        normalised = {col: ("mean" if fn == "avg" else fn) for col, fn in agg_dict.items()}
+        return df.groupby(list(group_cols)).agg(normalised).reset_index()
 
     def filter(self, df: Any, condition: Any) -> Any:
         return df.loc[condition].reset_index(drop=True)

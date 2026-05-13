@@ -59,13 +59,23 @@ def _pandas_engine():
     return PandasEngine()
 
 
+_SQL_AGGS = {"SUM", "MEAN", "AVG", "MIN", "MAX", "COUNT"}
+
+
 def _duckdb_sql(df: "pd.DataFrame", agg: str) -> "pd.DataFrame":
     duckdb = pytest.importorskip("duckdb")
+    upper = agg.upper()
+    if upper not in _SQL_AGGS:
+        raise ValueError(
+            f"_duckdb_sql does not yet know how to interpolate {agg!r} as SQL; "
+            f"extend _SQL_AGGS if you add a new agg to the parametrize list."
+        )
+    sql_fn = "AVG" if upper == "MEAN" else upper
     con = duckdb.connect(":memory:")
     try:
         con.register("input_df", df)
         return con.sql(
-            f"SELECT \"group\", {agg}(value) AS value "
+            f"SELECT \"group\", {sql_fn}(value) AS value "
             f"FROM input_df GROUP BY \"group\""
         ).to_df()
     finally:
@@ -95,6 +105,37 @@ def test_pandas_groupby_sum_empty_input_preserves_schema():
     assert len(result) == 0
     assert list(result.columns) == ["group", "value"]
     assert result["group"].dtype == "int64"
+
+
+def test_sum_of_all_nan_group_is_zero_fixed_case():
+    """Hypothesis-driven NaN tests rarely produce an all-NaN group
+    at the default settings. Pin the documented invariant with a
+    hand-built case so the contract is exercised on every run."""
+    df = pd.DataFrame({
+        "group": [1, 1, 1, 2, 2],
+        "value": [float("nan"), float("nan"), float("nan"), 1.0, 2.0],
+    })
+    result = _pandas_engine().groupby_agg(
+        df, group_cols=["group"], agg_dict={"value": "sum"},
+    )
+    group_1_sum = result.loc[result["group"] == 1, "value"].iloc[0]
+    assert group_1_sum == 0.0, (
+        f"sum of all-NaN group should be 0.0 per INVARIANTS.md, got {group_1_sum}"
+    )
+
+
+def test_count_excludes_nan_fixed_case():
+    df = pd.DataFrame({
+        "group": [1, 1, 1, 2, 2],
+        "value": [float("nan"), 1.0, 2.0, float("nan"), float("nan")],
+    })
+    result = _pandas_engine().groupby_agg(
+        df, group_cols=["group"], agg_dict={"value": "count"},
+    )
+    group_1_count = result.loc[result["group"] == 1, "value"].iloc[0]
+    group_2_count = result.loc[result["group"] == 2, "value"].iloc[0]
+    assert group_1_count == 2
+    assert group_2_count == 0
 
 
 @pytest.mark.parametrize("agg", ["sum", "mean", "min", "max", "count"])

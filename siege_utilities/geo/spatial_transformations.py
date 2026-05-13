@@ -260,7 +260,13 @@ class SpatialDataTransformer:
                         f"AS SELECT * FROM siege_upload_df"
                     )
                 finally:
-                    con.unregister("siege_upload_df")
+                    try:
+                        con.unregister("siege_upload_df")
+                    except Exception as cleanup_exc:
+                        log.warning(
+                            "Failed to unregister siege_upload_df: %s",
+                            cleanup_exc,
+                        )
 
             log.info(f"Successfully uploaded to DuckDB table: {table_name}")
             return True
@@ -462,27 +468,33 @@ class PostGISConnector:
             log.error("No PostGIS connection available")
             return None
 
-        try:
-            cursor = self.connection.cursor()
-            cursor.execute(query)
+        import psycopg2
 
+        cursor = None
+        try:
             if query.strip().upper().startswith('SELECT'):
-                rows = cursor.fetchall()
-                columns = (
-                    [desc[0] for desc in cursor.description]
-                    if cursor.description else None
-                )
-                gdf = gpd.GeoDataFrame(rows, columns=columns)
+                # gpd.read_postgis handles geometry-column detection,
+                # WKB decoding, and CRS lookup against the geometry
+                # column's SRID. The previous implementation built the
+                # frame from raw psycopg2 tuples, which produced a
+                # non-geo frame where the geometry column was bytes.
+                geom_col = kwargs.get('geom_col', 'geometry')
+                gdf = gpd.read_postgis(query, self.connection, geom_col=geom_col)
                 log.info("Successfully executed PostGIS query")
                 return reproject_if_needed(gdf, crs)
-            else:
-                self.connection.commit()
-                log.info("Successfully executed PostGIS query")
-                return gpd.GeoDataFrame()
-                
-        except Exception as e:
+            cursor = self.connection.cursor()
+            cursor.execute(query)
+            self.connection.commit()
+            log.info("Successfully executed PostGIS query")
+            return gpd.GeoDataFrame()
+        except (psycopg2.Error, ValueError) as e:
             log.error(f"Failed to execute PostGIS query: {e}")
+            if self.connection:
+                self.connection.rollback()
             return None
+        finally:
+            if cursor is not None:
+                cursor.close()
     
     def _create_spatial_table(self, table_name: str, gdf: GeoDataFrame):
         """Create a spatial table in PostGIS."""
@@ -590,7 +602,13 @@ class DuckDBConnector:
                     f"CREATE TABLE {table_name} AS SELECT * FROM siege_upload_df"
                 )
             finally:
-                self.connection.unregister("siege_upload_df")
+                try:
+                    self.connection.unregister("siege_upload_df")
+                except Exception as cleanup_exc:
+                    log.warning(
+                        "Failed to unregister siege_upload_df: %s",
+                        cleanup_exc,
+                    )
 
             log.info(f"Successfully uploaded to DuckDB: {table_name}")
             return True

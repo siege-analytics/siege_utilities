@@ -44,7 +44,7 @@ The granularity is operation-level, not backend-level. If an engine can't meet a
 - **Tolerance:**
   - Sort order is not guaranteed. Callers that need ordering must call `.sort_values()` themselves. Tests compare row contents as a multiset, not a list.
   - `mean` ignores NaN; `count` excludes NaN; `sum` of all-NaN is 0.0 (not NaN). All four engines must agree on this.
-- All engines (PandasEngine, DuckDBEngine, SparkEngine) call the shared `_validate_agg_names` at the top of `groupby_agg`; unknown names raise `ValueError`. PostGISEngine is the remaining gap; pin it when that engine is wired up.
+- All four engines call the shared `_validate_agg_names` at the top of `groupby_agg`; unknown names raise `ValueError`, and an empty `agg_dict` raises `ValueError` with the same shape.
 
 ### `filter(condition)`
 
