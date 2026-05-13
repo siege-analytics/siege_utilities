@@ -337,6 +337,7 @@ class NCESPopulationService:
         self,
         year: int = 2023,
         update_existing: bool = False,
+        batch_size: int = 500,
     ) -> NCESPopulationResult:
         """Enrich existing SchoolDistrict* records with NCES locale codes.
 
@@ -392,7 +393,6 @@ class NCESPopulationService:
         _UPDATE_FIELDS = (
             "locale_code", "locale_category", "locale_subcategory", "updated_at",
         )
-        _BATCH = 500
 
         for model_cls in (
             SchoolDistrictElementary,
@@ -412,7 +412,7 @@ class NCESPopulationService:
                     district.locale_subcategory = locale_info["locale_subcategory"]
                     district.updated_at = now
                     to_update.append(district)
-                    if len(to_update) >= _BATCH:
+                    if len(to_update) >= batch_size:
                         model_cls.objects.bulk_update(to_update, list(_UPDATE_FIELDS))
                         result.records_updated += len(to_update)
                         to_update = []

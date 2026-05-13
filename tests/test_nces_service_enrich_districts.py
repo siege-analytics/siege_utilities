@@ -70,7 +70,7 @@ def test_enrich_districts_applies_lookup_and_advances_updated_at(db):
         mock_get.return_value.download_district_data.return_value = df
         result = service.enrich_school_districts(year=year)
 
-    assert result.records_updated >= 1
+    assert result.records_updated == 1
     district.refresh_from_db()
     assert district.locale_code == "21"
     assert district.locale_category == "suburban"
@@ -114,5 +114,58 @@ def test_enrich_districts_skips_when_lea_id_not_in_lookup(db):
         mock_get.return_value.download_district_data.return_value = df
         result = service.enrich_school_districts(year=year)
 
-    assert result.records_skipped >= 1
+    assert result.records_skipped == 1
     assert result.records_updated == 0
+
+
+def test_enrich_districts_flushes_updates_mid_loop(db):
+    """When the queryset of matched districts exceeds batch_size,
+    the in-loop bulk_update must fire. Seed batch_size+2 rows and
+    assert bulk_update is invoked at least twice."""
+    import pandas as pd
+
+    from siege_utilities.geo.django.models import SchoolDistrictUnified
+    from siege_utilities.geo.django.services.nces_service import (
+        NCESPopulationService,
+    )
+
+    year = 2095
+    batch_size = 3
+    n_rows = batch_size + 2
+    lea_ids = [f"070000{i}" for i in range(n_rows)]
+
+    for lea in lea_ids:
+        SchoolDistrictUnified.objects.create(
+            feature_id=f"unified_{year}_{lea}",
+            geoid=lea,
+            name=f"District {lea}",
+            lea_id=lea,
+            vintage_year=year,
+            geometry=_make_polygon(),
+            source="NCES EDGE",
+            locale_code="",
+        )
+
+    df = pd.DataFrame({
+        "lea_id": lea_ids,
+        "locale_code": [11] * n_rows,
+        "locale_category": ["city"] * n_rows,
+        "locale_subcategory": ["city_large"] * n_rows,
+    })
+
+    service = NCESPopulationService()
+    with patch.object(service, "_get_downloader") as mock_get, \
+         patch.object(
+             SchoolDistrictUnified.objects, "bulk_update",
+             wraps=SchoolDistrictUnified.objects.bulk_update,
+         ) as mock_bulk_update:
+        mock_get.return_value.download_district_data.return_value = df
+        result = service.enrich_school_districts(
+            year=year, batch_size=batch_size,
+        )
+
+    assert result.records_updated == n_rows
+    assert mock_bulk_update.call_count >= 2, (
+        f"expected at least 2 bulk_update calls for {n_rows} rows at "
+        f"batch_size={batch_size}, got {mock_bulk_update.call_count}"
+    )
