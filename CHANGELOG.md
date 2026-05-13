@@ -7,6 +7,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.16.0] - 2026-05-13
+
+Minor release rolling up the post-v3.15.1 backlog and a six-round
+hostile code review of that work.
+
+### Added
+
+- **Sprint B connector test coverage** (#459, #463): mock-test suites for
+  `snowflake_connector`, `facebook_business`, `datadotworld_connector`,
+  `vista_social`, and `google_workspace`, plus a live-API smoke
+  addition to the existing `google_analytics` suite. All live-API
+  tests are gated behind `@pytest.mark.requires_api_key` and skip
+  when `~/.siege-test-credentials.yaml` is absent. Documentation at
+  `docs/testing/sprint-b-credentials.md`.
+- **Sprint E Phase 1 invariants doc** (#462): `docs/engines/INVARIANTS.md`
+  defines what cross-engine `DataFrameEngine` behaviour is mandatory
+  vs. allowed to differ across PandasEngine, DuckDBEngine, SparkEngine,
+  and PostGISEngine. Hypothesis-based skeleton property test that
+  actually crosses an engine boundary (pandas vs. raw DuckDB SQL).
+
+### Changed
+
+- **NCES populator vectorisation** (#461): the three
+  `NCESPopulationService` methods (`populate_locale_boundaries`,
+  `populate_school_locations`, `enrich_school_districts`) pre-fetch
+  existing rows into a dict keyed by the unique-together tuple,
+  collapsing N+1 SELECT patterns to a single SELECT plus batched
+  `bulk_update`. `objects_to_update` lists now flush every
+  `batch_size` rows mid-loop so memory growth is bounded. `bulk_update`
+  bypasses Django's `auto_now=True`, so `updated_at` is set explicitly
+  via `timezone.now()` and included in the update field list.
+  `enrich_school_districts` now accepts a `batch_size` keyword argument
+  matching the other two methods.
+- **PostGIS upload via `executemany`** (#461): replaces per-row
+  `cursor.execute` with batched `executemany` and pandas-level
+  geometry extraction.
+- **PostGIS `execute_spatial_query` uses `gpd.read_postgis`** (#465):
+  the previous manual-fetch path returned a non-geo frame with raw
+  WKB bytes in the geometry column. `gpd.read_postgis` decodes
+  geometry and picks up SRID from the geometry column metadata.
+  SELECT and non-SELECT branches each have their own
+  try/except/rollback so a failed read does not leave the connection
+  in an aborted-transaction state.
+- **DuckDB upload via explicit `register`/`unregister`** (#465):
+  `DuckDBConnector.upload_spatial_data` and
+  `_convert_to_duckdb` no longer rely on duckdb's replacement scan
+  finding `df` in the caller frame. The unregister call is wrapped
+  so it cannot mask the original exception.
+- **`DataFrameEngine.groupby_agg` agg-name validation** (#465):
+  all four engines now route through the shared
+  `_validate_agg_names` helper at the top of `groupby_agg`. Unknown
+  agg names raise `ValueError` consistently; empty `agg_dict` raises
+  with the same shape; `avg` is normalised to `mean` so the
+  documented synonym works everywhere.
+- **`spatial_transformations._convert_to_postgis` vectorised**
+  (#461): the SQL-file generator builds the line set with
+  `Series.apply` and string concatenation instead of an `iterrows`
+  loop. Output is byte-identical to the old path.
+
+### Fixed
+
+- **Bulk_update timestamp regression** (#464, #465): the in-loop
+  flush path is exercised by Django-backed tests under
+  `requires_api_key`-style gating (`pytest.mark.django_db` plus
+  GDAL skipif) seeding `batch_size + N` rows so both the in-loop
+  and the post-loop bulk_update branches are hit.
+- **Perf test fraud** (#465): `tests/perf/test_iterrows_regressions.py`
+  now imports and drives `SpatialDataTransformer._convert_to_postgis`
+  rather than re-inlining the algorithm. A revert of the production
+  vectorisation now turns the test red.
+- **Cross-engine property test fraud** (#465): the skeleton compared
+  `PandasEngine` to `DuckDBEngine`, but `DuckDBEngine.groupby_agg`
+  passes pandas DataFrames straight through to pandas. The test could
+  not detect a divergence. Rewritten to compare PandasEngine's output
+  to raw DuckDB SQL via `duckdb.connect`, parametrised across
+  `sum`/`mean`/`min`/`max`/`count`. Added fixed-case tests pinning
+  the documented `sum`-of-all-NaN-is-0.0 and `count`-excludes-NaN
+  invariants.
+- **`api_credentials` fixture polarity** (#465): malformed YAML now
+  raises via `pytest.fail` instead of skipping silently.
+
+### Sprint summary
+
+- Sprint A (#452): reliability fixes -- shipped in v3.15.1.
+- Sprint B (#453): connector test coverage -- complete.
+- Sprint C (#454): Census + Wikidata gazetteers -- deferred per the
+  ticket's own reactive-only guidance; remains open as a placeholder.
+- Sprint D (#455): iterrows vectorisation -- complete; perf benchmarks
+  reframed as correctness checks.
+- Sprint E (#456): cross-engine invariants -- Phase 1 (design doc +
+  skeleton) complete; Phase 2 and Phase 3 to be filed.
+
 ## [3.15.1] - 2026-05-12
 
 Patch release: Sprint A reliability fixes (#452, shipped via #457). Nine
