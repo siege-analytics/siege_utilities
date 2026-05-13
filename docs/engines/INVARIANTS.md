@@ -1,10 +1,6 @@
 # Cross-backend engine invariants
 
-Working design document for **Sprint E** (issue #456), Phase 1.
-
-The `DataFrameEngine` premise — consumer code should not branch on backend — is unverified. `PandasEngine`, `DuckDBEngine`, `SparkEngine`, and `PostGISEngine` ship today with subtle divergences in edge cases: empty inputs, NaN propagation, sort stability, identifier validation. This doc pins down what *must* be the same and what is allowed to differ.
-
-The output of Phase 1 (this doc) feeds directly into Phase 2 (Hypothesis strategies in `tests/property/`) and Phase 3 (reactive bug fixes). Phases 2 and 3 are filed as separate follow-up issues.
+The `DataFrameEngine` premise — consumer code should not branch on backend — is unverified. `PandasEngine`, `DuckDBEngine`, `SparkEngine`, and `PostGISEngine` diverge in edge cases: empty inputs, NaN propagation, sort stability, identifier validation. This doc pins down what *must* be the same and what is allowed to differ.
 
 ## How to read this doc
 
@@ -13,16 +9,16 @@ Each operation has:
 - **Required input shape** — what the caller is responsible for providing.
 - **Required output shape** — what the engine guarantees in return.
 - **Tolerances** — where each engine is allowed to differ, with the rationale.
-- **Open question** — anything still TBD; a Phase-1 deliverable is converting these to decisions.
+- **Open question** — anything still TBD.
 
-The granularity is operation-level, not backend-level. If an engine can't meet an invariant, that's a Phase-3 bug fix — not a reason to weaken the invariant.
+The granularity is operation-level, not backend-level. If an engine can't meet an invariant, that's a bug fix, not a reason to weaken the invariant.
 
 ## Universal invariants (apply to every operation)
 
 1. **Empty input → empty output, never raise.** A 0-row DataFrame in must yield a 0-row DataFrame out, with the correct schema. Engines that currently raise on empty input (Spark's groupby occasionally; PostGIS on aggregations) are bugs.
 2. **Schema invariance.** Output column names + dtypes are reproducible from `(operation, input_schema)`. No engine may add a backend-specific metadata column.
 3. **No silent NaN coercion across backends.** If pandas produces `NaN`, the other engines must produce their backend-native missing value (`None` for DuckDB/PostGIS, `null` for Spark), and `to_pandas()` must round-trip it back to `NaN`.
-4. **Identifier validation happens at the engine boundary.** All four engines must reject identifiers that fail `siege_utilities.core.sql_safety.validate_sql_identifier`. (Pandas previously passed them through; DuckDB/PostGIS/Spark exec'd them — the v3.15.0 sweep aligned this. Property tests pin it.)
+4. **Identifier validation at the engine boundary.** _Aspiration, not current behavior._ Today only the upload/DDL paths in `SnowflakeConnector` and `spatial_transformations` call `validate_sql_identifier`; the engine-level operations (`groupby_agg`, `filter`, `join`) do not. Listed here so property-test work can pin the invariant once the engines route through validation.
 
 ## Per-operation invariants
 
@@ -48,7 +44,7 @@ The granularity is operation-level, not backend-level. If an engine can't meet a
 - **Tolerance:**
   - **Sort order is NOT guaranteed.** Caller must `.sort_values()` if order matters. Tests assert set-equality over rows, not list-equality.
   - `mean` ignores NaN; `count` excludes NaN; `sum` of all-NaN is 0.0 (not NaN). All four engines must agree on this.
-- **Bug currently:** Spark `groupby_agg` raises `AttributeError` on unknown agg names — fixed in Sprint A (#452, item 2) by validating against a known set. Pin with a property test.
+- **Known divergence to pin:** Spark `groupby_agg` validates against a known agg-name set; unknown names raise `ValueError` (not `AttributeError`). Property tests should assert all four engines raise the same exception type on unknown names.
 
 ### `filter(condition)`
 
@@ -70,7 +66,7 @@ The granularity is operation-level, not backend-level. If an engine can't meet a
 - **Input:** two GeoDataFrames; `predicate ∈ {intersects, contains, within}`.
 - **Output:** rows from the left side, joined with the matching rows from the right side, indexed by `(left_idx, right_idx)`.
 - **Tolerance:**
-  - **Relation semantics modes** (BOUNDED / HALFPLANE / CONTAINS_CENTROID, the v3.15.0 hardening) are an explicit parameter; engines must respect it identically.
+  - **Relation semantics modes** (BOUNDED / HALFPLANE / CONTAINS_CENTROID) are an explicit parameter; engines must respect it identically.
   - Sort order is not guaranteed.
 - **Bug surface:** SparkEngine's spatial_join goes through Sedona; geometry SRIDs must match before the join — pandas would auto-reproject, Sedona will silently produce nothing. The engine must reproject explicitly; property test should pin this.
 
@@ -81,7 +77,7 @@ The granularity is operation-level, not backend-level. If an engine can't meet a
 - **Tolerance:**
   - Missing column → `ValueError` with the column name in the message.
   - Mixed-type column (some WKT, some GeoJSON) → `ValueError`, not silent partial conversion.
-- **Bug currently:** PandasEngine raises `KeyError` (not `ValueError`) when the column is missing. Phase-3 fix.
+- **Known divergence to pin:** PandasEngine raises `KeyError` (not `ValueError`) when the column is missing; this should be normalised to `ValueError`.
 
 ### `index_points(grid, resolution)` / `index_polygon(grid, resolution)`
 
@@ -91,14 +87,8 @@ The granularity is operation-level, not backend-level. If an engine can't meet a
   - **`index_points`**: one cell ID per row. Deterministic across backends.
   - **`index_polygon`**: zero, one, or many cell IDs per row (the polygon may overlap multiple cells). Output is a new row per `(input_row, cell_id)` pair. Number of cells per input row must match across backends within a `±1` tolerance at cell boundaries (this is the H3/S2 library's edge-case difference; pin the tolerance, don't try to eliminate it).
 
-## Acceptance for Phase 1
-
-- [x] This doc lands in `docs/engines/INVARIANTS.md`.
-- [ ] A skeleton property test in `tests/property/test_engine_invariants_skeleton.py` demonstrating the Hypothesis pattern (input strategy → run on every available engine → assert equivalence). Concrete strategies for the full operation matrix are Phase 2.
-- [ ] Follow-up issues filed for Phase 2 (Hypothesis strategies) and Phase 3 (reactive bug fixes).
-
 ## What this doc deliberately doesn't decide
 
-- **Performance invariants.** Sprint D handles hot-path perf separately; this doc is about correctness only.
+- **Performance invariants.** Hot-path perf lives in `tests/perf/`; this doc is about correctness only.
 - **API surface.** We're testing the existing public surface, not redesigning it. Anything that would require a new method on `DataFrameEngine` is out of scope.
 - **Cross-engine optimization.** No "we will detect that PandasEngine and DuckDBEngine produce equivalent output and skip one" tricks. The point of property testing is to *find* divergences, not paper over them.

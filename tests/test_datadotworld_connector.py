@@ -46,15 +46,16 @@ def test_init_falls_back_to_env_var(monkeypatch, _patch_dw):
     _patch_dw.api_client.assert_called_once_with("from-env")
 
 
-def test_init_anonymous_when_no_token_and_no_env(monkeypatch, _patch_dw):
+def test_init_anonymous_when_no_token_and_no_env(monkeypatch, caplog, _patch_dw):
+    from siege_utilities.analytics.datadotworld_connector import DataDotWorldConnector
+
     monkeypatch.delenv("DATADOTWORLD_API_TOKEN", raising=False)
-    DataDotWorldConnector_local = __import__(
-        "siege_utilities.analytics.datadotworld_connector",
-        fromlist=["DataDotWorldConnector"],
-    ).DataDotWorldConnector
-    DataDotWorldConnector_local()
-    # api_client called with no args = anonymous
+    with caplog.at_level("WARNING", logger="siege_utilities.analytics.datadotworld_connector"):
+        DataDotWorldConnector()
     _patch_dw.api_client.assert_called_once_with()
+    assert any("anonymous" in r.message.lower() for r in caplog.records), (
+        "expected anonymous-access warning to be logged"
+    )
 
 
 def test_load_config_overrides_constructor_token(tmp_path, _patch_dw):

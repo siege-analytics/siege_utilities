@@ -81,6 +81,7 @@ class NCESPopulationService:
             NCESPopulationResult with statistics.
         """
         from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
+        from django.utils import timezone
 
         from siege_utilities.conf import settings
 
@@ -96,27 +97,24 @@ class NCESPopulationService:
             result.errors.append(str(e))
             return result
 
-        # Pre-fetch all existing rows for this year in one query. The
-        # previous per-row ``.filter(...).first()`` issued one SELECT per
-        # input row — ~10K SELECTs for a typical year before any
-        # bulk_create touched disk. The dict lookup below is O(1) and
-        # the query count drops to 1 + ceil(N/batch_size).
-        existing_by_code = {
-            obj.locale_code: obj
+        existing_by_key = {
+            (obj.locale_code, obj.nces_year): obj
             for obj in NCESLocaleBoundary.objects.filter(nces_year=year)
         }
 
         objects_to_create: list = []
         objects_to_update: list = []
+        # bulk_update bypasses auto_now=True; set updated_at explicitly.
+        now = timezone.now()
         _UPDATE_FIELDS = (
             "locale_category", "locale_subcategory", "name",
-            "vintage_year", "geometry", "source",
+            "vintage_year", "geometry", "source", "updated_at",
         )
 
         for idx, row in gdf.iterrows():
             try:
                 locale_code = int(row["locale_code"])
-                existing = existing_by_code.get(locale_code)
+                existing = existing_by_key.get((locale_code, year))
 
                 if existing and not update_existing:
                     result.records_skipped += 1
@@ -140,6 +138,7 @@ class NCESPopulationService:
                 if existing:
                     for key, value in kwargs.items():
                         setattr(existing, key, value)
+                    existing.updated_at = now
                     objects_to_update.append(existing)
                 else:
                     objects_to_create.append(NCESLocaleBoundary(**kwargs))
@@ -160,8 +159,6 @@ class NCESPopulationService:
             )
             result.records_created += len(objects_to_create)
 
-        # Single bulk_update replaces the per-row ``.save()`` loop —
-        # one round-trip rather than one per row.
         if objects_to_update:
             NCESLocaleBoundary.objects.bulk_update(
                 objects_to_update, list(_UPDATE_FIELDS), batch_size=batch_size,
@@ -194,6 +191,7 @@ class NCESPopulationService:
             NCESPopulationResult with statistics.
         """
         from django.contrib.gis.geos import Point
+        from django.utils import timezone
 
         from ..models import SchoolLocation, State
 
@@ -226,20 +224,18 @@ class NCESPopulationService:
             if hasattr(st, "abbreviation"):
                 state_cache[st.abbreviation] = st
 
-        # Pre-fetch existing SchoolLocation rows for this vintage in a
-        # single query so the per-row check below is O(1) dict lookup
-        # rather than O(N) SELECTs.
-        existing_by_ncessch = {
-            obj.ncessch: obj
+        existing_by_key = {
+            (obj.ncessch, obj.vintage_year): obj
             for obj in SchoolLocation.objects.filter(vintage_year=year)
         }
 
         objects_to_create: list = []
         objects_to_update: list = []
+        now = timezone.now()
         _UPDATE_FIELDS = (
             "school_name", "lea_id", "state", "locale_code",
             "locale_category", "locale_subcategory", "name",
-            "vintage_year", "geometry", "source",
+            "vintage_year", "geometry", "source", "updated_at",
         )
 
         for idx, row in gdf.iterrows():
@@ -249,7 +245,7 @@ class NCESPopulationService:
                     result.records_skipped += 1
                     continue
 
-                existing = existing_by_ncessch.get(ncessch)
+                existing = existing_by_key.get((ncessch, year))
 
                 if existing and not update_existing:
                     result.records_skipped += 1
@@ -292,6 +288,7 @@ class NCESPopulationService:
                 if existing:
                     for key, value in kwargs.items():
                         setattr(existing, key, value)
+                    existing.updated_at = now
                     objects_to_update.append(existing)
                 else:
                     objects_to_create.append(SchoolLocation(**kwargs))
@@ -342,6 +339,8 @@ class NCESPopulationService:
         Returns:
             NCESPopulationResult with statistics.
         """
+        from django.utils import timezone
+
         from ..models import (
             SchoolDistrictElementary,
             SchoolDistrictSecondary,
@@ -358,10 +357,7 @@ class NCESPopulationService:
             result.errors.append(str(e))
             return result
 
-        # Build lookup: lea_id → locale info. Vectorised: filter the
-        # frame to rows with non-empty lea_id and a locale_code, then
-        # zip the columns into a dict. Avoids row-at-a-time iteration
-        # over a DataFrame that has tens of thousands of rows.
+        # Build lookup: lea_id → locale info.
         if {"lea_id", "locale_code"}.issubset(df.columns):
             mask = df["lea_id"].astype(str).str.len().gt(0) & df["locale_code"].notna()
             sub = df.loc[mask, ["lea_id", "locale_code", "locale_category", "locale_subcategory"]].fillna("")
@@ -379,11 +375,11 @@ class NCESPopulationService:
         else:
             locale_lookup = {}
 
-        # Update each district model type. bulk_update replaces the
-        # per-row ``.save()`` that previously issued one UPDATE per
-        # district — easily 30K UPDATEs across the three district
-        # types for a full national run.
-        _UPDATE_FIELDS = ("locale_code", "locale_category", "locale_subcategory")
+        # bulk_update bypasses auto_now=True; set updated_at explicitly.
+        now = timezone.now()
+        _UPDATE_FIELDS = (
+            "locale_code", "locale_category", "locale_subcategory", "updated_at",
+        )
         _BATCH = 500
 
         for model_cls in (
@@ -402,6 +398,7 @@ class NCESPopulationService:
                     district.locale_code = locale_info["locale_code"]
                     district.locale_category = locale_info["locale_category"]
                     district.locale_subcategory = locale_info["locale_subcategory"]
+                    district.updated_at = now
                     to_update.append(district)
                     if len(to_update) >= _BATCH:
                         model_cls.objects.bulk_update(to_update, list(_UPDATE_FIELDS))

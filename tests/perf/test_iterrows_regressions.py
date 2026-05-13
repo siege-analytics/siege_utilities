@@ -1,120 +1,79 @@
-"""Performance regression guards for the Sprint D vectorisation pass.
+"""Correctness checks for the vectorised hot paths.
 
-Each test runs a vectorised path and an "old style" .iterrows()
-equivalent against the same synthetic input, then asserts the
-vectorised path is no more than 2× slower than the baseline — i.e.,
-catches *regressions* if someone reverts the refactor or reintroduces
-a row-at-a-time loop. We don't pin absolute timings (CI noise);
-we pin the *relative* speedup that motivated the refactor.
+These don't pin timings — single-shot ``perf_counter`` on small frames
+is too noisy to be useful in CI. Instead they assert the vectorised
+output is byte-identical to the row-at-a-time baseline, so a future
+refactor that produces subtly different output (escaping, type
+coercion, NaN handling) gets caught.
 
-The 2× ratio is deliberately loose for CI noise. On a quiet
-machine the vectorised paths are typically 10-50× faster; the test
-fails only when something has gone catastrophically wrong.
+The actual perf win is measured offline with much larger inputs;
+that's not a CI test.
 """
 
 from __future__ import annotations
-
-import time
 
 import pytest
 
 pd = pytest.importorskip("pandas")
 
 
-def _time(fn) -> float:
-    start = time.perf_counter()
-    fn()
-    return time.perf_counter() - start
-
-
-def test_wkt_sql_generation_vectorised_beats_iterrows():
-    """Mirrors siege_utilities.geo.spatial_transformations._convert_to_postgis
-    hot loop — generating one INSERT line per geometry. The old
-    code called ``escape_string_literal(row.geometry.wkt)`` inside
-    iterrows; the new code uses ``gdf.geometry.apply(...)`` + string
-    concat on the Series.
-    """
+def test_wkt_sql_generation_output_matches_iterrows():
+    """Same call shape as siege_utilities.geo.spatial_transformations
+    ._convert_to_postgis — including the ``escape_string_literal``
+    call that the production path uses."""
     shapely = pytest.importorskip("shapely.geometry")
-    n = 5000
+    from siege_utilities.core.sql_safety import escape_sql_string_literal as escape
+
     df = pd.DataFrame({
-        "geometry": [shapely.Point(i, i) for i in range(n)],
+        "geometry": [shapely.Point(i, i) for i in range(200)],
     })
 
-    def baseline_iterrows() -> str:
-        out = []
-        for _, row in df.iterrows():
-            wkt = row["geometry"].wkt
-            out.append(f"INSERT INTO t (geom) VALUES (ST_GeomFromText('{wkt}'));")
-        return "\n".join(out)
-
-    def vectorised() -> str:
-        wkt_series = df["geometry"].apply(lambda g: g.wkt)
-        lines = (
-            "INSERT INTO t (geom) VALUES (ST_GeomFromText('"
-            + wkt_series
-            + "'));"
-        )
-        return "\n".join(lines)
-
-    # Sanity: both produce identical output.
-    assert baseline_iterrows() == vectorised()
-
-    t_base = _time(baseline_iterrows)
-    t_vec = _time(vectorised)
-    # Vectorised must be at most 2× the baseline (i.e., not worse).
-    # In practice it's much faster — this just guards regression.
-    assert t_vec <= 2.0 * t_base, (
-        f"Vectorised WKT generation regressed: vec={t_vec:.4f}s, base={t_base:.4f}s. "
-        "Did someone reintroduce iterrows in spatial_transformations._convert_to_postgis?"
+    baseline = "\n".join(
+        f"INSERT INTO spatial_table (geom) VALUES (ST_GeomFromText('{escape(row['geometry'].wkt)}'));"
+        for _, row in df.iterrows()
     )
 
+    wkt_series = df["geometry"].apply(lambda g: escape(g.wkt))
+    vectorised = "\n".join(
+        "INSERT INTO spatial_table (geom) VALUES (ST_GeomFromText('"
+        + wkt_series
+        + "'));"
+    )
 
-def test_lookup_dict_build_vectorised_beats_iterrows():
-    """Mirrors the nces_service.enrich_districts lookup-dict build.
-    The old code iterated rows; the new code masks + zips columns.
-    """
-    n = 20_000
+    assert baseline == vectorised
+
+
+def test_lookup_dict_build_matches_iterrows():
+    """Same call shape as nces_service.enrich_districts lookup build."""
     df = pd.DataFrame({
-        "lea_id": [f"{i:07d}" for i in range(n)],
-        "locale_code": [i % 50 for i in range(n)],
-        "locale_category": ["city"] * n,
-        "locale_subcategory": ["large"] * n,
+        "lea_id": [f"{i:07d}" for i in range(200)],
+        "locale_code": [i % 50 for i in range(200)],
+        "locale_category": ["city"] * 200,
+        "locale_subcategory": ["large"] * 200,
     })
 
-    def baseline_iterrows() -> dict:
-        out: dict = {}
-        for _, row in df.iterrows():
-            lea = str(row.get("lea_id", ""))
-            if lea and row.get("locale_code") is not None:
-                out[lea] = {
-                    "locale_code": str(int(row["locale_code"])),
-                    "locale_category": str(row.get("locale_category", "")),
-                    "locale_subcategory": str(row.get("locale_subcategory", "")),
-                }
-        return out
-
-    def vectorised() -> dict:
-        mask = df["lea_id"].astype(str).str.len().gt(0) & df["locale_code"].notna()
-        sub = df.loc[mask, ["lea_id", "locale_code", "locale_category", "locale_subcategory"]].fillna("")
-        return {
-            str(lea): {
-                "locale_code": str(int(code)),
-                "locale_category": str(cat),
-                "locale_subcategory": str(s),
+    baseline: dict = {}
+    for _, row in df.iterrows():
+        lea = str(row.get("lea_id", ""))
+        if lea and row.get("locale_code") is not None:
+            baseline[lea] = {
+                "locale_code": str(int(row["locale_code"])),
+                "locale_category": str(row.get("locale_category", "")),
+                "locale_subcategory": str(row.get("locale_subcategory", "")),
             }
-            for lea, code, cat, s in zip(
-                sub["lea_id"], sub["locale_code"],
-                sub["locale_category"], sub["locale_subcategory"],
-            )
+
+    mask = df["lea_id"].astype(str).str.len().gt(0) & df["locale_code"].notna()
+    sub = df.loc[mask, ["lea_id", "locale_code", "locale_category", "locale_subcategory"]].fillna("")
+    vectorised = {
+        str(lea): {
+            "locale_code": str(int(code)),
+            "locale_category": str(cat),
+            "locale_subcategory": str(s),
         }
+        for lea, code, cat, s in zip(
+            sub["lea_id"], sub["locale_code"],
+            sub["locale_category"], sub["locale_subcategory"],
+        )
+    }
 
-    a = baseline_iterrows()
-    b = vectorised()
-    assert a == b
-
-    t_base = _time(baseline_iterrows)
-    t_vec = _time(vectorised)
-    assert t_vec <= 2.0 * t_base, (
-        f"Vectorised lookup-dict build regressed: vec={t_vec:.4f}s, base={t_base:.4f}s. "
-        "Did someone reintroduce iterrows in nces_service.enrich_districts?"
-    )
+    assert baseline == vectorised

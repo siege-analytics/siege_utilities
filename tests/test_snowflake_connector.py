@@ -1,9 +1,9 @@
 """Tests for siege_utilities.analytics.snowflake_connector.
 
-Phase-1 mock tests (no creds required) pin the connector's public
-behavior against the canonical snowflake.connector API; Phase-2 marks
-a real connect/disconnect smoke run that's skipped unless
-~/.siege-test-credentials.yaml has a ``snowflake:`` section.
+Mock tests run on every CI build. The ``requires_api_key``-marked
+smoke test at the bottom hits Snowflake for real and is skipped
+unless ``~/.siege-test-credentials.yaml`` has a ``snowflake:``
+section.
 """
 
 from __future__ import annotations
@@ -112,9 +112,8 @@ def test_execute_query_returns_none_on_driver_error(_patch_snowflake):
 
 
 def test_upload_dataframe_validates_table_identifier(_patch_snowflake):
-    """SQL-injection guardrail: bad identifiers must fail before any
-    cursor.execute or write_pandas call — the v3.15.0 hardening landed
-    siege_utilities.core.sql_safety.validate_sql_identifier on this path."""
+    """Bad identifiers must fail before any cursor.execute or
+    write_pandas call. validate_sql_identifier guards this path."""
     pd = pytest.importorskip("pandas")
     from siege_utilities.analytics.snowflake_connector import SnowflakeConnector
 
