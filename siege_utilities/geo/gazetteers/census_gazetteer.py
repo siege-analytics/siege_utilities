@@ -41,7 +41,13 @@ try:
 except ImportError:  # pragma: no cover - requests is a core dep
     REQUESTS_AVAILABLE = False
 
-__all__ = ["CensusGazetteer", "REQUESTS_AVAILABLE"]
+try:
+    import shapely.geometry  # noqa: F401
+    SHAPELY_AVAILABLE = True
+except ImportError:  # pragma: no cover
+    SHAPELY_AVAILABLE = False
+
+__all__ = ["CensusGazetteer", "REQUESTS_AVAILABLE", "SHAPELY_AVAILABLE"]
 
 
 _GEOCODER_BASE = "https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress"
@@ -87,6 +93,11 @@ class CensusGazetteer:
                 "CensusGazetteer requires requests. It ships as a core "
                 "dependency; if it's missing the install is broken."
             )
+        if not SHAPELY_AVAILABLE:
+            raise ImportError(
+                "CensusGazetteer requires shapely to parse TIGER polygons. "
+                "Install with: pip install 'siege-utilities[geo]'."
+            )
         self._timeout = timeout
         self._benchmark = benchmark
         self._vintage = vintage
@@ -100,7 +111,7 @@ class CensusGazetteer:
         )
 
     def is_available(self) -> bool:
-        return REQUESTS_AVAILABLE
+        return REQUESTS_AVAILABLE and SHAPELY_AVAILABLE
 
     # ------------------------------------------------------------------
     # Gazetteer protocol
@@ -140,6 +151,8 @@ class CensusGazetteer:
         country_hint: Optional[str] = None,
         limit: int = 10,
     ) -> list[GazetteerCandidate]:
+        if limit < 0:
+            raise ValueError(f"CensusGazetteer.search: limit must be >= 0, got {limit}")
         if not name or not name.strip():
             return []
         if country_hint and country_hint.upper() not in ("US", "USA"):
@@ -195,7 +208,6 @@ class CensusGazetteer:
             states = geos.get("States", []) or []
             if not counties and not states:
                 continue
-            # Prefer county-level resolution; fall back to state.
             target = counties[0] if counties else states[0]
             layer = _LAYER_COUNTY if counties else _LAYER_STATE
             rows.append({
@@ -208,7 +220,21 @@ class CensusGazetteer:
                 "_geoid": target.get("GEOID"),
                 "raw": m,
             })
-        return tuple(rows)
+        # Census Geocoder returns one addressMatch per matching street
+        # range, but many ranges collapse to the same county or state
+        # GEOID. Without dedup, two addressMatches for the same county
+        # produce two rows and `lookup` raises GazetteerAmbiguousError
+        # for a single effective admin polygon. Collapse by (_layer,
+        # _geoid) keeping the first occurrence.
+        seen: set = set()
+        deduped: list = []
+        for row in rows:
+            key = (row["_layer"], row["_geoid"])
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(row)
+        return tuple(deduped)
 
     def _fetch_polygon(self, layer: int, geoid: str) -> Any:
         """Fetch the polygon for a (layer, GEOID) pair from TIGERWeb."""

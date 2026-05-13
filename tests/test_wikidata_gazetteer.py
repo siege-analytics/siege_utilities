@@ -141,17 +141,28 @@ def test_lookup_rejects_negative_osm_relation(wd_gaz):
             wd_gaz.lookup("X")
 
 
-def test_country_hint_filters_results(wd_gaz):
-    """The country_hint substring-matches against the countryLabel
-    field so callers can disambiguate."""
-    bindings = [
-        _binding("Springfield", country="United States"),
-        _binding("Springfield", country="United Kingdom"),
-    ]
-    with patch.object(wd_gaz._session, "get", return_value=_sparql_response(bindings)):
-        cands = wd_gaz.search("Springfield", country_hint="United States")
-    assert len(cands) == 1
-    assert cands[0].country == "United States"
+def test_country_hint_lands_in_sparql_query(wd_gaz):
+    """The country_hint is pushed into the SPARQL WHERE clause as an
+    ISO-code filter on the country entity, rather than being applied
+    client-side after LIMIT. This prevents valid country-specific
+    matches from being dropped outside the first page."""
+    with patch.object(
+        wd_gaz._session, "get", return_value=_sparql_response([]),
+    ) as mock_get:
+        wd_gaz.search("Springfield", country_hint="US")
+    call_kwargs = mock_get.call_args.kwargs
+    sent_query = call_kwargs["params"]["query"]
+    assert "wdt:P297|wdt:P298" in sent_query, (
+        f"country filter not in SPARQL query:\n{sent_query}"
+    )
+    assert '"US"' in sent_query
+
+
+def test_country_hint_rejects_quote_injection(wd_gaz):
+    """country_hint lands in a SPARQL literal so it gets the same
+    injection guard as name."""
+    with pytest.raises(ValueError, match="illegal character"):
+        wd_gaz.search("Springfield", country_hint='US" OR 1=1')
 
 
 def test_resolve_gazetteer_returns_wikidata_when_preferred():

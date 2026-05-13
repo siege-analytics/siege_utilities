@@ -92,6 +92,53 @@ def test_lookup_multiple_matches_raises_ambiguous(census_gaz):
         assert len(ei.value.candidates) == 2
 
 
+def test_lookup_dedupes_matches_with_same_geoid(census_gaz):
+    """Census Geocoder returns one addressMatch per matching street
+    range; many ranges collapse to the same county. Two addressMatches
+    that both resolve to (state=01, county=073) must be treated as one
+    candidate, not two -- otherwise lookup() raises Ambiguous for what
+    is actually a single admin polygon."""
+    pytest.importorskip("shapely")
+    matches = [
+        _county_match(name="Jefferson", state="01", county="073"),
+        _county_match(name="Jefferson", state="01", county="073"),  # duplicate
+    ]
+    tiger_resp = _fake_tigerweb_response([_tigerweb_feature("01073")])
+    with patch.object(census_gaz._session, "get") as mock_get:
+        mock_get.side_effect = [_fake_geocoder_response(matches), tiger_resp]
+        result = census_gaz.lookup("Birmingham, AL")
+    assert result.admin_levels["county_fips"] == "073"
+
+
+def test_search_rejects_negative_limit(census_gaz):
+    with pytest.raises(ValueError, match="limit must be >= 0"):
+        census_gaz.search("anywhere", limit=-1)
+
+
+def test_lookup_state_only_fallback_when_no_counties(census_gaz):
+    """When Census Geocoder returns States but no Counties, lookup
+    falls back to state-level resolution. Covers the layer=_LAYER_STATE
+    branch."""
+    pytest.importorskip("shapely")
+    state_match = {
+        "coordinates": {"x": -86.802, "y": 33.521},
+        "geographies": {
+            "States": [{
+                "BASENAME": "Alabama",
+                "STATE": "01",
+                "GEOID": "01",
+            }],
+        },
+    }
+    geocoder_resp = _fake_geocoder_response([state_match])
+    tiger_resp = _fake_tigerweb_response([_tigerweb_feature("01")])
+    with patch.object(census_gaz._session, "get") as mock_get:
+        mock_get.side_effect = [geocoder_resp, tiger_resp]
+        result = census_gaz.lookup("Alabama")
+    assert result.admin_levels["state_fips"] == "01"
+    assert "county_fips" not in result.admin_levels
+
+
 def test_lookup_single_match_fetches_polygon(census_gaz):
     pytest.importorskip("shapely")
     from siege_utilities.geo.gazetteers.base import GazetteerResult

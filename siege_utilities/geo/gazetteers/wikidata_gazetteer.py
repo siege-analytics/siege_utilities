@@ -36,7 +36,14 @@ try:
 except ImportError:  # pragma: no cover
     REQUESTS_AVAILABLE = False
 
-__all__ = ["WikidataGazetteer", "REQUESTS_AVAILABLE"]
+try:
+    import shapely.geometry  # noqa: F401
+    import shapely.ops  # noqa: F401
+    SHAPELY_AVAILABLE = True
+except ImportError:  # pragma: no cover
+    SHAPELY_AVAILABLE = False
+
+__all__ = ["WikidataGazetteer", "REQUESTS_AVAILABLE", "SHAPELY_AVAILABLE"]
 
 
 _WIKIDATA_SPARQL_URL = "https://query.wikidata.org/sparql"
@@ -47,16 +54,24 @@ _USER_AGENT = "siege-utilities-gazetteer (https://github.com/siege-analytics/sie
 
 # Find entities matching `?name` (English label, exact or alias), pull
 # the OSM relation ID and coordinate location if either exists.
+# Optional country filter pushed into the WHERE clause so it runs
+# before LIMIT, preventing valid country-specific matches from being
+# dropped outside the first page for common names.
 _SPARQL_TEMPLATE = """
 SELECT ?item ?itemLabel ?countryLabel ?osmRel ?coord WHERE {
   ?item rdfs:label|skos:altLabel "%s"@en .
   OPTIONAL { ?item wdt:P17 ?country . }
+  %s
   OPTIONAL { ?item wdt:P402 ?osmRel . }
   OPTIONAL { ?item wdt:P625 ?coord . }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
 }
 LIMIT %d
 """
+# Country filter slot: empty when no hint, ISO-code match when hint given.
+# P297 is ISO 3166-1 alpha-2, P298 is alpha-3. Matching either lets
+# callers pass "US" or "USA" interchangeably.
+_SPARQL_COUNTRY_FILTER = '?country wdt:P297|wdt:P298 "%s" .'
 
 
 class WikidataGazetteer:
@@ -80,7 +95,14 @@ class WikidataGazetteer:
     ) -> None:
         if not REQUESTS_AVAILABLE:
             raise ImportError(
-                "WikidataGazetteer requires requests."
+                "WikidataGazetteer requires requests. Install with: "
+                "pip install 'requests>=2.28'."
+            )
+        if not SHAPELY_AVAILABLE:
+            raise ImportError(
+                "WikidataGazetteer requires shapely for geometry "
+                "assembly from OSM relations. Install with: "
+                "pip install 'siege-utilities[geo]'."
             )
         self._timeout = timeout
         self._sparql_url = sparql_url
@@ -95,7 +117,7 @@ class WikidataGazetteer:
         )
 
     def is_available(self) -> bool:
-        return REQUESTS_AVAILABLE
+        return REQUESTS_AVAILABLE and SHAPELY_AVAILABLE
 
     # ------------------------------------------------------------------
     # Gazetteer protocol
@@ -131,6 +153,8 @@ class WikidataGazetteer:
         country_hint: Optional[str] = None,
         limit: int = 10,
     ) -> list[GazetteerCandidate]:
+        if limit < 0:
+            raise ValueError(f"WikidataGazetteer.search: limit must be >= 0, got {limit}")
         if not name or not name.strip():
             return []
         rows = self._cached_lookup(
@@ -152,12 +176,18 @@ class WikidataGazetteer:
     ) -> tuple[Mapping[str, Any], ...]:
         # SPARQL injection guard: the place name lands inside a double-
         # quoted literal. Reject embedded quotes and backslashes outright;
-        # legitimate place names don't contain either.
+        # legitimate place names don't contain either. Same guard for
+        # country_hint since it also lands in a literal.
         if '"' in name or '\\' in name:
             raise ValueError(
                 f"WikidataGazetteer: name contains illegal character: {name!r}"
             )
-        query = _SPARQL_TEMPLATE % (name, limit)
+        if country and ('"' in country or '\\' in country):
+            raise ValueError(
+                f"WikidataGazetteer: country contains illegal character: {country!r}"
+            )
+        country_clause = (_SPARQL_COUNTRY_FILTER % country) if country else ""
+        query = _SPARQL_TEMPLATE % (name, country_clause, limit)
         try:
             resp = self._session.get(
                 self._sparql_url,
@@ -181,17 +211,13 @@ class WikidataGazetteer:
         bindings = data.get("results", {}).get("bindings", [])
         rows: list[Mapping[str, Any]] = []
         for b in bindings:
-            row = {
+            rows.append({
                 "item": b.get("item", {}).get("value"),
                 "name": b.get("itemLabel", {}).get("value") or name,
                 "country": b.get("countryLabel", {}).get("value"),
                 "osm_rel": b.get("osmRel", {}).get("value"),
                 "coord": b.get("coord", {}).get("value"),  # "Point(lon lat)"
-            }
-            if country and row["country"]:
-                if country.lower() not in row["country"].lower():
-                    continue
-            rows.append(row)
+            })
         return tuple(rows)
 
     def _fetch_osm_relation_geometry(self, osm_rel_id: str) -> Any:
@@ -231,38 +257,46 @@ class WikidataGazetteer:
                 f"Overpass returned non-JSON for relation {rel}"
             ) from exc
         # Overpass returns members with geometry inline when `out geom;`
-        # is used. Reassemble outer ways into a polygon. For full
-        # robustness we'd need to handle multipolygon roles; the simple
-        # case covers the majority of admin relations.
+        # is used. Many OSM admin relations split the exterior across
+        # multiple way segments that need to be stitched by shared
+        # endpoints to form the actual boundary. We do not yet
+        # implement that stitching; we accept closed rings (start ==
+        # end) only. Open segments raise a clear error so the consumer
+        # knows the limitation rather than getting a bogus polygon.
         elements = data.get("elements") or []
         if not elements:
             raise GazetteerBackendError(
                 f"Overpass returned no elements for relation {rel}"
             )
         relation = elements[0]
-        coords: list[list[tuple[float, float]]] = []
+        rings: list[list[tuple[float, float]]] = []
+        open_segments = 0
         for m in relation.get("members") or []:
             if m.get("role") != "outer":
                 continue
             geom = m.get("geometry") or []
-            if geom:
-                coords.append([(p["lon"], p["lat"]) for p in geom])
-        if not coords:
+            if len(geom) < 4:
+                continue
+            ring = [(p["lon"], p["lat"]) for p in geom]
+            if ring[0] != ring[-1]:
+                open_segments += 1
+                continue
+            rings.append(ring)
+        if not rings:
+            if open_segments:
+                raise GazetteerBackendError(
+                    f"OSM relation {rel} has {open_segments} unclosed outer "
+                    f"way segment(s) that need to be stitched into rings; "
+                    f"multipolygon assembly is not yet implemented. The "
+                    f"single-ring case works; file a follow-up if your "
+                    f"consumer needs split-segment support."
+                )
             raise GazetteerBackendError(
                 f"Overpass relation {rel} has no outer ring geometry"
             )
-        # Build via shapely Polygon for the single-ring case; multi-ring
-        # outer members get unioned. This is intentionally simple; if
-        # consumers need fuller multipolygon support, file a Phase-3
-        # follow-up rather than building it speculatively here.
         from shapely.geometry import Polygon
         from shapely.ops import unary_union
-
-        polys = [Polygon(ring) for ring in coords if len(ring) >= 4]
-        if not polys:
-            raise GazetteerBackendError(
-                f"Overpass relation {rel} outer rings are degenerate"
-            )
+        polys = [Polygon(ring) for ring in rings]
         return unary_union(polys) if len(polys) > 1 else polys[0]
 
     @staticmethod
