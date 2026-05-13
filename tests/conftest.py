@@ -133,11 +133,15 @@ def real_spark_session():
     Session-scoped so the JVM startup cost (5-10 seconds) only happens
     once per pytest run; tests share the session.
 
-    CI does not install pyspark, so this fixture skips there. The
-    user's Zsh builder makes Spark available locally, so Phase 3
-    property tests can be exercised against it.
+    Pins PYSPARK_PYTHON and PYSPARK_DRIVER_PYTHON to the running
+    interpreter so Spark workers don't pick up a different Python off
+    the PATH and fail with PYTHON_VERSION_MISMATCH. This bites pyenv
+    setups where homebrew's python3.14 is first on PATH but the
+    driver runs under pyenv's python3.11.
     """
     pytest.importorskip("pyspark")
+    os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
+    os.environ.setdefault("PYSPARK_DRIVER_PYTHON", sys.executable)
     from pyspark.sql import SparkSession
 
     spark = (
