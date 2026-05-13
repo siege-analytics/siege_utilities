@@ -47,6 +47,9 @@ def test_pandas_groupby_sum_empty_input_returns_empty():
     )
     result = engine.groupby_agg(empty, group_cols=["group"], agg_dict={"value": "sum"})
     assert len(result) == 0
+    assert list(result.columns) == ["group", "value"]
+    assert result["group"].dtype == "int64"
+    assert result["value"].dtype == "int64"
 
 
 @given(df=simple_int_frame())
@@ -64,10 +67,12 @@ def test_pandas_engine_agrees_with_raw_duckdb_sql(df):
     """
     duckdb = pytest.importorskip("duckdb")
 
+    from collections import Counter
+
     pandas_result = _pandas_engine().groupby_agg(
         df, group_cols=["group"], agg_dict={"value": "sum"},
     )
-    pandas_set = frozenset(
+    pandas_rows = Counter(
         (int(r.group), int(r.value)) for r in pandas_result.itertuples()
     )
 
@@ -80,11 +85,11 @@ def test_pandas_engine_agrees_with_raw_duckdb_sql(df):
     finally:
         con.close()
 
-    sql_set = frozenset(
+    sql_rows = Counter(
         (int(r.group), int(r.value)) for r in sql_result.itertuples()
     )
 
-    assert pandas_set == sql_set, (
+    assert pandas_rows == sql_rows, (
         f"Pandas engine and DuckDB SQL disagree: "
-        f"pandas-only={pandas_set - sql_set}, sql-only={sql_set - pandas_set}"
+        f"pandas-only={pandas_rows - sql_rows}, sql-only={sql_rows - pandas_rows}"
     )
