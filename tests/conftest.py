@@ -125,6 +125,36 @@ def api_credentials():
             )
 
 
+@pytest.fixture(scope="session")
+def real_spark_session():
+    """Real SparkSession for cross-engine property tests.
+
+    Skips the requesting test cleanly when pyspark isn't installed.
+    Session-scoped so the JVM startup cost (5-10 seconds) only happens
+    once per pytest run; tests share the session.
+
+    CI does not install pyspark, so this fixture skips there. The
+    user's Zsh builder makes Spark available locally, so Phase 3
+    property tests can be exercised against it.
+    """
+    pytest.importorskip("pyspark")
+    from pyspark.sql import SparkSession
+
+    spark = (
+        SparkSession.builder
+        .appName("siege_utilities_property_tests")
+        .master("local[2]")
+        .config("spark.sql.shuffle.partitions", "2")
+        .config("spark.default.parallelism", "2")
+        .config("spark.driver.memory", "1g")
+        .config("spark.ui.showConsoleProgress", "false")
+        .getOrCreate()
+    )
+    spark.sparkContext.setLogLevel("ERROR")
+    yield spark
+    spark.stop()
+
+
 @pytest.fixture
 def mock_spark_session():
     """Mock Spark session for distributed computing tests."""

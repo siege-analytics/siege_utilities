@@ -138,6 +138,56 @@ def test_count_excludes_nan_fixed_case():
     assert group_2_count == 0
 
 
+# ---------------------------------------------------------------------------
+# SparkEngine probes (skip cleanly without pyspark)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("agg", ["sum", "mean", "min", "max", "count"])
+def test_spark_engine_groupby_agg_agrees_with_pandas_fixed(agg, real_spark_session):
+    """Same input through PandasEngine and SparkEngine produces the
+    same multiset of output rows for each documented agg name.
+    Uses a fixed-case frame rather than Hypothesis so the test doesn't
+    repeatedly spin up Spark for each example."""
+    from siege_utilities.engines.dataframe_engine import SparkEngine
+
+    df = pd.DataFrame({
+        "group": [1, 1, 2, 2, 3, 3, 3],
+        "value": [10.0, 20.0, 5.0, 7.0, -1.0, 1.0, 100.0],
+    })
+
+    pandas_result = _pandas_engine().groupby_agg(
+        df, group_cols=["group"], agg_dict={"value": agg},
+    )
+    pandas_rows = _rows_as_counter(pandas_result)
+
+    spark_engine = SparkEngine(spark=real_spark_session)
+    sdf = real_spark_session.createDataFrame(df)
+    spark_result = spark_engine.groupby_agg(
+        sdf, group_cols=["group"], agg_dict={"value": agg},
+    ).toPandas()
+    spark_rows = _rows_as_counter(spark_result)
+
+    assert pandas_rows == spark_rows, (
+        f"agg={agg}: pandas != spark\n"
+        f"  pandas: {pandas_result.to_dict('records')}\n"
+        f"  spark : {spark_result.to_dict('records')}"
+    )
+
+
+def test_spark_engine_groupby_agg_rejects_unknown_name(real_spark_session):
+    """The shared _validate_agg_names invariant: every engine raises
+    ValueError on unknown agg names. Spark side specifically."""
+    from siege_utilities.engines.dataframe_engine import SparkEngine
+
+    spark_engine = SparkEngine(spark=real_spark_session)
+    sdf = real_spark_session.createDataFrame(
+        pd.DataFrame({"g": [1], "v": [1.0]})
+    )
+    with pytest.raises(ValueError, match="unsupported aggregation"):
+        spark_engine.groupby_agg(sdf, group_cols=["g"], agg_dict={"v": "median"})
+
+
 @pytest.mark.parametrize("agg", ["sum", "mean", "min", "max", "count"])
 @given(df=int_value_frame())
 @settings(
