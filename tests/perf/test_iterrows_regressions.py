@@ -44,7 +44,8 @@ def test_convert_to_postgis_output_matches_iterrows_baseline(tmp_path):
     assert out_path.read_text() == expected
 
 
-# The enrich_school_districts vectorisation is exercised by the Django
-# regression test in tests/test_nces_service_bulk_update_timestamp.py
-# rather than re-inlined here. A perf test that doesn't import the
-# production function it claims to guard is worse than no test.
+# enrich_school_districts is exercised by
+# tests/test_nces_service_enrich_districts.py which drives the real
+# Django function. Re-inlining the vectorised algorithm here would
+# pass even if production reverted to iterrows, so the test belongs
+# next to the model layer rather than in tests/perf/.

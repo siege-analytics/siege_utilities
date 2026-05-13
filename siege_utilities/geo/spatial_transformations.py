@@ -468,29 +468,43 @@ class PostGISConnector:
             log.error("No PostGIS connection available")
             return None
 
-        import psycopg2
-
-        cursor = None
-        try:
-            if query.strip().upper().startswith('SELECT'):
-                # gpd.read_postgis handles geometry-column detection,
-                # WKB decoding, and CRS lookup against the geometry
-                # column's SRID. The previous implementation built the
-                # frame from raw psycopg2 tuples, which produced a
-                # non-geo frame where the geometry column was bytes.
+        if query.strip().upper().startswith('SELECT'):
+            try:
                 geom_col = kwargs.get('geom_col', 'geometry')
+                # gpd.read_postgis decodes WKB and reads SRID from the
+                # geometry column. The previous manual-fetch path
+                # returned raw bytes in the geometry column, which
+                # silently produced a non-geo frame.
                 gdf = gpd.read_postgis(query, self.connection, geom_col=geom_col)
                 log.info("Successfully executed PostGIS query")
                 return reproject_if_needed(gdf, crs)
+            except Exception as e:
+                # read_postgis raises sqlalchemy / pandas / geopandas
+                # exceptions depending on the failure mode; catch broadly
+                # and roll back so the psycopg2 connection is not left in
+                # an aborted-transaction state for subsequent calls.
+                log.error(f"Failed to execute PostGIS query: {e}")
+                if self.connection:
+                    try:
+                        self.connection.rollback()
+                    except Exception:
+                        pass
+                return None
+
+        cursor = None
+        try:
             cursor = self.connection.cursor()
             cursor.execute(query)
             self.connection.commit()
             log.info("Successfully executed PostGIS query")
             return gpd.GeoDataFrame()
-        except (psycopg2.Error, ValueError) as e:
+        except Exception as e:
             log.error(f"Failed to execute PostGIS query: {e}")
             if self.connection:
-                self.connection.rollback()
+                try:
+                    self.connection.rollback()
+                except Exception:
+                    pass
             return None
         finally:
             if cursor is not None:

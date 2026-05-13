@@ -942,16 +942,10 @@ class SparkEngine(DataFrameEngine):
     ) -> Any:
         from pyspark.sql import functions as F
         _validate_agg_names(agg_dict, "SparkEngine")
-        # F.avg is the actual function name; mean is an alias on the
-        # Column API but not the module API. Normalise here so users
-        # can pass either.
+        # pyspark.sql.functions exposes the function as F.avg, with mean
+        # only available as a Column method. Normalise so callers can
+        # pass either spelling.
         _spark_fn = {"mean": "avg"}
-        unknown = [f for f in agg_dict.values() if not hasattr(F, _spark_fn.get(f, f))]
-        if unknown:
-            raise ValueError(
-                f"SparkEngine.groupby_agg: pyspark.sql.functions has no "
-                f"function for {sorted(set(unknown))}."
-            )
         agg_exprs = [
             getattr(F, _spark_fn.get(func, func))(col).alias(col)
             for col, func in agg_dict.items()
