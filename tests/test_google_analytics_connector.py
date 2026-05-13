@@ -258,7 +258,7 @@ class TestGA4ResponseParsing:
 
 
 # ---------------------------------------------------------------------------
-# Sprint B Phase-2 live-API smoke (skipped without credentials)
+# Live-API smoke (skipped without credentials)
 # ---------------------------------------------------------------------------
 
 import pytest

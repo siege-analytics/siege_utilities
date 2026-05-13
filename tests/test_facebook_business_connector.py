@@ -1,7 +1,7 @@
 """Tests for siege_utilities.analytics.facebook_business.
 
-Phase-1 mock tests pin init / auth-init / error translation paths;
-Phase-2 live smoke test exercises a real ``get_ad_accounts`` call
+Mock tests pin init / auth-init / error translation. The
+``requires_api_key`` smoke test hits the live Facebook Business API
 when ``~/.siege-test-credentials.yaml`` has a ``facebook_business``
 section.
 """

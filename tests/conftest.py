@@ -92,9 +92,8 @@ def api_credentials():
     Looked up at ``~/.siege-test-credentials.yaml`` (or the path in the
     ``SIEGE_TEST_CREDENTIALS`` env var). When the file is absent, tests
     decorated with ``@pytest.mark.requires_api_key`` and consuming this
-    fixture are skipped — by design, Sprint B's strategy is
-    developer-local creds, not CI secrets. CI is expected to run only
-    the mock unit tests; the live-API path is opt-in via
+    fixture are skipped — credentials are developer-local, not in CI.
+    CI runs the mock unit tests; the live-API path is opt-in via
     ``pytest -m requires_api_key``.
 
     Returns the parsed dict; individual connectors look up their own
