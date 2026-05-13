@@ -125,6 +125,40 @@ def api_credentials():
             )
 
 
+@pytest.fixture(scope="session")
+def real_spark_session():
+    """Real SparkSession for cross-engine property tests.
+
+    Skips the requesting test cleanly when pyspark isn't installed.
+    Session-scoped so the JVM startup cost (5-10 seconds) only happens
+    once per pytest run; tests share the session.
+
+    Pins PYSPARK_PYTHON and PYSPARK_DRIVER_PYTHON to the running
+    interpreter so Spark workers don't pick up a different Python off
+    the PATH and fail with PYTHON_VERSION_MISMATCH. This bites pyenv
+    setups where homebrew's python3.14 is first on PATH but the
+    driver runs under pyenv's python3.11.
+    """
+    pytest.importorskip("pyspark")
+    os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
+    os.environ.setdefault("PYSPARK_DRIVER_PYTHON", sys.executable)
+    from pyspark.sql import SparkSession
+
+    spark = (
+        SparkSession.builder
+        .appName("siege_utilities_property_tests")
+        .master("local[2]")
+        .config("spark.sql.shuffle.partitions", "2")
+        .config("spark.default.parallelism", "2")
+        .config("spark.driver.memory", "1g")
+        .config("spark.ui.showConsoleProgress", "false")
+        .getOrCreate()
+    )
+    spark.sparkContext.setLogLevel("ERROR")
+    yield spark
+    spark.stop()
+
+
 @pytest.fixture
 def mock_spark_session():
     """Mock Spark session for distributed computing tests."""
