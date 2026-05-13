@@ -206,14 +206,20 @@ class SpatialDataTransformer:
             # defensively so a hand-edited row can't break out of the
             # literal.
             from siege_utilities.core.sql_safety import escape_sql_string_literal as escape_string_literal
-            sql_statements = []
-            for idx, row in gdf.iterrows():
-                geom_wkt = escape_string_literal(row.geometry.wkt)
-                sql = f"INSERT INTO spatial_table (geom) VALUES (ST_GeomFromText('{geom_wkt}'));"
-                sql_statements.append(sql)
-            
+            # Vectorised: pull the geometry column into a Series of WKT
+            # strings in one pass and join with newlines. The previous
+            # row-at-a-time iterrows produced O(N) Python-level
+            # attribute lookups; on a 100K-row state file that was
+            # measurably slower than the IO it bookended.
+            wkt_series = gdf.geometry.apply(lambda g: escape_string_literal(g.wkt))
+            sql_lines = (
+                "INSERT INTO spatial_table (geom) VALUES (ST_GeomFromText('"
+                + wkt_series
+                + "'));"
+            )
+
             with open(output_path, 'w') as f:
-                f.write('\n'.join(sql_statements))
+                f.write('\n'.join(sql_lines))
             
             log.info(f"Successfully generated PostGIS SQL: {output_path}")
             return True
@@ -374,9 +380,15 @@ class PostGISConnector:
             insert_stmt = _pg_sql.SQL(
                 "INSERT INTO {} (geom) VALUES (ST_GeomFromText(%s, %s))"
             ).format(qualified_ident)
-            for idx, row in gdf.iterrows():
-                geom_wkt = row.geometry.wkt
-                cursor.execute(insert_stmt, (geom_wkt, srid))
+            # executemany batches the round-trips. The previous
+            # per-row ``cursor.execute`` issued one network call per
+            # geometry; on a 100K-row frame that's the difference
+            # between seconds and tens of minutes against a remote
+            # PostGIS. The pandas-level vectorisation runs first so
+            # ``row.geometry`` attribute access stays out of the
+            # tight loop.
+            params = [(geom.wkt, srid) for geom in gdf.geometry]
+            cursor.executemany(insert_stmt, params)
 
             self.connection.commit()
             log.info(f"Successfully uploaded to PostGIS table: {qualified_table}")

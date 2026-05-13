@@ -96,21 +96,32 @@ class NCESPopulationService:
             result.errors.append(str(e))
             return result
 
-        objects_to_create = []
+        # Pre-fetch all existing rows for this year in one query. The
+        # previous per-row ``.filter(...).first()`` issued one SELECT per
+        # input row — ~10K SELECTs for a typical year before any
+        # bulk_create touched disk. The dict lookup below is O(1) and
+        # the query count drops to 1 + ceil(N/batch_size).
+        existing_by_code = {
+            obj.locale_code: obj
+            for obj in NCESLocaleBoundary.objects.filter(nces_year=year)
+        }
+
+        objects_to_create: list = []
+        objects_to_update: list = []
+        _UPDATE_FIELDS = (
+            "locale_category", "locale_subcategory", "name",
+            "vintage_year", "geometry", "source",
+        )
 
         for idx, row in gdf.iterrows():
             try:
                 locale_code = int(row["locale_code"])
-
-                existing = NCESLocaleBoundary.objects.filter(
-                    locale_code=locale_code, nces_year=year
-                ).first()
+                existing = existing_by_code.get(locale_code)
 
                 if existing and not update_existing:
                     result.records_skipped += 1
                     continue
 
-                # Build geometry
                 geom = GEOSGeometry(row.geometry.wkt, srid=settings.STORAGE_CRS)
                 if geom.geom_type == "Polygon":
                     geom = MultiPolygon(geom, srid=settings.STORAGE_CRS)
@@ -129,8 +140,7 @@ class NCESPopulationService:
                 if existing:
                     for key, value in kwargs.items():
                         setattr(existing, key, value)
-                    existing.save()
-                    result.records_updated += 1
+                    objects_to_update.append(existing)
                 else:
                     objects_to_create.append(NCESLocaleBoundary(**kwargs))
                     if len(objects_to_create) >= batch_size:
@@ -149,6 +159,14 @@ class NCESPopulationService:
                 objects_to_create, ignore_conflicts=True
             )
             result.records_created += len(objects_to_create)
+
+        # Single bulk_update replaces the per-row ``.save()`` loop —
+        # one round-trip rather than one per row.
+        if objects_to_update:
+            NCESLocaleBoundary.objects.bulk_update(
+                objects_to_update, list(_UPDATE_FIELDS), batch_size=batch_size,
+            )
+            result.records_updated += len(objects_to_update)
 
         log.info(
             f"Populated locale boundaries: {result.records_created} created, "
@@ -208,7 +226,21 @@ class NCESPopulationService:
             if hasattr(st, "abbreviation"):
                 state_cache[st.abbreviation] = st
 
-        objects_to_create = []
+        # Pre-fetch existing SchoolLocation rows for this vintage in a
+        # single query so the per-row check below is O(1) dict lookup
+        # rather than O(N) SELECTs.
+        existing_by_ncessch = {
+            obj.ncessch: obj
+            for obj in SchoolLocation.objects.filter(vintage_year=year)
+        }
+
+        objects_to_create: list = []
+        objects_to_update: list = []
+        _UPDATE_FIELDS = (
+            "school_name", "lea_id", "state", "locale_code",
+            "locale_category", "locale_subcategory", "name",
+            "vintage_year", "geometry", "source",
+        )
 
         for idx, row in gdf.iterrows():
             try:
@@ -217,9 +249,7 @@ class NCESPopulationService:
                     result.records_skipped += 1
                     continue
 
-                existing = SchoolLocation.objects.filter(
-                    ncessch=ncessch, vintage_year=year
-                ).first()
+                existing = existing_by_ncessch.get(ncessch)
 
                 if existing and not update_existing:
                     result.records_skipped += 1
@@ -262,8 +292,7 @@ class NCESPopulationService:
                 if existing:
                     for key, value in kwargs.items():
                         setattr(existing, key, value)
-                    existing.save()
-                    result.records_updated += 1
+                    objects_to_update.append(existing)
                 else:
                     objects_to_create.append(SchoolLocation(**kwargs))
                     if len(objects_to_create) >= batch_size:
@@ -282,6 +311,12 @@ class NCESPopulationService:
                 objects_to_create, ignore_conflicts=True
             )
             result.records_created += len(objects_to_create)
+
+        if objects_to_update:
+            SchoolLocation.objects.bulk_update(
+                objects_to_update, list(_UPDATE_FIELDS), batch_size=batch_size,
+            )
+            result.records_updated += len(objects_to_update)
 
         log.info(
             f"Populated school locations: {result.records_created} created, "
@@ -323,18 +358,34 @@ class NCESPopulationService:
             result.errors.append(str(e))
             return result
 
-        # Build lookup: lea_id → locale info
-        locale_lookup = {}
-        for _, row in df.iterrows():
-            lea = str(row.get("lea_id", ""))
-            if lea and row.get("locale_code"):
-                locale_lookup[lea] = {
-                    "locale_code": str(int(row["locale_code"])),
-                    "locale_category": str(row.get("locale_category", "")),
-                    "locale_subcategory": str(row.get("locale_subcategory", "")),
+        # Build lookup: lea_id → locale info. Vectorised: filter the
+        # frame to rows with non-empty lea_id and a locale_code, then
+        # zip the columns into a dict. Avoids row-at-a-time iteration
+        # over a DataFrame that has tens of thousands of rows.
+        if {"lea_id", "locale_code"}.issubset(df.columns):
+            mask = df["lea_id"].astype(str).str.len().gt(0) & df["locale_code"].notna()
+            sub = df.loc[mask, ["lea_id", "locale_code", "locale_category", "locale_subcategory"]].fillna("")
+            locale_lookup = {
+                str(lea): {
+                    "locale_code": str(int(code)),
+                    "locale_category": str(cat),
+                    "locale_subcategory": str(sub_),
                 }
+                for lea, code, cat, sub_ in zip(
+                    sub["lea_id"], sub["locale_code"],
+                    sub["locale_category"], sub["locale_subcategory"],
+                )
+            }
+        else:
+            locale_lookup = {}
 
-        # Update each district model type
+        # Update each district model type. bulk_update replaces the
+        # per-row ``.save()`` that previously issued one UPDATE per
+        # district — easily 30K UPDATEs across the three district
+        # types for a full national run.
+        _UPDATE_FIELDS = ("locale_code", "locale_category", "locale_subcategory")
+        _BATCH = 500
+
         for model_cls in (
             SchoolDistrictElementary,
             SchoolDistrictSecondary,
@@ -344,18 +395,24 @@ class NCESPopulationService:
             if not update_existing:
                 qs = qs.filter(locale_code="")
 
+            to_update: list = []
             for district in qs.iterator():
                 locale_info = locale_lookup.get(district.lea_id)
                 if locale_info:
                     district.locale_code = locale_info["locale_code"]
                     district.locale_category = locale_info["locale_category"]
                     district.locale_subcategory = locale_info["locale_subcategory"]
-                    district.save(
-                        update_fields=["locale_code", "locale_category", "locale_subcategory"]
-                    )
-                    result.records_updated += 1
+                    to_update.append(district)
+                    if len(to_update) >= _BATCH:
+                        model_cls.objects.bulk_update(to_update, list(_UPDATE_FIELDS))
+                        result.records_updated += len(to_update)
+                        to_update = []
                 else:
                     result.records_skipped += 1
+
+            if to_update:
+                model_cls.objects.bulk_update(to_update, list(_UPDATE_FIELDS))
+                result.records_updated += len(to_update)
 
         log.info(
             f"Enriched school districts: {result.records_updated} updated, "
