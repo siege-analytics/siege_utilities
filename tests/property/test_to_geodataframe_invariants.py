@@ -32,9 +32,12 @@ def _duckdb_engine_or_skip():
 
 
 def _postgis_engine_or_skip():
+    """to_geodataframe is pure-pandas and never touches the connection,
+    so a placeholder DSN is fine. PostGISEngine requires a
+    connection_string at construct time though."""
     try:
         from siege_utilities.engines.dataframe_engine import PostGISEngine
-        return PostGISEngine()
+        return PostGISEngine("postgresql://placeholder@invalid:5432/none")
     except ImportError:
         pytest.skip("psycopg2 / SQLAlchemy not installed")
 
