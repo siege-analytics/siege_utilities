@@ -44,7 +44,7 @@ The granularity is operation-level, not backend-level. If an engine can't meet a
 ### `groupby_agg(by, agg_dict)`
 
 - **Input:** `by` is a column or list of columns; `agg_dict` maps `column → agg_name` where `agg_name ∈ {sum, mean, count, min, max, first, last, stddev, variance, approx_count_distinct}`.
-- **Output:** One row per unique `by` tuple, with one column per `agg_dict` entry named `{column}_{agg_name}` (or the input column name if `agg_name == "first"`). Plus the `by` columns.
+- **Output:** One row per unique `by` tuple, with one column per `agg_dict` entry. The output column name **equals the input column name** (pandas `df.groupby(...).agg({col: fn}).reset_index()` convention — the aggregated value replaces the original column with no suffix). Non-pandas engines must match this, not append `_{agg_name}`. Plus the `by` columns.
 - **Tolerance:**
   - **Sort order is NOT guaranteed.** Caller must `.sort_values()` if order matters. Tests assert set-equality over rows, not list-equality.
   - `mean` ignores NaN; `count` excludes NaN; `sum` of all-NaN is 0.0 (not NaN). All four engines must agree on this.

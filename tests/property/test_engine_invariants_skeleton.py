@@ -124,7 +124,7 @@ def test_groupby_sum_agrees_across_engines(df):
         df, group_cols=["group"], agg_dict={"value": "sum"},
     )
     expected_set = frozenset(
-        (int(r.group), int(r.value_sum)) for r in expected.itertuples()
+        (int(r.group), int(r.value)) for r in expected.itertuples()
     )
 
     for engine_name, factory in _AVAILABLE_ENGINES:
@@ -137,7 +137,7 @@ def test_groupby_sum_agrees_across_engines(df):
         if not isinstance(got, pd.DataFrame):
             got = got.to_pandas() if hasattr(got, "to_pandas") else pd.DataFrame(got)
         got_set = frozenset(
-            (int(r.group), int(r.value_sum)) for r in got.itertuples()
+            (int(r.group), int(r.value)) for r in got.itertuples()
         )
         assert got_set == expected_set, (
             f"{engine_name} disagrees with pandas: "
