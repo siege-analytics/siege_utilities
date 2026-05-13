@@ -255,3 +255,41 @@ class TestGA4ResponseParsing:
         # Should return empty DataFrame, not raise
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 0
+
+
+# ---------------------------------------------------------------------------
+# Sprint B Phase-2 live-API smoke (skipped without credentials)
+# ---------------------------------------------------------------------------
+
+import pytest
+
+
+@pytest.mark.requires_api_key
+def test_ga4_live_minimum_query(api_credentials):
+    pytest.importorskip("google.analytics.data_v1beta")
+    from siege_utilities.analytics.google_analytics import GoogleAnalyticsConnector
+
+    creds = api_credentials.get("google_analytics")
+    if not creds or not creds.get("property_id"):
+        pytest.skip("no 'google_analytics.property_id' in credentials file")
+    sa_json = creds.get("service_account_json")
+    if not sa_json:
+        pytest.skip("no 'google_analytics.service_account_json' in credentials")
+
+    import json
+    with open(sa_json) as f:
+        sa_data = json.load(f)
+    conn = GoogleAnalyticsConnector(
+        auth_method="service_account",
+        service_account_data=sa_data,
+    )
+    assert conn.authenticate() is True
+
+    df = conn.get_ga4_data(
+        property_id=str(creds["property_id"]),
+        start_date="7daysAgo",
+        end_date="today",
+        metrics=["sessions"],
+    )
+    # An empty result is legal (e.g. zero traffic); the shape is what we pin.
+    assert df is not None
