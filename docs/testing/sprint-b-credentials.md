@@ -63,17 +63,17 @@ polling_analyzer:
 ## Running the live-API tests
 
 ```bash
-# All connectors with creds available
+# All connectors with creds available — runs only the marked tests
 pytest -m requires_api_key
 
 # A specific connector
 pytest -m requires_api_key tests/test_snowflake_connector.py
 
-# Combined with the standard mock suite (full coverage):
-pytest -m "not requires_api_key or requires_api_key"  # not how -m works; see note below
+# Full suite (mocks + live API in one pass) — no -m needed
+pytest
 ```
 
-Note: `requires_api_key` is the **only** marker that disables the test by default. Standard `pytest` (no `-m`) skips it via the fixture's `pytest.skip()`, not via `-m "not requires_api_key"`. This means the test still appears in the report as `SKIPPED` with the reason "no credentials file at X" — which is the signal you want when you're trying to figure out why a connector isn't being exercised.
+Note: `requires_api_key` does not disable tests by default at the pytest-marker level — the suite runs them on every `pytest` invocation. The skip happens inside the `api_credentials` fixture when the credentials file is missing. So a plain `pytest` run shows the live tests as `SKIPPED` with the reason "no credentials file at X" — exactly the signal you want when figuring out why a connector isn't being exercised. Use `pytest -m requires_api_key` when you want to *isolate* the live path.
 
 ## Failure modes
 

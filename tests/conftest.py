@@ -112,8 +112,18 @@ def api_credentials():
             "Create one with the per-connector keys you want to exercise; "
             "see docs/testing/sprint-b-credentials.md for the schema."
         )
-    with open(path) as f:
-        return yaml.safe_load(f) or {}
+    try:
+        with open(path) as f:
+            return yaml.safe_load(f) or {}
+    except yaml.YAMLError as exc:
+        # A malformed file is a real configuration error, not a missing
+        # one — surface it as a skip with the parser error so the
+        # developer fixes the file rather than chasing an opaque
+        # uncaught exception during fixture setup.
+        pytest.skip(
+            f"requires_api_key: credentials file at {path} is not valid "
+            f"YAML — {exc}. Fix the syntax and re-run."
+        )
 
 
 @pytest.fixture
