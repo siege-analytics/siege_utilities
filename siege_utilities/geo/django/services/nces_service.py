@@ -140,6 +140,12 @@ class NCESPopulationService:
                         setattr(existing, key, value)
                     existing.updated_at = now
                     objects_to_update.append(existing)
+                    if len(objects_to_update) >= batch_size:
+                        NCESLocaleBoundary.objects.bulk_update(
+                            objects_to_update, list(_UPDATE_FIELDS),
+                        )
+                        result.records_updated += len(objects_to_update)
+                        objects_to_update = []
                 else:
                     objects_to_create.append(NCESLocaleBoundary(**kwargs))
                     if len(objects_to_create) >= batch_size:
@@ -161,7 +167,7 @@ class NCESPopulationService:
 
         if objects_to_update:
             NCESLocaleBoundary.objects.bulk_update(
-                objects_to_update, list(_UPDATE_FIELDS), batch_size=batch_size,
+                objects_to_update, list(_UPDATE_FIELDS),
             )
             result.records_updated += len(objects_to_update)
 
@@ -290,6 +296,12 @@ class NCESPopulationService:
                         setattr(existing, key, value)
                     existing.updated_at = now
                     objects_to_update.append(existing)
+                    if len(objects_to_update) >= batch_size:
+                        SchoolLocation.objects.bulk_update(
+                            objects_to_update, list(_UPDATE_FIELDS),
+                        )
+                        result.records_updated += len(objects_to_update)
+                        objects_to_update = []
                 else:
                     objects_to_create.append(SchoolLocation(**kwargs))
                     if len(objects_to_create) >= batch_size:
@@ -311,7 +323,7 @@ class NCESPopulationService:
 
         if objects_to_update:
             SchoolLocation.objects.bulk_update(
-                objects_to_update, list(_UPDATE_FIELDS), batch_size=batch_size,
+                objects_to_update, list(_UPDATE_FIELDS),
             )
             result.records_updated += len(objects_to_update)
 

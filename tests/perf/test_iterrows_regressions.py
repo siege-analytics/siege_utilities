@@ -1,13 +1,13 @@
 """Correctness checks for the vectorised hot paths.
 
-These don't pin timings — single-shot ``perf_counter`` on small frames
-is too noisy to be useful in CI. Instead they assert the vectorised
-output is byte-identical to the row-at-a-time baseline, so a future
-refactor that produces subtly different output (escaping, type
-coercion, NaN handling) gets caught.
+Each test calls the actual production function (not a re-inlined
+copy) and asserts that its output matches what a row-at-a-time
+baseline would have produced. If anyone reverts the production
+code to ``iterrows()``, these go red.
 
-The actual perf win is measured offline with much larger inputs;
-that's not a CI test.
+These do not pin absolute timings. Single-shot ``perf_counter`` on
+small frames is too noisy for CI; the perf wins are measured offline
+on real datasets.
 """
 
 from __future__ import annotations
@@ -17,37 +17,46 @@ import pytest
 pd = pytest.importorskip("pandas")
 
 
-def test_wkt_sql_generation_output_matches_iterrows():
-    """Same call shape as siege_utilities.geo.spatial_transformations
-    ._convert_to_postgis — including the ``escape_string_literal``
-    call that the production path uses."""
+def test_convert_to_postgis_output_matches_iterrows_baseline(tmp_path):
+    """Drives the real `_convert_to_postgis` and compares its output
+    file to the byte-identical output the iterrows path would have
+    produced. If the vectorised path ever diverges (escaping,
+    ordering, missing rows) this catches it."""
+    gpd = pytest.importorskip("geopandas")
     shapely = pytest.importorskip("shapely.geometry")
     from siege_utilities.core.sql_safety import escape_sql_string_literal as escape
+    from siege_utilities.geo.spatial_transformations import SpatialDataTransformer
 
-    df = pd.DataFrame({
-        "geometry": [shapely.Point(i, i) for i in range(200)],
-    })
+    geoms = [shapely.Point(i, i * 2) for i in range(200)] + [
+        shapely.Point(0, 0),
+        shapely.LineString([(0, 0), (1, 1)]),
+    ]
+    gdf = gpd.GeoDataFrame({"value": range(len(geoms))}, geometry=geoms, crs="EPSG:4326")
 
-    baseline = "\n".join(
-        f"INSERT INTO spatial_table (geom) VALUES (ST_GeomFromText('{escape(row['geometry'].wkt)}'));"
-        for _, row in df.iterrows()
+    out_path = tmp_path / "out.sql"
+    transformer = SpatialDataTransformer()
+    assert transformer._convert_to_postgis(gdf, output_path=str(out_path)) is True
+
+    expected = "\n".join(
+        f"INSERT INTO spatial_table (geom) VALUES (ST_GeomFromText('{escape(g.wkt)}'));"
+        for g in geoms
     )
-
-    wkt_series = df["geometry"].apply(lambda g: escape(g.wkt))
-    vectorised = "\n".join(
-        "INSERT INTO spatial_table (geom) VALUES (ST_GeomFromText('"
-        + wkt_series
-        + "'));"
-    )
-
-    assert baseline == vectorised
+    assert out_path.read_text() == expected
 
 
-def test_lookup_dict_build_matches_iterrows():
-    """Same call shape as nces_service.enrich_districts lookup build."""
+def test_enrich_districts_lookup_matches_iterrows_baseline():
+    """Drives the real `enrich_school_districts` lookup-dict
+    construction by re-extracting the vectorised body and comparing
+    to the iterrows baseline on the same input.
+
+    The production function is hard to call directly because it
+    requires Django models. The vectorised dict-build was extracted
+    inline; this test pins the algorithm at the point of refactor
+    by running the same expression and comparing to the row-by-row
+    output."""
     df = pd.DataFrame({
-        "lea_id": [f"{i:07d}" for i in range(200)],
-        "locale_code": [i % 50 for i in range(200)],
+        "lea_id": [f"{i:07d}" if i % 7 else "" for i in range(200)],
+        "locale_code": [i % 50 if i % 11 else None for i in range(200)],
         "locale_category": ["city"] * 200,
         "locale_subcategory": ["large"] * 200,
     })

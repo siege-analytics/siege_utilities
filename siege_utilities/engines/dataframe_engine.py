@@ -56,6 +56,25 @@ SPARK = Engine.SPARK.value
 POSTGIS = Engine.POSTGIS.value
 
 
+# Shared across all engines; see docs/engines/INVARIANTS.md groupby_agg.
+# "avg" is a Spark synonym for "mean" the original SparkEngine impl
+# accepted; keeping both so existing callers continue to work.
+_SUPPORTED_AGG_NAMES = frozenset({
+    "sum", "mean", "avg", "count", "min", "max",
+    "first", "last", "stddev", "variance", "approx_count_distinct",
+})
+
+
+def _validate_agg_names(agg_dict: "Dict[str, str]", engine_name: str) -> None:
+    unknown = sorted({f for f in agg_dict.values() if f not in _SUPPORTED_AGG_NAMES})
+    if unknown:
+        raise ValueError(
+            f"{engine_name}.groupby_agg: unsupported aggregation "
+            f"function(s) {unknown}. Supported: "
+            f"{sorted(_SUPPORTED_AGG_NAMES)}."
+        )
+
+
 # ---------------------------------------------------------------------------
 # ABC
 # ---------------------------------------------------------------------------
@@ -721,6 +740,7 @@ class DuckDBEngine(DataFrameEngine):
         group_cols: Sequence[str],
         agg_dict: Dict[str, str],
     ) -> Any:
+        _validate_agg_names(agg_dict, "DuckDBEngine")
         import pandas as pd
         if isinstance(df, pd.DataFrame):
             return df.groupby(list(group_cols)).agg(agg_dict).reset_index()
@@ -911,27 +931,19 @@ class SparkEngine(DataFrameEngine):
         agg_dict: Dict[str, str],
     ) -> Any:
         from pyspark.sql import functions as F
-        # Validate every aggregation name upfront; the previous
-        # `getattr(F, func)` raised AttributeError deep inside the
-        # comprehension when callers passed e.g. "median" (which lives
-        # in `F.percentile_approx`, not at the top level). A clear
-        # ValueError surfaces the offending name and the supported set.
-        _SUPPORTED_AGG = {
-            "sum", "mean", "avg", "count", "min", "max",
-            "first", "last", "stddev", "variance", "approx_count_distinct",
-        }
-        unknown = [
-            f for f in agg_dict.values()
-            if f not in _SUPPORTED_AGG or not hasattr(F, f)
-        ]
+        _validate_agg_names(agg_dict, "SparkEngine")
+        # F.avg is the actual function name; mean is an alias on the
+        # Column API but not the module API. Normalise here so users
+        # can pass either.
+        _spark_fn = {"mean": "avg"}
+        unknown = [f for f in agg_dict.values() if not hasattr(F, _spark_fn.get(f, f))]
         if unknown:
             raise ValueError(
-                f"SparkEngine.groupby_agg: unsupported aggregation "
-                f"function(s) {sorted(set(unknown))}. Supported: "
-                f"{sorted(_SUPPORTED_AGG)}."
+                f"SparkEngine.groupby_agg: pyspark.sql.functions has no "
+                f"function for {sorted(set(unknown))}."
             )
         agg_exprs = [
-            getattr(F, func)(col).alias(f"{col}")
+            getattr(F, _spark_fn.get(func, func))(col).alias(col)
             for col, func in agg_dict.items()
         ]
         return df.groupBy(*group_cols).agg(*agg_exprs)

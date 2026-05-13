@@ -15,7 +15,7 @@ import pytest
 
 
 # ---------------------------------------------------------------------------
-# Phase 1 — mock unit tests
+# Mock tests
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
@@ -83,7 +83,7 @@ def test_load_config_missing_file_raises(_patch_snowflake, tmp_path):
 
 def test_connect_passes_only_non_none_params(_patch_snowflake):
     """``snowflake.connector.connect`` should never see warehouse=None /
-    database=None — those are best omitted so Snowflake falls back to
+    database=None -- those are best omitted so Snowflake falls back to
     user defaults instead of erroring on empty values."""
     from siege_utilities.analytics.snowflake_connector import SnowflakeConnector
 
@@ -99,7 +99,7 @@ def test_connect_passes_only_non_none_params(_patch_snowflake):
 
 def test_execute_query_returns_none_on_driver_error(_patch_snowflake):
     """Driver-side failures must be translated to ``None``, not propagate
-    a raw snowflake.connector exception — callers expect Optional[list]."""
+    a raw snowflake.connector exception -- callers expect Optional[list]."""
     from siege_utilities.analytics.snowflake_connector import SnowflakeConnector
 
     c = SnowflakeConnector(account="acc", user="u", password="p")
@@ -136,7 +136,7 @@ def test_context_manager_connects_and_disconnects(_patch_snowflake):
 
 
 # ---------------------------------------------------------------------------
-# Phase 2 — live API smoke (skipped without credentials)
+# Live API smoke (skipped without credentials)
 # ---------------------------------------------------------------------------
 
 @pytest.mark.requires_api_key

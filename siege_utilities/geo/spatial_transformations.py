@@ -244,19 +244,23 @@ class SpatialDataTransformer:
             db_path = db_path or ':memory:'
             table_name = kwargs.get('table_name', 'spatial_data')
 
-            # Validate the user-supplied table name before it lands in
-            # DDL — DuckDB doesn't permit parameter-bound identifiers.
+            # DuckDB doesn't permit parameter-bound identifiers, so the
+            # table name has to be validated up front.
             from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
             validate_identifier(table_name, label="table name", allow_dotted=False)
 
-            # Connect to DuckDB inside a context manager so the
-            # connection is closed even on exception. Without this, the
-            # connection leaks for the lifetime of the process.
             with duckdb.connect(db_path) as con:
                 df = gdf.copy()
                 df['geometry_wkt'] = df.geometry.apply(lambda geom: geom.wkt)
                 df = df.drop(columns=['geometry'])
-                con.execute(f"CREATE TABLE IF NOT EXISTS {table_name} AS SELECT * FROM df")
+                con.register("siege_upload_df", df)
+                try:
+                    con.execute(
+                        f"CREATE TABLE IF NOT EXISTS {table_name} "
+                        f"AS SELECT * FROM siege_upload_df"
+                    )
+                finally:
+                    con.unregister("siege_upload_df")
 
             log.info(f"Successfully uploaded to DuckDB table: {table_name}")
             return True
@@ -380,13 +384,6 @@ class PostGISConnector:
             insert_stmt = _pg_sql.SQL(
                 "INSERT INTO {} (geom) VALUES (ST_GeomFromText(%s, %s))"
             ).format(qualified_ident)
-            # executemany batches the round-trips. The previous
-            # per-row ``cursor.execute`` issued one network call per
-            # geometry; on a 100K-row frame that's the difference
-            # between seconds and tens of minutes against a remote
-            # PostGIS. The pandas-level vectorisation runs first so
-            # ``row.geometry`` attribute access stays out of the
-            # tight loop.
             params = [(geom.wkt, srid) for geom in gdf.geometry]
             cursor.executemany(insert_stmt, params)
 
@@ -469,11 +466,13 @@ class PostGISConnector:
             cursor = self.connection.cursor()
             cursor.execute(query)
 
-            # Process results based on query type
             if query.strip().upper().startswith('SELECT'):
                 rows = cursor.fetchall()
-                # Convert to GeoDataFrame (simplified)
-                gdf = gpd.GeoDataFrame(rows)
+                columns = (
+                    [desc[0] for desc in cursor.description]
+                    if cursor.description else None
+                )
+                gdf = gpd.GeoDataFrame(rows, columns=columns)
                 log.info("Successfully executed PostGIS query")
                 return reproject_if_needed(gdf, crs)
             else:
@@ -574,18 +573,24 @@ class DuckDBConnector:
         validate_sql_identifier(table_name, "table name")
 
         try:
-            # Convert to pandas DataFrame with WKT geometries
-            df = gdf.copy()  # noqa: F841 -- duckdb register reads name `df` from caller frame
+            df = gdf.copy()
             df['geometry_wkt'] = df.geometry.apply(lambda geom: geom.wkt)
             df = df.drop(columns=['geometry'])
 
-            # Handle table replacement
             if_exists = kwargs.get('if_exists', 'replace')
             if if_exists == 'replace':
                 self.connection.execute(f"DROP TABLE IF EXISTS {table_name}")
 
-            # Upload to DuckDB — table_name validated above
-            self.connection.execute(f"CREATE TABLE {table_name} AS SELECT * FROM df")
+            # table_name validated above; pin the DataFrame under an
+            # explicit name rather than relying on duckdb's replacement
+            # scan picking it up from the caller frame.
+            self.connection.register("siege_upload_df", df)
+            try:
+                self.connection.execute(
+                    f"CREATE TABLE {table_name} AS SELECT * FROM siege_upload_df"
+                )
+            finally:
+                self.connection.unregister("siege_upload_df")
 
             log.info(f"Successfully uploaded to DuckDB: {table_name}")
             return True

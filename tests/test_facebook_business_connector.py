@@ -52,7 +52,7 @@ def test_init_falls_back_to_token_only(_patch_fb):
 
 def test_get_ad_accounts_translates_errors_to_empty_list(_patch_fb):
     """Errors during ``me.get_ad_accounts()`` must translate to ``[]``
-    not propagate raw facebook_business exceptions to callers — the
+    not propagate raw facebook_business exceptions to callers -- the
     rest of the codebase assumes List[Dict] from this method."""
     from siege_utilities.analytics.facebook_business import FacebookBusinessConnector
 
