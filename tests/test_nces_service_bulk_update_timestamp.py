@@ -93,3 +93,63 @@ def test_populate_locale_boundaries_advances_updated_at_on_update(db):
         minutes=5,
     )
     assert existing.name == "New Name"
+
+
+def test_populate_locale_boundaries_flushes_updates_mid_loop(db):
+    """When more than batch_size existing rows are updated in one
+    run, the per-batch flush inside the loop must fire. Without
+    it the objects_to_update list grows for the full input before
+    a single bulk_update call. Seed batch_size+1 rows and assert
+    bulk_update is invoked at least twice."""
+    import geopandas as gpd
+
+    from siege_utilities.geo.django.models import NCESLocaleBoundary
+    from siege_utilities.geo.django.services.nces_service import (
+        NCESPopulationService,
+    )
+
+    year = 2098
+    batch_size = 5
+    n_rows = batch_size + 2
+
+    for code in range(20, 20 + n_rows):
+        NCESLocaleBoundary.objects.create(
+            feature_id=f"nces_locale_{code}_{year}",
+            locale_code=code,
+            locale_category="rural",
+            locale_subcategory="rural_remote",
+            nces_year=year,
+            vintage_year=year,
+            name=f"Locale {code}",
+            geometry=_make_polygon(),
+            source="NCES EDGE",
+        )
+
+    gdf = gpd.GeoDataFrame(
+        {
+            "locale_code": list(range(20, 20 + n_rows)),
+            "locale_category": ["city"] * n_rows,
+            "locale_subcategory": ["city_large"] * n_rows,
+            "name": [f"Updated {code}" for code in range(20, 20 + n_rows)],
+        },
+        geometry=[_make_polygon()] * n_rows,
+        crs="EPSG:4326",
+    )
+
+    service = NCESPopulationService()
+    with patch.object(service, "_get_downloader") as mock_get, \
+         patch.object(
+             NCESLocaleBoundary.objects, "bulk_update",
+             wraps=NCESLocaleBoundary.objects.bulk_update,
+         ) as mock_bulk_update:
+        mock_get.return_value.download_locale_boundaries.return_value = gdf
+        result = service.populate_locale_boundaries(
+            year=year, update_existing=True, batch_size=batch_size,
+        )
+
+    assert result.records_updated == n_rows
+    assert mock_bulk_update.call_count >= 2, (
+        f"expected at least 2 bulk_update calls for {n_rows} rows at "
+        f"batch_size={batch_size}, got {mock_bulk_update.call_count}. "
+        f"The in-loop flush is not firing."
+    )

@@ -19,7 +19,7 @@ from unittest.mock import Mock
 sys.path.insert(0, os.path.abspath('.'))
 
 # ================================================================
-# EARLY HOOKS — run before siege_utilities is imported
+# EARLY HOOKS -- run before siege_utilities is imported
 # ================================================================
 
 # Module-level temp base so pytest_configure and pytest_unconfigure can share it.
@@ -92,7 +92,7 @@ def api_credentials():
     Looked up at ``~/.siege-test-credentials.yaml`` (or the path in the
     ``SIEGE_TEST_CREDENTIALS`` env var). When the file is absent, tests
     decorated with ``@pytest.mark.requires_api_key`` and consuming this
-    fixture are skipped — credentials are developer-local, not in CI.
+    fixture are skipped -- credentials are developer-local, not in CI.
     CI runs the mock unit tests; the live-API path is opt-in via
     ``pytest -m requires_api_key``.
 
@@ -100,7 +100,7 @@ def api_credentials():
     sub-keys (e.g. ``creds["snowflake"]["account"]``) and skip if
     their section is missing.
     """
-    import yaml  # local import — yaml is in extras_require, not core
+    import yaml  # local import -- yaml is in extras_require, not core
 
     path = os.environ.get("SIEGE_TEST_CREDENTIALS") or os.path.expanduser(
         "~/.siege-test-credentials.yaml"
@@ -111,18 +111,18 @@ def api_credentials():
             "Create one with the per-connector keys you want to exercise; "
             "see docs/testing/sprint-b-credentials.md for the schema."
         )
-    try:
-        with open(path) as f:
+    with open(path) as f:
+        try:
             return yaml.safe_load(f) or {}
-    except yaml.YAMLError as exc:
-        # A malformed file is a real configuration error, not a missing
-        # one — surface it as a skip with the parser error so the
-        # developer fixes the file rather than chasing an opaque
-        # uncaught exception during fixture setup.
-        pytest.skip(
-            f"requires_api_key: credentials file at {path} is not valid "
-            f"YAML — {exc}. Fix the syntax and re-run."
-        )
+        except yaml.YAMLError as exc:
+            # A malformed creds file is a configuration error; failing
+            # makes it visible. The previous behaviour (silent skip)
+            # let CI stay green with the live-API smoke runs silently
+            # never executing.
+            pytest.fail(
+                f"requires_api_key: credentials file at {path} is not "
+                f"valid YAML: {exc}. Fix the syntax and re-run."
+            )
 
 
 @pytest.fixture

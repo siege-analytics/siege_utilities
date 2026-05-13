@@ -2,7 +2,7 @@
 
 The connector ships against an undocumented public API; these tests
 pin the well-tested ``_request`` plumbing and the auth / rate-limit
-/ error-translation behavior — that's the part that's correct
+/ error-translation behavior -- that's the part that's correct
 regardless of which endpoint paths Vista Social actually exposes.
 """
 
@@ -45,7 +45,7 @@ def test_init_sets_bearer_header(_patch_requests):
 
 
 def test_401_raises_auth_error_no_retry(_patch_requests):
-    """401/403 are credential failures — retrying would just waste
+    """401/403 are credential failures -- retrying would just waste
     quota and risk a rate-limit ban. Must raise immediately."""
     from siege_utilities.analytics.vista_social import (
         VistaSocialConnector, VistaSocialAuthError,
@@ -57,7 +57,7 @@ def test_401_raises_auth_error_no_retry(_patch_requests):
     c = VistaSocialConnector(api_token="bad-tok", retry_attempts=5)
     with pytest.raises(VistaSocialAuthError):
         c.list_accounts()
-    # Called exactly once — never retried.
+    # Called exactly once -- never retried.
     assert _patch_requests["session"].request.call_count == 1
 
 
@@ -84,7 +84,7 @@ def test_429_raises_rate_limit_error(_patch_requests):
 def test_5xx_retries_then_succeeds(_patch_requests, monkeypatch):
     """Transient 5xxs should retry with backoff and eventually
     return a successful 2xx response. Verifies the retry loop
-    actually loops — not just runs once."""
+    actually loops -- not just runs once."""
     from siege_utilities.analytics import vista_social as mod
     from siege_utilities.analytics.vista_social import VistaSocialConnector
 
@@ -101,7 +101,7 @@ def test_5xx_retries_then_succeeds(_patch_requests, monkeypatch):
 
 
 def test_4xx_other_raises_without_retry(_patch_requests):
-    """A 400/404/etc is the caller's fault, not transient — must
+    """A 400/404/etc is the caller's fault, not transient -- must
     surface immediately without burning retry budget."""
     from siege_utilities.analytics.vista_social import (
         VistaSocialConnector, VistaSocialError,

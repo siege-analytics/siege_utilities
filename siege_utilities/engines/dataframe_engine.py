@@ -56,6 +56,30 @@ SPARK = Engine.SPARK.value
 POSTGIS = Engine.POSTGIS.value
 
 
+# Shared across all engines; see docs/engines/INVARIANTS.md groupby_agg.
+# "avg" is a Spark synonym for "mean" the original SparkEngine impl
+# accepted; keeping both so existing callers continue to work.
+_SUPPORTED_AGG_NAMES = frozenset({
+    "sum", "mean", "avg", "count", "min", "max",
+    "first", "last", "stddev", "variance", "approx_count_distinct",
+})
+
+
+def _validate_agg_names(agg_dict: "Dict[str, str]", engine_name: str) -> None:
+    if not agg_dict:
+        raise ValueError(
+            f"{engine_name}.groupby_agg: agg_dict must not be empty; "
+            f"pass at least one column -> aggregation name mapping."
+        )
+    unknown = sorted({f for f in agg_dict.values() if f not in _SUPPORTED_AGG_NAMES})
+    if unknown:
+        raise ValueError(
+            f"{engine_name}.groupby_agg: unsupported aggregation "
+            f"function(s) {unknown}. Supported: "
+            f"{sorted(_SUPPORTED_AGG_NAMES)}."
+        )
+
+
 # ---------------------------------------------------------------------------
 # ABC
 # ---------------------------------------------------------------------------
@@ -584,7 +608,11 @@ class PandasEngine(DataFrameEngine):
         group_cols: Sequence[str],
         agg_dict: Dict[str, str],
     ) -> Any:
-        return df.groupby(list(group_cols)).agg(agg_dict).reset_index()
+        _validate_agg_names(agg_dict, "PandasEngine")
+        # pandas accepts "mean" but not "avg"; normalise so the shared
+        # agg-name set is honored across engines.
+        normalised = {col: ("mean" if fn == "avg" else fn) for col, fn in agg_dict.items()}
+        return df.groupby(list(group_cols)).agg(normalised).reset_index()
 
     def filter(self, df: Any, condition: Any) -> Any:
         return df.loc[condition].reset_index(drop=True)
@@ -721,9 +749,11 @@ class DuckDBEngine(DataFrameEngine):
         group_cols: Sequence[str],
         agg_dict: Dict[str, str],
     ) -> Any:
+        _validate_agg_names(agg_dict, "DuckDBEngine")
         import pandas as pd
+        normalised = {col: ("mean" if fn == "avg" else fn) for col, fn in agg_dict.items()}
         if isinstance(df, pd.DataFrame):
-            return df.groupby(list(group_cols)).agg(agg_dict).reset_index()
+            return df.groupby(list(group_cols)).agg(normalised).reset_index()
         raise TypeError(
             "DuckDBEngine.groupby_agg expects a pandas DataFrame "
             "(use .query() with GROUP BY for pure-SQL workflows)"
@@ -911,27 +941,13 @@ class SparkEngine(DataFrameEngine):
         agg_dict: Dict[str, str],
     ) -> Any:
         from pyspark.sql import functions as F
-        # Validate every aggregation name upfront; the previous
-        # `getattr(F, func)` raised AttributeError deep inside the
-        # comprehension when callers passed e.g. "median" (which lives
-        # in `F.percentile_approx`, not at the top level). A clear
-        # ValueError surfaces the offending name and the supported set.
-        _SUPPORTED_AGG = {
-            "sum", "mean", "avg", "count", "min", "max",
-            "first", "last", "stddev", "variance", "approx_count_distinct",
-        }
-        unknown = [
-            f for f in agg_dict.values()
-            if f not in _SUPPORTED_AGG or not hasattr(F, f)
-        ]
-        if unknown:
-            raise ValueError(
-                f"SparkEngine.groupby_agg: unsupported aggregation "
-                f"function(s) {sorted(set(unknown))}. Supported: "
-                f"{sorted(_SUPPORTED_AGG)}."
-            )
+        _validate_agg_names(agg_dict, "SparkEngine")
+        # pyspark.sql.functions exposes the function as F.avg, with mean
+        # only available as a Column method. Normalise so callers can
+        # pass either spelling.
+        _spark_fn = {"mean": "avg"}
         agg_exprs = [
-            getattr(F, func)(col).alias(f"{col}")
+            getattr(F, _spark_fn.get(func, func))(col).alias(col)
             for col, func in agg_dict.items()
         ]
         return df.groupBy(*group_cols).agg(*agg_exprs)
@@ -1284,7 +1300,9 @@ class PostGISEngine(DataFrameEngine):
         group_cols: Sequence[str],
         agg_dict: Dict[str, str],
     ) -> Any:
-        return df.groupby(list(group_cols)).agg(agg_dict).reset_index()
+        _validate_agg_names(agg_dict, "PostGISEngine")
+        normalised = {col: ("mean" if fn == "avg" else fn) for col, fn in agg_dict.items()}
+        return df.groupby(list(group_cols)).agg(normalised).reset_index()
 
     def filter(self, df: Any, condition: Any) -> Any:
         return df.loc[condition].reset_index(drop=True)

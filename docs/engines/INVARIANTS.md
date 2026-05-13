@@ -1,15 +1,15 @@
 # Cross-backend engine invariants
 
-The `DataFrameEngine` premise — consumer code should not branch on backend — is unverified. `PandasEngine`, `DuckDBEngine`, `SparkEngine`, and `PostGISEngine` diverge in edge cases: empty inputs, NaN propagation, sort stability, identifier validation. This doc pins down what *must* be the same and what is allowed to differ.
+The `DataFrameEngine` premise -- consumer code should not branch on backend -- is unverified. `PandasEngine`, `DuckDBEngine`, `SparkEngine`, and `PostGISEngine` diverge in edge cases: empty inputs, NaN propagation, sort stability, identifier validation. This doc pins down what *must* be the same and what is allowed to differ.
 
 ## How to read this doc
 
 Each operation has:
 
-- **Required input shape** — what the caller is responsible for providing.
-- **Required output shape** — what the engine guarantees in return.
-- **Tolerances** — where each engine is allowed to differ, with the rationale.
-- **Open question** — anything still TBD.
+- **Required input shape** -- what the caller is responsible for providing.
+- **Required output shape** -- what the engine guarantees in return.
+- **Tolerances** -- where each engine is allowed to differ, with the rationale.
+- **Open question** -- anything still TBD.
 
 The granularity is operation-level, not backend-level. If an engine can't meet an invariant, that's a bug fix, not a reason to weaken the invariant.
 
@@ -27,24 +27,24 @@ The granularity is operation-level, not backend-level. If an engine can't meet a
 - **Input:** UTF-8 CSV file at *path*. Optional schema dict; when present, engines must coerce dtypes to match.
 - **Output:** DataFrame with header row as columns, all subsequent rows as data.
 - **Tolerance:**
-  - Spark may infer numeric columns as `LongType` where pandas picks `Int64` — equivalent under `to_pandas()`.
+  - Spark may infer numeric columns as `LongType` where pandas picks `Int64` -- equivalent under `to_pandas()`.
   - PostGIS reads via `COPY FROM`; identifier rules apply.
-- **Open question:** behavior on malformed UTF-8 — fail fast vs. replace.
+- **Open question:** behavior on malformed UTF-8 -- fail fast vs. replace.
 
 ### `read_parquet(path)`
 
 - **Input:** Parquet file at *path* (single-file or directory of part-files).
 - **Output:** DataFrame with the parquet schema.
-- **Tolerance:** none — parquet is self-describing. Divergences are bugs.
+- **Tolerance:** none -- parquet is self-describing. Divergences are bugs.
 
 ### `groupby_agg(by, agg_dict)`
 
-- **Input:** `by` is a column or list of columns; `agg_dict` maps `column → agg_name` where `agg_name ∈ {sum, mean, count, min, max, first, last, stddev, variance, approx_count_distinct}`.
-- **Output:** One row per unique `by` tuple, with one column per `agg_dict` entry. The output column name **equals the input column name** (pandas `df.groupby(...).agg({col: fn}).reset_index()` convention — the aggregated value replaces the original column with no suffix). Non-pandas engines must match this, not append `_{agg_name}`. Plus the `by` columns.
+- **Input:** `by` is a column or list of columns; `agg_dict` maps `column -> agg_name` where `agg_name` is one of `sum`, `mean`, `avg` (synonym for `mean`), `count`, `min`, `max`, `first`, `last`, `stddev`, `variance`, `approx_count_distinct`. Unknown names raise `ValueError` on every engine; the shared `_SUPPORTED_AGG_NAMES` constant in `dataframe_engine.py` is the source of truth.
+- **Output:** One row per unique `by` tuple, with one column per `agg_dict` entry. The output column name **equals the input column name** (pandas `df.groupby(...).agg({col: fn}).reset_index()` convention -- the aggregated value replaces the original column with no suffix). Non-pandas engines must match this, not append `_{agg_name}`. Plus the `by` columns.
 - **Tolerance:**
-  - **Sort order is NOT guaranteed.** Caller must `.sort_values()` if order matters. Tests assert set-equality over rows, not list-equality.
+  - Sort order is not guaranteed. Callers that need ordering must call `.sort_values()` themselves. Tests compare row contents as a multiset, not a list.
   - `mean` ignores NaN; `count` excludes NaN; `sum` of all-NaN is 0.0 (not NaN). All four engines must agree on this.
-- **Known divergence to pin:** Spark `groupby_agg` validates against a known agg-name set; unknown names raise `ValueError` (not `AttributeError`). Property tests should assert all four engines raise the same exception type on unknown names.
+- All four engines call the shared `_validate_agg_names` at the top of `groupby_agg`; unknown names raise `ValueError`, and an empty `agg_dict` raises `ValueError` with the same shape.
 
 ### `filter(condition)`
 
@@ -55,7 +55,7 @@ The granularity is operation-level, not backend-level. If an engine can't meet a
 ### `join(other, on, how)`
 
 - **Input:** another DataFrame; `on` is column or list; `how ∈ {inner, left, right, outer}`.
-- **Output:** Join semantics per `how`. Column collision is resolved by appending `_left` / `_right` suffixes (pandas default behavior — other engines must match).
+- **Output:** Join semantics per `how`. Column collision is resolved by appending `_left` / `_right` suffixes (pandas default behavior -- other engines must match).
 - **Tolerance:**
   - Row order on `outer` is not guaranteed.
   - PostGIS may not support arbitrary join keys (must be indexable); the engine raises `NotImplementedError` on the unsupported key types rather than silently coercing.
@@ -68,7 +68,7 @@ The granularity is operation-level, not backend-level. If an engine can't meet a
 - **Tolerance:**
   - **Relation semantics modes** (BOUNDED / HALFPLANE / CONTAINS_CENTROID) are an explicit parameter; engines must respect it identically.
   - Sort order is not guaranteed.
-- **Bug surface:** SparkEngine's spatial_join goes through Sedona; geometry SRIDs must match before the join — pandas would auto-reproject, Sedona will silently produce nothing. The engine must reproject explicitly; property test should pin this.
+- SparkEngine's spatial_join goes through Sedona; geometry SRIDs must match before the join. Pandas auto-reprojects; Sedona silently returns nothing on mismatched SRIDs. The engine reprojects before the join. Property test should pin this.
 
 ### `to_geodataframe(geometry_column="geometry")`
 
@@ -77,7 +77,7 @@ The granularity is operation-level, not backend-level. If an engine can't meet a
 - **Tolerance:**
   - Missing column → `ValueError` with the column name in the message.
   - Mixed-type column (some WKT, some GeoJSON) → `ValueError`, not silent partial conversion.
-- **Known divergence to pin:** PandasEngine raises `KeyError` (not `ValueError`) when the column is missing; this should be normalised to `ValueError`.
+- All four engines must raise `ValueError` when the column is missing. PandasEngine already does (`dataframe_engine.py:646`). Pin the others with property tests.
 
 ### `index_points(grid, resolution)` / `index_polygon(grid, resolution)`
 
@@ -87,7 +87,7 @@ The granularity is operation-level, not backend-level. If an engine can't meet a
   - **`index_points`**: one cell ID per row. Deterministic across backends.
   - **`index_polygon`**: zero, one, or many cell IDs per row (the polygon may overlap multiple cells). Output is a new row per `(input_row, cell_id)` pair. Number of cells per input row must match across backends within a `±1` tolerance at cell boundaries (this is the H3/S2 library's edge-case difference; pin the tolerance, don't try to eliminate it).
 
-## What this doc deliberately doesn't decide
+## Out of scope
 
 - **Performance invariants.** Hot-path perf lives in `tests/perf/`; this doc is about correctness only.
 - **API surface.** We're testing the existing public surface, not redesigning it. Anything that would require a new method on `DataFrameEngine` is out of scope.

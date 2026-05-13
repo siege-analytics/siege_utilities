@@ -36,7 +36,7 @@ def test_init_with_explicit_token_uses_authenticated_client(_patch_dw):
 
 def test_init_falls_back_to_env_var(monkeypatch, _patch_dw):
     """If no token and no config are provided, the env var
-    DATADOTWORLD_API_TOKEN should be the next try — otherwise the
+    DATADOTWORLD_API_TOKEN should be the next try -- otherwise the
     integration silently falls into anonymous mode, which has
     extremely different access rules and is a surprising default."""
     from siege_utilities.analytics.datadotworld_connector import DataDotWorldConnector

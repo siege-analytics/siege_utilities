@@ -140,6 +140,12 @@ class NCESPopulationService:
                         setattr(existing, key, value)
                     existing.updated_at = now
                     objects_to_update.append(existing)
+                    if len(objects_to_update) >= batch_size:
+                        NCESLocaleBoundary.objects.bulk_update(
+                            objects_to_update, list(_UPDATE_FIELDS),
+                        )
+                        result.records_updated += len(objects_to_update)
+                        objects_to_update = []
                 else:
                     objects_to_create.append(NCESLocaleBoundary(**kwargs))
                     if len(objects_to_create) >= batch_size:
@@ -161,7 +167,7 @@ class NCESPopulationService:
 
         if objects_to_update:
             NCESLocaleBoundary.objects.bulk_update(
-                objects_to_update, list(_UPDATE_FIELDS), batch_size=batch_size,
+                objects_to_update, list(_UPDATE_FIELDS),
             )
             result.records_updated += len(objects_to_update)
 
@@ -290,6 +296,12 @@ class NCESPopulationService:
                         setattr(existing, key, value)
                     existing.updated_at = now
                     objects_to_update.append(existing)
+                    if len(objects_to_update) >= batch_size:
+                        SchoolLocation.objects.bulk_update(
+                            objects_to_update, list(_UPDATE_FIELDS),
+                        )
+                        result.records_updated += len(objects_to_update)
+                        objects_to_update = []
                 else:
                     objects_to_create.append(SchoolLocation(**kwargs))
                     if len(objects_to_create) >= batch_size:
@@ -311,7 +323,7 @@ class NCESPopulationService:
 
         if objects_to_update:
             SchoolLocation.objects.bulk_update(
-                objects_to_update, list(_UPDATE_FIELDS), batch_size=batch_size,
+                objects_to_update, list(_UPDATE_FIELDS),
             )
             result.records_updated += len(objects_to_update)
 
@@ -325,6 +337,7 @@ class NCESPopulationService:
         self,
         year: int = 2023,
         update_existing: bool = False,
+        batch_size: int = 500,
     ) -> NCESPopulationResult:
         """Enrich existing SchoolDistrict* records with NCES locale codes.
 
@@ -380,7 +393,6 @@ class NCESPopulationService:
         _UPDATE_FIELDS = (
             "locale_code", "locale_category", "locale_subcategory", "updated_at",
         )
-        _BATCH = 500
 
         for model_cls in (
             SchoolDistrictElementary,
@@ -400,7 +412,7 @@ class NCESPopulationService:
                     district.locale_subcategory = locale_info["locale_subcategory"]
                     district.updated_at = now
                     to_update.append(district)
-                    if len(to_update) >= _BATCH:
+                    if len(to_update) >= batch_size:
                         model_cls.objects.bulk_update(to_update, list(_UPDATE_FIELDS))
                         result.records_updated += len(to_update)
                         to_update = []
