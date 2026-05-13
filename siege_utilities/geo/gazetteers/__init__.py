@@ -73,14 +73,12 @@ def resolve_gazetteer(
     if prefer == "nominatim":
         from .nominatim_gazetteer import NominatimGazetteer
         return NominatimGazetteer(cache_size=cache_size)
-    if prefer in ("census", "wikidata"):
-        raise NotImplementedError(
-            f"{prefer!r} gazetteer backend is queued for ELE-2483 PR-B2 — "
-            "Census uses an address-geocoder + TIGERWeb shape lookup and "
-            "Wikidata is SPARQL + OSM relation deref, both worth a focused "
-            "PR each. For now use prefer='wkls' (global) or "
-            "prefer='nominatim' (OSM)."
-        )
+    if prefer == "census":
+        from .census_gazetteer import CensusGazetteer
+        return CensusGazetteer(cache_size=cache_size)
+    if prefer == "wikidata":
+        from .wikidata_gazetteer import WikidataGazetteer
+        return WikidataGazetteer(cache_size=cache_size)
     if prefer is not None:
         raise ValueError(
             f"prefer must be one of 'wkls', 'nominatim', 'census', "
