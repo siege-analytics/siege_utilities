@@ -548,7 +548,11 @@ class DataFrameEngine(ABC):
     ) -> Any:
         """Assign points to multiple boundary layers simultaneously.
 
-        Calls :meth:`assign_boundaries` for each layer and joins results.
+        Calls :meth:`assign_boundaries` for each layer and renames every
+        polygon-side column to be ``{layer_name}_{column}`` so layers do
+        not collide on shared schemas (TIGER layers share ``geoid`` /
+        ``name`` columns -- without prefixing, the second join silently
+        overwrites the first layer's columns).
 
         Parameters
         ----------
@@ -561,9 +565,18 @@ class DataFrameEngine(ABC):
         Returns
         -------
         DataFrame
-            Points enriched with ``{layer_name}_geoid`` and
-            ``{layer_name}_name`` from each boundary layer.
+            Points enriched with ``{layer_name}_*`` columns for every
+            polygon-side column from each boundary layer. Bare polygon
+            column names never appear in the output.
         """
+        # Snapshot point-side schema before the first join so we know
+        # exactly which columns belong to the points and which were
+        # added by assign_boundaries. Use to_pandas() rather than a
+        # native columns probe because the abstract default cannot
+        # assume an engine-native columns accessor exists across all
+        # implementations -- subclasses may override for efficiency.
+        point_cols = set(self.to_pandas(points).columns)
+
         result = points
         for layer_name, polygons in boundary_layers.items():
             assigned = self.assign_boundaries(
@@ -571,7 +584,19 @@ class DataFrameEngine(ABC):
                 point_geom=point_geom, polygon_geom="geometry",
                 how="left",
             )
-            result = assigned
+            assigned_pdf = self.to_pandas(assigned)
+            new_cols = {}
+            for col in assigned_pdf.columns:
+                if col in point_cols or col == point_geom:
+                    continue
+                new_cols[col] = f"{layer_name}_{col}"
+            if new_cols:
+                assigned_pdf = assigned_pdf.rename(columns=new_cols)
+            # Update point_cols for the next iteration so the just-added
+            # layer's prefixed columns are preserved (not re-prefixed).
+            point_cols = set(assigned_pdf.columns)
+            result = assigned_pdf
+
         return result
 
 
