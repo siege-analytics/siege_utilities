@@ -1,4 +1,4 @@
-"""Vista Social analytics connector (issue #306).
+"""Vista Social analytics connector.
 
 Vista Social (https://vistasocial.com) is a social-media management
 platform that aggregates engagement, posts, and audience metrics across
@@ -132,8 +132,9 @@ class VistaSocialConnector:
         network failures.
 
     The connector follows the project's failure-mode discipline (see
-    ``docs/FAILURE_MODES.md`` and the Phase-3 silent-swallow sweep in
-    PR #433): no method silently returns an empty dict on failure.
+    ``docs/FAILURE_MODES.md``): no method silently returns an empty
+    dict on failure. Every failure mode is either a typed exception or
+    a None return with a documented meaning.
     """
 
     def __init__(
@@ -248,8 +249,9 @@ class VistaSocialConnector:
                     data = resp.json()
                 except ValueError as exc:
                     # 2xx with non-JSON body. Don't silently treat as
-                    # empty (that violates the no-silent-swallow rule
-                    # set by the Phase-3 sweep) -- surface it.
+                    # empty -- surface it so the caller can distinguish
+                    # 'API returned malformed payload' from 'API
+                    # returned legitimately empty result'.
                     raise VistaSocialError(
                         f"Vista Social {method} {url} returned "
                         f"{resp.status_code} with non-JSON body "
