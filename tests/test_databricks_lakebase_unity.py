@@ -108,16 +108,26 @@ def test_lakebase_psql_command_legitimate_values_accepted():
 
 def test_pgpass_entry_escapes_colons_and_backslashes():
     """The .pgpass file format uses ':' as field separator and '\\' as
-    escape; both must be backslash-escaped in every field (issue #481)."""
+    escape; both must be backslash-escaped in every field (issue #481).
+
+    The test value is constructed from clearly-non-credential parts to
+    avoid GitGuardian false-positives; the input contains every
+    special character the escaper handles.
+    """
+    sentinel_with_colons_and_backslash = "FAKE-PASSWORD-VALUE" + r":has:colons\and-backslash"
     pgpass = build_pgpass_entry(
         host="db:1.example.com",
         port=5432,
         dbname="my:db",
         user="my:user",
-        password=r"pa\ss:word",
+        password=sentinel_with_colons_and_backslash,
     )
     # Each field's special characters escaped.
-    assert pgpass == r"db\:1.example.com:5432:my\:db:my\:user:pa\\ss\:word"
+    assert pgpass == (
+        r"db\:1.example.com:5432:my\:db:my\:user:"
+        "FAKE-PASSWORD-VALUE"
+        r"\:has\:colons\\and-backslash"
+    )
 
 
 def test_jdbc_url_rejects_url_injection():
