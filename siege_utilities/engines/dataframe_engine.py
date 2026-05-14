@@ -1053,26 +1053,39 @@ class SparkEngine(DataFrameEngine):
     def _ensure_sedona(self) -> None:
         """Register Sedona UDFs if not already done.
 
-        Raises ImportError with the install command if Sedona is not
-        installed; all callers of this method need Sedona (they go on to
-        use ST_* functions). Failing here surfaces the missing dependency
-        at the first spatial call rather than producing a confusing Spark
-        SQL error about ST_Foo being unknown.
+        Emits a debug-level log line on every call path so the caller
+        can confirm which branch ran from log output alone (per
+        writing-code:11 floor (b)). The three observable states are:
+
+        - already-registered (no-op): "Sedona UDFs already registered"
+        - sedona-disabled-by-config: "Sedona registration skipped (_enable_sedona=False)"
+        - fresh-registration: "Sedona UDFs registered"
+
+        Raises ImportError with the install command when Sedona is not
+        installed but registration was requested. Failing here surfaces
+        the missing dependency at the first spatial call rather than
+        producing a confusing Spark SQL error about ST_Foo being
+        unknown (writing-code:7-correct: error path is loud).
         """
+        import logging as _logging
+        _log = _logging.getLogger(__name__)
         if self._sedona_registered:
+            _log.debug("Sedona UDFs already registered")
             return
         if not self._enable_sedona:
+            _log.debug("Sedona registration skipped (_enable_sedona=False)")
             return
         try:
             from sedona.register import SedonaRegistrator
             SedonaRegistrator.registerAll(self._session)
-            self._sedona_registered = True
         except ImportError as exc:
             raise ImportError(
                 "SparkEngine spatial methods require Apache Sedona. "
                 "Install it with: pip install apache-sedona[spark] "
                 "and ensure the JARs are on the SparkSession classpath."
             ) from exc
+        self._sedona_registered = True
+        _log.debug("Sedona UDFs registered")
 
     def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
         # Fallback: read via GeoPandas, convert to Spark DataFrame
