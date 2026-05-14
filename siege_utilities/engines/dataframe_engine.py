@@ -57,12 +57,21 @@ POSTGIS = Engine.POSTGIS.value
 
 
 # Shared across all engines; see docs/engines/INVARIANTS.md groupby_agg.
-# "avg" is a Spark synonym for "mean" the original SparkEngine impl
-# accepted; keeping both so existing callers continue to work.
+# "avg" is the Spark spelling; "mean" is the pandas spelling. Both are
+# accepted at the validator and normalised inside each engine.
+#
+# This set is the intersection: agg names every engine implements.
+# SparkEngine accepts additional Spark-native aggregations (e.g.
+# approx_count_distinct) via its own validation path; see
+# SparkEngine.groupby_agg below.
 _SUPPORTED_AGG_NAMES = frozenset({
     "sum", "mean", "avg", "count", "min", "max",
-    "first", "last", "stddev", "variance", "approx_count_distinct",
+    "first", "last", "stddev", "variance",
 })
+
+# SparkEngine-only aggregations. Defined here for visibility so the
+# capability surface is grep-able from one place; see SparkEngine.
+_SPARK_EXTRA_AGG_NAMES = frozenset({"approx_count_distinct"})
 
 
 def _validate_agg_names(agg_dict: "Dict[str, str]", engine_name: str) -> None:
@@ -995,7 +1004,23 @@ class SparkEngine(DataFrameEngine):
         agg_dict: Dict[str, str],
     ) -> Any:
         from pyspark.sql import functions as F
-        _validate_agg_names(agg_dict, "SparkEngine")
+        # SparkEngine accepts the intersection set plus Spark-specific
+        # extensions (approx_count_distinct via F.approx_count_distinct).
+        # The validator is local to SparkEngine because the central
+        # _validate_agg_names enforces the intersection only.
+        spark_supported = _SUPPORTED_AGG_NAMES | _SPARK_EXTRA_AGG_NAMES
+        if not agg_dict:
+            raise ValueError(
+                "SparkEngine.groupby_agg: agg_dict must not be empty; "
+                "pass at least one column -> aggregation name mapping."
+            )
+        unknown = sorted({f for f in agg_dict.values() if f not in spark_supported})
+        if unknown:
+            raise ValueError(
+                f"SparkEngine.groupby_agg: unsupported aggregation "
+                f"function(s) {unknown}. Supported: "
+                f"{sorted(spark_supported)}."
+            )
         # pyspark.sql.functions exposes the function as F.avg, with mean
         # only available as a Column method. Normalise so callers can
         # pass either spelling.
