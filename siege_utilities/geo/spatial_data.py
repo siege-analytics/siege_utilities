@@ -20,11 +20,11 @@ import os
 import warnings
 
 # Opt-in TLS-verification bypass for environments behind broken
-# corporate MITM proxies. Defaults to False — the previous
-# implementation silently disabled verification on the first SSL
-# failure, which is exactly the case where a MITM is in play and we
-# should refuse rather than oblige. To restore the legacy behaviour
-# set SIEGE_INSECURE_SSL=1 in the environment (and own the risk).
+# corporate MITM proxies. Defaults to False because silent fallback to
+# verify=False is exactly the path a MITM exploits; the safer default
+# is to fail loudly on SSL errors. Set SIEGE_INSECURE_SSL=1 in the
+# environment to allow verify=False as a documented fallback (and own
+# the risk).
 _ALLOW_INSECURE_SSL = os.environ.get("SIEGE_INSECURE_SSL", "").lower() in ("1", "true", "yes")
 if _ALLOW_INSECURE_SSL:
     warnings.filterwarnings('ignore', message='Unverified HTTPS request')
@@ -529,8 +529,9 @@ class CensusDirectoryDiscovery:
         force_refresh : bool
             Bypass the in-memory cache.
         on_error : ``"raise"`` | ``"warn"`` | ``"skip"``
-            What to do when the network request fails.  ``"skip"`` (default)
-            returns an empty list silently — preserving the legacy behaviour.
+            What to do when the network request fails. ``"skip"`` (default)
+            returns an empty list silently; ``"warn"`` logs and returns
+            empty; ``"raise"`` propagates the SiegeGeoError.
         """
         from siege_utilities.exceptions import SiegeGeoError, handle_error
 
