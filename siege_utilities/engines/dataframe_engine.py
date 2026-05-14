@@ -403,12 +403,14 @@ class DataFrameEngine(ABC):
     ) -> Any:
         """Assign each point to its containing polygon(s).
 
-        Core DSTK replacement: given addresses (points) and boundaries
-        (polygons), determine which boundary contains each address.
+        Given addresses (points) and boundaries (polygons), determine which
+        boundary contains each address.
 
-        Default delegates to :meth:`spatial_join` with predicate='contains'
-        (reversed: polygon contains point). Engines may override for
-        broadcast optimization or native spatial indexing.
+        Default delegates to :meth:`spatial_join` with predicate='within'
+        (point within polygon, the standard point-in-polygon test). Output
+        is point-left: each input point row is augmented with the matching
+        polygon's attributes. Engines may override for broadcast
+        optimization or native spatial indexing.
         """
         return self.spatial_join(
             points, polygons,
