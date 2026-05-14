@@ -289,12 +289,13 @@ class TestResolveGazetteer:
         gz = resolve_gazetteer(prefer="wkls")
         assert gz.provider_name == "wkls"
 
-    def test_prefer_unimplemented_backends_raise(self, fake_wkls):
-        # Nominatim shipped in PR-B; Census and Wikidata are still
-        # deferred to PR-B2.
-        for name in ("census", "wikidata"):
-            with pytest.raises(NotImplementedError):
-                resolve_gazetteer(prefer=name)
+    def test_prefer_census_returns_census_gazetteer(self, fake_wkls):
+        from siege_utilities.geo.gazetteers.census_gazetteer import CensusGazetteer
+        assert isinstance(resolve_gazetteer(prefer="census"), CensusGazetteer)
+
+    def test_prefer_wikidata_returns_wikidata_gazetteer(self, fake_wkls):
+        from siege_utilities.geo.gazetteers.wikidata_gazetteer import WikidataGazetteer
+        assert isinstance(resolve_gazetteer(prefer="wikidata"), WikidataGazetteer)
 
     def test_prefer_invalid_raises(self, fake_wkls):
         with pytest.raises(ValueError, match="prefer must be"):

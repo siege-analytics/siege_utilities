@@ -1,0 +1,221 @@
+"""Tests for the CensusGazetteer backend.
+
+Mocks the two upstream HTTP services (Census Geocoder + TIGERWeb) so
+the tests run without network. Mirrors the existing pattern in
+test_nominatim_gazetteer.py.
+"""
+
+from __future__ import annotations
+
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+
+@pytest.fixture
+def census_gaz():
+    from siege_utilities.geo.gazetteers.census_gazetteer import CensusGazetteer
+    return CensusGazetteer()
+
+
+def _fake_geocoder_response(matches):
+    resp = MagicMock(status_code=200)
+    resp.json.return_value = {"result": {"addressMatches": matches}}
+    return resp
+
+
+def _fake_tigerweb_response(features):
+    resp = MagicMock(status_code=200)
+    resp.json.return_value = {"features": features}
+    return resp
+
+
+def _county_match(*, name="Jefferson", state="01", county="073"):
+    return {
+        "coordinates": {"x": -86.802, "y": 33.521},
+        "geographies": {
+            "Counties": [{
+                "BASENAME": name,
+                "STATE": state,
+                "COUNTY": county,
+                "GEOID": state + county,
+            }],
+        },
+    }
+
+
+def _tigerweb_feature(geoid):
+    return {
+        "type": "Feature",
+        "properties": {"GEOID": geoid, "NAME": "Jefferson"},
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [[[-87, 33], [-86, 33], [-86, 34], [-87, 34], [-87, 33]]],
+        },
+    }
+
+
+def test_lookup_empty_name_raises(census_gaz):
+    with pytest.raises(ValueError, match="empty name"):
+        census_gaz.lookup("")
+
+
+def test_lookup_non_us_country_hint_raises(census_gaz):
+    from siege_utilities.geo.gazetteers.base import GazetteerNotFoundError
+
+    with pytest.raises(GazetteerNotFoundError, match="US-only"):
+        census_gaz.lookup("Toronto", country_hint="CA")
+
+
+def test_lookup_no_match_raises_not_found(census_gaz):
+    from siege_utilities.geo.gazetteers.base import GazetteerNotFoundError
+
+    with patch.object(
+        census_gaz._session, "get", return_value=_fake_geocoder_response([]),
+    ):
+        with pytest.raises(GazetteerNotFoundError, match="no match"):
+            census_gaz.lookup("Notarealplace, ZZ")
+
+
+def test_lookup_multiple_matches_raises_ambiguous(census_gaz):
+    from siege_utilities.geo.gazetteers.base import GazetteerAmbiguousError
+
+    matches = [
+        _county_match(name="Jefferson", state="01", county="073"),
+        _county_match(name="Jefferson", state="21", county="111"),
+    ]
+    with patch.object(
+        census_gaz._session, "get", return_value=_fake_geocoder_response(matches),
+    ):
+        with pytest.raises(GazetteerAmbiguousError) as ei:
+            census_gaz.lookup("Jefferson")
+        assert len(ei.value.candidates) == 2
+
+
+def test_lookup_dedupes_matches_with_same_geoid(census_gaz):
+    """Census Geocoder returns one addressMatch per matching street
+    range; many ranges collapse to the same county. Two addressMatches
+    that both resolve to (state=01, county=073) must be treated as one
+    candidate, not two -- otherwise lookup() raises Ambiguous for what
+    is actually a single admin polygon."""
+    pytest.importorskip("shapely")
+    matches = [
+        _county_match(name="Jefferson", state="01", county="073"),
+        _county_match(name="Jefferson", state="01", county="073"),  # duplicate
+    ]
+    tiger_resp = _fake_tigerweb_response([_tigerweb_feature("01073")])
+    with patch.object(census_gaz._session, "get") as mock_get:
+        mock_get.side_effect = [_fake_geocoder_response(matches), tiger_resp]
+        result = census_gaz.lookup("Birmingham, AL")
+    assert result.admin_levels["county_fips"] == "073"
+
+
+def test_search_rejects_negative_limit(census_gaz):
+    with pytest.raises(ValueError, match="limit must be >= 0"):
+        census_gaz.search("anywhere", limit=-1)
+
+
+def test_lookup_state_only_fallback_when_no_counties(census_gaz):
+    """When Census Geocoder returns States but no Counties, lookup
+    falls back to state-level resolution. Covers the layer=_LAYER_STATE
+    branch."""
+    pytest.importorskip("shapely")
+    state_match = {
+        "coordinates": {"x": -86.802, "y": 33.521},
+        "geographies": {
+            "States": [{
+                "BASENAME": "Alabama",
+                "STATE": "01",
+                "GEOID": "01",
+            }],
+        },
+    }
+    geocoder_resp = _fake_geocoder_response([state_match])
+    tiger_resp = _fake_tigerweb_response([_tigerweb_feature("01")])
+    with patch.object(census_gaz._session, "get") as mock_get:
+        mock_get.side_effect = [geocoder_resp, tiger_resp]
+        result = census_gaz.lookup("Alabama")
+    assert result.admin_levels["state_fips"] == "01"
+    assert "county_fips" not in result.admin_levels
+
+
+def test_lookup_single_match_fetches_polygon(census_gaz):
+    pytest.importorskip("shapely")
+    from siege_utilities.geo.gazetteers.base import GazetteerResult
+
+    geocoder_resp = _fake_geocoder_response([
+        _county_match(state="01", county="073"),
+    ])
+    tiger_resp = _fake_tigerweb_response([_tigerweb_feature("01073")])
+
+    with patch.object(census_gaz._session, "get") as mock_get:
+        # First call hits geocoder, second hits TIGERWeb.
+        mock_get.side_effect = [geocoder_resp, tiger_resp]
+        result = census_gaz.lookup("Birmingham, AL")
+
+    assert isinstance(result, GazetteerResult)
+    assert result.source == "census"
+    assert result.country == "US"
+    assert result.admin_levels["state_fips"] == "01"
+    assert result.admin_levels["county_fips"] == "073"
+    assert result.geometry.geom_type == "Polygon"
+
+
+def test_lookup_backend_error_on_500(census_gaz):
+    from siege_utilities.geo.gazetteers.base import GazetteerBackendError
+
+    bad = MagicMock(status_code=500, text="upstream error")
+    with patch.object(census_gaz._session, "get", return_value=bad):
+        with pytest.raises(GazetteerBackendError, match="500"):
+            census_gaz.lookup("Anywhere")
+
+
+def test_lookup_null_result_returns_not_found(census_gaz):
+    """data['result'] being null in the geocoder response must not crash
+    with AttributeError; it should fall through to 'no match' just like
+    an empty addressMatches list."""
+    from siege_utilities.geo.gazetteers.base import GazetteerNotFoundError
+
+    resp = MagicMock(status_code=200)
+    resp.json.return_value = {"result": None}
+    with patch.object(census_gaz._session, "get", return_value=resp):
+        with pytest.raises(GazetteerNotFoundError, match="no match"):
+            census_gaz.lookup("Anywhere")
+
+
+def test_lookup_tigerweb_backend_error(census_gaz):
+    """A successful geocoder call followed by a TIGERWeb 500 must
+    translate to GazetteerBackendError, not bubble as an unrelated
+    stack trace."""
+    pytest.importorskip("shapely")
+    from siege_utilities.geo.gazetteers.base import GazetteerBackendError
+
+    geocoder_resp = _fake_geocoder_response([_county_match(state="01", county="073")])
+    tiger_bad = MagicMock(status_code=500, text="tiger down")
+    with patch.object(census_gaz._session, "get") as mock_get:
+        mock_get.side_effect = [geocoder_resp, tiger_bad]
+        with pytest.raises(GazetteerBackendError, match="TIGERWeb"):
+            census_gaz.lookup("Birmingham, AL")
+
+
+def test_lookup_tigerweb_empty_features(census_gaz):
+    """TIGERWeb returning an empty features array (the geocoder
+    resolved the place but the polygon layer has nothing for that
+    GEOID) must translate to GazetteerBackendError."""
+    pytest.importorskip("shapely")
+    from siege_utilities.geo.gazetteers.base import GazetteerBackendError
+
+    geocoder_resp = _fake_geocoder_response([_county_match(state="01", county="073")])
+    tiger_empty = _fake_tigerweb_response([])
+    with patch.object(census_gaz._session, "get") as mock_get:
+        mock_get.side_effect = [geocoder_resp, tiger_empty]
+        with pytest.raises(GazetteerBackendError, match="no feature"):
+            census_gaz.lookup("Birmingham, AL")
+
+
+def test_resolve_gazetteer_returns_census_when_preferred():
+    from siege_utilities.geo.gazetteers import resolve_gazetteer
+    from siege_utilities.geo.gazetteers.census_gazetteer import CensusGazetteer
+
+    gaz = resolve_gazetteer(prefer="census")
+    assert isinstance(gaz, CensusGazetteer)
