@@ -164,7 +164,7 @@ def ensure_sample_dataset(
     tmp = Path(tmp_path_str)
     try:
         try:
-            # 60s timeout per RG-9 (writing-code v2.6.0 RG-9): unbounded
+            # 60s timeout per writing-code:15 (v2.6.0): unbounded
             # urlopen would hang the entire dataset download on a stalled
             # mirror; the caller cannot rescue from the hang via
             # try/except because the function never returns.

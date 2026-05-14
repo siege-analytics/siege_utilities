@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Scan a Python tree for blocking I/O calls that lack a timeout kwarg.
 
-Evidence-gathering tool for the v2.6.0 RG-9 rule candidate. Run against
+Evidence-gathering tool for the v2.6.0 writing-code:15 rule. Run against
 any Python repo:
 
     python3 scan_unbounded_io.py <path> [--exclude-tests]

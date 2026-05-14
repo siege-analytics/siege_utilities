@@ -132,14 +132,14 @@ jobs:
 
   unbounded-io-check:
     runs-on: ubuntu-latest
-    name: "blocking I/O timeout check (RG-9)"
+    name: "blocking I/O timeout check (writing-code:15)"
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.11
       uses: actions/setup-python@v5
       with:
         python-version: "3.11"
-    - name: Run RG-9 scanner
+    - name: Run writing-code:15 scanner
       run: |
         python scripts/check_unbounded_io.py . --exclude-tests
         python scripts/check_unbounded_io.py tests

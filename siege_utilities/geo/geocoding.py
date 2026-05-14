@@ -696,7 +696,7 @@ class SpatiaLiteCache:
 
     def _get_conn(self) -> sqlite3.Connection:
         if self._conn is None:
-            # 10s lock-wait timeout per RG-9: prevents indefinite blocking
+            # 10s lock-wait timeout per writing-code:15: prevents indefinite blocking
             # if another process holds an exclusive lock on the cache DB.
             self._conn = sqlite3.connect(self.db_path, timeout=10)
             # Try to load SpatiaLite extension

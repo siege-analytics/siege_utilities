@@ -40,7 +40,7 @@ class TestRunGitCommand:
         mock_result.stdout = "  abc123  \n"
         with patch(SUBPROCESS_RUN, return_value=mock_result) as mock_run:
             out = run_git_command("status", repo_path="/tmp/repo")
-        # timeout=30 added per writing-code v2.6.0 RG-9 (blocking I/O
+        # timeout=30 added per writing-code:15 (v2.6.0) (blocking I/O
         # must declare a timeout). Without it, a hung git process would
         # block run_git_command indefinitely.
         mock_run.assert_called_once_with(
