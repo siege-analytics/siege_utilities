@@ -1907,8 +1907,9 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
         GeoDataFrame with Census boundaries (filtered by state if specified)
     """
     warnings.warn(
-        "get_census_boundaries() is deprecated. Use CensusDataSource().fetch_geographic_boundaries() "
-        "for structured error reporting via BoundaryFetchResult.",
+        "get_census_boundaries() is deprecated; will be removed in v3.17.0. "
+        "Use CensusDataSource().fetch_geographic_boundaries() for structured "
+        "error reporting via BoundaryFetchResult.",
         DeprecationWarning,
         stacklevel=2,
     )
