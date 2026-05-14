@@ -1734,19 +1734,32 @@ class GovernmentDataSource(SpatialDataSource):
                 f"Failed to download dataset {dataset_id}: {e}"
             ) from e
     
-    def _get_dataset_metadata(self, url: str) -> Optional[Dict[str, Any]]:
-        """Get dataset metadata from the portal."""
+    def _get_dataset_metadata(self, url: str) -> Dict[str, Any]:
+        """Get dataset metadata from the portal.
+
+        Single failure-indication mechanism per writing-code:13: raises
+        SpatialDataError for any failure path (transport, HTTP non-2xx,
+        JSON decode). The previous mixed contract (return None for
+        HTTP non-2xx, raise for everything else) forced callers to
+        handle two failure paths for one call; that has been collapsed
+        to one raise-everything-non-success contract.
+
+        Returns the parsed `result` dict from a 2xx JSON response.
+        Raises SpatialDataError for HTTP non-2xx, network failures,
+        non-JSON bodies, or any other path. Caller pattern-matches on
+        the exception type, not on a returned sentinel.
+        """
         try:
-            import requests
-            
             response = requests.get(url, timeout=get_service_timeout('census_download'))
-            if response.ok:
-                data = response.json()
-                return data.get('result', {})
-            else:
-                log.error(f"Failed to get metadata: HTTP {response.status_code}")
-                return None
-                
+            if not response.ok:
+                raise SpatialDataError(
+                    f"Dataset metadata fetch from {url} returned HTTP "
+                    f"{response.status_code}: {response.text[:200]!r}"
+                )
+            data = response.json()
+            return data.get('result', {})
+        except SpatialDataError:
+            raise
         except Exception as e:
             raise SpatialDataError(
                 f"Error getting dataset metadata from {url}: {e}"
