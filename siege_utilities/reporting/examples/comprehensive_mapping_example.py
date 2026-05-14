@@ -463,14 +463,16 @@ def create_comprehensive_powerpoint(maps_dict):
         level=1
     )
     
-    # Generate PowerPoint
+    # Generate PowerPoint. Returns Path on success; raises on failure
+    # (consistent with sibling create_*_presentation methods per
+    # writing-code:13 at claude-configs-public v2.3.1).
     output_path = "comprehensive_geographic_presentation.pptx"
-    success = ppt_gen.generate_powerpoint_presentation(presentation_content, output_path)
-    
-    if success:
-        print(f"✅ PowerPoint presentation generated successfully: {output_path}")
-    else:
-        print("❌ Error generating PowerPoint presentation")
+    try:
+        saved_to = ppt_gen.generate_powerpoint_presentation(presentation_content, output_path)
+        print(f"PowerPoint presentation generated successfully: {saved_to}")
+    except Exception as exc:
+        print(f"Error generating PowerPoint presentation: {exc}")
+        raise
     
     return success
 
