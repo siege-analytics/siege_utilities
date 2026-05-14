@@ -113,8 +113,16 @@ class TestCensusDirectoryDiscovery:
     @patch('time.sleep')
     @patch('requests.get')
     def test_get_available_years_fallback(self, mock_get, mock_sleep):
-        """Test fallback when discovery fails completely."""
-        mock_get.side_effect = Exception("Network error")
+        """Discovery falls back to the known-years range when every retry
+        attempt fails with a real network error. The realistic failure
+        mode is requests.exceptions.RequestException (or one of its
+        subclasses); a bare Exception is not what the production code
+        catches, by design -- programming errors should propagate.
+        """
+        import requests as _requests
+        mock_get.side_effect = _requests.exceptions.RequestException(
+            "Network error"
+        )
 
         years = self.discovery.get_available_years()
 

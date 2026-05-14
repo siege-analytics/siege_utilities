@@ -1,15 +1,15 @@
-"""Deprecation shim — re-exports from :mod:`siege_utilities.engines.dataframe_engine`.
+"""Deprecation shim -- re-exports from :mod:`siege_utilities.engines.dataframe_engine`.
 
-The engine abstraction moved to a top-level ``engines/`` package during
-ELE-2437. This shim preserves the old import path for one deprecation
-window; remove in the next minor release.
+The engine abstraction lives at the top-level ``engines/`` package.
+This shim preserves the old import path; the old path will be removed
+in v3.17.0.
 """
 import warnings as _warnings
 
 _warnings.warn(
     "siege_utilities.data.dataframe_engine has moved to "
-    "siege_utilities.engines.dataframe_engine. Update your imports; "
-    "the old path will be removed in a future release.",
+    "siege_utilities.engines.dataframe_engine; the old path will be "
+    "removed in v3.17.0. Update your imports.",
     DeprecationWarning,
     stacklevel=2,
 )

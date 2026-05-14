@@ -6,7 +6,7 @@ DuckDB, Spark, or PostGIS instead of only pandas/GeoPandas.
 
 Why one abstraction
 -------------------
-The point is **not** that the back-ends are interchangeable in performance —
+The point is **not** that the back-ends are interchangeable in performance --
 they are not. The point is that **consumer code should not branch on
 back-end**. A reporting module asked to summarise voter rolls should not
 care whether the frame came from a 10-million-row Spark job or a 5-row
@@ -15,7 +15,7 @@ pandas test fixture; it calls ``engine.groupby_agg(...)`` and is done.
 This is load-bearing. The anti-pattern to avoid: ``if isinstance(df,
 pd.DataFrame): ... else: ...`` scattered through ``reporting/``. If you
 find yourself reaching for it, the right fix is a new method on the
-``DataFrameEngine`` interface — not a special case in the consumer.
+``DataFrameEngine`` interface -- not a special case in the consumer.
 
 Usage::
 
@@ -59,10 +59,19 @@ POSTGIS = Engine.POSTGIS.value
 # Shared across all engines; see docs/engines/INVARIANTS.md groupby_agg.
 # "avg" is the Spark spelling; "mean" is the pandas spelling. Both are
 # accepted at the validator and normalised inside each engine.
+#
+# This set is the intersection: agg names every engine implements.
+# SparkEngine accepts additional Spark-native aggregations (e.g.
+# approx_count_distinct) via its own validation path; see
+# SparkEngine.groupby_agg below.
 _SUPPORTED_AGG_NAMES = frozenset({
     "sum", "mean", "avg", "count", "min", "max",
-    "first", "last", "stddev", "variance", "approx_count_distinct",
+    "first", "last", "stddev", "variance",
 })
+
+# SparkEngine-only aggregations. Defined here for visibility so the
+# capability surface is grep-able from one place; see SparkEngine.
+_SPARK_EXTRA_AGG_NAMES = frozenset({"approx_count_distinct"})
 
 
 def _validate_agg_names(agg_dict: "Dict[str, str]", engine_name: str) -> None:
@@ -236,18 +245,18 @@ class DataFrameEngine(ABC):
         spatial extension is loaded) should override.
 
         See :func:`siege_utilities.geo.grids.index_points` for the kwarg
-        inference rules — pass ``resolution=`` for H3, ``level=`` for S2,
+        inference rules -- pass ``resolution=`` for H3, ``level=`` for S2,
         or set ``grid=`` explicitly.
 
         Returns the same engine-native frame type as ``df`` would have
-        been augmented with — for the default, that's a column appended
+        been augmented with -- for the default, that's a column appended
         to a pandas-converted copy. Engines that override return their
         native shape.
         """
         from ..geo.grids import index_points as _index_points, infer_grid
         pdf = self.to_pandas(df).copy()
         if grid is None and resolution is None and level is None:
-            # No hint at all → default to S2 level 12 (the most useful
+            # No hint at all -> default to S2 level 12 (the most useful
             # data-warehouse path; H3 callers are expected to pass
             # resolution=).
             level = 12
@@ -279,7 +288,7 @@ class DataFrameEngine(ABC):
     ) -> Any:
         """Cover a polygon with grid cells.
 
-        Engine-agnostic by construction — the input is a single geometry,
+        Engine-agnostic by construction -- the input is a single geometry,
         not a frame, so no engine-specific dispatch is required at this
         level. Provided here for API symmetry with :meth:`index_points`
         and so consumer code can accept ``engine`` as a config knob and
@@ -346,7 +355,15 @@ class DataFrameEngine(ABC):
 
         Handles GeoJSON, Shapefile, GeoParquet, GPKG, WKT CSV.
         Returns engine-native DataFrame with a geometry column.
-        Engines may override for native loaders (e.g., Sedona, DuckDB spatial).
+
+        The default implementation ignores ``format`` and ``geometry_col``;
+        it delegates to ``read_spatial`` which infers the format from the
+        path. ``SparkEngine.load_polygons`` overrides this method and
+        honours both parameters (parquet vs geojson branching, and
+        renaming a ``geom`` column to ``geometry_col`` when present).
+        Other engines may add similar overrides; until then, callers that
+        rely on these parameters should test with the engine they intend
+        to use.
         """
         return self.read_spatial(path, crs=crs)
 
@@ -385,8 +402,10 @@ class DataFrameEngine(ABC):
     ) -> Any:
         """Load line/multiline geometries from any supported spatial format.
 
-        Same interface as :meth:`load_polygons` — works for roads, rivers,
-        transit routes, or any linear feature.
+        Same interface as :meth:`load_polygons` -- works for roads, rivers,
+        transit routes, or any linear feature. The default implementation
+        ignores ``format`` and ``geometry_col`` (same shape as the default
+        ``load_polygons``); engines that override may honour them.
         """
         return self.read_spatial(path, crs=crs)
 
@@ -403,14 +422,12 @@ class DataFrameEngine(ABC):
     ) -> Any:
         """Assign each point to its containing polygon(s).
 
-        Given addresses (points) and boundaries (polygons), determine which
-        boundary contains each address.
+        Core DSTK replacement: given addresses (points) and boundaries
+        (polygons), determine which boundary contains each address.
 
-        Default delegates to :meth:`spatial_join` with predicate='within'
-        (point within polygon, the standard point-in-polygon test). Output
-        is point-left: each input point row is augmented with the matching
-        polygon's attributes. Engines may override for broadcast
-        optimization or native spatial indexing.
+        Default delegates to :meth:`spatial_join` with predicate='contains'
+        (reversed: polygon contains point). Engines may override for
+        broadcast optimization or native spatial indexing.
         """
         return self.spatial_join(
             points, polygons,
@@ -466,10 +483,9 @@ class DataFrameEngine(ABC):
         tgt = self.to_geodataframe(target_polys, target_geom)
 
         # Detect zero-area sources BEFORE gpd.overlay. A degenerate source
-        # polygon produces no intersection rows; without a pre-check it
-        # would disappear entirely from the output, with no signal that
-        # data was dropped. Log the drop count so the data loss is
-        # observable to the caller.
+        # polygon that produces no intersection rows would otherwise
+        # disappear entirely -- the post-overlay check missed exactly the
+        # data-loss case it was trying to surface.
         import logging as _logging
         _log = _logging.getLogger(__name__)
         src = src.assign(_src_area=src.geometry.area)
@@ -530,19 +546,9 @@ class DataFrameEngine(ABC):
         *,
         point_geom: str = "geometry",
     ) -> Any:
-        """Assign points to multiple boundary layers, chaining the joins.
+        """Assign points to multiple boundary layers simultaneously.
 
-        Current behaviour: calls :meth:`assign_boundaries` once per layer,
-        with each iteration's result feeding the next iteration's input.
-        Joined columns from each layer are NOT renamed -- they retain
-        their original column names from the polygon DataFrame. If two
-        boundary layers share a column name (e.g. both have a ``geoid``
-        column, which is the common case for Census layers), the later
-        layer's value overwrites the earlier one.
-
-        Layer-prefixed output columns (``{layer_name}_geoid``,
-        ``{layer_name}_name``) are not yet implemented; see issue #473
-        for the planned column-renaming fix.
+        Calls :meth:`assign_boundaries` for each layer and joins results.
 
         Parameters
         ----------
@@ -555,17 +561,17 @@ class DataFrameEngine(ABC):
         Returns
         -------
         DataFrame
-            Points after chained spatial joins. Column names are NOT
-            disambiguated by layer; for non-overlapping column sets this
-            works fine, otherwise see issue #473.
+            Points enriched with ``{layer_name}_geoid`` and
+            ``{layer_name}_name`` from each boundary layer.
         """
         result = points
-        for _layer_name, polygons in boundary_layers.items():
-            result = self.assign_boundaries(
+        for layer_name, polygons in boundary_layers.items():
+            assigned = self.assign_boundaries(
                 result, polygons,
                 point_geom=point_geom, polygon_geom="geometry",
                 how="left",
             )
+            result = assigned
         return result
 
 
@@ -719,6 +725,21 @@ class DuckDBEngine(DataFrameEngine):
     # -- I/O ----------------------------------------------------------------
 
     def read_csv(self, path: str, **kwargs: Any) -> Any:
+        """Read a CSV via DuckDB's ``read_csv_auto``.
+
+        Engine-specific kwargs (DuckDB's ``read_csv_auto`` options like
+        ``header``, ``delim``, ``columns``) are not yet forwarded; pass
+        the equivalent options inside a custom SQL via :meth:`query`
+        if you need to override auto-detection.
+        """
+        if kwargs:
+            raise NotImplementedError(
+                f"DuckDBEngine.read_csv does not yet forward kwargs "
+                f"(got {sorted(kwargs.keys())}); use .query() with an "
+                f"explicit `SELECT ... FROM read_csv_auto(path, <opts>)` "
+                f"if you need to pass DuckDB-specific options. "
+                f"Tracked separately for proper kwargs forwarding."
+            )
         # Parameter-bind the path so it can't break out of the string
         # literal in read_csv_auto's argument slot.
         return self._connection.execute(
@@ -726,6 +747,17 @@ class DuckDBEngine(DataFrameEngine):
         ).fetchdf()
 
     def read_parquet(self, path: str, **kwargs: Any) -> Any:
+        """Read a Parquet file via DuckDB's ``read_parquet``.
+
+        Engine-specific kwargs are not yet forwarded; use :meth:`query`
+        for DuckDB-specific options.
+        """
+        if kwargs:
+            raise NotImplementedError(
+                f"DuckDBEngine.read_parquet does not yet forward kwargs "
+                f"(got {sorted(kwargs.keys())}); use .query() with an "
+                f"explicit `SELECT ... FROM read_parquet(path, <opts>)`."
+            )
         return self._connection.execute(
             "SELECT * FROM read_parquet(?)", [path]
         ).fetchdf()
@@ -821,10 +853,15 @@ class DuckDBEngine(DataFrameEngine):
                 if isinstance(g, bytes):
                     return shapely_wkb.loads(g)
                 if isinstance(g, str):
-                    try:
+                    # WKB-hex strings are pure hexadecimal; WKT strings
+                    # start with a geometry-type keyword (POINT, POLYGON,
+                    # MULTIPOLYGON, etc.). Introspect rather than try/
+                    # except so a corrupt WKB string doesn't silently fall
+                    # through to WKT parsing of garbage.
+                    head = g[:32].strip() if g else ""
+                    if head and all(c in "0123456789abcdefABCDEF" for c in head):
                         return shapely_wkb.loads(g, hex=True)
-                    except Exception:
-                        return shapely_wkt.loads(g)
+                    return shapely_wkt.loads(g)
                 return g
             result[geom_col] = result[geom_col].apply(_parse_geom)
             gdf = gpd.GeoDataFrame(result, geometry=geom_col, crs=crs or get_default_crs())
@@ -868,7 +905,7 @@ class DuckDBEngine(DataFrameEngine):
         if isinstance(df, pd.DataFrame) and geometry_col in df.columns:
             from shapely import wkt as shapely_wkt, wkb as shapely_wkb
             from shapely.geometry.base import BaseGeometry
-            # Predicate must be on the dropped Series — len(df) > 0 can
+            # Predicate must be on the dropped Series -- len(df) > 0 can
             # be true while df[geometry_col] is all-null, which would
             # IndexError on .iloc[0].
             non_null = df[geometry_col].dropna()
@@ -937,6 +974,24 @@ class SparkEngine(DataFrameEngine):
     # -- SQL ----------------------------------------------------------------
 
     def query(self, sql: str, **kwargs: Any) -> Any:
+        """Execute *sql* via Spark SQL.
+
+        SparkEngine.query accepts no engine-specific kwargs;
+        ``self._session.sql()`` takes no options beyond the SQL text. The
+        ``**kwargs`` parameter is present for interface symmetry with
+        DuckDBEngine (which accepts ``table`` / ``df``) and PostGISEngine
+        (which accepts ``geom_col``). A non-empty kwargs is a caller
+        error and is raised to surface the mistake rather than silently
+        ignored.
+        """
+        if kwargs:
+            raise NotImplementedError(
+                f"SparkEngine.query takes no engine-specific kwargs (got "
+                f"{sorted(kwargs.keys())}); DuckDBEngine.query accepts "
+                f"'table' and 'df'; PostGISEngine.query accepts 'geom_col'. "
+                f"For Spark SQL options, configure them on the SparkSession "
+                f"before calling query()."
+            )
         return self._session.sql(sql)
 
     # -- Transforms ---------------------------------------------------------
@@ -954,7 +1009,23 @@ class SparkEngine(DataFrameEngine):
         agg_dict: Dict[str, str],
     ) -> Any:
         from pyspark.sql import functions as F
-        _validate_agg_names(agg_dict, "SparkEngine")
+        # SparkEngine accepts the intersection set plus Spark-specific
+        # extensions (approx_count_distinct via F.approx_count_distinct).
+        # The validator is local to SparkEngine because the central
+        # _validate_agg_names enforces the intersection only.
+        spark_supported = _SUPPORTED_AGG_NAMES | _SPARK_EXTRA_AGG_NAMES
+        if not agg_dict:
+            raise ValueError(
+                "SparkEngine.groupby_agg: agg_dict must not be empty; "
+                "pass at least one column -> aggregation name mapping."
+            )
+        unknown = sorted({f for f in agg_dict.values() if f not in spark_supported})
+        if unknown:
+            raise ValueError(
+                f"SparkEngine.groupby_agg: unsupported aggregation "
+                f"function(s) {unknown}. Supported: "
+                f"{sorted(spark_supported)}."
+            )
         # pyspark.sql.functions exposes the function as F.avg, with mean
         # only available as a Column method. Normalise so callers can
         # pass either spelling.
@@ -980,15 +1051,28 @@ class SparkEngine(DataFrameEngine):
     # -- Spatial -----------------------------------------------------------
 
     def _ensure_sedona(self) -> None:
-        """Register Sedona UDFs if not already done."""
-        if not self._sedona_registered:
-            if self._enable_sedona:
-                try:
-                    from sedona.register import SedonaRegistrator
-                    SedonaRegistrator.registerAll(self._session)
-                    self._sedona_registered = True
-                except ImportError:
-                    pass  # Sedona not installed — spatial methods will fail with clear errors
+        """Register Sedona UDFs if not already done.
+
+        Raises ImportError with the install command if Sedona is not
+        installed; all callers of this method need Sedona (they go on to
+        use ST_* functions). Failing here surfaces the missing dependency
+        at the first spatial call rather than producing a confusing Spark
+        SQL error about ST_Foo being unknown.
+        """
+        if self._sedona_registered:
+            return
+        if not self._enable_sedona:
+            return
+        try:
+            from sedona.register import SedonaRegistrator
+            SedonaRegistrator.registerAll(self._session)
+            self._sedona_registered = True
+        except ImportError as exc:
+            raise ImportError(
+                "SparkEngine spatial methods require Apache Sedona. "
+                "Install it with: pip install apache-sedona[spark] "
+                "and ensure the JARs are on the SparkSession classpath."
+            ) from exc
 
     def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
         # Fallback: read via GeoPandas, convert to Spark DataFrame
@@ -1009,14 +1093,14 @@ class SparkEngine(DataFrameEngine):
         )
         validate_identifier_in(left_geom, left.columns, label="left geometry column")
         validate_identifier_in(right_geom, right.columns, label="right geometry column")
-        # `validate_sql_identifier` only checks shape — Sedona doesn't have
+        # `validate_sql_identifier` only checks shape -- Sedona doesn't have
         # ``ST_Foo``, so accept only the documented predicate set.
         supported_predicates = {
             "intersects", "contains", "within", "touches", "crosses", "overlaps",
         }
         if predicate.lower() not in supported_predicates:
             raise ValueError(
-                f"unsupported spatial predicate {predicate!r} — "
+                f"unsupported spatial predicate {predicate!r} -- "
                 f"expected one of {sorted(supported_predicates)}"
             )
         if how.lower() not in ("inner", "left", "right", "outer", "full"):
@@ -1024,7 +1108,7 @@ class SparkEngine(DataFrameEngine):
         # Unique per-call temp-view names so concurrent calls don't
         # collide on a shared `_sjoin_left` and so a failed previous
         # call doesn't leave stale state in the catalog. The returned
-        # DataFrame is lazy — we can't drop the views in this scope.
+        # DataFrame is lazy -- we can't drop the views in this scope.
         import uuid as _uuid
         tag = _uuid.uuid4().hex[:8]
         lv = f"_sjoin_left_{tag}"
@@ -1043,7 +1127,7 @@ class SparkEngine(DataFrameEngine):
         self._ensure_sedona()
         from siege_utilities.core.sql_safety import validate_sql_identifier_in as validate_identifier_in
         validate_identifier_in(geometry_col, df.columns, label="geometry column")
-        # `distance` is interpolated as a float — coerce so a malicious
+        # `distance` is interpolated as a float -- coerce so a malicious
         # caller can't sneak SQL via a string.
         distance_lit = float(distance)
         import uuid as _uuid
@@ -1099,7 +1183,7 @@ class SparkEngine(DataFrameEngine):
     # -- Spatial overrides (Spark/Sedona native) ---------------------------
 
     def load_polygons(self, path, *, geometry_col="geometry", format="auto", crs=None):
-        """Load polygons — Spark-native parquet/json reader."""
+        """Load polygons -- Spark-native parquet/json reader."""
         if format == "auto":
             format = "parquet" if "parquet" in path.lower() or "/" == path[-1:] else "geojson"
         if format in ("parquet", "geoparquet"):
@@ -1111,7 +1195,7 @@ class SparkEngine(DataFrameEngine):
         return self.read_spatial(path, crs=crs)
 
     def load_points(self, df, lat_col="lat", lon_col="lon", geometry_col="geometry"):
-        """Create point geometries — Spark-native WKT string construction."""
+        """Create point geometries -- Spark-native WKT string construction."""
         from pyspark.sql.functions import col, concat, lit
         return df.withColumn(
             geometry_col,
@@ -1120,7 +1204,7 @@ class SparkEngine(DataFrameEngine):
 
     def assign_boundaries(self, points, polygons, *, point_geom="geometry",
                           polygon_geom="geometry", how="left"):
-        """Point-in-polygon — Sedona ST_Contains with optional broadcast."""
+        """Point-in-polygon -- Sedona ST_Contains with optional broadcast."""
         self._ensure_sedona()
         from pyspark.sql.functions import broadcast
         from siege_utilities.core.sql_safety import validate_sql_identifier_in as validate_identifier_in
@@ -1143,7 +1227,7 @@ class SparkEngine(DataFrameEngine):
 
     def nearest(self, points, targets, *, k=1, max_distance=None,
                 point_geom="geometry", target_geom="geometry"):
-        """K-nearest — Sedona ST_Distance with window function."""
+        """K-nearest -- Sedona ST_Distance with window function."""
         self._ensure_sedona()
         from siege_utilities.core.sql_safety import validate_sql_identifier_in as validate_identifier_in
         validate_identifier_in(point_geom, points.columns, label="point geometry column")
@@ -1250,7 +1334,7 @@ class PostGISEngine(DataFrameEngine):
              ``WHERE s2_cell BETWEEN range_min AND range_max``.
 
         Computing cell IDs at query time over PostGIS would defeat the
-        whole point — the database can't index a value it has to compute
+        whole point -- the database can't index a value it has to compute
         per-row. Hence this engine raises rather than silently degrade.
         """
         raise NotImplementedError(
@@ -1274,30 +1358,53 @@ class PostGISEngine(DataFrameEngine):
         return df
 
     def read_parquet(self, path: str, **kwargs: Any) -> Any:
+        """Read a parquet file. Returns a ``GeoDataFrame`` when the file
+        carries GeoParquet metadata, a plain ``DataFrame`` otherwise.
+
+        The decision is by file inspection (pyarrow schema metadata),
+        not by exception-fallback. An earlier implementation tried
+        ``gpd.read_parquet`` first and silently fell back to
+        ``pd.read_parquet`` on any exception -- that pattern hid real
+        gpd errors (a corrupt geoparquet file, an out-of-date geopandas)
+        as "this must not be a geoparquet file." The current path checks
+        the parquet metadata directly so the decision is explicit.
+        """
         import geopandas as gpd
-        try:
+        import pandas as pd
+        import pyarrow.parquet as pq
+        schema_metadata = pq.read_schema(path).metadata or {}
+        # GeoParquet files carry a 'geo' key in the schema metadata.
+        is_geoparquet = b"geo" in schema_metadata
+        if is_geoparquet:
             return gpd.read_parquet(path, **kwargs)
-        except Exception:
-            import pandas as pd
-            return pd.read_parquet(path, **kwargs)
+        return pd.read_parquet(path, **kwargs)
 
     # -- SQL ----------------------------------------------------------------
 
     def query(self, sql: str, **kwargs: Any) -> Any:
         """Execute *sql* against the PostGIS database.
 
-        If the query returns a geometry column, the result is a
-        ``GeoDataFrame``; otherwise a plain ``DataFrame``.
+        Pass ``geom_col="<column>"`` to indicate a geometry column in the
+        result; the query then returns a ``GeoDataFrame`` with that
+        column parsed as geometry. Omit ``geom_col`` (or pass an empty
+        string) for queries that return no geometry; the result is a
+        plain ``DataFrame``.
+
+        The Geo-vs-plain decision is made by the caller (via the
+        presence of ``geom_col``), not by exception-fallback. An earlier
+        implementation tried ``gpd.read_postgis`` first and silently
+        fell back to ``pd.read_sql`` on any exception -- that pattern
+        hid real PostGIS errors (a malformed SQL, a missing column) as
+        "this must not have a geometry column."
         """
-        import geopandas as gpd
-        geom_col = kwargs.pop("geom_col", "geometry")
-        try:
+        geom_col = kwargs.pop("geom_col", None)
+        if geom_col:
+            import geopandas as gpd
             return gpd.read_postgis(
                 sql, self._sql_engine, geom_col=geom_col, **kwargs
             )
-        except Exception:
-            import pandas as pd
-            return pd.read_sql(sql, self._sql_engine, **kwargs)
+        import pandas as pd
+        return pd.read_sql(sql, self._sql_engine, **kwargs)
 
     # -- Transforms ---------------------------------------------------------
 

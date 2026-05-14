@@ -53,14 +53,27 @@ class TestGovernmentDataSource:
             result = src._get_dataset_metadata("https://example.com/api/x")
         assert result is None
 
-    def test_format_finder_error_raises(self):
+    def test_format_finder_propagates_programming_errors(self):
+        """_find_best_format does NOT wrap programming errors as
+        SpatialDataError. An earlier version wrapped any Exception from
+        the dict-manipulation body into SpatialDataError, which hid
+        programming errors (a non-dict metadata, a non-dict resource)
+        as if they were data errors. Per writing-code:7 (silent error
+        swallowing): programming errors propagate as themselves.
+        """
         src = GovernmentDataSource(portal_url="https://example.com")
-        # Pass a metadata object where resources.get raises
-        broken_metadata = MagicMock()
-        broken_metadata.get.side_effect = RuntimeError("broken metadata")
-        with pytest.raises(SpatialDataError) as exc_info:
-            src._find_best_format(broken_metadata, "geojson")
-        assert isinstance(exc_info.value.__cause__, RuntimeError)
+        # A non-dict metadata is a programming-error shape; .get raises
+        # AttributeError. The error should propagate AS the underlying
+        # AttributeError, not wrapped.
+        with pytest.raises(AttributeError):
+            src._find_best_format("not a dict", "geojson")
+
+    def test_format_finder_returns_none_on_empty_metadata(self):
+        """Missing 'resources' key returns None (no usable format), not
+        an error. This is the documented data-shaped failure mode."""
+        src = GovernmentDataSource(portal_url="https://example.com")
+        assert src._find_best_format({}, "geojson") is None
+        assert src._find_best_format({"resources": []}, "geojson") is None
 
     def test_download_dataset_surface_raises(self):
         """download_dataset() wraps helper SpatialDataError cleanly
