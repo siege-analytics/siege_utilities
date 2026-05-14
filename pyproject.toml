@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "siege-utilities"
-version = "3.17.0"
+version = "3.17.1"
 description = "A comprehensive Python utilities package with enhanced auto-discovery"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -289,6 +289,17 @@ Homepage = "https://github.com/siege-analytics/siege_utilities"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["*"]
+exclude = [
+    # Repo-tooling directories that contain .py files but are NOT runtime
+    # packages. Without an exclude here, setuptools find_packages picked
+    # them up and shipped them at site-packages root, polluting every
+    # downstream venv (any user could then `from scripts import
+    # release_manager` and collide with their own top-level `scripts/`
+    # package). See issue #496.
+    "scripts*",
+    "tests*",
+    "docs*",
+]
 
 [tool.setuptools.package-data]
 siege_utilities = ["py.typed"]

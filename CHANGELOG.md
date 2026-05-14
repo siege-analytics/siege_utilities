@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.1] - 2026-05-14
+
+Patch release: package-hygiene fix surfaced by the v3.17.0 consumer-side verification (proposed claude-configs-public writing-releases:5).
+
+### Fixed
+
+- **`scripts/`, `tests/`, `docs/` no longer ship to `site-packages` root** (#496):
+  setuptools `find_packages(include=["*"])` was matching every directory
+  containing `.py` files at the repo root. `pip install siege-utilities`
+  was installing `site-packages/scripts/` as a top-level package, polluting
+  every downstream venv (a user could `from scripts import release_manager`
+  and collide with their own top-level `scripts/` package). Pre-existing
+  in v3.16.0 and earlier; v3.17.0 added `check_unbounded_io.py` to the
+  polluted namespace.
+
+  Fix: explicit `exclude` in `[tool.setuptools.packages.find]` for
+  `scripts*`, `tests*`, `docs*`. Wheel verified post-fix: zero matches
+  for those prefixes.
+
+  Surfaced by the v3.17.0 consumer-side verification per the proposed
+  writing-releases:5 rule: source-side green (25 CI jobs pass; twine
+  check pass; scanner clean) but two real consumer-side bugs reached
+  PyPI. Recurrence 3 of LESSON 323a0f5 family in the rule's originating
+  arc.
+
 ## [3.17.0] - 2026-05-14
 
 Minor release rolling up a 12-PR rule-cohort fix-exercise session against
