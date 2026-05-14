@@ -279,7 +279,6 @@ try:
         export_config_yaml,
         import_config_yaml,
     )
-    from .hydra_manager import HydraConfigManager
     from .models import (
         UserProfile as PydanticUserProfile,
         ClientProfile as PydanticClientProfile,
@@ -322,7 +321,6 @@ except ImportError as e:
     list_client_profiles = _config_dependency_wrapper('list_client_profiles', _pd)
     export_config_yaml = _config_dependency_wrapper('export_config_yaml', _pd)
     import_config_yaml = _config_dependency_wrapper('import_config_yaml', _pd)
-    HydraConfigManager = _config_dependency_wrapper('HydraConfigManager', _pd)
     PydanticUserProfile = _config_dependency_wrapper('PydanticUserProfile', _pd)
     PydanticClientProfile = _config_dependency_wrapper('PydanticClientProfile', _pd)
     ContactInfo = _config_dependency_wrapper('ContactInfo', _pd)
@@ -351,6 +349,26 @@ except ImportError as e:
     ConfigurationMigrator = _config_dependency_wrapper('ConfigurationMigrator', _pd)
     migrate_configurations = _config_dependency_wrapper('migrate_configurations', _pd)
     backup_and_migrate = _config_dependency_wrapper('backup_and_migrate', _pd)
+
+# Hydra is an optional dependency (in the `[config-extras]` extra). Import
+# it separately from the pydantic-config try block: when hydra is missing,
+# the consumer's stderr previously emitted a misleading "Could not import
+# Pydantic config system" warning because the eager `from .hydra_manager
+# import HydraConfigManager` lived inside the pydantic try block and took
+# the whole block down. Hydra absence drops to DEBUG (the consumer didn't
+# install the extra; they don't need a warning about it).
+try:
+    from .hydra_manager import HydraConfigManager
+except ImportError as e:
+    _config_logger.debug(
+        "Hydra config manager not available (install with the "
+        "'config-extras' extra: pip install siege-utilities[config-extras]): %s",
+        e,
+    )
+    HydraConfigManager = _config_dependency_wrapper(
+        'HydraConfigManager',
+        ['hydra-core>=1.3.0', 'omegaconf>=2.3.0'],
+    )
 
 from .databases import (
     create_database_config,

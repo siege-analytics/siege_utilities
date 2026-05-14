@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.2] - 2026-05-14
+
+Patch release: hydra is an optional extra; importing siege_utilities without it must not emit a misleading "Pydantic config system" warning. Closes #498.
+
+### Fixed
+
+- **Hydra absence no longer surfaces as "Could not import Pydantic config system"** (#498).
+  `siege_utilities/config/__init__.py` had `from .hydra_manager import HydraConfigManager` inside the pydantic try block. When hydra was absent, the whole block failed and emitted a WARNING blaming pydantic. The eager hydra-manager import is now in its own narrow try/except; hydra absence drops to DEBUG (it's an optional `[config-extras]` extra), and the dependency wrapper cites `hydra-core` / `omegaconf` rather than `pydantic` when the consumer tries to use `HydraConfigManager`.
+
+  writing-code:8 (conditional-import callsite hygiene) territory. Three regression tests in `tests/test_config_hydra_optional.py` pin the new behavior.
+
 ## [3.17.1] - 2026-05-14
 
 Patch release: package-hygiene fix surfaced by the v3.17.0 consumer-side verification (proposed claude-configs-public writing-releases:5).
