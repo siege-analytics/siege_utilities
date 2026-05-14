@@ -129,15 +129,22 @@ class CredentialManager:
             for path in additional_paths:
                 paths.append(Path(path))
         
-        # Try to get paths from user config
+        # Try to get paths from user config. Narrow except to the two
+        # legitimate "config not available" failure modes (the module
+        # isn't importable, or the function exists but the attribute
+        # we're reading is missing). A bare `except Exception` here
+        # would have swallowed a TypeError in user_config.credential_paths
+        # iteration (e.g., if a user wrote a string instead of a list),
+        # masking a real config bug as "no credential paths configured."
         try:
             from .user_config import get_user_config
+        except ImportError:
+            pass  # user_config module not available; no extra paths.
+        else:
             user_config = get_user_config()
-            if user_config and hasattr(user_config, 'credential_paths'):
+            if user_config is not None and hasattr(user_config, 'credential_paths'):
                 for path in user_config.credential_paths:
                     paths.append(Path(path))
-        except Exception:
-            pass  # User config not available or no credential paths configured
         
         return paths
     
@@ -219,28 +226,35 @@ class CredentialManager:
             if not self.available_backends.get(backend, False):
                 continue
 
-            try:
-                if backend == 'files':
-                    value = self._get_from_files(service, username, field, search_paths)
-                elif backend == 'env':
-                    value = self._get_from_env(service, username, field)
-                elif backend == '1password':
-                    value = self._get_from_1password(service, field, vault=vault, account=account)
-                elif backend == 'keychain':
-                    value = self._get_from_keychain(service, username)
-                elif backend == 'prompt':
-                    value = self._get_from_prompt(service, username, field)
-                else:
-                    continue
-                    
-                if value:
-                    log_info(f"Retrieved {field} for {service} from {backend}")
-                    return value
-                    
-            except Exception as e:
-                log_warning(f"Error retrieving from {backend}: {e}")
+            # Backend helpers now return None for "this backend does not
+            # have the credential" and raise for transport / auth /
+            # permission failures. An earlier version caught all
+            # exceptions here and continued to the next backend, which
+            # silently fell through from 1Password to keychain to prompt
+            # on transient errors -- causing the operator to be prompted
+            # for credentials 1Password actually has. Per writing-code:7
+            # (silent error swallowing) the rule is: backend says "not
+            # found" -> fall through; backend errors -> propagate so the
+            # caller can decide.
+            if backend == 'files':
+                value = self._get_from_files(service, username, field, search_paths)
+            elif backend == 'env':
+                value = self._get_from_env(service, username, field)
+            elif backend == '1password':
+                value = self._get_from_1password(service, field, vault=vault, account=account)
+            elif backend == 'keychain':
+                value = self._get_from_keychain(service, username)
+            elif backend == 'prompt':
+                value = self._get_from_prompt(service, username, field)
+            else:
                 continue
-        
+
+            if value:
+                log_info(f"Retrieved {field} for {service} from {backend}")
+                return value
+            # value is None: this backend legitimately does not have the
+            # credential; continue to the next backend.
+
         log_warning(f"Could not retrieve {field} for {service} from any backend")
         return None
     
@@ -347,41 +361,54 @@ class CredentialManager:
                             account: Optional[str] = None) -> Optional[str]:
         """Get credential from 1Password.
 
+        Returns the credential string if found, ``None`` if the item
+        legitimately does not exist in 1Password (under the requested
+        name OR any of the documented service-name variations). Raises
+        on transport / auth / vault-permission errors so the caller
+        does not silently fall through to a less-trusted backend when
+        1Password actually had the credential but had a transient
+        access problem.
+
         Args:
             service: Item title or identifier in 1Password
             field: Field name to retrieve
             vault: Vault override (falls back to default_vault)
             account: Account override (falls back to default_account)
         """
-        try:
-            op_flags = self._build_op_flags(vault=vault, account=account)
-
-            # Try to find item by service name
-            cmd = ['op', 'item', 'get', service, f'--field={field}', '--reveal'] + op_flags
+        op_flags = self._build_op_flags(vault=vault, account=account)
+        names_to_try = [
+            service,
+            f"{service} API",
+            f"{service} Credentials",
+            f"{service.replace('-', ' ').title()} API",
+            f"{service.replace('-', ' ').title()} Credentials",
+        ]
+        # op exit codes (per `op` CLI docs):
+        # 0 = success
+        # 1 = item not found / no match
+        # other = auth required, transport, vault-permission, etc.
+        # Treat exit code 1 (and only 1) as "not in this backend"; everything
+        # else is a real failure that should bubble up.
+        for name in names_to_try:
+            cmd = ['op', 'item', 'get', name, f'--field={field}', '--reveal'] + op_flags
             result = subprocess.run(cmd, capture_output=True, text=True)
-
             if result.returncode == 0:
                 return result.stdout.strip()
-
-            # Try with common service name variations
-            service_variations = [
-                f"{service} API",
-                f"{service} Credentials",
-                f"{service.replace('-', ' ').title()} API",
-                f"{service.replace('-', ' ').title()} Credentials"
-            ]
-
-            for variation in service_variations:
-                cmd = ['op', 'item', 'get', variation, f'--field={field}', '--reveal'] + op_flags
-                result = subprocess.run(cmd, capture_output=True, text=True)
-
-                if result.returncode == 0:
-                    return result.stdout.strip()
-
-            return None
-
-        except Exception:
-            return None
+            if result.returncode == 1:
+                # Item not found under this name; try the next variation.
+                continue
+            # Non-1 nonzero exit: 1Password CLI is signalling something
+            # other than "item not found." Raise so the caller does not
+            # silently fall through to keychain/prompt for credentials
+            # 1Password actually has.
+            raise RuntimeError(
+                f"1Password CLI (`op item get {name} --field={field}`) "
+                f"exited with code {result.returncode}: "
+                f"{(result.stderr or result.stdout)[:200]!r}. "
+                f"Resolve the 1Password CLI state before falling back "
+                f"to other backends."
+            )
+        return None
     
     def _get_from_keychain(self, service: str, username: str) -> Optional[str]:
         """Get credential from Apple Keychain."""
