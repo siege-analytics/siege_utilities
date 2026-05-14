@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **writing-code:15 unbounded-I/O ratchet** (`scripts/check_unbounded_io.py`): AST
+  scanner that flags any `subprocess.run` / `subprocess.check_output`
+  / `subprocess.check_call` / `requests.{get,post,...}` /
+  `urllib.request.urlopen` / `socket.create_connection` /
+  `sqlite3.connect` call that lacks an explicit `timeout=` kwarg. The
+  rule applies because every unbounded blocking call is a DoS
+  primitive against the caller's process. Wired into CI as a new job
+  (`unbounded-io-check`) that runs against the full repo on every PR.
+  Per claude-configs-public v2.6.0 writing-code:15 ratification.
+
+### Changed
+
+- **Bounded blocking I/O across the library and scripts** (writing-code:15): 55
+  unbounded `subprocess.run` / `check_output` / `urlopen` /
+  `sqlite3.connect` call sites now declare explicit timeouts. Per-call
+  defaults reflect the operation (`git`/`hdfs`/`twine check` = 30-60s;
+  `pip install` = 300s; `setup.py` build / `twine upload` / test
+  runner = 600s; HTTP downloads = 60s; SQLite lock-wait = 10s; `op`
+  CLI = 60s for biometric prompts). Sites that previously could hang
+  the caller's process indefinitely now surface failure instead.
+
 ### BREAKING
 
 **From the v2.3.0 fix exercise (PR #487):**
