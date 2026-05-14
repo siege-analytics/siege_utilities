@@ -6,7 +6,7 @@ Provides structured logging with proper configuration management.
 import logging
 import logging.handlers
 from pathlib import Path
-from typing import Optional, Dict, Any, Union, Generator
+from typing import Optional, Dict, Union, Generator
 from dataclasses import dataclass, field
 from contextlib import contextmanager
 import sys
@@ -160,34 +160,37 @@ class LoggerManager:
             
             logger.addHandler(file_handler)
     
-    def _create_rotating_file_handler(self, 
+    def _create_rotating_file_handler(self,
                                     log_file: Path,
                                     max_bytes: int,
                                     backup_count: int,
                                     level: int) -> logging.Handler:
-        """Create a rotating file handler."""
+        """Create a rotating file handler.
+
+        Raises OSError (or subclass: PermissionError, FileNotFoundError,
+        etc.) when the log file cannot be created at *log_file*. An
+        earlier version silently substituted a NullHandler on any
+        Exception, which made the LOGGING module fail silently for the
+        operator who most needs observability -- the misconfiguration
+        case. The factory raises; the caller decides how to recover.
+        """
         try:
-            # Ensure the directory exists
             log_file.parent.mkdir(parents=True, exist_ok=True)
-            
             handler = logging.handlers.RotatingFileHandler(
                 log_file,
                 maxBytes=max_bytes,
-                backupCount=backup_count
+                backupCount=backup_count,
             )
-            handler.setLevel(level)
-            
-            formatter = logging.Formatter(
-                '[%(name)s] %(asctime)s %(levelname)s: %(message)s'
-            )
-            handler.setFormatter(formatter)
-            
-            return handler
-            
-        except Exception as e:
-            logging.warning(f"Failed to create file handler for {log_file}: {e}")
-            # Return a null handler as fallback
-            return logging.NullHandler()
+        except OSError as exc:
+            raise OSError(
+                f"Failed to create rotating file handler for {log_file}. "
+                f"Check that {log_file.parent} exists and is writable."
+            ) from exc
+        handler.setLevel(level)
+        handler.setFormatter(logging.Formatter(
+            '[%(name)s] %(asctime)s %(levelname)s: %(message)s'
+        ))
+        return handler
     
     @staticmethod
     def _parse_log_level(level: LogLevel) -> int:
