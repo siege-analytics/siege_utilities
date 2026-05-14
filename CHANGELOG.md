@@ -7,21 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.0] - 2026-05-14
+
+Minor release rolling up a 12-PR rule-cohort fix-exercise session against
+claude-configs-public v2.2.0 through v2.6.0. New scanner `writing-code:15`
+(unbounded blocking I/O) wired into CI. Four BREAKING changes to specific
+public surfaces, each cited against the rule that drove the change.
+
 ### Added
 
-- **writing-code:15 unbounded-I/O ratchet** (`scripts/check_unbounded_io.py`): AST
-  scanner that flags any `subprocess.run` / `subprocess.check_output`
-  / `subprocess.check_call` / `requests.{get,post,...}` /
-  `urllib.request.urlopen` / `socket.create_connection` /
-  `sqlite3.connect` call that lacks an explicit `timeout=` kwarg. The
-  rule applies because every unbounded blocking call is a DoS
+- **writing-code:15 unbounded-I/O ratchet** (`scripts/check_unbounded_io.py`, #492):
+  AST scanner that flags any `subprocess.run` / `subprocess.check_output` /
+  `subprocess.check_call` / `requests.{get,post,...}` / `urllib.request.urlopen`
+  / `socket.create_connection` / `sqlite3.connect` call that lacks an
+  explicit `timeout=` kwarg. Every unbounded blocking call is a DoS
   primitive against the caller's process. Wired into CI as a new job
   (`unbounded-io-check`) that runs against the full repo on every PR.
   Per claude-configs-public v2.6.0 writing-code:15 ratification.
+- **Sprint C gazetteers** (#470, closes #454): `CensusGazetteer` + `WikidataGazetteer`
+  under `siege_utilities/geo/gazetteers/`. Two-step lookup against the
+  Census Geocoder + TIGERWeb for US administrative places; SPARQL +
+  Overpass for non-administrative places via Wikidata + OSM. Includes
+  OSM way-segment stitching for split-outer multipolygon relations.
+- **15 `_add_*_slide` methods return `Slide`** (#487, #492, closes #485):
+  `PowerPointGenerator` private methods now return the python-pptx
+  `Slide` object instead of `None`. Class docstring documents the
+  convention. Per writing-code:11 floor (a) inspectable return value.
+- **`_ENGINE_MAP` module-load-time exhaustiveness assertion** (#492):
+  `engines/dataframe_engine.py` validates the engine-name map covers
+  every Engine enum member at import time. New engine added without
+  map entry now fails-fast at import, not lazily at lookup.
+
+### Security
+
+- **`databricks.lakebase` + `databricks.unity_catalog` input validation** (#482):
+  SQL identifier validation in `build_foreign_table_sql`; shell injection
+  prevention in `build_lakebase_psql_command` via `validate_sql_identifier`
+  + `shlex.quote`. `build_pgpass_entry` correctly escapes `:` and `\` in
+  passwords (previously emitted malformed pgpass lines on special chars).
+- **`credential_manager` silent-swallow drain** (#484): five `except: pass`
+  patterns narrowed; backend dispatch distinguishes "credential not found"
+  from "credential lookup errored" via `op` exit code as trust boundary.
 
 ### Changed
 
-- **Bounded blocking I/O across the library and scripts** (writing-code:15): 55
+- **Bounded blocking I/O across the library and scripts** (#492, writing-code:15): 55
   unbounded `subprocess.run` / `check_output` / `urlopen` /
   `sqlite3.connect` call sites now declare explicit timeouts. Per-call
   defaults reflect the operation (`git`/`hdfs`/`twine check` = 30-60s;
@@ -29,6 +59,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   runner = 600s; HTTP downloads = 60s; SQLite lock-wait = 10s; `op`
   CLI = 60s for biometric prompts). Sites that previously could hang
   the caller's process indefinitely now surface failure instead.
+- **`DataFrameEngine.multi_assign` produces layer-prefixed columns** (#492, closes #473):
+  Previously chained `assign_boundaries` without renaming — second join
+  silently overwrote the first layer's `geoid`/`name`/etc. when TIGER
+  layers shared column names. Now every polygon-side column is prefixed
+  `{layer_name}_*`. Documented behavior now matches code.
+- **Em-dash and other AI-typographic punctuation removed** (#478, #492):
+  Per writing-prose:1, across `engines/dataframe_engine.py`,
+  `geo/spatial_data.py`, `analytics/vista_social.py`, `core/sql_safety.py`,
+  and all 8 `survey/*.py` files (~70+ ASCII conversions).
+- **Cross-module return-type annotations corrected** (#492): five sites on
+  `discover_boundary_types`, `get_available_boundary_types`,
+  `get_available_state_fips`, `get_state_abbreviations` were annotated
+  `List[str]` but always returned `Dict[str, str]` at runtime. Type
+  stubs now match reality.
+- **History-reference sweep** (#476, writing-code:2): PR/issue/commit
+  references purged from code comments and docstrings across
+  `engines/dataframe_engine.py` and `geo/spatial_data.py`. Per
+  writing-code:2: code documentation must not reference git history.
+- **`assign_boundaries` and `multi_assign` docstrings reflect actual behavior** (#472, #474):
+  Two docstring-vs-code mismatches in `DataFrameEngine`.
+  `assign_boundaries` was documented `predicate='contains'` but used
+  `'within'`; `multi_assign` claimed layer-prefixed columns that #492
+  delivered.
+- **`_ensure_sedona` emits observable signal on every path** (#487):
+  Three states (already-registered, sedona-disabled, fresh-registration)
+  each log at DEBUG. Per writing-code:11 floor (b) audit-trail.
+- **`spatial_data.py` failure-mode contract sweep** (#478, #489): consistent
+  failure-mode contract across `GovernmentDataSource._get_dataset_metadata`,
+  `OpenStreetMapDataSource.download_osm_data`, and related
+  metadata-fetch surfaces. Per writing-code:13.
+- **`databricks.get_dbutils` content-distinguishable dispatch** (#491):
+  Two-path import (`pyspark.dbutils` vs IPython namespace) now uses
+  module-presence checks rather than `try/except` for branching. Per
+  writing-code:14 (no exception-as-dispatch when content is
+  distinguishable).
+- **`init_logger` deprecation note** (#492): `init_logger` is a
+  get-or-create alias for `get_logger` despite its name suggesting
+  first-time setup. Docstring marker `.. deprecated::` directs callers
+  to `configure_shared_logging` + `get_logger`.
+
+### Fixed
+
+- **`flatten_json_column_and_join_back_to_df` corrupt-record paths** (#492):
+  Both fallback branches wrap `validate_json` as a Spark UDF before
+  passing to `.otherwise()`. Plain Python call had been evaluated once
+  at plan-build time with a `Column` object, producing constant
+  `lit(None)` per row instead of per-row validation.
+- **`testing.environment.check_java_version` subprocess timeout** (#492):
+  Was unbounded; a hung JDK process would cascade through
+  `setup_spark_environment` → `quick_environment_setup` indefinitely.
+  Now `timeout=10`.
+- **`vista_social` history-reference scrub** (#492): docstring references
+  to `issue #306` / `PR #433` / `Phase-3 sweep` purged per writing-code:2.
+- **`scan_unbounded_io.py` self-greppable regression** (#492): scanner
+  source includes a comment hash for itself; a revert that drops the
+  UDF wrapping turns the regression test red.
 
 ### BREAKING
 
