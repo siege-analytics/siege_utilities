@@ -211,12 +211,21 @@ class CensusGazetteer:
                 continue
             target = counties[0] if counties else states[0]
             layer = _LAYER_COUNTY if counties else _LAYER_STATE
+            # Coordinates missing -> skip rather than silently emit
+            # (0.0, 0.0). A real match always carries x/y; the only way
+            # to get the fallback was an upstream malformed response,
+            # which should not produce a result at Null Island.
+            coords = m.get("coordinates") or {}
+            lat_raw = coords.get("y")
+            lon_raw = coords.get("x")
+            if lat_raw is None or lon_raw is None:
+                continue
             rows.append({
                 "name": target.get("BASENAME") or target.get("NAME") or name,
                 "state_fips": target.get("STATE"),
                 "county_fips": target.get("COUNTY") if counties else None,
-                "lat": float(m.get("coordinates", {}).get("y", 0.0)),
-                "lon": float(m.get("coordinates", {}).get("x", 0.0)),
+                "lat": float(lat_raw),
+                "lon": float(lon_raw),
                 "_layer": layer,
                 "_geoid": target.get("GEOID"),
                 "raw": m,

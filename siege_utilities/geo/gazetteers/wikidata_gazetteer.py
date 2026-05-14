@@ -374,10 +374,17 @@ class WikidataGazetteer:
             if container_idx is not None:
                 holes_for[container_idx].append(inner_ring)
 
-        polys = [
-            Polygon(outer_rings[idx], holes_for[idx])
-            for idx in range(len(outer_rings))
-        ]
+        polys = []
+        for idx in range(len(outer_rings)):
+            poly = Polygon(outer_rings[idx], holes_for[idx])
+            # OSM data is user-edited and sometimes self-intersects;
+            # buffer(0) cleans non-self-intersecting topology errors
+            # without changing the polygon's shape meaningfully. This
+            # is the standard shapely defense for "almost-valid"
+            # external geometry.
+            if not poly.is_valid:
+                poly = poly.buffer(0)
+            polys.append(poly)
         return polys[0] if len(polys) == 1 else MultiPolygon(polys)
 
     @staticmethod
@@ -404,11 +411,27 @@ class WikidataGazetteer:
     def _row_to_result(self, row: Mapping[str, Any]) -> GazetteerResult:
         from shapely.geometry import Point
 
+        coord = self._parse_wkt_point(row.get("coord"))
+
         if row.get("osm_rel"):
-            geometry = self._fetch_osm_relation_geometry(row["osm_rel"])
-            centroid = geometry.centroid
+            try:
+                geometry = self._fetch_osm_relation_geometry(row["osm_rel"])
+                centroid = geometry.centroid
+            except GazetteerBackendError:
+                # Overpass failure on an entity with a P625 coordinate
+                # should fall back to the point rather than escalating
+                # to a hard error -- the caller asked for "where is X"
+                # and we have a usable answer.
+                if coord is None:
+                    raise
+                log.warning(
+                    "Wikidata: Overpass failed for relation %s; "
+                    "falling back to P625 point for %r",
+                    row.get("osm_rel"), row.get("name"),
+                )
+                geometry = Point(coord)
+                centroid = geometry
         else:
-            coord = self._parse_wkt_point(row.get("coord"))
             if coord is None:
                 raise GazetteerNotFoundError(
                     f"Wikidata: {row.get('name')!r} has neither OSM "
