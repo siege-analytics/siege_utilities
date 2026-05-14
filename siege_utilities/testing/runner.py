@@ -59,7 +59,12 @@ def run_command(cmd: List[str], description: str, log_file: Optional[str] = None
                 f.write(stderr)
             returncode = process.returncode
     else:
-        process = subprocess.run(cmd)
+        # 600s default per writing-code:15: test commands can be slow but unbounded
+        # waits cascade into CI hangs. The Popen branch above does not
+        # use timeout because it streams output and the caller can
+        # observe progress; this branch has no observability and so
+        # needs the explicit bound.
+        process = subprocess.run(cmd, timeout=600)
         returncode = process.returncode
 
     if returncode == 0:

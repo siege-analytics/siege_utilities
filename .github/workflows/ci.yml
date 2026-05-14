@@ -130,6 +130,20 @@ jobs:
       run: |
         python scripts/check_lint_ratchet.py --phase phase4
 
+  unbounded-io-check:
+    runs-on: ubuntu-latest
+    name: "blocking I/O timeout check (writing-code:15)"
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    - name: Run writing-code:15 scanner
+      run: |
+        python scripts/check_unbounded_io.py . --exclude-tests
+        python scripts/check_unbounded_io.py tests
+
   test:
     runs-on: ubuntu-latest
     # Allow 3.13 to fail without blocking PRs while we stabilize

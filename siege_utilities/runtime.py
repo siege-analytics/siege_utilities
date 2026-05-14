@@ -323,8 +323,11 @@ def _auto_install_deps(*, quiet: bool = False) -> None:
         log.info("Running: %s", " ".join(cmd))
 
     try:
+        # 300s timeout per writing-code:15: pip install can be slow on a fresh
+        # wheel cache but a hang here freezes the runtime bootstrap.
         subprocess.check_call(cmd, stdout=subprocess.DEVNULL if quiet else None,
-                              stderr=subprocess.STDOUT if quiet else None)
+                              stderr=subprocess.STDOUT if quiet else None,
+                              timeout=300)
     except subprocess.CalledProcessError as exc:
         log.error("pip install failed (exit code %d)", exc.returncode)
     except FileNotFoundError:

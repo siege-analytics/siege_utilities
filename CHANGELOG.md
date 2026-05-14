@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **writing-code:15 unbounded-I/O ratchet** (`scripts/check_unbounded_io.py`): AST
+  scanner that flags any `subprocess.run` / `subprocess.check_output`
+  / `subprocess.check_call` / `requests.{get,post,...}` /
+  `urllib.request.urlopen` / `socket.create_connection` /
+  `sqlite3.connect` call that lacks an explicit `timeout=` kwarg. The
+  rule applies because every unbounded blocking call is a DoS
+  primitive against the caller's process. Wired into CI as a new job
+  (`unbounded-io-check`) that runs against the full repo on every PR.
+  Per claude-configs-public v2.6.0 writing-code:15 ratification.
+
+### Changed
+
+- **Bounded blocking I/O across the library and scripts** (writing-code:15): 55
+  unbounded `subprocess.run` / `check_output` / `urlopen` /
+  `sqlite3.connect` call sites now declare explicit timeouts. Per-call
+  defaults reflect the operation (`git`/`hdfs`/`twine check` = 30-60s;
+  `pip install` = 300s; `setup.py` build / `twine upload` / test
+  runner = 600s; HTTP downloads = 60s; SQLite lock-wait = 10s; `op`
+  CLI = 60s for biometric prompts). Sites that previously could hang
+  the caller's process indefinitely now surface failure instead.
+
 ### BREAKING
 
 **From the v2.3.0 fix exercise (PR #487):**
@@ -22,7 +45,11 @@ All three are public-API changes per `__all__` in `siege_utilities.databricks` a
 - **`siege_utilities.reporting.PowerPointGenerator.generate_powerpoint_presentation`** now returns `Path` (the saved file location) instead of `bool`. Raises on any python-pptx or filesystem error. Consistent with sibling `create_*_presentation` methods per [claude-configs-public v2.3.1 writing-code:13](https://github.com/siege-analytics/claude-configs-public) (sibling methods within a class follow the same failure-mode contract). Callers using the bool return need to switch to try/except + Path; callers ignoring the return value are unaffected. The bundled example in `siege_utilities/reporting/examples/comprehensive_mapping_example.py` was updated as part of the change.
 - **`siege_utilities.geo.spatial_data.GovernmentDataSource._get_dataset_metadata`** now raises `SpatialDataError` on HTTP non-2xx instead of returning `None`. Per writing-code:13 (consistent failure-mode contract), the mixed contract (return None for HTTP non-2xx, raise for transport/parse errors) collapsed to a single raise-everything-non-success contract. The private method's contract change is invisible to external consumers; the public `download_dataset` caller's contract is unchanged.
 
-Drift is intentional and traceable: each BREAKING entry cites the rule that drove it (writing-code:13) so consumers can trace the contract change back to the rule's originating-arc evidence. Per claude-configs-public v2.3.1 writing-releases:1 composition discipline, the BREAKING-changelog entry lands as a separate commit on the fix-exercise PR, composing writing-code:13 with writing-releases:1 without losing per-rule attribution.
+**From bugfix/logging-silent-nullhandler-fallback (PR #480):**
+
+- **`LoggerManager._create_rotating_file_handler` now raises `OSError`** (or subclass: `PermissionError`, `FileNotFoundError`, etc.) on failure instead of silently substituting `logging.NullHandler()`. Previous behavior masked permission-denied / disk-full / invalid-path failures: the caller asked for file logging, the directory was unwritable, the call succeeded silently, and no logs were ever written. Callers configuring file logging must now handle `OSError` from `configure_shared_logging` / `init_logger` / `get_logger`. Per writing-code:11: file-handler creation failures are now observable rather than swallowed.
+
+Drift is intentional and traceable: each BREAKING entry cites the rule that drove it. Per claude-configs-public v2.3.1 writing-releases:1 composition discipline, BREAKING-changelog entries land as separate commits on the fix-exercise PRs, composing writing-code:13 / writing-code:11 with writing-releases:1 without losing per-rule attribution.
 
 ## [3.16.0] - 2026-05-13
 

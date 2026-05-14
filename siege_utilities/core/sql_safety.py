@@ -2,7 +2,7 @@
 SQL identifier validation + literal escaping for Hive/Spark/PostGIS/DuckDB/Snowflake.
 
 Prevents SQL injection where identifiers (database/table/column names)
-must be interpolated into SQL strings — most dialects don't permit
+must be interpolated into SQL strings -- most dialects don't permit
 parameter-bound identifiers, so we validate against a strict allow-list
 instead. For value escaping, prefer parameter binding; this module's
 :func:`escape_sql_string_literal` is the fallback for cases where the
@@ -45,7 +45,7 @@ def validate_sql_identifier(
         name: The identifier to validate (database name, table name, etc.).
         label: Human-readable label for error messages (e.g., "database", "table").
         allow_dotted: If True, accept ``schema.table`` or
-            ``catalog.schema.table`` — every dot-separated component must
+            ``catalog.schema.table`` -- every dot-separated component must
             itself be a safe identifier. Defaults to False to preserve
             backwards-compatible single-component behaviour.
 
@@ -74,7 +74,7 @@ def validate_sql_identifier(
     for part in parts:
         if not _IDENTIFIER_RE.match(part):
             raise ValueError(
-                f"Invalid SQL {label}: {name!r} — "
+                f"Invalid SQL {label}: {name!r} -- "
                 f"must match [a-zA-Z_][a-zA-Z0-9_]* "
                 f"(no spaces, dashes, quotes, or special characters)"
             )
@@ -88,7 +88,7 @@ def validate_sql_identifier_in(
 ) -> str:
     """Validate that *name* is both structurally safe AND in *allowed*.
 
-    Use this when the caller has a known set of legal values — the
+    Use this when the caller has a known set of legal values -- the
     typical case is a column name that must exist on a DataFrame::
 
         validate_sql_identifier_in(geometry_col, df.columns, "column")
@@ -98,7 +98,7 @@ def validate_sql_identifier_in(
     """
     validate_sql_identifier(name, label, allow_dotted=False)
     if name not in allowed:
-        # Build the sample without sorting raw objects — a pandas Index
+        # Build the sample without sorting raw objects -- a pandas Index
         # with mixed int+str columns is non-comparable and would raise
         # TypeError instead of the documented ValueError.
         sample = sorted(str(a) for a in allowed)[:10]
@@ -112,17 +112,17 @@ def validate_sql_identifier_in(
 def escape_sql_string_literal(value: str) -> str:
     """SQL-escape a string for use inside single-quoted SQL literals.
 
-    Use sparingly — parameter binding is always preferred. The cases
+    Use sparingly -- parameter binding is always preferred. The cases
     that legitimately need this are:
 
     * Sedona / Spark-SQL spatial UDFs (``ST_GeomFromText``) where Spark
       parameter substitution doesn't apply uniformly across versions.
     * Hand-written SQL files generated for human inspection / batch
-      re-import — defensive escaping in case the row data is later
+      re-import -- defensive escaping in case the row data is later
       hand-edited.
 
     The escape rule is the SQL standard: replace ``'`` with ``''``. NUL
-    bytes are rejected — most drivers refuse to send them anyway and
+    bytes are rejected -- most drivers refuse to send them anyway and
     they can split a query in C-string-aware backends.
 
     Raises:

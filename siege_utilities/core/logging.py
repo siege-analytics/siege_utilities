@@ -16,6 +16,11 @@ from datetime import datetime
 LogLevel = Union[str, int]
 LoggerName = str
 
+# Meta-logger for the logging module itself, so that configuration and
+# lifecycle events are observable per writing-code:11. Uses the stdlib
+# root chain directly to avoid recursion through LoggerManager.
+_meta_logger = logging.getLogger("siege_utilities.logging")
+
 @dataclass
 class LoggingConfig:
     """Configuration for logging system."""
@@ -83,6 +88,15 @@ class LoggerManager:
         # Update existing loggers
         for logger in self._loggers.values():
             self._configure_logger(logger, self._shared_config)
+
+        # Observable signal per writing-code:11: shared-logging configuration
+        # is a global side-effect that affects every logger in the process;
+        # silent success here is what made misconfiguration debugging hard.
+        target = str(self._shared_config.shared_log_file) if self._shared_config.log_to_file else "console"
+        _meta_logger.info(
+            "configure_shared_logging: target=%s level=%s updated_loggers=%d",
+            target, level, len(self._loggers),
+        )
     
     def get_logger(self, name: Optional[LoggerName] = None) -> logging.Logger:
         """
@@ -105,20 +119,36 @@ class LoggerManager:
     def _create_logger(self, name: LoggerName) -> logging.Logger:
         """Create a new logger with proper configuration."""
         logger = logging.getLogger(name)
-        
-        # Clear existing handlers
+
+        # Observable signal per writing-code:11: clearing pre-existing handlers
+        # from a stdlib-shared logger object is a destructive side-effect on
+        # any prior configuration; surface it instead of swallowing.
+        prior_handler_count = len(logger.handlers)
         logger.handlers.clear()
-        
+        if prior_handler_count:
+            _meta_logger.info(
+                "_create_logger: cleared %d pre-existing handlers on logger %r",
+                prior_handler_count, name,
+            )
+
         # Configure based on shared config or defaults
         config = self._shared_config or LoggingConfig()
         self._configure_logger(logger, config)
-        
+
         return logger
     
     def _configure_logger(self, logger: logging.Logger, config: LoggingConfig) -> None:
         """Configure a logger with the specified configuration."""
-        # Clear existing handlers to prevent stacking on reconfigure
+        # Observable signal per writing-code:11: reconfiguration drops every
+        # handler currently attached, which silently invalidates any external
+        # handler a caller may have added directly to this stdlib logger.
+        prior_handler_count = len(logger.handlers)
         logger.handlers.clear()
+        if prior_handler_count:
+            _meta_logger.info(
+                "_configure_logger: reconfiguring %r (dropped %d handlers, console=%s file=%s)",
+                logger.name, prior_handler_count, config.log_to_console, config.log_to_file,
+            )
 
         # Set base level
         base_level = min(
@@ -222,8 +252,12 @@ class LoggerManager:
     
     def cleanup_all_loggers(self) -> None:
         """Cleanup all loggers."""
-        for name in list(self._loggers.keys()):
+        names = list(self._loggers.keys())
+        for name in names:
             self.cleanup_logger(name)
+        # Observable signal per writing-code:11: bulk teardown is otherwise
+        # invisible at the process-monitoring layer.
+        _meta_logger.info("cleanup_all_loggers: cleaned up %d loggers", len(names))
     
     def set_default_logger_name(self, name: LoggerName) -> None:
         """Set the default logger name."""
@@ -261,7 +295,14 @@ def init_logger(name: LoggerName,
                 shared_log_file: Optional[Union[str, Path]] = None) -> logging.Logger:
     """
     Initialize a logger with specific configuration.
-    
+
+    .. deprecated::
+        The name suggests this function does first-time setup distinct
+        from :func:`get_logger`, but both are get-or-create with shared
+        config. Prefer :func:`configure_shared_logging` to set the
+        shared config and :func:`get_logger` to retrieve loggers; the
+        ``init_logger`` shape will be removed in a future release.
+
     Args:
         name: Logger name
         log_to_file: Whether to log to file
@@ -270,7 +311,7 @@ def init_logger(name: LoggerName,
         max_bytes: Max file size before rotation
         backup_count: Number of backup files
         shared_log_file: Path to shared log file
-        
+
     Returns:
         Configured logger instance
     """

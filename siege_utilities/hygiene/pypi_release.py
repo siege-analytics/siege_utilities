@@ -7,14 +7,12 @@ PyPI Release Management for siege_utilities package.
     and git tagging into a single CLI tool.
 """
 
-import os
 import sys
 import subprocess
 import shutil
 import warnings
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-import json
+from typing import List, Optional, Tuple
 import re
 from datetime import datetime
 
@@ -25,7 +23,7 @@ _DEPRECATION_MSG = (
 
 # Import logging functions from main package
 try:
-    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+    from siege_utilities.core.logging import log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if main package not available yet
     def log_info(message): pass
@@ -201,12 +199,14 @@ def build_package() -> Tuple[bool, str]:
         # Clean first
         clean_build_artifacts()
 
-        # Build using setuptools
+        # Build using setuptools. 600s timeout per writing-code:15: build can be
+        # slow on a cold wheel cache but a hang here freezes the release.
         result = subprocess.run(
             [sys.executable, 'setup.py', 'sdist', 'bdist_wheel'],
             capture_output=True,
             text=True,
-            cwd=Path.cwd()
+            cwd=Path.cwd(),
+            timeout=600,
         )
 
         if result.returncode == 0:
@@ -248,10 +248,12 @@ def validate_package() -> Tuple[bool, List[str]]:
         # Validate wheel using twine
         if wheel_files:
             try:
+                # 60s per writing-code:15: twine check is local + fast.
                 result = subprocess.run(
                     ['twine', 'check', str(wheel_files[0])],
                     capture_output=True,
-                    text=True
+                    text=True,
+                    timeout=60,
                 )
                 if result.returncode != 0:
                     issues.append(f"Wheel validation failed: {result.stderr}")
@@ -300,8 +302,10 @@ def upload_to_pypi(
         # Add all distribution files
         cmd.extend(['dist/*'])
 
-        # Upload
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        # Upload. 600s per writing-code:15: PyPI upload is network-bound and can
+        # block on hash check + index sync; cap it so a stalled upload
+        # surfaces instead of hanging the release pipeline.
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
 
         if result.returncode == 0:
             return True, "Package uploaded successfully"
@@ -370,7 +374,7 @@ def full_release_workflow(
         # 3. Update version in files
         log_info("Updating version in files...")
         setup_updated = update_version_in_setup_py("setup.py", new_version)
-        pyproject_updated = update_version_in_pyproject_toml("pyproject.toml", new_version)
+        update_version_in_pyproject_toml("pyproject.toml", new_version)
 
         if not setup_updated:
             return False, "Failed to update version in setup.py"

@@ -52,7 +52,7 @@ class IssueMatch:
 # ---------------------------------------------------------------------------
 def run(cmd: list[str], *, check: bool = True) -> str:
     """Run a command and return stdout."""
-    result = subprocess.run(cmd, capture_output=True, text=True, check=check)
+    result = subprocess.run(cmd, capture_output=True, text=True, check=check, timeout=60)
     return result.stdout.strip()
 
 

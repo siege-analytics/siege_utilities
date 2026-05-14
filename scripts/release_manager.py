@@ -108,14 +108,14 @@ def check_ci_status() -> bool:
             ['git', 'branch', '--show-current'],
             capture_output=True, text=True, check=True,
             cwd=PROJECT_ROOT,
-        ).stdout.strip()
+        timeout=60).stdout.strip()
 
         result = subprocess.run(
             ['gh', 'run', 'list', '--branch', branch, '--limit', '20', '--json',
              'conclusion,status,name,workflowName,createdAt'],
             capture_output=True, text=True, check=True,
             cwd=PROJECT_ROOT,
-        )
+        timeout=60)
         runs = json.loads(result.stdout)
         if not runs:
             logger.warning(f"No CI runs found for branch {branch}")
@@ -272,7 +272,7 @@ def run_tests() -> bool:
     result = subprocess.run(
         [sys.executable, '-m', 'pytest', 'tests/', '-x', '-q'],
         cwd=PROJECT_ROOT,
-    )
+    timeout=60)
     return result.returncode == 0
 
 
@@ -307,7 +307,7 @@ def build_package() -> bool:
     result = subprocess.run(
         [sys.executable, '-m', 'build'],
         cwd=PROJECT_ROOT,
-    )
+    timeout=60)
     if result.returncode == 0:
         logger.info("Package built successfully")
         return True
@@ -328,7 +328,7 @@ def validate_build() -> bool:
         [sys.executable, '-m', 'twine', 'check'] + [str(f) for f in dist_files],
         cwd=PROJECT_ROOT,
         capture_output=True, text=True,
-    )
+    timeout=60)
     if result.returncode == 0:
         logger.info("Package validation passed")
         return True
@@ -367,7 +367,7 @@ def upload_to_pypi(repository: str = 'pypi', token: Optional[str] = None,
     cmd.extend([str(f) for f in dist_files])
 
     logger.info(f"Uploading to {repository}...")
-    result = subprocess.run(cmd, cwd=PROJECT_ROOT)
+    result = subprocess.run(cmd, cwd=PROJECT_ROOT, timeout=60)
     if result.returncode == 0:
         logger.info(f"Upload to {repository} succeeded")
         return True
@@ -383,7 +383,7 @@ def _git(args: List[str], check: bool = True, capture: bool = False) -> subproce
         check=check,
         capture_output=capture,
         text=True,
-    )
+    timeout=60)
 
 
 def _current_branch() -> str:
@@ -602,13 +602,13 @@ def git_commit_and_tag(version: str, message: Optional[str] = None,
 
     try:
         subprocess.run(['git', 'add'] + version_paths,
-                       cwd=PROJECT_ROOT, check=True)
+                       cwd=PROJECT_ROOT, check=True, timeout=60)
         subprocess.run(['git', 'commit', '-m', f"chore: release {tag}"],
-                       cwd=PROJECT_ROOT, check=True)
+                       cwd=PROJECT_ROOT, check=True, timeout=60)
         subprocess.run(['git', 'tag', '-a', tag, '-m', msg],
-                       cwd=PROJECT_ROOT, check=True)
-        subprocess.run(['git', 'push'], cwd=PROJECT_ROOT, check=True)
-        subprocess.run(['git', 'push', '--tags'], cwd=PROJECT_ROOT, check=True)
+                       cwd=PROJECT_ROOT, check=True, timeout=60)
+        subprocess.run(['git', 'push'], cwd=PROJECT_ROOT, check=True, timeout=60)
+        subprocess.run(['git', 'push', '--tags'], cwd=PROJECT_ROOT, check=True, timeout=60)
         logger.info(f"Committed, tagged {tag}, and pushed")
         return True
     except subprocess.CalledProcessError as e:
@@ -657,7 +657,7 @@ def verify_import() -> bool:
          'import siege_utilities; print(siege_utilities.__version__)'],
         cwd=PROJECT_ROOT,
         capture_output=True, text=True,
-    )
+    timeout=60)
     if result.returncode != 0:
         logger.error(f"Import failed: {result.stderr}")
         return False
@@ -682,7 +682,7 @@ def create_github_release(version: str, notes: str, dry_run: bool = False) -> bo
          '--title', f'v{version}',
          '--notes', notes],
         cwd=PROJECT_ROOT,
-    )
+    timeout=60)
     return result.returncode == 0
 
 

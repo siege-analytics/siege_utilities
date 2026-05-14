@@ -5,14 +5,14 @@ one representing a survey instrument with its waves) to the client that
 owns them. Supports many surveys per client and fast lookup without
 scanning a flat list.
 
-Survey identity within a client is the WaveSet's ``name`` — two surveys
+Survey identity within a client is the WaveSet's ``name`` -- two surveys
 for the same client must have distinct names. Names are **not** required
 to be globally unique; ``("Acme", "Tracker Q2")`` and
 ``("Beacon", "Tracker Q2")`` coexist fine.
 
 Client branding / display info continues to live in
 :mod:`siege_utilities.reporting.client_branding`. The registry only
-answers "which surveys belong to this client" — not "how do we render
+answers "which surveys belong to this client" -- not "how do we render
 this client's report".
 """
 
@@ -38,7 +38,7 @@ class ClientSurveyRegistry:
     """In-memory map of ``client_id`` → {survey name → WaveSet}.
 
     Deliberately in-memory and dependency-free. Persistence (YAML, SQL,
-    wherever) is a caller concern — serialize ``_by_client`` directly or
+    wherever) is a caller concern -- serialize ``_by_client`` directly or
     build higher-level storage on top.
     """
 

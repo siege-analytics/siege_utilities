@@ -87,7 +87,7 @@ def column_proportion_test(chain: "Chain", alpha: float = 0.05) -> "Chain":
                 elif alpha in _FALLBACK_Z_CRIT:
                     z_crit = _FALLBACK_Z_CRIT[alpha]
                 else:
-                    # Without scipy, only exact matches are honored — silently
+                    # Without scipy, only exact matches are honored -- silently
                     # coercing to 1.96 would run tests at the wrong alpha and
                     # corrupt the output.
                     raise SignificanceError(
@@ -144,7 +144,7 @@ def chi_square_flag(chain: "Chain", alpha: float = 0.05) -> "Chain":
         result = chi_square_test(df)
     except (ValueError, TypeError, ZeroDivisionError) as e:
         # A degenerate contingency table (zeros, singleton dimensions) is
-        # distinguishable from "test was run and wasn't significant" — tag
+        # distinguishable from "test was run and wasn't significant" -- tag
         # the result as failed rather than collapsing both cases to False.
         log_error(
             f"chi_square_test failed on chain row_var={chain.row_var!r}, "

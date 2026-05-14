@@ -165,19 +165,21 @@ class CredentialManager:
     def _check_1password_available(self) -> bool:
         """Check if 1Password CLI is available and authenticated."""
         try:
-            result = subprocess.run(['op', 'account', 'list'], 
-                                  capture_output=True, text=True)
+            result = subprocess.run(['op', 'account', 'list'],
+                                  capture_output=True, text=True,
+                                  timeout=60)
             return result.returncode == 0
         except FileNotFoundError:
             return False
-    
+
     def _check_keychain_available(self) -> bool:
         """Check if Apple Keychain is available (macOS only)."""
         if os.name != 'posix' or not os.path.exists('/usr/bin/security'):
             return False
         try:
-            result = subprocess.run(['security', 'list-keychains'], 
-                                  capture_output=True, text=True)
+            result = subprocess.run(['security', 'list-keychains'],
+                                  capture_output=True, text=True,
+                                  timeout=60)
             return result.returncode == 0
         except FileNotFoundError:
             return False
@@ -391,7 +393,10 @@ class CredentialManager:
         # else is a real failure that should bubble up.
         for name in names_to_try:
             cmd = ['op', 'item', 'get', name, f'--field={field}', '--reveal'] + op_flags
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            # timeout=60 per writing-code:15 (v2.6.0): biometric prompts
+            # can take a moment; bare unbounded waits cascade through the
+            # backend fallback chain into the caller.
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             if result.returncode == 0:
                 return result.stdout.strip()
             if result.returncode == 1:
@@ -418,7 +423,7 @@ class CredentialManager:
                 '-s', service,
                 '-a', username,
                 '-w'
-            ], capture_output=True, text=True)
+            ], capture_output=True, text=True, timeout=60)
             
             if result.returncode == 0:
                 return result.stdout.strip()
@@ -488,7 +493,7 @@ class CredentialManager:
             if existing:
                 # Update existing item
                 cmd = ['op', 'item', 'edit', service, f'{field}={value}'] + op_flags
-                result = subprocess.run(cmd, capture_output=True, text=True)
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             else:
                 # Create new item
                 cmd = [
@@ -499,7 +504,7 @@ class CredentialManager:
                     f'{field}={value}',
                     f'--tags=siege-utilities,{service}'
                 ] + op_flags
-                result = subprocess.run(cmd, capture_output=True, text=True)
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             
             if result.returncode == 0:
                 log_info(f"Stored {field} for {service} in 1Password")
@@ -521,7 +526,7 @@ class CredentialManager:
                 '-a', username,
                 '-w', value,
                 '-U'  # Update if exists
-            ], capture_output=True, text=True)
+            ], capture_output=True, text=True, timeout=60)
             
             if result.returncode == 0:
                 log_info(f"Stored credential for {service} in Keychain")
@@ -590,7 +595,7 @@ class CredentialManager:
                 redirect_uris = ','.join(creds['redirect_uris'])
                 cmd.append(f'redirect_uris={redirect_uris}')
             
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             
             if result.returncode == 0:
                 log_info(f"Stored Google Analytics credentials: '{item_title}'")
@@ -668,7 +673,7 @@ class CredentialManager:
 
                 op_flags = self._build_op_flags(vault=vault, account=account)
                 cmd = ['op', 'item', 'list', f'--tags={tags}', '--format=json'] + op_flags
-                result = subprocess.run(cmd, capture_output=True, text=True)
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
 
                 op_items = []
                 if result.returncode == 0:
@@ -687,7 +692,7 @@ class CredentialManager:
                     # No tagged items — check total vault size so the user
                     # knows 1Password itself is working fine.
                     all_cmd = ['op', 'item', 'list', '--format=json'] + op_flags
-                    all_result = subprocess.run(all_cmd, capture_output=True, text=True)
+                    all_result = subprocess.run(all_cmd, capture_output=True, text=True, timeout=60)
                     total = 0
                     if all_result.returncode == 0:
                         total = len(json.loads(all_result.stdout))
@@ -730,7 +735,7 @@ class CredentialManager:
         # 1Password CLI
         if self.available_backends.get('1password'):
             try:
-                result = subprocess.run(['op', 'account', 'list'], capture_output=True, text=True)
+                result = subprocess.run(['op', 'account', 'list'], capture_output=True, text=True, timeout=60)
                 if result.returncode == 0:
                     accounts = result.stdout.strip().split('\n')
                     status['1password'] = {
@@ -958,7 +963,7 @@ def store_ga_service_account_from_file(credentials_file: Union[str, Path],
         
         # Execute 1Password command — check=True raises on non-zero so
         # we don't need to bind the result to a name.
-        subprocess.run(cmd, capture_output=True, text=True, check=True)
+        subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=60)
 
         log_info(f"Stored Google Analytics service account: '{item_title}'")
         
@@ -1043,7 +1048,7 @@ def get_google_service_account_from_1password(item_title: str = "Google Analytic
         def get_field(field_name: str) -> str:
             """Get a specific field from the 1Password item"""
             cmd = ['op', 'item', 'get', item_title, f'--field={field_name}', '--reveal'] + op_flags
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=60)
             value = result.stdout.strip()
             
             # Clean up private key - remove extra quotes and fix newlines
@@ -1103,7 +1108,7 @@ def get_google_oauth_from_1password(
 
         def get_field(field_name: str) -> Optional[str]:
             cmd = ['op', 'item', 'get', item_title, f'--field={field_name}', '--reveal'] + op_flags
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             if result.returncode == 0:
                 return result.stdout.strip()
             return None
@@ -1175,7 +1180,7 @@ def get_google_oauth_document_from_1password(
         if account:
             cmd.append(f'--account={account}')
 
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=60)
         client_config = json.loads(result.stdout)
         log_info(f"Retrieved Google OAuth document from 1Password: {item_title}")
         return client_config
