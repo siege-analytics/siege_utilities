@@ -529,9 +529,19 @@ class DataFrameEngine(ABC):
         *,
         point_geom: str = "geometry",
     ) -> Any:
-        """Assign points to multiple boundary layers simultaneously.
+        """Assign points to multiple boundary layers, chaining the joins.
 
-        Calls :meth:`assign_boundaries` for each layer and joins results.
+        Current behaviour: calls :meth:`assign_boundaries` once per layer,
+        with each iteration's result feeding the next iteration's input.
+        Joined columns from each layer are NOT renamed -- they retain
+        their original column names from the polygon DataFrame. If two
+        boundary layers share a column name (e.g. both have a ``geoid``
+        column, which is the common case for Census layers), the later
+        layer's value overwrites the earlier one.
+
+        Layer-prefixed output columns (``{layer_name}_geoid``,
+        ``{layer_name}_name``) are not yet implemented; see issue #473
+        for the planned column-renaming fix.
 
         Parameters
         ----------
@@ -544,17 +554,17 @@ class DataFrameEngine(ABC):
         Returns
         -------
         DataFrame
-            Points enriched with ``{layer_name}_geoid`` and
-            ``{layer_name}_name`` from each boundary layer.
+            Points after chained spatial joins. Column names are NOT
+            disambiguated by layer; for non-overlapping column sets this
+            works fine, otherwise see issue #473.
         """
         result = points
-        for layer_name, polygons in boundary_layers.items():
-            assigned = self.assign_boundaries(
+        for _layer_name, polygons in boundary_layers.items():
+            result = self.assign_boundaries(
                 result, polygons,
                 point_geom=point_geom, polygon_geom="geometry",
                 how="left",
             )
-            result = assigned
         return result
 
 
