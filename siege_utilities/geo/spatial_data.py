@@ -503,9 +503,10 @@ class CensusDirectoryDiscovery:
                 last_exception = e
                 log.warning(f"Census directory request failed (attempt {attempt + 1}/{CENSUS_RETRY_ATTEMPTS}): {e}")
 
-            except Exception as e:
-                last_exception = e
-                log.warning(f"Unexpected error during Census discovery (attempt {attempt + 1}/{CENSUS_RETRY_ATTEMPTS}): {e}")
+            # No catch-all `except Exception` here: a programming error
+            # (e.g. parser bug in _parse_year_links) should propagate as
+            # a programming error, not be retried as if it were a
+            # transient network failure.
 
             # Exponential backoff before retry (1s, 2s, 4s, 8s, ...)
             if attempt < CENSUS_RETRY_ATTEMPTS - 1:
@@ -1752,26 +1753,27 @@ class GovernmentDataSource(SpatialDataSource):
             ) from e
     
     def _find_best_format(self, metadata: Dict[str, Any], preferred_format: str) -> Optional[str]:
-        """Find the best available format for download."""
-        try:
-            resources = metadata.get('resources', [])
-            
-            # Look for preferred format first
-            for resource in resources:
-                if resource.get('format', '').lower() == preferred_format.lower():
-                    return resource.get('url')
-            
-            # Fall back to any available format
-            for resource in resources:
-                if resource.get('url'):
-                    return resource.get('url')
-            
-            return None
-            
-        except Exception as e:
-            raise SpatialDataError(
-                f"Error finding format in dataset metadata: {e}"
-            ) from e
+        """Find the best available format for download.
+
+        Pure dict-manipulation; no I/O. The previous catch-all
+        ``except Exception: raise SpatialDataError(...)`` wrapper was
+        treating programming errors (a non-dict in ``resources``, a
+        ``metadata`` that wasn't a dict) as data errors. Let programming
+        errors propagate as themselves so the cause is visible.
+        """
+        resources = metadata.get('resources', [])
+
+        # Look for preferred format first
+        for resource in resources:
+            if resource.get('format', '').lower() == preferred_format.lower():
+                return resource.get('url')
+
+        # Fall back to any available format
+        for resource in resources:
+            if resource.get('url'):
+                return resource.get('url')
+
+        return None
     
     def _download_and_process_dataset(self, url: str, format_type: str) -> Optional[GeoDataFrame]:
         """Download and process the dataset."""
@@ -1812,11 +1814,16 @@ class GovernmentDataSource(SpatialDataSource):
                 log.error(f"Unsupported format: {format_type}")
                 return None
             
-            # Clean up
+            # Best-effort cleanup of the downloaded file. Narrow to OSError
+            # (the only family os.remove raises) and log at debug level so
+            # the failure is observable in CI without polluting prod logs.
             try:
                 os.remove(local_filename)
-            except Exception:
-                pass
+            except OSError as cleanup_exc:
+                log.debug(
+                    "Could not remove temp file %s after download: %s",
+                    local_filename, cleanup_exc,
+                )
             
             return gdf
             

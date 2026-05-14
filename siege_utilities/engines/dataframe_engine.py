@@ -853,10 +853,15 @@ class DuckDBEngine(DataFrameEngine):
                 if isinstance(g, bytes):
                     return shapely_wkb.loads(g)
                 if isinstance(g, str):
-                    try:
+                    # WKB-hex strings are pure hexadecimal; WKT strings
+                    # start with a geometry-type keyword (POINT, POLYGON,
+                    # MULTIPOLYGON, etc.). Introspect rather than try/
+                    # except so a corrupt WKB string doesn't silently fall
+                    # through to WKT parsing of garbage.
+                    head = g[:32].strip() if g else ""
+                    if head and all(c in "0123456789abcdefABCDEF" for c in head):
                         return shapely_wkb.loads(g, hex=True)
-                    except Exception:
-                        return shapely_wkt.loads(g)
+                    return shapely_wkt.loads(g)
                 return g
             result[geom_col] = result[geom_col].apply(_parse_geom)
             gdf = gpd.GeoDataFrame(result, geometry=geom_col, crs=crs or get_default_crs())
@@ -1046,15 +1051,28 @@ class SparkEngine(DataFrameEngine):
     # -- Spatial -----------------------------------------------------------
 
     def _ensure_sedona(self) -> None:
-        """Register Sedona UDFs if not already done."""
-        if not self._sedona_registered:
-            if self._enable_sedona:
-                try:
-                    from sedona.register import SedonaRegistrator
-                    SedonaRegistrator.registerAll(self._session)
-                    self._sedona_registered = True
-                except ImportError:
-                    pass  # Sedona not installed -- spatial methods will fail with clear errors
+        """Register Sedona UDFs if not already done.
+
+        Raises ImportError with the install command if Sedona is not
+        installed; all callers of this method need Sedona (they go on to
+        use ST_* functions). Failing here surfaces the missing dependency
+        at the first spatial call rather than producing a confusing Spark
+        SQL error about ST_Foo being unknown.
+        """
+        if self._sedona_registered:
+            return
+        if not self._enable_sedona:
+            return
+        try:
+            from sedona.register import SedonaRegistrator
+            SedonaRegistrator.registerAll(self._session)
+            self._sedona_registered = True
+        except ImportError as exc:
+            raise ImportError(
+                "SparkEngine spatial methods require Apache Sedona. "
+                "Install it with: pip install apache-sedona[spark] "
+                "and ensure the JARs are on the SparkSession classpath."
+            ) from exc
 
     def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
         # Fallback: read via GeoPandas, convert to Spark DataFrame
@@ -1340,30 +1358,53 @@ class PostGISEngine(DataFrameEngine):
         return df
 
     def read_parquet(self, path: str, **kwargs: Any) -> Any:
+        """Read a parquet file. Returns a ``GeoDataFrame`` when the file
+        carries GeoParquet metadata, a plain ``DataFrame`` otherwise.
+
+        The decision is by file inspection (pyarrow schema metadata),
+        not by exception-fallback. An earlier implementation tried
+        ``gpd.read_parquet`` first and silently fell back to
+        ``pd.read_parquet`` on any exception -- that pattern hid real
+        gpd errors (a corrupt geoparquet file, an out-of-date geopandas)
+        as "this must not be a geoparquet file." The current path checks
+        the parquet metadata directly so the decision is explicit.
+        """
         import geopandas as gpd
-        try:
+        import pandas as pd
+        import pyarrow.parquet as pq
+        schema_metadata = pq.read_schema(path).metadata or {}
+        # GeoParquet files carry a 'geo' key in the schema metadata.
+        is_geoparquet = b"geo" in schema_metadata
+        if is_geoparquet:
             return gpd.read_parquet(path, **kwargs)
-        except Exception:
-            import pandas as pd
-            return pd.read_parquet(path, **kwargs)
+        return pd.read_parquet(path, **kwargs)
 
     # -- SQL ----------------------------------------------------------------
 
     def query(self, sql: str, **kwargs: Any) -> Any:
         """Execute *sql* against the PostGIS database.
 
-        If the query returns a geometry column, the result is a
-        ``GeoDataFrame``; otherwise a plain ``DataFrame``.
+        Pass ``geom_col="<column>"`` to indicate a geometry column in the
+        result; the query then returns a ``GeoDataFrame`` with that
+        column parsed as geometry. Omit ``geom_col`` (or pass an empty
+        string) for queries that return no geometry; the result is a
+        plain ``DataFrame``.
+
+        The Geo-vs-plain decision is made by the caller (via the
+        presence of ``geom_col``), not by exception-fallback. An earlier
+        implementation tried ``gpd.read_postgis`` first and silently
+        fell back to ``pd.read_sql`` on any exception -- that pattern
+        hid real PostGIS errors (a malformed SQL, a missing column) as
+        "this must not have a geometry column."
         """
-        import geopandas as gpd
-        geom_col = kwargs.pop("geom_col", "geometry")
-        try:
+        geom_col = kwargs.pop("geom_col", None)
+        if geom_col:
+            import geopandas as gpd
             return gpd.read_postgis(
                 sql, self._sql_engine, geom_col=geom_col, **kwargs
             )
-        except Exception:
-            import pandas as pd
-            return pd.read_sql(sql, self._sql_engine, **kwargs)
+        import pandas as pd
+        return pd.read_sql(sql, self._sql_engine, **kwargs)
 
     # -- Transforms ---------------------------------------------------------
 
