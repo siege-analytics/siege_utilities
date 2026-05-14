@@ -1537,6 +1537,20 @@ _ENGINE_MAP: Dict[Engine, type] = {
     Engine.POSTGIS: PostGISEngine,
 }
 
+# Module-load-time exhaustiveness check: if a new Engine enum member is
+# added and the mapping is not updated, get_engine() would raise KeyError
+# at first use. Failing here at import time turns a runtime data-dependent
+# bug into a deterministic load-time error, which is the right place to
+# notice this mismatch.
+_missing_engines = set(Engine) - set(_ENGINE_MAP)
+if _missing_engines:
+    raise RuntimeError(
+        "_ENGINE_MAP is not exhaustive over the Engine enum; missing: "
+        f"{sorted(e.value for e in _missing_engines)}. "
+        "Add a mapping entry for every Engine member."
+    )
+del _missing_engines
+
 
 def get_engine(name: Union[str, Engine], **kwargs: Any) -> DataFrameEngine:
     """Return an engine instance for the requested back-end.
