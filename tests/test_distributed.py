@@ -937,3 +937,45 @@ class TestConvenienceFunction:
             config = HDFSConfig(cache_directory=tmpdir)
             ops = create_hdfs_operations(config)
             assert isinstance(ops, AbstractHDFSOperations)
+
+
+# ---------------------------------------------------------------------------
+# Pass-11 regression: flatten_json_column corrupt-record path uses a UDF
+# ---------------------------------------------------------------------------
+#
+# Previously the corrupt-record fallback called validate_json(col(...))
+# without wrapping the Python function as a Spark UDF. That invokes the
+# function once at plan-build time with a Column object, which raises
+# inside the function's try/except and returns a constant None for every
+# row. Symptom: every row in the corrupt-records branch silently became
+# None regardless of payload. Fix: wrap as udf(..., StringType()).
+
+class TestFlattenJsonCorruptPathUsesUDF:
+    """Confirm the corrupt-record paths invoke a UDF, not a plain call."""
+
+    def test_module_uses_udf_wrapping_for_corrupt_path(self):
+        """A revert that drops the UDF wrapping must turn this test red.
+
+        The fix introduces `validate_json_udf = udf(validate_json, ...)`
+        before the .otherwise() call. We assert the source contains that
+        wrapping at both call sites.
+        """
+        import pathlib
+        src = pathlib.Path(
+            "siege_utilities/distributed/spark_utils.py"
+        ).read_text()
+        # Two corrupt-path branches, both must wrap as UDF before use.
+        assert src.count("validate_json_udf = udf(validate_json, StringType())") == 2, (
+            "spark_utils.py must wrap validate_json as a Spark UDF before "
+            "calling it inside .otherwise(). Found "
+            f"{src.count('validate_json_udf = udf(validate_json, StringType())')} "
+            "of the expected 2 wrappings."
+        )
+        # And the .otherwise() must call the udf-wrapped binding, not the
+        # bare Python function.
+        assert "otherwise(\n                    validate_json_udf(col(json_column))" in src \
+            or "otherwise(validate_json_udf(\n                col(json_column))" in src, (
+            "validate_json_udf must be the callable inside .otherwise(); "
+            "calling the bare Python function passes a Column once at "
+            "plan-build time and returns a constant None per row."
+        )

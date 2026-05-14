@@ -305,9 +305,11 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
                     """Pass-through with parse-check: return *s* if it
                     decodes as JSON, ``None`` otherwise.
 
-                    Used to filter the corrupt-records path so the
-                    subsequent ``from_json`` doesn't choke on rows that
-                    arrived with malformed payloads.
+                    Runs as a Spark UDF so each row's value is evaluated
+                    individually (passing this function unwrapped to
+                    .otherwise() would call it once at plan-build time
+                    with a Column object, which always raises and yields
+                    a constant None for every row).
                     """
                     if s is None:
                         return None
@@ -316,9 +318,10 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
                         return s
                     except (TypeError, json.JSONDecodeError):
                         return None
+                validate_json_udf = udf(validate_json, StringType())
                 df_with_json = df.withColumn('validated_json', when(col(
                     json_column).isNull(), lit(None)).otherwise(
-                    validate_json(col(json_column)))).withColumn('parsed_json',
+                    validate_json_udf(col(json_column)))).withColumn('parsed_json',
                     from_json(col('validated_json'), StringType(), {'mode':
                     'PERMISSIVE'})).drop('validated_json')
                 df_with_json = df_with_json.withColumn('parsed_json', when(
@@ -339,8 +342,10 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
                 Defined locally inside the fallback path so it doesn't
                 shadow the outer one when the corrupt-record branch
                 takes a different schema. Both definitions are
-                semantically identical — they exist as separate
+                semantically identical -- they exist as separate
                 closures to match the surrounding try/except scope.
+                Wrapped as a UDF so .otherwise() invokes it per-row,
+                not once at plan-build time.
                 """
                 if s is None:
                     return None
@@ -349,8 +354,9 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
                     return s
                 except (TypeError, json.JSONDecodeError):
                     return None
+            validate_json_udf = udf(validate_json, StringType())
             df_with_json = df.withColumn('validated_json', when(col(
-                json_column).isNull(), lit(None)).otherwise(validate_json(
+                json_column).isNull(), lit(None)).otherwise(validate_json_udf(
                 col(json_column)))).withColumn('parsed_json', from_json(col
                 ('validated_json'), StringType(), {'mode': 'PERMISSIVE'})
                 ).drop('validated_json')

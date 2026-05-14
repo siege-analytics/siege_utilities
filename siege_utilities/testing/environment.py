@@ -230,8 +230,14 @@ def check_java_version() -> Tuple[Optional[str], bool]:
         >>>     print(f"Java {version} is compatible")
     """
     try:
+        # 10s timeout: a healthy `java -version` returns in milliseconds;
+        # a hang here cascades into diagnose_environment(),
+        # setup_spark_environment(), and quick_environment_setup(), all
+        # of which run during test setup. Bounded wait is required so a
+        # broken JDK install does not block the whole test invocation.
         result = subprocess.run(['java', '-version'],
-                                capture_output=True, text=True)
+                                capture_output=True, text=True,
+                                timeout=10)
         java_output = result.stderr
 
         if 'version "17.' in java_output:
