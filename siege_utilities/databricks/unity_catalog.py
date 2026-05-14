@@ -2,6 +2,11 @@
 
 from typing import Iterable, List
 
+from siege_utilities.core.sql_safety import (
+    escape_sql_string_literal,
+    validate_sql_identifier,
+)
+
 
 def quote_ident(value: str) -> str:
     """Quote an identifier with backticks for Databricks SQL."""
@@ -19,12 +24,29 @@ def build_foreign_table_sql(
     """
     Build SQL for creating a Unity Catalog foreign table from a LakeBase source table.
 
-    Note: syntax can vary by workspace/feature flag. Keep this as a composable
-    helper and validate generated SQL in the target Databricks environment.
+    All identifier fields (catalog, schema, table, connection_name,
+    source_schema, source_table) are validated against the Postgres
+    identifier allow-list before interpolation. An earlier version
+    interpolated source_schema and source_table directly into the SQL
+    string without validation, producing an injection risk if either
+    contained a single quote.
+
+    Note: syntax can vary by workspace/feature flag. Keep this as a
+    composable helper and validate generated SQL in the target
+    Databricks environment.
     """
     resolved_source = source_table or table
+    validate_sql_identifier(catalog, "catalog")
+    validate_sql_identifier(schema, "schema")
+    validate_sql_identifier(table, "table")
+    validate_sql_identifier(connection_name, "connection_name")
+    validate_sql_identifier(source_schema, "source_schema")
+    validate_sql_identifier(resolved_source, "source_table")
     fq_table = ".".join([quote_ident(catalog), quote_ident(schema), quote_ident(table)])
-    source_ref = f"{source_schema}.{resolved_source}"
+    # source_ref goes inside a single-quoted SQL string literal. Even
+    # though the identifier validator already rejects single quotes,
+    # escape defensively in case a future relaxation allows them.
+    source_ref = escape_sql_string_literal(f"{source_schema}.{resolved_source}")
     return (
         f"CREATE FOREIGN TABLE IF NOT EXISTS {fq_table}\n"
         f"USING CONNECTION {quote_ident(connection_name)}\n"
