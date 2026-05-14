@@ -199,7 +199,7 @@ class AbstractHDFSOperations:
                 hdfs_full_path], check=True, timeout=self.config.
                 hdfs_copy_timeout)
             result = subprocess.run(['hdfs', 'dfs', '-test', '-e',
-                hdfs_full_path], capture_output=True)
+                hdfs_full_path], capture_output=True, timeout=60)
             if result.returncode == 0:
                 self.config.log_info(f'✅ Sync complete: {hdfs_full_path}')
                 return hdfs_full_path, {local_path.name: {'path': str(

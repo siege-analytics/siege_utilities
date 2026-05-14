@@ -20,7 +20,8 @@ def run_git_command(*args, repo_path: str = ".", check: bool = True) -> str:
             cwd=repo_path,
             capture_output=True,
             text=True,
-            check=check
+            check=check,
+            timeout=30,  # RG-9: bounded git wait
         )
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:

@@ -164,7 +164,11 @@ def ensure_sample_dataset(
     tmp = Path(tmp_path_str)
     try:
         try:
-            with os.fdopen(fd, "wb") as f, urllib.request.urlopen(url) as resp:
+            # 60s timeout per RG-9 (writing-code v2.6.0 RG-9): unbounded
+            # urlopen would hang the entire dataset download on a stalled
+            # mirror; the caller cannot rescue from the hang via
+            # try/except because the function never returns.
+            with os.fdopen(fd, "wb") as f, urllib.request.urlopen(url, timeout=60) as resp:
                 while chunk := resp.read(1 << 16):
                     f.write(chunk)
                 f.flush()

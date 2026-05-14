@@ -201,12 +201,14 @@ def build_package() -> Tuple[bool, str]:
         # Clean first
         clean_build_artifacts()
 
-        # Build using setuptools
+        # Build using setuptools. 600s timeout per RG-9: build can be
+        # slow on a cold wheel cache but a hang here freezes the release.
         result = subprocess.run(
             [sys.executable, 'setup.py', 'sdist', 'bdist_wheel'],
             capture_output=True,
             text=True,
-            cwd=Path.cwd()
+            cwd=Path.cwd(),
+            timeout=600,
         )
 
         if result.returncode == 0:
@@ -248,10 +250,12 @@ def validate_package() -> Tuple[bool, List[str]]:
         # Validate wheel using twine
         if wheel_files:
             try:
+                # 60s per RG-9: twine check is local + fast.
                 result = subprocess.run(
                     ['twine', 'check', str(wheel_files[0])],
                     capture_output=True,
-                    text=True
+                    text=True,
+                    timeout=60,
                 )
                 if result.returncode != 0:
                     issues.append(f"Wheel validation failed: {result.stderr}")
@@ -300,8 +304,10 @@ def upload_to_pypi(
         # Add all distribution files
         cmd.extend(['dist/*'])
 
-        # Upload
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        # Upload. 600s per RG-9: PyPI upload is network-bound and can
+        # block on hash check + index sync; cap it so a stalled upload
+        # surfaces instead of hanging the release pipeline.
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
 
         if result.returncode == 0:
             return True, "Package uploaded successfully"
