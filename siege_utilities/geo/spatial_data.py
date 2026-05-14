@@ -1908,9 +1908,10 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
     """
     Convenience function to get Census boundaries.
 
-    .. deprecated::
+    .. deprecated:: 3.16.0
         Use :func:`fetch_geographic_boundaries` (via CensusDataSource) for
         structured diagnostics via :class:`BoundaryFetchResult`.
+        ``get_census_boundaries`` will be removed in v3.17.0.
 
     Args:
         year: Census year
@@ -2064,12 +2065,20 @@ def get_geographic_boundaries(
 ) -> Optional[GeoDataFrame]:
     """Get geographic boundaries (legacy, returns None on failure).
 
-    .. deprecated::
+    .. deprecated:: 3.16.0
         Use :func:`fetch_geographic_boundaries` for structured diagnostics.
+        ``get_geographic_boundaries`` will be removed in v3.17.0.
 
     Args:
         crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.
     """
+    warnings.warn(
+        "get_geographic_boundaries() is deprecated; will be removed in v3.17.0. "
+        "Use fetch_geographic_boundaries() for structured diagnostics via "
+        "BoundaryFetchResult.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     gdf = census_source.get_geographic_boundaries(year, geographic_level, state_fips, state_identifier)
     return reproject_if_needed(gdf, crs)
 
