@@ -171,3 +171,106 @@ def test_resolve_gazetteer_returns_wikidata_when_preferred():
 
     gaz = resolve_gazetteer(prefer="wikidata")
     assert isinstance(gaz, WikidataGazetteer)
+
+
+# ---------------------------------------------------------------------------
+# Segment stitching: OSM relations split exterior across multiple ways
+# ---------------------------------------------------------------------------
+
+def test_stitch_segments_already_closed_passthrough():
+    from siege_utilities.geo.gazetteers.wikidata_gazetteer import _stitch_segments_into_rings
+
+    closed = [[(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0)]]
+    rings = _stitch_segments_into_rings(closed)
+    assert len(rings) == 1
+    assert rings[0][0] == rings[0][-1]
+
+
+def test_stitch_segments_two_open_segments_form_one_ring():
+    """OSM relation with two outer ways that share endpoints and close
+    when stitched in order."""
+    from siege_utilities.geo.gazetteers.wikidata_gazetteer import _stitch_segments_into_rings
+
+    seg1 = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0)]
+    seg2 = [(1.0, 1.0), (0.0, 1.0), (0.0, 0.0)]
+    rings = _stitch_segments_into_rings([seg1, seg2])
+    assert len(rings) == 1
+    ring = rings[0]
+    assert ring[0] == ring[-1] == (0.0, 0.0)
+    assert (1.0, 1.0) in ring
+
+
+def test_stitch_segments_reversed_segment():
+    """Stitcher reverses a candidate segment whose endpoint matches the
+    current ring's tail at the WRONG end."""
+    from siege_utilities.geo.gazetteers.wikidata_gazetteer import _stitch_segments_into_rings
+
+    seg1 = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0)]
+    # seg2 reversed -- starts at (0,0) but ought to be appended to (1,1).
+    seg2_reversed = [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0)]
+    rings = _stitch_segments_into_rings([seg1, seg2_reversed])
+    assert len(rings) == 1
+    assert rings[0][0] == rings[0][-1]
+
+
+def test_stitch_segments_two_independent_rings():
+    """Two disjoint rings (e.g., multipolygon: mainland + island)."""
+    from siege_utilities.geo.gazetteers.wikidata_gazetteer import _stitch_segments_into_rings
+
+    mainland = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0)]
+    island = [(10.0, 10.0), (11.0, 10.0), (11.0, 11.0), (10.0, 11.0), (10.0, 10.0)]
+    rings = _stitch_segments_into_rings([mainland, island])
+    assert len(rings) == 2
+
+
+def test_stitch_segments_drops_unclosable_segment():
+    """A segment that cannot be closed is dropped, not raised. The
+    higher-level call site decides how to react to 'no rings'."""
+    from siege_utilities.geo.gazetteers.wikidata_gazetteer import _stitch_segments_into_rings
+
+    lonely = [(0.0, 0.0), (1.0, 0.0)]  # no partner to close the ring
+    rings = _stitch_segments_into_rings([lonely])
+    assert rings == []
+
+
+def _overpass_response_with_split_outer():
+    """An OSM relation whose exterior is split across two outer ways."""
+    resp = MagicMock(status_code=200)
+    resp.json.return_value = {
+        "elements": [{
+            "type": "relation",
+            "members": [
+                {
+                    "type": "way", "role": "outer",
+                    "geometry": [
+                        {"lon": 0.0, "lat": 0.0},
+                        {"lon": 1.0, "lat": 0.0},
+                        {"lon": 1.0, "lat": 1.0},
+                    ],
+                },
+                {
+                    "type": "way", "role": "outer",
+                    "geometry": [
+                        {"lon": 1.0, "lat": 1.0},
+                        {"lon": 0.0, "lat": 1.0},
+                        {"lon": 0.0, "lat": 0.0},
+                    ],
+                },
+            ],
+        }]
+    }
+    return resp
+
+
+def test_fetch_osm_relation_geometry_stitches_split_outer(wd_gaz):
+    """End-to-end: a split-outer OSM relation now produces a valid
+    polygon instead of raising 'multipolygon assembly not implemented'."""
+    from shapely.geometry import Polygon
+
+    with patch.object(
+        wd_gaz._session, "post", return_value=_overpass_response_with_split_outer(),
+    ):
+        geom = wd_gaz._fetch_osm_relation_geometry(123)
+    assert isinstance(geom, Polygon)
+    # The stitched ring is a unit square; area = 1.0.
+    assert geom.area == pytest.approx(1.0)

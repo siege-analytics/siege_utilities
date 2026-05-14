@@ -52,6 +52,71 @@ _DEFAULT_TIMEOUT = 30.0
 _USER_AGENT = "siege-utilities-gazetteer (https://github.com/siege-analytics/siege_utilities)"
 
 
+def _stitch_segments_into_rings(
+    segments: "list[list[tuple[float, float]]]",
+) -> "list[list[tuple[float, float]]]":
+    """Stitch a list of OSM way segments into closed rings.
+
+    OSM relations commonly split a boundary across multiple way
+    members. Each way has its own start and end coordinate; rings are
+    formed by chaining ways whose endpoints match (in either
+    direction). Already-closed segments (start == end) become rings
+    immediately. Open segments are walked greedily, reversing as
+    needed, until the current ring closes or no more matching segments
+    are found.
+
+    Returns the list of closed rings. Segments that cannot be closed
+    are dropped (they indicate a malformed relation rather than a
+    valid hole).
+    """
+    rings: list[list[tuple[float, float]]] = []
+    # Work on a queue we can pop from, preserving original lists.
+    remaining = [list(seg) for seg in segments]
+
+    # Pull off already-closed segments first; they are rings as-is.
+    closed_only: list[list[tuple[float, float]]] = []
+    open_only: list[list[tuple[float, float]]] = []
+    for seg in remaining:
+        if len(seg) >= 4 and seg[0] == seg[-1]:
+            closed_only.append(seg)
+        elif len(seg) >= 2:
+            open_only.append(seg)
+    rings.extend(closed_only)
+
+    # Greedy stitch on the remaining open segments.
+    while open_only:
+        current = open_only.pop(0)
+        progress = True
+        while progress and current[0] != current[-1]:
+            progress = False
+            for idx, candidate in enumerate(open_only):
+                if candidate[0] == current[-1]:
+                    current.extend(candidate[1:])
+                    open_only.pop(idx)
+                    progress = True
+                    break
+                if candidate[-1] == current[-1]:
+                    current.extend(reversed(candidate[:-1]))
+                    open_only.pop(idx)
+                    progress = True
+                    break
+                if candidate[-1] == current[0]:
+                    current[:0] = candidate[:-1]
+                    open_only.pop(idx)
+                    progress = True
+                    break
+                if candidate[0] == current[0]:
+                    current[:0] = list(reversed(candidate))[:-1]
+                    open_only.pop(idx)
+                    progress = True
+                    break
+        if current[0] == current[-1] and len(current) >= 4:
+            rings.append(current)
+        # else: dropped -- a malformed relation cannot close to a ring.
+
+    return rings
+
+
 # Find entities matching `?name` (English label, exact or alias), pull
 # the OSM relation ID and coordinate location if either exists.
 # Optional country filter pushed into the WHERE clause so it runs
@@ -257,47 +322,63 @@ class WikidataGazetteer:
                 f"Overpass returned non-JSON for relation {rel}"
             ) from exc
         # Overpass returns members with geometry inline when `out geom;`
-        # is used. Many OSM admin relations split the exterior across
-        # multiple way segments that need to be stitched by shared
-        # endpoints to form the actual boundary. We do not yet
-        # implement that stitching; we accept closed rings (start ==
-        # end) only. Open segments raise a clear error so the consumer
-        # knows the limitation rather than getting a bogus polygon.
+        # is used. OSM admin relations commonly split the exterior across
+        # multiple way segments that must be stitched by matching shared
+        # endpoints to form complete rings. Collect outer + inner
+        # segments separately, stitch each into closed rings, and build
+        # a (Multi)Polygon with holes.
         elements = data.get("elements") or []
         if not elements:
             raise GazetteerBackendError(
                 f"Overpass returned no elements for relation {rel}"
             )
         relation = elements[0]
-        rings: list[list[tuple[float, float]]] = []
-        open_segments = 0
+        outer_segments: list[list[tuple[float, float]]] = []
+        inner_segments: list[list[tuple[float, float]]] = []
         for m in relation.get("members") or []:
-            if m.get("role") != "outer":
+            role = m.get("role")
+            if role not in ("outer", "inner"):
                 continue
             geom = m.get("geometry") or []
-            if len(geom) < 4:
+            if len(geom) < 2:
                 continue
-            ring = [(p["lon"], p["lat"]) for p in geom]
-            if ring[0] != ring[-1]:
-                open_segments += 1
-                continue
-            rings.append(ring)
-        if not rings:
-            if open_segments:
-                raise GazetteerBackendError(
-                    f"OSM relation {rel} has {open_segments} unclosed outer "
-                    f"way segment(s) that need to be stitched into rings; "
-                    f"multipolygon assembly is not yet implemented. The "
-                    f"single-ring case works; file a follow-up if your "
-                    f"consumer needs split-segment support."
-                )
+            segment = [(p["lon"], p["lat"]) for p in geom]
+            (outer_segments if role == "outer" else inner_segments).append(segment)
+
+        outer_rings = _stitch_segments_into_rings(outer_segments)
+        inner_rings = _stitch_segments_into_rings(inner_segments)
+        if not outer_rings:
             raise GazetteerBackendError(
-                f"Overpass relation {rel} has no outer ring geometry"
+                f"OSM relation {rel} has no closeable outer ring geometry "
+                f"(received {len(outer_segments)} outer segment(s), none "
+                f"could be stitched into a closed ring)"
             )
-        from shapely.geometry import Polygon
-        from shapely.ops import unary_union
-        polys = [Polygon(ring) for ring in rings]
-        return unary_union(polys) if len(polys) > 1 else polys[0]
+
+        from shapely.geometry import MultiPolygon, Polygon
+
+        # Assign each inner (hole) to the smallest containing outer.
+        # Building shells first lets us run the contains() check on the
+        # polygon shell rather than re-implementing point-in-polygon.
+        shells = [Polygon(ring) for ring in outer_rings]
+        holes_for: list[list[list[tuple[float, float]]]] = [[] for _ in shells]
+        for inner_ring in inner_rings:
+            hole_poly = Polygon(inner_ring)
+            # Smallest containing shell wins (handles nested outer rings).
+            container_idx = None
+            container_area = None
+            for idx, shell in enumerate(shells):
+                if shell.covers(hole_poly):
+                    if container_area is None or shell.area < container_area:
+                        container_idx = idx
+                        container_area = shell.area
+            if container_idx is not None:
+                holes_for[container_idx].append(inner_ring)
+
+        polys = [
+            Polygon(outer_rings[idx], holes_for[idx])
+            for idx in range(len(outer_rings))
+        ]
+        return polys[0] if len(polys) == 1 else MultiPolygon(polys)
 
     @staticmethod
     def _parse_wkt_point(point_wkt: Optional[str]) -> Optional[tuple[float, float]]:
