@@ -4,20 +4,20 @@ Provides clean, type-safe access to Census, Government, and OpenStreetMap data.
 """
 
 import logging
-import geopandas as gpd
-from pathlib import Path
-
-from siege_utilities.geo.crs import reproject_if_needed
-from typing import Dict, Any, Optional, List, Union
 import os
+import re
 import time
+import warnings
 import warnings as _warnings_mod
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+
+import geopandas as gpd
 import requests
 from bs4 import BeautifulSoup
-import re
-import os
-import warnings
+
+from siege_utilities.geo.crs import reproject_if_needed
 
 # Opt-in TLS-verification bypass for environments behind broken
 # corporate MITM proxies. Defaults to False because silent fallback to
