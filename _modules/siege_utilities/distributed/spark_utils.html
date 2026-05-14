@@ -869,9 +869,11 @@
 <span class="w">                    </span><span class="sd">&quot;&quot;&quot;Pass-through with parse-check: return *s* if it</span>
 <span class="sd">                    decodes as JSON, ``None`` otherwise.</span>
 
-<span class="sd">                    Used to filter the corrupt-records path so the</span>
-<span class="sd">                    subsequent ``from_json`` doesn&#39;t choke on rows that</span>
-<span class="sd">                    arrived with malformed payloads.</span>
+<span class="sd">                    Runs as a Spark UDF so each row&#39;s value is evaluated</span>
+<span class="sd">                    individually (passing this function unwrapped to</span>
+<span class="sd">                    .otherwise() would call it once at plan-build time</span>
+<span class="sd">                    with a Column object, which always raises and yields</span>
+<span class="sd">                    a constant None for every row).</span>
 <span class="sd">                    &quot;&quot;&quot;</span>
                     <span class="k">if</span> <span class="n">s</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                         <span class="k">return</span> <span class="kc">None</span>
@@ -880,9 +882,10 @@
                         <span class="k">return</span> <span class="n">s</span>
                     <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">):</span>
                         <span class="k">return</span> <span class="kc">None</span>
+                <span class="n">validate_json_udf</span> <span class="o">=</span> <span class="n">udf</span><span class="p">(</span><span class="n">validate_json</span><span class="p">,</span> <span class="n">StringType</span><span class="p">())</span>
                 <span class="n">df_with_json</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;validated_json&#39;</span><span class="p">,</span> <span class="n">when</span><span class="p">(</span><span class="n">col</span><span class="p">(</span>
                     <span class="n">json_column</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="n">lit</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span>
-                    <span class="n">validate_json</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">json_column</span><span class="p">))))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">,</span>
+                    <span class="n">validate_json_udf</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">json_column</span><span class="p">))))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">,</span>
                     <span class="n">from_json</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s1">&#39;validated_json&#39;</span><span class="p">),</span> <span class="n">StringType</span><span class="p">(),</span> <span class="p">{</span><span class="s1">&#39;mode&#39;</span><span class="p">:</span>
                     <span class="s1">&#39;PERMISSIVE&#39;</span><span class="p">}))</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;validated_json&#39;</span><span class="p">)</span>
                 <span class="n">df_with_json</span> <span class="o">=</span> <span class="n">df_with_json</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">,</span> <span class="n">when</span><span class="p">(</span>
@@ -903,8 +906,10 @@
 <span class="sd">                Defined locally inside the fallback path so it doesn&#39;t</span>
 <span class="sd">                shadow the outer one when the corrupt-record branch</span>
 <span class="sd">                takes a different schema. Both definitions are</span>
-<span class="sd">                semantically identical — they exist as separate</span>
+<span class="sd">                semantically identical -- they exist as separate</span>
 <span class="sd">                closures to match the surrounding try/except scope.</span>
+<span class="sd">                Wrapped as a UDF so .otherwise() invokes it per-row,</span>
+<span class="sd">                not once at plan-build time.</span>
 <span class="sd">                &quot;&quot;&quot;</span>
                 <span class="k">if</span> <span class="n">s</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="k">return</span> <span class="kc">None</span>
@@ -913,8 +918,9 @@
                     <span class="k">return</span> <span class="n">s</span>
                 <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">):</span>
                     <span class="k">return</span> <span class="kc">None</span>
+            <span class="n">validate_json_udf</span> <span class="o">=</span> <span class="n">udf</span><span class="p">(</span><span class="n">validate_json</span><span class="p">,</span> <span class="n">StringType</span><span class="p">())</span>
             <span class="n">df_with_json</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;validated_json&#39;</span><span class="p">,</span> <span class="n">when</span><span class="p">(</span><span class="n">col</span><span class="p">(</span>
-                <span class="n">json_column</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="n">lit</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="n">validate_json</span><span class="p">(</span>
+                <span class="n">json_column</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="n">lit</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="n">validate_json_udf</span><span class="p">(</span>
                 <span class="n">col</span><span class="p">(</span><span class="n">json_column</span><span class="p">))))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">,</span> <span class="n">from_json</span><span class="p">(</span><span class="n">col</span>
                 <span class="p">(</span><span class="s1">&#39;validated_json&#39;</span><span class="p">),</span> <span class="n">StringType</span><span class="p">(),</span> <span class="p">{</span><span class="s1">&#39;mode&#39;</span><span class="p">:</span> <span class="s1">&#39;PERMISSIVE&#39;</span><span class="p">})</span>
                 <span class="p">)</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;validated_json&#39;</span><span class="p">)</span>

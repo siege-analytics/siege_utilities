@@ -554,6 +554,11 @@
 <span class="n">LogLevel</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
 <span class="n">LoggerName</span> <span class="o">=</span> <span class="nb">str</span>
 
+<span class="c1"># Meta-logger for the logging module itself, so that configuration and</span>
+<span class="c1"># lifecycle events are observable per writing-code:11. Uses the stdlib</span>
+<span class="c1"># root chain directly to avoid recursion through LoggerManager.</span>
+<span class="n">_meta_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;siege_utilities.logging&quot;</span><span class="p">)</span>
+
 <span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">LoggingConfig</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for logging system.&quot;&quot;&quot;</span>
@@ -621,6 +626,15 @@
         <span class="c1"># Update existing loggers</span>
         <span class="k">for</span> <span class="n">logger</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loggers</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_configure_logger</span><span class="p">(</span><span class="n">logger</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shared_config</span><span class="p">)</span>
+
+        <span class="c1"># Observable signal per writing-code:11: shared-logging configuration</span>
+        <span class="c1"># is a global side-effect that affects every logger in the process;</span>
+        <span class="c1"># silent success here is what made misconfiguration debugging hard.</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_shared_config</span><span class="o">.</span><span class="n">shared_log_file</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shared_config</span><span class="o">.</span><span class="n">log_to_file</span> <span class="k">else</span> <span class="s2">&quot;console&quot;</span>
+        <span class="n">_meta_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;configure_shared_logging: target=</span><span class="si">%s</span><span class="s2"> level=</span><span class="si">%s</span><span class="s2"> updated_loggers=</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">target</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_loggers</span><span class="p">),</span>
+        <span class="p">)</span>
     
     <span class="k">def</span><span class="w"> </span><span class="nf">get_logger</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">LoggerName</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -643,20 +657,36 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">_create_logger</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">LoggerName</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new logger with proper configuration.&quot;&quot;&quot;</span>
         <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-        
-        <span class="c1"># Clear existing handlers</span>
+
+        <span class="c1"># Observable signal per writing-code:11: clearing pre-existing handlers</span>
+        <span class="c1"># from a stdlib-shared logger object is a destructive side-effect on</span>
+        <span class="c1"># any prior configuration; surface it instead of swallowing.</span>
+        <span class="n">prior_handler_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">logger</span><span class="o">.</span><span class="n">handlers</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">handlers</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
-        
+        <span class="k">if</span> <span class="n">prior_handler_count</span><span class="p">:</span>
+            <span class="n">_meta_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;_create_logger: cleared </span><span class="si">%d</span><span class="s2"> pre-existing handlers on logger </span><span class="si">%r</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">prior_handler_count</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span>
+            <span class="p">)</span>
+
         <span class="c1"># Configure based on shared config or defaults</span>
         <span class="n">config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shared_config</span> <span class="ow">or</span> <span class="n">LoggingConfig</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_configure_logger</span><span class="p">(</span><span class="n">logger</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
-        
+
         <span class="k">return</span> <span class="n">logger</span>
     
     <span class="k">def</span><span class="w"> </span><span class="nf">_configure_logger</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">LoggingConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Configure a logger with the specified configuration.&quot;&quot;&quot;</span>
-        <span class="c1"># Clear existing handlers to prevent stacking on reconfigure</span>
+        <span class="c1"># Observable signal per writing-code:11: reconfiguration drops every</span>
+        <span class="c1"># handler currently attached, which silently invalidates any external</span>
+        <span class="c1"># handler a caller may have added directly to this stdlib logger.</span>
+        <span class="n">prior_handler_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">logger</span><span class="o">.</span><span class="n">handlers</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">handlers</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">prior_handler_count</span><span class="p">:</span>
+            <span class="n">_meta_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;_configure_logger: reconfiguring </span><span class="si">%r</span><span class="s2"> (dropped </span><span class="si">%d</span><span class="s2"> handlers, console=</span><span class="si">%s</span><span class="s2"> file=</span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">prior_handler_count</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">log_to_console</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">log_to_file</span><span class="p">,</span>
+            <span class="p">)</span>
 
         <span class="c1"># Set base level</span>
         <span class="n">base_level</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span>
@@ -760,8 +790,12 @@
     
     <span class="k">def</span><span class="w"> </span><span class="nf">cleanup_all_loggers</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Cleanup all loggers.&quot;&quot;&quot;</span>
-        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_loggers</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_loggers</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">names</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">cleanup_logger</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="c1"># Observable signal per writing-code:11: bulk teardown is otherwise</span>
+        <span class="c1"># invisible at the process-monitoring layer.</span>
+        <span class="n">_meta_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;cleanup_all_loggers: cleaned up </span><span class="si">%d</span><span class="s2"> loggers&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">))</span>
     
     <span class="k">def</span><span class="w"> </span><span class="nf">set_default_logger_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">LoggerName</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the default logger name.&quot;&quot;&quot;</span>
@@ -804,7 +838,14 @@
                 <span class="n">shared_log_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Initialize a logger with specific configuration.</span>
-<span class="sd">    </span>
+
+<span class="sd">    .. deprecated::</span>
+<span class="sd">        The name suggests this function does first-time setup distinct</span>
+<span class="sd">        from :func:`get_logger`, but both are get-or-create with shared</span>
+<span class="sd">        config. Prefer :func:`configure_shared_logging` to set the</span>
+<span class="sd">        shared config and :func:`get_logger` to retrieve loggers; the</span>
+<span class="sd">        ``init_logger`` shape will be removed in a future release.</span>
+
 <span class="sd">    Args:</span>
 <span class="sd">        name: Logger name</span>
 <span class="sd">        log_to_file: Whether to log to file</span>
@@ -813,7 +854,7 @@
 <span class="sd">        max_bytes: Max file size before rotation</span>
 <span class="sd">        backup_count: Number of backup files</span>
 <span class="sd">        shared_log_file: Path to shared log file</span>
-<span class="sd">        </span>
+
 <span class="sd">    Returns:</span>
 <span class="sd">        Configured logger instance</span>
 <span class="sd">    &quot;&quot;&quot;</span>
