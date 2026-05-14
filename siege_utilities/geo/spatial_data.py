@@ -1190,8 +1190,16 @@ class CensusDataSource(SpatialDataSource):
         """Get directory contents for a specific year."""
         return self.discovery.get_year_directory_contents(year)
 
-    def discover_boundary_types(self, year: int) -> List[str]:
-        """Discover available boundary types for a year."""
+    def discover_boundary_types(self, year: int) -> Dict[str, str]:
+        """Discover available boundary types for a year.
+
+        Returns a mapping of boundary-type slug (``'county'``,
+        ``'tract'``, ...) to the canonical TIGER directory name
+        (``'COUNTY'``, ``'TRACT'``, ...). Matches the return contract
+        of :meth:`TigerDiscovery.discover_boundary_types`. The previous
+        ``List[str]`` annotation was incorrect -- the underlying call
+        has always returned the dict.
+        """
         return self.discovery.discover_boundary_types(year)
 
     def get_geographic_boundaries(self,
@@ -2006,8 +2014,13 @@ def get_year_directory_contents(year: int) -> List[str]:
     """Get directory contents for a specific year."""
     return census_source.get_year_directory_contents(year)
 
-def discover_boundary_types(year: int) -> List[str]:
-    """Discover available boundary types for a year."""
+def discover_boundary_types(year: int) -> Dict[str, str]:
+    """Discover available boundary types for a year.
+
+    Returns the same ``{boundary_type: tiger_dir}`` mapping as
+    :meth:`CensusDataSource.discover_boundary_types`. The historical
+    ``List[str]`` annotation never matched runtime behavior.
+    """
     return census_source.discover_boundary_types(year)
 
 def construct_download_url(year: int, geographic_level: str, state_fips: Optional[str] = None) -> str:
@@ -2116,8 +2129,14 @@ def fetch_geographic_boundaries(
     return result
 
 
-def get_available_boundary_types(year: int) -> List[str]:
-    """Get available boundary types for a year."""
+def get_available_boundary_types(year: int) -> Dict[str, str]:
+    """Get available boundary types for a year.
+
+    Returns ``{boundary_type: tiger_dir}`` -- same shape as
+    :meth:`CensusDataSource.get_available_boundary_types`. The
+    historical ``List[str]`` annotation never matched runtime
+    behavior.
+    """
     return census_source.get_available_boundary_types(year)
 
 def refresh_discovery_cache() -> None:
@@ -2202,12 +2221,20 @@ def normalize_fips_code(fips: Union[str, int]) -> str:
     
     return normalized.upper()
 
-def get_available_state_fips() -> List[str]:
-    """Get available state FIPS codes."""
+def get_available_state_fips() -> Dict[str, str]:
+    """Get available state FIPS codes as a ``{fips_code: state_name}`` mapping.
+
+    Same shape as :meth:`CensusDataSource.get_available_state_fips`.
+    Historical ``List[str]`` annotation never matched runtime behavior.
+    """
     return census_source.get_available_state_fips()
 
-def get_state_abbreviations() -> List[str]:
-    """Get state abbreviations."""
+def get_state_abbreviations() -> Dict[str, str]:
+    """Get a ``{fips_code: state_abbreviation}`` mapping.
+
+    Same shape as :meth:`CensusDataSource.get_state_abbreviations`.
+    Historical ``List[str]`` annotation never matched runtime behavior.
+    """
     return census_source.get_state_abbreviations()
 
 def get_comprehensive_state_info() -> Dict[str, Dict[str, Any]]:

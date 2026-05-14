@@ -295,7 +295,14 @@ def init_logger(name: LoggerName,
                 shared_log_file: Optional[Union[str, Path]] = None) -> logging.Logger:
     """
     Initialize a logger with specific configuration.
-    
+
+    .. deprecated::
+        The name suggests this function does first-time setup distinct
+        from :func:`get_logger`, but both are get-or-create with shared
+        config. Prefer :func:`configure_shared_logging` to set the
+        shared config and :func:`get_logger` to retrieve loggers; the
+        ``init_logger`` shape will be removed in a future release.
+
     Args:
         name: Logger name
         log_to_file: Whether to log to file
@@ -304,7 +311,7 @@ def init_logger(name: LoggerName,
         max_bytes: Max file size before rotation
         backup_count: Number of backup files
         shared_log_file: Path to shared log file
-        
+
     Returns:
         Configured logger instance
     """
