@@ -1,5 +1,5 @@
 """
-siege_utilities.survey — Survey/crosstab report engine.
+siege_utilities.survey -- Survey/crosstab report engine.
 
 Modelled on the Quantipy Stack → Cluster → Chain → View hierarchy,
 built fresh for Python 3.12 on pandas + weightipy.
@@ -9,16 +9,16 @@ Install the optional dependency:
 
 **Hierarchy**
 
-* ``View``  — one cell statistic (count, pct, CI)
-* ``Chain`` — one crosstab (row_var × break_vars)
-* ``Cluster`` — a named group of Chains = one report section
-* ``Stack`` — a complete report (all Clusters + shared WeightScheme)
+* ``View``  -- one cell statistic (count, pct, CI)
+* ``Chain`` -- one crosstab (row_var × break_vars)
+* ``Cluster`` -- a named group of Chains = one report section
+* ``Stack`` -- a complete report (all Clusters + shared WeightScheme)
 
 **Waves (longitudinal surveys)**
 
-* ``Wave``    — the same questionnaire fielded at a single point in time
+* ``Wave``    -- the same questionnaire fielded at a single point in time
                 (carries ``df`` and optionally a per-wave ``Stack``)
-* ``WaveSet`` — an ordered set of Waves; ``compare_chain`` produces a
+* ``WaveSet`` -- an ordered set of Waves; ``compare_chain`` produces a
                 LONGITUDINAL Chain aligned across waves
 
 A Stack describes **one** fielding. A WaveSet composes **many** fieldings

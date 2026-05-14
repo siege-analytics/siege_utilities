@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 
 # ---------------------------------------------------------------------------
-# View — one cell statistic
+# View -- one cell statistic
 # ---------------------------------------------------------------------------
 
 @dataclass
@@ -35,7 +35,7 @@ class View:
 
 
 # ---------------------------------------------------------------------------
-# Chain — one cross-tabulation
+# Chain -- one cross-tabulation
 # ---------------------------------------------------------------------------
 
 @dataclass
@@ -47,7 +47,7 @@ class Chain:
 
     Fields populated by later pipeline stages (significance testing,
     weighting) are declared here with ``None`` defaults so
-    :func:`dataclasses.fields` / :func:`dataclasses.asdict` see them — the
+    :func:`dataclasses.fields` / :func:`dataclasses.asdict` see them -- the
     previous pattern of attaching them dynamically via ``setattr`` broke
     introspection.
     """
@@ -89,7 +89,7 @@ class Chain:
 
 
 # ---------------------------------------------------------------------------
-# Cluster — one named section
+# Cluster -- one named section
 # ---------------------------------------------------------------------------
 
 @dataclass
@@ -104,7 +104,7 @@ class Cluster:
 
 
 # ---------------------------------------------------------------------------
-# WeightScheme — RIM target marginals
+# WeightScheme -- RIM target marginals
 # ---------------------------------------------------------------------------
 
 @dataclass
@@ -134,7 +134,7 @@ class WeightScheme:
 
 
 # ---------------------------------------------------------------------------
-# Stack — complete report
+# Stack -- complete report
 # ---------------------------------------------------------------------------
 
 @dataclass
@@ -154,7 +154,7 @@ class Stack:
 
 
 # ---------------------------------------------------------------------------
-# Wave — one survey fielding
+# Wave -- one survey fielding
 # ---------------------------------------------------------------------------
 
 @dataclass
@@ -176,7 +176,7 @@ class Wave:
 
 
 # ---------------------------------------------------------------------------
-# WaveSet — ordered waves of the same survey
+# WaveSet -- ordered waves of the same survey
 # ---------------------------------------------------------------------------
 
 @dataclass

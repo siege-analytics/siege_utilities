@@ -15,7 +15,7 @@ account; the public website does not enumerate endpoint URLs. This
 connector ships with:
 
   * The base ``_request`` helper that handles auth headers, retries,
-    and error normalization — fully tested.
+    and error normalization -- fully tested.
   * Concrete ``account``, ``profiles``, ``posts``, ``analytics``
     methods that wrap likely endpoint paths (``/v1/accounts``,
     ``/v1/profiles``, ``/v1/posts``, ``/v1/analytics``). These are
@@ -94,7 +94,7 @@ class VistaSocialResponse:
         status_code: HTTP status code (200 / 201 etc.).
         data: Parsed JSON body. Empty dict if the response had no body
             (e.g. 204 No Content) or wasn't JSON-decodable.
-        headers: Response headers — useful for inspecting rate-limit
+        headers: Response headers -- useful for inspecting rate-limit
             counters (``X-RateLimit-Remaining``, ``Retry-After``).
         url: The fully-qualified URL that was called, for logging.
     """
@@ -184,7 +184,7 @@ class VistaSocialConnector:
         """Send an authenticated request to *path* (relative to base URL).
 
         Retries with exponential backoff on 5xx and on transport errors
-        (``requests.exceptions.RequestException``). 401/403 is fatal —
+        (``requests.exceptions.RequestException``). 401/403 is fatal --
         retry won't fix bad credentials. 429 is surfaced as
         :class:`VistaSocialRateLimitError` so callers can back off
         intelligently rather than have us double-retry into a longer
@@ -234,14 +234,14 @@ class VistaSocialConnector:
                     time.sleep(self._retry_backoff ** attempt)
                 continue
             if not 200 <= resp.status_code < 300:
-                # 4xx other than 401/403/429 — caller error, not retried.
+                # 4xx other than 401/403/429 -- caller error, not retried.
                 raise VistaSocialError(
                     f"Vista Social {method} {url} returned {resp.status_code}: "
                     f"{resp.text[:200]}"
                 )
 
             if not resp.content:
-                # 204 No Content / empty body — legitimately empty.
+                # 204 No Content / empty body -- legitimately empty.
                 data: Mapping[str, Any] = {}
             else:
                 try:
@@ -249,7 +249,7 @@ class VistaSocialConnector:
                 except ValueError as exc:
                     # 2xx with non-JSON body. Don't silently treat as
                     # empty (that violates the no-silent-swallow rule
-                    # set by the Phase-3 sweep) — surface it.
+                    # set by the Phase-3 sweep) -- surface it.
                     raise VistaSocialError(
                         f"Vista Social {method} {url} returned "
                         f"{resp.status_code} with non-JSON body "
@@ -314,7 +314,7 @@ class VistaSocialConnector:
                 Vista Social returns its default metric set.
 
         Wraps ``GET /v1/accounts/{account_id}/analytics``. Returns the
-        decoded JSON body verbatim — Vista Social returns a structured
+        decoded JSON body verbatim -- Vista Social returns a structured
         document with metric breakdowns; consumers can extract what
         they need.
         """
@@ -342,7 +342,7 @@ class VistaSocialConnector:
         """Return posts for *account_id* with optional date filtering.
 
         Wraps ``GET /v1/accounts/{account_id}/posts``. Pagination is
-        intentionally simple here — consumers that need full enumeration
+        intentionally simple here -- consumers that need full enumeration
         should call repeatedly with adjusted date ranges or extend this
         connector with cursor handling once the real API spec is known.
         """

@@ -6,7 +6,7 @@ stack_to_arguments: walks all Chains in a Stack.
 
 Chart type selection by TableType:
   SINGLE_RESPONSE   → horizontal bar
-  MULTIPLE_RESPONSE → grouped bar (NOT stacked — stacked implies mutual exclusivity)
+  MULTIPLE_RESPONSE → grouped bar (NOT stacked -- stacked implies mutual exclusivity)
   CROSS_TAB         → grouped bar (≤5 categories) or heatmap (>5)
   LONGITUDINAL      → line chart
   RANKING           → horizontal bar sorted descending
@@ -70,7 +70,7 @@ def _build_chart(
     """Render a Figure for ``chart_type``.
 
     When ``chart_generator`` is provided it must be callable as
-    ``chart_generator(df, chart_type, headline) -> Figure | None`` — the
+    ``chart_generator(df, chart_type, headline) -> Figure | None`` -- the
     caller's generator is used directly and its return value is the chart.
 
     When ``chart_generator`` is None, uses the library's default matplotlib
@@ -130,14 +130,14 @@ def _build_map(chain: "Chain", map_generator: Optional[Any] = None) -> Optional[
     ``create_choropleth_map(df, geo_column, value_column)`` method; it is
     used instead of the default :class:`ChartGenerator`.
 
-    The Chain's ``row_var`` MUST equal its ``geo_column`` — otherwise the
+    The Chain's ``row_var`` MUST equal its ``geo_column`` -- otherwise the
     values in the row index aren't geographic features and labeling them
     as such would mislabel (e.g. relabeling ``"Democrat"`` / ``"Republican"``
     as states).
 
     Returns ``None`` when no ``geo_column`` is set or when the geo-rendering
     library is unavailable. Raises :class:`RenderError` on a configuration
-    mismatch or a rendering failure — callers should not silently ship
+    mismatch or a rendering failure -- callers should not silently ship
     reports missing maps.
     """
     if not chain.geo_column:
@@ -178,14 +178,14 @@ def _build_map(chain: "Chain", map_generator: Optional[Any] = None) -> Optional[
 
 
 # ---------------------------------------------------------------------------
-# ArgumentCluster — carrier for stack_to_arguments output
+# ArgumentCluster -- carrier for stack_to_arguments output
 # ---------------------------------------------------------------------------
 
 @dataclass
 class ArgumentCluster:
     """A named group of rendered :class:`Argument` objects.
 
-    This is the output of :func:`stack_to_arguments` — a typed companion
+    This is the output of :func:`stack_to_arguments` -- a typed companion
     to :class:`models.Cluster` (which holds Chains). Separate type prevents
     callers from accidentally feeding Argument-bearing objects into code
     that expects Chain-bearing Clusters.
@@ -228,10 +228,10 @@ def chain_to_argument(
 
     These kwargs make three cases work:
 
-    1. *Ad hoc* — both ``None``, no branding configured: defaults run.
-    2. *Override on a one-off* — caller passes a pre-configured generator
+    1. *Ad hoc* -- both ``None``, no branding configured: defaults run.
+    2. *Override on a one-off* -- caller passes a pre-configured generator
        without mutating global branding state.
-    3. *Alternative backend* — caller passes a Plotly-based callable / object
+    3. *Alternative backend* -- caller passes a Plotly-based callable / object
        that matches the interface.
 
     Returns

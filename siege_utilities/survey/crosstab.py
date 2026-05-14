@@ -1,5 +1,5 @@
 """
-Chain builder — converts a respondent/donor-level DataFrame into a Chain.
+Chain builder -- converts a respondent/donor-level DataFrame into a Chain.
 
 Delegates chi-square to siege_utilities.data.cross_tabulation (not reimplemented here).
 """
@@ -19,7 +19,7 @@ class CrosstabInputError(ValueError):
 
     Distinct from a successful Chain that happens to contain no rows
     (e.g., every category was filtered out downstream). This signals
-    the caller fed in something the builder cannot work with at all —
+    the caller fed in something the builder cannot work with at all --
     typically an upstream filter that returned nothing, or a column
     name typo.
     """
@@ -132,7 +132,7 @@ def _weighted_counts(
 
 
 def _base_respondents(df: pd.DataFrame, weight_var: Optional[str]) -> float:
-    """Return the effective respondent base — weighted sum or unweighted count.
+    """Return the effective respondent base -- weighted sum or unweighted count.
 
     Returns a float so fractional weighted bases (e.g. ``1234.7``) are not
     silently truncated. Callers that need an integer for display should
@@ -168,7 +168,7 @@ def _grouped_counts_views(
     counts of row_var and wrap as Views keyed ``"{bv}={bval}"``.
 
     Used by SINGLE_RESPONSE, CROSS_TAB, and BANNER builders (identical body).
-    Separate helper keeps the three type-tagged wrappers honest — a change
+    Separate helper keeps the three type-tagged wrappers honest -- a change
     here ripples to all three without drift.
     """
     views: Dict[str, List[View]] = {}
@@ -199,7 +199,7 @@ def _build_multiple_response(
     """Percents are per-respondent (sum can exceed 100%); auto-sets base_note.
 
     Distinct from ``_grouped_counts_views`` because MULTIPLE_RESPONSE uses
-    ``pct_base=n_respondents`` — items that sum to >100% are the whole point.
+    ``pct_base=n_respondents`` -- items that sum to >100% are the whole point.
     """
     views: Dict[str, List[View]] = {}
     for bv in break_vars:
@@ -302,7 +302,7 @@ def _build_mean_scale(
 ) -> Chain:
     """Computes mean + 95% CI per break variable value.
 
-    MEAN_SCALE requires the ``metric`` column — unlike count-based types,
+    MEAN_SCALE requires the ``metric`` column -- unlike count-based types,
     there is no fallback to row counts. Missing metric raises so callers
     don't receive a silently-empty chain that'd render as a blank page
     with no diagnostic.
