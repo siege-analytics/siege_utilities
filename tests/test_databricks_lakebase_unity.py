@@ -70,6 +70,88 @@ def test_unity_sql_helpers():
     assert statements[0].startswith("CREATE SCHEMA IF NOT EXISTS")
 
 
+def test_lakebase_psql_command_rejects_shell_metacharacters():
+    """The conninfo fields go through a shell command line; metacharacters
+    in host/user/dbname must be rejected at the boundary (issue #481)."""
+    with pytest.raises(ValueError, match="host"):
+        build_lakebase_psql_command(
+            host="example.com; rm -rf /",
+            user="alice",
+            dbname="analytics",
+        )
+    with pytest.raises(ValueError, match="user"):
+        build_lakebase_psql_command(
+            host="db.example.net",
+            user="alice && cat /etc/passwd",
+            dbname="analytics",
+        )
+    with pytest.raises(ValueError, match="dbname"):
+        build_lakebase_psql_command(
+            host="db.example.net",
+            user="alice",
+            dbname='analytics" $(rm -rf /)',
+        )
+
+
+def test_lakebase_psql_command_legitimate_values_accepted():
+    """Hostnames with dots, hyphens, numeric ports, and identifier-shaped
+    user/dbname values must continue to work after the security fix."""
+    cmd = build_lakebase_psql_command(
+        host="db-1.example-prod.net",
+        user="svc_account_1",
+        dbname="my_db",
+    )
+    assert "db-1.example-prod.net" in cmd
+    assert "svc_account_1" in cmd
+    assert "my_db" in cmd
+
+
+def test_pgpass_entry_escapes_colons_and_backslashes():
+    """The .pgpass file format uses ':' as field separator and '\\' as
+    escape; both must be backslash-escaped in every field (issue #481)."""
+    pgpass = build_pgpass_entry(
+        host="db:1.example.com",
+        port=5432,
+        dbname="my:db",
+        user="my:user",
+        password=r"pa\ss:word",
+    )
+    # Each field's special characters escaped.
+    assert pgpass == r"db\:1.example.com:5432:my\:db:my\:user:pa\\ss\:word"
+
+
+def test_jdbc_url_rejects_url_injection():
+    """JDBC URL builder validates host and dbname to prevent injection
+    into the connection string (issue #481)."""
+    with pytest.raises(ValueError, match="host"):
+        build_jdbc_url('localhost"/etc/passwd', "mydb")
+    with pytest.raises(ValueError, match="dbname"):
+        build_jdbc_url("db.example.net", "mydb?foo=bar")
+
+
+def test_foreign_table_sql_rejects_source_identifier_injection():
+    """source_schema and source_table go through the same identifier
+    validator as the other fields, closing the asymmetric-quoting gap
+    that issue #481 surfaced."""
+    with pytest.raises(ValueError, match="source_schema"):
+        build_foreign_table_sql(
+            catalog="main",
+            schema="ext",
+            table="zip",
+            connection_name="lakebase_conn",
+            source_schema="census';DROP TABLE x;--",
+        )
+    with pytest.raises(ValueError, match="source_table"):
+        build_foreign_table_sql(
+            catalog="main",
+            schema="ext",
+            table="zip",
+            connection_name="lakebase_conn",
+            source_schema="census_reference",
+            source_table="zip'; --",
+        )
+
+
 def test_build_databricks_run_url():
     """Run URL helper should generate stable links."""
     url = build_databricks_run_url(
