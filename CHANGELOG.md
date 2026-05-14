@@ -9,13 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+**From the v2.3.0 fix exercise (PR #487):**
+
 - **`siege_utilities.databricks.ensure_secret_scope`** now returns the scope name (`str`) instead of `True`. Callers asserting on the bool return need to update; callers ignoring the return value are unaffected.
 - **`siege_utilities.databricks.put_secret`** now returns the scope-qualified key (`str`, e.g. `"my-scope/my-key"`) instead of `True`. Callers asserting on the bool return need to update; callers ignoring the return value are unaffected.
 - **`siege_utilities.databricks.runtime_secret_exists`** no longer catches `Exception` and silently returns `False` on lookup errors. The function now propagates the underlying exception (scope-missing, auth-denied, etc.) so the caller can distinguish "key not present in scope" from "lookup failed entirely." Callers relying on the silent-False on lookup errors need to wrap in their own exception handler or pre-check scope existence.
 
 All three are public-API changes per `__all__` in `siege_utilities.databricks` and the top-level `siege_utilities` namespace. The new contracts are stricter (more informative returns; no silent error swallowing) but break callers depending on the previous shapes. Drift is intentional: the previous contracts violated [`writing-code:7`](https://github.com/siege-analytics/claude-configs-public/blob/main/skills/_writing-code-rules.md) (silent error swallowing) and [`writing-code:11`](https://github.com/siege-analytics/claude-configs-public/blob/main/skills/_writing-code-rules.md) (no silent processes) from claude-configs-public v2.3.0.
 
-See PR #487 for the fix-exercise that drove these changes and the per-rule eval observations.
+**From the v2.3.1 fix exercise (PR #489):**
+
+- **`siege_utilities.reporting.PowerPointGenerator.generate_powerpoint_presentation`** now returns `Path` (the saved file location) instead of `bool`. Raises on any python-pptx or filesystem error. Consistent with sibling `create_*_presentation` methods per [claude-configs-public v2.3.1 writing-code:13](https://github.com/siege-analytics/claude-configs-public) (sibling methods within a class follow the same failure-mode contract). Callers using the bool return need to switch to try/except + Path; callers ignoring the return value are unaffected. The bundled example in `siege_utilities/reporting/examples/comprehensive_mapping_example.py` was updated as part of the change.
+- **`siege_utilities.geo.spatial_data.GovernmentDataSource._get_dataset_metadata`** now raises `SpatialDataError` on HTTP non-2xx instead of returning `None`. Per writing-code:13 (consistent failure-mode contract), the mixed contract (return None for HTTP non-2xx, raise for transport/parse errors) collapsed to a single raise-everything-non-success contract. The private method's contract change is invisible to external consumers; the public `download_dataset` caller's contract is unchanged.
+
+Drift is intentional and traceable: each BREAKING entry cites the rule that drove it (writing-code:13) so consumers can trace the contract change back to the rule's originating-arc evidence. Per claude-configs-public v2.3.1 writing-releases:1 composition discipline, the BREAKING-changelog entry lands as a separate commit on the fix-exercise PR, composing writing-code:13 with writing-releases:1 without losing per-rule attribution.
 
 ## [3.16.0] - 2026-05-13
 

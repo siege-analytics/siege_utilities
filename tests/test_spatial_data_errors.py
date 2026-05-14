@@ -38,20 +38,36 @@ class TestGovernmentDataSource:
                 src._get_dataset_metadata("https://example.com/api/x")
         assert isinstance(exc_info.value.__cause__, ConnectionError)
 
-    def test_metadata_http_error_status_returns_none(self):
-        """HTTP 4xx/5xx without exception goes through the response.ok
-        branch and returns None — that's a legitimate 'no metadata' path,
-        not a silent-swallow of a transport-level failure."""
+    def test_metadata_http_error_status_raises(self):
+        """HTTP 4xx/5xx raises SpatialDataError per writing-code:13
+        (single failure-indication mechanism per function).
+
+        Per writing-tests:1 retroactive-fix corollary (v2.3.1): this
+        test was previously named test_metadata_http_error_status_returns_none
+        and asserted None-on-HTTP-failure as feature. writing-code:13
+        ratified at v2.3.1-rc1 collapsed the mixed contract (return None
+        for non-2xx, raise for everything else) to a single raise-
+        everything-non-success contract. The author's writing-tests:1
+        check passed at original-author time because the test was
+        designed for the now-banned mixed-contract impl; correctness
+        against the implementation did not equal correctness against
+        the rule. Rules win on conflict.
+
+        Third instance of the test-codifies-banned-behaviour pattern
+        (after PR #478 + PR #484) -- evidence that writing-tests:1's
+        corollary discipline transfers across module shapes.
+        """
         src = GovernmentDataSource(portal_url="https://example.com")
         fake_response = MagicMock()
         fake_response.ok = False
         fake_response.status_code = 404
+        fake_response.text = "Not Found"
         with patch(
             "siege_utilities.geo.spatial_data.requests.get",
             return_value=fake_response,
         ):
-            result = src._get_dataset_metadata("https://example.com/api/x")
-        assert result is None
+            with pytest.raises(SpatialDataError, match="HTTP 404"):
+                src._get_dataset_metadata("https://example.com/api/x")
 
     def test_format_finder_propagates_programming_errors(self):
         """_find_best_format does NOT wrap programming errors as

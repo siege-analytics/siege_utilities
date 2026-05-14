@@ -489,44 +489,53 @@ class PowerPointGenerator:
         return self.add_slide_section(presentation_content, 'summary_slide', title, content, level)
 
     def generate_powerpoint_presentation(self, presentation_content: Dict[str, Any],
-                                       output_path: str) -> bool:
+                                       output_path: str) -> Path:
         """
-        Generate a comprehensive PowerPoint presentation.
-        
+        Generate a comprehensive PowerPoint presentation from a structure dict.
+
+        Consistent with sibling ``create_*_presentation`` methods (per
+        writing-code:13): returns ``Path`` on success and raises on
+        failure. The previous bool-return contract conflicted with the
+        sibling family's raise-on-failure contract and forced callers
+        of the PowerPointGenerator class to handle two failure-indication
+        mechanisms across methods that looked similar.
+
         Args:
-            presentation_content: Presentation content structure
-            output_path: Output PowerPoint file path
-            
+            presentation_content: Presentation content structure (a Dict
+                produced by ``create_comprehensive_presentation`` + the
+                ``add_*_slide`` builders).
+            output_path: Output PowerPoint file path.
+
         Returns:
-            True if successful, False otherwise
+            Path to the saved .pptx file.
+
+        Raises:
+            Exception: any python-pptx or filesystem error during slide
+                construction or save. Caller pattern-matches on the
+                exception type, not on a boolean.
         """
         try:
-            # Create presentation
             prs = Presentation()
-            
+
             # Apply template if specified
             template_path = presentation_content.get('template_path')
             if template_path and Path(template_path).exists():
                 prs = Presentation(template_path)
-            
+
             # Process each section
             for section in presentation_content.get('sections', []):
                 slide = self._create_slide_from_section(section, prs)
-                if slide:
-                    # Add speaker notes if provided
-                    if section.get('notes'):
-                        notes_slide = slide.notes_slide
-                        notes_slide.notes_text_frame.text = section['notes']
-            
-            # Save presentation
+                if slide and section.get('notes'):
+                    notes_slide = slide.notes_slide
+                    notes_slide.notes_text_frame.text = section['notes']
+
             prs.save(output_path)
-            
             log.info(f"PowerPoint presentation generated successfully: {output_path}")
-            return True
-            
+            return Path(output_path)
+
         except Exception as e:
             log.error(f"Error generating PowerPoint presentation: {e}")
-            return False
+            raise
 
     def _add_title_slide(self, prs: Presentation, title: str) -> Any:
         """Add a title slide. Returns the added Slide for caller inspection."""
