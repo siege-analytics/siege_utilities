@@ -170,6 +170,49 @@ def test_lookup_backend_error_on_500(census_gaz):
             census_gaz.lookup("Anywhere")
 
 
+def test_lookup_null_result_returns_not_found(census_gaz):
+    """data['result'] being null in the geocoder response must not crash
+    with AttributeError; it should fall through to 'no match' just like
+    an empty addressMatches list."""
+    from siege_utilities.geo.gazetteers.base import GazetteerNotFoundError
+
+    resp = MagicMock(status_code=200)
+    resp.json.return_value = {"result": None}
+    with patch.object(census_gaz._session, "get", return_value=resp):
+        with pytest.raises(GazetteerNotFoundError, match="no match"):
+            census_gaz.lookup("Anywhere")
+
+
+def test_lookup_tigerweb_backend_error(census_gaz):
+    """A successful geocoder call followed by a TIGERWeb 500 must
+    translate to GazetteerBackendError, not bubble as an unrelated
+    stack trace."""
+    pytest.importorskip("shapely")
+    from siege_utilities.geo.gazetteers.base import GazetteerBackendError
+
+    geocoder_resp = _fake_geocoder_response([_county_match(state="01", county="073")])
+    tiger_bad = MagicMock(status_code=500, text="tiger down")
+    with patch.object(census_gaz._session, "get") as mock_get:
+        mock_get.side_effect = [geocoder_resp, tiger_bad]
+        with pytest.raises(GazetteerBackendError, match="TIGERWeb"):
+            census_gaz.lookup("Birmingham, AL")
+
+
+def test_lookup_tigerweb_empty_features(census_gaz):
+    """TIGERWeb returning an empty features array (the geocoder
+    resolved the place but the polygon layer has nothing for that
+    GEOID) must translate to GazetteerBackendError."""
+    pytest.importorskip("shapely")
+    from siege_utilities.geo.gazetteers.base import GazetteerBackendError
+
+    geocoder_resp = _fake_geocoder_response([_county_match(state="01", county="073")])
+    tiger_empty = _fake_tigerweb_response([])
+    with patch.object(census_gaz._session, "get") as mock_get:
+        mock_get.side_effect = [geocoder_resp, tiger_empty]
+        with pytest.raises(GazetteerBackendError, match="no feature"):
+            census_gaz.lookup("Birmingham, AL")
+
+
 def test_resolve_gazetteer_returns_census_when_preferred():
     from siege_utilities.geo.gazetteers import resolve_gazetteer
     from siege_utilities.geo.gazetteers.census_gazetteer import CensusGazetteer

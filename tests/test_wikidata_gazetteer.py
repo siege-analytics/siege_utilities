@@ -274,3 +274,99 @@ def test_fetch_osm_relation_geometry_stitches_split_outer(wd_gaz):
     assert isinstance(geom, Polygon)
     # The stitched ring is a unit square; area = 1.0.
     assert geom.area == pytest.approx(1.0)
+
+
+# ---------------------------------------------------------------------------
+# Shapely-gating regression (CR follow-up)
+# ---------------------------------------------------------------------------
+
+def test_constructor_raises_when_shapely_missing():
+    """The constructor raises ImportError when SHAPELY_AVAILABLE is False.
+    Without this guard, a missing shapely produces an opaque ImportError
+    deep inside the geometry-assembly path. Future refactors that drop
+    the constructor-time gate would pass CI silently."""
+    import siege_utilities.geo.gazetteers.wikidata_gazetteer as mod
+
+    original = mod.SHAPELY_AVAILABLE
+    mod.SHAPELY_AVAILABLE = False
+    try:
+        with pytest.raises(ImportError, match="shapely"):
+            mod.WikidataGazetteer()
+    finally:
+        mod.SHAPELY_AVAILABLE = original
+
+
+def test_is_available_returns_false_when_shapely_missing():
+    """is_available() ANDs the requests and shapely flags. Flipping
+    SHAPELY_AVAILABLE on an already-constructed instance must surface
+    via is_available() -> False."""
+    import siege_utilities.geo.gazetteers.wikidata_gazetteer as mod
+
+    gaz = mod.WikidataGazetteer()
+    original = mod.SHAPELY_AVAILABLE
+    mod.SHAPELY_AVAILABLE = False
+    try:
+        assert gaz.is_available() is False
+    finally:
+        mod.SHAPELY_AVAILABLE = original
+
+
+# ---------------------------------------------------------------------------
+# Backend-error translation (CR follow-up)
+# ---------------------------------------------------------------------------
+
+def test_sparql_500_raises_backend_error(wd_gaz):
+    from siege_utilities.geo.gazetteers.base import GazetteerBackendError
+
+    bad = MagicMock(status_code=500, text="sparql down")
+    with patch.object(wd_gaz._session, "get", return_value=bad):
+        with pytest.raises(GazetteerBackendError, match="Wikidata SPARQL"):
+            wd_gaz.lookup("Anywhere")
+
+
+def test_sparql_request_exception_raises_backend_error(wd_gaz):
+    import requests
+    from siege_utilities.geo.gazetteers.base import GazetteerBackendError
+
+    with patch.object(
+        wd_gaz._session, "get",
+        side_effect=requests.exceptions.RequestException("network down"),
+    ):
+        with pytest.raises(GazetteerBackendError, match="Wikidata SPARQL"):
+            wd_gaz.lookup("Anywhere")
+
+
+def test_sparql_non_json_raises_backend_error(wd_gaz):
+    from siege_utilities.geo.gazetteers.base import GazetteerBackendError
+
+    resp = MagicMock(status_code=200)
+    resp.json.side_effect = ValueError("not JSON")
+    with patch.object(wd_gaz._session, "get", return_value=resp):
+        with pytest.raises(GazetteerBackendError, match="non-JSON"):
+            wd_gaz.lookup("Anywhere")
+
+
+def test_overpass_504_raises_backend_error(wd_gaz):
+    from siege_utilities.geo.gazetteers.base import GazetteerBackendError
+
+    sparql_resp = _sparql_response([_binding("X", osm_rel=123, country="US")])
+    overpass_bad = MagicMock(status_code=504, text="gateway timeout")
+    with patch.object(wd_gaz._session, "get", return_value=sparql_resp), \
+         patch.object(wd_gaz._session, "post", return_value=overpass_bad):
+        with pytest.raises(GazetteerBackendError, match="Overpass"):
+            wd_gaz.lookup("X")
+
+
+def test_overpass_empty_elements_raises_backend_error(wd_gaz):
+    """Overpass returning {'elements': []} means the relation doesn't
+    exist in OSM; translate to GazetteerBackendError rather than
+    crashing on `relation = elements[0]`."""
+    from siege_utilities.geo.gazetteers.base import GazetteerBackendError
+
+    sparql_resp = _sparql_response([_binding("X", osm_rel=123, country="US")])
+    overpass_empty = MagicMock(status_code=200)
+    overpass_empty.json.return_value = {"elements": []}
+    with patch.object(wd_gaz._session, "get", return_value=sparql_resp), \
+         patch.object(wd_gaz._session, "post", return_value=overpass_empty):
+        with pytest.raises(GazetteerBackendError, match="no elements"):
+            wd_gaz.lookup("X")

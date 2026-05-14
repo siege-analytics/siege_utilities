@@ -194,10 +194,11 @@ class CensusGazetteer:
             raise GazetteerBackendError(
                 f"Census geocoder returned non-JSON for {name!r}"
             ) from exc
-        matches = (
-            data.get("result", {})
-            .get("addressMatches", [])
-        )
+        # `data.get("result", {})` only substitutes {} when the key is
+        # absent. The Census API also returns {"result": null, ...} on
+        # certain error envelopes; the `or {}` guard handles both.
+        result = data.get("result") or {}
+        matches = result.get("addressMatches") or []
         # Each match has a `geographies` dict keyed by layer name.
         # Counties is the canonical admin level we resolve here; consumers
         # who want state / tract can read raw.geographies themselves.
