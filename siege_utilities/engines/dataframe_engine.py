@@ -57,8 +57,8 @@ POSTGIS = Engine.POSTGIS.value
 
 
 # Shared across all engines; see docs/engines/INVARIANTS.md groupby_agg.
-# "avg" is a Spark synonym for "mean" the original SparkEngine impl
-# accepted; keeping both so existing callers continue to work.
+# "avg" is the Spark spelling; "mean" is the pandas spelling. Both are
+# accepted at the validator and normalised inside each engine.
 _SUPPORTED_AGG_NAMES = frozenset({
     "sum", "mean", "avg", "count", "min", "max",
     "first", "last", "stddev", "variance", "approx_count_distinct",
@@ -464,9 +464,10 @@ class DataFrameEngine(ABC):
         tgt = self.to_geodataframe(target_polys, target_geom)
 
         # Detect zero-area sources BEFORE gpd.overlay. A degenerate source
-        # polygon that produces no intersection rows would otherwise
-        # disappear entirely — the post-overlay check missed exactly the
-        # data-loss case it was trying to surface.
+        # polygon produces no intersection rows; without a pre-check it
+        # would disappear entirely from the output, with no signal that
+        # data was dropped. Log the drop count so the data loss is
+        # observable to the caller.
         import logging as _logging
         _log = _logging.getLogger(__name__)
         src = src.assign(_src_area=src.geometry.area)
