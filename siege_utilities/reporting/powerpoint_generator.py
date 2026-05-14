@@ -25,6 +25,15 @@ class PowerPointGenerator:
     """
     Generates PowerPoint presentations from analytics data and report configurations.
     Requires python-pptx package for PowerPoint generation.
+
+    Internal-helper convention (writing-code:11): private ``_add_*_slide``
+    methods return the python-pptx ``Slide`` object they added. Public
+    ``create_*_presentation`` methods log at INFO when the presentation
+    is saved (floor (b) for the whole flow). The combination satisfies
+    writing-code:11 floor for both the per-slide and the per-presentation
+    observation level: a caller can confirm a specific slide was added
+    by inspecting the return value, and an auditor can confirm a
+    presentation was emitted by greping logs.
     """
 
     def __init__(self, client_name: str, output_dir: Optional[Path] = None):
@@ -519,40 +528,42 @@ class PowerPointGenerator:
             log.error(f"Error generating PowerPoint presentation: {e}")
             return False
 
-    def _add_title_slide(self, prs: Presentation, title: str):
-        """Add a title slide to the presentation."""
+    def _add_title_slide(self, prs: Presentation, title: str) -> Any:
+        """Add a title slide. Returns the added Slide for caller inspection."""
         slide_layout = prs.slide_layouts[self.slide_layouts['title']]
         slide = prs.slides.add_slide(slide_layout)
-        
+
         # Set title
         title_shape = slide.shapes.title
         title_shape.text = title
-        
+
         # Set subtitle
         subtitle_shape = slide.placeholders[1]
         subtitle_shape.text = f"Generated on {datetime.now().strftime('%B %d, %Y')}\n{self.client_name}"
-        
+
         # Apply formatting
         self._format_title_slide(slide)
+        return slide
 
-    def _add_executive_summary_slide(self, prs: Presentation, summary: str):
-        """Add an executive summary slide."""
+    def _add_executive_summary_slide(self, prs: Presentation, summary: str) -> Any:
+        """Add an executive summary slide. Returns the added Slide."""
         slide_layout = prs.slide_layouts[self.slide_layouts['content']]
         slide = prs.slides.add_slide(slide_layout)
-        
+
         # Set title
         title_shape = slide.shapes.title
         title_shape.text = "Executive Summary"
-        
+
         # Set content
         content_shape = slide.placeholders[1]
         content_shape.text = summary
-        
+
         # Apply formatting
         self._format_content_slide(slide)
+        return slide
 
-    def _add_metrics_slide(self, prs: Presentation, metrics: Dict[str, Any]):
-        """Add a metrics slide with key performance indicators."""
+    def _add_metrics_slide(self, prs: Presentation, metrics: Dict[str, Any]) -> Any:
+        """Add a metrics slide with key performance indicators. Returns the Slide."""
         slide_layout = prs.slide_layouts[self.slide_layouts['two_content']]
         slide = prs.slides.add_slide(slide_layout)
         
@@ -588,9 +599,10 @@ class PowerPointGenerator:
                     additional_metrics_text += f"• {metric_name}: {metric_data}\n"
             
             right_content.text = additional_metrics_text
-        
+
         # Apply formatting
         self._format_content_slide(slide)
+        return slide
 
     def _add_charts_slides(self, prs: Presentation, charts: List[Dict[str, Any]]):
         """Add slides with charts."""
@@ -648,26 +660,27 @@ class PowerPointGenerator:
                         for paragraph in cell.text_frame.paragraphs:
                             paragraph.font.size = Pt(10)
 
-    def _add_insights_slide(self, prs: Presentation, insights: List[str]):
-        """Add an insights and recommendations slide."""
+    def _add_insights_slide(self, prs: Presentation, insights: List[str]) -> Any:
+        """Add an insights and recommendations slide. Returns the Slide."""
         slide_layout = prs.slide_layouts[self.slide_layouts['content']]
         slide = prs.slides.add_slide(slide_layout)
-        
+
         # Set title
         title_shape = slide.shapes.title
         title_shape.text = "Key Insights & Recommendations"
-        
+
         # Set content
         content_shape = slide.placeholders[1]
         insights_text = ""
-        
+
         for i, insight in enumerate(insights, 1):
             insights_text += f"{i}. {insight}\n\n"
-        
+
         content_shape.text = insights_text
-        
+
         # Apply formatting
         self._format_content_slide(slide)
+        return slide
 
     def _add_performance_overview_slide(self, prs: Presentation, overview: str):
         """Add a performance overview slide."""
