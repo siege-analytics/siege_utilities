@@ -41,7 +41,11 @@ from .secrets import (
     runtime_secret_exists,
 )
 from .session import get_active_spark_session, get_dbutils
-from .unity_catalog import build_foreign_table_sql, build_schema_and_table_sync_sql
+# Canonical import path post-SU#519 rename. The old
+# .unity_catalog module remains as a deprecation shim re-exporting
+# these same symbols; importing this package does NOT trigger the
+# shim's DeprecationWarning.
+from .lakehouse_federation import build_foreign_table_sql, build_schema_and_table_sync_sql
 
 __all__ = [
     "build_databricks_run_url",
