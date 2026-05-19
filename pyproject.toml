@@ -55,6 +55,9 @@ geo = [
     "pysal>=24.1",
     "censusgeocode>=0.5.2",
     "topojson>=1.8",
+    # Required by PostGISConnector.upload_spatial_data for full-column
+    # writes via gpd.GeoDataFrame.to_postgis (closes #516).
+    "geoalchemy2>=0.14.0",
 ]
 # H3 hexagonal spatial index (lightweight spatial joins)
 h3 = [
