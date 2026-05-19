@@ -3,7 +3,6 @@ Database connection model with comprehensive validation.
 """
 
 from pydantic import BaseModel, Field, field_validator, ConfigDict
-from typing import Optional
 import re
 
 

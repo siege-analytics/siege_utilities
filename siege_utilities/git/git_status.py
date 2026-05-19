@@ -4,10 +4,8 @@ Comprehensive repository state analysis and monitoring.
 """
 
 import subprocess
-import os
 from pathlib import Path
 from typing import List, Dict, Optional, Union
-import re
 from datetime import datetime
 
 from siege_utilities.exceptions import GitError
@@ -21,7 +19,8 @@ def run_git_command(*args, repo_path: str = ".", check: bool = True) -> str:
             cwd=repo_path,
             capture_output=True,
             text=True,
-            check=check
+            check=check,
+            timeout=30,  # writing-code:15: bounded git wait
         )
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:

@@ -100,7 +100,7 @@ def run_command(cmd: List[str], description: str) -> bool:
     print(f"Running: {' '.join(cmd)}")
 
     try:
-        subprocess.run(cmd, check=True, capture_output=False)
+        subprocess.run(cmd, check=True, capture_output=False, timeout=60)
         print(f"  {description} completed successfully")
         return True
     except subprocess.CalledProcessError as e:

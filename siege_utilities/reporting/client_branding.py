@@ -4,6 +4,7 @@ Handles client-specific configurations, logos, colors, and styling.
 """
 
 import logging
+import re
 import yaml
 from pathlib import Path
 from typing import Dict, Any, Optional, List
@@ -11,6 +12,51 @@ import json
 import shutil
 
 log = logging.getLogger(__name__)
+
+# Client-name slug: lowercase alphanumeric + underscore. Spaces collapse
+# to underscores; other punctuation (``.``, ``/``, ``\``, ``..``, etc.)
+# is stripped rather than passed through into a filesystem path.
+_SLUG_SAFE = re.compile(r"[^a-z0-9_]+")
+
+
+def _slugify_client_name(client_name: str) -> str:
+    """Return a filesystem-safe slug for *client_name*.
+
+    Previously the branding manager wrote to a directory whose name was
+    just `client_name.lower().replace(" ", "_")`. That left every other
+    piece of punctuation untouched — including `../` and OS path
+    separators — so a hostile client_name could escape config_dir.
+    The new normaliser is an allow-list: lowercase, spaces → `_`,
+    everything else stripped. Two inputs that slugify to the same value
+    collide; that's the same behaviour as before for spaces, just now
+    consistent for all punctuation.
+    """
+    if not isinstance(client_name, str) or not client_name.strip():
+        raise ValueError(f"client_name must be a non-empty string, got {client_name!r}")
+    s = client_name.strip().lower().replace(" ", "_")
+    s = _SLUG_SAFE.sub("_", s)
+    # Collapse runs of underscores produced by adjacent unsafe chars
+    # (e.g., "Acme  Corp" → "acme__corp" → "acme_corp").
+    s = re.sub(r"_+", "_", s)
+    s = s.strip("_")
+    if not s:
+        raise ValueError(
+            f"client_name {client_name!r} contains no slug-safe characters"
+        )
+    return s
+
+
+class ClientBrandingError(RuntimeError):
+    """Raised when a client-branding operation fails unexpectedly.
+
+    Use the `__cause__` attribute (set via `raise ... from e`) to inspect
+    the underlying error (YAMLError, OSError, ValidationError, etc.).
+    """
+
+
+class ClientBrandingNotFoundError(LookupError):
+    """Raised when a named client's branding configuration does not exist."""
+
 
 class ClientBrandingManager:
     """
@@ -150,7 +196,48 @@ class ClientBrandingManager:
                     'left': 0.75,
                     'right': 0.75
                 }
-            }
+            },
+            # elect.info was unreachable when this template was seeded
+            # (2026-04-24). Colors / fonts / logo are civic-tech placeholders —
+            # swap in real brand assets when the site is up.
+            'elect_info': {
+                'name': 'ElectInfo',
+                'colors': {
+                    'primary': '#0B3D91',
+                    'secondary': '#D32F2F',
+                    'accent': '#FFB300',
+                    'text_color': '#1A1A1A',
+                    'header_footer_text_color': '#555555',
+                    'background': '#FFFFFF',
+                },
+                'fonts': {
+                    'default_font': 'Helvetica',
+                    'h1': {'font_size': 24, 'leading': 28},
+                    'h2': {'font_size': 18, 'leading': 22},
+                    'h3': {'font_size': 14, 'leading': 18},
+                    'BodyText': {'font_size': 11, 'leading': 14},
+                },
+                'logo': {
+                    'image_url': 'https://elect.info/logo.png',
+                    'width': 1.5,
+                    'height': 0.6,
+                },
+                'header': {
+                    'left_text': 'ElectInfo Analysis',
+                    'right_text': 'Political & Civic Analytics',
+                },
+                'footer': {
+                    'left_text': 'Prepared by: ElectInfo',
+                    'right_text': 'elect.info',
+                    'page_number_format': 'Page %s',
+                },
+                'page_margins': {
+                    'top': 1.0,
+                    'bottom': 1.0,
+                    'left': 0.75,
+                    'right': 0.75,
+                },
+            },
         }
 
     def create_client_branding(self, client_name: str, branding_config: Dict[str, Any]) -> Path:
@@ -172,11 +259,11 @@ class ClientBrandingManager:
                     raise ValueError(f"Missing required field: {field}")
             
             # Create client directory
-            client_dir = self.config_dir / client_name.lower().replace(' ', '_')
+            client_dir = self.config_dir / _slugify_client_name(client_name)
             client_dir.mkdir(exist_ok=True)
             
             # Create branding config file
-            config_file = client_dir / f"{client_name.lower().replace(' ', '_')}_branding.yaml"
+            config_file = client_dir / f"{_slugify_client_name(client_name)}_branding.yaml"
             
             with open(config_file, 'w') as f:
                 yaml.dump(branding_config, f, default_flow_style=False, indent=2)
@@ -204,7 +291,7 @@ class ClientBrandingManager:
                 return self.branding_templates[client_name.lower()]
             
             # Check for custom client configurations
-            client_dir = self.config_dir / client_name.lower().replace(' ', '_')
+            client_dir = self.config_dir / _slugify_client_name(client_name)
             if client_dir.exists():
                 # Look for branding config files
                 for config_file in client_dir.glob("*_branding.yaml"):
@@ -215,10 +302,11 @@ class ClientBrandingManager:
             
             log.warning(f"No branding configuration found for client: {client_name}")
             return None
-            
+
         except Exception as e:
-            log.error(f"Error loading branding configuration for {client_name}: {e}")
-            return None
+            raise ClientBrandingError(
+                f"Error loading branding configuration for {client_name}: {e}"
+            ) from e
 
     def update_client_branding(self, client_name: str, updates: Dict[str, Any]) -> bool:
         """
@@ -231,32 +319,34 @@ class ClientBrandingManager:
         Returns:
             True if successful, False otherwise
         """
+        current_config = self.get_client_branding(client_name)
+        if not current_config:
+            raise ClientBrandingNotFoundError(
+                f"No existing branding configuration found for {client_name}"
+            )
+
         try:
-            current_config = self.get_client_branding(client_name)
-            if not current_config:
-                log.warning(f"No existing branding configuration found for {client_name}")
-                return False
-            
             # Apply updates
             for key, value in updates.items():
                 if isinstance(value, dict) and key in current_config:
                     current_config[key].update(value)
                 else:
                     current_config[key] = value
-            
+
             # Save updated configuration
-            client_dir = self.config_dir / client_name.lower().replace(' ', '_')
-            config_file = client_dir / f"{client_name.lower().replace(' ', '_')}_branding.yaml"
-            
+            client_dir = self.config_dir / _slugify_client_name(client_name)
+            config_file = client_dir / f"{_slugify_client_name(client_name)}_branding.yaml"
+
             with open(config_file, 'w') as f:
                 yaml.dump(current_config, f, default_flow_style=False, indent=2)
-            
+
             log.info(f"Updated branding configuration for {client_name}")
             return True
-            
+
         except Exception as e:
-            log.error(f"Error updating branding configuration for {client_name}: {e}")
-            return False
+            raise ClientBrandingError(
+                f"Error updating branding configuration for {client_name}: {e}"
+            ) from e
 
     def list_clients(self) -> List[str]:
         """
@@ -293,7 +383,7 @@ class ClientBrandingManager:
                 log.warning(f"Cannot delete predefined template: {client_name}")
                 return False
             
-            client_dir = self.config_dir / client_name.lower().replace(' ', '_')
+            client_dir = self.config_dir / _slugify_client_name(client_name)
             if client_dir.exists():
                 shutil.rmtree(client_dir)
                 log.info(f"Deleted branding configuration for {client_name}")
@@ -303,8 +393,9 @@ class ClientBrandingManager:
                 return False
                 
         except Exception as e:
-            log.error(f"Error deleting branding configuration for {client_name}: {e}")
-            return False
+            raise ClientBrandingError(
+                f"Error deleting branding configuration for {client_name}: {e}"
+            ) from e
 
     def create_branding_from_template(self, client_name: str, template_name: str, 
                                     customizations: Optional[Dict[str, Any]] = None) -> Path:
@@ -392,11 +483,13 @@ class ClientBrandingManager:
         Returns:
             True if successful, False otherwise
         """
+        branding_config = self.get_client_branding(client_name)
+        if not branding_config:
+            raise ClientBrandingNotFoundError(
+                f"No branding configuration found for {client_name}"
+            )
+
         try:
-            branding_config = self.get_client_branding(client_name)
-            if not branding_config:
-                return False
-            
             # Export as YAML
             if export_path.suffix.lower() in ['.yaml', '.yml']:
                 with open(export_path, 'w') as f:
@@ -410,13 +503,14 @@ class ClientBrandingManager:
                 export_path = export_path.with_suffix('.yaml')
                 with open(export_path, 'w') as f:
                     yaml.dump(branding_config, f, default_flow_style=False, indent=2)
-            
+
             log.info(f"Exported branding configuration for {client_name} to {export_path}")
             return True
-            
+
         except Exception as e:
-            log.error(f"Error exporting branding configuration for {client_name}: {e}")
-            return False
+            raise ClientBrandingError(
+                f"Error exporting branding configuration for {client_name}: {e}"
+            ) from e
 
     def import_branding_config(self, import_path: Path, client_name: Optional[str] = None) -> bool:
         """
@@ -456,10 +550,13 @@ class ClientBrandingManager:
             # Create client branding
             self.create_client_branding(branding_config['name'], branding_config)
             return True
-            
+
+        except ClientBrandingError:
+            raise
         except Exception as e:
-            log.error(f"Error importing branding configuration: {e}")
-            return False
+            raise ClientBrandingError(
+                f"Error importing branding configuration: {e}"
+            ) from e
 
     def get_branding_summary(self, client_name: str) -> Dict[str, Any]:
         """
@@ -490,5 +587,6 @@ class ClientBrandingManager:
             return summary
             
         except Exception as e:
-            log.error(f"Error getting branding summary for {client_name}: {e}")
-            return {}
+            raise ClientBrandingError(
+                f"Error getting branding summary for {client_name}: {e}"
+            ) from e

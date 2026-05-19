@@ -4,6 +4,7 @@ Creates presentations from analytics data and report configurations.
 """
 
 import logging
+import uuid
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 from datetime import datetime
@@ -13,8 +14,6 @@ try:
     from pptx import Presentation
     from pptx.util import Inches, Pt
     from pptx.enum.text import PP_ALIGN
-    from pptx.dml.color import RGBColor
-    from pptx.enum.shapes import MSO_SHAPE
     PPTX_AVAILABLE = True
 except ImportError:
     PPTX_AVAILABLE = False
@@ -26,6 +25,15 @@ class PowerPointGenerator:
     """
     Generates PowerPoint presentations from analytics data and report configurations.
     Requires python-pptx package for PowerPoint generation.
+
+    Internal-helper convention (writing-code:11): private ``_add_*_slide``
+    methods return the python-pptx ``Slide`` object they added. Public
+    ``create_*_presentation`` methods log at INFO when the presentation
+    is saved (floor (b) for the whole flow). The combination satisfies
+    writing-code:11 floor for both the per-slide and the per-presentation
+    observation level: a caller can confirm a specific slide was added
+    by inspecting the return value, and an auditor can confirm a
+    presentation was emitted by greping logs.
     """
 
     def __init__(self, client_name: str, output_dir: Optional[Path] = None):
@@ -71,9 +79,18 @@ class PowerPointGenerator:
             Path to the generated PowerPoint file
         """
         try:
-            # Generate filename
+            # Generate filename. Second-resolution timestamps collided
+            # when two reports were generated in the same second
+            # (cron-driven batch runs hit this), silently overwriting
+            # the first. Append a short uuid4 fragment to make the path
+            # unique even at sub-second cadence; the timestamp still
+            # provides human-readable sortability.
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{self.client_name.lower().replace(' ', '_')}_analytics_presentation_{timestamp}.pptx"
+            suffix = uuid.uuid4().hex[:8]
+            filename = (
+                f"{self.client_name.lower().replace(' ', '_')}"
+                f"_analytics_presentation_{timestamp}_{suffix}.pptx"
+            )
             output_path = self.output_dir / filename
             
             # Create presentation
@@ -472,79 +489,90 @@ class PowerPointGenerator:
         return self.add_slide_section(presentation_content, 'summary_slide', title, content, level)
 
     def generate_powerpoint_presentation(self, presentation_content: Dict[str, Any],
-                                       output_path: str) -> bool:
+                                       output_path: str) -> Path:
         """
-        Generate a comprehensive PowerPoint presentation.
-        
+        Generate a comprehensive PowerPoint presentation from a structure dict.
+
+        Consistent with sibling ``create_*_presentation`` methods (per
+        writing-code:13): returns ``Path`` on success and raises on
+        failure. The previous bool-return contract conflicted with the
+        sibling family's raise-on-failure contract and forced callers
+        of the PowerPointGenerator class to handle two failure-indication
+        mechanisms across methods that looked similar.
+
         Args:
-            presentation_content: Presentation content structure
-            output_path: Output PowerPoint file path
-            
+            presentation_content: Presentation content structure (a Dict
+                produced by ``create_comprehensive_presentation`` + the
+                ``add_*_slide`` builders).
+            output_path: Output PowerPoint file path.
+
         Returns:
-            True if successful, False otherwise
+            Path to the saved .pptx file.
+
+        Raises:
+            Exception: any python-pptx or filesystem error during slide
+                construction or save. Caller pattern-matches on the
+                exception type, not on a boolean.
         """
         try:
-            # Create presentation
             prs = Presentation()
-            
+
             # Apply template if specified
             template_path = presentation_content.get('template_path')
             if template_path and Path(template_path).exists():
                 prs = Presentation(template_path)
-            
+
             # Process each section
             for section in presentation_content.get('sections', []):
                 slide = self._create_slide_from_section(section, prs)
-                if slide:
-                    # Add speaker notes if provided
-                    if section.get('notes'):
-                        notes_slide = slide.notes_slide
-                        notes_slide.notes_text_frame.text = section['notes']
-            
-            # Save presentation
+                if slide and section.get('notes'):
+                    notes_slide = slide.notes_slide
+                    notes_slide.notes_text_frame.text = section['notes']
+
             prs.save(output_path)
-            
             log.info(f"PowerPoint presentation generated successfully: {output_path}")
-            return True
-            
+            return Path(output_path)
+
         except Exception as e:
             log.error(f"Error generating PowerPoint presentation: {e}")
-            return False
+            raise
 
-    def _add_title_slide(self, prs: Presentation, title: str):
-        """Add a title slide to the presentation."""
+    def _add_title_slide(self, prs: Presentation, title: str) -> Any:
+        """Add a title slide. Returns the added Slide for caller inspection."""
         slide_layout = prs.slide_layouts[self.slide_layouts['title']]
         slide = prs.slides.add_slide(slide_layout)
-        
+
         # Set title
         title_shape = slide.shapes.title
         title_shape.text = title
-        
+
         # Set subtitle
         subtitle_shape = slide.placeholders[1]
         subtitle_shape.text = f"Generated on {datetime.now().strftime('%B %d, %Y')}\n{self.client_name}"
-        
+
         # Apply formatting
         self._format_title_slide(slide)
+        return slide
 
-    def _add_executive_summary_slide(self, prs: Presentation, summary: str):
-        """Add an executive summary slide."""
+    def _add_executive_summary_slide(self, prs: Presentation, summary: str) -> Any:
+        """Add an executive summary slide. Returns the added Slide."""
         slide_layout = prs.slide_layouts[self.slide_layouts['content']]
         slide = prs.slides.add_slide(slide_layout)
-        
+
         # Set title
         title_shape = slide.shapes.title
         title_shape.text = "Executive Summary"
-        
+
         # Set content
         content_shape = slide.placeholders[1]
         content_shape.text = summary
-        
+
         # Apply formatting
         self._format_content_slide(slide)
+        return slide
 
-    def _add_metrics_slide(self, prs: Presentation, metrics: Dict[str, Any]):
-        """Add a metrics slide with key performance indicators."""
+    def _add_metrics_slide(self, prs: Presentation, metrics: Dict[str, Any]) -> Any:
+        """Add a metrics slide with key performance indicators. Returns the Slide."""
         slide_layout = prs.slide_layouts[self.slide_layouts['two_content']]
         slide = prs.slides.add_slide(slide_layout)
         
@@ -580,29 +608,34 @@ class PowerPointGenerator:
                     additional_metrics_text += f"• {metric_name}: {metric_data}\n"
             
             right_content.text = additional_metrics_text
-        
+
         # Apply formatting
         self._format_content_slide(slide)
+        return slide
 
-    def _add_charts_slides(self, prs: Presentation, charts: List[Dict[str, Any]]):
-        """Add slides with charts."""
+    def _add_charts_slides(self, prs: Presentation, charts: List[Dict[str, Any]]) -> List[Any]:
+        """Add slides with charts. Returns the list of added Slides."""
+        added: List[Any] = []
         for i, chart_config in enumerate(charts):
             slide_layout = prs.slide_layouts[self.slide_layouts['content']]
             slide = prs.slides.add_slide(slide_layout)
-            
+
             # Set title
             title_shape = slide.shapes.title
             title_shape.text = chart_config.get('title', f'Chart {i+1}')
-            
+
             # Add chart description
             content_shape = slide.placeholders[1]
             content_shape.text = f"Chart type: {chart_config.get('type', 'Unknown')}\n\nData visualization will be added here."
-            
+
             # Apply formatting
             self._format_content_slide(slide)
+            added.append(slide)
+        return added
 
-    def _add_tables_slides(self, prs: Presentation, tables: List[Dict[str, Any]]):
-        """Add slides with rendered data tables."""
+    def _add_tables_slides(self, prs: Presentation, tables: List[Dict[str, Any]]) -> List[Any]:
+        """Add slides with rendered data tables. Returns the list of added Slides."""
+        added: List[Any] = []
         for i, table_config in enumerate(tables):
             slide_layout = prs.slide_layouts[self.slide_layouts['title_only']]
             slide = prs.slides.add_slide(slide_layout)
@@ -615,6 +648,8 @@ class PowerPointGenerator:
             data = table_config.get('data', [])
 
             if not headers or not data:
+                # Title-only slide still counts as added per writing-code:11 floor (a).
+                added.append(slide)
                 continue
 
             rows = len(data) + 1
@@ -639,30 +674,33 @@ class PowerPointGenerator:
                         cell.text = str(value)
                         for paragraph in cell.text_frame.paragraphs:
                             paragraph.font.size = Pt(10)
+            added.append(slide)
+        return added
 
-    def _add_insights_slide(self, prs: Presentation, insights: List[str]):
-        """Add an insights and recommendations slide."""
+    def _add_insights_slide(self, prs: Presentation, insights: List[str]) -> Any:
+        """Add an insights and recommendations slide. Returns the Slide."""
         slide_layout = prs.slide_layouts[self.slide_layouts['content']]
         slide = prs.slides.add_slide(slide_layout)
-        
+
         # Set title
         title_shape = slide.shapes.title
         title_shape.text = "Key Insights & Recommendations"
-        
+
         # Set content
         content_shape = slide.placeholders[1]
         insights_text = ""
-        
+
         for i, insight in enumerate(insights, 1):
             insights_text += f"{i}. {insight}\n\n"
-        
+
         content_shape.text = insights_text
-        
+
         # Apply formatting
         self._format_content_slide(slide)
+        return slide
 
-    def _add_performance_overview_slide(self, prs: Presentation, overview: str):
-        """Add a performance overview slide."""
+    def _add_performance_overview_slide(self, prs: Presentation, overview: str) -> Any:
+        """Add a performance overview slide. Returns the added Slide."""
         slide_layout = prs.slide_layouts[self.slide_layouts['content']]
         slide = prs.slides.add_slide(slide_layout)
         
@@ -673,12 +711,13 @@ class PowerPointGenerator:
         # Set content
         content_shape = slide.placeholders[1]
         content_shape.text = overview
-        
+
         # Apply formatting
         self._format_content_slide(slide)
+        return slide
 
-    def _add_metrics_breakdown_slide(self, prs: Presentation, performance_data: Dict[str, Any], metrics: List[str]):
-        """Add a metrics breakdown slide."""
+    def _add_metrics_breakdown_slide(self, prs: Presentation, performance_data: Dict[str, Any], metrics: List[str]) -> Any:
+        """Add a metrics breakdown slide. Returns the added Slide."""
         slide_layout = prs.slide_layouts[self.slide_layouts['comparison']]
         slide = prs.slides.add_slide(slide_layout)
         
@@ -717,12 +756,14 @@ class PowerPointGenerator:
                     right_metrics_text += f"• {metric}: {metric_data}\n\n"
         
         right_content.text = right_metrics_text
-        
+
         # Apply formatting
         self._format_content_slide(slide)
+        return slide
 
-    def _add_trends_slides(self, prs: Presentation, trends: Dict[str, Any]):
-        """Add slides with performance trends."""
+    def _add_trends_slides(self, prs: Presentation, trends: Dict[str, Any]) -> List[Any]:
+        """Add slides with performance trends. Returns the list of added Slides."""
+        added: List[Any] = []
         for trend_name, trend_data in trends.items():
             slide_layout = prs.slide_layouts[self.slide_layouts['content']]
             slide = prs.slides.add_slide(slide_layout)
@@ -734,12 +775,14 @@ class PowerPointGenerator:
             # Add trend description
             content_shape = slide.placeholders[1]
             content_shape.text = f"Trend analysis for {trend_name}\n\nTrend chart will be added here."
-            
+
             # Apply formatting
             self._format_content_slide(slide)
+            added.append(slide)
+        return added
 
-    def _add_recommendations_slide(self, prs: Presentation, recommendations: List[str]):
-        """Add a recommendations slide."""
+    def _add_recommendations_slide(self, prs: Presentation, recommendations: List[str]) -> Any:
+        """Add a recommendations slide. Returns the added Slide."""
         slide_layout = prs.slide_layouts[self.slide_layouts['content']]
         slide = prs.slides.add_slide(slide_layout)
         
@@ -755,12 +798,13 @@ class PowerPointGenerator:
             recommendations_text += f"{i}. {recommendation}\n\n"
         
         content_shape.text = recommendations_text
-        
+
         # Apply formatting
         self._format_content_slide(slide)
+        return slide
 
-    def _add_content_slide(self, prs: Presentation, slide_config: Dict[str, Any]):
-        """Add a content slide."""
+    def _add_content_slide(self, prs: Presentation, slide_config: Dict[str, Any]) -> Any:
+        """Add a content slide. Returns the added Slide."""
         slide_layout = prs.slide_layouts[self.slide_layouts['content']]
         slide = prs.slides.add_slide(slide_layout)
         
@@ -771,12 +815,13 @@ class PowerPointGenerator:
         # Set content
         content_shape = slide.placeholders[1]
         content_shape.text = slide_config.get('content', 'Content will be added here.')
-        
+
         # Apply formatting
         self._format_content_slide(slide)
+        return slide
 
-    def _add_chart_slide(self, prs: Presentation, slide_config: Dict[str, Any]):
-        """Add a chart slide."""
+    def _add_chart_slide(self, prs: Presentation, slide_config: Dict[str, Any]) -> Any:
+        """Add a chart slide. Returns the added Slide."""
         slide_layout = prs.slide_layouts[self.slide_layouts['content']]
         slide = prs.slides.add_slide(slide_layout)
         
@@ -788,12 +833,13 @@ class PowerPointGenerator:
         content_shape = slide.placeholders[1]
         caption = slide_config.get('caption', 'Chart will be added here.')
         content_shape.text = caption
-        
+
         # Apply formatting
         self._format_content_slide(slide)
+        return slide
 
-    def _add_table_slide(self, prs: Presentation, slide_config: Dict[str, Any]):
-        """Add a table slide with an actual rendered table."""
+    def _add_table_slide(self, prs: Presentation, slide_config: Dict[str, Any]) -> Any:
+        """Add a table slide with an actual rendered table. Returns the added Slide."""
         slide_layout = prs.slide_layouts[self.slide_layouts['title_only']]
         slide = prs.slides.add_slide(slide_layout)
 
@@ -805,7 +851,8 @@ class PowerPointGenerator:
         data = slide_config.get('data', [])
 
         if not headers or not data:
-            return
+            # Title-only slide is still a valid added slide per writing-code:11 floor (a).
+            return slide
 
         rows = len(data) + 1  # +1 for header row
         cols = len(headers)
@@ -833,9 +880,10 @@ class PowerPointGenerator:
                     cell.text = str(value)
                     for paragraph in cell.text_frame.paragraphs:
                         paragraph.font.size = Pt(10)
+        return slide
 
-    def _add_image_slide(self, prs: Presentation, slide_config: Dict[str, Any]):
-        """Add an image slide."""
+    def _add_image_slide(self, prs: Presentation, slide_config: Dict[str, Any]) -> Any:
+        """Add an image slide. Returns the added Slide."""
         slide_layout = prs.slide_layouts[self.slide_layouts['content']]
         slide = prs.slides.add_slide(slide_layout)
         
@@ -847,12 +895,13 @@ class PowerPointGenerator:
         content_shape = slide.placeholders[1]
         caption = slide_config.get('caption', 'Image will be added here.')
         content_shape.text = caption
-        
+
         # Apply formatting
         self._format_content_slide(slide)
+        return slide
 
-    def _add_comparison_slide(self, prs: Presentation, slide_config: Dict[str, Any]):
-        """Add a comparison slide with two-column layout using textboxes."""
+    def _add_comparison_slide(self, prs: Presentation, slide_config: Dict[str, Any]) -> Any:
+        """Add a comparison slide with two-column layout using textboxes. Returns the added Slide."""
         slide_layout = prs.slide_layouts[self.slide_layouts['title_only']]
         slide = prs.slides.add_slide(slide_layout)
 
@@ -882,14 +931,21 @@ class PowerPointGenerator:
         right_tf.text = right_text
         for paragraph in right_tf.paragraphs:
             paragraph.font.size = Pt(14)
+        return slide
 
-    def _add_chart_to_slide(self, chart_config, slide, left, top, width, height):
+    def _add_chart_to_slide(self, chart_config, slide, left, top, width, height) -> Any:
         """Add a chart to a slide, either as an embedded image or text description.
 
         Args:
             chart_config: dict with 'image_path' (str/Path) or 'title'/'type' keys
             slide: pptx Slide object
             left, top, width, height: position/size in EMU or Inches
+
+        Returns:
+            The added shape (python-pptx Picture when an image was embedded,
+            else the fallback textbox). Per writing-code:11 floor (a):
+            distinguishes 'embedded image' from 'fallback textbox' for the
+            caller without requiring a separate side-channel.
         """
         image_path = None
         if isinstance(chart_config, dict):
@@ -898,20 +954,21 @@ class PowerPointGenerator:
             image_path = chart_config
 
         if image_path and Path(str(image_path)).exists():
-            slide.shapes.add_picture(str(image_path), left, top, width, height)
+            return slide.shapes.add_picture(str(image_path), left, top, width, height)
+
+        # Graceful fallback: add a labeled textbox
+        label = ''
+        if isinstance(chart_config, dict):
+            label = chart_config.get('title', chart_config.get('type', 'Chart'))
         else:
-            # Graceful fallback: add a labeled textbox
-            label = ''
-            if isinstance(chart_config, dict):
-                label = chart_config.get('title', chart_config.get('type', 'Chart'))
-            else:
-                label = str(chart_config)
-            box = slide.shapes.add_textbox(left, top, width, height)
-            tf = box.text_frame
-            tf.word_wrap = True
-            tf.text = f"[Chart: {label}]"
-            for paragraph in tf.paragraphs:
-                paragraph.font.size = Pt(12)
+            label = str(chart_config)
+        box = slide.shapes.add_textbox(left, top, width, height)
+        tf = box.text_frame
+        tf.word_wrap = True
+        tf.text = f"[Chart: {label}]"
+        for paragraph in tf.paragraphs:
+            paragraph.font.size = Pt(12)
+        return box
 
     def _format_title_slide(self, slide):
         """Apply formatting to title slide."""
@@ -993,8 +1050,8 @@ class PowerPointGenerator:
             log.error(f"Error creating DataFrame PowerPoint presentation: {e}")
             raise
 
-    def _add_data_overview_slide(self, prs: Presentation, df: pd.DataFrame):
-        """Add a data overview slide."""
+    def _add_data_overview_slide(self, prs: Presentation, df: pd.DataFrame) -> Any:
+        """Add a data overview slide. Returns the added Slide."""
         slide_layout = prs.slide_layouts[self.slide_layouts['content']]
         slide = prs.slides.add_slide(slide_layout)
         
@@ -1004,19 +1061,20 @@ class PowerPointGenerator:
         
         # Set content
         content_shape = slide.placeholders[1]
-        content_text = f"Dataset Information:\n\n"
+        content_text = "Dataset Information:\n\n"
         content_text += f"• Number of rows: {len(df):,}\n"
         content_text += f"• Number of columns: {len(df.columns)}\n"
         content_text += f"• Data types: {', '.join(df.dtypes.astype(str).unique())}\n"
         content_text += f"• Memory usage: {df.memory_usage(deep=True).sum() / 1024 / 1024:.2f} MB"
         
         content_shape.text = content_text
-        
+
         # Apply formatting
         self._format_content_slide(slide)
+        return slide
 
-    def _add_summary_stats_slide(self, prs: Presentation, df: pd.DataFrame):
-        """Add a summary statistics slide."""
+    def _add_summary_stats_slide(self, prs: Presentation, df: pd.DataFrame) -> Any:
+        """Add a summary statistics slide. Returns the added Slide."""
         slide_layout = prs.slide_layouts[self.slide_layouts['two_content']]
         slide = prs.slides.add_slide(slide_layout)
         
@@ -1055,15 +1113,17 @@ class PowerPointGenerator:
                 right_text += f"  Max: {stats['max']:.2f}\n\n"
             
             right_content.text = right_text
-        
+
         # Apply formatting
         self._format_content_slide(slide)
+        return slide
 
-    def _add_sample_data_slides(self, prs: Presentation, df: pd.DataFrame, max_slides: int):
-        """Add slides with sample data."""
+    def _add_sample_data_slides(self, prs: Presentation, df: pd.DataFrame, max_slides: int) -> List[Any]:
+        """Add slides with sample data. Returns the list of added Slides (possibly empty)."""
         if df.empty or max_slides <= 0:
-            return
-        
+            return []
+
+        added: List[Any] = []
         # Calculate rows per slide
         rows_per_slide = max(1, min(20, len(df) // max_slides))
         
@@ -1089,9 +1149,11 @@ class PowerPointGenerator:
                 content_text += f"{row_text}\n"
             
             content_shape.text = content_text
-            
+
             # Apply formatting
             self._format_content_slide(slide)
+            added.append(slide)
+        return added
 
     def _create_slide_from_section(self, section: Dict[str, Any], prs: Presentation) -> Any:
         """

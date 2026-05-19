@@ -10,7 +10,7 @@ import re
 
 import yaml
 
-from .person import Person, _convert_to_yaml_safe, _strip_sensitive_fields
+from .person import Person, _convert_to_yaml_safe
 from .branding_config import BrandingConfig
 from .report_preferences import ReportPreferences
 

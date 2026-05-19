@@ -8,8 +8,6 @@ import os
 import sys
 from unittest.mock import patch, Mock, MagicMock
 
-import pytest
-
 from siege_utilities.testing.environment import (
     _get_sdkman_root,
     _get_system_java_paths,
@@ -45,7 +43,9 @@ class TestGetSdkmanRoot:
         def exists_side_effect(path):
             return path == standard_path
 
-        with patch.dict(os.environ, {}, clear=True):
+        # Preserve HOME so expanduser("~") stays consistent; only remove SDKMAN_DIR.
+        safe_env = {k: v for k, v in os.environ.items() if k != 'SDKMAN_DIR'}
+        with patch.dict(os.environ, safe_env, clear=True):
             with patch('os.path.exists', side_effect=exists_side_effect):
                 result = _get_sdkman_root()
                 assert result == standard_path

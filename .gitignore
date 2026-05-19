@@ -112,6 +112,10 @@ celerybeat.pid
 *credentials*.json
 *service_account*.json
 *token*.json
+# Sprint B (issue #453) developer-local connector test credentials —
+# never commit, never expand into CI. See docs/testing/sprint-b-credentials.md.
+.siege-test-credentials.yaml
+siege-test-credentials.yaml
 *client_secret*.json
 *.pem
 !tests/fixtures/**
@@ -189,3 +193,10 @@ SESSION_*_PROGRESS.md
 
 # Claude artifacts
 .claude/
+
+# Lockfile — siege-utilities is a library, so we don't pin a dev lockfile.
+# Keep uv.lock locally if you like, just don't commit it.
+uv.lock
+
+# Local offline copy of the GitHub Wiki (canonical home is the wiki repo).
+/wiki/

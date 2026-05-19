@@ -3,7 +3,7 @@ Cross-backend readers for siege_utilities.political tables.
 
 PostgreSQL is the canonical write/DDL home for political schema (raw
 SQL migrations under migrations/). READ access is available through
-any :class:`~siege_utilities.data.dataframe_engine.DataFrameEngine`
+any :class:`~siege_utilities.engines.dataframe_engine.DataFrameEngine`
 backend by routing the query through ``engine.query(sql)``:
 
 - ``PostGISEngine`` — direct psycopg/SQLAlchemy query against the PG DB

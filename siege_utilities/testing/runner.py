@@ -4,14 +4,13 @@ Provides functions for running different test suites with proper environment set
 """
 
 import sys
-import os
 import subprocess
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
 # Import logging functions from main package
 try:
-    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+    from siege_utilities.core.logging import log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if main package not available yet
     def log_info(message): pass
@@ -60,7 +59,12 @@ def run_command(cmd: List[str], description: str, log_file: Optional[str] = None
                 f.write(stderr)
             returncode = process.returncode
     else:
-        process = subprocess.run(cmd)
+        # 600s default per writing-code:15: test commands can be slow but unbounded
+        # waits cascade into CI hangs. The Popen branch above does not
+        # use timeout because it streams output and the caller can
+        # observe progress; this branch has no observability and so
+        # needs the explicit bound.
+        process = subprocess.run(cmd, timeout=600)
         returncode = process.returncode
 
     if returncode == 0:
@@ -259,7 +263,7 @@ def run_test_suite(
     if install_deps:
         log_info("Installing test dependencies...")
         success = run_command([
-            sys.executable, "-m", "pip", "install", "-r", "test_requirements.txt"
+            sys.executable, "-m", "pip", "install", "-e", ".[dev]"
         ], "Installing test dependencies")
 
         if not success:

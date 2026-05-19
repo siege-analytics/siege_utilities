@@ -20,7 +20,7 @@ PHASE3_DOMAINS = [
 
 
 def run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(cmd, text=True, capture_output=True)
+    return subprocess.run(cmd, text=True, capture_output=True, timeout=60)
 
 
 def git_changed_files(base_sha: str, head_sha: str) -> list[str]:
@@ -34,13 +34,13 @@ def resolve_base_head(base_sha: str | None, head_sha: str | None, base_ref: str)
     if base_sha and head_sha:
         return base_sha, head_sha
 
-    head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True, timeout=60).strip()
     try:
-        subprocess.run(["git", "fetch", "origin", "main", "--depth", "1"], check=False)
-        base = subprocess.check_output(["git", "merge-base", base_ref, "HEAD"], text=True).strip()
+        subprocess.run(["git", "fetch", "origin", "main", "--depth", "1"], check=False, timeout=60)
+        base = subprocess.check_output(["git", "merge-base", base_ref, "HEAD"], text=True, timeout=60).strip()
         return base, head
     except Exception:
-        parent = subprocess.check_output(["git", "rev-parse", "HEAD~1"], text=True).strip()
+        parent = subprocess.check_output(["git", "rev-parse", "HEAD~1"], text=True, timeout=60).strip()
         return parent, head
 
 
@@ -179,7 +179,7 @@ def check_phase4(update_baseline: bool) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Lint ratchet checks for phases 2-4")
-    parser.add_argument("--phase", required=True, choices=["phase2", "phase3", "phase4"])
+    parser.add_argument("--phase", required=True, choices=["phase2", "phase3", "phase4", "all"])
     parser.add_argument("--base-sha", default="")
     parser.add_argument("--head-sha", default="")
     parser.add_argument("--base-ref", default="origin/main")
@@ -195,6 +195,15 @@ def main() -> int:
         return check_phase2(base, head)
     if args.phase == "phase3":
         return check_phase3(base, head)
+
+    if args.phase == "all":
+        rc = check_phase2(base, head)
+        if rc != 0:
+            return rc
+        rc = check_phase3(base, head)
+        if rc != 0:
+            return rc
+        return check_phase4(update_baseline=args.update_baseline)
 
     print(f"Unknown phase: {args.phase}")
     return 2

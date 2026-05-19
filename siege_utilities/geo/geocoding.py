@@ -4,7 +4,7 @@ import sqlite3
 import time
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -12,16 +12,27 @@ import pandas as pd
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 
-# Import logging functions - use package-level imports
-try:
-    from siege_utilities import log_warning, log_info, log_debug, log_error
-except ImportError:
-    def log_warning(message): print(f"WARNING: {message}")
-    def log_info(message): print(f"INFO: {message}")
-    def log_debug(message): print(f"DEBUG: {message}")
-    def log_error(message): print(f"ERROR: {message}")
-
+# Logging — bind the module logger directly. The previous fallback to
+# print() if the package-level helpers couldn't be imported routed
+# diagnostics around the user's logging configuration and bypassed log
+# levels. The stdlib logger is a hard requirement; no fallback needed.
 logger = logging.getLogger(__name__)
+
+
+def log_warning(message: str) -> None:
+    logger.warning(message)
+
+
+def log_info(message: str) -> None:
+    logger.info(message)
+
+
+def log_debug(message: str) -> None:
+    logger.debug(message)
+
+
+def log_error(message: str) -> None:
+    logger.error(message)
 
 # Country code mapping for Nominatim geocoding
 COUNTRY_CODES = {
@@ -494,44 +505,30 @@ class NominatimGeoClassifier:
         }
 
     def get_place_ranks_by_label(self, label):
-        """
-        Utility function: get place ranks by label.
+        """Reverse lookup on ``place_rank_dict``: label → matching rank IDs.
 
-        Part of Siege Utilities Utilities module.
-        Auto-discovered and available at package level.
+        Nominatim returns an integer ``place_rank`` per result (0=country
+        … 10=building). This helper goes the other direction so callers
+        can write ``filter(rank=cls.get_place_ranks_by_label("City"))``
+        without hard-coding the integer.
 
-        Returns:
-            Description needed
-
-        Example:
-            >>> import siege_utilities
-            >>> result = siege_utilities.get_place_ranks_by_label()
-            >>> print(result)
-
-        Note:
-            This function is auto-discovered and available without imports
-            across all siege_utilities modules.
+        Returns ``[]`` (not ``None``) when the label is unknown so the
+        caller can ``in`` / iterate without a None-check.
         """
         return self.place_rank_dict.get(label, [])
 
     def get_importance_threshold_by_label(self, label):
-        """
-        Utility function: get importance threshold by label.
+        """Reverse lookup on ``importance_dict``: label → importance threshold.
 
-        Part of Siege Utilities Utilities module.
-        Auto-discovered and available at package level.
+        Nominatim's ``importance`` field is a float in [0, 1] that mixes
+        Wikipedia hit-count, place type, and population. We bucket those
+        floats into ordinal labels (``Country`` / ``State`` / …) and
+        this method returns the float threshold that corresponds to a
+        label — useful when filtering a Nominatim result set
+        programmatically.
 
-        Returns:
-            Description needed
-
-        Example:
-            >>> import siege_utilities
-            >>> result = siege_utilities.get_importance_threshold_by_label()
-            >>> print(result)
-
-        Note:
-            This function is auto-discovered and available without imports
-            across all siege_utilities modules.
+        Returns ``None`` when no label matches; callers should treat
+        that as "don't filter on importance."
         """
         for k, v in self.importance_dict.items():
             if v == label:
@@ -539,23 +536,11 @@ class NominatimGeoClassifier:
         return None
 
     def to_json(self):
-        """
-        Utility function: to json.
+        """Serialize the classifier's lookup tables to a JSON string.
 
-        Part of Siege Utilities Utilities module.
-        Auto-discovered and available at package level.
-
-        Returns:
-            Description needed
-
-        Example:
-            >>> import siege_utilities
-            >>> result = siege_utilities.to_json()
-            >>> print(result)
-
-        Note:
-            This function is auto-discovered and available without imports
-            across all siege_utilities modules.
+        Used to persist customised rank/importance overrides between
+        runs or to ship a classifier configuration to a worker process.
+        The result round-trips through :meth:`from_json`.
         """
         return json.dumps({
             'place_ranks': self.place_rank_dict,
@@ -563,23 +548,13 @@ class NominatimGeoClassifier:
         })
 
     def from_json(self, json_string):
-        """
-        Utility function: from json.
+        """Replace the classifier's lookup tables from a JSON string.
 
-        Part of Siege Utilities Utilities module.
-        Auto-discovered and available at package level.
-
-        Returns:
-            Description needed
-
-        Example:
-            >>> import siege_utilities
-            >>> result = siege_utilities.from_json()
-            >>> print(result)
-
-        Note:
-            This function is auto-discovered and available without imports
-            across all siege_utilities modules.
+        Inverse of :meth:`to_json` — overwrites ``place_rank_dict`` and
+        ``importance_dict`` in place. Unknown top-level keys are
+        ignored; missing keys leave the corresponding table empty
+        rather than raising, so a partial payload doesn't poison the
+        classifier.
         """
         data = json.loads(json_string)
         self.place_rank_dict = data.get('place_ranks', {})
@@ -721,7 +696,9 @@ class SpatiaLiteCache:
 
     def _get_conn(self) -> sqlite3.Connection:
         if self._conn is None:
-            self._conn = sqlite3.connect(self.db_path)
+            # 10s lock-wait timeout per writing-code:15: prevents indefinite blocking
+            # if another process holds an exclusive lock on the cache DB.
+            self._conn = sqlite3.connect(self.db_path, timeout=10)
             # Try to load SpatiaLite extension
             try:
                 self._conn.enable_load_extension(True)
@@ -813,7 +790,7 @@ class SpatiaLiteCache:
         """Store a geocoding result. Returns the address hash."""
         addr_hash = _address_hash(address)
         point_wkt = f"POINT({longitude} {latitude})"
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         conn = self._get_conn()
         conn.execute(
@@ -938,7 +915,7 @@ class SpatiaLiteCache:
             VALUES (?, ?, ?, ?, ?, ?)
             """,
             (geoid, vintage_year, point_wkt, boundary_wkt, source,
-             datetime.utcnow().isoformat()),
+             datetime.now(timezone.utc).isoformat()),
         )
         conn.commit()
 
@@ -987,7 +964,7 @@ class SpatiaLiteCache:
             VALUES (?, ?, ?, ?, ?)
             """,
             (source_geoid, target_geoid, weight, source,
-             datetime.utcnow().isoformat()),
+             datetime.now(timezone.utc).isoformat()),
         )
         conn.commit()
 

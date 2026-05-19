@@ -17,8 +17,13 @@ py_round = round
 
 try:
     from pyspark.sql import DataFrame, SparkSession, Column
-    from pyspark.sql.types import *
-    from pyspark.sql.functions import *
+    # PySpark's published surface is star-import-shaped (every doc / example
+    # uses it); replacing with explicit imports would mean tracking every
+    # F.col / when / lit / DataType across this large module on every
+    # PySpark version bump. Suppress the unavoidable F403/F405 here rather
+    # than fighting the upstream convention.
+    from pyspark.sql.types import *  # noqa: F401, F403
+    from pyspark.sql.functions import *  # noqa: F401, F403
     PYSPARK_AVAILABLE = True
 except ImportError:
     PYSPARK_AVAILABLE = False
@@ -148,24 +153,16 @@ def register_temp_table(df: "DataFrame", table_name: str) ->bool:
 
 def move_column_to_front_of_dataframe(df: "DataFrame", column_name: str
     ) ->Optional["DataFrame"]:
-    """""\"
-Utility function: move column to front of dataframe.
+    """Reorder *df* so *column_name* is the leftmost column.
 
-Part of Siege Utilities Utilities module.
-Auto-discovered and available at package level.
+    The Spark schema order is what most CSV / parquet readers surface
+    first, and downstream consumers (notebook displays, exports) read
+    left-to-right. Moving the join key / identifier to the front makes
+    the rest of the pipeline more readable without changing semantics.
 
-Returns:
-    Description needed
-
-Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.move_column_to_front_of_dataframe()
-    >>> print(result)
-
-Note:
-    This function is auto-discovered and available without imports
-    across all siege_utilities modules.
-""\""""
+    Returns the reordered DataFrame, or ``None`` on failure (logged).
+    The original *df* is unchanged.
+    """
     try:
         columns = list(df.columns)
         column_to_move = column_name
@@ -305,24 +302,15 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
                     )
 
                 def validate_json(s):
-                    """""\"
-Utility function: validate json.
+                    """Pass-through with parse-check: return *s* if it
+                    decodes as JSON, ``None`` otherwise.
 
-Part of Siege Utilities Utilities module.
-Auto-discovered and available at package level.
-
-Returns:
-    Description needed
-
-Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.validate_json()
-    >>> print(result)
-
-Note:
-    This function is auto-discovered and available without imports
-    across all siege_utilities modules.
-""\""""
+                    Runs as a Spark UDF so each row's value is evaluated
+                    individually (passing this function unwrapped to
+                    .otherwise() would call it once at plan-build time
+                    with a Column object, which always raises and yields
+                    a constant None for every row).
+                    """
                     if s is None:
                         return None
                     try:
@@ -330,9 +318,10 @@ Note:
                         return s
                     except (TypeError, json.JSONDecodeError):
                         return None
+                validate_json_udf = udf(validate_json, StringType())
                 df_with_json = df.withColumn('validated_json', when(col(
                     json_column).isNull(), lit(None)).otherwise(
-                    validate_json(col(json_column)))).withColumn('parsed_json',
+                    validate_json_udf(col(json_column)))).withColumn('parsed_json',
                     from_json(col('validated_json'), StringType(), {'mode':
                     'PERMISSIVE'})).drop('validated_json')
                 df_with_json = df_with_json.withColumn('parsed_json', when(
@@ -348,24 +337,16 @@ Note:
         try:
 
             def validate_json(s):
-                """""\"
-Utility function: validate json.
+                """Same JSON pass-through validator as above.
 
-Part of Siege Utilities Utilities module.
-Auto-discovered and available at package level.
-
-Returns:
-    Description needed
-
-Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.validate_json()
-    >>> print(result)
-
-Note:
-    This function is auto-discovered and available without imports
-    across all siege_utilities modules.
-""\""""
+                Defined locally inside the fallback path so it doesn't
+                shadow the outer one when the corrupt-record branch
+                takes a different schema. Both definitions are
+                semantically identical -- they exist as separate
+                closures to match the surrounding try/except scope.
+                Wrapped as a UDF so .otherwise() invokes it per-row,
+                not once at plan-build time.
+                """
                 if s is None:
                     return None
                 try:
@@ -373,8 +354,9 @@ Note:
                     return s
                 except (TypeError, json.JSONDecodeError):
                     return None
+            validate_json_udf = udf(validate_json, StringType())
             df_with_json = df.withColumn('validated_json', when(col(
-                json_column).isNull(), lit(None)).otherwise(validate_json(
+                json_column).isNull(), lit(None)).otherwise(validate_json_udf(
                 col(json_column)))).withColumn('parsed_json', from_json(col
                 ('validated_json'), StringType(), {'mode': 'PERMISSIVE'})
                 ).drop('validated_json')
@@ -841,24 +823,18 @@ walkability_config = {'Trivial': {'max': 100, 'label': 'Trivial (<100m)'},
 
 
 def compute_walkability(distance) -> Optional[Dict[str, str]]:
-    """""\"
-Utility function: compute walkability.
+    """Bucket a distance-in-meters into a walkability grade label.
 
-Part of Siege Utilities Utilities module.
-Auto-discovered and available at package level.
+    Used to classify how far one place is from another in pedestrian
+    terms — the thresholds come from urban-planning literature:
+    Trivial (<100m), Tolerable, Moderate, Borderline, Outside (>500m).
+    Returns a ``{"grade": ..., "label": ...}`` dict, or ``None`` when
+    *distance* is ``None`` (so the caller's ``.withColumn(... apply
+    udf)`` produces a null instead of crashing).
 
-Returns:
-    Description needed
-
-Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.compute_walkability()
-    >>> print(result)
-
-Note:
-    This function is auto-discovered and available without imports
-    across all siege_utilities modules.
-""\""""
+    The actual thresholds live in ``walkability_config`` above for
+    audit / per-deployment tweaking.
+    """
     if distance is None:
         return None
     if distance < walkability_config['Trivial']['max']:
@@ -905,24 +881,16 @@ def validate_geometry(df, geom_col, step_name):
 
 
 def backup_full_dataframe(df, step_name: str) -> None:
-    """""\"
-Utility function: backup full dataframe.
+    """Persist *df* to ``DEBUG_SUBDIRECTORY/{step_name}_full_persisted``.
 
-Part of Siege Utilities Utilities module.
-Auto-discovered and available at package level.
+    A debug-mode helper: long Spark pipelines occasionally need an
+    out-of-band snapshot of an intermediate frame (the canonical
+    ``.cache()`` lives in memory and dies with the job). This writes
+    the snapshot to the configured debug directory in the project's
+    standard output format so it can be inspected after the run.
 
-Returns:
-    Description needed
-
-Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.backup_full_dataframe()
-    >>> print(result)
-
-Note:
-    This function is auto-discovered and available without imports
-    across all siege_utilities modules.
-""\""""
+    No return value — purely a side-effect (write + log line).
+    """
     backup_path = DEBUG_SUBDIRECTORY / f'{step_name}_full_persisted'
     df.write.format(RESULTS_OUTPUT_FORMAT).option('header', 'true').option(
         'delimiter', RESULTS_OUTPUT_DELIMITER).save(str(backup_path))
@@ -941,7 +909,7 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
         if os.path.exists(staging_directory):
             shutil.rmtree(staging_directory)
         os.makedirs(staging_directory, exist_ok=True)
-        log_info(f'Writing data to staging directory')
+        log_info('Writing data to staging directory')
         writer = df.write.mode(mode)
         if file_format.lower() == 'csv':
             writer = writer.format('csv').option('header', str(header).lower()
@@ -960,7 +928,7 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
                 final_destination):
                 log_info(f'Backing up existing data to {backup_dir}')
                 shutil.move(final_destination, backup_dir)
-                log_info(f'Existing data backed up successfully')
+                log_info('Existing data backed up successfully')
             else:
                 shutil.rmtree(final_destination, ignore_errors=True)
                 log_info('Removed empty destination directory')
@@ -977,7 +945,7 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
             files_moved += 1
         log_info(f'Successfully moved {files_moved} items to final destination'
             )
-        log_info(f'Atomic write operation completed successfully')
+        log_info('Atomic write operation completed successfully')
         return True
     except Exception as e:
         log_error(f'Error in atomic write operation: {e}')

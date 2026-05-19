@@ -220,10 +220,14 @@ class TestExportBrandingConfig:
         assert data["name"] == "Siege Analytics"
 
     def test_export_nonexistent_client(self, tmp_path):
+        from siege_utilities.reporting.client_branding import (
+            ClientBrandingNotFoundError,
+        )
+
         mgr = ClientBrandingManager(config_dir=tmp_path / "branding")
         export_path = tmp_path / "export.yaml"
-        result = mgr.export_branding_config("nonexistent", export_path)
-        assert result is False
+        with pytest.raises(ClientBrandingNotFoundError):
+            mgr.export_branding_config("nonexistent", export_path)
 
 
 class TestGetBrandingSummary:

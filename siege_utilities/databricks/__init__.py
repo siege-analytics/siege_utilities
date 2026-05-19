@@ -1,5 +1,23 @@
 """
 Databricks and LakeBase utilities for siege_utilities.
+
+**Why this package is a sibling to `distributed/`, not a child.**
+
+`distributed/` holds vendor-agnostic PySpark + HDFS utilities that work on any
+Spark cluster (EMR, Dataproc, self-hosted). `databricks/` holds Databricks-only
+SDK features (Unity Catalog, LakeBase, workspace auth, secrets, DBFS, job-run
+URL construction for Asset Bundles) that only make sense inside a Databricks
+workspace.
+
+The split is **load-bearing** because Azure Databricks lacks Apache Sedona and
+the C-library stack that GeoPandas / Shapely / Fiona need. ``dataframe_bridge.py``
+is the workaround — Spark ↔ pandas and Spark ↔ GeoPandas bridges that let
+geospatial work happen in environments where the usual stack is not installable.
+
+Don't merge these modules. A future reader "DRY"-ing them together will
+re-create a problem we already solved.
+
+See also: `docs/INTENT.md` (D4), `docs/adr/` (architecture decisions).
 """
 
 from .artifacts import build_databricks_run_url

@@ -19,6 +19,7 @@ Siege Utilities is a comprehensive Python utilities package with **enhanced auto
    core_utilities
    string_utilities
    logging_utilities
+   exception_hierarchy
 
 .. toctree::
    :maxdepth: 2

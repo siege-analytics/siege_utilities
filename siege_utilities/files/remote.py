@@ -3,7 +3,6 @@ Modern remote file operations for siege_utilities.
 Provides clean, type-safe file download utilities.
 """
 
-import pathlib
 import logging
 import os
 import platform

@@ -8,30 +8,71 @@ import os
 from pathlib import Path
 from typing import Dict, Optional, List
 
+log = logging.getLogger(__name__)
+
+
+def _env_path(name: str, default: Path) -> Path:
+    """Read a path-shaped env var with a safety guard.
+
+    Without this guard, ``SIEGE_OUTPUT=/etc`` (or any other system path)
+    would happily flow into the package's I/O routines. We resolve the
+    candidate and refuse paths that escape :func:`Path.home`. Setting
+    ``SIEGE_ALLOW_UNSAFE_PATHS=1`` opts out of the check for power
+    users who genuinely want a non-home target.
+
+    Resolution uses ``Path.expanduser().resolve()`` so ``~`` and
+    relative components are handled consistently.
+    """
+    raw = os.getenv(name)
+    if not raw:
+        return default
+    candidate = Path(raw).expanduser()
+    try:
+        resolved = candidate.resolve()
+    except (OSError, RuntimeError):
+        log.warning("Env var %s=%r could not be resolved; using default %s.",
+                    name, raw, default)
+        return default
+    if os.environ.get("SIEGE_ALLOW_UNSAFE_PATHS", "").lower() in ("1", "true", "yes"):
+        return resolved
+    home = Path.home().resolve()
+    try:
+        resolved.relative_to(home)
+    except ValueError:
+        log.warning(
+            "Env var %s=%r resolves outside $HOME (%s). Refusing as a "
+            "path-traversal safety guard; using default %s. Set "
+            "SIEGE_ALLOW_UNSAFE_PATHS=1 to opt out.",
+            name, str(resolved), home, default,
+        )
+        return default
+    return resolved
+
+
 # =============================================================================
 # ENVIRONMENT-BASED PATH CONFIGURATION
 # =============================================================================
-# Following the ${VARIABLE:-default} pattern from Zsh configuration
+# Following the ${VARIABLE:-default} pattern from Zsh configuration.
+# Env-var values are constrained to ${HOME}-relative paths by default —
+# see _env_path for the rationale.
 
 # Primary project paths (from environment variables with fallbacks)
-SIEGE_UTILITIES_HOME = Path(os.getenv('SIEGE_UTILITIES', Path.home() / 'siege_utilities'))
-SIEGE_UTILITIES_TEST = Path(os.getenv('SIEGE_UTILITIES_TEST', Path.home() / 'siege_utilities_test'))
+SIEGE_UTILITIES_HOME = _env_path('SIEGE_UTILITIES', Path.home() / 'siege_utilities')
+SIEGE_UTILITIES_TEST = _env_path('SIEGE_UTILITIES_TEST', Path.home() / 'siege_utilities_test')
 
 # Siege Analytics organization paths
-SIEGE_ANALYTICS_ROOT = Path(os.getenv('SIEGE', Path.home() / 'siege_analytics'))
-GEOCODING_PROJECT = Path(os.getenv('GEOCODE', SIEGE_ANALYTICS_ROOT / 'geocoding'))
-MASAI_PROJECT = Path(os.getenv('MASAI', SIEGE_ANALYTICS_ROOT / 'masai'))
-
+SIEGE_ANALYTICS_ROOT = _env_path('SIEGE', Path.home() / 'siege_analytics')
+GEOCODING_PROJECT = _env_path('GEOCODE', SIEGE_ANALYTICS_ROOT / 'geocoding')
+MASAI_PROJECT = _env_path('MASAI', SIEGE_ANALYTICS_ROOT / 'masai')
 # =============================================================================
 # CACHE AND TEMPORARY DIRECTORIES
 # =============================================================================
 
 # Cache directories (configurable via environment)
-SIEGE_CACHE_DIR = Path(os.getenv('SIEGE_CACHE', Path.home() / '.siege_cache'))
-SPARK_CACHE_DIR = Path(os.getenv('SPARK_CACHE', Path.home() / '.spark_hdfs_cache'))
-
+SIEGE_CACHE_DIR = _env_path('SIEGE_CACHE', Path.home() / '.siege_cache')
+SPARK_CACHE_DIR = _env_path('SPARK_CACHE', Path.home() / '.spark_hdfs_cache')
 # Temporary directories
-TEMP_DIR = Path(os.getenv('SIEGE_TEMP', Path.home() / '.siege_temp'))
+TEMP_DIR = _env_path('SIEGE_TEMP', Path.home() / '.siege_temp')
 DOWNLOAD_TEMP_DIR = TEMP_DIR / 'downloads'
 PROCESSING_TEMP_DIR = TEMP_DIR / 'processing'
 
@@ -40,28 +81,26 @@ PROCESSING_TEMP_DIR = TEMP_DIR / 'processing'
 # =============================================================================
 
 # Output directories (configurable via environment)
-SIEGE_OUTPUT_DIR = Path(os.getenv('SIEGE_OUTPUT', Path.home() / 'Downloads'))
-REPORTS_OUTPUT_DIR = Path(os.getenv('SIEGE_REPORTS', SIEGE_OUTPUT_DIR / 'siege_reports'))
-CHARTS_OUTPUT_DIR = Path(os.getenv('SIEGE_CHARTS', SIEGE_OUTPUT_DIR / 'siege_charts'))
-MAPS_OUTPUT_DIR = Path(os.getenv('SIEGE_MAPS', SIEGE_OUTPUT_DIR / 'siege_maps'))
-
+SIEGE_OUTPUT_DIR = _env_path('SIEGE_OUTPUT', Path.home() / 'Downloads')
+REPORTS_OUTPUT_DIR = _env_path('SIEGE_REPORTS', SIEGE_OUTPUT_DIR / 'siege_reports')
+CHARTS_OUTPUT_DIR = _env_path('SIEGE_CHARTS', SIEGE_OUTPUT_DIR / 'siege_charts')
+MAPS_OUTPUT_DIR = _env_path('SIEGE_MAPS', SIEGE_OUTPUT_DIR / 'siege_maps')
 # =============================================================================
 # DATA DIRECTORIES
 # =============================================================================
 
 # Data storage directories
-DATA_DIR = Path(os.getenv('SIEGE_DATA', SIEGE_UTILITIES_HOME / 'data'))
-CENSUS_DATA_DIR = Path(os.getenv('CENSUS_DATA', DATA_DIR / 'census'))
-NCES_DATA_DIR = Path(os.getenv('NCES_DATA', DATA_DIR / 'nces'))
-SAMPLE_DATA_DIR = Path(os.getenv('SAMPLE_DATA', DATA_DIR / 'samples'))
-
+DATA_DIR = _env_path('SIEGE_DATA', SIEGE_UTILITIES_HOME / 'data')
+CENSUS_DATA_DIR = _env_path('CENSUS_DATA', DATA_DIR / 'census')
+NCES_DATA_DIR = _env_path('NCES_DATA', DATA_DIR / 'nces')
+SAMPLE_DATA_DIR = _env_path('SAMPLE_DATA', DATA_DIR / 'samples')
 # =============================================================================
 # CONFIGURATION DIRECTORIES
 # =============================================================================
 
 # Configuration file locations
-CONFIG_DIR = Path(os.getenv('SIEGE_CONFIG', SIEGE_UTILITIES_HOME / 'config'))
-USER_CONFIG_FILE = Path(os.getenv('SIEGE_USER_CONFIG', Path.home() / '.siege_config.yaml'))
+CONFIG_DIR = _env_path('SIEGE_CONFIG', SIEGE_UTILITIES_HOME / 'config')
+USER_CONFIG_FILE = _env_path('SIEGE_USER_CONFIG', Path.home() / '.siege_config.yaml')
 DATABASE_CONFIG_DIR = CONFIG_DIR / 'databases'
 
 # =============================================================================
@@ -69,7 +108,7 @@ DATABASE_CONFIG_DIR = CONFIG_DIR / 'databases'
 # =============================================================================
 
 # Logging directories (configurable via environment)
-LOG_DIR = Path(os.getenv('SIEGE_LOG_DIR', Path.home() / '.siege_logs'))
+LOG_DIR = _env_path('SIEGE_LOG_DIR', Path.home() / '.siege_logs')
 ERROR_LOG_DIR = LOG_DIR / 'errors'
 DEBUG_LOG_DIR = LOG_DIR / 'debug'
 
@@ -78,7 +117,7 @@ DEBUG_LOG_DIR = LOG_DIR / 'debug'
 # =============================================================================
 
 # Backup locations
-BACKUP_DIR = Path(os.getenv('SIEGE_BACKUP', Path.home() / '.siege_backups'))
+BACKUP_DIR = _env_path('SIEGE_BACKUP', Path.home() / '.siege_backups')
 CONFIG_BACKUP_DIR = BACKUP_DIR / 'config'
 DATA_BACKUP_DIR = BACKUP_DIR / 'data'
 

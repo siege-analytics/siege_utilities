@@ -59,7 +59,7 @@ class RDHLoaderService:
         client : RDHClient, optional
             Pre-configured RDH client.  Created from env vars if omitted.
         """
-        from siege_utilities.data.redistricting_data_hub import RDHClient
+        from siege_utilities.geo.providers.redistricting_data_hub import RDHClient
 
         self.client = client or RDHClient()
 
@@ -89,7 +89,7 @@ class RDHLoaderService:
         RedistrictingPlan
             The created or updated plan instance.
         """
-        from siege_utilities.data.redistricting_data_hub import fetch_enacted_plan
+        from siege_utilities.geo.providers.redistricting_data_hub import fetch_enacted_plan
         from siege_utilities.geo.django.models.boundaries import State
         from siege_utilities.geo.django.models.redistricting import (
             PlanDistrict,
@@ -191,7 +191,7 @@ class RDHLoaderService:
         -------
         RDHLoadResult
         """
-        from siege_utilities.data.redistricting_data_hub import fetch_precinct_results
+        from siege_utilities.geo.providers.redistricting_data_hub import fetch_precinct_results
         from siege_utilities.geo.django.models.boundaries import State
         from siege_utilities.geo.django.models.redistricting import PrecinctElectionResult
 
@@ -295,7 +295,7 @@ class RDHLoaderService:
         -------
         RDHLoadResult
         """
-        from siege_utilities.data.redistricting_data_hub import fetch_cvap
+        from siege_utilities.geo.providers.redistricting_data_hub import fetch_cvap
 
         result = RDHLoadResult(operation="load_cvap_for_plan")
 
@@ -353,7 +353,7 @@ class RDHLoaderService:
         -------
         RDHLoadResult
         """
-        from siege_utilities.data.redistricting_data_hub import (
+        from siege_utilities.geo.providers.redistricting_data_hub import (
             demographic_profile,
             fetch_demographic_summary,
         )
@@ -449,7 +449,7 @@ class RDHLoaderService:
         plan : RedistrictingPlan
             Plan whose districts will be scored.
         """
-        from siege_utilities.data.redistricting_data_hub import (
+        from siege_utilities.geo.providers.redistricting_data_hub import (
             convex_hull_ratio as chr_fn,
             polsby_popper as pp_fn,
             reock as reock_fn,

@@ -8,17 +8,29 @@ import yaml
 from pathlib import Path
 import requests
 from hashlib import md5
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, PageBreak
-from reportlab.lib.units import inch, cm, mm, pica
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus.flowables import Flowable
-from reportlab.platypus import PageTemplate, Frame
-from reportlab.lib.colors import HexColor
-from typing import Dict, Any, Optional, List
+try:
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+    from reportlab.lib.units import inch
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.platypus import PageTemplate, Frame
+    from reportlab.lib.colors import HexColor
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+    getSampleStyleSheet = ParagraphStyle = None
+    TA_CENTER = None
+    pdfmetrics = None
+    TTFont = None
+    SimpleDocTemplate = Paragraph = Spacer = PageBreak = None
+    inch = None
+    letter = A4 = None
+    PageTemplate = Frame = None
+    HexColor = None
+from typing import Dict, Optional
 
 # Import PIL for image dimension auto-calculation
 try:
@@ -95,15 +107,26 @@ class BaseReportTemplate:
 
     def _register_fonts(self):
         """Registers fonts specified in branding config or uses defaults."""
-        # Default font registration
+        # Default font registration. Candidate locations differ per OS:
+        # Linux ships Liberation under /usr/share/fonts/truetype/liberation,
+        # macOS under /Library/Fonts (and /System/Library/Fonts since
+        # Catalina), Windows under C:\Windows\Fonts. Probe each in turn —
+        # the previous hard-coded Linux path silently failed everywhere
+        # else and fell through to ReportLab's defaults with no warning.
         try:
-            # Try to register Liberation fonts if available
+            import sys
+            _LIBERATION_CANDIDATES = {
+                "linux": "/usr/share/fonts/truetype/liberation",
+                "darwin": "/Library/Fonts",
+                "win32": r"C:\Windows\Fonts",
+            }
+            base = _LIBERATION_CANDIDATES.get(sys.platform, _LIBERATION_CANDIDATES["linux"])
             font_paths = {
                 "Liberation-Serif": {
-                    "normal": "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
-                    "bold": "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf",
-                    "italic": "/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf",
-                    "bold_italic": "/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf",
+                    "normal": f"{base}/LiberationSerif-Regular.ttf",
+                    "bold": f"{base}/LiberationSerif-Bold.ttf",
+                    "italic": f"{base}/LiberationSerif-Italic.ttf",
+                    "bold_italic": f"{base}/LiberationSerif-BoldItalic.ttf",
                 }
             }
             

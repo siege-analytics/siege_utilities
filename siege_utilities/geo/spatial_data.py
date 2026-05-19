@@ -4,22 +4,30 @@ Provides clean, type-safe access to Census, Government, and OpenStreetMap data.
 """
 
 import logging
-import geopandas as gpd
-from pathlib import Path
-
-from siege_utilities.geo.crs import reproject_if_needed
-from typing import Dict, Any, Optional, List, Union
 import os
+import re
 import time
+import warnings
 import warnings as _warnings_mod
-from datetime import datetime
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+
+import geopandas as gpd
 import requests
 from bs4 import BeautifulSoup
-import re
-import warnings
 
-# Suppress SSL warnings when using verify=False
-warnings.filterwarnings('ignore', message='Unverified HTTPS request')
+from siege_utilities.geo.crs import reproject_if_needed
+
+# Opt-in TLS-verification bypass for environments behind broken
+# corporate MITM proxies. Defaults to False because silent fallback to
+# verify=False is exactly the path a MITM exploits; the safer default
+# is to fail loudly on SSL errors. Set SIEGE_INSECURE_SSL=1 in the
+# environment to allow verify=False as a documented fallback (and own
+# the risk).
+_ALLOW_INSECURE_SSL = os.environ.get("SIEGE_INSECURE_SSL", "").lower() in ("1", "true", "yes")
+if _ALLOW_INSECURE_SSL:
+    warnings.filterwarnings('ignore', message='Unverified HTTPS request')
 
 # Import existing library functions
 from ..files.remote import download_file, generate_local_path_from_url
@@ -54,9 +62,48 @@ from .boundary_result import (
 # Get logger for this module
 log = logging.getLogger(__name__)
 
+
+class SpatialDataError(RuntimeError):
+    """Raised when a non-boundary spatial data fetch fails unexpectedly.
+
+    Used by GovernmentDataSource and OpenStreetMapDataSource, which load
+    generic portal datasets and OSM Overpass results respectively. Boundary
+    retrieval has its own exception hierarchy in boundary_result.py.
+
+    Use the ``__cause__`` attribute (set via ``raise ... from e``) to inspect
+    the underlying exception (HTTPError, JSONDecodeError, etc.).
+    """
+
 # Type aliases
 FilePath = Union[str, Path]
-GeoDataFrame = gpd.GeoDataFrame
+GeoDataFrame = gpd.GeoDataFrame if gpd is not None else None
+
+# ---------------------------------------------------------------------------
+# Congressional District number by TIGER year
+# ---------------------------------------------------------------------------
+# All values verified by direct URL probing against Census FTP (2026-04-26).
+# cd117 (117th Congress) is entirely absent from TIGER — Census held on
+# the pre-redistricting 116th boundaries for 2020 and 2021, then jumped
+# directly to cd118 when per-state files appeared for 2022.
+YEAR_TO_CONGRESS: Dict[int, int] = {
+    2010: 111,
+    2011: 112,
+    2012: 112,  # 113th elected Nov 2012 but TIGER 2012 still uses seated 112th
+    2013: 113,  # 113th seated Jan 2013; direct URL confirmed 200
+    2014: 114,
+    2015: 114,
+    2016: 115,
+    2017: 115,
+    2018: 116,
+    2019: 116,
+    2020: 116,  # pre-redistricting hold; 117th elected but old districts kept
+    2021: 116,  # still pre-redistricting; cd117 entirely absent from TIGER
+    2022: 118,  # post-redistricting; per-state files only (national = 404)
+    2023: 118,
+    2024: 119,
+    2025: 119,
+    2026: 119,
+}
 
 # ---------------------------------------------------------------------------
 # Boundary Type Catalog
@@ -78,7 +125,6 @@ BOUNDARY_TYPE_CATALOG = {
     'place':        {'category': 'redistricting', 'abbrev': 'PLACE',      'name': 'Places (cities/towns)',              'geometry_type': 'MultiPolygon'},
     'cd':           {'category': 'redistricting', 'abbrev': 'CD',         'name': 'Congressional Districts',            'geometry_type': 'MultiPolygon'},
     'cd116':        {'category': 'redistricting', 'abbrev': 'CD116',      'name': 'Congressional Districts (116th)',    'geometry_type': 'MultiPolygon'},
-    'cd117':        {'category': 'redistricting', 'abbrev': 'CD117',      'name': 'Congressional Districts (117th)',    'geometry_type': 'MultiPolygon'},
     'cd118':        {'category': 'redistricting', 'abbrev': 'CD118',      'name': 'Congressional Districts (118th)',    'geometry_type': 'MultiPolygon'},
     'cd119':        {'category': 'redistricting', 'abbrev': 'CD119',      'name': 'Congressional Districts (119th)',    'geometry_type': 'MultiPolygon'},
     'sldu':         {'category': 'redistricting', 'abbrev': 'SLDU',       'name': 'State Legislative Upper (Senate)',   'geometry_type': 'MultiPolygon'},
@@ -116,6 +162,257 @@ BOUNDARY_TYPE_CATALOG = {
     'pointlm':      {'category': 'general', 'abbrev': 'POINTLM',    'name': 'Point Landmarks',                  'geometry_type': 'Point'},
     'arealm':       {'category': 'general', 'abbrev': 'AREALM',     'name': 'Area Landmarks',                   'geometry_type': 'MultiPolygon'},
 }
+
+# ---------------------------------------------------------------------------
+# TIGER Redistricting (PL 94-171) URL constants
+# ---------------------------------------------------------------------------
+# VTD (Voting Tabulation District) boundaries for decennial census years are
+# published in the PL 94-171 redistricting product, NOT in the standard annual
+# TIGER release.  The standard TIGER{year}/ server has no VTD20/ directory.
+#
+# 2020 URL pattern:
+#   TIGER2020PL/STATE/{FIPS}_{STATE_NAME_UPPER}/{FIPS}/tl_2020_{fips}_vtd20.zip
+# 2010 URL pattern (same structure, different vintage):
+#   TIGER2010PL/tabblock_vtd/{FIPS}_{STATE_NAME_UPPER}/{FIPS}/tl_2010_{fips}_vtd10.zip
+
+TIGER_PL_BASE_URL = "https://www2.census.gov/geo/tiger"
+
+# State names used in TIGER PL directory paths, uppercase with underscores.
+# Territories that publish VTD data in PL files are included; others (GU, AS,
+# VI, MP) do not appear in TIGER2020PL/STATE and are intentionally omitted.
+_VTD_PL_STATE_NAMES: Dict[str, str] = {
+    "01": "ALABAMA",               "02": "ALASKA",
+    "04": "ARIZONA",               "05": "ARKANSAS",
+    "06": "CALIFORNIA",            "08": "COLORADO",
+    "09": "CONNECTICUT",           "10": "DELAWARE",
+    "11": "DISTRICT_OF_COLUMBIA",  "12": "FLORIDA",
+    "13": "GEORGIA",               "15": "HAWAII",
+    "16": "IDAHO",                 "17": "ILLINOIS",
+    "18": "INDIANA",               "19": "IOWA",
+    "20": "KANSAS",                "21": "KENTUCKY",
+    "22": "LOUISIANA",             "23": "MAINE",
+    "24": "MARYLAND",              "25": "MASSACHUSETTS",
+    "26": "MICHIGAN",              "27": "MINNESOTA",
+    "28": "MISSISSIPPI",           "29": "MISSOURI",
+    "30": "MONTANA",               "31": "NEBRASKA",
+    "32": "NEVADA",                "33": "NEW_HAMPSHIRE",
+    "34": "NEW_JERSEY",            "35": "NEW_MEXICO",
+    "36": "NEW_YORK",              "37": "NORTH_CAROLINA",
+    "38": "NORTH_DAKOTA",          "39": "OHIO",
+    "40": "OKLAHOMA",              "41": "OREGON",
+    "42": "PENNSYLVANIA",          "44": "RHODE_ISLAND",
+    "45": "SOUTH_CAROLINA",        "46": "SOUTH_DAKOTA",
+    "47": "TENNESSEE",             "48": "TEXAS",
+    "49": "UTAH",                  "50": "VERMONT",
+    "51": "VIRGINIA",              "53": "WASHINGTON",
+    "54": "WEST_VIRGINIA",         "55": "WISCONSIN",
+    "56": "WYOMING",               "72": "PUERTO_RICO",
+}
+
+
+# ---------------------------------------------------------------------------
+# Census inventory: crawled directory map + disk-backed fallback
+# ---------------------------------------------------------------------------
+
+_DEFAULT_INVENTORY_PATH = Path.home() / ".cache" / "siege_utilities" / "census_inventory.json"
+_TIGER_BASE = "https://www2.census.gov/geo/tiger/"
+_GENZ_BASE = "https://www2.census.gov/geo/tiger/"   # GENZ lives under the same tree
+
+
+def update_census_inventory(
+    years: Optional[List[int]] = None,
+    include_genz: bool = True,
+    save_path: Optional[Path] = None,
+    request_delay: float = 0.5,
+    timeout: int = 15,
+) -> dict:
+    """Crawl the Census FTP and return a timestamped directory inventory.
+
+    Fetches the TIGER (and optionally GENZ) year→layers structure using
+    BeautifulSoup and saves it as JSON so callers can use it as a fallback
+    when live Census requests are blocked (403) or rate-limited (429).
+
+    Parameters
+    ----------
+    years:
+        Specific years to crawl.  Defaults to 2010 through the current year.
+    include_genz:
+        Also crawl the Cartographic Boundary File (GENZ) tree.
+    save_path:
+        Where to save the JSON.  Defaults to
+        ``~/.cache/siege_utilities/census_inventory.json``.
+    request_delay:
+        Seconds to sleep between HTTP requests to avoid hammering the Census
+        server.
+    timeout:
+        Per-request timeout in seconds.
+
+    Returns
+    -------
+    dict with keys ``updated_at``, ``tiger``, and (optionally) ``genz``.
+    ``tiger[year]`` is a sorted list of layer directory names.
+    ``genz[year]`` is a sorted list of available CB file name stems.
+    """
+    import json
+
+    if years is None:
+        years = list(range(2010, datetime.now().year + 1))
+
+    def _parse_dir_links(html: bytes) -> List[str]:
+        soup = BeautifulSoup(html, "html.parser")
+        return sorted(
+            href.rstrip("/")
+            for a in soup.find_all("a")
+            if (href := a.get("href", "")).endswith("/") and href != "../"
+        )
+
+    def _get(url: str) -> Optional[bytes]:
+        try:
+            r = requests.get(url, timeout=timeout)
+            if r.status_code == 200:
+                return r.content
+            log.debug("census inventory crawl: %s → %s", url, r.status_code)
+        except Exception as exc:
+            log.debug("census inventory crawl: %s → %s", url, exc)
+        return None
+
+    inventory: dict = {
+        "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "tiger": {},
+    }
+    if include_genz:
+        inventory["genz"] = {}
+
+    for year in years:
+        time.sleep(request_delay)
+        tiger_url = f"{_TIGER_BASE}TIGER{year}/"
+        html = _get(tiger_url)
+        if html:
+            dirs = _parse_dir_links(html)
+            inventory["tiger"][str(year)] = dirs
+            log.info("census inventory: TIGER%s → %d dirs", year, len(dirs))
+        else:
+            log.warning("census inventory: TIGER%s listing unavailable", year)
+
+        if include_genz:
+            time.sleep(request_delay)
+            genz_url = f"{_TIGER_BASE}GENZ{year}/shp/"
+            html = _get(genz_url)
+            if html is None:
+                # 2013 and earlier store files directly in the year dir, no shp/
+                genz_url = f"{_TIGER_BASE}GENZ{year}/"
+                html = _get(genz_url)
+            if html:
+                soup = BeautifulSoup(html, "html.parser")
+                stems = sorted(set(
+                    re.sub(r"\.(zip|shp|dbf|shx|prj)$", "", a.get("href", ""), flags=re.I)
+                    for a in soup.find_all("a")
+                    if a.get("href", "").lower().endswith(".zip")
+                ))
+                inventory["genz"][str(year)] = stems
+                log.info("census inventory: GENZ%s → %d files", year, len(stems))
+
+    save_path = Path(save_path or _DEFAULT_INVENTORY_PATH)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(save_path, "w") as fh:
+        json.dump(inventory, fh, indent=2)
+    log.info("census inventory saved to %s", save_path)
+    return inventory
+
+
+def load_census_inventory(path: Optional[Path] = None) -> Optional[dict]:
+    """Load the saved Census inventory from disk.  Returns None if absent."""
+    import json
+    p = Path(path or _DEFAULT_INVENTORY_PATH)
+    if not p.exists():
+        return None
+    try:
+        with open(p) as fh:
+            return json.load(fh)
+    except Exception as exc:
+        log.warning("could not load census inventory from %s: %s", p, exc)
+        return None
+
+
+def _dirs_from_inventory(year: int, inventory: Optional[dict] = None) -> Optional[List[str]]:
+    """Return cached TIGER layer dirs for *year* from the on-disk inventory.
+
+    Returns None if the inventory is unavailable or has no entry for the year.
+    """
+    inv = inventory or load_census_inventory()
+    if inv is None:
+        return None
+    dirs = inv.get("tiger", {}).get(str(year))
+    if dirs is not None:
+        log.debug("census fallback: using inventory dirs for TIGER%s (%d entries)", year, len(dirs))
+    return dirs
+
+
+def _known_tiger_directories_for_year(year: int) -> List[str]:
+    """Static fallback directory list for a TIGER/Line annual release.
+
+    Used when the Census FTP returns 429 (rate-limit) or 403 (directory
+    listing blocked) on the top-level ``TIGER{year}/`` directory.  Returning
+    a *known-good* list lets callers proceed with construct-then-download
+    instead of failing the whole job because index.html is unreachable.
+
+    The list is conservative — every directory enumerated here has been
+    confirmed present in TIGER releases 2014 onward.  Earlier years (2010–
+    2013) had fewer published layers; year-specific dispatch below trims
+    accordingly.  The generic ``CD`` directory is included because Census
+    uses it for both national pre-2022 files (``tl_{year}_us_cd{congress}
+    .zip``) and per-state 2022+ files (``tl_{year}_{fips}_cd{congress}
+    .zip``).
+
+    Special cases handled:
+      * ``ZCTA5`` (with ``zcta510`` filename suffix) through 2019;
+        ``ZCTA520`` (with ``zcta520`` filename suffix) from 2020 onward;
+        2020 publishes both directories (`ZCTA5` is the legacy redirect).
+      * ``TABBLOCK10`` and ``VTD10`` only in 2010; ``TABBLOCK20`` and
+        ``VTD20`` only in 2020+.
+      * ``UAC10`` only 2011-2019 (Urban Area Census 2010 vintage); ``UAC20``
+        from 2022 onward (Urban Area Census 2020 vintage); 2020-2021 publish
+        ``UAC`` (the unsuffixed transitional name).
+    """
+    # Always-published baseline (2010 onward).
+    dirs = {
+        "BG", "COUNTY", "COUNTYSUB", "PLACE", "STATE", "TRACT",
+        "AIANNH", "ANRC", "CBSA", "CSA", "CNECTA",
+        "EDGES", "FACES", "FACESAH", "FACESAL",
+        "ELSD", "SCSD", "SDELM", "SDSEC", "SDUNI", "UNSD",
+        "POINTLM", "PRIMARYROADS", "PRISECROADS", "RAILS", "ROADS",
+        "SLDL", "SLDU",
+        "METDIV", "NECTA", "NECTADIV",
+        "PUMA", "SUBMCD",
+        "TBG", "TTRACT",
+        "MIL", "FEATNAMES", "LINEARWATER", "AREAWATER",
+        "CONCITY", "CD",
+    }
+
+    # ZCTA: directory name + filename suffix changed at the 2020 vintage.
+    if year >= 2020:
+        # 2020 publishes ZCTA5 as a legacy redirect alongside ZCTA520; safer
+        # to surface both so callers can probe either.
+        dirs.update({"ZCTA5", "ZCTA520"} if year == 2020 else {"ZCTA520"})
+    elif year >= 2012:
+        dirs.add("ZCTA5")
+
+    # TABBLOCK + VTD: tied to the decennial vintage that produced them.
+    if year == 2010:
+        dirs.update({"TABBLOCK10", "VTD10"})
+    elif year >= 2020:
+        dirs.update({"TABBLOCK20", "VTD20"})
+
+    # UAC (Urban Area Census): 2010 vintage 2011-2019; transitional 2020-2021;
+    # 2020 vintage 2022 onward.
+    if 2011 <= year <= 2019:
+        dirs.add("UAC10")
+    elif year in (2020, 2021):
+        dirs.add("UAC")
+    elif year >= 2022:
+        dirs.add("UAC20")
+
+    return sorted(dirs)
 
 
 class CensusDirectoryDiscovery:
@@ -174,9 +471,13 @@ class CensusDirectoryDiscovery:
                 self.cache[cache_key] = (time.time(), years)
                 return years
 
-            except requests.exceptions.SSLError:
-                if verify_ssl:
-                    log.warning("SSL verification failed, retrying without verification...")
+            except requests.exceptions.SSLError as e:
+                last_exception = e
+                if _ALLOW_INSECURE_SSL and verify_ssl:
+                    log.warning(
+                        "SSL verification failed; SIEGE_INSECURE_SSL=1 set, "
+                        "retrying without verification (legacy behaviour)."
+                    )
                     verify_ssl = False
                     try:
                         response = requests.get(self.base_url, timeout=self.timeout, verify=False)
@@ -184,8 +485,15 @@ class CensusDirectoryDiscovery:
                         years = self._parse_year_links(response.content)
                         self.cache[cache_key] = (time.time(), years)
                         return years
-                    except Exception as e:
-                        last_exception = e
+                    except Exception as e2:
+                        last_exception = e2
+                else:
+                    log.error(
+                        "SSL verification failed against %s; refusing to "
+                        "fall back to verify=False. Set SIEGE_INSECURE_SSL=1 "
+                        "if you're behind a corporate MITM proxy and accept "
+                        "the risk.", self.base_url,
+                    )
 
             except requests.exceptions.Timeout as e:
                 last_exception = e
@@ -195,9 +503,10 @@ class CensusDirectoryDiscovery:
                 last_exception = e
                 log.warning(f"Census directory request failed (attempt {attempt + 1}/{CENSUS_RETRY_ATTEMPTS}): {e}")
 
-            except Exception as e:
-                last_exception = e
-                log.warning(f"Unexpected error during Census discovery (attempt {attempt + 1}/{CENSUS_RETRY_ATTEMPTS}): {e}")
+            # No catch-all `except Exception` here: a programming error
+            # (e.g. parser bug in _parse_year_links) should propagate as
+            # a programming error, not be retried as if it were a
+            # transient network failure.
 
             # Exponential backoff before retry (1s, 2s, 4s, 8s, ...)
             if attempt < CENSUS_RETRY_ATTEMPTS - 1:
@@ -221,8 +530,9 @@ class CensusDirectoryDiscovery:
         force_refresh : bool
             Bypass the in-memory cache.
         on_error : ``"raise"`` | ``"warn"`` | ``"skip"``
-            What to do when the network request fails.  ``"skip"`` (default)
-            returns an empty list silently — preserving the legacy behaviour.
+            What to do when the network request fails. ``"skip"`` (default)
+            returns an empty list silently; ``"warn"`` logs and returns
+            empty; ``"raise"`` propagates the SiegeGeoError.
         """
         from siege_utilities.exceptions import SiegeGeoError, handle_error
 
@@ -250,9 +560,20 @@ class CensusDirectoryDiscovery:
             return directories
 
         except requests.exceptions.SSLError:
-            log.warning(f"SSL verification failed for year {year}, trying without verification...")
+            if not _ALLOW_INSECURE_SSL:
+                log.error(
+                    "SSL verification failed for year %s; refusing to "
+                    "fall back to verify=False. Set SIEGE_INSECURE_SSL=1 "
+                    "to opt into the legacy bypass.", year,
+                )
+                raise
+            log.warning(
+                "SSL verification failed for year %s; SIEGE_INSECURE_SSL=1 "
+                "set, retrying without verification.", year,
+            )
             try:
-                # Fallback: try without SSL verification
+                # Fallback: try without SSL verification (legacy behaviour
+                # behind the env-var opt-in).
                 year_url = f"{self.base_url}/TIGER{year}/"
                 response = requests.get(year_url, timeout=self.timeout, verify=False)
                 response.raise_for_status()
@@ -275,6 +596,25 @@ class CensusDirectoryDiscovery:
                 )
 
         except Exception as e:
+            # On rate-limit (429), substitute the static known-directory list
+            # instead of returning [] (which silently skips every boundary type).
+            # Only override "skip" callers — "raise"/"warn" callers still see
+            # the error so their error strategy is honoured.
+            _status = getattr(getattr(e, "response", None), "status_code", None)
+            if on_error == "skip" and isinstance(e, requests.exceptions.HTTPError) and _status in (429, 403):
+                # 429 = rate-limited; 403 = directory browsing blocked.
+                # In both cases the individual layer files almost certainly
+                # exist — use the crawled inventory first, then the static list.
+                fallback = _dirs_from_inventory(year) or _known_tiger_directories_for_year(year)
+                reason = "rate-limited (429)" if _status == 429 else "directory browsing blocked (403)"
+                log.warning(
+                    "Census TIGER%s directory listing %s; "
+                    "using fallback (%d directories)",
+                    year, reason, len(fallback),
+                )
+                _FALLBACK_CACHE_TTL = 300  # 5-minute TTL so a recovered endpoint is retried soon
+                self.cache[cache_key] = (time.time() - self.cache_timeout + _FALLBACK_CACHE_TTL, fallback)
+                return fallback
             return handle_error(
                 SiegeGeoError(f"Failed to get contents for year {year}: {e}"),
                 on_error=on_error, fallback=[], context=f"TIGER directory listing for {year}",
@@ -297,7 +637,8 @@ class CensusDirectoryDiscovery:
             'TABBLOCK10': 'tabblock10',  # 2010 naming
             'PLACE': 'place',
             'ZCTA5': 'zcta',
-            'ZCTA': 'zcta',  # Alternative naming
+            'ZCTA': 'zcta',    # Alternative naming
+            'ZCTA520': 'zcta', # 2020+ directory name (Census renamed from ZCTA5)
             
             # Legislative boundaries
             'SLDU': 'sldu',  # State Legislative District Upper
@@ -312,7 +653,6 @@ class CensusDirectoryDiscovery:
             'CD114': 'cd114', # 114th Congress
             'CD115': 'cd115', # 115th Congress
             'CD116': 'cd116', # 116th Congress
-            'CD117': 'cd117', # 117th Congress
             'CD118': 'cd118', # 118th Congress
             'CD119': 'cd119', # 119th Congress
             
@@ -381,7 +721,9 @@ class CensusDirectoryDiscovery:
                 # State-specific files (state FIPS required)
                 'state': 'tl_{year}_{state_fips}_{boundary_type}.zip',
                 # Congressional districts with number
-                'congress': 'tl_{year}_us_cd{congress_num}.zip'
+                'congress': 'tl_{year}_us_cd{congress_num}.zip',
+                # Per-state congressional districts (2022+, Census dropped the national file)
+                'congress_state': 'tl_{year}_{state_fips}_cd{congress_num}.zip'
             },
             'directory_mappings': {}
         }
@@ -403,6 +745,74 @@ class CensusDirectoryDiscovery:
         
         return patterns
     
+    # ------------------------------------------------------------------
+    # TIGER PL (redistricting) VTD helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _is_vtd_pl_boundary(boundary_type: str, year: int) -> bool:
+        """Return True when *boundary_type* must come from a TIGER PL release.
+
+        VTD data is only published in the decennial PL 94-171 product for
+        census years (2020, 2010).  It does not appear in the standard annual
+        TIGER release for those years. Vintage-specific suffixes must match
+        the requested year: ``'vtd20'`` pairs only with 2020, ``'vtd10'`` only
+        with 2010. The unsuffixed ``'vtd'`` works for either.
+        """
+        if year == 2020:
+            return boundary_type in ('vtd', 'vtd20')
+        if year == 2010:
+            return boundary_type in ('vtd', 'vtd10')
+        return False
+
+    @staticmethod
+    def _construct_vtd_pl_url(year: int, state_fips: str) -> str:
+        """Return the TIGER PL download URL for a state's VTD shapefile.
+
+        Raises:
+            BoundaryInputError: if *state_fips* has no PL state name mapping
+                (i.e. the territory does not publish VTD data).
+            BoundaryDiscoveryError: if *year* is not a supported decennial year.
+        """
+        if year == 2020:
+            suffix = 'vtd20'
+            pl_dir = 'TIGER2020PL'
+        elif year == 2010:
+            # 2010 VTDs are published as county-level files under
+            # TIGER2010/VTD/2010/ (e.g. tl_2010_48001_vtd10.zip), not as a
+            # state-level ZIP under TIGER2010PL/STATE/. The state-level path
+            # does not exist on Census and would 404 at download time.
+            # Until county-level enumeration is implemented, fail fast.
+            raise BoundaryDiscoveryError(
+                "2010 VTD boundaries are published per-county under "
+                "TIGER2010/VTD/2010/ (e.g. tl_2010_<state_fips><county_fips>_vtd10.zip), "
+                "not as a single state-level ZIP. County-level enumeration is not "
+                "yet supported by this routing; fetch the required counties directly.",
+                context={"year": 2010, "boundary_type": "vtd", "state_fips": state_fips},
+            )
+        else:
+            raise BoundaryDiscoveryError(
+                f"VTD PL boundaries are only available for decennial year 2020. "
+                f"Requested year: {year}.",
+                context={"year": year, "boundary_type": "vtd"},
+            )
+
+        state_name = _VTD_PL_STATE_NAMES.get(state_fips)
+        if not state_name:
+            raise BoundaryInputError(
+                f"State FIPS {state_fips!r} does not publish VTD data in "
+                f"{pl_dir}.  Check _VTD_PL_STATE_NAMES for supported states.",
+                context={"year": year, "boundary_type": "vtd", "state_fips": state_fips},
+            )
+
+        url = (
+            f"{TIGER_PL_BASE_URL}/{pl_dir}/STATE/"
+            f"{state_fips}_{state_name}/{state_fips}/"
+            f"tl_{year}_{state_fips}_{suffix}.zip"
+        )
+        log.info("VTD PL URL: %s", url)
+        return url
+
     def construct_download_url(self, year: int, boundary_type: str, state_fips: Optional[str] = None,
                               congress_number: Optional[int] = None) -> str:
         """Construct download URL using FIPS validation and year-specific patterns.
@@ -424,6 +834,17 @@ class CensusDirectoryDiscovery:
 
                 state_info = get_fips_info(state_fips)
                 log.info(f"Constructing URL for {state_info['name']} ({state_info['abbreviation']})")
+
+            # VTD data lives in the decennial PL 94-171 redistricting product,
+            # NOT in the standard annual TIGER release.  Route before doing
+            # directory discovery so we never try to find VTD20/ on tiger.
+            if self._is_vtd_pl_boundary(boundary_type, year):
+                if not state_fips:
+                    raise BoundaryInputError(
+                        "VTD boundaries require a state_fips code.",
+                        context=ctx,
+                    )
+                return self._construct_vtd_pl_url(year, state_fips)
 
             # Get year-specific patterns
             patterns = self.get_year_specific_url_patterns(year)
@@ -488,27 +909,42 @@ class CensusDirectoryDiscovery:
 
         # Define flexible types (can be national or state-specific)
         flexible_types = {'place', 'zcta', 'anrc', 'concity'}
-        
+        # Census uses short abbreviations in filenames that differ from the canonical type name.
+        _FILENAME_ABBREVS = {'block_group': 'bg'}
+
         # Handle congressional districts specially
         if boundary_type.startswith('cd'):
             if len(boundary_type) > 2:
                 # Specific congress number in boundary type (cd118, cd119, etc.)
                 congress_num = boundary_type[2:]
-                return patterns['filename_patterns']['congress'].format(
-                    year=year, congress_num=congress_num
-                )
             elif congress_number:
-                # Congress number provided separately
-                return patterns['filename_patterns']['congress'].format(
-                    year=year, congress_num=congress_number
-                )
+                # Congress number provided separately — zero-pad to 3 digits
+                congress_num = f"{congress_number:03d}"
+            elif year in YEAR_TO_CONGRESS:
+                # Auto-lookup from verified year→congress mapping
+                congress_num = str(YEAR_TO_CONGRESS[year])
             else:
+                max_known = max(YEAR_TO_CONGRESS.keys())
+                congress_num = str(YEAR_TO_CONGRESS[max_known])
+                log.warning(
+                    "Year %d not in YEAR_TO_CONGRESS; falling back to %d (congress %s). "
+                    "Add the year to YEAR_TO_CONGRESS if this is incorrect.",
+                    year, max_known, congress_num,
+                )
+            # Census dropped the national CD file after 2021; 2022+ only publishes 56 per-state files.
+            if year >= 2022 and not state_fips:
                 raise BoundaryConfigurationError(
-                    f"Congressional district boundary type '{boundary_type}' requires a "
-                    f"congress number. Provide it via the boundary_type name (e.g., 'cd118') "
-                    f"or the congress_number parameter.",
+                    f"Congressional district national file is unavailable for {year}+. "
+                    f"Provide state_fips to download the per-state file.",
                     context={"boundary_type": boundary_type, "year": year},
                 )
+            if state_fips and year >= 2022:
+                return patterns['filename_patterns']['congress_state'].format(
+                    year=year, state_fips=state_fips, congress_num=congress_num
+                )
+            return patterns['filename_patterns']['congress'].format(
+                year=year, congress_num=congress_num
+            )
 
         # Handle state-required types
         elif boundary_type in state_required_types:
@@ -526,17 +962,27 @@ class CensusDirectoryDiscovery:
                         "requires": "state_fips",
                     },
                 )
-            
+            filename_part = _FILENAME_ABBREVS.get(boundary_type, boundary_type)
             return patterns['filename_patterns']['state'].format(
-                year=year, state_fips=state_fips, boundary_type=boundary_type
+                year=year, state_fips=state_fips, boundary_type=filename_part
             )
-        
+
+        # Handle ZCTA: filename abbreviation and directory are year-dependent.
+        # 2020+: ZCTA520 directory + zcta520 abbreviation.
+        # pre-2020: ZCTA5 directory + zcta510 abbreviation.
+        # ZCTA files are always national (no per-state variant exists).
+        elif boundary_type == 'zcta':
+            zcta_abbrev = 'zcta520' if year >= 2020 else 'zcta510'
+            return patterns['filename_patterns']['national'].format(
+                year=year, boundary_type=zcta_abbrev
+            )
+
         # Handle national-only types
         elif boundary_type in national_only_types:
             return patterns['filename_patterns']['national'].format(
                 year=year, boundary_type=boundary_type
             )
-        
+
         # Handle flexible types
         elif boundary_type in flexible_types:
             if state_fips:
@@ -581,6 +1027,13 @@ class CensusDirectoryDiscovery:
             response.close()
             if response.status_code == 200:
                 return True
+            if response.status_code == 429:
+                log.warning(
+                    "Census rate-limited (429) URL validation for %s; "
+                    "assuming URL is valid and proceeding with download",
+                    url,
+                )
+                return True
             ctx["http_status"] = response.status_code
             raise BoundaryUrlValidationError(
                 f"URL returned HTTP {response.status_code}: {url}",
@@ -589,8 +1042,15 @@ class CensusDirectoryDiscovery:
         except BoundaryUrlValidationError:
             raise
         except requests.exceptions.SSLError as ssl_err:
-            log.debug(f"SSL verification failed for {url}, trying without verification...")
             ctx["ssl_error"] = str(ssl_err)
+            if not _ALLOW_INSECURE_SSL:
+                log.error(
+                    "SSL verification failed for %s; refusing the "
+                    "verify=False fallback (set SIEGE_INSECURE_SSL=1 "
+                    "to opt in).", url,
+                )
+                raise
+            log.debug("SSL verification failed for %s, retrying without verification (env opt-in).", url)
             try:
                 response = requests.get(url, timeout=self.timeout, stream=True,
                                         headers=headers, verify=False)
@@ -730,8 +1190,16 @@ class CensusDataSource(SpatialDataSource):
         """Get directory contents for a specific year."""
         return self.discovery.get_year_directory_contents(year)
 
-    def discover_boundary_types(self, year: int) -> List[str]:
-        """Discover available boundary types for a year."""
+    def discover_boundary_types(self, year: int) -> Dict[str, str]:
+        """Discover available boundary types for a year.
+
+        Returns a mapping of boundary-type slug (``'county'``,
+        ``'tract'``, ...) to the canonical TIGER directory name
+        (``'COUNTY'``, ``'TRACT'``, ...). Matches the return contract
+        of :meth:`TigerDiscovery.discover_boundary_types`. The previous
+        ``List[str]`` annotation was incorrect -- the underlying call
+        has always returned the dict.
+        """
         return self.discovery.discover_boundary_types(year)
 
     def get_geographic_boundaries(self,
@@ -1267,47 +1735,66 @@ class GovernmentDataSource(SpatialDataSource):
             # Download and process
             return self._download_and_process_dataset(resource_url, format_type)
             
+        except SpatialDataError:
+            raise
         except Exception as e:
-            log.error(f"Failed to download dataset {dataset_id}: {e}")
-            return None
+            raise SpatialDataError(
+                f"Failed to download dataset {dataset_id}: {e}"
+            ) from e
     
-    def _get_dataset_metadata(self, url: str) -> Optional[Dict[str, Any]]:
-        """Get dataset metadata from the portal."""
+    def _get_dataset_metadata(self, url: str) -> Dict[str, Any]:
+        """Get dataset metadata from the portal.
+
+        Single failure-indication mechanism per writing-code:13: raises
+        SpatialDataError for any failure path (transport, HTTP non-2xx,
+        JSON decode). The previous mixed contract (return None for
+        HTTP non-2xx, raise for everything else) forced callers to
+        handle two failure paths for one call; that has been collapsed
+        to one raise-everything-non-success contract.
+
+        Returns the parsed `result` dict from a 2xx JSON response.
+        Raises SpatialDataError for HTTP non-2xx, network failures,
+        non-JSON bodies, or any other path. Caller pattern-matches on
+        the exception type, not on a returned sentinel.
+        """
         try:
-            import requests
-            
             response = requests.get(url, timeout=get_service_timeout('census_download'))
-            if response.ok:
-                data = response.json()
-                return data.get('result', {})
-            else:
-                log.error(f"Failed to get metadata: HTTP {response.status_code}")
-                return None
-                
+            if not response.ok:
+                raise SpatialDataError(
+                    f"Dataset metadata fetch from {url} returned HTTP "
+                    f"{response.status_code}: {response.text[:200]!r}"
+                )
+            data = response.json()
+            return data.get('result', {})
+        except SpatialDataError:
+            raise
         except Exception as e:
-            log.error(f"Error getting dataset metadata: {e}")
-            return None
+            raise SpatialDataError(
+                f"Error getting dataset metadata from {url}: {e}"
+            ) from e
     
     def _find_best_format(self, metadata: Dict[str, Any], preferred_format: str) -> Optional[str]:
-        """Find the best available format for download."""
-        try:
-            resources = metadata.get('resources', [])
-            
-            # Look for preferred format first
-            for resource in resources:
-                if resource.get('format', '').lower() == preferred_format.lower():
-                    return resource.get('url')
-            
-            # Fall back to any available format
-            for resource in resources:
-                if resource.get('url'):
-                    return resource.get('url')
-            
-            return None
-            
-        except Exception as e:
-            log.error(f"Error finding format: {e}")
-            return None
+        """Find the best available format for download.
+
+        Pure dict-manipulation; no I/O. The previous catch-all
+        ``except Exception: raise SpatialDataError(...)`` wrapper was
+        treating programming errors (a non-dict in ``resources``, a
+        ``metadata`` that wasn't a dict) as data errors. Let programming
+        errors propagate as themselves so the cause is visible.
+        """
+        resources = metadata.get('resources', [])
+
+        # Look for preferred format first
+        for resource in resources:
+            if resource.get('format', '').lower() == preferred_format.lower():
+                return resource.get('url')
+
+        # Fall back to any available format
+        for resource in resources:
+            if resource.get('url'):
+                return resource.get('url')
+
+        return None
     
     def _download_and_process_dataset(self, url: str, format_type: str) -> Optional[GeoDataFrame]:
         """Download and process the dataset."""
@@ -1348,17 +1835,23 @@ class GovernmentDataSource(SpatialDataSource):
                 log.error(f"Unsupported format: {format_type}")
                 return None
             
-            # Clean up
+            # Best-effort cleanup of the downloaded file. Narrow to OSError
+            # (the only family os.remove raises) and log at debug level so
+            # the failure is observable in CI without polluting prod logs.
             try:
                 os.remove(local_filename)
-            except Exception:
-                pass
+            except OSError as cleanup_exc:
+                log.debug(
+                    "Could not remove temp file %s after download: %s",
+                    local_filename, cleanup_exc,
+                )
             
             return gdf
             
         except Exception as e:
-            log.error(f"Failed to process dataset: {e}")
-            return None
+            raise SpatialDataError(
+                f"Failed to process dataset from {url}: {e}"
+            ) from e
 
 class OpenStreetMapDataSource(SpatialDataSource):
     """OpenStreetMap data source using Overpass API."""
@@ -1409,8 +1902,9 @@ class OpenStreetMapDataSource(SpatialDataSource):
             return gdf
             
         except Exception as e:
-            log.error(f"Failed to download OSM data: {e}")
-            return None
+            raise SpatialDataError(
+                f"Failed to download OSM data: {e}"
+            ) from e
 
 # Convenience functions for backward compatibility
 def get_census_data(api_key: Optional[str] = None) -> CensusDataSource:
@@ -1422,9 +1916,10 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
     """
     Convenience function to get Census boundaries.
 
-    .. deprecated::
+    .. deprecated:: 3.16.0
         Use :func:`fetch_geographic_boundaries` (via CensusDataSource) for
         structured diagnostics via :class:`BoundaryFetchResult`.
+        ``get_census_boundaries`` will be removed in v3.17.0.
 
     Args:
         year: Census year
@@ -1441,8 +1936,9 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
         GeoDataFrame with Census boundaries (filtered by state if specified)
     """
     warnings.warn(
-        "get_census_boundaries() is deprecated. Use CensusDataSource().fetch_geographic_boundaries() "
-        "for structured error reporting via BoundaryFetchResult.",
+        "get_census_boundaries() is deprecated; will be removed in v3.17.0. "
+        "Use CensusDataSource().fetch_geographic_boundaries() for structured "
+        "error reporting via BoundaryFetchResult.",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -1518,8 +2014,13 @@ def get_year_directory_contents(year: int) -> List[str]:
     """Get directory contents for a specific year."""
     return census_source.get_year_directory_contents(year)
 
-def discover_boundary_types(year: int) -> List[str]:
-    """Discover available boundary types for a year."""
+def discover_boundary_types(year: int) -> Dict[str, str]:
+    """Discover available boundary types for a year.
+
+    Returns the same ``{boundary_type: tiger_dir}`` mapping as
+    :meth:`CensusDataSource.discover_boundary_types`. The historical
+    ``List[str]`` annotation never matched runtime behavior.
+    """
     return census_source.discover_boundary_types(year)
 
 def construct_download_url(year: int, geographic_level: str, state_fips: Optional[str] = None) -> str:
@@ -1577,12 +2078,20 @@ def get_geographic_boundaries(
 ) -> Optional[GeoDataFrame]:
     """Get geographic boundaries (legacy, returns None on failure).
 
-    .. deprecated::
+    .. deprecated:: 3.16.0
         Use :func:`fetch_geographic_boundaries` for structured diagnostics.
+        ``get_geographic_boundaries`` will be removed in v3.17.0.
 
     Args:
         crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.
     """
+    warnings.warn(
+        "get_geographic_boundaries() is deprecated; will be removed in v3.17.0. "
+        "Use fetch_geographic_boundaries() for structured diagnostics via "
+        "BoundaryFetchResult.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     gdf = census_source.get_geographic_boundaries(year, geographic_level, state_fips, state_identifier)
     return reproject_if_needed(gdf, crs)
 
@@ -1620,8 +2129,14 @@ def fetch_geographic_boundaries(
     return result
 
 
-def get_available_boundary_types(year: int) -> List[str]:
-    """Get available boundary types for a year."""
+def get_available_boundary_types(year: int) -> Dict[str, str]:
+    """Get available boundary types for a year.
+
+    Returns ``{boundary_type: tiger_dir}`` -- same shape as
+    :meth:`CensusDataSource.get_available_boundary_types`. The
+    historical ``List[str]`` annotation never matched runtime
+    behavior.
+    """
     return census_source.get_available_boundary_types(year)
 
 def refresh_discovery_cache() -> None:
@@ -1706,12 +2221,20 @@ def normalize_fips_code(fips: Union[str, int]) -> str:
     
     return normalized.upper()
 
-def get_available_state_fips() -> List[str]:
-    """Get available state FIPS codes."""
+def get_available_state_fips() -> Dict[str, str]:
+    """Get available state FIPS codes as a ``{fips_code: state_name}`` mapping.
+
+    Same shape as :meth:`CensusDataSource.get_available_state_fips`.
+    Historical ``List[str]`` annotation never matched runtime behavior.
+    """
     return census_source.get_available_state_fips()
 
-def get_state_abbreviations() -> List[str]:
-    """Get state abbreviations."""
+def get_state_abbreviations() -> Dict[str, str]:
+    """Get a ``{fips_code: state_abbreviation}`` mapping.
+
+    Same shape as :meth:`CensusDataSource.get_state_abbreviations`.
+    Historical ``List[str]`` annotation never matched runtime behavior.
+    """
     return census_source.get_state_abbreviations()
 
 def get_comprehensive_state_info() -> Dict[str, Dict[str, Any]]:

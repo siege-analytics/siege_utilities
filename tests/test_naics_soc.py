@@ -2,7 +2,7 @@
 
 import pytest
 
-from siege_utilities.data.naics_soc_crosswalk import (
+from siege_utilities.reference.naics_soc_crosswalk import (
     NAICS_SECTORS,
     SOC_MAJOR_GROUPS,
     crosswalk_naics,

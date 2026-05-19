@@ -346,3 +346,60 @@ class TestH3ResolutionForArea:
         areas = [_H3_RESOLUTION_AREA_KM2[r] for r in range(16)]
         for i in range(len(areas) - 1):
             assert areas[i] > areas[i + 1]
+
+
+@pytest.mark.skipif(not h3_utils.H3_AVAILABLE, reason="h3 package not installed")
+class TestResolutionForAdminLevel:
+    """h3_resolution_for_admin_level: admin geography level → H3 resolution."""
+
+    def test_state_returns_low_resolution(self):
+        # ~196,600 km^2 sits between H3 res 1 (609k) and res 2 (87k).
+        # The closest in log-space is res 2.
+        assert h3_utils.h3_resolution_for_admin_level("state") in (1, 2)
+
+    def test_county_returns_mid_resolution(self):
+        # ~3,000 km^2 sits between res 3 (12,393) and res 4 (1,770);
+        # res 4 is closer in log-space.
+        assert h3_utils.h3_resolution_for_admin_level("county") in (3, 4)
+
+    def test_tract_returns_high_resolution(self):
+        # ~5 km^2 ≈ res 6-7
+        assert h3_utils.h3_resolution_for_admin_level("tract") in (6, 7)
+
+    def test_levels_are_monotonic(self):
+        """Larger admin units → lower H3 resolutions."""
+        levels = ["state", "county", "zcta", "tract", "block_group", "block"]
+        resolutions = [h3_utils.h3_resolution_for_admin_level(L) for L in levels]
+        for i in range(len(resolutions) - 1):
+            assert resolutions[i] <= resolutions[i + 1], (
+                f"{levels[i]} (res {resolutions[i]}) should be ≤ "
+                f"{levels[i+1]} (res {resolutions[i+1]})"
+            )
+
+    def test_aliases_map_to_canonical(self):
+        canonical = h3_utils.h3_resolution_for_admin_level("zcta")
+        for alias in ("zip", "zip_code", "zipcode", "ZIP", "ZCTAs"):
+            assert h3_utils.h3_resolution_for_admin_level(alias) == canonical
+
+        bg = h3_utils.h3_resolution_for_admin_level("block_group")
+        for alias in ("bg", "BG", "blockgroup", "block_groups"):
+            assert h3_utils.h3_resolution_for_admin_level(alias) == bg
+
+    def test_case_insensitive(self):
+        assert h3_utils.h3_resolution_for_admin_level("STATE") == \
+            h3_utils.h3_resolution_for_admin_level("state")
+        assert h3_utils.h3_resolution_for_admin_level("County") == \
+            h3_utils.h3_resolution_for_admin_level("county")
+
+    def test_unknown_level_raises(self):
+        with pytest.raises(ValueError, match="Unknown admin level"):
+            h3_utils.h3_resolution_for_admin_level("metro")
+        with pytest.raises(ValueError, match="Recognised levels"):
+            h3_utils.h3_resolution_for_admin_level("")
+
+    def test_admin_table_values_descend(self):
+        """ADMIN_LEVEL_AVG_AREA_KM2 should be ordered largest to smallest."""
+        levels = ["state", "county", "zcta", "tract", "block_group", "block"]
+        areas = [h3_utils.ADMIN_LEVEL_AVG_AREA_KM2[L] for L in levels]
+        for i in range(len(areas) - 1):
+            assert areas[i] > areas[i + 1]

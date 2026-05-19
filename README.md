@@ -47,6 +47,38 @@ su.log_info("Ready.")
 recommendations = su.select_census_datasets("demographics", "tract")
 ```
 
+## Error Handling
+
+`siege_utilities` follows a **fail-loud-over-silent-swallow** policy: when a
+function cannot deliver its documented output, it raises a typed exception
+rather than returning `None`, `False`, or an empty container that looks like
+a legitimate "no result." This distinguishes real failures from expected
+empty-input paths and prevents silent data corruption in downstream
+pipelines.
+
+Key exception types by subsystem:
+
+| Subsystem | Exception | Parent | Raised When |
+|-----------|-----------|--------|-------------|
+| reporting (top-level) | `ReportingConfigError` | `RuntimeError` | export / import config fails |
+| reporting.chart_types | `UnknownChartTypeError` | `LookupError` | chart type not in registry |
+| reporting.chart_types | `ChartParameterError` | `ValueError` | required params missing / bad |
+| reporting.chart_types | `ChartCreationError` | `RuntimeError` | `create_function` failed |
+| reporting.client_branding | `ClientBrandingNotFoundError` | `LookupError` | named client has no config |
+| reporting.client_branding | `ClientBrandingError` | `RuntimeError` | I/O or YAML parse failure |
+| geo.census_geocoder | `CensusGeocodeError` | `RuntimeError` | Census API/network failure |
+| geo.spatial_data | `SpatialDataError` | `RuntimeError` | portal dataset / OSM failure |
+| geo.boundary_result | `BoundaryRetrievalError` (+ 6 subclasses) | `Exception` | boundary lookup problems |
+
+All new exceptions use `raise ... from e` chaining — inspect `exc.__cause__`
+to see the underlying error. Because the exception types subclass standard
+Python exceptions, broad existing `except ValueError:` / `except LookupError:`
+handlers continue to work.
+
+See [`docs/FAILURE_MODES.md`](docs/FAILURE_MODES.md) for the catalog of
+silent-swallow patterns this library has eliminated and the migration
+guidance for callers that relied on the old return-value behavior.
+
 ## Import Philosophy
 
 This project intentionally favors convenience access patterns, including broad function availability from the package surface. That is a design choice, not an accident.
@@ -94,6 +126,11 @@ See:
 - `docs/EXAMPLES.md`
 - `docs/ISOCHRONES_AND_WKLS.md`
 - `docs/MANAGED_ENVIRONMENTS.md`
+- `docs/INTENT.md` — per-module purpose + divergence catalog (ELE-2416)
+- `docs/FAILURE_MODES.md` — cross-cutting anti-pattern catalog (ELE-2418)
+- `docs/TEST_UPGRADES.md` — test-quality patterns and coverage scorecard (ELE-2419)
+- `docs/ARCHITECTURE.md` + `docs/adr/` — three-layer model and ADRs (ELE-2417)
+- `docs/NOTEBOOKS.md` — notebook inventory and consolidation plan (ELE-2421)
 
 ## External Contributor Workflow
 

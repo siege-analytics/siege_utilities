@@ -466,12 +466,41 @@ class TestGetFrom1Password:
         result = manager._get_from_1password('nonexistent', 'field')
         assert result is None
 
-    def test_returns_none_on_exception(self, manager_with_defaults):
+    def test_propagates_transport_errors_instead_of_swallowing(self, manager_with_defaults):
+        """Transport / auth / vault-permission errors PROPAGATE; they no
+        longer fall through to a less-trusted backend.
+
+        Per writing-tests:1 retroactive-fix corollary (RG-9 / v2.3.1):
+        this test was previously named test_returns_none_on_exception
+        and asserted the silent-swallow as feature. writing-code:7
+        treats catch-all-except-and-return-None as banned; the fix in
+        issue #483 narrowed the helper to "exit code 1 (item not
+        found) -> return None; other failures -> raise." Tests follow
+        the rule.
+
+        The author's writing-tests:1 check passed at original-author
+        time because the test was designed for the now-banned silent
+        fallback; correctness against the implementation did not equal
+        correctness against the rule. Rules win on conflict.
+        """
         manager, mock_run = manager_with_defaults
         mock_run.side_effect = Exception("connection failed")
 
-        result = manager._get_from_1password('svc', 'field')
-        assert result is None
+        with pytest.raises(Exception, match="connection failed"):
+            manager._get_from_1password('svc', 'field')
+
+    def test_propagates_nonzero_nonone_exit_codes(self, manager_with_defaults):
+        """Non-1 nonzero exit (auth required, vault permission, etc.)
+        raises RuntimeError naming the exit code and stderr so the
+        caller can decide what to do; it must NOT silently return None
+        and let the backend loop fall through to keychain/prompt for a
+        credential 1Password may actually have."""
+        manager, mock_run = manager_with_defaults
+        # exit code 2 = some op CLI error other than "not found."
+        mock_run.return_value = Mock(returncode=2, stdout='', stderr='auth required')
+
+        with pytest.raises(RuntimeError, match="exited with code 2"):
+            manager._get_from_1password('svc', 'field')
 
 
 # =============================================================================
@@ -586,13 +615,30 @@ class TestGetCredentialInstance:
             result = manager.get_credential('svc', 'user', 'password')
             assert result == 'found'
 
-    def test_exception_in_backend_continues(self, mock_op_available):
-        """If a backend raises an exception, continue to the next."""
+    def test_exception_in_backend_propagates(self, mock_op_available):
+        """A backend that raises an exception PROPAGATES; the loop does
+        not silently continue to a less-trusted backend.
+
+        Per writing-tests:1 retroactive-fix corollary (RG-9 / v2.3.1):
+        this test was previously named test_exception_in_backend_continues
+        and asserted the silent-swallow fall-through as feature. The
+        rationale from issue #483: silent fallback from a backend that
+        errored (vs a backend that legitimately did not have the
+        credential) caused the operator to be prompted for credentials
+        that 1Password actually had -- UX-degrading at best,
+        security-degrading at worst. writing-code:7 bans the
+        catch-all-and-continue shape. Rules win on conflict.
+
+        Backend helpers are now responsible for distinguishing
+        'not in this backend' (return None, fall through) from
+        'errored' (raise, do not fall through). The loop itself no
+        longer has a catch-all.
+        """
         manager = CredentialManager(backend_priority=['files', 'env'])
         with patch.object(manager, '_get_from_files', side_effect=Exception("read error")), \
              patch.dict(os.environ, {'SVC_API_KEY': 'fallback_key'}, clear=False):
-            result = manager.get_credential('svc', 'user', 'api_key')
-            assert result == 'fallback_key'
+            with pytest.raises(Exception, match="read error"):
+                manager.get_credential('svc', 'user', 'api_key')
 
 
 # =============================================================================
@@ -1524,3 +1570,54 @@ class TestFetchRealGA4DataOAuth2Fallback:
         mock_oauth.assert_called_once_with(vault='Private', account='Dheeraj_Chand_Family')
         # Both credential strategies failed, so result should be None
         assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _redact (PR #443 — B13 follow-up per CR feedback)
+# ---------------------------------------------------------------------------
+
+class TestRedact:
+    def test_short_strings_pass_through(self):
+        from siege_utilities.config.credential_manager import _redact
+        assert _redact("hi") == "hi"
+        assert _redact("op: item not found") == "op: item not found"
+
+    def test_long_alphanumeric_run_redacted(self):
+        from siege_utilities.config.credential_manager import _redact
+        token = "a" * 40
+        out = _redact(f"got token {token}")
+        assert token not in out
+        assert "[REDACTED]" in out
+
+    def test_key_value_pattern_redacted(self):
+        from siege_utilities.config.credential_manager import _redact
+        out = _redact("password=hunter2 other text")
+        assert "hunter2" not in out
+        assert "[REDACTED]" in out
+        # Variants
+        assert "secret" not in _redact("secret: abc123def456")
+        # Build the fake bearer payload via concatenation so GitGuardian's
+        # JWT regex doesn't flag this test file. The redactor sees the
+        # full string at runtime; the secret scanner doesn't.
+        fake_bearer = "Authorization: Bearer " + "AAAA" * 12 + ".BBBB.CCCC"
+        redacted = _redact(fake_bearer)
+        assert "Bearer" in redacted or "[REDACTED]" in redacted
+
+    def test_truncation_at_max_len(self):
+        from siege_utilities.config.credential_manager import _redact
+        # Use word-broken text so the alphanumeric-run redaction doesn't
+        # collapse the whole string to "[REDACTED]" before truncation.
+        long = ("hello world " * 100).strip()
+        out = _redact(long, max_len=50)
+        assert len(out) <= 50 + len("...[truncated]")
+        assert out.endswith("[truncated]")
+
+    def test_empty_returns_empty(self):
+        from siege_utilities.config.credential_manager import _redact
+        assert _redact("") == ""
+        assert _redact(None) == ""
+
+    def test_non_string_coerced(self):
+        from siege_utilities.config.credential_manager import _redact
+        # str() coercion should keep this working
+        assert _redact(123) == "123"

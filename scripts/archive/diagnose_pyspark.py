@@ -21,7 +21,7 @@ def check_environment():
 
     # Check Java
     try:
-        result = subprocess.run(['java', '-version'], capture_output=True, text=True)
+        result = subprocess.run(['java', '-version'], capture_output=True, text=True, timeout=60)
         print(f"Java version: {result.stderr.split(chr(10))[0]}")
     except Exception as e:
         print(f"Java check failed: {e}")
@@ -142,7 +142,7 @@ def check_processes():
     print("\n=== PROCESS CHECK ===")
 
     try:
-        result = subprocess.run(['ps', 'aux'], capture_output=True, text=True)
+        result = subprocess.run(['ps', 'aux'], capture_output=True, text=True, timeout=60)
         spark_processes = [line for line in result.stdout.split('\n') if 'spark' in line.lower()]
 
         if spark_processes:

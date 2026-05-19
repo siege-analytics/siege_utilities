@@ -2,6 +2,8 @@
 Map chart mixins — choropleth, marker, 3D, heatmap, cluster, flow, and bivariate maps.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from pathlib import Path
@@ -54,7 +56,12 @@ except ImportError:
     pd = None
     np = None
 
-from reportlab.platypus import Image
+try:
+    from reportlab.platypus import Image
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+    Image = None
 
 log = logging.getLogger(__name__)
 
