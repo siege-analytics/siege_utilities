@@ -11,7 +11,7 @@ from siege_utilities.databricks.lakebase import (
     build_pgpass_entry,
     parse_conninfo,
 )
-from siege_utilities.databricks.unity_catalog import (
+from siege_utilities.databricks.lakehouse_federation import (
     build_foreign_table_sql,
     build_schema_and_table_sync_sql,
 )
