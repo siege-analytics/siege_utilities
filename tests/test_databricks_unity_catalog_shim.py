@@ -10,8 +10,6 @@ import importlib
 import sys
 import warnings
 
-import pytest
-
 
 def _fresh_import(name):
     """Drop the module from sys.modules and re-import so the
