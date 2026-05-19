@@ -7,6 +7,559 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.2] - 2026-05-14
+
+Patch release: hydra is an optional extra; importing siege_utilities without it must not emit a misleading "Pydantic config system" warning. Closes #498.
+
+### Fixed
+
+- **Hydra absence no longer surfaces as "Could not import Pydantic config system"** (#498).
+  `siege_utilities/config/__init__.py` had `from .hydra_manager import HydraConfigManager` inside the pydantic try block. When hydra was absent, the whole block failed and emitted a WARNING blaming pydantic. The eager hydra-manager import is now in its own narrow try/except; hydra absence drops to DEBUG (it's an optional `[config-extras]` extra), and the dependency wrapper cites `hydra-core` / `omegaconf` rather than `pydantic` when the consumer tries to use `HydraConfigManager`.
+
+  writing-code:8 (conditional-import callsite hygiene) territory. Three regression tests in `tests/test_config_hydra_optional.py` pin the new behavior.
+
+## [3.17.1] - 2026-05-14
+
+Patch release: package-hygiene fix surfaced by the v3.17.0 consumer-side verification (proposed claude-configs-public writing-releases:5).
+
+### Fixed
+
+- **`scripts/`, `tests/`, `docs/` no longer ship to `site-packages` root** (#496):
+  setuptools `find_packages(include=["*"])` was matching every directory
+  containing `.py` files at the repo root. `pip install siege-utilities`
+  was installing `site-packages/scripts/` as a top-level package, polluting
+  every downstream venv (a user could `from scripts import release_manager`
+  and collide with their own top-level `scripts/` package). Pre-existing
+  in v3.16.0 and earlier; v3.17.0 added `check_unbounded_io.py` to the
+  polluted namespace.
+
+  Fix: explicit `exclude` in `[tool.setuptools.packages.find]` for
+  `scripts*`, `tests*`, `docs*`. Wheel verified post-fix: zero matches
+  for those prefixes.
+
+  Surfaced by the v3.17.0 consumer-side verification per the proposed
+  writing-releases:5 rule: source-side green (25 CI jobs pass; twine
+  check pass; scanner clean) but two real consumer-side bugs reached
+  PyPI. Recurrence 3 of LESSON 323a0f5 family in the rule's originating
+  arc.
+
+## [3.17.0] - 2026-05-14
+
+Minor release rolling up a 12-PR rule-cohort fix-exercise session against
+claude-configs-public v2.2.0 through v2.6.0. New scanner `writing-code:15`
+(unbounded blocking I/O) wired into CI. Four BREAKING changes to specific
+public surfaces, each cited against the rule that drove the change.
+
+### Added
+
+- **writing-code:15 unbounded-I/O ratchet** (`scripts/check_unbounded_io.py`, #492):
+  AST scanner that flags any `subprocess.run` / `subprocess.check_output` /
+  `subprocess.check_call` / `requests.{get,post,...}` / `urllib.request.urlopen`
+  / `socket.create_connection` / `sqlite3.connect` call that lacks an
+  explicit `timeout=` kwarg. Every unbounded blocking call is a DoS
+  primitive against the caller's process. Wired into CI as a new job
+  (`unbounded-io-check`) that runs against the full repo on every PR.
+  Per claude-configs-public v2.6.0 writing-code:15 ratification.
+- **Sprint C gazetteers** (#470, closes #454): `CensusGazetteer` + `WikidataGazetteer`
+  under `siege_utilities/geo/gazetteers/`. Two-step lookup against the
+  Census Geocoder + TIGERWeb for US administrative places; SPARQL +
+  Overpass for non-administrative places via Wikidata + OSM. Includes
+  OSM way-segment stitching for split-outer multipolygon relations.
+- **15 `_add_*_slide` methods return `Slide`** (#487, #492, closes #485):
+  `PowerPointGenerator` private methods now return the python-pptx
+  `Slide` object instead of `None`. Class docstring documents the
+  convention. Per writing-code:11 floor (a) inspectable return value.
+- **`_ENGINE_MAP` module-load-time exhaustiveness assertion** (#492):
+  `engines/dataframe_engine.py` validates the engine-name map covers
+  every Engine enum member at import time. New engine added without
+  map entry now fails-fast at import, not lazily at lookup.
+
+### Security
+
+- **`databricks.lakebase` + `databricks.unity_catalog` input validation** (#482):
+  SQL identifier validation in `build_foreign_table_sql`; shell injection
+  prevention in `build_lakebase_psql_command` via `validate_sql_identifier`
+  + `shlex.quote`. `build_pgpass_entry` correctly escapes `:` and `\` in
+  passwords (previously emitted malformed pgpass lines on special chars).
+- **`credential_manager` silent-swallow drain** (#484): five `except: pass`
+  patterns narrowed; backend dispatch distinguishes "credential not found"
+  from "credential lookup errored" via `op` exit code as trust boundary.
+
+### Changed
+
+- **Bounded blocking I/O across the library and scripts** (#492, writing-code:15): 55
+  unbounded `subprocess.run` / `check_output` / `urlopen` /
+  `sqlite3.connect` call sites now declare explicit timeouts. Per-call
+  defaults reflect the operation (`git`/`hdfs`/`twine check` = 30-60s;
+  `pip install` = 300s; `setup.py` build / `twine upload` / test
+  runner = 600s; HTTP downloads = 60s; SQLite lock-wait = 10s; `op`
+  CLI = 60s for biometric prompts). Sites that previously could hang
+  the caller's process indefinitely now surface failure instead.
+- **`DataFrameEngine.multi_assign` produces layer-prefixed columns** (#492, closes #473):
+  Previously chained `assign_boundaries` without renaming — second join
+  silently overwrote the first layer's `geoid`/`name`/etc. when TIGER
+  layers shared column names. Now every polygon-side column is prefixed
+  `{layer_name}_*`. Documented behavior now matches code.
+- **Em-dash and other AI-typographic punctuation removed** (#478, #492):
+  Per writing-prose:1, across `engines/dataframe_engine.py`,
+  `geo/spatial_data.py`, `analytics/vista_social.py`, `core/sql_safety.py`,
+  and all 8 `survey/*.py` files (~70+ ASCII conversions).
+- **Cross-module return-type annotations corrected** (#492): five sites on
+  `discover_boundary_types`, `get_available_boundary_types`,
+  `get_available_state_fips`, `get_state_abbreviations` were annotated
+  `List[str]` but always returned `Dict[str, str]` at runtime. Type
+  stubs now match reality.
+- **History-reference sweep** (#476, writing-code:2): PR/issue/commit
+  references purged from code comments and docstrings across
+  `engines/dataframe_engine.py` and `geo/spatial_data.py`. Per
+  writing-code:2: code documentation must not reference git history.
+- **`assign_boundaries` and `multi_assign` docstrings reflect actual behavior** (#472, #474):
+  Two docstring-vs-code mismatches in `DataFrameEngine`.
+  `assign_boundaries` was documented `predicate='contains'` but used
+  `'within'`; `multi_assign` claimed layer-prefixed columns that #492
+  delivered.
+- **`_ensure_sedona` emits observable signal on every path** (#487):
+  Three states (already-registered, sedona-disabled, fresh-registration)
+  each log at DEBUG. Per writing-code:11 floor (b) audit-trail.
+- **`spatial_data.py` failure-mode contract sweep** (#478, #489): consistent
+  failure-mode contract across `GovernmentDataSource._get_dataset_metadata`,
+  `OpenStreetMapDataSource.download_osm_data`, and related
+  metadata-fetch surfaces. Per writing-code:13.
+- **`databricks.get_dbutils` content-distinguishable dispatch** (#491):
+  Two-path import (`pyspark.dbutils` vs IPython namespace) now uses
+  module-presence checks rather than `try/except` for branching. Per
+  writing-code:14 (no exception-as-dispatch when content is
+  distinguishable).
+- **`init_logger` deprecation note** (#492): `init_logger` is a
+  get-or-create alias for `get_logger` despite its name suggesting
+  first-time setup. Docstring marker `.. deprecated::` directs callers
+  to `configure_shared_logging` + `get_logger`.
+
+### Fixed
+
+- **`flatten_json_column_and_join_back_to_df` corrupt-record paths** (#492):
+  Both fallback branches wrap `validate_json` as a Spark UDF before
+  passing to `.otherwise()`. Plain Python call had been evaluated once
+  at plan-build time with a `Column` object, producing constant
+  `lit(None)` per row instead of per-row validation.
+- **`testing.environment.check_java_version` subprocess timeout** (#492):
+  Was unbounded; a hung JDK process would cascade through
+  `setup_spark_environment` → `quick_environment_setup` indefinitely.
+  Now `timeout=10`.
+- **`vista_social` history-reference scrub** (#492): docstring references
+  to `issue #306` / `PR #433` / `Phase-3 sweep` purged per writing-code:2.
+- **`scan_unbounded_io.py` self-greppable regression** (#492): scanner
+  source includes a comment hash for itself; a revert that drops the
+  UDF wrapping turns the regression test red.
+
+### BREAKING
+
+**From the v2.3.0 fix exercise (PR #487):**
+
+- **`siege_utilities.databricks.ensure_secret_scope`** now returns the scope name (`str`) instead of `True`. Callers asserting on the bool return need to update; callers ignoring the return value are unaffected.
+- **`siege_utilities.databricks.put_secret`** now returns the scope-qualified key (`str`, e.g. `"my-scope/my-key"`) instead of `True`. Callers asserting on the bool return need to update; callers ignoring the return value are unaffected.
+- **`siege_utilities.databricks.runtime_secret_exists`** no longer catches `Exception` and silently returns `False` on lookup errors. The function now propagates the underlying exception (scope-missing, auth-denied, etc.) so the caller can distinguish "key not present in scope" from "lookup failed entirely." Callers relying on the silent-False on lookup errors need to wrap in their own exception handler or pre-check scope existence.
+
+All three are public-API changes per `__all__` in `siege_utilities.databricks` and the top-level `siege_utilities` namespace. The new contracts are stricter (more informative returns; no silent error swallowing) but break callers depending on the previous shapes. Drift is intentional: the previous contracts violated [`writing-code:7`](https://github.com/siege-analytics/claude-configs-public/blob/main/skills/_writing-code-rules.md) (silent error swallowing) and [`writing-code:11`](https://github.com/siege-analytics/claude-configs-public/blob/main/skills/_writing-code-rules.md) (no silent processes) from claude-configs-public v2.3.0.
+
+**From the v2.3.1 fix exercise (PR #489):**
+
+- **`siege_utilities.reporting.PowerPointGenerator.generate_powerpoint_presentation`** now returns `Path` (the saved file location) instead of `bool`. Raises on any python-pptx or filesystem error. Consistent with sibling `create_*_presentation` methods per [claude-configs-public v2.3.1 writing-code:13](https://github.com/siege-analytics/claude-configs-public) (sibling methods within a class follow the same failure-mode contract). Callers using the bool return need to switch to try/except + Path; callers ignoring the return value are unaffected. The bundled example in `siege_utilities/reporting/examples/comprehensive_mapping_example.py` was updated as part of the change.
+- **`siege_utilities.geo.spatial_data.GovernmentDataSource._get_dataset_metadata`** now raises `SpatialDataError` on HTTP non-2xx instead of returning `None`. Per writing-code:13 (consistent failure-mode contract), the mixed contract (return None for HTTP non-2xx, raise for transport/parse errors) collapsed to a single raise-everything-non-success contract. The private method's contract change is invisible to external consumers; the public `download_dataset` caller's contract is unchanged.
+
+**From bugfix/logging-silent-nullhandler-fallback (PR #480):**
+
+- **`LoggerManager._create_rotating_file_handler` now raises `OSError`** (or subclass: `PermissionError`, `FileNotFoundError`, etc.) on failure instead of silently substituting `logging.NullHandler()`. Previous behavior masked permission-denied / disk-full / invalid-path failures: the caller asked for file logging, the directory was unwritable, the call succeeded silently, and no logs were ever written. Callers configuring file logging must now handle `OSError` from `configure_shared_logging` / `init_logger` / `get_logger`. Per writing-code:11: file-handler creation failures are now observable rather than swallowed.
+
+Drift is intentional and traceable: each BREAKING entry cites the rule that drove it. Per claude-configs-public v2.3.1 writing-releases:1 composition discipline, BREAKING-changelog entries land as separate commits on the fix-exercise PRs, composing writing-code:13 / writing-code:11 with writing-releases:1 without losing per-rule attribution.
+
+## [3.16.0] - 2026-05-13
+
+Minor release rolling up the post-v3.15.1 backlog and a six-round
+hostile code review of that work.
+
+### Added
+
+- **Sprint B connector test coverage** (#459, #463): mock-test suites for
+  `snowflake_connector`, `facebook_business`, `datadotworld_connector`,
+  `vista_social`, and `google_workspace`, plus a live-API smoke
+  addition to the existing `google_analytics` suite. All live-API
+  tests are gated behind `@pytest.mark.requires_api_key` and skip
+  when `~/.siege-test-credentials.yaml` is absent. Documentation at
+  `docs/testing/sprint-b-credentials.md`.
+- **Sprint E Phase 1 invariants doc** (#462): `docs/engines/INVARIANTS.md`
+  defines what cross-engine `DataFrameEngine` behaviour is mandatory
+  vs. allowed to differ across PandasEngine, DuckDBEngine, SparkEngine,
+  and PostGISEngine. Hypothesis-based skeleton property test that
+  actually crosses an engine boundary (pandas vs. raw DuckDB SQL).
+
+### Changed
+
+- **NCES populator vectorisation** (#461): the three
+  `NCESPopulationService` methods (`populate_locale_boundaries`,
+  `populate_school_locations`, `enrich_school_districts`) pre-fetch
+  existing rows into a dict keyed by the unique-together tuple,
+  collapsing N+1 SELECT patterns to a single SELECT plus batched
+  `bulk_update`. `objects_to_update` lists now flush every
+  `batch_size` rows mid-loop so memory growth is bounded. `bulk_update`
+  bypasses Django's `auto_now=True`, so `updated_at` is set explicitly
+  via `timezone.now()` and included in the update field list.
+  `enrich_school_districts` now accepts a `batch_size` keyword argument
+  matching the other two methods.
+- **PostGIS upload via `executemany`** (#461): replaces per-row
+  `cursor.execute` with batched `executemany` and pandas-level
+  geometry extraction.
+- **PostGIS `execute_spatial_query` uses `gpd.read_postgis`** (#465):
+  the previous manual-fetch path returned a non-geo frame with raw
+  WKB bytes in the geometry column. `gpd.read_postgis` decodes
+  geometry and picks up SRID from the geometry column metadata.
+  SELECT and non-SELECT branches each have their own
+  try/except/rollback so a failed read does not leave the connection
+  in an aborted-transaction state.
+- **DuckDB upload via explicit `register`/`unregister`** (#465):
+  `DuckDBConnector.upload_spatial_data` and
+  `_convert_to_duckdb` no longer rely on duckdb's replacement scan
+  finding `df` in the caller frame. The unregister call is wrapped
+  so it cannot mask the original exception.
+- **`DataFrameEngine.groupby_agg` agg-name validation** (#465):
+  all four engines now route through the shared
+  `_validate_agg_names` helper at the top of `groupby_agg`. Unknown
+  agg names raise `ValueError` consistently; empty `agg_dict` raises
+  with the same shape; `avg` is normalised to `mean` so the
+  documented synonym works everywhere.
+- **`spatial_transformations._convert_to_postgis` vectorised**
+  (#461): the SQL-file generator builds the line set with
+  `Series.apply` and string concatenation instead of an `iterrows`
+  loop. Output is byte-identical to the old path.
+
+### Fixed
+
+- **Bulk_update timestamp regression** (#464, #465): the in-loop
+  flush path is exercised by Django-backed tests under
+  `requires_api_key`-style gating (`pytest.mark.django_db` plus
+  GDAL skipif) seeding `batch_size + N` rows so both the in-loop
+  and the post-loop bulk_update branches are hit.
+- **Perf test fraud** (#465): `tests/perf/test_iterrows_regressions.py`
+  now imports and drives `SpatialDataTransformer._convert_to_postgis`
+  rather than re-inlining the algorithm. A revert of the production
+  vectorisation now turns the test red.
+- **Cross-engine property test fraud** (#465): the skeleton compared
+  `PandasEngine` to `DuckDBEngine`, but `DuckDBEngine.groupby_agg`
+  passes pandas DataFrames straight through to pandas. The test could
+  not detect a divergence. Rewritten to compare PandasEngine's output
+  to raw DuckDB SQL via `duckdb.connect`, parametrised across
+  `sum`/`mean`/`min`/`max`/`count`. Added fixed-case tests pinning
+  the documented `sum`-of-all-NaN-is-0.0 and `count`-excludes-NaN
+  invariants.
+- **`api_credentials` fixture polarity** (#465): malformed YAML now
+  raises via `pytest.fail` instead of skipping silently.
+
+### Sprint summary
+
+- Sprint A (#452): reliability fixes -- shipped in v3.15.1.
+- Sprint B (#453): connector test coverage -- complete.
+- Sprint C (#454): Census + Wikidata gazetteers -- deferred per the
+  ticket's own reactive-only guidance; remains open as a placeholder.
+- Sprint D (#455): iterrows vectorisation -- complete; perf benchmarks
+  reframed as correctness checks.
+- Sprint E (#456): cross-engine invariants -- Phase 1 (design doc +
+  skeleton) complete; Phase 2 and Phase 3 to be filed.
+
+## [3.15.1] - 2026-05-12
+
+Patch release: Sprint A reliability fixes (#452, shipped via #457). Nine
+small correctness improvements flagged in the 2026-05-08 hostile review
+but deferred from v3.15.0. Each fix carries a regression test in
+`tests/test_sprint_a_reliability.py`.
+
+### Fixed
+
+- **`survey/crosstab.build_chain`** rejects empty / schema-incompatible
+  input with `CrosstabInputError` instead of returning a silent blank
+  `Chain` indistinguishable from "no significant results."
+- **`engines/dataframe_engine.SparkEngine.groupby_agg`** validates
+  aggregation function names against a known set; unknown names raise
+  `ValueError` up-front instead of cryptic `AttributeError` from
+  `getattr(F, func)` deep in the Spark call stack.
+- **`survey/weights.apply_rim_weights`** pre-validates target columns
+  and categories before handing off to weightipy, which otherwise fails
+  to converge with an opaque message after a long run. NaN target keys
+  are skipped (NaN != NaN was tripping false positives).
+- **`analytics/google_analytics`** validates GA date parameters as
+  `YYYY-MM-DD` or recognized relative keyword (`today`, `yesterday`,
+  `NdaysAgo`) before the API call. Docstrings now state that GA dates
+  are interpreted in the property's configured timezone.
+- **`reporting/report_generator`** escapes `<` and `&` in user text
+  before passing to ReportLab `Paragraph` at every call site
+  (mini-HTML parser would otherwise crash on `Q&A` / `<3`-style
+  content). Applies to titles, text sections, bullets, image / map
+  descriptions, and the default-section fallback.
+- **`reporting/powerpoint_generator`** appends a `uuid4` fragment to
+  the timestamp filename so two reports generated in the same second
+  no longer overwrite each other (cron batch hazard).
+- **`reporting/report_generator.generate_pdf_report`** pre-checks
+  output-directory writability and builds the PDF into a sibling
+  `.part` temp before `os.replace` into the final path. Partial PDFs
+  no longer appear on disk on failure; the temp is cleaned up on
+  rename error.
+- **`config/credential_manager._redact`** carves out 40-char Git
+  SHA-1s from the "long hex run" redaction rule so commit IDs pass
+  through in error messages, while still redacting other long hex
+  tokens and base64/JWT-style secrets.
+
+### Notes
+
+- IDML `add_text_frame` `style_name` parameter was already addressed in
+  v3.15.0 (a525ba2); verified and tested in this release.
+- `scripts/check_no_stub_docstrings.py` / `scripts/check_lazy_imports.py`
+  remain clean.
+
+## [3.15.0] - 2026-05-11
+
+A combined feature + hardening release. Five new substantive surfaces
+(grid utilities, gazetteers, hex cartograms, NL→geometry resolver) plus
+the full landing of the 2026-05-08 hostile code review (15 Blockers,
+≈11 Major-tier findings, 20+ CodeRabbit follow-ups, stub-docstring
+cleanup).
+
+### Added — new public surfaces
+
+- **H3 + S2 grid utilities** with grid-agnostic dispatcher (`#438`):
+  `siege_utilities.geo.grids.index_points` / `index_polygon` /
+  `infer_grid`. Pass `resolution=` for H3, `level=` for S2, or
+  `grid=` explicit. Wired through the multi-engine
+  `DataFrameEngine.index_points` / `index_polygon` (`#439`).
+- **Hex cartograms** (`#440`) — `siege_utilities.reporting.hex_cartogram`
+  with `hex_tile_layout`, `hex_tile_map`, three algorithms
+  (`Algorithm.GREEDY` / `HUNGARIAN` / `ANNEALING`) and three sizing
+  modes (`Sizing.EQUAL` / `VALUE_PROPORTIONAL` / `VALUE_SQRT`).
+  Connected-component splitting handles non-contiguous admin sets
+  (CONUS + AK + HI).
+- **Gazetteer protocol** (`#441` + `#442`) —
+  `siege_utilities.geo.gazetteers`: a typed `Gazetteer` Protocol with
+  `lookup` / `search`, two backends:
+  - `WklsGazetteer` (Overture Maps admin boundaries via embedded
+    sedonadb, no API key, no rate limit).
+  - `NominatimGazetteer` (geopy wrapper requesting
+    `geometry='geojson'`).
+  Plus `resolve_gazetteer(prefer='wkls' | 'nominatim')` factory and
+  typed error hierarchy (`GazetteerError` / `NotFoundError` /
+  `AmbiguousError` / `BackendError`).
+- **`etter_to_geometry` resolver** (`#447`) —
+  `siege_utilities.geo.providers.etter_to_geometry`. Turns an Etter
+  `EtterFilter` plus a `Gazetteer` into a shapely geometry. Three
+  relation-semantics modes:
+  - `RelationSemantics.BOUNDED` (default) — finite directional buffer
+    suitable for indexed-lookup workloads.
+  - `RelationSemantics.HALFPLANE` — unbounded halfplane clipped to
+    world bbox.
+  - `RelationSemantics.CONTAINS_CENTROID` — returns a
+    `PointPredicate` callable instead of a polygon.
+- **End-to-end NL→geometry showcase notebook** (`#448`) —
+  `notebooks/spatial/07_natural_language_to_geometry.ipynb` chains
+  Gazetteer → Etter → resolver → grid dispatcher in one demo.
+
+### Security & correctness
+
+- **SQL injection sweep** (`#443` B1) — parameterized or
+  allow-list-validated identifier interpolation at 8 sites across
+  DuckDB, Snowflake, PostGIS, and Spark/Sedona.
+- **Zip-slip protection** (`#443` B2) — `unzip_file_to_directory`
+  now validates AND extracts per member; previous validate-then-
+  `extractall` ignored the check.
+- **`run_command(unsafe=True)` no longer implies `shell=True`**
+  (`#443` B4) — the two are now orthogonal; argv-level execution
+  preserved for safety even when bypassing the allow-list.
+- **SSL `verify=False` fallback is now opt-in** (`#444`) — controlled
+  by `SIEGE_INSECURE_SSL=1`. Previously the spatial-data downloader
+  silently disabled verification on every SSL error, which is exactly
+  the case a MITM proxy creates.
+- **Env-path traversal guard** (`#444`) — `SIEGE_OUTPUT`,
+  `SIEGE_DATA`, `SIEGE_CACHE` etc. refuse paths outside `$HOME` by
+  default; `SIEGE_ALLOW_UNSAFE_PATHS=1` to override.
+- **`_slugify_client_name`** (`#444`) — branding directory names are
+  now allow-list normalised. Previously `replace(' ', '_')` left
+  `../` and OS path separators free to escape `config_dir`.
+- **Platform-aware Liberation font lookup** (`#444`) — was hardcoded
+  to `/usr/share/fonts/truetype/liberation` (Linux-only).
+- **`print()` log fallbacks removed** (`#444`) — `geo/geocoding.py`
+  and `providers/census_geocoder.py` previously bypassed user
+  logging config when the package-level helpers couldn't be
+  imported. Stdlib `logging.getLogger` is a hard requirement now.
+- **PostGIS uploads pass SRID** (`#443` review-followup) —
+  `PostGISConnector.upload_spatial_data` now calls
+  `ST_GeomFromText(wkt, srid)`. Previously the 1-arg form returned
+  SRID=0 and failed against `_create_spatial_table`'s
+  `GEOMETRY(<type>, <srid>)` constraint.
+- **DuckDBConnector / PostGISConnector init repair** (`#443` B5) —
+  both classes used `self.user_config` before initialising it and
+  crashed on construction. Now actually usable.
+- **DuckDB connection lifecycle** (`#443` B6) —
+  `SpatialDataTransformer._convert_to_duckdb` wraps `duckdb.connect`
+  in a context manager.
+- **NaN-drop fix in `apportion`** (`#443` B8) — zero-area source
+  polygons are detected and logged BEFORE `gpd.overlay`; previously
+  they silently disappeared from the weighted aggregation.
+- **`to_geodataframe` IndexError fix** (`#443` B10) — predicate
+  evaluated on the dropna result, not on `len(df)`.
+- **Survey significance SE underflow** (`#443` B9) — guard
+  tightened from `se == 0` to `not finite or se <= 1e-12` so
+  underflowed-but-nonzero SEs don't produce inf/NaN z-scores.
+
+### Changed — architecture
+
+- **`BoundaryRetrievalError` now inherits from `SiegeGeoError`**
+  (`#445`) — `except SiegeError` now catches the entire geo
+  exception family. Previously this stood alone outside the
+  documented hierarchy.
+- **Spark temp views get uuid-suffixed names** (`#445`) — 8 sites
+  (`spatial_join`, `buffer`, `distance`, `assign_boundaries`,
+  `nearest`). Concurrent calls no longer clobber each other's
+  catalog state.
+- **`apportion` NaN-drop detection moved to pre-overlay** (`#445`).
+- **matplotlib figure cleanup in `try/finally`** (`#445`) — leaks
+  on `savefig()` exceptions are gone.
+- **Cache LRU + atomic write** (`#445`) —
+  `siege_utilities.cache.ensure_sample_dataset` enforces a per-call
+  size budget (default 5 GiB; configurable via
+  `SIEGE_UTILITIES_CACHE_MAX_BYTES`) and atomic-renames via
+  `tempfile.mkstemp` instead of a predictable `.part` filename.
+
+### Tooling
+
+- **`scripts/check_no_stub_docstrings.py`** — CI gate that fails
+  any new placeholder docstring (`"Description needed"`,
+  `"Auto-discovered and available"`). Initial backlog of 18
+  placeholders rewritten in `#449`; baseline drained to `{}`.
+- **`scripts/check_lazy_imports.py`** — CI gate that verifies every
+  `_LAZY_IMPORTS` registry entry resolves to a real attribute.
+  Tolerates optional-dep failures; fails on registry drift.
+- **`siege_utilities.core.sql_safety`** extended:
+  `validate_sql_identifier_in(name, allowed)`,
+  `escape_sql_string_literal(value)`, and `allow_dotted=True`.
+- **`[credentials]` extra populated** (`#444`) — now pulls
+  `keyring>=24.0.0` so `pip install siege-utilities[credentials]`
+  isn't a no-op.
+
+### Notable behaviour changes (for library consumers)
+
+- `SIEGE_INSECURE_SSL=1` is required to restore the legacy
+  verify=False fallback in `siege_utilities/geo/spatial_data.py`.
+- `SIEGE_ALLOW_UNSAFE_PATHS=1` is required for any `SIEGE_*` env-var
+  path outside `$HOME` (CI / Docker setups pointing at `/data` or
+  `/var/cache/X` need this).
+- `siege_utilities.cache.ensure_sample_dataset` evicts LRU when the
+  cache exceeds 5 GiB; tune via `SIEGE_UTILITIES_CACHE_MAX_BYTES`.
+- Connector identifiers (`table_name`, `schema`, column names) are
+  now validated against `[A-Za-z_][A-Za-z0-9_]*`. Identifiers
+  containing spaces / dashes raise `ValueError` rather than landing
+  in SQL.
+- Nominatim timestamps are timezone-aware (`datetime.now(timezone.utc)`).
+  Code comparing returned timestamps to naive `datetime.now()` will
+  raise `TypeError` — call `isoformat()` or use tz-aware comparisons.
+- `BoundaryRetrievalError` now inherits from `SiegeGeoError`. Code
+  catching `except BoundaryRetrievalError` still works; broader
+  `except SiegeError` now catches it where it didn't before. Net
+  additive.
+
+### Added — ELE-2415 library audit
+
+- **Typed exception hierarchies** across silent-swallow sites in `reporting/` and `geo/`:
+  - `siege_utilities.reporting.ReportingConfigError` (new) — raised by top-level
+    `export_branding_config` / `import_branding_config` / `export_chart_type_config`
+    instead of returning `False` on failure.
+  - `siege_utilities.reporting.chart_types.UnknownChartTypeError` /
+    `ChartParameterError` / `ChartCreationError` — raised by
+    `ChartTypeRegistry.create_chart()` and `validate_chart_parameters()`
+    instead of returning `None` / `False`.
+  - `siege_utilities.reporting.client_branding.ClientBrandingError` /
+    `ClientBrandingNotFoundError` — raised by `ClientBrandingManager`
+    methods for unexpected I/O and missing-client paths.
+  - `siege_utilities.geo.census_geocoder.CensusGeocodeError` — raised by
+    `geocode_single()` / `geocode_batch()` on API/network failure. Previously,
+    failures returned `CensusGeocodeResult(matched=False)`, indistinguishable
+    from genuine no-match results.
+  - `siege_utilities.geo.spatial_data.SpatialDataError` — raised by
+    `GovernmentDataSource` and `OpenStreetMapDataSource` download helpers on
+    HTTP/parse failures instead of returning `None`.
+
+  All new exceptions use `raise ... from e` chaining. See
+  `docs/FAILURE_MODES.md` (pattern CC1) for the full catalog.
+
+- **Survey waves subsystem** (ELE-2440 / D7 part 2):
+  - `siege_utilities.survey.Wave` — one fielding: `id`, `date`, optional
+    respondent-level `df`, optional per-wave `stack` and `weight_scheme`.
+  - `siege_utilities.survey.WaveSet` — ordered set of Waves with
+    `compare_chain(row_var, break_vars=…)` returning a LONGITUDINAL Chain
+    aligned across waves (columns = wave ids in date order, trailing Δ
+    column when ≥2 waves).
+  - `siege_utilities.survey.waves.compare_waves` — primitive the WaveSet
+    method delegates to; raises `WavesError` on empty WaveSet or missing
+    per-wave DataFrame.
+  - `siege_utilities.reporting.wave_charts` — `trend_chart` and `heatmap`
+    rendering helpers consuming a LONGITUDINAL Chain.
+
+  Completes the PollingAnalyzer migration path: longitudinal polling
+  analysis is now a WaveSet composition on top of the survey primitives
+  rather than a separate analyzer class.
+
+- **Client ↔ Survey registry** (`siege_utilities.survey.registry`):
+  - `WaveSet.client_id` — optional string keying into the branding /
+    profile system or an external CRM.
+  - `ClientSurveyRegistry` — in-memory map of ``client_id → {name →
+    WaveSet}`` with `register` / `register_for` / `surveys_for` /
+    `get_survey` / `require_survey` / `unregister` / `client_of`.
+    Supports `"acme" in reg` and `("acme", "Tracker") in reg`
+    membership checks; `len(reg)` counts all surveys across clients.
+  - `ClientSurveyError` (subclass of `KeyError`) raised on missing
+    lookups, duplicate survey names within a client, or registration
+    without a client_id.
+
+  Survey names are scoped per-client: ``("Acme", "Tracker Q2")`` and
+  ``("Beacon", "Tracker Q2")`` coexist fine. Branding / display info
+  stays in `reporting/client_branding`; the registry only answers
+  "which surveys belong to this client".
+
+### Documentation
+
+- **`docs/INTENT.md`** — per-module purpose and 9 divergence candidates.
+- **`docs/FAILURE_MODES.md`** — 5 cross-cutting anti-pattern categories (CC1–CC5)
+  with per-module site inventory.
+- **`docs/TEST_UPGRADES.md`** — coverage scorecard and 5 test-upgrade patterns
+  (PU1–PU5); zero-coverage modules identified.
+- **`docs/ARCHITECTURE.md`** — three-layer model (core → domain → consumers),
+  imports-go-DOWN invariant.
+- **`docs/adr/0001–0007`** — Architecture Decision Records covering Chain
+  pipeline ownership, chart/map generator injection, BoundaryProvider
+  registration, dataclass-vs-Pydantic, lazy-import convention, analytics
+  location split, and model type location.
+- **`docs/NOTEBOOKS.md`** — inventory of 27 notebooks, consolidation plan
+  to 12 canonical + 7 focused specializations.
+
+### Test coverage
+
+New dedicated test modules for previously-untested code:
+- `tests/test_admin_profile_manager.py` (16 tests)
+- `tests/test_hygiene_generate_docstrings.py` (22 tests)
+- `tests/test_files_paths.py` (28 tests)
+- `tests/test_reporting_config_exports.py` (10 tests)
+- `tests/test_chart_types_errors.py` (10 tests)
+- `tests/test_client_branding_errors.py` (14 tests)
+- `tests/test_census_geocoder_errors.py` (6 tests)
+- `tests/test_spatial_data_errors.py` (7 tests)
+
+### Changed
+
+- `pytest-randomly`, `hypothesis`, `nbmake` added to `dev` extras.
+
+### Migration notes
+
+Callers that relied on the old silent-swallow behavior (checking for
+`None` / `False` return) must migrate to `try/except` around the new
+exception types. The exception types are subclasses of standard Python
+exceptions (`LookupError`, `ValueError`, `RuntimeError`) so broad
+existing handlers will still catch them.
+
 ## [3.13.0] - 2026-03-30
 
 ### Added

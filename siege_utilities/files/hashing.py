@@ -6,7 +6,55 @@ import hashlib
 import pathlib
 from typing import Optional
 
-from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+from siege_utilities.core.logging import log_info, log_error
+
+# Module-level validation import. Falling open to raw pathlib.Path
+# inside each function when the validation module is missing would
+# silently disable the security guardrail; if validation is unavailable
+# we want to know about it at import time instead of letting individual
+# call sites silently downgrade.
+try:
+    from siege_utilities.files.validation import (
+        validate_file_path,
+        PathSecurityError,
+    )
+    _VALIDATION_AVAILABLE = True
+except ImportError:  # pragma: no cover - validation should always be present
+    validate_file_path = None  # type: ignore[assignment]
+
+    class PathSecurityError(Exception):  # type: ignore[no-redef]
+        """Placeholder when siege_utilities.files.validation is unavailable."""
+
+    _VALIDATION_AVAILABLE = False
+    log_error(
+        "siege_utilities.files.validation not importable; "
+        "hashing.py will operate WITHOUT path security guards. "
+        "This is almost certainly a packaging bug — investigate."
+    )
+
+# 64 KiB — matches stdlib hashlib's recommended buffered-read size and
+# what the reference filehash recipe uses. Centralised so we don't
+# drift across the four hash helpers below.
+_HASH_CHUNK_SIZE = 64 * 1024
+
+
+def _validated_path(file_path, *, must_exist: bool):
+    """Apply path validation if available; otherwise fall through.
+
+    Centralising the per-function try/except blocks here.
+    """
+    if _VALIDATION_AVAILABLE:
+        return validate_file_path(file_path, must_exist=must_exist)
+    return pathlib.Path(file_path)
+
+
+def _update_from_file(hash_obj, fp) -> None:
+    """Feed *fp* into *hash_obj* in fixed-size chunks until EOF."""
+    while True:
+        chunk = fp.read(_HASH_CHUNK_SIZE)
+        if not chunk:
+            return
+        hash_obj.update(chunk)
 
 
 def generate_sha256_hash_for_file(file_path) ->Optional[str]:
@@ -36,22 +84,12 @@ def generate_sha256_hash_for_file(file_path) ->Optional[str]:
         - Blocks access to sensitive system files
     """
     try:
-        # Import validation function
-        try:
-            from siege_utilities.files.validation import validate_file_path, PathSecurityError
-        except ImportError:
-            # Fallback: use basic Path validation without security checks
-            path_obj = pathlib.Path(file_path)
-        else:
-            # Validate path with security checks
-            path_obj = validate_file_path(file_path, must_exist=True)
-
+        path_obj = _validated_path(file_path, must_exist=True)
         if not path_obj.exists() or not path_obj.is_file():
             return None
         sha256_hash = hashlib.sha256()
         with open(path_obj, 'rb') as f:
-            for chunk in iter(lambda : f.read(65536), b''):
-                sha256_hash.update(chunk)
+            _update_from_file(sha256_hash, f)
         return sha256_hash.hexdigest()
     except Exception as e:
         log_error(f'Error generating SHA256 hash for {file_path}: {e}')
@@ -86,16 +124,7 @@ def get_file_hash(file_path, algorithm='sha256') ->Optional[str]:
         - Blocks access to sensitive system files
     """
     try:
-        # Import validation function
-        try:
-            from siege_utilities.files.validation import validate_file_path, PathSecurityError
-        except ImportError:
-            # Fallback: use basic Path validation without security checks
-            path_obj = pathlib.Path(file_path)
-        else:
-            # Validate path with security checks
-            path_obj = validate_file_path(file_path, must_exist=True)
-
+        path_obj = _validated_path(file_path, must_exist=True)
         if not path_obj.exists() or not path_obj.is_file():
             return None
         if algorithm.lower() == 'sha256':
@@ -107,8 +136,7 @@ def get_file_hash(file_path, algorithm='sha256') ->Optional[str]:
         else:
             hash_func = hashlib.new(algorithm)
         with open(path_obj, 'rb') as f:
-            for chunk in iter(lambda : f.read(65536), b''):
-                hash_func.update(chunk)
+            _update_from_file(hash_func, f)
         return hash_func.hexdigest()
     except Exception as e:
         log_error(f'Error generating {algorithm} hash for {file_path}: {e}')
@@ -150,27 +178,23 @@ def get_quick_file_signature(file_path) ->str:
         - Blocks access to sensitive system files
     """
     try:
-        # Validate path
-        try:
-            from siege_utilities.files.validation import validate_file_path, PathSecurityError
-            path_obj = validate_file_path(file_path, must_exist=False)
-        except ImportError:
-            path_obj = pathlib.Path(file_path)
+        path_obj = _validated_path(file_path, must_exist=False)
 
         if not path_obj.exists():
             return 'missing'
         stat = path_obj.stat()
         if stat.st_size <= 1024 * 1024:
-            return get_file_hash(file_path
-                ) or f'stat_{stat.st_size}_{stat.st_mtime}'
+            return get_file_hash(file_path) or f'stat_{stat.st_size}_{stat.st_mtime}'
+        # Past 1 MiB we always read both ends — the previous inner guard
+        # `stat.st_size > 2 * _HASH_CHUNK_SIZE` was always true here
+        # (2 * 64 KiB = 128 KiB < 1 MiB), so it was dead code.
         hash_obj = hashlib.sha256()
         with open(path_obj, 'rb') as f:
-            first_chunk = f.read(65536)
+            first_chunk = f.read(_HASH_CHUNK_SIZE)
             hash_obj.update(first_chunk)
-            if stat.st_size > 131072:
-                f.seek(-65536, 2)
-                last_chunk = f.read(65536)
-                hash_obj.update(last_chunk)
+            f.seek(-_HASH_CHUNK_SIZE, 2)
+            last_chunk = f.read(_HASH_CHUNK_SIZE)
+            hash_obj.update(last_chunk)
         stat_string = f'{stat.st_size}_{stat.st_mtime}_{len(first_chunk)}'
         hash_obj.update(stat_string.encode())
         return hash_obj.hexdigest()

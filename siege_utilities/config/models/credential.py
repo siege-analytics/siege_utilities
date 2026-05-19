@@ -4,7 +4,7 @@ Credential management model with comprehensive validation.
 
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 import re
 

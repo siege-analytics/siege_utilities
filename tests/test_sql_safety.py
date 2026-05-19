@@ -163,3 +163,77 @@ class TestAutoDiscovery:
     def test_in_core_all(self):
         import siege_utilities.core as core
         assert "validate_sql_identifier" in core.__all__
+        assert "validate_sql_identifier_in" in core.__all__
+        assert "escape_sql_string_literal" in core.__all__
+
+
+class TestAllowDotted:
+    """allow_dotted=True accepts schema.table; default still rejects dots."""
+
+    def test_dotted_accepted(self):
+        from siege_utilities.core.sql_safety import validate_sql_identifier
+        assert validate_sql_identifier("public.users", "table", allow_dotted=True) == "public.users"
+
+    def test_three_part_accepted(self):
+        from siege_utilities.core.sql_safety import validate_sql_identifier
+        v = validate_sql_identifier("catalog.schema.users", "table", allow_dotted=True)
+        assert v == "catalog.schema.users"
+
+    def test_unsafe_part_rejected(self):
+        from siege_utilities.core.sql_safety import validate_sql_identifier
+        with pytest.raises(ValueError, match="Invalid SQL"):
+            validate_sql_identifier("public.users; DROP", "table", allow_dotted=True)
+
+    def test_leading_dot_rejected(self):
+        from siege_utilities.core.sql_safety import validate_sql_identifier
+        with pytest.raises(ValueError, match="Invalid SQL"):
+            validate_sql_identifier(".users", "table", allow_dotted=True)
+
+    def test_double_dot_rejected(self):
+        from siege_utilities.core.sql_safety import validate_sql_identifier
+        with pytest.raises(ValueError, match="Invalid SQL"):
+            validate_sql_identifier("a..b", "table", allow_dotted=True)
+
+
+class TestValidateInAllowed:
+    """validate_sql_identifier_in checks both safety and membership."""
+
+    def test_in_set(self):
+        from siege_utilities.core.sql_safety import validate_sql_identifier_in
+        assert validate_sql_identifier_in("geometry", ["geometry", "name"]) == "geometry"
+
+    def test_safe_but_not_in_set(self):
+        from siege_utilities.core.sql_safety import validate_sql_identifier_in
+        with pytest.raises(ValueError, match="not in allowed set"):
+            validate_sql_identifier_in("foo", ["geometry", "name"])
+
+    def test_unsafe_rejected_first(self):
+        from siege_utilities.core.sql_safety import validate_sql_identifier_in
+        with pytest.raises(ValueError, match="Invalid SQL"):
+            validate_sql_identifier_in("foo; DROP", ["geometry"])
+
+
+class TestEscapeStringLiteral:
+    """escape_sql_string_literal doubles single quotes and rejects NUL."""
+
+    def test_no_quotes_passes_through(self):
+        from siege_utilities.core.sql_safety import escape_sql_string_literal
+        assert escape_sql_string_literal("POINT(1 2)") == "POINT(1 2)"
+
+    def test_single_quote_doubled(self):
+        from siege_utilities.core.sql_safety import escape_sql_string_literal
+        assert escape_sql_string_literal("O'Brien") == "O''Brien"
+
+    def test_multiple_quotes(self):
+        from siege_utilities.core.sql_safety import escape_sql_string_literal
+        assert escape_sql_string_literal("a'b'c") == "a''b''c"
+
+    def test_nul_byte_rejected(self):
+        from siege_utilities.core.sql_safety import escape_sql_string_literal
+        with pytest.raises(ValueError, match="NUL"):
+            escape_sql_string_literal("a\x00b")
+
+    def test_non_string_rejected(self):
+        from siege_utilities.core.sql_safety import escape_sql_string_literal
+        with pytest.raises(TypeError):
+            escape_sql_string_literal(123)  # type: ignore[arg-type]

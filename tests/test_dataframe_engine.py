@@ -11,7 +11,7 @@ from unittest import mock
 import pandas as pd
 import pytest
 
-from siege_utilities.data.dataframe_engine import (
+from siege_utilities.engines.dataframe_engine import (
     DUCKDB,
     PANDAS,
     POSTGIS,

@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Tuple
 
 # Import logging functions from main package
 try:
-    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+    from siege_utilities.core.logging import log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if main package not available yet
     def log_info(message): pass
@@ -230,8 +230,14 @@ def check_java_version() -> Tuple[Optional[str], bool]:
         >>>     print(f"Java {version} is compatible")
     """
     try:
+        # 10s timeout: a healthy `java -version` returns in milliseconds;
+        # a hang here cascades into diagnose_environment(),
+        # setup_spark_environment(), and quick_environment_setup(), all
+        # of which run during test setup. Bounded wait is required so a
+        # broken JDK install does not block the whole test invocation.
         result = subprocess.run(['java', '-version'],
-                                capture_output=True, text=True)
+                                capture_output=True, text=True,
+                                timeout=10)
         java_output = result.stderr
 
         if 'version "17.' in java_output:
@@ -268,7 +274,7 @@ def setup_spark_environment() -> bool:
 
     # Ensure required environment variables
     required_vars = ["JAVA_HOME", "SPARK_HOME"]
-    resolved = ensure_env_vars(required_vars)
+    ensure_env_vars(required_vars)
 
     # Check Java compatibility
     java_version, java_compatible = check_java_version()

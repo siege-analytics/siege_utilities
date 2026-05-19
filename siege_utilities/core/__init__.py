@@ -25,12 +25,14 @@ _register([
 # --- string_utils ---
 _register([
     'remove_wrapping_quotes_and_trim', 'clean_string', 'normalize_whitespace',
-    'to_snake_case', 'remove_non_alphanumeric',
+    'snake_case', 'remove_non_alphanumeric',
 ], '.string_utils')
 
 # --- sql_safety ---
 _register([
     'validate_sql_identifier',
+    'validate_sql_identifier_in',
+    'escape_sql_string_literal',
 ], '.sql_safety')
 
 __all__ = list(_LAZY_IMPORTS.keys())

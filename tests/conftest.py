@@ -19,7 +19,7 @@ from unittest.mock import Mock
 sys.path.insert(0, os.path.abspath('.'))
 
 # ================================================================
-# EARLY HOOKS — run before siege_utilities is imported
+# EARLY HOOKS -- run before siege_utilities is imported
 # ================================================================
 
 # Module-level temp base so pytest_configure and pytest_unconfigure can share it.
@@ -83,6 +83,80 @@ def _siege_test_directories():
         for subdir in ['config', 'data', 'logs', 'output', 'cache']:
             os.makedirs(os.path.join(base, subdir), exist_ok=True)
     yield
+
+
+@pytest.fixture
+def api_credentials():
+    """Load connector API credentials from a developer-local YAML file.
+
+    Looked up at ``~/.siege-test-credentials.yaml`` (or the path in the
+    ``SIEGE_TEST_CREDENTIALS`` env var). When the file is absent, tests
+    decorated with ``@pytest.mark.requires_api_key`` and consuming this
+    fixture are skipped -- credentials are developer-local, not in CI.
+    CI runs the mock unit tests; the live-API path is opt-in via
+    ``pytest -m requires_api_key``.
+
+    Returns the parsed dict; individual connectors look up their own
+    sub-keys (e.g. ``creds["snowflake"]["account"]``) and skip if
+    their section is missing.
+    """
+    import yaml  # local import -- yaml is in extras_require, not core
+
+    path = os.environ.get("SIEGE_TEST_CREDENTIALS") or os.path.expanduser(
+        "~/.siege-test-credentials.yaml"
+    )
+    if not os.path.exists(path):
+        pytest.skip(
+            f"requires_api_key: no credentials file at {path}. "
+            "Create one with the per-connector keys you want to exercise; "
+            "see docs/testing/sprint-b-credentials.md for the schema."
+        )
+    with open(path) as f:
+        try:
+            return yaml.safe_load(f) or {}
+        except yaml.YAMLError as exc:
+            # A malformed creds file is a configuration error; failing
+            # makes it visible. The previous behaviour (silent skip)
+            # let CI stay green with the live-API smoke runs silently
+            # never executing.
+            pytest.fail(
+                f"requires_api_key: credentials file at {path} is not "
+                f"valid YAML: {exc}. Fix the syntax and re-run."
+            )
+
+
+@pytest.fixture(scope="session")
+def real_spark_session():
+    """Real SparkSession for cross-engine property tests.
+
+    Skips the requesting test cleanly when pyspark isn't installed.
+    Session-scoped so the JVM startup cost (5-10 seconds) only happens
+    once per pytest run; tests share the session.
+
+    Pins PYSPARK_PYTHON and PYSPARK_DRIVER_PYTHON to the running
+    interpreter so Spark workers don't pick up a different Python off
+    the PATH and fail with PYTHON_VERSION_MISMATCH. This bites pyenv
+    setups where homebrew's python3.14 is first on PATH but the
+    driver runs under pyenv's python3.11.
+    """
+    pytest.importorskip("pyspark")
+    os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
+    os.environ.setdefault("PYSPARK_DRIVER_PYTHON", sys.executable)
+    from pyspark.sql import SparkSession
+
+    spark = (
+        SparkSession.builder
+        .appName("siege_utilities_property_tests")
+        .master("local[2]")
+        .config("spark.sql.shuffle.partitions", "2")
+        .config("spark.default.parallelism", "2")
+        .config("spark.driver.memory", "1g")
+        .config("spark.ui.showConsoleProgress", "false")
+        .getOrCreate()
+    )
+    spark.sparkContext.setLogLevel("ERROR")
+    yield spark
+    spark.stop()
 
 
 @pytest.fixture

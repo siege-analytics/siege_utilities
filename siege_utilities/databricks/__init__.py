@@ -1,5 +1,23 @@
 """
 Databricks and LakeBase utilities for siege_utilities.
+
+**Why this package is a sibling to `distributed/`, not a child.**
+
+`distributed/` holds vendor-agnostic PySpark + HDFS utilities that work on any
+Spark cluster (EMR, Dataproc, self-hosted). `databricks/` holds Databricks-only
+SDK features (Unity Catalog, LakeBase, workspace auth, secrets, DBFS, job-run
+URL construction for Asset Bundles) that only make sense inside a Databricks
+workspace.
+
+The split is **load-bearing** because Azure Databricks lacks Apache Sedona and
+the C-library stack that GeoPandas / Shapely / Fiona need. ``dataframe_bridge.py``
+is the workaround — Spark ↔ pandas and Spark ↔ GeoPandas bridges that let
+geospatial work happen in environments where the usual stack is not installable.
+
+Don't merge these modules. A future reader "DRY"-ing them together will
+re-create a problem we already solved.
+
+See also: `docs/INTENT.md` (D4), `docs/adr/` (architecture decisions).
 """
 
 from .artifacts import build_databricks_run_url
@@ -23,7 +41,11 @@ from .secrets import (
     runtime_secret_exists,
 )
 from .session import get_active_spark_session, get_dbutils
-from .unity_catalog import build_foreign_table_sql, build_schema_and_table_sync_sql
+# Canonical import path post-SU#519 rename. The old
+# .unity_catalog module remains as a deprecation shim re-exporting
+# these same symbols; importing this package does NOT trigger the
+# shim's DeprecationWarning.
+from .lakehouse_federation import build_foreign_table_sql, build_schema_and_table_sync_sql
 
 __all__ = [
     "build_databricks_run_url",

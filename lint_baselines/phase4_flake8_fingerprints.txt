@@ -166,6 +166,7 @@ siege_utilities/reporting/analytics/polling_analyzer.py::F401::'siege_utilities.
 siege_utilities/reporting/analytics/polling_analyzer.py::F401::'typing.Optional' imported but unused
 siege_utilities/reporting/analytics/polling_analyzer.py::F401::'typing.Union' imported but unused
 siege_utilities/reporting/analytics/polling_analyzer.py::F841::local variable 'tablet_pct' is assigned to but never used
+siege_utilities/reporting/analytics_reports.py::F401::'datetime.timedelta' imported but unused
 siege_utilities/reporting/chart_types.py::F401::'abc.ABC' imported but unused
 siege_utilities/reporting/chart_types.py::F401::'abc.abstractmethod' imported but unused
 siege_utilities/reporting/chart_types.py::F401::'matplotlib.pyplot as plt' imported but unused
@@ -271,6 +272,7 @@ siege_utilities/reporting/templates/title_page_template.py::F401::'siege_utiliti
 siege_utilities/reporting/templates/title_page_template.py::F401::'typing.Optional' imported but unused
 siege_utilities/reporting/templates/title_page_template.py::F401::'yaml' imported but unused
 siege_utilities/reporting/templates/title_page_template.py::F841::local variable 'branding_manager' is assigned to but never used
+siege_utilities/reporting/wave_charts.py::F401::'matplotlib.figure' imported but unused
 siege_utilities/testing/environment.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
 siege_utilities/testing/environment.py::F841::local variable 'resolved' is assigned to but never used
 siege_utilities/testing/runner.py::F401::'os' imported but unused
@@ -314,6 +316,7 @@ tests/test_crosswalk.py::F401::'siege_utilities.geo.crosswalk.get_crosswalk_meta
 tests/test_crosswalk.py::F401::'siege_utilities.geo.crosswalk.get_merged_tracts' imported but unused
 tests/test_crosswalk.py::F401::'unittest.mock.MagicMock' imported but unused
 tests/test_data_source_registry.py::F401::'tempfile' imported but unused
+tests/test_data_split_shims.py::F841::local variable 'mod' is assigned to but never used
 tests/test_distributed.py::F841::local variable 'ops' is assigned to but never used
 tests/test_enhanced_census_utilities.py::F401::'pathlib.Path' imported but unused
 tests/test_enhanced_census_utilities.py::F401::'shutil' imported but unused

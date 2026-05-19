@@ -4,13 +4,11 @@ Standardized workflows for feature development, releases, and hotfixes.
 """
 
 import subprocess
-import os
 from pathlib import Path
 from typing import List, Dict, Optional, Union
 import re
-from datetime import datetime
 
-from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+from siege_utilities.core.logging import log_info, log_warning
 from siege_utilities.exceptions import GitError
 
 
@@ -22,7 +20,8 @@ def run_git_command(*args, repo_path: str = ".", check: bool = True) -> str:
             cwd=repo_path,
             capture_output=True,
             text=True,
-            check=check
+            check=check,
+            timeout=30,  # writing-code:15: bounded git wait
         )
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
@@ -45,7 +44,6 @@ def validate_branch_naming(branch_name: str) -> Dict[str, Union[bool, str, List[
         "developer": r"^[a-z]+/[a-z0-9-]+$",
     }
 
-    validation_results = {}
     matched_pattern = None
 
     for pattern_name, pattern in patterns.items():
@@ -369,7 +367,7 @@ def release_workflow(
 
     # Validate version format (semantic versioning, with optional v prefix and pre-release)
     if not re.match(r'^v?\d+\.\d+\.\d+(-rc\.\d+)?$', version):
-        raise ValueError(f"Invalid version format. Use semantic versioning (e.g., 1.0.0 or v2.0.0-rc.1)")
+        raise ValueError("Invalid version format. Use semantic versioning (e.g., 1.0.0 or v2.0.0-rc.1)")
 
     branch_name = f"release/{version}"
 
@@ -487,7 +485,7 @@ def get_workflow_status(repo_path: str = ".") -> Dict[str, Union[str, List[str],
         if workflow_type in ["feature_development", "hotfix", "release"]:
             # Get ahead/behind info
             try:
-                ahead_behind = run_git_command("rev-list", "--count", "--left-right", f"main...HEAD", repo_path=repo_path)
+                ahead_behind = run_git_command("rev-list", "--count", "--left-right", "main...HEAD", repo_path=repo_path)
                 behind, ahead = ahead_behind.split()
                 workflow_info.update({
                     "commits_ahead": int(ahead),

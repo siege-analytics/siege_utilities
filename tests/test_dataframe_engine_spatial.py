@@ -56,7 +56,7 @@ class TestPandasSpatial:
 
     @pytest.fixture(autouse=True)
     def setup_engine(self):
-        from siege_utilities.data.dataframe_engine import PandasEngine
+        from siege_utilities.engines.dataframe_engine import PandasEngine
         self.engine = PandasEngine()
 
     def test_read_spatial(self, tmp_geojson):
@@ -148,7 +148,7 @@ class TestDuckDBSpatial:
 
     @pytest.fixture(autouse=True)
     def setup_engine(self):
-        from siege_utilities.data.dataframe_engine import DuckDBEngine
+        from siege_utilities.engines.dataframe_engine import DuckDBEngine
         self.engine = DuckDBEngine()
 
     def test_spatial_join(self, sample_points, sample_polygons):
@@ -193,16 +193,86 @@ class TestEngineConsistency:
     """Verify that Pandas and DuckDB produce equivalent spatial results."""
 
     def test_spatial_join_same_result(self, sample_points, sample_polygons):
-        from siege_utilities.data.dataframe_engine import PandasEngine, DuckDBEngine
+        from siege_utilities.engines.dataframe_engine import PandasEngine, DuckDBEngine
         pd_result = PandasEngine().spatial_join(sample_points, sample_polygons)
         dk_result = DuckDBEngine().spatial_join(sample_points, sample_polygons)
         # Both should find the same point-polygon pairs
         assert len(pd_result) == len(dk_result)
 
     def test_buffer_same_area(self, sample_points):
-        from siege_utilities.data.dataframe_engine import PandasEngine, DuckDBEngine
+        from siege_utilities.engines.dataframe_engine import PandasEngine, DuckDBEngine
         pd_result = PandasEngine().buffer(sample_points, 0.5)
         dk_result = DuckDBEngine().buffer(sample_points, 0.5)
         pd_area = pd_result.geometry.area.sum()
         dk_area = dk_result.geometry.area.sum()
         assert pd_area == pytest.approx(dk_area, rel=0.01)
+
+
+# ---------------------------------------------------------------------------
+# multi_assign: docstring contract enforcement (issue #473)
+# ---------------------------------------------------------------------------
+
+class TestMultiAssignLayerPrefix:
+    """multi_assign must prefix polygon-side columns with the layer name.
+
+    Without prefixing, two TIGER layers (each with ``geoid`` and ``name``)
+    silently overwrite each other on the join. The docstring promises
+    ``{layer_name}_geoid`` / ``{layer_name}_name``; this test enforces it.
+    """
+
+    @pytest.fixture(autouse=True)
+    def setup_engine(self):
+        from siege_utilities.engines.dataframe_engine import PandasEngine
+        self.engine = PandasEngine()
+
+    @pytest.fixture
+    def points5(self):
+        return gpd.GeoDataFrame(
+            {"id": [1, 2, 3, 4, 5]},
+            geometry=[Point(x, x) for x in [0.1, 0.6, 1.1, 1.6, 2.1]],
+            crs="EPSG:4326",
+        )
+
+    @pytest.fixture
+    def tract_layer(self):
+        return gpd.GeoDataFrame(
+            {"geoid": ["T1", "T2"], "name": ["TractA", "TractB"], "pop": [100, 200]},
+            geometry=[box(-1, -1, 1, 1), box(1, 1, 3, 3)],
+            crs="EPSG:4326",
+        )
+
+    @pytest.fixture
+    def cd_layer(self):
+        return gpd.GeoDataFrame(
+            {"geoid": ["C1", "C2"], "name": ["CD1", "CD2"]},
+            geometry=[box(-1, -1, 1.5, 1.5), box(1.5, 1.5, 3, 3)],
+            crs="EPSG:4326",
+        )
+
+    def test_layer_prefix_applied_to_polygon_columns(self, points5, tract_layer, cd_layer):
+        result = self.engine.multi_assign(
+            points5,
+            {"tract": tract_layer, "cd": cd_layer},
+        )
+        cols = set(result.columns)
+        for expected in ("tract_geoid", "tract_name", "tract_pop", "cd_geoid", "cd_name"):
+            assert expected in cols, f"expected {expected!r} in output columns, got {sorted(cols)}"
+
+    def test_bare_polygon_column_names_absent(self, points5, tract_layer, cd_layer):
+        result = self.engine.multi_assign(
+            points5,
+            {"tract": tract_layer, "cd": cd_layer},
+        )
+        # Bare polygon-side names must NOT appear (otherwise the second
+        # join silently overwrote the first).
+        assert "geoid" not in result.columns
+        assert "name" not in result.columns
+        assert "pop" not in result.columns
+
+    def test_point_columns_preserved(self, points5, tract_layer, cd_layer):
+        result = self.engine.multi_assign(
+            points5,
+            {"tract": tract_layer, "cd": cd_layer},
+        )
+        # Point-side columns survive unchanged (no layer prefix).
+        assert "id" in result.columns

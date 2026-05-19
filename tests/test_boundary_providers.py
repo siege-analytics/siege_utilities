@@ -1,4 +1,4 @@
-"""Tests for siege_utilities.geo.boundary_providers."""
+"""Tests for siege_utilities.geo.providers.boundary_providers."""
 
 from __future__ import annotations
 
@@ -6,12 +6,25 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from siege_utilities.geo.boundary_providers import (
+from siege_utilities.geo.providers.boundary_providers import (
     BoundaryProvider,
     CensusTIGERProvider,
     GADMProvider,
+    RDHProvider,
     resolve_boundary_provider,
 )
+
+# Test-only credential placeholders. Marked noqa to tell scanners these
+# are not real secrets; the actual values never leave the test process.
+TEST_USERNAME = "test-user"  # noqa: S105 — test fixture placeholder
+TEST_PASSWORD = "test-password-placeholder"  # noqa: S105 — test fixture placeholder
+
+
+@pytest.fixture(autouse=True)
+def _isolate_rdh_env(monkeypatch):
+    """Strip RDH_USERNAME / RDH_PASSWORD so ambient env doesn't leak in."""
+    monkeypatch.delenv("RDH_USERNAME", raising=False)
+    monkeypatch.delenv("RDH_PASSWORD", raising=False)
 
 
 # ---------------------------------------------------------------------------
@@ -60,7 +73,7 @@ class TestCensusTIGERProvider:
         for expected in ('state', 'county', 'tract', 'block_group', 'zcta', 'cd'):
             assert expected in levels
 
-    @patch('siege_utilities.geo.boundary_providers.CensusTIGERProvider.get_boundary')
+    @patch('siege_utilities.geo.providers.boundary_providers.CensusTIGERProvider.get_boundary')
     def test_get_boundary_delegates(self, mock_get):
         """get_boundary forwards to get_census_boundaries."""
         sentinel = MagicMock(name='gdf')
@@ -71,16 +84,58 @@ class TestCensusTIGERProvider:
         mock_get.assert_called_once_with('county', identifier='06')
         assert result is sentinel
 
-    @patch('siege_utilities.geo.spatial_data.get_census_boundaries')
-    def test_get_boundary_passes_kwargs(self, mock_gcb):
-        """Extra kwargs (e.g. year) are forwarded."""
-        mock_gcb.return_value = MagicMock(name='gdf')
+    @patch('siege_utilities.geo.spatial_data.CensusDataSource')
+    def test_get_boundary_passes_kwargs(self, MockDS):
+        """Extra kwargs (e.g. year) are forwarded to fetch_geographic_boundaries."""
+        sentinel_gdf = MagicMock(name='gdf')
+        mock_result = MagicMock(success=True, geodataframe=sentinel_gdf)
+        MockDS.return_value.fetch_geographic_boundaries.return_value = mock_result
+
         provider = CensusTIGERProvider()
         result = provider.get_boundary('tract', identifier='36', year=2020)
-        mock_gcb.assert_called_once_with(
+        MockDS.return_value.fetch_geographic_boundaries.assert_called_once_with(
             geographic_level='tract', state_fips='36', year=2020,
         )
-        assert result is mock_gcb.return_value
+        assert result is sentinel_gdf
+
+    @patch('siege_utilities.geo.spatial_data.CensusDataSource')
+    def test_get_boundary_congress_number_forwarded(self, MockDS):
+        """congress_number kwarg reaches fetch_geographic_boundaries for CD boundaries."""
+        sentinel_gdf = MagicMock(name='cd_gdf')
+        mock_result = MagicMock(success=True, geodataframe=sentinel_gdf)
+        MockDS.return_value.fetch_geographic_boundaries.return_value = mock_result
+
+        provider = CensusTIGERProvider()
+        result = provider.get_boundary('cd', year=2020, congress_number=116)
+        MockDS.return_value.fetch_geographic_boundaries.assert_called_once_with(
+            geographic_level='cd', year=2020, congress_number=116,
+        )
+        assert result is sentinel_gdf
+
+    @patch('siege_utilities.geo.spatial_data.CensusDataSource')
+    def test_get_boundary_level_authoritative(self, MockDS):
+        """geographic_level in kwargs is silently dropped; the level arg wins."""
+        mock_result = MagicMock(success=True, geodataframe=MagicMock())
+        MockDS.return_value.fetch_geographic_boundaries.return_value = mock_result
+
+        provider = CensusTIGERProvider()
+        provider.get_boundary('county', geographic_level='tract')  # kwarg must lose
+        call_kwargs = MockDS.return_value.fetch_geographic_boundaries.call_args[1]
+        assert call_kwargs['geographic_level'] == 'county'
+
+    @patch('siege_utilities.geo.spatial_data.CensusDataSource')
+    def test_get_boundary_failure_returns_none(self, MockDS):
+        """result.success=False returns None and logs a warning."""
+        mock_result = MagicMock(success=False, error_stage='download', message='404')
+        MockDS.return_value.fetch_geographic_boundaries.return_value = mock_result
+
+        provider = CensusTIGERProvider()
+        import logging
+        with patch.object(logging.getLogger('siege_utilities.geo.providers.boundary_providers'),
+                          'warning') as mock_warn:
+            result = provider.get_boundary('county')
+        assert result is None
+        mock_warn.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -174,3 +229,230 @@ class TestResolveBoundaryProvider:
         provider = resolve_boundary_provider('FR', version='3.6')
         assert isinstance(provider, GADMProvider)
         assert provider._version == '3.6'
+
+
+# ---------------------------------------------------------------------------
+# RDHProvider
+# ---------------------------------------------------------------------------
+
+
+class TestRDHProvider:
+    def test_provider_name(self):
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        assert provider.provider_name == 'Redistricting Data Hub'
+
+    def test_list_levels(self):
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        levels = provider.list_levels()
+        assert 'precinct' in levels
+        assert 'congress' in levels
+        assert 'state_senate' in levels
+        assert 'state_house' in levels
+
+    def test_is_available_with_credentials_and_geopandas(self):
+        provider = RDHProvider(username="u@example.com", password=TEST_PASSWORD)
+        # geopandas is installed in this test environment
+        assert provider.is_available() is True
+
+    def test_is_available_without_credentials(self):
+        provider = RDHProvider(username='', password=TEST_PASSWORD)
+        assert provider.is_available() is False
+
+    def test_is_available_without_password(self):
+        """is_available() requires both username AND password."""
+        provider = RDHProvider(username=TEST_USERNAME, password='')
+        assert provider.is_available() is False
+
+    def test_invalid_level_raises(self):
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        with pytest.raises(ValueError, match='Unknown RDH level'):
+            provider.get_boundary('county', identifier='TX')
+
+    def test_missing_state_raises(self):
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        with pytest.raises(ValueError, match='state abbreviation'):
+            provider.get_boundary('precinct')
+
+    @patch('siege_utilities.geo.providers.boundary_providers.RDHProvider._get_client')
+    def test_get_boundary_precinct_delegates(self, mock_get_client):
+        """get_boundary('precinct') calls client.get_precinct_data then load_shapefile."""
+        sentinel_gdf = MagicMock(name='gdf')
+        mock_client = MagicMock()
+        mock_client.get_precinct_data.return_value = [MagicMock()]
+        mock_client.load_shapefile.return_value = sentinel_gdf
+        mock_get_client.return_value = mock_client
+
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        result = provider.get_boundary('precinct', identifier='TX')
+
+        mock_client.get_precinct_data.assert_called_once_with('TX', year=None, format='shp')
+        assert result is sentinel_gdf
+
+    @patch('siege_utilities.geo.providers.boundary_providers.RDHProvider._get_client')
+    def test_get_boundary_congress_delegates(self, mock_get_client):
+        """get_boundary('congress') calls client.get_enacted_plans."""
+        sentinel_gdf = MagicMock(name='gdf')
+        mock_client = MagicMock()
+        mock_client.get_enacted_plans.return_value = [MagicMock()]
+        mock_client.load_shapefile.return_value = sentinel_gdf
+        mock_get_client.return_value = mock_client
+
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        result = provider.get_boundary('congress', state='TX', year='2022')
+
+        mock_client.get_enacted_plans.assert_called_once_with('TX', chamber='congress', year='2022', format='shp')
+        assert result is sentinel_gdf
+
+    @patch('siege_utilities.geo.providers.boundary_providers.RDHProvider._get_client')
+    def test_get_boundary_no_datasets_returns_none(self, mock_get_client):
+        """When RDH returns no matching datasets, get_boundary returns None."""
+        mock_client = MagicMock()
+        mock_client.get_precinct_data.return_value = []
+        mock_get_client.return_value = mock_client
+
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        result = provider.get_boundary('precinct', identifier='TX')
+        assert result is None
+
+    def test_credentials_from_env(self, monkeypatch):
+        monkeypatch.setenv('RDH_USERNAME', 'env_user')
+        monkeypatch.setenv('RDH_PASSWORD', 'env_pass')  # noqa: S105 — test env
+        provider = RDHProvider()
+        assert provider._username == 'env_user'
+        assert provider._password == 'env_pass'
+
+    def test_explicit_empty_username_disables_env_fallback(self, monkeypatch):
+        """Passing username='' must NOT fall back to RDH_USERNAME env var."""
+        monkeypatch.setenv('RDH_USERNAME', 'should_not_use')
+        provider = RDHProvider(username='', password=TEST_PASSWORD)
+        assert provider._username == ''
+
+
+class TestRDHProviderPlanRegistryIntegration:
+    """RDHProvider.get_boundary(when=...) resolves through PlanRegistry (#361)."""
+
+    @staticmethod
+    def _alabama_registry():
+        """A registry with the Alabama 2022/2023 congressional fixture."""
+        import datetime as _dt
+        from siege_utilities.geo.plans import (
+            PlanAuthority, PlanDistrict, PlanRegistry, RedistrictingPlan,
+        )
+
+        AL = "01"
+
+        def make_districts(plan_name, authority, start, end):
+            return tuple(
+                PlanDistrict(
+                    state_fips=AL, district_type="cd", district_id=str(i),
+                    plan_name=plan_name, authority=authority,
+                    effective_from=start, effective_to=end,
+                )
+                for i in range(1, 8)
+            )
+
+        enacted = RedistrictingPlan(
+            plan_name="AL_2022_CD_ENACTED", state_fips=AL, district_type="cd",
+            authority=PlanAuthority.LEGISLATURE,
+            effective_from=_dt.date(2022, 1, 28),
+            effective_to=_dt.date(2023, 6, 7),
+            districts=make_districts(
+                "AL_2022_CD_ENACTED", PlanAuthority.LEGISLATURE,
+                _dt.date(2022, 1, 28), _dt.date(2023, 6, 7),
+            ),
+        )
+        interim = RedistrictingPlan(
+            plan_name="AL_2023_CD_INTERIM", state_fips=AL, district_type="cd",
+            authority=PlanAuthority.COURT,
+            effective_from=_dt.date(2023, 6, 8),
+            effective_to=None,
+            districts=make_districts(
+                "AL_2023_CD_INTERIM", PlanAuthority.COURT,
+                _dt.date(2023, 6, 8), None,
+            ),
+        )
+        registry = PlanRegistry()
+        registry.register_plans([enacted, interim])
+        return registry
+
+    @patch('siege_utilities.geo.providers.boundary_providers.RDHProvider._get_client')
+    def test_when_resolves_enacted_plan_year(self, mock_get_client):
+        """when= mid-2022 → enacted plan → year='2022' passed to RDH client."""
+        import datetime as _dt
+        sentinel = MagicMock(name='gdf')
+        mock_client = MagicMock()
+        mock_client.get_enacted_plans.return_value = [MagicMock()]
+        mock_client.load_shapefile.return_value = sentinel
+        mock_get_client.return_value = mock_client
+
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        result = provider.get_boundary(
+            'congress', state='AL',
+            when=_dt.date(2022, 5, 1),
+            plan_registry=self._alabama_registry(),
+        )
+
+        # The enacted plan's effective_from year is 2022.
+        mock_client.get_enacted_plans.assert_called_once_with(
+            'AL', chamber='congress', year='2022', format='shp',
+        )
+        assert result is sentinel
+
+    @patch('siege_utilities.geo.providers.boundary_providers.RDHProvider._get_client')
+    def test_when_resolves_interim_plan_year(self, mock_get_client):
+        """when= post-court-order → interim plan → year='2023'."""
+        import datetime as _dt
+        sentinel = MagicMock(name='gdf')
+        mock_client = MagicMock()
+        mock_client.get_enacted_plans.return_value = [MagicMock()]
+        mock_client.load_shapefile.return_value = sentinel
+        mock_get_client.return_value = mock_client
+
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        result = provider.get_boundary(
+            'congress', state='AL',
+            when=_dt.date(2023, 9, 15),
+            plan_registry=self._alabama_registry(),
+        )
+
+        mock_client.get_enacted_plans.assert_called_once_with(
+            'AL', chamber='congress', year='2023', format='shp',
+        )
+        assert result is sentinel
+
+    def test_when_unknown_date_propagates_resolution_error(self):
+        """A date with no plan must raise PlanResolutionError, not silently return."""
+        import datetime as _dt
+        from siege_utilities.geo.plans import PlanResolutionError
+
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        with pytest.raises(PlanResolutionError, match="No registered plan"):
+            provider.get_boundary(
+                'congress', state='AL',
+                when=_dt.date(2019, 1, 1),  # before any registered plan
+                plan_registry=self._alabama_registry(),
+            )
+
+    def test_when_with_precinct_level_rejected(self):
+        """RDH precinct files aren't plan-aware — when= must raise."""
+        import datetime as _dt
+
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        with pytest.raises(ValueError, match="not supported for level 'precinct'"):
+            provider.get_boundary(
+                'precinct', state='AL',
+                when=_dt.date(2023, 9, 15),
+                plan_registry=self._alabama_registry(),
+            )
+
+    def test_when_unknown_state_raises(self):
+        """A state name that doesn't normalize to a FIPS raises before registry."""
+        import datetime as _dt
+
+        provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
+        with pytest.raises((ValueError, Exception)):
+            provider.get_boundary(
+                'congress', state='ZZ',  # not a real state
+                when=_dt.date(2023, 9, 15),
+                plan_registry=self._alabama_registry(),
+            )

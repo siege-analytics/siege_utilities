@@ -1,61 +1,35 @@
-"""Unity Catalog SQL helpers for foreign table registration."""
+"""Deprecated alias for :mod:`siege_utilities.databricks.lakehouse_federation`.
 
-from typing import Iterable, List
+The helpers in this module generate ``CREATE FOREIGN TABLE ... USING
+CONNECTION`` SQL, which is a Databricks Lakehouse Federation feature.
+It does NOT work against the open-source Unity Catalog implementation
+(unitycatalog.io). The old module name implied otherwise and burned
+consumers planning OSS UC bridges. Renamed in SU#519.
 
+Import from :mod:`siege_utilities.databricks.lakehouse_federation`
+instead. This shim re-exports the public surface unchanged; importing
+this module emits a single :class:`DeprecationWarning`.
+"""
 
-def quote_ident(value: str) -> str:
-    """Quote an identifier with backticks for Databricks SQL."""
-    return "`" + value.replace("`", "``") + "`"
+import warnings
 
+from siege_utilities.databricks.lakehouse_federation import (  # noqa: F401
+    build_foreign_table_sql,
+    build_schema_and_table_sync_sql,
+    quote_ident,
+)
 
-def build_foreign_table_sql(
-    catalog: str,
-    schema: str,
-    table: str,
-    connection_name: str,
-    source_schema: str,
-    source_table: str | None = None,
-) -> str:
-    """
-    Build SQL for creating a Unity Catalog foreign table from a LakeBase source table.
+warnings.warn(
+    "siege_utilities.databricks.unity_catalog is deprecated; "
+    "import from siege_utilities.databricks.lakehouse_federation instead. "
+    "The generated SQL is Databricks Lakehouse Federation only and does "
+    "not work against OSS unitycatalog.io. (SU#519)",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
-    Note: syntax can vary by workspace/feature flag. Keep this as a composable
-    helper and validate generated SQL in the target Databricks environment.
-    """
-    resolved_source = source_table or table
-    fq_table = ".".join([quote_ident(catalog), quote_ident(schema), quote_ident(table)])
-    source_ref = f"{source_schema}.{resolved_source}"
-    return (
-        f"CREATE FOREIGN TABLE IF NOT EXISTS {fq_table}\n"
-        f"USING CONNECTION {quote_ident(connection_name)}\n"
-        f"OPTIONS (table '{source_ref}');"
-    )
-
-
-def build_schema_and_table_sync_sql(
-    catalog: str,
-    schema: str,
-    connection_name: str,
-    source_schema: str,
-    tables: Iterable[str],
-) -> List[str]:
-    """Build CREATE SCHEMA + CREATE FOREIGN TABLE statements for multiple tables."""
-    statements: List[str] = [
-        (
-            "CREATE SCHEMA IF NOT EXISTS "
-            + ".".join([quote_ident(catalog), quote_ident(schema)])
-            + ";"
-        )
-    ]
-    for table in tables:
-        statements.append(
-            build_foreign_table_sql(
-                catalog=catalog,
-                schema=schema,
-                table=table,
-                connection_name=connection_name,
-                source_schema=source_schema,
-                source_table=table,
-            )
-        )
-    return statements
+__all__ = [
+    "build_foreign_table_sql",
+    "build_schema_and_table_sync_sql",
+    "quote_ident",
+]

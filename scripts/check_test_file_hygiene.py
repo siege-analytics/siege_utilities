@@ -14,7 +14,7 @@ ADHOC_COPY_RE = re.compile(r"(^|/)test_.*\s+\d+\.py$")
 
 def tracked_files() -> list[str]:
     try:
-        out = subprocess.check_output(["git", "ls-files"], text=True)
+        out = subprocess.check_output(["git", "ls-files"], text=True, timeout=60)
         return [line.strip() for line in out.splitlines() if line.strip()]
     except Exception:
         # Fallback for environments without git metadata.

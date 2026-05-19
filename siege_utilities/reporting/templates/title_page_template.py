@@ -5,18 +5,26 @@ Creates beautiful, branded title pages with proper typography and layout
 Adapted from working GA project implementation
 """
 
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.lib.units import inch, mm
-from reportlab.lib.colors import Color, HexColor
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
+try:
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib.units import inch, mm
+    from reportlab.lib.colors import Color, HexColor
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+    canvas = None
+    letter = A4 = None
+    inch = mm = None
+    Color = HexColor = None
+    pdfmetrics = None
+    TTFont = None
 from datetime import datetime
-from pathlib import Path
-import yaml
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
-from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+from siege_utilities.core.logging import log_info, log_warning
 
 
 class TitlePageTemplate:
@@ -45,9 +53,7 @@ class TitlePageTemplate:
         """Load brand configuration from client branding system"""
         try:
             # Try to use siege utilities client branding
-            from .client_branding import ClientBrandingManager
-            branding_manager = ClientBrandingManager()
-            # For now, return default - could be enhanced to load specific client
+            from .client_branding import ClientBrandingManager  # noqa: F401
             return self._default_brand_config()
         except Exception as e:
             log_warning(f"Could not load brand config: {e}")

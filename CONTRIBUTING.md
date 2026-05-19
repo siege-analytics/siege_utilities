@@ -106,10 +106,16 @@ python -m pytest tests/ -v --no-cov
 # 2. Test file hygiene (naming/location conventions)
 python scripts/check_test_file_hygiene.py
 
-# 3. Lint check (flake8 — at minimum, no syntax errors)
+# 3. Lint — phase 1 (runtime-safety errors)
 flake8 siege_utilities --count --select=E9,F63,F7,F82 --show-source --statistics
 
-# 4. API contract check (if you changed public API)
+# 4. Lint — phases 2-4 (hygiene + module ratchet + full-repo fingerprint)
+#    Local aggregate equivalent; CI runs phase2, phase3, phase4 as separate
+#    steps with explicit --base-sha/--head-sha. Skipping this is the most
+#    common reason a PR passes locally but fails CI lint.
+python scripts/check_lint_ratchet.py --phase all
+
+# 5. API contract check (if you changed public API)
 python -m venv /tmp/.venv_baseline
 /tmp/.venv_baseline/bin/pip install siege-utilities==3.8.0
 /tmp/.venv_baseline/bin/python scripts/contracts/generate_public_api_contract.py \
@@ -174,6 +180,8 @@ The impact level is **inferred automatically** from the version delta between th
 ### Lint Ratchet
 
 The lint ratchet is a one-way quality gate — the total violation count can only go **down**, never up. If you touch a file, clean up any existing lint violations in that file before submitting.
+
+See [docs/policies/LINT_POLICY.md](docs/policies/LINT_POLICY.md) for root-cause analysis of common CI lint failures, baseline update procedures, and the full rule reference.
 
 ## Pull Request Guidelines
 

@@ -29,8 +29,17 @@ except ImportError:
 # Typed Exceptions
 # ---------------------------------------------------------------------------
 
-class BoundaryRetrievalError(Exception):
-    """Base exception for all boundary retrieval failures."""
+from ..exceptions import SiegeGeoError
+
+
+class BoundaryRetrievalError(SiegeGeoError):
+    """Base exception for all boundary retrieval failures.
+
+    Inherits from :class:`SiegeGeoError` so callers can catch the entire
+    siege_utilities exception family with a single
+    ``except SiegeError:``. Previously this stood alone outside the
+    documented hierarchy and slipped past ``except SiegeError`` blocks.
+    """
 
     def __init__(self, message: str, stage: str, context: Optional[Dict[str, Any]] = None):
         self.stage = stage

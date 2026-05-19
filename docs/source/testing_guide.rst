@@ -328,11 +328,9 @@ Coverage settings in `pytest.ini`:
 
    [coverage:run]
    source = siege_utilities
-   omit = 
+   omit =
        */tests/*
        */test_*
-       setup.py
-       */__init__.py
 
    [coverage:report]
    exclude_lines =
@@ -347,7 +345,7 @@ Continuous Integration
 
 GitHub Actions automatically run tests on:
 
-- **Python versions**: 3.8, 3.9, 3.10, 3.11, 3.12
+- **Python versions**: 3.11, 3.12, 3.13
 - **Test coverage**: Minimum 85% coverage required
 - **Code quality**: Flake8 and black formatting checks
 - **Documentation**: Sphinx build verification
@@ -365,7 +363,7 @@ CI Pipeline
        runs-on: ubuntu-latest
        strategy:
          matrix:
-           python-version: [3.8, 3.9, 3.10, 3.11, 3.12]
+           python-version: ["3.11", "3.12", "3.13"]
        
        steps:
        - uses: actions/checkout@v3
@@ -376,8 +374,7 @@ CI Pipeline
        
        - name: Install dependencies
          run: |
-           pip install -r test_requirements.txt
-           pip install -e .
+           pip install -e '.[dev]'
        
        - name: Run tests
          run: |
@@ -637,10 +634,10 @@ Common Issues
 
       pip install -e .
 
-**Missing dependencies**: Install test requirements
+**Missing dependencies**: Install dev/test extras
    .. code-block:: bash
 
-      pip install -r test_requirements.txt
+      pip install -e '.[dev]'
 
 **Test discovery issues**: Check test file naming and structure
    .. code-block:: bash

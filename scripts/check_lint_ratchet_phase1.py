@@ -12,25 +12,25 @@ SEVERE_RULES = "E722,F601,F403,F405"
 
 
 def run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(cmd, text=True, capture_output=True)
+    return subprocess.run(cmd, text=True, capture_output=True, timeout=60)
 
 
 def _resolve_base_head(base_sha: str | None, head_sha: str | None, base_ref: str) -> tuple[str, str]:
     if base_sha and head_sha:
         return base_sha, head_sha
 
-    head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True, timeout=60).strip()
 
     try:
         ref = base_ref
         remote = "origin"
         if "/" in base_ref:
             remote, ref = base_ref.split("/", 1)
-        subprocess.run(["git", "fetch", remote, ref, "--depth", "1"], check=False)
-        merge_base = subprocess.check_output(["git", "merge-base", base_ref, "HEAD"], text=True).strip()
+        subprocess.run(["git", "fetch", remote, ref, "--depth", "1"], check=False, timeout=60)
+        merge_base = subprocess.check_output(["git", "merge-base", base_ref, "HEAD"], text=True, timeout=60).strip()
         return merge_base, head
     except Exception:
-        parent = subprocess.check_output(["git", "rev-parse", "HEAD~1"], text=True).strip()
+        parent = subprocess.check_output(["git", "rev-parse", "HEAD~1"], text=True, timeout=60).strip()
         return parent, head
 
 

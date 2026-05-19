@@ -5,18 +5,26 @@ Creates structured content pages with headers, footers, and proper layout
 Adapted from working GA project implementation
 """
 
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.colors import HexColor
-from reportlab.lib.units import inch
-from reportlab.platypus import Table, TableStyle, Paragraph
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+try:
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.colors import HexColor
+    from reportlab.lib.units import inch
+    from reportlab.platypus import Table, TableStyle, Paragraph
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+    canvas = None
+    letter = None
+    HexColor = None
+    inch = None
+    Table = TableStyle = Paragraph = None
+    getSampleStyleSheet = ParagraphStyle = None
 from datetime import datetime
-from pathlib import Path
-import yaml
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, List
 
-from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+from siege_utilities.core.logging import log_info, log_warning
 
 
 class ContentPageTemplate:
@@ -54,8 +62,7 @@ class ContentPageTemplate:
     def _load_brand_config(self) -> Dict[str, Any]:
         """Load brand configuration from client branding system"""
         try:
-            from .client_branding import ClientBrandingManager
-            branding_manager = ClientBrandingManager()
+            from .client_branding import ClientBrandingManager  # noqa: F401
             return self._default_brand_config()
         except Exception as e:
             log_warning(f"Could not load brand config: {e}")

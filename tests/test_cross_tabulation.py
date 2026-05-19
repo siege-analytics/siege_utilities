@@ -1,11 +1,11 @@
-"""Tests for siege_utilities.data.cross_tabulation module."""
+"""Tests for siege_utilities.data.statistics.cross_tabulation module."""
 
 from __future__ import annotations
 
 import pandas as pd
 import pytest
 
-from siege_utilities.data.cross_tabulation import (
+from siege_utilities.data.statistics.cross_tabulation import (
     ChiSquareResult,
     CrossTabSpec,
     chi_square_test,
@@ -240,7 +240,7 @@ class TestCrossTabSpec:
 class TestExports:
 
     def test_all(self):
-        from siege_utilities.data.cross_tabulation import __all__
+        from siege_utilities.data.statistics.cross_tabulation import __all__
         expected = {
             "ChiSquareResult", "CrossTabSpec",
             "chi_square_test", "contingency_table", "moe_cross_tab", "rate_table",

@@ -64,14 +64,20 @@ class TestSpatialDataTransformerInit:
         assert base_formats.issubset(set(transformer.supported_formats["output"]))
 
     def test_user_config_failure_handled(self):
-        """When get_user_config raises, the transformer falls back to empty dict."""
+        """When get_user_config raises, user_config is None.
+
+        Previously the fallback was {}, which silently AttributeError'd
+        on .get_database_connection() in the converters. None lets
+        downstream code branch on `is None` uniformly across all three
+        connector classes.
+        """
         with patch(
             "siege_utilities.geo.spatial_transformations.get_user_config",
             side_effect=RuntimeError("no config"),
         ):
             from siege_utilities.geo.spatial_transformations import SpatialDataTransformer
             t = SpatialDataTransformer()
-            assert t.user_config == {}
+            assert t.user_config is None
 
 
 # ---------------------------------------------------------------------------
@@ -300,19 +306,63 @@ class TestPostGISConnector:
                 connector.connection = mock_conn
                 return connector
 
-    def test_upload_no_connection_returns_false(self, sample_gdf):
+    def test_upload_no_connection_string_returns_false(self, sample_gdf):
+        # Post-#516: upload_spatial_data requires self.connection_string
+        # (used to build the SQLAlchemy engine for to_postgis), not the
+        # raw psycopg2 connection.
         connector = self._make_connector()
-        connector.connection = None
+        connector.connection_string = None
         assert connector.upload_spatial_data(sample_gdf, "test_table") is False
 
-    def test_upload_spatial_data_calls_cursor(self, sample_gdf):
-        mock_conn = MagicMock()
-        connector = self._make_connector(mock_conn)
-        with patch.object(connector, "_create_spatial_table"):
+    def _mock_geoalchemy2_available(self):
+        """Patch sys.modules so the upload's `import geoalchemy2` succeeds
+        even when the dependency is not installed in the test environment."""
+        return patch.dict("sys.modules", {"geoalchemy2": MagicMock()})
+
+    def test_upload_calls_to_postgis_with_all_columns(self, sample_gdf):
+        """Post-#516 regression: upload_spatial_data must delegate to
+        gpd.GeoDataFrame.to_postgis, which writes ALL columns from the
+        input GeoDataFrame -- not just geom. Pre-#516 the implementation
+        manually built an INSERT for just geom and silently dropped every
+        attribute column."""
+        connector = self._make_connector()
+        with self._mock_geoalchemy2_available(), \
+             patch("sqlalchemy.create_engine") as mock_engine_factory, \
+             patch.object(type(sample_gdf), "to_postgis", create=True) as mock_to_postgis:
+            mock_engine = MagicMock()
+            mock_engine_factory.return_value = mock_engine
+
             result = connector.upload_spatial_data(sample_gdf, "test_table")
-        assert result is True
-        mock_conn.cursor.assert_called()
-        mock_conn.commit.assert_called()
+
+            assert result is True
+            # to_postgis must be called exactly once with the engine + schema + if_exists.
+            mock_to_postgis.assert_called_once()
+            kwargs = mock_to_postgis.call_args.kwargs
+            assert kwargs["name"] == "test_table"
+            assert kwargs["con"] is mock_engine
+            assert kwargs["schema"] == "public"
+            assert kwargs["if_exists"] == "replace"
+            # Engine must be disposed even on success.
+            mock_engine.dispose.assert_called_once()
+
+    def test_upload_geoalchemy2_missing_returns_false(self, sample_gdf):
+        """If geoalchemy2 is not installed, upload returns False with a
+        clear log error rather than failing inside to_postgis."""
+        connector = self._make_connector()
+        with patch.dict("sys.modules", {"geoalchemy2": None}):
+            # Force the import attempt to fail by removing it from sys.modules
+            # and patching the import. Simpler: use builtins.__import__.
+            import builtins
+            real_import = builtins.__import__
+
+            def fake_import(name, *args, **kw):
+                if name == "geoalchemy2":
+                    raise ImportError("simulated missing geoalchemy2")
+                return real_import(name, *args, **kw)
+
+            with patch("builtins.__import__", side_effect=fake_import):
+                result = connector.upload_spatial_data(sample_gdf, "test_table")
+        assert result is False
 
     def test_download_no_connection_returns_none(self):
         connector = self._make_connector()
@@ -372,66 +422,71 @@ class TestPostGISConnector:
 
     # -- if_exists and schema parameter tests (#326) --
 
+    # Post-#516: upload_spatial_data delegates to gdf.to_postgis; the
+    # if_exists/schema/table_name parameters are pass-through. Tests
+    # below assert that the pass-through happens correctly. The actual
+    # behavior of if_exists (drop on replace, raise on fail-when-exists,
+    # etc) is owned by to_postgis itself; we don't re-test pandas/geopandas.
+
+    def _patch_to_postgis(self, sample_gdf):
+        """Context-manager helper that patches create_engine + to_postgis."""
+        return patch("sqlalchemy.create_engine"), patch.object(
+            type(sample_gdf), "to_postgis", create=True
+        )
+
     def test_upload_default_schema_is_public(self, sample_gdf):
-        mock_conn = MagicMock()
-        mock_conn.cursor.return_value.fetchone.return_value = (None,)
-        connector = self._make_connector(mock_conn)
-        with patch.object(connector, "_create_spatial_table"):
+        connector = self._make_connector()
+        with self._mock_geoalchemy2_available(), \
+             patch("sqlalchemy.create_engine"), \
+             patch.object(type(sample_gdf), "to_postgis", create=True) as mock_tp:
             connector.upload_spatial_data(sample_gdf, "test_table")
-        calls = [str(c) for c in mock_conn.cursor.return_value.execute.call_args_list]
-        assert any("public.test_table" in c for c in calls)
+        assert mock_tp.call_args.kwargs["schema"] == "public"
+        assert mock_tp.call_args.kwargs["name"] == "test_table"
 
     def test_upload_custom_schema(self, sample_gdf):
-        mock_conn = MagicMock()
-        mock_conn.cursor.return_value.fetchone.return_value = (None,)
-        connector = self._make_connector(mock_conn)
-        with patch.object(connector, "_create_spatial_table"):
-            connector.upload_spatial_data(
-                sample_gdf, "test_table", schema="staging"
-            )
-        calls = [str(c) for c in mock_conn.cursor.return_value.execute.call_args_list]
-        assert any("staging.test_table" in c for c in calls)
+        connector = self._make_connector()
+        with self._mock_geoalchemy2_available(), \
+             patch("sqlalchemy.create_engine"), \
+             patch.object(type(sample_gdf), "to_postgis", create=True) as mock_tp:
+            connector.upload_spatial_data(sample_gdf, "test_table", schema="staging")
+        assert mock_tp.call_args.kwargs["schema"] == "staging"
 
-    def test_upload_if_exists_replace_drops_table(self, sample_gdf):
-        mock_conn = MagicMock()
-        connector = self._make_connector(mock_conn)
-        with patch.object(connector, "_create_spatial_table"):
-            connector.upload_spatial_data(
-                sample_gdf, "test_table", if_exists="replace"
-            )
-        calls = [str(c) for c in mock_conn.cursor.return_value.execute.call_args_list]
-        assert any("DROP TABLE IF EXISTS" in c for c in calls)
+    def test_upload_if_exists_replace_passed_through(self, sample_gdf):
+        connector = self._make_connector()
+        with self._mock_geoalchemy2_available(), \
+             patch("sqlalchemy.create_engine"), \
+             patch.object(type(sample_gdf), "to_postgis", create=True) as mock_tp:
+            connector.upload_spatial_data(sample_gdf, "test_table", if_exists="replace")
+        assert mock_tp.call_args.kwargs["if_exists"] == "replace"
 
-    def test_upload_if_exists_append_no_drop_no_create(self, sample_gdf):
-        mock_conn = MagicMock()
-        connector = self._make_connector(mock_conn)
-        with patch.object(connector, "_create_spatial_table") as mock_create:
-            connector.upload_spatial_data(
-                sample_gdf, "test_table", if_exists="append"
-            )
-        calls = [str(c) for c in mock_conn.cursor.return_value.execute.call_args_list]
-        assert not any("DROP TABLE" in c for c in calls)
-        mock_create.assert_not_called()
+    def test_upload_if_exists_append_passed_through(self, sample_gdf):
+        connector = self._make_connector()
+        with self._mock_geoalchemy2_available(), \
+             patch("sqlalchemy.create_engine"), \
+             patch.object(type(sample_gdf), "to_postgis", create=True) as mock_tp:
+            connector.upload_spatial_data(sample_gdf, "test_table", if_exists="append")
+        assert mock_tp.call_args.kwargs["if_exists"] == "append"
 
-    def test_upload_if_exists_fail_raises_when_table_exists(self, sample_gdf):
-        mock_conn = MagicMock()
-        # to_regclass returns a non-None value meaning the table exists
-        mock_conn.cursor.return_value.fetchone.return_value = ("public.test_table",)
-        connector = self._make_connector(mock_conn)
-        result = connector.upload_spatial_data(
-            sample_gdf, "test_table", if_exists="fail"
-        )
+    def test_upload_if_exists_fail_passed_through(self, sample_gdf):
+        connector = self._make_connector()
+        with self._mock_geoalchemy2_available(), \
+             patch("sqlalchemy.create_engine"), \
+             patch.object(type(sample_gdf), "to_postgis", create=True) as mock_tp:
+            connector.upload_spatial_data(sample_gdf, "test_table", if_exists="fail")
+        assert mock_tp.call_args.kwargs["if_exists"] == "fail"
+
+    def test_upload_engine_disposed_on_to_postgis_failure(self, sample_gdf):
+        """Even when to_postgis raises, the SQLAlchemy engine must be disposed."""
+        connector = self._make_connector()
+        with self._mock_geoalchemy2_available(), \
+             patch("sqlalchemy.create_engine") as mock_engine_factory, \
+             patch.object(type(sample_gdf), "to_postgis", create=True,
+                          side_effect=RuntimeError("simulated db error")):
+            mock_engine = MagicMock()
+            mock_engine_factory.return_value = mock_engine
+            result = connector.upload_spatial_data(sample_gdf, "test_table")
         assert result is False
-
-    def test_upload_if_exists_fail_succeeds_when_table_absent(self, sample_gdf):
-        mock_conn = MagicMock()
-        mock_conn.cursor.return_value.fetchone.return_value = (None,)
-        connector = self._make_connector(mock_conn)
-        with patch.object(connector, "_create_spatial_table"):
-            result = connector.upload_spatial_data(
-                sample_gdf, "test_table", if_exists="fail"
-            )
-        assert result is True
+        mock_engine.dispose.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

@@ -42,8 +42,15 @@ siege_utilities/
 │   └── ...
 ├── reporting/                 # Report generation
 │   ├── chart_generator.py    # Chart creation utilities
-│   ├── content_page_template.py # Page templates
+│   ├── pages/
+│   │   └── page_models.py    # TableType enum, Argument dataclass, Page hierarchy
 │   └── ...
+├── survey/                    # Survey / cross-tabulation report engine
+│   ├── models.py             # Stack, Cluster, Chain, View, WeightScheme
+│   ├── crosstab.py           # build_chain() — respondent DataFrame → Chain
+│   ├── weights.py            # apply_rim_weights() via weightipy (optional dep)
+│   ├── significance.py       # column_proportion_test(), chi_square_flag()
+│   └── render.py             # chain_to_argument(), stack_to_arguments()
 ├── testing/                   # Testing utilities
 │   ├── environment.py        # Test environment setup
 │   └── runner.py             # Test runners

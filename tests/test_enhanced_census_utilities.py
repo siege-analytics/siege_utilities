@@ -7,18 +7,17 @@ Tests the dynamic discovery system, data source functionality, and all new featu
 import pytest
 import sys
 import os
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
-import tempfile
-import shutil
+from unittest.mock import Mock, patch
 
 # Add the project root to the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from siege_utilities.geo.spatial_data import (
-    CensusDirectoryDiscovery, 
+    CensusDirectoryDiscovery,
     CensusDataSource,
-    SpatialDataSource
+    SpatialDataSource,
+    BoundaryConfigurationError,
+    YEAR_TO_CONGRESS,
 )
 
 
@@ -114,8 +113,16 @@ class TestCensusDirectoryDiscovery:
     @patch('time.sleep')
     @patch('requests.get')
     def test_get_available_years_fallback(self, mock_get, mock_sleep):
-        """Test fallback when discovery fails completely."""
-        mock_get.side_effect = Exception("Network error")
+        """Discovery falls back to the known-years range when every retry
+        attempt fails with a real network error. The realistic failure
+        mode is requests.exceptions.RequestException (or one of its
+        subclasses); a bare Exception is not what the production code
+        catches, by design -- programming errors should propagate.
+        """
+        import requests as _requests
+        mock_get.side_effect = _requests.exceptions.RequestException(
+            "Network error"
+        )
 
         years = self.discovery.get_available_years()
 
@@ -159,22 +166,32 @@ class TestCensusDirectoryDiscovery:
     
     @patch('requests.get')
     def test_get_year_directory_contents_ssl_fallback(self, mock_get):
-        """Test SSL fallback for directory contents."""
+        """Test SSL fallback for directory contents.
+
+        The legacy verify=False fallback is now gated behind
+        SIEGE_INSECURE_SSL=1. Patch the module-level flag directly so
+        we exercise the fallback path without needing module reload.
+        """
+        from siege_utilities.geo import spatial_data
+        with patch.object(spatial_data, "_ALLOW_INSECURE_SSL", True):
+            self._run_ssl_fallback_for_directory(mock_get)
+
+    def _run_ssl_fallback_for_directory(self, mock_get):
         # First call fails with SSL error
         from requests.exceptions import SSLError
         ssl_error = SSLError("SSL error")
-        
+
         # Second call succeeds
         success_response = Mock()
         success_response.content = """
         <html><body><a href="STATE/">STATE</a></body></html>
         """.encode()
         success_response.raise_for_status.return_value = None
-        
+
         mock_get.side_effect = [ssl_error, success_response]
-        
+
         contents = self.discovery.get_year_directory_contents(2020)
-        
+
         assert 'STATE' in contents
     
     def test_discover_boundary_types(self):
@@ -248,9 +265,9 @@ class TestCensusDirectoryDiscovery:
         url = self.discovery.construct_download_url(2020, 'tract', state_fips='06')
         assert url == "https://www2.census.gov/geo/tiger/TIGER2020/TRACT/tl_2020_06_tract.zip"
         
-        # Test block groups for Texas (FIPS 48)
+        # Test block groups for Texas (FIPS 48) — Census uses 'bg' not 'block_group' in filenames.
         url = self.discovery.construct_download_url(2020, 'block_group', state_fips='48')
-        assert url == "https://www2.census.gov/geo/tiger/TIGER2020/BG/tl_2020_48_block_group.zip"
+        assert url == "https://www2.census.gov/geo/tiger/TIGER2020/BG/tl_2020_48_bg.zip"
     
     def test_construct_download_url_congressional_districts(self):
         """Test URL construction for congressional districts."""
@@ -323,19 +340,33 @@ class TestCensusDirectoryDiscovery:
 
     @patch('requests.get')
     def test_validate_download_url_ssl_fallback(self, mock_get):
-        """Test SSL fallback for URL validation."""
-        # First call fails with SSL error
+        """Test SSL fallback for URL validation when opted in."""
+        from siege_utilities.geo import spatial_data
+        with patch.object(spatial_data, "_ALLOW_INSECURE_SSL", True):
+            # First call fails with SSL error
+            from requests.exceptions import SSLError
+            ssl_error = SSLError("SSL error")
+
+            # Second call succeeds
+            success_response = Mock()
+            success_response.status_code = 200
+
+            mock_get.side_effect = [ssl_error, success_response]
+
+            is_valid = self.discovery.validate_download_url("https://example.com/test.zip")
+            assert is_valid is True
+
+    @patch('requests.get')
+    def test_validate_download_url_ssl_refused_by_default(self, mock_get):
+        """Without SIEGE_INSECURE_SSL=1, an SSL failure is no longer
+        silently bypassed; the URL is reported as not valid."""
         from requests.exceptions import SSLError
-        ssl_error = SSLError("SSL error")
-
-        # Second call succeeds
-        success_response = Mock()
-        success_response.status_code = 200
-
-        mock_get.side_effect = [ssl_error, success_response]
-
-        is_valid = self.discovery.validate_download_url("https://example.com/test.zip")
-        assert is_valid is True
+        from siege_utilities.geo.boundary_result import BoundaryUrlValidationError
+        from siege_utilities.geo import spatial_data
+        with patch.object(spatial_data, "_ALLOW_INSECURE_SSL", False):
+            mock_get.side_effect = SSLError("SSL error")
+            with pytest.raises((BoundaryUrlValidationError, SSLError)):
+                self.discovery.validate_download_url("https://example.com/test.zip")
 
     @patch('requests.get')
     def test_validate_download_url_failure(self, mock_get):
@@ -345,6 +376,58 @@ class TestCensusDirectoryDiscovery:
 
         with pytest.raises(BoundaryUrlValidationError):
             self.discovery.validate_download_url("https://example.com/test.zip")
+
+    def test_construct_download_url_zcta_pre2020(self):
+        """ZCTA pre-2020: directory ZCTA5, filename abbreviation zcta510."""
+        self.discovery.discover_boundary_types = Mock(return_value={'zcta': 'ZCTA5'})
+        url = self.discovery.construct_download_url(2019, 'zcta')
+        assert url == "https://www2.census.gov/geo/tiger/TIGER2019/ZCTA5/tl_2019_us_zcta510.zip"
+
+    def test_construct_download_url_zcta_2020plus(self):
+        """ZCTA 2020+: directory ZCTA520, filename abbreviation zcta520."""
+        self.discovery.discover_boundary_types = Mock(return_value={'zcta': 'ZCTA520'})
+        url = self.discovery.construct_download_url(2022, 'zcta')
+        assert url == "https://www2.census.gov/geo/tiger/TIGER2022/ZCTA520/tl_2022_us_zcta520.zip"
+
+    def test_year_to_congress_2012_is_cd112(self):
+        """Year 2012 uses cd112, NOT cd113 (113th elected Nov 2012 but not seated until Jan 2013)."""
+        self.discovery.discover_boundary_types = Mock(return_value={'cd': 'CD'})
+        url = self.discovery.construct_download_url(2012, 'cd')
+        assert 'cd112' in url, f"Expected cd112 in URL for year 2012, got: {url}"
+        assert url == "https://www2.census.gov/geo/tiger/TIGER2012/CD/tl_2012_us_cd112.zip"
+
+    def test_year_to_congress_2021_is_cd116(self):
+        """Year 2021 uses cd116, NOT cd117 (117th Congress is entirely absent from TIGER)."""
+        self.discovery.discover_boundary_types = Mock(return_value={'cd': 'CD'})
+        url = self.discovery.construct_download_url(2021, 'cd')
+        assert 'cd116' in url, f"Expected cd116 in URL for year 2021, got: {url}"
+        assert url == "https://www2.census.gov/geo/tiger/TIGER2021/CD/tl_2021_us_cd116.zip"
+
+    def test_cd_2022_per_state(self):
+        """CD 2022+: Census dropped the national file; per-state files only."""
+        self.discovery.discover_boundary_types = Mock(return_value={'cd': 'CD'})
+        url = self.discovery.construct_download_url(2022, 'cd', state_fips='48')
+        assert url == "https://www2.census.gov/geo/tiger/TIGER2022/CD/tl_2022_48_cd118.zip"
+
+    def test_cd_2022_without_state_fips_raises(self):
+        """CD 2022+ without state_fips must raise: Census dropped the national file after 2021."""
+        self.discovery.discover_boundary_types = Mock(return_value={'cd': 'CD'})
+        with pytest.raises(BoundaryConfigurationError):
+            self.discovery.construct_download_url(2022, 'cd')
+
+    def test_year_to_congress_new_entries(self):
+        """YEAR_TO_CONGRESS must include 2010, 2025, and 2026."""
+        assert YEAR_TO_CONGRESS[2010] == 111
+        assert YEAR_TO_CONGRESS[2025] == 119
+        assert YEAR_TO_CONGRESS[2026] == 119
+
+    def test_zcta520_directory_recognized(self):
+        """ZCTA520 directory name (2020+) should map to 'zcta' boundary type."""
+        # When Census returns ZCTA520 as directory, boundary_mapping must recognize it.
+        self.discovery.discover_boundary_types = Mock(return_value={'zcta': 'ZCTA520'})
+        url = self.discovery.construct_download_url(2021, 'zcta')
+        assert 'zcta520' in url
+        assert url == "https://www2.census.gov/geo/tiger/TIGER2021/ZCTA520/tl_2021_us_zcta520.zip"
 
 
 class TestCensusDataSource:

@@ -64,6 +64,11 @@ _register([
     'insert_paragraph', 'insert_table', 'replace_text',
 ], '.google_docs')
 
+_register([
+    'VistaSocialConnector', 'VistaSocialResponse',
+    'VistaSocialError', 'VistaSocialAuthError', 'VistaSocialRateLimitError',
+], '.vista_social')
+
 __all__ = list(_LAZY_IMPORTS.keys())
 
 

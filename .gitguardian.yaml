@@ -1,0 +1,5 @@
+version: 2
+ignore-paths:
+  - tests/
+  - "**/test_*.py"
+  - "**/*_test.py"

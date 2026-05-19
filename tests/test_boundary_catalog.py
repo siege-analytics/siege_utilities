@@ -1,7 +1,5 @@
 """Tests for BOUNDARY_TYPE_CATALOG and TIGER_FILE_PATTERNS consistency."""
 
-import pytest
-
 from siege_utilities.geo.spatial_data import BOUNDARY_TYPE_CATALOG
 from siege_utilities.config.census_constants import TIGER_FILE_PATTERNS
 
@@ -73,8 +71,8 @@ class TestBoundaryTypeCatalog:
             assert BOUNDARY_TYPE_CATALOG[key]["geometry_type"] == "MultiPolygon"
 
     def test_minimum_entry_count(self):
-        """Catalog should have at least 47 entries (original + new)."""
-        assert len(BOUNDARY_TYPE_CATALOG) >= 47
+        """Catalog should have at least 46 entries (cd117 removed: 117th Congress absent from TIGER)."""
+        assert len(BOUNDARY_TYPE_CATALOG) >= 46
 
 
 class TestTigerFilePatterns:

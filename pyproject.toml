@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "siege-utilities"
-version = "3.13.1"
+version = "3.17.2"
 description = "A comprehensive Python utilities package with enhanced auto-discovery"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -13,7 +13,15 @@ authors = [
 ]
 license = {text = "AGPL-3.0-only OR commercial license"}
 classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
     "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 
 # Core dependencies only — lightweight, no heavy packages
@@ -47,10 +55,27 @@ geo = [
     "pysal>=24.1",
     "censusgeocode>=0.5.2",
     "topojson>=1.8",
+    # Required by PostGISConnector.upload_spatial_data for full-column
+    # writes via gpd.GeoDataFrame.to_postgis (closes #516).
+    "geoalchemy2>=0.14.0",
 ]
 # H3 hexagonal spatial index (lightweight spatial joins)
 h3 = [
     "h3>=4.0.0",
+]
+# S2 cell-grid spatial index (sortable int64 IDs, range queries)
+s2 = [
+    "s2sphere>=0.2.5",
+]
+# WKLS (Well Known Locations) — global admin-boundary gazetteer.
+# Pulls sedonadb (Rust + Arrow), pyarrow, geoarrow-pyarrow. NO Spark/JVM.
+# ~302 MB install. Data fetched on-demand from public Overture Maps S3.
+wkls = [
+    "wkls>=1.1.0",
+]
+# Etter — natural-language geographic query parser (LLM-driven)
+etter = [
+    "etter>=0.1.0",
 ]
 # Reporting and visualization
 reporting = [
@@ -136,8 +161,13 @@ schema = [
     "psycopg[binary]>=3.1.0",
 ]
 credentials = [
-    # 1Password CLI integration (requires 1Password CLI to be installed separately)
-    # macOS Keychain integration (built-in on macOS)
+    # `pip install siege-utilities[credentials]` was previously a no-op
+    # because the extra was empty — the comment listed integrations
+    # that don't ship as Python packages (`op`, macOS Keychain). Pull
+    # in `keyring` so the Python-side credential manager has its
+    # generic backend available; the 1Password / Keychain CLIs are
+    # still expected to be installed separately by ops.
+    "keyring>=24.0.0",
 ]
 # S3-compatible object storage (MinIO, AWS S3)
 s3 = [
@@ -162,6 +192,9 @@ dev = [
     "pytest-json-report>=1.5.0",
     "pytest-forked>=1.4.0",
     "pytest-django>=4.5.0",
+    "pytest-randomly>=3.15.0",
+    "hypothesis>=6.100.0",
+    "nbmake>=1.5.0",
     "papermill>=2.4.0",
     "nbformat>=5.7.0",
     "black>=21.0.0",
@@ -171,6 +204,10 @@ dev = [
     "djangorestframework>=3.14.0",
     "djangorestframework-gis>=1.0.0",
     "psycopg2-binary>=2.9.0",
+]
+# Survey/polling report engine (RIM weighting)
+survey = [
+    "weightipy>=0.4.0",
 ]
 # Everything — convenience meta-extra for full installs
 all = [
@@ -194,6 +231,10 @@ all = [
     "censusgeocode>=0.5.2",
     # h3
     "h3>=4.0.0",
+    # s2
+    "s2sphere>=0.2.5",
+    # etter (natural-language geo query parser)
+    "etter>=0.1.0",
     # databricks
     "databricks-sdk>=0.20.0",
     # s3
@@ -255,6 +296,20 @@ Homepage = "https://github.com/siege-analytics/siege_utilities"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["*"]
+exclude = [
+    # Repo-tooling directories that contain .py files but are NOT runtime
+    # packages. Without an exclude here, setuptools find_packages picked
+    # them up and shipped them at site-packages root, polluting every
+    # downstream venv (any user could then `from scripts import
+    # release_manager` and collide with their own top-level `scripts/`
+    # package). See issue #496.
+    "scripts*",
+    "tests*",
+    "docs*",
+]
+
+[tool.setuptools.package-data]
+siege_utilities = ["py.typed"]
 
 [tool.pytest.ini_options]
 markers = [
@@ -266,6 +321,7 @@ markers = [
     "smoke: quick validation tests for critical paths (no network, no GDAL)",
     "slow: tests that take >10s (network, large data)",
     "databricks: tests requiring Databricks runtime or SDK",
+    "requires_api_key: connector smoke tests that hit a live external API; require ~/.siege-test-credentials.yaml. Skipped by default; opt in with `pytest -m requires_api_key`.",
 ]
 
 [tool.coverage.report]

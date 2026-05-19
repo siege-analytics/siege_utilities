@@ -287,3 +287,162 @@ def batch_update(
         The API response dict.
     """
     return client.batch_update_presentation(presentation_id, requests)
+
+
+# ---------------------------------------------------------------------------
+# Argument-level operations (SAL-66)
+# ---------------------------------------------------------------------------
+
+# Slide dimensions (points): Google Slides default 10in × 5.625in
+_SLIDE_W = 720
+_SLIDE_H = 405
+
+# Layout configs: (title_box, narrative_box, figure_box)
+# Each box is (left, top, width, height) in points
+_LAYOUTS = {
+    "full_width": {
+        "title":     (36,  20,  648,  44),
+        "narrative": (36,  72,  648,  80),
+        "figure":    (36, 162,  648, 220),
+    },
+    "side_by_side": {
+        "title":     (36,  20,  648,  44),
+        "narrative": (36,  72,  304, 300),
+        "figure":    (358, 72,  326, 300),
+    },
+}
+
+
+def upload_figure_to_drive(
+    client,
+    figure,
+    filename: str,
+    folder_id: Optional[str] = None,
+) -> str:
+    """Save a matplotlib Figure to a temp PNG, upload to Google Drive, return URL.
+
+    Args:
+        client: Authenticated GoogleWorkspaceClient.
+        figure: matplotlib Figure object.
+        filename: Name for the uploaded file (without extension).
+        folder_id: Optional Drive folder ID.
+
+    Returns:
+        Public URL string for the uploaded image (suitable for insert_image).
+    """
+    import tempfile
+    import os
+
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+        tmp_path = tmp.name
+
+    try:
+        figure.savefig(tmp_path, format="png", dpi=150, bbox_inches="tight")
+        file_id = client.upload_file(
+            local_path=tmp_path,
+            name=f"{filename}.png",
+            mime_type="image/png",
+            folder_id=folder_id,
+        )
+        url = client.public_url(file_id)
+        log.info("Uploaded figure %r → Drive %s", filename, file_id)
+        return url
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+
+
+def create_argument_slide(
+    client,
+    presentation_id: str,
+    argument,
+    slide_index: Optional[int] = None,
+) -> str:
+    """Add one slide for an Argument.
+
+    Layout is derived from argument.layout:
+      "full_width"   → title / narrative / figure stacked vertically
+      "side_by_side" → title top; narrative left, figure right
+
+    Args:
+        client: Authenticated GoogleWorkspaceClient.
+        presentation_id: Target presentation ID.
+        argument: Argument dataclass instance.
+        slide_index: Insertion position. None → append at end.
+
+    Returns:
+        Slide object ID.
+    """
+    layout_key = argument.layout if argument.layout in _LAYOUTS else "side_by_side"
+    layout = _LAYOUTS[layout_key]
+
+    # Add blank slide
+    slide_id = add_blank_slide(client, presentation_id, insertion_index=slide_index)
+
+    # Headline text box
+    tl, tt, tw, th = layout["title"]
+    create_textbox(client, presentation_id, slide_id,
+                   argument.headline, left=tl, top=tt, width=tw, height=th)
+
+    # Narrative text box (includes base_note if present)
+    body_text = argument.narrative
+    if argument.base_note:
+        body_text = f"{body_text}\n\n{argument.base_note}"
+    if argument.source_note:
+        body_text = f"{body_text}\n{argument.source_note}"
+    nl, nt, nw, nh = layout["narrative"]
+    create_textbox(client, presentation_id, slide_id,
+                   body_text, left=nl, top=nt, width=nw, height=nh)
+
+    # Figure (chart or map)
+    fig = argument.map_figure if layout_key == "full_width" and argument.map_figure else argument.chart
+    if fig is not None:
+        fl, ft, fw, fh = layout["figure"]
+        fig_name = f"fig_{slide_id}"
+        try:
+            img_url = upload_figure_to_drive(client, fig, fig_name)
+            insert_image(client, presentation_id, slide_id, img_url,
+                         left=fl, top=ft, width=fw, height=fh)
+        except Exception as exc:
+            log.warning("Could not upload figure for slide %s: %s", slide_id, exc)
+
+    return slide_id
+
+
+def create_report_from_arguments(
+    client,
+    title: str,
+    arguments: List,
+    folder_id: Optional[str] = None,
+    theme_presentation_id: Optional[str] = None,
+) -> str:
+    """Create a complete presentation from a list of Arguments.
+
+    Args:
+        client: Authenticated GoogleWorkspaceClient.
+        title: Presentation title.
+        arguments: List of Argument dataclass instances (one slide each).
+        folder_id: Optional Drive folder to place the presentation in.
+        theme_presentation_id: If given, copies this presentation first
+            (preserves master slides / theme).
+
+    Returns:
+        Presentation ID of the newly created report.
+    """
+    if theme_presentation_id:
+        pres_id = copy_presentation(client, theme_presentation_id, title=title)
+        if folder_id:
+            client.move_to_folder(pres_id, folder_id)
+    else:
+        pres_id = create_presentation(client, title, folder_id=folder_id)
+
+    for i, argument in enumerate(arguments):
+        try:
+            create_argument_slide(client, pres_id, argument, slide_index=i)
+        except Exception as exc:
+            log.error("Failed to create slide %d for argument %r: %s",
+                      i, argument.headline, exc)
+
+    log.info("Created report %r with %d slides → %s",
+             title, len(arguments), client.presentation_url(pres_id))
+    return pres_id

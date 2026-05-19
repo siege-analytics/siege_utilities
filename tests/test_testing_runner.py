@@ -40,7 +40,11 @@ class TestRunCommand:
         mock_run.return_value = MagicMock(returncode=0)
         result = run_command(["echo", "hello"], "Echo test")
         assert result is True
-        mock_run.assert_called_once_with(["echo", "hello"])
+        # timeout=600 added per writing-code:15 (v2.6.0): the no-log-file
+        # branch of run_command has no caller-visible progress signal,
+        # so an unbounded subprocess.run there would cascade into CI
+        # hangs. The Popen branch streams output and is exempt.
+        mock_run.assert_called_once_with(["echo", "hello"], timeout=600)
 
     @patch("siege_utilities.testing.runner.subprocess.run")
     def test_failure_without_log_file(self, mock_run):
