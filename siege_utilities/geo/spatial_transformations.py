@@ -321,80 +321,73 @@ class PostGISConnector:
     
     def upload_spatial_data(self, gdf: GeoDataFrame, table_name: str, **kwargs) -> bool:
         """
-        Upload spatial data to PostGIS.
+        Upload spatial data to PostGIS with all columns preserved.
+
+        Uses geopandas.GeoDataFrame.to_postgis under the hood, which
+        handles full-column writes (geometry + every attribute column) via
+        SQLAlchemy + GeoAlchemy2. This is the canonical geopandas idiom
+        for PostGIS upload.
+
+        Pre-#516 behavior (replaced): the old implementation manually
+        built `INSERT INTO {table} (geom) VALUES (...)` statements,
+        dropping all tabular columns from the GeoDataFrame. Any caller
+        passing attribute data got an empty-attribute table silently.
 
         Args:
-            gdf: GeoDataFrame to upload
-            table_name: Target table name
+            gdf: GeoDataFrame to upload (all columns including geometry).
+            table_name: Target table name.
             **kwargs: Additional parameters:
-                if_exists: How to handle existing table -- ``'replace'`` (default,
-                    drops and recreates), ``'append'`` (inserts into existing table),
-                    or ``'fail'`` (raises if table exists).
+                if_exists: How to handle existing table -- ``'fail'``,
+                    ``'replace'`` (default), or ``'append'``.
                 schema: PostgreSQL schema name (default ``'public'``).
 
         Returns:
-            True if successful, False otherwise
+            True if successful, False otherwise.
+
+        Note:
+            Requires ``geoalchemy2`` (declared in the ``geo`` optional
+            extra). If missing, the import error is logged and the
+            upload returns False with a clear remediation hint.
         """
-        if not self.connection:
-            log.error("No PostGIS connection available")
+        if not self.connection_string:
+            log.error("No PostGIS connection_string available")
             return False
 
         if_exists = kwargs.get('if_exists', 'replace')
         schema = kwargs.get('schema', 'public')
 
-        # Validate identifiers before they reach SQL, then use
-        # psycopg2.sql.Identifier for safe quoting in interpolation.
+        # Validate identifiers before they reach SQL. to_postgis itself
+        # uses parameterized SQL but defense-in-depth keeps the validation
+        # consistent with download_spatial_data + the prior implementation.
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
-        from psycopg2 import sql as _pg_sql
         validate_identifier(schema, label="schema name", allow_dotted=False)
         validate_identifier(table_name, label="table name", allow_dotted=False)
-        qualified_table = f"{schema}.{table_name}"
-        qualified_ident = _pg_sql.Identifier(schema, table_name)
 
         try:
-            cursor = self.connection.cursor()
+            import geoalchemy2  # noqa: F401  -- presence-check; to_postgis needs it
+        except ImportError:
+            log.error(
+                "geoalchemy2 not available -- upload_spatial_data requires it "
+                "for full-column writes. Install with: pip install 'siege_utilities[geo]'"
+            )
+            return False
 
-            if if_exists == 'fail':
-                cursor.execute(
-                    "SELECT to_regclass(%s)",
-                    (qualified_table,),
-                )
-                if cursor.fetchone()[0] is not None:
-                    raise ValueError(
-                        f"Table {qualified_table} already exists and if_exists='fail'"
-                    )
-
-            if if_exists == 'replace':
-                cursor.execute(
-                    _pg_sql.SQL("DROP TABLE IF EXISTS {}").format(qualified_ident)
-                )
-                self.connection.commit()
-
-            if if_exists in ('replace', 'fail'):
-                self._create_spatial_table(qualified_table, gdf)
-
-            # Upload data. _create_spatial_table writes the column as
-            # GEOMETRY(<type>, <srid>) and rejects mismatched SRIDs, so
-            # we must pass the same SRID to ST_GeomFromText here. Prefer
-            # gdf.crs's EPSG code; fall back to STORAGE_CRS.
-            cursor = self.connection.cursor()
-            srid = None
+        try:
+            from sqlalchemy import create_engine
+            engine = create_engine(self.connection_string)
             try:
-                crs = getattr(gdf, "crs", None)
-                if crs is not None:
-                    srid = crs.to_epsg()
-            except Exception:
-                srid = None
-            srid = srid or settings.STORAGE_CRS
-
-            insert_stmt = _pg_sql.SQL(
-                "INSERT INTO {} (geom) VALUES (ST_GeomFromText(%s, %s))"
-            ).format(qualified_ident)
-            params = [(geom.wkt, srid) for geom in gdf.geometry]
-            cursor.executemany(insert_stmt, params)
-
-            self.connection.commit()
-            log.info(f"Successfully uploaded to PostGIS table: {qualified_table}")
+                gdf.to_postgis(
+                    name=table_name,
+                    con=engine,
+                    schema=schema,
+                    if_exists=if_exists,
+                )
+            finally:
+                engine.dispose()
+            log.info(
+                f"Successfully uploaded to PostGIS table: {schema}.{table_name} "
+                f"({len(gdf)} rows, {len(gdf.columns)} columns)"
+            )
             return True
 
         except Exception as e:
@@ -511,7 +504,17 @@ class PostGISConnector:
                 cursor.close()
     
     def _create_spatial_table(self, table_name: str, gdf: GeoDataFrame):
-        """Create a spatial table in PostGIS."""
+        """DEPRECATED. Kept only for backward compatibility with callers
+        that referenced this private helper directly (pre-#516).
+
+        The new upload_spatial_data uses gdf.to_postgis which creates the
+        table with the full column set automatically. This helper, if
+        called directly, still creates only (id, geom) -- which is the
+        same broken behavior #516 fixed. Do not call this directly; use
+        upload_spatial_data.
+
+        Will be removed in a future major version.
+        """
         cursor = self.connection.cursor()
 
         # Detect geometry type from the GeoDataFrame
