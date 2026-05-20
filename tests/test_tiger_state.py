@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from siege_utilities.geo.census.tiger_state import (
     check_for_updates,
     get_last_fetched_vintage,
