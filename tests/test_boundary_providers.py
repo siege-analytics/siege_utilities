@@ -139,6 +139,49 @@ class TestCensusTIGERProvider:
 
 
 # ---------------------------------------------------------------------------
+# Vintage discovery (SU#540)
+# ---------------------------------------------------------------------------
+
+
+class TestCensusTIGERVintageDiscovery:
+    """list_available_vintages + latest_vintage parse the listing HTML."""
+
+    _LISTING_HTML = """
+    <html><body><pre>
+    <a href="TIGER2018/">TIGER2018/</a>
+    <a href="TIGER2019/">TIGER2019/</a>
+    <a href="TIGER2020/">TIGER2020/</a>
+    <a href="TIGER2024/">TIGER2024/</a>
+    <a href="TIGER2025/">TIGER2025/</a>
+    <a href="GENZ2010/">GENZ2010/</a>
+    </pre></body></html>
+    """
+
+    @patch('requests.get')
+    def test_list_available_vintages_parses_years(self, mock_get):
+        mock_get.return_value = MagicMock(text=self._LISTING_HTML,
+                                          raise_for_status=lambda: None)
+        provider = CensusTIGERProvider()
+        years = provider.list_available_vintages()
+        assert years == [2018, 2019, 2020, 2024, 2025]
+
+    @patch('requests.get')
+    def test_latest_vintage_returns_max(self, mock_get):
+        mock_get.return_value = MagicMock(text=self._LISTING_HTML,
+                                          raise_for_status=lambda: None)
+        provider = CensusTIGERProvider()
+        assert provider.latest_vintage() == 2025
+
+    @patch('requests.get')
+    def test_list_vintages_empty_on_network_failure(self, mock_get):
+        import requests
+        mock_get.side_effect = requests.ConnectionError('down')
+        provider = CensusTIGERProvider()
+        assert provider.list_available_vintages() == []
+        assert provider.latest_vintage() is None
+
+
+# ---------------------------------------------------------------------------
 # GADMProvider
 # ---------------------------------------------------------------------------
 

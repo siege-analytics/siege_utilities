@@ -11,9 +11,11 @@ Each module handles one concern:
 from .variable_registry import VariableRegistry
 from .dataset_selector import DatasetSelector
 from .api import CensusAPI
+from . import tiger_state
 
 __all__ = [
     "VariableRegistry",
     "DatasetSelector",
     "CensusAPI",
+    "tiger_state",
 ]

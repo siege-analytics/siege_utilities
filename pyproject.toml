@@ -156,6 +156,10 @@ database = [
     "psycopg2-binary>=2.9.0",
     "sqlalchemy>=1.4.0",
 ]
+# Schema migration runner — psycopg v3 (distinct package from psycopg2)
+schema = [
+    "psycopg[binary]>=3.1.0",
+]
 credentials = [
     # `pip install siege-utilities[credentials]` was previously a no-op
     # because the extra was empty — the comment listed integrations
