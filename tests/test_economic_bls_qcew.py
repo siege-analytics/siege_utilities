@@ -1,12 +1,7 @@
 """Tests for siege_utilities.economic.bls.qcew (SU#533)."""
 
-import tempfile
 import zipfile
-from pathlib import Path
 from unittest.mock import patch, MagicMock
-
-import pandas as pd
-import pytest
 
 from siege_utilities.economic.bls.qcew import QCEWFiles, QCEW_FILE_URL
 
