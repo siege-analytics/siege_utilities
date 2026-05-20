@@ -120,3 +120,48 @@ class UrbanArea(CensusTIGERBoundary):
         return {
             "state_fips": "",
         }
+
+
+class PUMA(CensusTIGERBoundary):
+    """
+    Public Use Microdata Area boundary.
+
+    PUMAs are non-overlapping, statistical geographic areas of contiguous
+    counties or census tracts containing ~100,000+ people. Used by ACS
+    public-use microdata samples (PUMS) and small-area estimates.
+
+    GEOID: 7 digits = state (2) + PUMA (5)
+    Example: "0603701" for PUMA 03701 in California (Los Angeles area)
+    """
+
+    puma_code = models.CharField(
+        max_length=5,
+        db_index=True,
+        help_text="5-digit PUMA code within a state",
+    )
+
+    class Meta:
+        verbose_name = "PUMA"
+        verbose_name_plural = "PUMAs"
+        unique_together = [("geoid", "vintage_year")]
+        indexes = [
+            models.Index(fields=["state_fips", "puma_code"]),
+            models.Index(fields=["state_fips", "vintage_year"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(geoid__regex=r"^\d{7}$"),
+                name="puma_geoid_7_digits",
+            ),
+        ]
+
+    @classmethod
+    def get_geoid_length(cls) -> int:
+        return 7
+
+    @classmethod
+    def parse_geoid(cls, geoid: str) -> dict:
+        return {
+            "state_fips": geoid[:2],
+            "puma_code": geoid[2:7],
+        }

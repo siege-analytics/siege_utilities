@@ -82,7 +82,17 @@ from .isochrone import (
 )
 from .census_extended import (
     CBSA,
+    PUMA,
     UrbanArea,
+)
+from .special_districts import (
+    CemeteryDistrict,
+    FireProtectionDistrict,
+    HospitalDistrict,
+    LibraryDistrict,
+    MosquitoAbatementDistrict,
+    OtherSpecialDistrict,
+    WaterSupplyDistrict,
 )
 from .intersections import (
     BoundaryIntersection,
@@ -165,7 +175,15 @@ __all__ = [
     "IsochroneResult",
     # Census Extended
     "CBSA",
+    "PUMA",
     "UrbanArea",
+    "CemeteryDistrict",
+    "FireProtectionDistrict",
+    "HospitalDistrict",
+    "LibraryDistrict",
+    "MosquitoAbatementDistrict",
+    "OtherSpecialDistrict",
+    "WaterSupplyDistrict",
     # Intersections
     "BoundaryIntersection",
     "CountyCDIntersection",
