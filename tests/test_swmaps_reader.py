@@ -21,7 +21,7 @@ def _build_swmaps_sqlite(
     features,  # list of (fid, name, layer_id, layer_name, group, geom_type, [(seq, lat, lon, elv), ...])
     attributes=None,  # list of (fid, field_name, value)
 ):
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=5.0)
     conn.executescript(
         """
         CREATE TABLE features (uuid TEXT, name TEXT, layer_id TEXT);
