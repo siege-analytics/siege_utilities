@@ -57,7 +57,7 @@ def test_detect_format_random_json_is_unknown(tmp_path):
 
 def test_detect_format_sqlite_swmaps(tmp_path):
     p = os.path.join(str(tmp_path), "field.sqlite")
-    conn = sqlite3.connect(p)
+    conn = sqlite3.connect(p, timeout=5.0)
     conn.execute("CREATE TABLE features (uuid TEXT, name TEXT, layer_id TEXT)")
     conn.execute("CREATE TABLE points (fid TEXT, seq INT, lat REAL, lon REAL, elv REAL)")
     conn.execute("CREATE TABLE feature_layers (uuid TEXT, name TEXT, group_name TEXT, geom_type TEXT)")
@@ -68,7 +68,7 @@ def test_detect_format_sqlite_swmaps(tmp_path):
 
 def test_detect_format_sqlite_non_swmaps(tmp_path):
     p = os.path.join(str(tmp_path), "other.sqlite")
-    conn = sqlite3.connect(p)
+    conn = sqlite3.connect(p, timeout=5.0)
     conn.execute("CREATE TABLE unrelated (id INTEGER)")
     conn.commit()
     conn.close()
@@ -162,7 +162,7 @@ def test_extract_kml_none_data():
 
 def _build_swmaps_sqlite(path: str, attr_rows):
     """attr_rows = list of (feature_id, field_name, value)."""
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, timeout=5.0)
     conn.executescript(
         """
         CREATE TABLE attribute_fields (uuid TEXT PRIMARY KEY, field_name TEXT);
