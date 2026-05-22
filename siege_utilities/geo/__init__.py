@@ -19,9 +19,11 @@ def _register(names, module):
 # --- capabilities (runtime tier detection) ---
 _register(['geo_capabilities'], '.capabilities')
 
-# --- crs (configurable default CRS) ---
+# --- crs (configurable default CRS + axis-order-aware reprojection) ---
 _register([
     'get_default_crs', 'set_default_crs', 'reproject_if_needed',
+    'detect_crs', 'reproject_geom',
+    'AXIS_ORDER_TRAD_GIS', 'AXIS_ORDER_AUTH_COMPLIANT',
 ], '.crs')
 
 # --- boundary_result (structured diagnostics) ---
