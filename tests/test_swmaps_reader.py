@@ -11,7 +11,6 @@ import pytest
 pytest.importorskip("shapely")
 
 from siege_utilities.geo.swmaps_reader import (
-    SWMapsArchive,
     open_swmaps,
     read_features,
 )

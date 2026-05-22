@@ -203,7 +203,7 @@ def read_features(
         ) from exc
 
     db_path = archive.db_path
-    with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
+    with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5.0) as conn:
         conn.row_factory = sqlite3.Row
 
         # Group coordinate rows by feature_id; sqlite3 cursor already
