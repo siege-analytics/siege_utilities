@@ -84,6 +84,11 @@ _register([
 # --- spatial_transformations ---
 _register(['SpatialDataTransformer', 'DUCKDB_AVAILABLE'], '.spatial_transformations')
 
+# --- swmaps_reader (.swmz SQLite reader) ---
+_register([
+    'SWMapsArchive', 'open_swmaps', 'read_features',
+], '.swmaps_reader')
+
 # --- geocoding ---
 _register([
     'concatenate_addresses', 'use_nominatim_geocoder', 'NominatimGeoClassifier',
