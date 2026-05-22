@@ -123,7 +123,7 @@ def _peek_json(file_path: str) -> str:
 def _peek_sqlite(file_path: str) -> str:
     """Return ``"swmaps"`` if SQLite has the SWMaps table fingerprint, else ``"unknown"``."""
     try:
-        with sqlite3.connect(f"file:{file_path}?mode=ro", uri=True) as conn:
+        with sqlite3.connect(f"file:{file_path}?mode=ro", uri=True, timeout=5.0) as conn:
             cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
             tables = {row[0] for row in cur.fetchall()}
     except sqlite3.DatabaseError:
@@ -292,7 +292,7 @@ def extract_attributes_swmaps(
         "WHERE av.item_id = ?"
     )
     try:
-        with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
+        with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5.0) as conn:
             rows = dict(conn.execute(query, (feature_id,)).fetchall())
     except sqlite3.DatabaseError as exc:
         log.warning("SWMaps query failed for %s: %s", db_path, exc)
