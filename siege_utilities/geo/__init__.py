@@ -280,6 +280,13 @@ _register([
     'get_default_plan_registry',
 ], '.plans')
 
+# --- data_reception (format detection + per-format attribute extractors) ---
+_register([
+    'detect_format', 'extract_attributes_ogr', 'extract_attributes_kml',
+    'extract_attributes_swmaps',
+    'MISSING_NONE', 'MISSING_RAISE', 'MISSING_WARN',
+], '.data_reception')
+
 # --- temporal (pure-Python temporal data management) ---
 _register([
     'TemporalDataStore', 'get_temporal_store',
