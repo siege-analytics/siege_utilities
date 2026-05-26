@@ -515,7 +515,7 @@ class NominatimGeoClassifier:
         Returns ``[]`` (not ``None``) when the label is unknown so the
         caller can ``in`` / iterate without a None-check.
         """
-        return self.place_rank_dict.get(label, [])
+        return [k for k, v in self.place_rank_dict.items() if v == label]
 
     def get_importance_threshold_by_label(self, label):
         """Reverse lookup on ``importance_dict``: label → importance threshold.
@@ -557,8 +557,8 @@ class NominatimGeoClassifier:
         classifier.
         """
         data = json.loads(json_string)
-        self.place_rank_dict = data.get('place_ranks', {})
-        self.importance_dict = data.get('importance_thresholds', {})
+        self.place_rank_dict = {int(k): v for k, v in data.get('place_ranks', {}).items()}
+        self.importance_dict = {float(k): v for k, v in data.get('importance_thresholds', {}).items()}
         return self
 
 

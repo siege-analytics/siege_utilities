@@ -3,6 +3,7 @@ import os
 import pathlib
 from pathlib import Path
 import json
+import shutil
 import time
 import logging
 import uuid
@@ -31,7 +32,16 @@ except ImportError:
     SparkSession = None
     Column = None
 
+try:
+    from tabulate import tabulate
+except ImportError:
+    tabulate = None
+
 logger = logging.getLogger(__name__)
+
+RESULTS_OUTPUT_FORMAT = 'csv'
+RESULTS_OUTPUT_DELIMITER = ','
+DEBUG_SUBDIRECTORY = Path('debug_output')
 
 def sanitise_dataframe_column_names(df: "DataFrame") ->Optional["DataFrame"]:
     """
@@ -801,6 +811,8 @@ def print_debug_table(spark_df, title):
     Helper function to convert a Spark DataFrame into a Pandas DataFrame,
     format it using tabulate, and print the result with a title.
     """
+    if tabulate is None:
+        raise ImportError("tabulate is required for print_debug_table: pip install tabulate")
     pdf = spark_df.toPandas()
     table_str = tabulate(pdf, headers='keys', tablefmt='psql', showindex=False)
     log_info(title)
