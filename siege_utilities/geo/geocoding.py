@@ -1004,12 +1004,16 @@ class SpatiaLiteCache:
             "crosswalks": conn.execute("SELECT COUNT(*) FROM crosswalk_cache").fetchone()[0],
         }
 
+    _KNOWN_TABLES = frozenset({"geocode_cache", "boundary_cache", "crosswalk_cache"})
+
     def clear(self, table: Optional[str] = None):
         """Clear cache tables. If table is None, clear all."""
         conn = self._get_conn()
-        tables = [table] if table else ["geocode_cache", "boundary_cache", "crosswalk_cache"]
+        tables = [table] if table else list(self._KNOWN_TABLES)
         for t in tables:
-            conn.execute(f"DELETE FROM {t}")  # noqa: S608 — table names are hardcoded
+            if t not in self._KNOWN_TABLES:
+                raise ValueError(f"Unknown cache table: {t!r}")
+            conn.execute(f"DELETE FROM {t}")  # noqa: S608 — validated against allowlist above
         conn.commit()
 
     def close(self):

@@ -515,16 +515,17 @@ class PostGISConnector:
 
         Will be removed in a future major version.
         """
+        from siege_utilities.core.sql_safety import validate_sql_identifier
+        validate_sql_identifier(table_name, "table_name")
+
         cursor = self.connection.cursor()
 
-        # Detect geometry type from the GeoDataFrame
         geom_types = gdf.geometry.geom_type.unique()
         if len(geom_types) == 1:
             pg_geom_type = geom_types[0].upper()
         else:
             pg_geom_type = "GEOMETRY"
 
-        # Prefer the GeoDataFrame's declared CRS, fall back to configured storage CRS.
         srid = None
         if gdf.crs is not None:
             try:
@@ -532,6 +533,8 @@ class PostGISConnector:
             except Exception:
                 srid = None
         srid = srid or settings.STORAGE_CRS
+        if not isinstance(srid, int):
+            raise ValueError(f"SRID must be an integer, got {type(srid)}")
 
         create_sql = f"""
         CREATE TABLE IF NOT EXISTS {table_name} (

@@ -866,7 +866,7 @@ class DuckDBEngine(DataFrameEngine):
         from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
         self._ensure_spatial()
         result = self._connection.execute(
-            f"SELECT * FROM ST_Read('{path}')"
+            "SELECT * FROM ST_Read(?)", [path]
         ).fetchdf()
         # ST_Read returns geometry as WKB-hex; convert to shapely
         geom_col = "geom" if "geom" in result.columns else "geometry"

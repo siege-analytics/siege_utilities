@@ -536,26 +536,20 @@ def reproject_geom_columns(df, geom_columns, source_srid, target_srid):
     Returns:
       DataFrame: The DataFrame with each specified geometry column conditionally reprojected.
     """
+    import re
+    _EPSG_RE = re.compile(r"^(?:EPSG:)?\d+$")
+    if not _EPSG_RE.match(source_srid):
+        raise ValueError(f"Invalid source_srid: {source_srid!r}")
+    if not _EPSG_RE.match(target_srid):
+        raise ValueError(f"Invalid target_srid: {target_srid!r}")
+
     log_debug('Starting reproject_geom_columns')
-    try:
-        target_srid_int = int(target_srid.split(':')[1])
-        for geom_col in geom_columns:
-            df = df.withColumn(geom_col, expr(
-                f"CASE WHEN ST_SRID({geom_col}) = {target_srid_int} THEN {geom_col} ELSE ST_Transform({geom_col}, '{source_srid}', '{target_srid}') END"
-                ))
-        return df
-    except Exception as e:
-        log_error(f'An error occurred in reproject_geom_columns: {e}')
-        try:
-            spark = SparkSession.getActiveSession()
-            if spark is not None:
-                spark.stop()
-                log_info('Spark session stopped due to error.')
-            else:
-                log_warning('No active Spark session to stop.')
-        except Exception as stop_exc:
-            log_error(f'Failed to stop Spark session: {stop_exc}')
-        raise e
+    target_srid_int = int(target_srid.split(':')[-1])
+    for geom_col in geom_columns:
+        df = df.withColumn(geom_col, expr(
+            f"CASE WHEN ST_SRID({geom_col}) = {target_srid_int} THEN {geom_col} ELSE ST_Transform({geom_col}, '{source_srid}', '{target_srid}') END"
+            ))
+    return df
 
 
 def prepare_dataframe_for_export(df, logger_func=None):
