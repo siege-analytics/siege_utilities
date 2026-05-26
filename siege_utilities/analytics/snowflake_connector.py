@@ -83,9 +83,12 @@ class SnowflakeConnector:
             with open(config_path, 'r') as f:
                 config = json.load(f)
             
-            # Update instance variables with config values
+            _ALLOWED_CONFIG_KEYS = frozenset({
+                "account", "user", "password", "warehouse",
+                "database", "schema", "role",
+            })
             for key, value in config.items():
-                if hasattr(self, key) and value is not None:
+                if key in _ALLOWED_CONFIG_KEYS and value is not None:
                     setattr(self, key, value)
                     
         except Exception as e:

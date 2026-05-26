@@ -199,8 +199,8 @@ def run_subprocess(command_list: Union[str, List[str]],
         raise
 
 
-def run_subprocess_unrestricted(command_list: Union[str, List[str]],
-                                timeout: int = 30) -> str:
+def _run_subprocess_unrestricted(command_list: Union[str, List[str]],
+                                 timeout: int = 30) -> str:
     """
     Run a shell command WITHOUT security restrictions.
 
@@ -270,7 +270,6 @@ def run_subprocess_unrestricted(command_list: Union[str, List[str]],
 
 __all__ = [
     'run_subprocess',
-    'run_subprocess_unrestricted',
     'validate_command_safety',
     'SecurityError',
     'ALLOWED_COMMANDS'
