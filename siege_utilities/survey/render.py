@@ -26,6 +26,13 @@ from ..reporting.pages.page_models import Argument, TableType
 if TYPE_CHECKING:
     from .models import Chain, Stack
 
+try:
+    import matplotlib
+    matplotlib.use("Agg")
+    _MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    _MATPLOTLIB_AVAILABLE = False
+
 
 class RenderError(RuntimeError):
     """Raised when Chain-to-Argument rendering hits a configuration or data issue."""
@@ -82,12 +89,9 @@ def _build_chart(
     if chart_generator is not None:
         return chart_generator(df, chart_type, headline)
 
-    try:
-        import matplotlib
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-    except ImportError:
+    if not _MATPLOTLIB_AVAILABLE:
         return None
+    import matplotlib.pyplot as plt
 
     if df.empty:
         return None

@@ -170,6 +170,16 @@ class VistaSocialConnector:
         })
         log.info("VistaSocialConnector initialised against %s", self._base_url)
 
+    def close(self) -> None:
+        """Close the underlying HTTP session."""
+        self._session.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
     # ------------------------------------------------------------------
     # Low-level: HTTP plumbing (well-tested; endpoints sit on top)
     # ------------------------------------------------------------------

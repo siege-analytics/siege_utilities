@@ -788,6 +788,20 @@ class CredentialManager:
         return status
 
 
+_default_managers: Dict[tuple, "CredentialManager"] = {}
+
+
+def _get_default_manager(vault: Optional[str] = None,
+                         account: Optional[str] = None) -> "CredentialManager":
+    """Return a cached CredentialManager for the given vault/account pair."""
+    key = (vault or "Private", account)
+    if key not in _default_managers:
+        _default_managers[key] = CredentialManager(
+            default_vault=key[0], default_account=key[1],
+        )
+    return _default_managers[key]
+
+
 # Convenience functions for common operations
 def get_credential(service: str, username: str, field: str = "password",
                   search_paths: Optional[List[Union[str, Path]]] = None,
@@ -807,10 +821,7 @@ def get_credential(service: str, username: str, field: str = "password",
     Returns:
         Credential value or None
     """
-    manager = CredentialManager(
-        default_vault=vault or "Private",
-        default_account=account,
-    )
+    manager = _get_default_manager(vault=vault, account=account)
     path_objects = [Path(p) for p in search_paths] if search_paths else None
     return manager.get_credential(service, username, field, path_objects,
                                   vault=vault, account=account)
@@ -835,10 +846,7 @@ def store_credential(service: str, username: str, value: str,
     Returns:
         True if successful
     """
-    manager = CredentialManager(
-        default_vault=vault or "Private",
-        default_account=account,
-    )
+    manager = _get_default_manager(vault=vault, account=account)
     return manager.store_credential(service, username, value, field, backend,
                                     vault=vault, account=account)
 
@@ -892,13 +900,13 @@ def get_ga_credentials() -> Optional[Tuple[str, str]]:
     Returns:
         Tuple of (client_id, client_secret) or None
     """
-    manager = CredentialManager()
+    manager = _get_default_manager()
     return manager.get_google_analytics_credentials()
 
 
 def credential_status() -> Dict[str, Dict[str, Any]]:
     """Get status of all credential backends."""
-    manager = CredentialManager()
+    manager = _get_default_manager()
     return manager.backend_status()
 
 

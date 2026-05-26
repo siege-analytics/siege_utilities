@@ -13,6 +13,8 @@ import pandas as pd
 from ..reporting.pages.page_models import TableType
 from .models import Chain, View
 
+DEFAULT_Z_VALUE = 1.96
+
 
 class CrosstabInputError(ValueError):
     """Raised when build_chain receives an empty or schema-incompatible DataFrame.
@@ -326,7 +328,7 @@ def _build_mean_scale(
                 if len(cat_vals) == 0:
                     continue
                 mean = float(cat_vals.mean())
-                ci = 1.96 * float(cat_vals.std(ddof=1)) / (len(cat_vals) ** 0.5) if len(cat_vals) > 1 else 0.0
+                ci = DEFAULT_Z_VALUE * float(cat_vals.std(ddof=1)) / (len(cat_vals) ** 0.5) if len(cat_vals) > 1 else 0.0
                 v = View(metric=str(cat), base=base, count=mean, pct=None, ci=ci)
                 cell_views.append(v)
             if top_n:

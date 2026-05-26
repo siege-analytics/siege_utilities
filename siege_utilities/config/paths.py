@@ -346,6 +346,6 @@ def initialize_siege_directories() -> List[Path]:
 
     return created
 
-# Auto-initialize on import (can be disabled by setting environment variable)
-if os.getenv('SIEGE_AUTO_INIT_DIRS', 'true').lower() == 'true':
+# Auto-initialize on import (opt-in via environment variable)
+if os.getenv('SIEGE_AUTO_INIT_DIRS', 'false').lower() == 'true':
     initialize_siege_directories()

@@ -146,7 +146,8 @@ class PowerPointGenerator:
         try:
             # Generate filename
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{self.client_name.lower().replace(' ', '_')}_performance_presentation_{timestamp}.pptx"
+            suffix = uuid.uuid4().hex[:8]
+            filename = f"{self.client_name.lower().replace(' ', '_')}_performance_presentation_{timestamp}_{suffix}.pptx"
             output_path = self.output_dir / filename
             
             # Create presentation
