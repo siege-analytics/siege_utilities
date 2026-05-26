@@ -13,7 +13,7 @@ from types import SimpleNamespace
 import pytest
 
 try:
-    import django
+    import django  # noqa: F401
     HAS_DJANGO = True
 except ImportError:
     HAS_DJANGO = False
