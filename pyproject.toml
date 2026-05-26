@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "siege-utilities"
-version = "3.17.2"
+version = "3.18.0"
 description = "A comprehensive Python utilities package with enhanced auto-discovery"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -47,6 +47,7 @@ geo = [
     "shapely>=2.0.0,<3.0",
     "pyproj>=3.3.0",
     "fiona>=1.9.0",
+    "gdal>=3.6,<4",
     "geopy>=2.4.1",
     "rtree>=1.0.0",
     "mapclassify>=2.5.0",
@@ -222,6 +223,7 @@ all = [
     "shapely>=2.0.0,<3.0",
     "pyproj>=3.3.0",
     "fiona>=1.9.0",
+    "gdal>=3.6,<4",
     "geopy>=2.4.1",
     "rtree>=1.0.0",
     "mapclassify>=2.5.0",

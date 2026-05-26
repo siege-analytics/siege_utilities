@@ -10,6 +10,7 @@ Model hierarchy:
     ├── TemporalBoundary (abstract — MultiPolygon)
     │   ├── CensusTIGERBoundary (abstract — GEOID + TIGER metadata)
     │   │   ├── State, County, Tract, BlockGroup, Block, Place, ZCTA, CD
+    │   │   ├── PUMA, CBSA, UrbanArea, TribalArea, CountySubdivision
     │   │   ├── StateLegislativeUpper, StateLegislativeLower, VTD, Precinct
     │   │   ├── PlanDistrict (redistricting plan districts)
     │   │   └── SchoolDistrictElementary, Secondary, Unified
@@ -82,7 +83,19 @@ from .isochrone import (
 )
 from .census_extended import (
     CBSA,
+    CountySubdivision,
+    PUMA,
+    TribalArea,
     UrbanArea,
+)
+from .special_districts import (
+    CemeteryDistrict,
+    FireProtectionDistrict,
+    HospitalDistrict,
+    LibraryDistrict,
+    MosquitoAbatementDistrict,
+    OtherSpecialDistrict,
+    WaterSupplyDistrict,
 )
 from .intersections import (
     BoundaryIntersection,
@@ -96,6 +109,7 @@ from .demographics import (
     DemographicTimeSeries,
 )
 from .redistricting import (
+    PLAN_STATUS_CHOICES,
     RedistrictingPlan,
     PlanDistrict,
     DistrictDemographics,
@@ -165,7 +179,17 @@ __all__ = [
     "IsochroneResult",
     # Census Extended
     "CBSA",
+    "CountySubdivision",
+    "PUMA",
+    "TribalArea",
     "UrbanArea",
+    "CemeteryDistrict",
+    "FireProtectionDistrict",
+    "HospitalDistrict",
+    "LibraryDistrict",
+    "MosquitoAbatementDistrict",
+    "OtherSpecialDistrict",
+    "WaterSupplyDistrict",
     # Intersections
     "BoundaryIntersection",
     "CountyCDIntersection",
@@ -180,6 +204,7 @@ __all__ = [
     "BoundaryCrosswalk",  # deprecated alias
     "CrosswalkDataset",
     # Redistricting
+    "PLAN_STATUS_CHOICES",
     "RedistrictingPlan",
     "PlanDistrict",
     "DistrictDemographics",

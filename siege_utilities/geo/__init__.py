@@ -19,9 +19,11 @@ def _register(names, module):
 # --- capabilities (runtime tier detection) ---
 _register(['geo_capabilities'], '.capabilities')
 
-# --- crs (configurable default CRS) ---
+# --- crs (configurable default CRS + axis-order-aware reprojection) ---
 _register([
     'get_default_crs', 'set_default_crs', 'reproject_if_needed',
+    'detect_crs', 'reproject_geom',
+    'AXIS_ORDER_TRAD_GIS', 'AXIS_ORDER_AUTH_COMPLIANT',
 ], '.crs')
 
 # --- boundary_result (structured diagnostics) ---
@@ -81,6 +83,11 @@ _register([
 
 # --- spatial_transformations ---
 _register(['SpatialDataTransformer', 'DUCKDB_AVAILABLE'], '.spatial_transformations')
+
+# --- swmaps_reader (.swmz SQLite reader) ---
+_register([
+    'SWMapsArchive', 'open_swmaps', 'read_features',
+], '.swmaps_reader')
 
 # --- geocoding ---
 _register([
@@ -279,6 +286,13 @@ _register([
     'PlanRegistry', 'PlanResolutionError', 'PlanOverlapError',
     'get_default_plan_registry',
 ], '.plans')
+
+# --- data_reception (format detection + per-format attribute extractors) ---
+_register([
+    'detect_format', 'extract_attributes_ogr', 'extract_attributes_kml',
+    'extract_attributes_swmaps',
+    'MISSING_NONE', 'MISSING_RAISE', 'MISSING_WARN',
+], '.data_reception')
 
 # --- temporal (pure-Python temporal data management) ---
 _register([
