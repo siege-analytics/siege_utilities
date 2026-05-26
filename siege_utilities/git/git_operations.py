@@ -366,9 +366,15 @@ def apply_stash(
 def clean_working_directory(
     repo_path: str = ".",
     force: bool = False,
-    directories: bool = False
+    directories: bool = False,
+    interactive: bool = True,
 ) -> Dict[str, str]:
-    """Clean untracked files from working directory."""
+    """Clean untracked files from working directory.
+
+    Args:
+        interactive: When False, skip the confirmation prompt (safe for CI).
+                     When True (default), prompt the user before cleaning.
+    """
 
     clean_args = ["clean"]
     if force:
@@ -389,13 +395,18 @@ def clean_working_directory(
     log_info("Files to be cleaned:")
     log_info(dry_run_output)
 
-    if not force:
+    if not force and interactive:
         response = input("Proceed with cleaning? (y/N): ")
         if response.lower() != 'y':
             return {
                 "status": "cancelled",
                 "message": "Clean operation cancelled by user"
             }
+    elif not force and not interactive:
+        return {
+            "status": "cancelled",
+            "message": "Non-interactive mode: pass force=True to clean without confirmation"
+        }
 
     # Execute clean
     try:
