@@ -127,6 +127,36 @@ class CensusTIGERProvider(BoundaryProvider):
         """Census TIGER provider is always available (pure-HTTP downloads)."""
         return True
 
+    # ------------------------------------------------------------------
+    # Vintage discovery (SU#540)
+    # ------------------------------------------------------------------
+
+    _TIGER_LISTING_URL = 'https://www2.census.gov/geo/tiger/'
+
+    def list_available_vintages(self, timeout: int = 30) -> list[int]:
+        """Fetch the Census TIGER listing and parse out published TIGER{YYYY} years.
+
+        Returns a sorted list of int years. Empty list on network failure
+        (logged at WARNING).
+        """
+        import re
+        import requests
+
+        try:
+            resp = requests.get(self._TIGER_LISTING_URL, timeout=timeout)
+            resp.raise_for_status()
+        except requests.RequestException as exc:
+            logger.warning('TIGER listing fetch failed: %s', exc)
+            return []
+
+        years = {int(m) for m in re.findall(r'TIGER(\d{4})/', resp.text)}
+        return sorted(years)
+
+    def latest_vintage(self, timeout: int = 30) -> Optional[int]:
+        """Return the newest published TIGER vintage year, or None on failure."""
+        vintages = self.list_available_vintages(timeout=timeout)
+        return max(vintages) if vintages else None
+
 
 # ---------------------------------------------------------------------------
 # GADM (Database of Global Administrative Areas)
