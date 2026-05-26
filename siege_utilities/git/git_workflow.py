@@ -3,31 +3,13 @@ Git workflow utilities for automated git operations and best practices.
 Standardized workflows for feature development, releases, and hotfixes.
 """
 
-import subprocess
 from pathlib import Path
 from typing import List, Dict, Optional, Union
 import re
 
 from siege_utilities.core.logging import log_info, log_warning
 from siege_utilities.exceptions import GitError
-
-
-def run_git_command(*args, repo_path: str = ".", check: bool = True) -> str:
-    """Run a git command and return the output."""
-    try:
-        result = subprocess.run(
-            ["git"] + list(args),
-            cwd=repo_path,
-            capture_output=True,
-            text=True,
-            check=check,
-            timeout=30,  # writing-code:15: bounded git wait
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError as e:
-        if check:
-            raise GitError(f"Git command failed: {' '.join(args)} - {e.stderr}")
-        return ""
+from ._utils import run_git_command
 
 def validate_branch_naming(branch_name: str) -> Dict[str, Union[bool, str, List[str]]]:
     """Validate branch naming conventions."""

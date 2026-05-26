@@ -3,30 +3,12 @@ Git status utilities for repository information and reporting.
 Comprehensive repository state analysis and monitoring.
 """
 
-import subprocess
 from pathlib import Path
 from typing import List, Dict, Optional, Union
 from datetime import datetime
 
 from siege_utilities.exceptions import GitError
-
-
-def run_git_command(*args, repo_path: str = ".", check: bool = True) -> str:
-    """Run a git command and return the output."""
-    try:
-        result = subprocess.run(
-            ["git"] + list(args),
-            cwd=repo_path,
-            capture_output=True,
-            text=True,
-            check=check,
-            timeout=30,  # writing-code:15: bounded git wait
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError as e:
-        if check:
-            raise GitError(f"Git command failed: {' '.join(args)} - {e.stderr}")
-        return ""
+from ._utils import run_git_command
 
 def get_repository_status(repo_path: str = ".") -> Dict[str, Union[str, int, bool]]:
     """Get comprehensive repository status information."""
