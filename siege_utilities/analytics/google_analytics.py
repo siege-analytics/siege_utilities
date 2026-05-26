@@ -604,9 +604,16 @@ def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
                     results['errors'].append(f"No credentials for account: {account['ga_account_id']}")
                     continue
 
-                # Create connector and retrieve data
-                # Note: In production, you'd load actual credentials from the file
-                connector = GoogleAnalyticsConnector("dummy_id", "dummy_secret")
+                creds_path = pathlib.Path(account['credentials_file'])
+                if not creds_path.exists():
+                    results['errors'].append(f"Credentials file not found: {creds_path}")
+                    continue
+                with open(creds_path, 'r') as creds_f:
+                    service_account_data = json.load(creds_f)
+                connector = GoogleAnalyticsConnector(
+                    auth_method="service_account",
+                    service_account_data=service_account_data,
+                )
 
                 if account['account_type'] in ['ga4', 'both']:
                     df = connector.get_ga4_data(

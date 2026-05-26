@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 
 # Type aliases
 FilePath = Union[str, Path]
-GeoDataFrame = gpd.GeoDataFrame
+GeoDataFrame = gpd.GeoDataFrame if _GEOPANDAS_AVAILABLE else None
 
 # Try to import DuckDB (optional)
 try:
