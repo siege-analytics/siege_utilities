@@ -7,6 +7,7 @@ throughout the siege_utilities library, organized by domain and functionality.
 """
 
 import os
+from importlib.metadata import version as _pkg_version, PackageNotFoundError
 from pathlib import Path
 
 # =============================================================================
@@ -15,7 +16,10 @@ from pathlib import Path
 
 # Library metadata
 LIBRARY_NAME = "siege_utilities"
-LIBRARY_VERSION = "2.0.0"
+try:
+    LIBRARY_VERSION = _pkg_version(LIBRARY_NAME)
+except PackageNotFoundError:
+    LIBRARY_VERSION = "0.0.0"
 LIBRARY_AUTHOR = "Siege Analytics"
 LIBRARY_URL = "https://github.com/siege-analytics/siege_utilities"
 
