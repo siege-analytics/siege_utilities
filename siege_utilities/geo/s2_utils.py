@@ -135,25 +135,7 @@ S2_LEVEL_AREA_KM2 = {
     30: 0.00000000007,
 }
 
-# Same admin-level table the H3 module uses; S2 just picks a different
-# level from the same target areas.
-ADMIN_LEVEL_AVG_AREA_KM2 = {
-    "state": 196_600.0,
-    "county": 3_000.0,
-    "zcta": 110.0,
-    "tract": 5.0,
-    "block_group": 1.0,
-    "block": 0.04,
-}
-
-_ADMIN_LEVEL_ALIASES = {
-    "states": "state", "us_state": "state",
-    "counties": "county", "us_county": "county",
-    "zip": "zcta", "zip_code": "zcta", "zipcode": "zcta", "zctas": "zcta",
-    "tracts": "tract", "census_tract": "tract",
-    "bg": "block_group", "block_groups": "block_group", "blockgroup": "block_group",
-    "blocks": "block", "census_block": "block",
-}
+from ._admin_areas import ADMIN_LEVEL_AVG_AREA_KM2, ADMIN_LEVEL_ALIASES as _ADMIN_LEVEL_ALIASES
 
 
 def s2_level_for_area(target_area_km2: float) -> int:

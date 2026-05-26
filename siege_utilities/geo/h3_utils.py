@@ -326,33 +326,7 @@ def h3_hex_to_boundary(hex_id: str) -> list:
 # returned here is a starting point; tune up or down by ±1 if the polygons
 # you actually have are systematically larger or smaller than the average.
 # ---------------------------------------------------------------------------
-ADMIN_LEVEL_AVG_AREA_KM2 = {
-    "state": 196_600.0,
-    "county": 3_000.0,
-    "zcta": 110.0,
-    "tract": 5.0,
-    "block_group": 1.0,
-    "block": 0.04,
-}
-
-# Aliases that map common variants to the canonical key above.
-_ADMIN_LEVEL_ALIASES = {
-    "states": "state",
-    "us_state": "state",
-    "counties": "county",
-    "us_county": "county",
-    "zip": "zcta",
-    "zip_code": "zcta",
-    "zipcode": "zcta",
-    "zctas": "zcta",
-    "tracts": "tract",
-    "census_tract": "tract",
-    "bg": "block_group",
-    "block_groups": "block_group",
-    "blockgroup": "block_group",
-    "blocks": "block",
-    "census_block": "block",
-}
+from ._admin_areas import ADMIN_LEVEL_AVG_AREA_KM2, ADMIN_LEVEL_ALIASES as _ADMIN_LEVEL_ALIASES
 
 
 def h3_resolution_for_admin_level(level: str) -> int:

@@ -3,29 +3,12 @@ Git operations utilities for repository management.
 Comprehensive git commands and workflow automation.
 """
 
-import subprocess
 from typing import Dict, Optional
 import re
 
 from siege_utilities.core.logging import log_info, log_warning, log_error
 from siege_utilities.exceptions import GitError
-
-def run_git_command(*args, repo_path: str = ".", check: bool = True) -> str:
-    """Run a git command and return the output."""
-    try:
-        result = subprocess.run(
-            ["git"] + list(args),
-            cwd=repo_path,
-            capture_output=True,
-            text=True,
-            check=check,
-            timeout=30,  # writing-code:15: bounded git wait
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError as e:
-        if check:
-            raise GitError(f"Git command failed: {' '.join(args)} - {e.stderr}")
-        return ""
+from ._utils import run_git_command
 
 def create_feature_branch(
     branch_name: str,
