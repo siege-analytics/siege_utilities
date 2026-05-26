@@ -128,7 +128,3 @@ __all__ = [
     'PostGISEngine',
     'get_engine',
 ]
-
-# Package metadata
-__version__ = "1.0.0"
-__description__ = "Sample datasets and synthetic data generation for testing and learning"
