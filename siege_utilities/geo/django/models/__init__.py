@@ -109,6 +109,7 @@ from .demographics import (
     DemographicTimeSeries,
 )
 from .redistricting import (
+    PLAN_STATUS_CHOICES,
     RedistrictingPlan,
     PlanDistrict,
     DistrictDemographics,
@@ -203,6 +204,7 @@ __all__ = [
     "BoundaryCrosswalk",  # deprecated alias
     "CrosswalkDataset",
     # Redistricting
+    "PLAN_STATUS_CHOICES",
     "RedistrictingPlan",
     "PlanDistrict",
     "DistrictDemographics",

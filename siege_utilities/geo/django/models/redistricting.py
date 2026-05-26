@@ -42,6 +42,15 @@ PLAN_TYPE_CHOICES = [
     ("commission", "Commission"),
 ]
 
+PLAN_STATUS_CHOICES = [
+    ("proposed", "Proposed"),
+    ("enacted", "Enacted / In Effect"),
+    ("challenged", "Challenged (under litigation)"),
+    ("invalidated", "Invalidated by Court"),
+    ("superseded", "Superseded by New Plan"),
+    ("rejected", "Rejected"),
+]
+
 PLAN_SOURCE_CHOICES = [
     ("rdh", "Redistricting Data Hub"),
     ("census", "U.S. Census Bureau"),
@@ -76,8 +85,13 @@ OFFICE_CHOICES = [
 class RedistrictingPlanManager(models.Manager):
     """Custom manager with temporal query support."""
 
+    ACTIVE_STATUSES = ("enacted", "challenged")
+
     def for_date(self, state_fips, chamber, date):
         """Return the plan that was active for a state/chamber on a given date.
+
+        Only plans whose plan_status is enacted or challenged (still legally
+        in effect until invalidated) are considered.
 
         If multiple plans overlap (shouldn't happen, but data quality), returns
         the most recently effective one.
@@ -87,14 +101,18 @@ class RedistrictingPlanManager(models.Manager):
         return self.filter(
             state_fips=state_fips,
             chamber=chamber,
+            plan_status__in=self.ACTIVE_STATUSES,
             effective_from__lte=date,
         ).filter(
             models.Q(effective_to__gte=date) | models.Q(effective_to__isnull=True)
         ).order_by("-effective_from").first()
 
     def active(self):
-        """Return plans that are currently in effect (no effective_to)."""
-        return self.filter(effective_to__isnull=True)
+        """Return plans that are currently in effect (no effective_to, active status)."""
+        return self.filter(
+            effective_to__isnull=True,
+            plan_status__in=self.ACTIVE_STATUSES,
+        )
 
     def for_state(self, state_fips):
         """Return all plans for a state, ordered by effective date."""
@@ -145,6 +163,13 @@ class RedistrictingPlan(models.Model):
         max_length=20,
         choices=PLAN_TYPE_CHOICES,
         default="enacted",
+    )
+    plan_status = models.CharField(
+        max_length=20,
+        choices=PLAN_STATUS_CHOICES,
+        default="enacted",
+        db_index=True,
+        help_text="Lifecycle status of this plan",
     )
     source = models.CharField(
         max_length=20,
