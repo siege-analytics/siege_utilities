@@ -491,20 +491,22 @@ class CredentialManager:
             existing = self._get_from_1password(service, field, vault=vault, account=account)
 
             if existing:
-                # Update existing item
-                cmd = ['op', 'item', 'edit', service, f'{field}={value}'] + op_flags
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                cmd = ['op', 'item', 'edit', service, f'{field}[password]'] + op_flags
+                result = subprocess.run(
+                    cmd, input=value, capture_output=True, text=True, timeout=60,
+                )
             else:
-                # Create new item
                 cmd = [
                     'op', 'item', 'create',
                     '--category=login',
                     f'--title={service}',
                     f'username={username}',
-                    f'{field}={value}',
+                    f'{field}[password]',
                     f'--tags=siege-utilities,{service}'
                 ] + op_flags
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                result = subprocess.run(
+                    cmd, input=value, capture_output=True, text=True, timeout=60,
+                )
             
             if result.returncode == 0:
                 log_info(f"Stored {field} for {service} in 1Password")
