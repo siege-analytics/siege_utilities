@@ -10,6 +10,7 @@ Model hierarchy:
     ├── TemporalBoundary (abstract — MultiPolygon)
     │   ├── CensusTIGERBoundary (abstract — GEOID + TIGER metadata)
     │   │   ├── State, County, Tract, BlockGroup, Block, Place, ZCTA, CD
+    │   │   ├── PUMA, CBSA, UrbanArea, TribalArea, CountySubdivision
     │   │   ├── StateLegislativeUpper, StateLegislativeLower, VTD, Precinct
     │   │   ├── PlanDistrict (redistricting plan districts)
     │   │   └── SchoolDistrictElementary, Secondary, Unified
@@ -82,7 +83,9 @@ from .isochrone import (
 )
 from .census_extended import (
     CBSA,
+    CountySubdivision,
     PUMA,
+    TribalArea,
     UrbanArea,
 )
 from .special_districts import (
@@ -175,7 +178,9 @@ __all__ = [
     "IsochroneResult",
     # Census Extended
     "CBSA",
+    "CountySubdivision",
     "PUMA",
+    "TribalArea",
     "UrbanArea",
     "CemeteryDistrict",
     "FireProtectionDistrict",
