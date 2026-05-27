@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from siege_utilities.core.logging import log_error
+from siege_utilities.core.logging import log_error, log_warning
 
 try:
     import pandas as pd
@@ -87,6 +87,12 @@ def column_proportion_test(chain: "Chain", alpha: float = 0.05) -> "Chain":
                 # threshold instead of an exact-zero check.
                 se = np.sqrt(p_pool * (1 - p_pool) * (1 / n1 + 1 / n2))
                 if not np.isfinite(se) or se <= 1e-12:
+                    log_warning(
+                        f"SE underflow in column proportion test: "
+                        f"p_pool={p_pool:.4f}, se={se}, "
+                        f"columns=({key_i!r}, {key_j!r}), metric={metric!r}. "
+                        f"Test skipped for this pair."
+                    )
                     continue
                 z = abs(p1 - p2) / se
                 if _SCIPY_AVAILABLE:
@@ -147,7 +153,7 @@ def chi_square_flag(chain: "Chain", alpha: float = 0.05) -> "Chain":
         df = df.drop(index=["Total"])
 
     if df.empty or df.shape[0] < 2 or df.shape[1] < 2:
-        chain.chi_square_significant = False
+        chain.chi_square_significant = None
         chain.chi_square_p = None
         return chain
 

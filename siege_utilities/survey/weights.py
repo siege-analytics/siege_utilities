@@ -97,6 +97,16 @@ def apply_rim_weights(
                 f"category from targets or fix the upstream filter."
             )
 
+    for col, cats in targets.items():
+        if isinstance(cats, dict):
+            total = sum(v for v in cats.values() if isinstance(v, (int, float)))
+            if abs(total - 1.0) > 0.01:
+                raise ValueError(
+                    f"apply_rim_weights: targets[{col!r}] proportions sum to "
+                    f"{total:.4f}, expected 1.0. RIM weighting requires target "
+                    f"proportions that sum to 1.0."
+                )
+
     # Map our convergence param to weightipy's Rim-class ``convcrit`` via
     # the rim_params passthrough. See weightipy.internal.rim.Rim.__init__.
     scheme = wp.scheme_from_dict(
