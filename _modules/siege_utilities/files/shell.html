@@ -740,8 +740,8 @@
 
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">run_subprocess_unrestricted</span><span class="p">(</span><span class="n">command_list</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
-                                <span class="n">timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_run_subprocess_unrestricted</span><span class="p">(</span><span class="n">command_list</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+                                 <span class="n">timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Run a shell command WITHOUT security restrictions.</span>
 
@@ -811,7 +811,6 @@
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s1">&#39;run_subprocess&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;run_subprocess_unrestricted&#39;</span><span class="p">,</span>
     <span class="s1">&#39;validate_command_safety&#39;</span><span class="p">,</span>
     <span class="s1">&#39;SecurityError&#39;</span><span class="p">,</span>
     <span class="s1">&#39;ALLOWED_COMMANDS&#39;</span>

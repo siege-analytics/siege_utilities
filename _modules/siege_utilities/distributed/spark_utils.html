@@ -541,6 +541,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
@@ -569,7 +570,16 @@
     <span class="n">SparkSession</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">Column</span> <span class="o">=</span> <span class="kc">None</span>
 
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">tabulate</span><span class="w"> </span><span class="kn">import</span> <span class="n">tabulate</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">tabulate</span> <span class="o">=</span> <span class="kc">None</span>
+
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">RESULTS_OUTPUT_FORMAT</span> <span class="o">=</span> <span class="s1">&#39;csv&#39;</span>
+<span class="n">RESULTS_OUTPUT_DELIMITER</span> <span class="o">=</span> <span class="s1">&#39;,&#39;</span>
+<span class="n">DEBUG_SUBDIRECTORY</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">&#39;debug_output&#39;</span><span class="p">)</span>
 
 <div class="viewcode-block" id="sanitise_dataframe_column_names">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/spark_utils/index.html#siege_utilities.sanitise_dataframe_column_names">[docs]</a>
@@ -1115,26 +1125,20 @@
 <span class="sd">    Returns:</span>
 <span class="sd">      DataFrame: The DataFrame with each specified geometry column conditionally reprojected.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+    <span class="n">_EPSG_RE</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^(?:EPSG:)?\d+$&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">_EPSG_RE</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">source_srid</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid source_srid: </span><span class="si">{</span><span class="n">source_srid</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">_EPSG_RE</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">target_srid</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid target_srid: </span><span class="si">{</span><span class="n">target_srid</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+
     <span class="n">log_debug</span><span class="p">(</span><span class="s1">&#39;Starting reproject_geom_columns&#39;</span><span class="p">)</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">target_srid_int</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">target_srid</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
-        <span class="k">for</span> <span class="n">geom_col</span> <span class="ow">in</span> <span class="n">geom_columns</span><span class="p">:</span>
-            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">geom_col</span><span class="p">,</span> <span class="n">expr</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;CASE WHEN ST_SRID(</span><span class="si">{</span><span class="n">geom_col</span><span class="si">}</span><span class="s2">) = </span><span class="si">{</span><span class="n">target_srid_int</span><span class="si">}</span><span class="s2"> THEN </span><span class="si">{</span><span class="n">geom_col</span><span class="si">}</span><span class="s2"> ELSE ST_Transform(</span><span class="si">{</span><span class="n">geom_col</span><span class="si">}</span><span class="s2">, &#39;</span><span class="si">{</span><span class="n">source_srid</span><span class="si">}</span><span class="s2">&#39;, &#39;</span><span class="si">{</span><span class="n">target_srid</span><span class="si">}</span><span class="s2">&#39;) END&quot;</span>
-                <span class="p">))</span>
-        <span class="k">return</span> <span class="n">df</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;An error occurred in reproject_geom_columns: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">spark</span> <span class="o">=</span> <span class="n">SparkSession</span><span class="o">.</span><span class="n">getActiveSession</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">spark</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">spark</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
-                <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;Spark session stopped due to error.&#39;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">log_warning</span><span class="p">(</span><span class="s1">&#39;No active Spark session to stop.&#39;</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">stop_exc</span><span class="p">:</span>
-            <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Failed to stop Spark session: </span><span class="si">{</span><span class="n">stop_exc</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">raise</span> <span class="n">e</span></div>
+    <span class="n">target_srid_int</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">target_srid</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">geom_col</span> <span class="ow">in</span> <span class="n">geom_columns</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">geom_col</span><span class="p">,</span> <span class="n">expr</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;CASE WHEN ST_SRID(</span><span class="si">{</span><span class="n">geom_col</span><span class="si">}</span><span class="s2">) = </span><span class="si">{</span><span class="n">target_srid_int</span><span class="si">}</span><span class="s2"> THEN </span><span class="si">{</span><span class="n">geom_col</span><span class="si">}</span><span class="s2"> ELSE ST_Transform(</span><span class="si">{</span><span class="n">geom_col</span><span class="si">}</span><span class="s2">, &#39;</span><span class="si">{</span><span class="n">source_srid</span><span class="si">}</span><span class="s2">&#39;, &#39;</span><span class="si">{</span><span class="n">target_srid</span><span class="si">}</span><span class="s2">&#39;) END&quot;</span>
+            <span class="p">))</span>
+    <span class="k">return</span> <span class="n">df</span></div>
 
 
 
@@ -1407,6 +1411,8 @@
 <span class="sd">    Helper function to convert a Spark DataFrame into a Pandas DataFrame,</span>
 <span class="sd">    format it using tabulate, and print the result with a title.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">tabulate</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s2">&quot;tabulate is required for print_debug_table: pip install tabulate&quot;</span><span class="p">)</span>
     <span class="n">pdf</span> <span class="o">=</span> <span class="n">spark_df</span><span class="o">.</span><span class="n">toPandas</span><span class="p">()</span>
     <span class="n">table_str</span> <span class="o">=</span> <span class="n">tabulate</span><span class="p">(</span><span class="n">pdf</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="s1">&#39;keys&#39;</span><span class="p">,</span> <span class="n">tablefmt</span><span class="o">=</span><span class="s1">&#39;psql&#39;</span><span class="p">,</span> <span class="n">showindex</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">log_info</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
