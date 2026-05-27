@@ -3,6 +3,20 @@ siege_utilities — lazy-loaded package for data engineering, analytics, and dis
 
 Only core logging, settings, and string utilities are loaded eagerly.
 All other modules are loaded on first access via PEP 562 __getattr__.
+
+.. deprecated:: 3.18
+   **Prefer domain-scoped imports** over the top-level namespace::
+
+       # Preferred (domain-scoped):
+       from siege_utilities.geo import fetch_geographic_boundaries
+       from siege_utilities.config import CredentialManager
+       from siege_utilities.reporting import create_bar_chart
+
+       # Deprecated (still works, but clutters autocomplete with 312 symbols):
+       from siege_utilities import fetch_geographic_boundaries
+
+   The top-level lazy imports will remain for backward compatibility
+   until at least v5.0.0, but new code should use subpackage imports.
 """
 
 import importlib
