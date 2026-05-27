@@ -75,6 +75,12 @@ from .federal import (
     NLRBRegion,
     FederalJudicialDistrict,
 )
+from .nlrb_cases import (
+    NLRBCase,
+    ElectionResult,
+    ULPCharge,
+    BargainingUnit,
+)
 from .timezone import (
     TimezoneGeometry,
 )
@@ -173,6 +179,11 @@ __all__ = [
     # Federal
     "NLRBRegion",
     "FederalJudicialDistrict",
+    # NLRB Cases
+    "NLRBCase",
+    "ElectionResult",
+    "ULPCharge",
+    "BargainingUnit",
     # Timezone
     "TimezoneGeometry",
     # Isochrone
