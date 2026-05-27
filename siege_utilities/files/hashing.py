@@ -244,6 +244,7 @@ def verify_file_integrity(file_path, expected_hash, algorithm='sha256') ->bool:
         return current_hash is not None and current_hash.lower(
             ) == expected_hash.lower()
     except Exception:
+        log_error(f"Failed to verify hash for {file_path}: will return False")
         return False
 
 

@@ -342,6 +342,7 @@ def search_client_profiles(
                 profile = json.load(f)
             all_profiles.append(profile)
         except Exception:
+            logger.warning("Skipping unreadable client config: %s", config_file, exc_info=True)
             continue
     
     matching_profiles = []
