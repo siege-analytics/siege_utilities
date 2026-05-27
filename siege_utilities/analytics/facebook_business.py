@@ -10,10 +10,13 @@ This module provides comprehensive Facebook Business integration capabilities:
 """
 
 import json
+import logging
 import pathlib
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List, Union
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 try:
     import facebook_business
@@ -101,7 +104,7 @@ class FacebookBusinessConnector:
             return accounts
 
         except Exception as e:
-            log_error(f"Failed to retrieve ad accounts: {e}")
+            logger.error("Failed to retrieve ad accounts: %s", e, exc_info=True)
             return []
 
     def get_ad_insights(self, ad_account_id: str, start_date: str, end_date: str,
@@ -158,7 +161,7 @@ class FacebookBusinessConnector:
             return df
 
         except Exception as e:
-            log_error(f"Failed to retrieve ad insights: {e}")
+            logger.error("Failed to retrieve ad insights: %s", e, exc_info=True)
             return pd.DataFrame()
 
     def get_page_insights(self, page_id: str, start_date: str, end_date: str,
@@ -212,7 +215,7 @@ class FacebookBusinessConnector:
             return df
 
         except Exception as e:
-            log_error(f"Failed to retrieve page insights: {e}")
+            logger.error("Failed to retrieve page insights: %s", e, exc_info=True)
             return pd.DataFrame()
 
     def get_business_insights(self, business_id: str, start_date: str, end_date: str,
@@ -261,7 +264,7 @@ class FacebookBusinessConnector:
             return df
 
         except Exception as e:
-            log_error(f"Failed to retrieve business insights: {e}")
+            logger.error("Failed to retrieve business insights: %s", e, exc_info=True)
             return pd.DataFrame()
 
     def save_as_pandas(self, df: pd.DataFrame, output_path: str,
@@ -294,7 +297,7 @@ class FacebookBusinessConnector:
             return True
 
         except Exception as e:
-            log_error(f"Failed to save DataFrame: {e}")
+            logger.error("Failed to save DataFrame: %s", e, exc_info=True)
             return False
 
     def save_as_spark(self, df: pd.DataFrame, output_path: str,
@@ -330,7 +333,7 @@ class FacebookBusinessConnector:
             return True
 
         except Exception as e:
-            log_error(f"Failed to save as Spark DataFrame: {e}")
+            logger.error("Failed to save as Spark DataFrame: %s", e, exc_info=True)
             return False
 
 
@@ -420,7 +423,7 @@ def load_facebook_account_profile(account_id: str,
         return profile
 
     except Exception as e:
-        log_error(f"Failed to load Facebook account profile {account_id}: {e}")
+        logger.error("Failed to load Facebook account profile %s: %s", account_id, e, exc_info=True)
         return None
 
 
@@ -451,7 +454,7 @@ def list_facebook_accounts_for_client(client_id: str,
                 accounts.append(profile)
 
         except Exception as e:
-            log_error(f"Error reading Facebook account file {config_file}: {e}")
+            logger.error("Error reading Facebook account file %s: %s", config_file, e, exc_info=True)
 
     log_info(f"Found {len(accounts)} Facebook accounts for client: {client_id}")
     return accounts
@@ -550,13 +553,13 @@ def batch_retrieve_facebook_data(client_id: str, start_date: str, end_date: str,
             except Exception as e:
                 error_msg = f"Error processing account {account['fb_account_id']}: {e}"
                 results['errors'].append(error_msg)
-                log_error(error_msg)
+                logger.error("Error processing account %s", account['fb_account_id'], exc_info=True)
 
         log_info(f"Batch Facebook data retrieval completed: {results['accounts_processed']} accounts, {results['total_rows']} rows")
         return results
 
     except Exception as e:
-        log_error(f"Batch Facebook data retrieval failed: {e}")
+        logger.error("Batch Facebook data retrieval failed: %s", e, exc_info=True)
         return {
             'success': False,
             'error': str(e),

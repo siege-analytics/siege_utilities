@@ -10,11 +10,14 @@ This module provides comprehensive Google Analytics integration capabilities:
 """
 
 import json
+import logging
 import pathlib
 import re
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 # GA4 accepts these relative-date keywords in place of an absolute date.
 # Only the strict documented forms are accepted: ``today``, ``yesterday``,
@@ -157,7 +160,7 @@ class GoogleAnalyticsConnector:
             return True
 
         except Exception as e:
-            log_error(f"Google Analytics authentication failed: {e}")
+            logger.error("Google Analytics authentication failed: %s", e, exc_info=True)
             return False
 
     def _save_credentials(self, token_path: pathlib.Path):
@@ -208,7 +211,7 @@ class GoogleAnalyticsConnector:
                 Path(temp_file).unlink(missing_ok=True)
 
         except Exception as e:
-            log_error(f"Service account authentication failed: {e}")
+            logger.error("Service account authentication failed: %s", e, exc_info=True)
             return False
 
     @staticmethod
@@ -300,7 +303,7 @@ class GoogleAnalyticsConnector:
             return df
 
         except Exception as e:
-            log_error(f"Failed to retrieve GA4 data: {e}")
+            logger.error("Failed to retrieve GA4 data: %s", e, exc_info=True)
             return pd.DataFrame()
 
     def get_ua_data(self, view_id: str, start_date: str, end_date: str,
@@ -354,7 +357,7 @@ class GoogleAnalyticsConnector:
                 return pd.DataFrame()
 
         except Exception as e:
-            log_error(f"Failed to retrieve UA data: {e}")
+            logger.error("Failed to retrieve UA data: %s", e, exc_info=True)
             return pd.DataFrame()
 
     def save_as_pandas(self, df: pd.DataFrame, output_path: str,
@@ -387,7 +390,7 @@ class GoogleAnalyticsConnector:
             return True
 
         except Exception as e:
-            log_error(f"Failed to save DataFrame: {e}")
+            logger.error("Failed to save DataFrame: %s", e, exc_info=True)
             return False
 
     def save_as_spark(self, df: pd.DataFrame, output_path: str,
@@ -423,7 +426,7 @@ class GoogleAnalyticsConnector:
             return True
 
         except Exception as e:
-            log_error(f"Failed to save as Spark DataFrame: {e}")
+            logger.error("Failed to save as Spark DataFrame: %s", e, exc_info=True)
             return False
 
 
@@ -513,7 +516,7 @@ def load_ga_account_profile(account_id: str,
         return profile
 
     except Exception as e:
-        log_error(f"Failed to load GA account profile {account_id}: {e}")
+        logger.error("Failed to load GA account profile %s: %s", account_id, e, exc_info=True)
         return None
 
 
@@ -544,7 +547,7 @@ def list_ga_accounts_for_client(client_id: str,
                 accounts.append(profile)
 
         except Exception as e:
-            log_error(f"Error reading GA account file {config_file}: {e}")
+            logger.error("Error reading GA account file %s: %s", config_file, e, exc_info=True)
 
     log_info(f"Found {len(accounts)} GA accounts for client: {client_id}")
     return accounts
@@ -645,13 +648,13 @@ def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
             except Exception as e:
                 error_msg = f"Error processing account {account['ga_account_id']}: {e}"
                 results['errors'].append(error_msg)
-                log_error(error_msg)
+                logger.error("Error processing account %s", account['ga_account_id'], exc_info=True)
 
         log_info(f"Batch GA data retrieval completed: {results['accounts_processed']} accounts, {results['total_rows']} rows")
         return results
 
     except Exception as e:
-        log_error(f"Batch GA data retrieval failed: {e}")
+        logger.error("Batch GA data retrieval failed: %s", e, exc_info=True)
         return {
             'success': False,
             'error': str(e),
@@ -721,7 +724,7 @@ def create_ga_connector_from_1password(item_title: str = "Google Analytics Servi
             return None
 
     except ImportError as e:
-        log_error(f"Could not import 1Password function: {e}")
+        logger.error("Could not import 1Password function: %s", e, exc_info=True)
         return None
 
 
