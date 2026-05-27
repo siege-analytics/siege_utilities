@@ -109,7 +109,7 @@ def validate_sql_identifier_in(
     return name
 
 
-def escape_sql_string_literal(value: str) -> str:
+def escape_sql_string_literal(value: str, *, dialect: str = "standard") -> str:
     """SQL-escape a string for use inside single-quoted SQL literals.
 
     Use sparingly -- parameter binding is always preferred. The cases
@@ -121,13 +121,21 @@ def escape_sql_string_literal(value: str) -> str:
       re-import -- defensive escaping in case the row data is later
       hand-edited.
 
-    The escape rule is the SQL standard: replace ``'`` with ``''``. NUL
-    bytes are rejected -- most drivers refuse to send them anyway and
-    they can split a query in C-string-aware backends.
+    The escape rule is the SQL standard: replace ``'`` with ``''``. For
+    MySQL (``dialect="mysql"``), backslashes are also doubled because
+    MySQL treats ``\\`` as an escape character by default
+    (``NO_BACKSLASH_ESCAPES`` off).
+
+    NUL bytes are rejected -- most drivers refuse to send them anyway
+    and they can split a query in C-string-aware backends.
+
+    Args:
+        value: The string to escape.
+        dialect: ``"standard"`` (default) or ``"mysql"``.
 
     Raises:
         TypeError: *value* is not a string.
-        ValueError: *value* contains a NUL byte.
+        ValueError: *value* contains a NUL byte or *dialect* is unknown.
     """
     if not isinstance(value, str):
         raise TypeError(
@@ -135,4 +143,11 @@ def escape_sql_string_literal(value: str) -> str:
         )
     if "\x00" in value:
         raise ValueError("escape_sql_string_literal: NUL byte in string literal")
-    return value.replace("'", "''")
+
+    dialect_lower = dialect.lower()
+    if dialect_lower == "mysql":
+        value = value.replace("\\", "\\\\")
+        return value.replace("'", "\\'")
+    if dialect_lower == "standard":
+        return value.replace("'", "''")
+    raise ValueError(f"escape_sql_string_literal: unknown dialect {dialect!r}")
