@@ -15,6 +15,7 @@ Usage:
     python manage.py stage_boundaries_s3 --year 2020 --type county --format parquet
 """
 
+import os
 import tempfile
 
 from django.core.management.base import BaseCommand, CommandError
@@ -94,14 +95,14 @@ class Command(BaseCommand):
         parser.add_argument(
             "--access-key",
             type=str,
-            default="electinfo",
-            help="S3 access key",
+            default=os.environ.get("S3_ACCESS_KEY"),
+            help="S3 access key (default: $S3_ACCESS_KEY)",
         )
         parser.add_argument(
             "--secret-key",
             type=str,
-            default="electinfo123",
-            help="S3 secret key",
+            default=os.environ.get("S3_SECRET_KEY"),
+            help="S3 secret key (default: $S3_SECRET_KEY)",
         )
         parser.add_argument(
             "--format",
@@ -131,6 +132,12 @@ class Command(BaseCommand):
         bucket = options["bucket"]
         output_format = options["format"]
         dry_run = options["dry_run"]
+
+        if not options["access_key"] or not options["secret_key"]:
+            raise CommandError(
+                "S3 credentials required. Set --access-key/--secret-key "
+                "or S3_ACCESS_KEY/S3_SECRET_KEY environment variables."
+            )
 
         s3 = boto3.client(
             "s3",
