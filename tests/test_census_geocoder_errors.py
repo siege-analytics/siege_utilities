@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from siege_utilities.geo.census_geocoder import (
+from siege_utilities.geo.providers.census_geocoder import (
     CensusGeocodeError,
     CensusGeocodeResult,
     geocode_batch,

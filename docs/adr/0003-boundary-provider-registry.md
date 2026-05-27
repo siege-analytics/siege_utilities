@@ -72,7 +72,7 @@ def resolve_boundary_provider(country: str = 'US', level: str = 'county', **kwar
 External callers (e.g. siege-analytics client configs) can register their own providers at import time:
 
 ```python
-from siege_utilities.geo.boundary_providers import register_provider, BoundaryProvider
+from siege_utilities.geo.providers.boundary_providers import register_provider, BoundaryProvider
 
 @register_provider
 class MyCustomStateProvider(BoundaryProvider):
