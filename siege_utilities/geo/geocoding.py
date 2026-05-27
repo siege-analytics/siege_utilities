@@ -20,18 +20,22 @@ logger = logging.getLogger(__name__)
 
 
 def log_warning(message: str) -> None:
+    """Emit a WARNING-level log message."""
     logger.warning(message)
 
 
 def log_info(message: str) -> None:
+    """Emit an INFO-level log message."""
     logger.info(message)
 
 
 def log_debug(message: str) -> None:
+    """Emit a DEBUG-level log message."""
     logger.debug(message)
 
 
 def log_error(message: str) -> None:
+    """Emit an ERROR-level log message."""
     logger.error(message)
 
 # Country code mapping for Nominatim geocoding
@@ -1023,7 +1027,9 @@ class SpatiaLiteCache:
             self._conn = None
 
     def __enter__(self):
+        """Enter the runtime context (context-manager protocol)."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit the runtime context, closing the database connection."""
         self.close()
