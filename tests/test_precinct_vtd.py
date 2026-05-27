@@ -44,6 +44,12 @@ class TestNormalizeName:
     def test_strips_punctuation(self):
         assert _normalize_name("Dist. #5 (North)") == "dist 5 north"
 
+    def test_accented_characters(self):
+        assert _normalize_name("Cañón") == "canon"
+        assert _normalize_name("Précinct") == "precinct"
+        assert _normalize_name("Müller") == "muller"
+        assert _normalize_name("Señor García") == "senor garcia"
+
     def test_empty(self):
         assert _normalize_name("") == ""
 
@@ -267,9 +273,21 @@ class TestPrecinctVTDReconciler:
 
         rec = PrecinctVTDReconciler(spatial_provider=sp, official_crosswalk=xw)
         result = rec.reconcile(["P1"])
-        official = [m for m in result.mappings if m.method == ReconciliationMethod.OFFICIAL_CROSSWALK]
-        assert len(official) == 1
-        assert official[0].vtd_geoid == "V_RIGHT"
+        assert len(result.mappings) == 1
+        assert result.mappings[0].vtd_geoid == "V_RIGHT"
+        assert result.mappings[0].method == ReconciliationMethod.OFFICIAL_CROSSWALK
+
+    def test_official_excludes_name_match(self):
+        np = DictNameMatchProvider()
+        np.add_precinct("P1", "Ward 1")
+        np.add_vtd("V_WRONG", "Ward 1")
+
+        xw = [OfficialCrosswalkEntry(precinct_id="P1", vtd_geoid="V_RIGHT")]
+
+        rec = PrecinctVTDReconciler(name_provider=np, official_crosswalk=xw)
+        result = rec.reconcile(["P1"])
+        assert len(result.mappings) == 1
+        assert result.mappings[0].vtd_geoid == "V_RIGHT"
 
     def test_combined_boost(self):
         sp = DictSpatialOverlapProvider()

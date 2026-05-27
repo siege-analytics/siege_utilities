@@ -9,6 +9,7 @@ from __future__ import annotations
 import abc
 import logging
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from enum import Enum
@@ -229,7 +230,9 @@ _NORMALIZE_RE = re.compile(r"[^a-z0-9\s]")
 
 
 def _normalize_name(name: str) -> str:
-    return _NORMALIZE_RE.sub("", name.lower()).strip()
+    decomposed = unicodedata.normalize("NFKD", name.lower())
+    ascii_text = decomposed.encode("ascii", "ignore").decode("ascii")
+    return _NORMALIZE_RE.sub("", ascii_text).strip()
 
 
 def _name_similarity(a: str, b: str) -> float:
@@ -317,21 +320,26 @@ def _merge_mappings(
 ) -> list[PrecinctVTDMapping]:
     """Merge mappings from all methods, preferring official > spatial > name."""
     by_precinct: dict[str, dict[str, PrecinctVTDMapping]] = {}
+    official_precincts: set[str] = set()
 
     for m in official:
+        official_precincts.add(m.precinct_id)
         by_precinct.setdefault(m.precinct_id, {})[m.vtd_geoid] = m
 
     for m in spatial:
+        if m.precinct_id in official_precincts:
+            continue
         bucket = by_precinct.setdefault(m.precinct_id, {})
         if m.vtd_geoid not in bucket:
             bucket[m.vtd_geoid] = m
         else:
             existing = bucket[m.vtd_geoid]
-            if existing.method != ReconciliationMethod.OFFICIAL_CROSSWALK:
-                if m.confidence > existing.confidence:
-                    bucket[m.vtd_geoid] = m
+            if m.confidence > existing.confidence:
+                bucket[m.vtd_geoid] = m
 
     for m in names:
+        if m.precinct_id in official_precincts:
+            continue
         bucket = by_precinct.setdefault(m.precinct_id, {})
         if m.vtd_geoid not in bucket:
             bucket[m.vtd_geoid] = m
