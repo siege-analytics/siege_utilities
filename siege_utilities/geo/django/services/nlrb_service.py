@@ -162,7 +162,7 @@ class NLRBPopulationService:
             from django.contrib.gis.geos import MultiPolygon
 
             from ..models.boundaries import County
-            from siege_utilities.config.census_constants import STATE_FIPS_CODES
+            from siege_utilities.geo.census_registry import STATE_FIPS_CODES
 
             fips_codes = []
             for abbr in state_abbreviations:

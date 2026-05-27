@@ -63,7 +63,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         from django.contrib.contenttypes.models import ContentType
 
-        from siege_utilities.config.census_constants import normalize_state_identifier
+        from siege_utilities.geo.census_registry import normalize_state_identifier
         from siege_utilities.geo.census_files.pl_downloader import PLFileDownloader
         from siege_utilities.geo.django.models.demographics import DemographicSnapshot
 

@@ -88,29 +88,27 @@ from .constants import (
     get_service_row_limit,
 )
 
-# Import Census-specific constants
-from .census_constants import (
+# Census constants — canonical home is now geo.census_registry (SU#577).
+# Re-exported here for backward compatibility; config.census_constants and
+# config.census_registry are deprecation shims.
+from siege_utilities.geo.census_registry import (
     # URLs
     CENSUS_BASE_URL,
     CENSUS_API_BASE_URL,
     CENSUS_FTP_BASE_URL,
-    
     # Geographic levels
     CANONICAL_GEOGRAPHIC_LEVELS,
     resolve_geographic_level,
     GEOGRAPHIC_LEVELS,
     GEOGRAPHIC_HIERARCHY,
-    
-    # Dataset types (backward-compatible dicts derived from SurveyType/DataReliability enums)
+    # Dataset types
     DATASET_TYPES,
     RELIABILITY_LEVELS,
-    
     # FIPS codes and mappings
     STATE_FIPS_CODES,
     STATEFIPS_LOOKUP_DICT,
     FIPS_TO_STATE,
     STATE_NAMES,
-    
     # Years and availability
     AVAILABLE_CENSUS_YEARS,
     DEFAULT_CENSUS_YEAR,
@@ -118,63 +116,55 @@ from .census_constants import (
     ACS_AVAILABLE_YEARS,
     ACS5_AVAILABLE_YEARS,
     BOUNDARY_CHANGE_YEARS,
-
     # File patterns
     TIGER_FILE_PATTERNS,
-    
     # Operation settings
     CENSUS_CACHE_TIMEOUT,
     CENSUS_MAX_CACHE_SIZE,
     CENSUS_TIMEOUT,
     CENSUS_RETRY_ATTEMPTS,
-
     # API-specific settings
     CENSUS_API_CACHE_TIMEOUT,
     CENSUS_API_DEFAULT_TIMEOUT,
     CENSUS_API_RATE_LIMIT_RETRY_DELAY,
-
     # Helper functions
     normalize_state_identifier,
     get_tiger_url,
     validate_geographic_level,
     get_fips_info,
+    # Enums
+    SurveyType,
+    DataReliability,
+    GeographyLevel,
+    # Variable data
+    VARIABLE_GROUPS,
+    VARIABLE_DESCRIPTIONS,
 )
 
-# Canonical enum types — now live in census_registry (no pandas dependency)
-from .census_constants import SurveyType, DataReliability, GeographyLevel  # noqa: F401
-# Variable groups and descriptions
-from .census_constants import VARIABLE_GROUPS, VARIABLE_DESCRIPTIONS  # noqa: F401
-
-# Import NCES-specific constants
-from .nces_constants import (
+# NCES constants — canonical home is now geo.nces_constants (SU#577).
+from siege_utilities.geo.nces_constants import (
     # URLs
     NCES_BASE_URL,
     NCES_GEOGRAPHIC_URL,
     NCES_LOCALE_BOUNDARIES_URL,
     NCES_DOWNLOAD_ENDPOINTS,
-    
     # Locale classification
     LOCALE_CATEGORIES,
     LOCALE_SUBCATEGORIES,
     LOCALE_NUMERIC_CODES,
     LOCALE_CODE_TO_NUMERIC,
-    
     # Urbanicity definitions
     POPULATION_THRESHOLDS,
     DISTANCE_THRESHOLDS,
-    
     # File patterns and formats
     NCES_FILE_PATTERNS,
     NCES_SUPPORTED_FORMATS,
-    
     # Years and availability
     AVAILABLE_NCES_YEARS,
     DEFAULT_NCES_YEAR,
-    
     # Calculation settings
     URBANICITY_SETTINGS,
     CENSUS_NCES_JOIN_FIELDS,
-    
     # Helper functions
     get_locale_category,
     get_locale_subcategory,

@@ -47,7 +47,7 @@ log = logging.getLogger(__name__)
 # CONFIGURATION (canonical source: siege_utilities.config.census_constants)
 # =============================================================================
 
-from siege_utilities.config.census_constants import (
+from siege_utilities.geo.census_registry import (
     ACS5_AVAILABLE_YEARS,
     DECENNIAL_YEARS,
 )

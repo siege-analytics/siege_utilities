@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from siege_utilities.core.logging import log_info
 
 # Canonical enum definitions live in census_registry; re-export for backward compat
-from siege_utilities.config.census_registry import (  # noqa: F401
+from siege_utilities.geo.census_registry import (  # noqa: F401
     SurveyType,
     GeographyLevel,
     DataReliability,

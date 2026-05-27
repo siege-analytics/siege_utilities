@@ -68,7 +68,7 @@ class DatasetSelector:
         Raises:
             ValueError: If geography is invalid or required FIPS codes are missing.
         """
-        from siege_utilities.config.census_constants import resolve_geographic_level
+        from siege_utilities.geo.census_registry import resolve_geographic_level
 
         try:
             canonical = resolve_geographic_level(geography)

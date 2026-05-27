@@ -20,7 +20,7 @@ from enum import IntEnum
 from typing import Any, Dict, List, Optional
 
 from siege_utilities.conf import settings
-from siege_utilities.config.nces_constants import (
+from siege_utilities.geo.nces_constants import (
     DISTANCE_THRESHOLDS,
     LOCALE_NUMERIC_CODES,
     POPULATION_THRESHOLDS,

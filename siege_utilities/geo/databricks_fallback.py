@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Iterable, List
 
-from siege_utilities.config.census_constants import resolve_geographic_level
+from siege_utilities.geo.census_registry import resolve_geographic_level
 
 
 @dataclass(frozen=True)

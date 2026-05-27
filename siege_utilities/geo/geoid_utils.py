@@ -34,7 +34,7 @@ from typing import Dict, Optional, Union
 
 import pandas as pd
 
-from siege_utilities.config.census_constants import (
+from siege_utilities.geo.census_registry import (
     CANONICAL_GEOGRAPHIC_LEVELS,
     resolve_geographic_level,
 )
@@ -638,7 +638,7 @@ def geoid_to_slug(geoid: str, geography_level: str) -> str:
         >>> geoid_to_slug("0614", "cd")
         "ca-cd-14"
     """
-    from siege_utilities.config.census_constants import FIPS_TO_STATE
+    from siege_utilities.geo.census_registry import FIPS_TO_STATE
 
     geography_lower = resolve_geographic_level(geography_level)
     geoid = normalize_geoid(geoid, geography_level)
@@ -706,7 +706,7 @@ def slug_to_geoid(slug: str) -> str:
         >>> slug_to_geoid("ca")
         "06"
     """
-    from siege_utilities.config.census_constants import STATE_FIPS_CODES
+    from siege_utilities.geo.census_registry import STATE_FIPS_CODES
 
     parts = slug.lower().split("-")
 

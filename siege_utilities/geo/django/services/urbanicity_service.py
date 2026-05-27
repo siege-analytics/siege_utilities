@@ -22,7 +22,7 @@ from typing import Optional
 
 from django.contrib.gis.db.models.functions import Distance
 
-from siege_utilities.config.nces_constants import (
+from siege_utilities.geo.nces_constants import (
     LOCALE_CODE_TO_NUMERIC,
     classify_urbanicity,
 )

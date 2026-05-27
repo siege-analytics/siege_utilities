@@ -193,7 +193,7 @@ class Tract(CensusTIGERBoundary):
         """NCES locale category (city, suburban, town, rural) or None."""
         if self.urbanicity_code is None:
             return None
-        from siege_utilities.config.nces_constants import get_locale_category
+        from siege_utilities.geo.nces_constants import get_locale_category
 
         return get_locale_category(self.urbanicity_code)
 
@@ -202,7 +202,7 @@ class Tract(CensusTIGERBoundary):
         """NCES locale subcategory (e.g., city_large, rural_remote) or None."""
         if self.urbanicity_code is None:
             return None
-        from siege_utilities.config.nces_constants import get_locale_subcategory
+        from siege_utilities.geo.nces_constants import get_locale_subcategory
 
         return get_locale_subcategory(self.urbanicity_code)
 

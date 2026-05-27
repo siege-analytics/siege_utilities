@@ -17,7 +17,7 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-from siege_utilities.config.nces_constants import (
+from siege_utilities.geo.nces_constants import (
     AVAILABLE_NCES_YEARS,
     DEFAULT_NCES_YEAR,
     NCES_DOWNLOAD_ENDPOINTS,
@@ -193,7 +193,7 @@ class NCESDownloader:
         """
         import geopandas as gpd
 
-        from siege_utilities.config.nces_constants import (
+        from siege_utilities.geo.nces_constants import (
             get_locale_category,
             get_locale_subcategory,
         )
@@ -271,7 +271,7 @@ class NCESDownloader:
         import pandas as pd
         from shapely.geometry import Point
 
-        from siege_utilities.config.nces_constants import (
+        from siege_utilities.geo.nces_constants import (
             get_locale_category,
             get_locale_subcategory,
         )
@@ -353,7 +353,7 @@ class NCESDownloader:
         """
         import pandas as pd
 
-        from siege_utilities.config.nces_constants import (
+        from siege_utilities.geo.nces_constants import (
             get_locale_category,
             get_locale_subcategory,
         )

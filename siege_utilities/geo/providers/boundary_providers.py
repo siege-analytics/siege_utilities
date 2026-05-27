@@ -120,7 +120,7 @@ class CensusTIGERProvider(BoundaryProvider):
 
     def list_levels(self) -> list[str]:
         """Return canonical Census geographic level names."""
-        from siege_utilities.config.census_constants import CANONICAL_GEOGRAPHIC_LEVELS
+        from siege_utilities.geo.census_registry import CANONICAL_GEOGRAPHIC_LEVELS
         return sorted(CANONICAL_GEOGRAPHIC_LEVELS.keys())
 
     def is_available(self) -> bool:

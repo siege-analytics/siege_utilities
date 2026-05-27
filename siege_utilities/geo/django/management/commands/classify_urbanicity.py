@@ -63,7 +63,7 @@ class Command(BaseCommand):
         if state_input.isdigit() and len(state_input) <= 2:
             return state_input.zfill(2)
 
-        from siege_utilities.config.census_constants import normalize_state_identifier
+        from siege_utilities.geo.census_registry import normalize_state_identifier
 
         try:
             return normalize_state_identifier(state_input)
