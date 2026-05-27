@@ -39,8 +39,7 @@ def _er(precinct_id="PCT-1", year=2022, office="US_HOUSE", candidate="Smith",
     return ElectionReturn(
         precinct_id=precinct_id, election_year=year, office=office,
         candidate=candidate, party=party, votes=votes,
-        total_votes=total_votes, vote_share=votes / total_votes if total_votes else 0,
-        state=state, **kw,
+        total_votes=total_votes, state=state, **kw,
     )
 
 
@@ -184,7 +183,20 @@ class TestElectionReturn:
     def test_defaults(self):
         r = ElectionReturn()
         assert r.votes == 0
+        assert r.vote_share == 0.0
         assert r.reconciliation_method == "direct"
+
+    def test_vote_share_auto_computed(self):
+        r = ElectionReturn(votes=100, total_votes=200)
+        assert r.vote_share == pytest.approx(0.5)
+
+    def test_vote_share_explicit_override(self):
+        r = ElectionReturn(votes=100, total_votes=200, vote_share=0.75)
+        assert r.vote_share == pytest.approx(0.75)
+
+    def test_vote_share_zero_total(self):
+        r = ElectionReturn(votes=0, total_votes=0)
+        assert r.vote_share == 0.0
 
     def test_fields(self):
         r = _er()

@@ -46,6 +46,10 @@ class ElectionReturn:
     state: str = ""
     reconciliation_method: str = "direct"
 
+    def __post_init__(self):
+        if self.total_votes > 0 and self.vote_share == 0.0 and self.votes > 0:
+            self.vote_share = self.votes / self.total_votes
+
 
 @dataclass
 class ElectionResultsOverlayResult:
