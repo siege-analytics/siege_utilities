@@ -81,6 +81,12 @@ class TestRedistrictingPlan:
         p = _plan(events=[e2, e1])  # out of order
         assert p.latest_event.status == PlanLifecycleStatus.ENACTED
 
+    def test_latest_event_undated_fallback(self):
+        e1 = PlanLifecycleEvent(plan_id="P1", status=PlanLifecycleStatus.PROPOSED)
+        e2 = PlanLifecycleEvent(plan_id="P1", status=PlanLifecycleStatus.ENACTED)
+        p = _plan(events=[e1, e2])
+        assert p.latest_event.status == PlanLifecycleStatus.ENACTED
+
     def test_is_terminal(self):
         p = _plan(events=[_event(PlanLifecycleStatus.STRUCK, "2023-01-01")])
         assert p.is_terminal
