@@ -1919,7 +1919,7 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
     .. deprecated:: 3.16.0
         Use :func:`fetch_geographic_boundaries` (via CensusDataSource) for
         structured diagnostics via :class:`BoundaryFetchResult`.
-        ``get_census_boundaries`` will be removed in v3.17.0.
+        ``get_census_boundaries`` will be removed in v4.0.0.
 
     Args:
         year: Census year
@@ -1936,7 +1936,7 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
         GeoDataFrame with Census boundaries (filtered by state if specified)
     """
     warnings.warn(
-        "get_census_boundaries() is deprecated; will be removed in v3.17.0. "
+        "get_census_boundaries() is deprecated; will be removed in v4.0.0. "
         "Use CensusDataSource().fetch_geographic_boundaries() for structured "
         "error reporting via BoundaryFetchResult.",
         DeprecationWarning,
@@ -2080,13 +2080,13 @@ def get_geographic_boundaries(
 
     .. deprecated:: 3.16.0
         Use :func:`fetch_geographic_boundaries` for structured diagnostics.
-        ``get_geographic_boundaries`` will be removed in v3.17.0.
+        ``get_geographic_boundaries`` will be removed in v4.0.0.
 
     Args:
         crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.
     """
     warnings.warn(
-        "get_geographic_boundaries() is deprecated; will be removed in v3.17.0. "
+        "get_geographic_boundaries() is deprecated; will be removed in v4.0.0. "
         "Use fetch_geographic_boundaries() for structured diagnostics via "
         "BoundaryFetchResult.",
         DeprecationWarning,
