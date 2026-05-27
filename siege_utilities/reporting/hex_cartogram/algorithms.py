@@ -34,6 +34,15 @@ from .coords import (
     bounding_grid,
 )
 
+try:
+    from scipy.optimize import linear_sum_assignment as _linear_sum_assignment
+    import numpy as _np
+    _SCIPY_AVAILABLE = True
+except ImportError:
+    _linear_sum_assignment = None  # type: ignore[assignment]
+    _np = None  # type: ignore[assignment]
+    _SCIPY_AVAILABLE = False
+
 if TYPE_CHECKING:  # pragma: no cover
     import geopandas as gpd
 
@@ -128,9 +137,9 @@ def place_polygons(
     if algorithm == Algorithm.HUNGARIAN:
         return _hungarian_place(codes, centroids, cells)
     # Annealing: start from Hungarian if scipy is available, else greedy.
-    try:
+    if _SCIPY_AVAILABLE:
         initial = _hungarian_place(codes, centroids, cells)
-    except ImportError:
+    else:
         initial = _greedy_place(codes, centroids, cells, gdf, code_col)
     return _anneal(
         codes, centroids, cells, gdf, code_col, initial,
@@ -191,26 +200,23 @@ def _hungarian_place(
     Uses ``scipy.optimize.linear_sum_assignment``. Raises ImportError if
     scipy isn't installed; callers should fall back to greedy.
     """
-    try:
-        from scipy.optimize import linear_sum_assignment
-        import numpy as np
-    except ImportError as exc:
+    if not _SCIPY_AVAILABLE:
         raise ImportError(
             "Hungarian assignment requires scipy + numpy. Install "
             "via 'pip install siege-utilities[analytics]' or fall back "
             "to algorithm='greedy'."
-        ) from exc
+        )
 
     n_polys = len(codes)
     n_cells = len(cells)
     # Cost matrix: rows are polygons, cols are cells.
     cell_centroids = [axial_to_cartesian(c) for c in cells]
-    cost = np.zeros((n_polys, n_cells), dtype=float)
+    cost = _np.zeros((n_polys, n_cells), dtype=float)
     for i, code in enumerate(codes):
         cx, cy = centroids[code]
         for j, (xx, yy) in enumerate(cell_centroids):
             cost[i, j] = math.hypot(cx - xx, cy - yy)
-    row_idx, col_idx = linear_sum_assignment(cost)
+    row_idx, col_idx = _linear_sum_assignment(cost)
     return {codes[r]: cells[c] for r, c in zip(row_idx, col_idx)}
 
 

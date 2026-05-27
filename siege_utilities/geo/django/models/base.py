@@ -287,7 +287,7 @@ class TemporalPointFeature(TemporalGeographicFeature):
 
 def _census_boundary_warning():
     warnings.warn(
-        "CensusBoundary is deprecated. Use CensusTIGERBoundary instead.",
+        "CensusBoundary is deprecated and will be removed in v4.0.0. Use CensusTIGERBoundary instead.",
         DeprecationWarning,
         stacklevel=2,
     )

@@ -504,9 +504,24 @@ def batch_retrieve_facebook_data(client_id: str, start_date: str, end_date: str,
             'errors': []
         }
 
+        _VALID_DATA_TYPES = {'ad_account', 'page', 'business'}
+        if data_types is not None:
+            unknown = set(data_types) - _VALID_DATA_TYPES
+            if unknown:
+                import warnings
+                warnings.warn(
+                    f"batch_retrieve_facebook_data: unrecognized data_types "
+                    f"{sorted(unknown)}; valid values are {sorted(_VALID_DATA_TYPES)}",
+                    stacklevel=2,
+                )
+
         # Process each account
         for account in accounts:
             try:
+                # Skip accounts whose type doesn't match the requested data_types
+                if data_types is not None and account['account_type'] not in data_types:
+                    continue
+
                 # Load access token
                 if not account.get('access_token'):
                     results['errors'].append(f"No access token for account: {account['fb_account_id']}")

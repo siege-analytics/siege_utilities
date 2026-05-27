@@ -1,12 +1,13 @@
 """Deprecation shim — re-exports from :mod:`siege_utilities.data.statistics.moe_propagation`.
 
-Moved during ELE-2437. Remove in the next minor release.
+Moved during ELE-2437. Will be removed in v4.0.0.
 """
 import warnings as _warnings
 
 _warnings.warn(
     "siege_utilities.data.moe_propagation has moved to "
-    "siege_utilities.data.statistics.moe_propagation. Update your imports.",
+    "siege_utilities.data.statistics.moe_propagation. Update your imports; "
+    "this shim will be removed in v4.0.0.",
     DeprecationWarning,
     stacklevel=2,
 )

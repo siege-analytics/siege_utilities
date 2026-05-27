@@ -1,12 +1,13 @@
 """Deprecation shim — re-exports from :mod:`siege_utilities.geo.providers.nces_download`.
 
-Moved during ELE-2438. Remove in the next minor release.
+Moved during ELE-2438. Will be removed in v4.0.0.
 """
 import warnings as _warnings
 
 _warnings.warn(
     "siege_utilities.geo.nces_download has moved to "
-    "siege_utilities.geo.providers.nces_download. Update your imports.",
+    "siege_utilities.geo.providers.nces_download. Update your imports; "
+    "this shim will be removed in v4.0.0.",
     DeprecationWarning,
     stacklevel=2,
 )

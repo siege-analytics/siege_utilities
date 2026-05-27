@@ -15,6 +15,13 @@ import numpy as np
 from siege_utilities.core.logging import log_error
 
 try:
+    import pandas as pd
+    _PANDAS_AVAILABLE = True
+except ImportError:
+    pd = None  # type: ignore[assignment]
+    _PANDAS_AVAILABLE = False
+
+try:
     from scipy.stats import norm as _scipy_norm
     _SCIPY_AVAILABLE = True
 except ImportError:
@@ -115,7 +122,11 @@ def chi_square_flag(chain: "Chain", alpha: float = 0.05) -> "Chain":
     Mutates *chain* in place and returns it.
     """
     from ..data.statistics.cross_tabulation import chi_square_test
-    import pandas as pd
+    if not _PANDAS_AVAILABLE:
+        raise ImportError(
+            "chi_square_flag requires pandas. "
+            "Install via: pip install pandas"
+        )
 
     # Build count-based (not pct-based) contingency table for valid chi-square
     records: dict = {}

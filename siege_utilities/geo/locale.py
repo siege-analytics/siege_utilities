@@ -511,7 +511,17 @@ class NCESLocaleClassifier:
         Raises:
             ImportError: If geopandas is not available.
         """
+        import warnings
         from .spatial_data import CensusDataSource
+
+        if cache_dir is not None:
+            warnings.warn(
+                "from_census_year: cache_dir is accepted for API "
+                "compatibility with from_nces_boundaries but is not yet "
+                "wired through to CensusDataSource. Downloaded data will "
+                "not be cached to the specified directory.",
+                stacklevel=2,
+            )
 
         census = CensusDataSource()
         log.info(f"Loading Census TIGER data for year {year}...")

@@ -365,6 +365,20 @@ class DataFrameEngine(ABC):
         rely on these parameters should test with the engine they intend
         to use.
         """
+        import warnings
+        if format != "auto":
+            warnings.warn(
+                f"load_polygons: format={format!r} is ignored by the default "
+                f"engine; read_spatial infers the format from the path. "
+                f"Use SparkEngine for explicit format control.",
+                stacklevel=2,
+            )
+        if geometry_col != "geometry":
+            warnings.warn(
+                f"load_polygons: geometry_col={geometry_col!r} is ignored by "
+                f"the default engine. Use SparkEngine for column renaming.",
+                stacklevel=2,
+            )
         return self.read_spatial(path, crs=crs)
 
     def load_points(
@@ -407,6 +421,20 @@ class DataFrameEngine(ABC):
         ignores ``format`` and ``geometry_col`` (same shape as the default
         ``load_polygons``); engines that override may honour them.
         """
+        import warnings
+        if format != "auto":
+            warnings.warn(
+                f"load_lines: format={format!r} is ignored by the default "
+                f"engine; read_spatial infers the format from the path. "
+                f"Use SparkEngine for explicit format control.",
+                stacklevel=2,
+            )
+        if geometry_col != "geometry":
+            warnings.warn(
+                f"load_lines: geometry_col={geometry_col!r} is ignored by "
+                f"the default engine. Use SparkEngine for column renaming.",
+                stacklevel=2,
+            )
         return self.read_spatial(path, crs=crs)
 
     # -- Spatial boundary operations (concrete defaults) -------------------

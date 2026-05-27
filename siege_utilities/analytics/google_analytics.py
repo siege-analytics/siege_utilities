@@ -695,7 +695,7 @@ def create_ga_connector_from_1password(item_title: str = "Google Analytics Servi
             data = get_google_service_account_from_1password(item_title)
             connector = create_ga_connector_with_service_account(data)
 
-        This function will be removed in a future minor release. See
+        This function will be removed in v4.0.0. See
         `docs/INTENT.md` (D1) and ELE-2442 for the rationale.
 
     Args:
@@ -706,8 +706,8 @@ def create_ga_connector_from_1password(item_title: str = "Google Analytics Servi
     """
     import warnings
     warnings.warn(
-        "create_ga_connector_from_1password is deprecated; use "
-        "get_google_service_account_from_1password() + "
+        "create_ga_connector_from_1password is deprecated and will be "
+        "removed in v4.0.0; use get_google_service_account_from_1password() + "
         "create_ga_connector_with_service_account() explicitly. "
         "See docs/INTENT.md D1.",
         DeprecationWarning,

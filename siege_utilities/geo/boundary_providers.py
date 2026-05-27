@@ -1,13 +1,14 @@
 """Deprecation shim — re-exports from :mod:`siege_utilities.geo.providers.boundary_providers`.
 
 Moved during ELE-2438 (spatial providers consolidated under
-``geo/providers/``). Remove in the next minor release.
+``geo/providers/``). Will be removed in v4.0.0.
 """
 import warnings as _warnings
 
 _warnings.warn(
     "siege_utilities.geo.boundary_providers has moved to "
-    "siege_utilities.geo.providers.boundary_providers. Update your imports.",
+    "siege_utilities.geo.providers.boundary_providers. Update your imports; "
+    "this shim will be removed in v4.0.0.",
     DeprecationWarning,
     stacklevel=2,
 )
