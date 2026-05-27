@@ -125,8 +125,12 @@ def get_service(service_name: str):
     return getattr(services_module, service_name)
 
 
-# Version info — matches package version
-__version__ = "3.0.0"
+# Version derived from the parent package
+try:
+    from importlib.metadata import version as _meta_version
+    __version__ = _meta_version("siege-utilities")
+except Exception:
+    __version__ = "3.18.1-dev"
 
 __all__ = [
     # Models (lazy)
