@@ -473,6 +473,55 @@ class NCESLocaleClassifier:
         # "distribution" or "area_weighted"
         return distribution
 
+    def classify_polygons(
+        self,
+        gdf: Any,
+        method: str = "majority",
+        geometry_col: str = "geometry",
+    ) -> Any:
+        """Bulk classify a GeoDataFrame of polygons.
+
+        For ``method="majority"``, adds columns: ``locale_code`` (int),
+        ``locale_label`` (str).
+
+        For ``method="distribution"`` or ``"area_weighted"``, adds a
+        ``locale_distribution`` column containing per-row dicts of
+        ``{code: fraction}`` pairs.
+
+        Args:
+            gdf: GeoDataFrame with polygon geometries.
+            method: ``"majority"``, ``"distribution"``, or ``"area_weighted"``.
+            geometry_col: Name of the geometry column.
+
+        Returns:
+            The input GeoDataFrame with locale columns added.
+        """
+        gdf = gdf.copy()
+
+        if method == "majority":
+            codes = []
+            labels = []
+            for _, row in gdf.iterrows():
+                result = self.classify_polygon(row[geometry_col], method="majority")
+                codes.append(result["locale_code"])
+                labels.append(result["locale_label"])
+            gdf["locale_code"] = codes
+            gdf["locale_label"] = labels
+            gdf["locale_category"] = [
+                locale_from_code(c).category for c in codes
+            ]
+            gdf["locale_subcategory"] = [
+                locale_from_code(c).subcategory for c in codes
+            ]
+        else:
+            distributions = []
+            for _, row in gdf.iterrows():
+                dist = self.classify_polygon(row[geometry_col], method=method)
+                distributions.append(dist)
+            gdf["locale_distribution"] = distributions
+
+        return gdf
+
     # ------------------------------------------------------------------
     # Factory methods
     # ------------------------------------------------------------------
