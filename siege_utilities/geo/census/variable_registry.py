@@ -5,6 +5,7 @@ Pure data + lookup logic — no I/O except optional API calls for unknown variab
 """
 
 import logging
+import warnings
 from typing import Dict, List, Optional, Union, Any
 
 import pandas as pd
@@ -12,11 +13,51 @@ import pandas as pd
 log = logging.getLogger(__name__)
 
 
+class _DeprecatedDict(dict):
+    """Dict wrapper that warns on first access, directing users to CensusCatalog."""
+
+    _warned = False
+
+    def _warn(self):
+        if not _DeprecatedDict._warned:
+            _DeprecatedDict._warned = True
+            warnings.warn(
+                "VARIABLE_GROUPS is deprecated and will be removed in v5.0. "
+                "Use CensusCatalog from siege_utilities.geo.census.catalog instead.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+    def __getitem__(self, key):
+        self._warn()
+        return super().__getitem__(key)
+
+    def __iter__(self):
+        self._warn()
+        return super().__iter__()
+
+    def keys(self):
+        self._warn()
+        return super().keys()
+
+    def values(self):
+        self._warn()
+        return super().values()
+
+    def items(self):
+        self._warn()
+        return super().items()
+
+    def get(self, key, default=None):
+        self._warn()
+        return super().get(key, default)
+
+
 # =============================================================================
-# PREDEFINED VARIABLE GROUPS
+# PREDEFINED VARIABLE GROUPS (deprecated — use CensusCatalog)
 # =============================================================================
 
-VARIABLE_GROUPS: Dict[str, List[str]] = {
+_VARIABLE_GROUPS_DATA: Dict[str, List[str]] = {
     # Basic population count
     'total_population': ['B01001_001E'],
 
@@ -211,6 +252,8 @@ VARIABLE_GROUPS: Dict[str, List[str]] = {
     ],
 }
 
+VARIABLE_GROUPS: Dict[str, List[str]] = _DeprecatedDict(_VARIABLE_GROUPS_DATA)
+
 # Variable descriptions for metadata
 VARIABLE_DESCRIPTIONS: Dict[str, str] = {
     'B01001_001E': 'Total Population',
@@ -320,7 +363,7 @@ class VariableRegistry:
 
     def __init__(self, groups: Optional[Dict[str, List[str]]] = None,
                  descriptions: Optional[Dict[str, str]] = None):
-        self.groups = groups or VARIABLE_GROUPS
+        self.groups = groups or dict(_VARIABLE_GROUPS_DATA)
         self.descriptions = descriptions or VARIABLE_DESCRIPTIONS
 
     def resolve_variables(self, variables: Union[str, List[str]]) -> List[str]:
