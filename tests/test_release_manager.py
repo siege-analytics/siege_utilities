@@ -1,6 +1,5 @@
 """Tests for scripts/release_manager.py — focused on security properties."""
 
-import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import patch, MagicMock
