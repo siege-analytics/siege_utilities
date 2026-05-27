@@ -162,6 +162,53 @@ def locale_from_code(code: int) -> LocaleCode:
 # NCESLocaleClassifier
 # ---------------------------------------------------------------------------
 
+class LocaleIndex:
+    """Precomputed GEOID → LocaleCode mapping for fast lookup.
+
+    Built from any data source that pairs GEOIDs with NCES locale codes
+    (e.g., NCES district data, school locations, or Census tract assignments).
+    """
+
+    def __init__(self, mapping: Optional[Dict[str, int]] = None):
+        self._mapping: Dict[str, int] = mapping or {}
+
+    def add(self, geoid: str, locale_code: int) -> None:
+        self._mapping[geoid] = locale_code
+
+    def add_bulk(self, pairs: Dict[str, int]) -> None:
+        self._mapping.update(pairs)
+
+    def get(self, geoid: str) -> Optional[LocaleCode]:
+        code = self._mapping.get(geoid)
+        if code is None:
+            return None
+        return locale_from_code(code)
+
+    def __len__(self) -> int:
+        return len(self._mapping)
+
+    def __contains__(self, geoid: str) -> bool:
+        return geoid in self._mapping
+
+    @classmethod
+    def from_dataframe(
+        cls,
+        df: Any,
+        geoid_col: str = "geoid",
+        locale_col: str = "locale_code",
+    ) -> "LocaleIndex":
+        mapping = {}
+        for _, row in df.iterrows():
+            geoid = str(row[geoid_col]).strip()
+            try:
+                code = int(row[locale_col])
+                if validate_locale_code(code):
+                    mapping[geoid] = code
+            except (ValueError, TypeError):
+                continue
+        return cls(mapping)
+
+
 class NCESLocaleClassifier:
     """Classify geographic points and polygons into NCES locale codes.
 
@@ -207,6 +254,8 @@ class NCESLocaleClassifier:
         self._ua_populations = ua_populations or {}
         self._projection_crs = projection_crs or settings.PROJECTION_CRS
 
+        self._locale_index: Optional[LocaleIndex] = None
+
         # Lazily projected copies (created on first classify call)
         self._ua_proj = None
         self._uc_proj = None
@@ -220,6 +269,39 @@ class NCESLocaleClassifier:
             self._ua_proj = self._ua.to_crs(crs_string)
         if self._uc_proj is None and self._uc is not None:
             self._uc_proj = self._uc.to_crs(crs_string)
+
+    # ------------------------------------------------------------------
+    # GEOID lookup
+    # ------------------------------------------------------------------
+
+    @property
+    def locale_index(self) -> Optional[LocaleIndex]:
+        return self._locale_index
+
+    @locale_index.setter
+    def locale_index(self, index: LocaleIndex) -> None:
+        self._locale_index = index
+
+    def classify_geoid(self, geoid: str) -> Optional[LocaleCode]:
+        """Fast-path locale lookup by Census GEOID.
+
+        Returns the precomputed locale code if the GEOID is in the index,
+        or ``None`` if no index is set or the GEOID is not found.
+        Use ``classify_geoid_or_point()`` for automatic fallback to
+        spatial classification.
+        """
+        if self._locale_index is None:
+            return None
+        return self._locale_index.get(geoid)
+
+    def classify_geoid_or_point(
+        self, geoid: str, lon: float, lat: float,
+    ) -> LocaleCode:
+        """Classify by GEOID if available, falling back to spatial."""
+        result = self.classify_geoid(geoid)
+        if result is not None:
+            return result
+        return self.classify_point(lon, lat)
 
     # ------------------------------------------------------------------
     # Point classification
