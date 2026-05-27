@@ -360,14 +360,17 @@ def upload_to_pypi(repository: str = 'pypi', token: Optional[str] = None,
         logger.info(f"[DRY RUN] Would upload {len(dist_files)} file(s) to {repository}")
         return True
 
-    cmd = [sys.executable, '-m', 'twine', 'upload',
-           '--username', '__token__', '--password', resolved_token]
+    env = os.environ.copy()
+    env['TWINE_USERNAME'] = '__token__'
+    env['TWINE_PASSWORD'] = resolved_token
+
+    cmd = [sys.executable, '-m', 'twine', 'upload']
     if repository == 'testpypi':
         cmd.extend(['--repository', 'testpypi'])
     cmd.extend([str(f) for f in dist_files])
 
     logger.info(f"Uploading to {repository}...")
-    result = subprocess.run(cmd, cwd=PROJECT_ROOT, timeout=60)
+    result = subprocess.run(cmd, cwd=PROJECT_ROOT, timeout=60, env=env)
     if result.returncode == 0:
         logger.info(f"Upload to {repository} succeeded")
         return True
