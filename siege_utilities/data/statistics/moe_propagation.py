@@ -15,9 +15,12 @@ Reference:
 
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass
 from typing import Sequence
+
+log = logging.getLogger(__name__)
 
 
 Z_90 = 1.645  # z-score for 90% confidence (ACS default)
@@ -134,6 +137,15 @@ def moe_proportion(
     """
     if denominator.value == 0:
         return Estimate(value=0.0, moe=0.0)
+
+    if numerator.value > denominator.value:
+        log.warning(
+            "moe_proportion called with numerator (%.2f) > denominator (%.2f). "
+            "The proportion formula assumes the numerator is a subset of the "
+            "denominator. Use moe_ratio() for non-nested estimates.",
+            numerator.value,
+            denominator.value,
+        )
 
     p = numerator.value / denominator.value
 
