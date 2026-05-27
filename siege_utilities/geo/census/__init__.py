@@ -23,6 +23,8 @@ from .catalog import (
     CensusTable,
     CensusVariable,
     FamilyType,
+    SearchLevel,
+    SearchResult,
 )
 from . import tiger_state
 
@@ -39,6 +41,8 @@ __all__ = [
     "CensusVariable",
     "DatasetSelector",
     "FamilyType",
+    "SearchLevel",
+    "SearchResult",
     "VariableRegistry",
     "tiger_state",
 ]

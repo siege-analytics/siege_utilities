@@ -42,6 +42,23 @@ _VARIABLE_CODE_RE = re.compile(
 )
 
 
+class SearchLevel(Enum):
+    DATASET = "dataset"
+    SUBJECT = "subject"
+    FAMILY = "family"
+    TABLE = "table"
+    VARIABLE = "variable"
+
+
+@dataclass
+class SearchResult:
+    level: SearchLevel
+    id: str
+    label: str
+    score: float
+    obj: object = field(repr=False)
+
+
 class FamilyType(Enum):
     RACE_ITERATION = "race_iteration"
     TOPICAL_KINSHIP = "topical_kinship"
@@ -302,6 +319,70 @@ def _find_table_by_id(
     return None
 
 
+def _tokenize_query(query: str) -> list[str]:
+    return [w for w in query.upper().split() if w not in _CONCEPT_STOP_WORDS]
+
+
+def _text_score(text: str, tokens: list[str]) -> float:
+    upper = text.upper()
+    words = set(upper.split())
+    score = 0.0
+    for token in tokens:
+        if token in words:
+            score += 1.0
+        elif token in upper:
+            score += 0.5
+    return score
+
+
+def _id_score(obj_id: str, tokens: list[str]) -> float:
+    upper = obj_id.upper()
+    for token in tokens:
+        if token == upper:
+            return 2.0
+        if token in upper:
+            return 1.0
+    return 0.0
+
+
+def _score_table(table: CensusTable, tokens: list[str]) -> float:
+    score = _id_score(table.table_id, tokens)
+    score += _text_score(table.concept, tokens)
+    score += _text_score(table.label, tokens) * 0.5
+    return score
+
+
+def _score_family(family: CensusFamily, tokens: list[str]) -> float:
+    score = _text_score(family.description, tokens)
+    score += _id_score(family.root_table_id, tokens)
+    for table in family.tables:
+        ts = _text_score(table.concept, tokens)
+        if ts > 0:
+            score += ts * 0.3
+            break
+    return score
+
+
+def _score_subject(subject: CensusSubject, tokens: list[str]) -> float:
+    return _text_score(subject.label, tokens) + _id_score(subject.subject_id, tokens)
+
+
+def _score_variable(var: CensusVariable, tokens: list[str]) -> float:
+    score = _id_score(var.code, tokens)
+    score += _text_score(var.label, tokens) * 0.8
+    score += _text_score(var.concept, tokens) * 0.3
+    return score
+
+
+def _score_dataset(ds: CensusCatalogDataset, tokens: list[str]) -> float:
+    score = _id_score(ds.dataset_id, tokens)
+    score += _text_score(ds.survey_type, tokens)
+    for token in tokens:
+        if token == str(ds.year):
+            score += 1.0
+    return score
+
+
 class CensusCatalog:
     def __init__(self) -> None:
         self._datasets: dict[str, CensusCatalogDataset] = {}
@@ -378,6 +459,95 @@ class CensusCatalog:
             for f in self._families.values()
             if table_id in f.table_ids
         ]
+
+    # -- Search --
+
+    def search(
+        self,
+        query: str,
+        level: Optional[SearchLevel] = None,
+        dataset: Optional[str] = None,
+        max_results: int = 25,
+    ) -> list[SearchResult]:
+        tokens = _tokenize_query(query)
+        if not tokens:
+            return []
+
+        dataset_table_ids: Optional[set[str]] = None
+        if dataset:
+            ds = self._datasets.get(dataset)
+            if ds is not None:
+                dataset_table_ids = set(ds.tables.keys())
+
+        results: list[SearchResult] = []
+
+        if level is None or level == SearchLevel.TABLE:
+            for table in self._tables.values():
+                if dataset_table_ids is not None and table.table_id not in dataset_table_ids:
+                    continue
+                score = _score_table(table, tokens)
+                if score > 0:
+                    results.append(SearchResult(
+                        level=SearchLevel.TABLE,
+                        id=table.table_id,
+                        label=table.label or table.concept,
+                        score=score,
+                        obj=table,
+                    ))
+
+        if level is None or level == SearchLevel.FAMILY:
+            for family in self._families.values():
+                score = _score_family(family, tokens)
+                if score > 0:
+                    results.append(SearchResult(
+                        level=SearchLevel.FAMILY,
+                        id=family.family_id,
+                        label=family.description,
+                        score=score,
+                        obj=family,
+                    ))
+
+        if level is None or level == SearchLevel.SUBJECT:
+            for subject in self._subjects.values():
+                score = _score_subject(subject, tokens)
+                if score > 0:
+                    results.append(SearchResult(
+                        level=SearchLevel.SUBJECT,
+                        id=subject.subject_id,
+                        label=subject.label,
+                        score=score,
+                        obj=subject,
+                    ))
+
+        if level is None or level == SearchLevel.VARIABLE:
+            for table in self._tables.values():
+                if dataset_table_ids is not None and table.table_id not in dataset_table_ids:
+                    continue
+                for var in table.variables:
+                    score = _score_variable(var, tokens)
+                    if score > 0:
+                        results.append(SearchResult(
+                            level=SearchLevel.VARIABLE,
+                            id=var.code,
+                            label=var.label,
+                            score=score,
+                            obj=var,
+                        ))
+
+        if level is None or level == SearchLevel.DATASET:
+            for ds in self._datasets.values():
+                score = _score_dataset(ds, tokens)
+                if score > 0:
+                    results.append(SearchResult(
+                        level=SearchLevel.DATASET,
+                        id=ds.dataset_id,
+                        label=f"{ds.survey_type} {ds.year}",
+                        score=score,
+                        obj=ds,
+                    ))
+
+        results.sort(key=lambda r: (-r.score, r.id))
+        return results[:max_results]
 
     # -- Bulk operations --
 
