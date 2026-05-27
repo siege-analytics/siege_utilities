@@ -74,7 +74,7 @@ class PollingAnalyzer:
           (coming in ELE-2440)
 
         See ``docs/adr/0006-polling-analyzer-location.md`` for the rationale.
-        This class will be removed in the next minor release.
+        This class will be removed in the v4.0.0.
     """
 
     def __init__(self) -> None:
