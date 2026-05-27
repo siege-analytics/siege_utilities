@@ -217,8 +217,9 @@ def find_connection_by_name(
                 return profile
                 
         except Exception:
+            logger.warning("Skipping unreadable connection config: %s", config_file, exc_info=True)
             continue
-    
+
     return None
 
 
