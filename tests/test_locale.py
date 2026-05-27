@@ -374,6 +374,70 @@ class TestClassifyPolygon:
         assert abs(total - 1.0) < 0.01  # fractions sum to ~1
 
 
+class TestClassifyPolygons:
+    """Test bulk polygon classification."""
+
+    def test_majority_adds_columns(self):
+        """classify_polygons with majority adds locale_code/label/category/subcategory."""
+        ua = _make_ua((-78, 38, -76, 40), pop=500_000)
+        classifier = NCESLocaleClassifier(
+            urbanized_areas=ua,
+            urban_clusters=None,
+            principal_cities=_empty_gdf(),
+            place_populations={},
+            ua_populations={"00001": 500_000},
+        )
+        polys = gpd.GeoDataFrame(
+            {"name": ["A", "B"]},
+            geometry=[box(-77.5, 38.5, -76.5, 39.5), box(-77.5, 38.5, -76.5, 39.5)],
+            crs="EPSG:4269",
+        )
+        result = classifier.classify_polygons(polys, method="majority")
+        assert "locale_code" in result.columns
+        assert "locale_label" in result.columns
+        assert "locale_category" in result.columns
+        assert "locale_subcategory" in result.columns
+        assert len(result) == 2
+
+    def test_distribution_adds_column(self):
+        """classify_polygons with distribution adds locale_distribution column."""
+        ua = _make_ua((-78, 38, -77, 39), pop=500_000)
+        classifier = NCESLocaleClassifier(
+            urbanized_areas=ua,
+            urban_clusters=None,
+            principal_cities=_empty_gdf(),
+            place_populations={},
+        )
+        polys = gpd.GeoDataFrame(
+            {"name": ["A"]},
+            geometry=[box(-77.5, 38.5, -76.5, 39.5)],
+            crs="EPSG:4269",
+        )
+        result = classifier.classify_polygons(polys, method="distribution")
+        assert "locale_distribution" in result.columns
+        dist = result["locale_distribution"].iloc[0]
+        assert isinstance(dist, dict)
+        assert abs(sum(dist.values()) - 1.0) < 0.01
+
+    def test_does_not_mutate_input(self):
+        """classify_polygons should return a copy, not mutate the input."""
+        ua = _make_ua((-78, 38, -76, 40), pop=500_000)
+        classifier = NCESLocaleClassifier(
+            urbanized_areas=ua,
+            urban_clusters=None,
+            principal_cities=_empty_gdf(),
+            place_populations={},
+        )
+        polys = gpd.GeoDataFrame(
+            {"name": ["A"]},
+            geometry=[box(-77.5, 38.5, -76.5, 39.5)],
+            crs="EPSG:4269",
+        )
+        original_cols = set(polys.columns)
+        classifier.classify_polygons(polys, method="majority")
+        assert set(polys.columns) == original_cols
+
+
 class TestLocaleLabel:
     """Test the static locale_label helper."""
 
