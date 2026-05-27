@@ -14,6 +14,7 @@ from .variable_registry import VariableRegistry
 from .dataset_selector import DatasetSelector
 from .api import CensusAPI
 from .catalog_populator import CensusCatalogPopulator
+from .catalog_cache import CatalogCache, CatalogLoader
 from .catalog import (
     CensusCatalog,
     CensusCatalogDataset,
@@ -26,6 +27,8 @@ from .catalog import (
 from . import tiger_state
 
 __all__ = [
+    "CatalogCache",
+    "CatalogLoader",
     "CensusAPI",
     "CensusCatalog",
     "CensusCatalogPopulator",
