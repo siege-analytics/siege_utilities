@@ -4,9 +4,12 @@ Handles database connection settings for Spark and other uses.
 """
 
 import json
+import os
 import pathlib
 import logging
+import re
 from typing import Dict, Any, Optional
+from urllib.parse import quote_plus
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +22,28 @@ except ImportError:
     def log_warning(message): logger.warning(message)
     def log_error(message): logger.error(message)
     def log_debug(message): logger.debug(message)
+
+
+_ENV_VAR_RE = re.compile(r'^\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?$')
+
+
+def _resolve_env_var(value: str) -> str:
+    """Resolve ``$VAR`` or ``${VAR}`` references from the environment."""
+    m = _ENV_VAR_RE.match(value)
+    if m:
+        env_name = m.group(1)
+        resolved = os.environ.get(env_name)
+        if resolved is None:
+            raise EnvironmentError(
+                f"Environment variable {env_name!r} is not set"
+            )
+        return resolved
+    return value
+
+
+def _is_env_ref(value: str) -> bool:
+    """Return True if *value* is an env-var reference like ``$VAR`` or ``${VAR}``."""
+    return bool(_ENV_VAR_RE.match(value))
 
 
 def create_database_config(name: str, connection_type: str, host: str, port: int,
@@ -52,12 +77,14 @@ def create_database_config(name: str, connection_type: str, host: str, port: int
         ... )
     """
 
-    # Generate JDBC URL based on connection type
+    safe_host = quote_plus(str(host))
+    safe_db = quote_plus(str(database))
+
     jdbc_urls = {
-        'postgres': f"jdbc:postgresql://{host}:{port}/{database}",
-        'mysql': f"jdbc:mysql://{host}:{port}/{database}",
-        'oracle': f"jdbc:oracle:thin:@{host}:{port}:{database}",
-        'sqlserver': f"jdbc:sqlserver://{host}:{port};databaseName={database}"
+        'postgres': f"jdbc:postgresql://{safe_host}:{port}/{safe_db}",
+        'mysql': f"jdbc:mysql://{safe_host}:{port}/{safe_db}",
+        'oracle': f"jdbc:oracle:thin:@{safe_host}:{port}:{safe_db}",
+        'sqlserver': f"jdbc:sqlserver://{safe_host}:{port};databaseName={safe_db}"
     }
 
     jdbc_drivers = {
@@ -119,12 +146,18 @@ def save_database_config(config: Dict[str, Any], config_directory: str = "config
     db_name = config['name']
     config_file = config_dir / f"database_{db_name}.json"
 
-    # Warning about password storage
-    log_warning(f"Saving database config with password in plain text to {config_file}")
-    log_warning("In production, consider using environment variables or encryption")
+    safe_config = dict(config)
+    password = safe_config.get('password', '')
+    if password and not _is_env_ref(str(password)):
+        env_name = f"DB_{db_name.upper()}_PASSWORD"
+        log_warning(
+            f"Plaintext password replaced with env var reference ${{{env_name}}}. "
+            f"Set this variable in your environment before loading the config."
+        )
+        safe_config['password'] = f"${{{env_name}}}"
 
     with open(config_file, 'w') as f:
-        json.dump(config, f, indent=2)
+        json.dump(safe_config, f, indent=2)
 
     log_info(f"Saved database config to: {config_file}")
     return str(config_file)
@@ -156,6 +189,11 @@ def load_database_config(db_name: str, config_directory: str = "config") -> Opti
     try:
         with open(config_file, 'r') as f:
             config = json.load(f)
+
+        for key in ('username', 'password'):
+            val = config.get(key, '')
+            if isinstance(val, str) and _is_env_ref(val):
+                config[key] = _resolve_env_var(val)
 
         log_info(f"Loaded database config: {db_name}")
         return config
@@ -231,8 +269,8 @@ def test_database_connection(db_name: str, config_directory: str = "config") -> 
             host = config['host']
             port = config['port']
             database = config['database']
-            username = config['username']
-            password = config['password']
+            username = quote_plus(str(config['username']))
+            password = quote_plus(str(config['password']))
 
             if connection_type == 'postgres':
                 conn_string = f"postgresql://{username}:{password}@{host}:{port}/{database}"
