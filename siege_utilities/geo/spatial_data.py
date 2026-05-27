@@ -1,6 +1,16 @@
 """
 Modern spatial data sources for siege_utilities.
 Provides clean, type-safe access to Census, Government, and OpenStreetMap data.
+
+Verb convention (see CONTRIBUTING.md § "Function Naming: Verb Conventions"):
+  get_*       — in-memory lookup, no I/O
+  load_*      — read from local disk/cache
+  fetch_*     — network I/O, returns structured result
+  download_*  — file download to disk
+
+Legacy ``get_census_boundaries`` and ``get_geographic_boundaries`` violate
+this convention (they do network I/O). Both are deprecated in favour of
+``fetch_geographic_boundaries``; removal scheduled for v4.0.0.
 """
 
 import logging

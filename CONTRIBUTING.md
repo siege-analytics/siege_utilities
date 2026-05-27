@@ -146,6 +146,21 @@ pip install papermill
 papermill notebooks/01_Getting_Started.ipynb /tmp/nb01_output.ipynb --execution-timeout 300
 ```
 
+## Function Naming: Verb Conventions
+
+Public functions and methods use verb prefixes that signal I/O behavior:
+
+| Prefix | Meaning | I/O | Example |
+|--------|---------|-----|---------|
+| `get_` | Lookup / compute from in-memory data | None | `get_state_name(fips)` |
+| `load_` | Read from local disk / cache | File | `load_census_inventory(path)` |
+| `fetch_` | Retrieve via network, return structured result | Network | `fetch_geographic_boundaries(year)` |
+| `download_` | Download file(s) to disk | Network + File | `download_data(year, level)` |
+
+Other common prefixes (`validate_`, `normalize_`, `discover_`, `construct_`, `create_`, `refresh_`, `update_`) describe the operation rather than the I/O shape — use whichever reads most naturally.
+
+When adding or renaming a public function, pick the verb prefix that matches its I/O behavior. If an existing function uses the wrong prefix, deprecate the old name and add a correctly-named replacement rather than renaming in place.
+
 ## CI Pipeline
 
 Every push and PR triggers the full CI pipeline (`.github/workflows/ci.yml`):
