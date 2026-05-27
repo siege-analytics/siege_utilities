@@ -428,6 +428,10 @@ class PollingAnalyzer:
         PollingAnalysisError
             If matplotlib or seaborn cannot render the input.
         """
+        if not _MATPLOTLIB_AVAILABLE or not _SEABORN_AVAILABLE:
+            raise PollingAnalysisError(
+                "matplotlib and seaborn are required for heatmap visualization"
+            )
         try:
             fig, ax = plt.subplots(figsize=figsize)
             fmt = _choose_heatmap_fmt(crosstab_data)
@@ -479,6 +483,10 @@ class PollingAnalyzer:
         PollingAnalysisError
             If plotting fails.
         """
+        if not _MATPLOTLIB_AVAILABLE:
+            raise PollingAnalysisError(
+                "matplotlib is required for trend analysis charts"
+            )
         try:
             fig, ax = plt.subplots(figsize=figsize)
             for period, data in longitudinal_data.items():
