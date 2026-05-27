@@ -44,6 +44,55 @@ Each pattern is tracked by ELE-2420 sub-issues.
 | **CC3** | `logger.warning(...); return None` — half-log/half-silence | Raise on real failure; return None only when absence is legitimate and caller can distinguish |
 | **CC4** | `try: import X / except: def stub(): pass` — silent stub when dep missing | OK for logging; anti-pattern for load-bearing functions |
 | **CC5** | `validate_credentials() -> bool` — returns False on missing creds | Raise typed error or return explicit `CredentialStatus` enum |
+| **CC6** | Inconsistent failure contracts across provider/connector classes | Standardize on `BoundaryFetchResult`-style structured result objects (see below) |
+
+### CC6 — Inconsistent failure-mode contracts across providers
+
+**Problem:** Six provider/connector class families each use a different failure
+signaling convention. A caller cannot write generic error handling because the
+same semantic ("this operation failed") is expressed as `False`, `None`,
+`pd.DataFrame()`, `[]`, a raised exception, or a structured result object
+depending on which provider it hits.
+
+| Class / Method | Success type | Failure type | Raises? |
+|---|---|---|---|
+| `GoogleAnalyticsConnector.authenticate` | `True` | `False` | No |
+| `GoogleAnalyticsConnector.get_ga4_data` | `pd.DataFrame` | `pd.DataFrame()` (empty) | No |
+| `FacebookBusinessConnector.get_ad_accounts` | `List[Dict]` | `[]` | No |
+| `FacebookBusinessConnector.get_ad_insights` | `pd.DataFrame` | `pd.DataFrame()` (empty) | No |
+| `CensusDataSource.get_geographic_boundaries` | `GeoDataFrame` | `None` | No |
+| `CensusDataSource.fetch_geographic_boundaries` | `BoundaryFetchResult.ok()` | `BoundaryFetchResult.fail()` | Only on unexpected errors |
+| `load_client_profile` (config/clients.py) | `Dict` | `None` | No |
+| `GADMProvider.get_boundary` | `GeoDataFrame` | — | **Yes** (ImportError, ValueError) |
+| `RDHProvider.get_boundary` | `GeoDataFrame` | `None` or raises | **Mixed** |
+
+**Consequence:** Callers must know each provider's convention. Generic wrappers
+(batch jobs, retry middleware) cannot distinguish "no data" from "failed" for
+the sentinel-return providers, and cannot uniformly catch failures from the
+raising providers.
+
+**Recommended target state:** Adopt the `BoundaryFetchResult` pattern
+(`fetch_geographic_boundaries`) as the canonical model for all provider
+operations:
+
+1. Return a typed result object with `.ok`, `.error_code`, `.stage`, `.message`,
+   `.context`.
+2. Never return bare `None`/`False`/empty-container as failure signals.
+3. Raise only for programming errors (bad arguments, missing required deps),
+   not for runtime failures (network, auth, parse).
+4. Log structured diagnostics at the provider layer; callers inspect the result
+   rather than parsing log messages.
+
+**Migration plan:** This is a breaking-contract change. Wrap behind a
+v4.0.0 migration gate:
+
+- v3.x: Add a `result_style="legacy"` parameter to affected methods. Default
+  keeps old behavior; `result_style="structured"` returns the new type.
+- v4.0.0: Flip default to `"structured"`, deprecate `"legacy"`.
+- v5.0.0: Remove `"legacy"` path.
+
+**Tracking:** SU#593. Not scheduled for implementation in current cycle — this
+is a design note recording the inconsistency and the agreed target state.
 
 ### CC1 — confirmed silent-swallow sites
 
