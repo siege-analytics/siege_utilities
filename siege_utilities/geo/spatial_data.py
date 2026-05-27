@@ -1225,7 +1225,8 @@ class CensusDataSource(SpatialDataSource):
             GeoDataFrame with boundaries or None if failed
         """
         _warnings_mod.warn(
-            "get_geographic_boundaries() returns None on failure with no diagnostics. "
+            "get_geographic_boundaries() returns None on failure with no diagnostics "
+            "and will be removed in v4.0.0. "
             "Use fetch_geographic_boundaries() for structured error reporting.",
             DeprecationWarning,
             stacklevel=2,

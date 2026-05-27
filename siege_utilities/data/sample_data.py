@@ -1,12 +1,13 @@
 """Deprecation shim — re-exports from :mod:`siege_utilities.reference.sample_data`.
 
-Moved during ELE-2437. Remove in the next minor release.
+Moved during ELE-2437. Will be removed in v4.0.0.
 """
 import warnings as _warnings
 
 _warnings.warn(
     "siege_utilities.data.sample_data has moved to "
-    "siege_utilities.reference.sample_data. Update your imports.",
+    "siege_utilities.reference.sample_data. Update your imports; "
+    "this shim will be removed in v4.0.0.",
     DeprecationWarning,
     stacklevel=2,
 )

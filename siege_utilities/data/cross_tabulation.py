@@ -1,13 +1,14 @@
 """Deprecation shim — re-exports from :mod:`siege_utilities.data.statistics.cross_tabulation`.
 
 Moved during ELE-2437 (statistics primitives grouped under ``data/statistics/``).
-Remove in the next minor release.
+Will be removed in v4.0.0.
 """
 import warnings as _warnings
 
 _warnings.warn(
     "siege_utilities.data.cross_tabulation has moved to "
-    "siege_utilities.data.statistics.cross_tabulation. Update your imports.",
+    "siege_utilities.data.statistics.cross_tabulation. Update your imports; "
+    "this shim will be removed in v4.0.0.",
     DeprecationWarning,
     stacklevel=2,
 )

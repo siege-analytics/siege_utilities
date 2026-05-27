@@ -23,7 +23,8 @@ warnings.warn(
     "siege_utilities.databricks.unity_catalog is deprecated; "
     "import from siege_utilities.databricks.lakehouse_federation instead. "
     "The generated SQL is Databricks Lakehouse Federation only and does "
-    "not work against OSS unitycatalog.io. (SU#519)",
+    "not work against OSS unitycatalog.io. (SU#519) "
+    "This shim will be removed in v4.0.0.",
     DeprecationWarning,
     stacklevel=2,
 )

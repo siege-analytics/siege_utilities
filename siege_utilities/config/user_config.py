@@ -55,7 +55,7 @@ class UserProfile:
 
     def __post_init__(self):
         warnings.warn(
-            "UserProfile (dataclass) is deprecated. Use User from siege_utilities.config.models.actor_types instead.",
+            "UserProfile (dataclass) is deprecated and will be removed in v4.0.0. Use User from siege_utilities.config.models.actor_types instead.",
             DeprecationWarning,
             stacklevel=2,
         )

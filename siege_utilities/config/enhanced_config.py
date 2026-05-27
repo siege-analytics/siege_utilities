@@ -408,7 +408,7 @@ def load_user_profile(username: str, config_dir: Optional[Path] = None) -> Optio
         UserProfile object or None if not found
     """
     warnings.warn(
-        "load_user_profile() is deprecated. Use HydraConfigManager.load_user() for the modern User model.",
+        "load_user_profile() is deprecated and will be removed in v4.0.0. Use HydraConfigManager.load_user() for the modern User model.",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -468,7 +468,7 @@ def save_user_profile(profile: UserProfile, username: str, config_dir: Optional[
         True if successful, False otherwise
     """
     warnings.warn(
-        "save_user_profile() is deprecated. Use HydraConfigManager.save_user() for the modern User model.",
+        "save_user_profile() is deprecated and will be removed in v4.0.0. Use HydraConfigManager.save_user() for the modern User model.",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -527,7 +527,7 @@ def load_client_profile(client_code: str, config_dir: Optional[Path] = None) -> 
         ClientProfile object or None if not found
     """
     warnings.warn(
-        "load_client_profile() is deprecated. Use HydraConfigManager.load_client() for the modern Client model.",
+        "load_client_profile() is deprecated and will be removed in v4.0.0. Use HydraConfigManager.load_client() for the modern Client model.",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -570,7 +570,7 @@ def save_client_profile(profile: ClientProfile, config_dir: Optional[Path] = Non
         True if successful, False otherwise
     """
     warnings.warn(
-        "save_client_profile() is deprecated. Use HydraConfigManager.save_client() for the modern Client model.",
+        "save_client_profile() is deprecated and will be removed in v4.0.0. Use HydraConfigManager.save_client() for the modern Client model.",
         DeprecationWarning,
         stacklevel=2,
     )

@@ -1,14 +1,15 @@
 """Deprecation shim — re-exports from :mod:`siege_utilities.geo.providers.redistricting_data_hub`.
 
 RDH is an external spatial data source; moved to ``geo/providers/`` under
-ELE-2438 (D3) so all spatial sources live in one place. Remove in the
-next minor release.
+ELE-2438 (D3) so all spatial sources live in one place. Will be removed
+in v4.0.0.
 """
 import warnings as _warnings
 
 _warnings.warn(
     "siege_utilities.data.redistricting_data_hub has moved to "
-    "siege_utilities.geo.providers.redistricting_data_hub. Update your imports.",
+    "siege_utilities.geo.providers.redistricting_data_hub. Update your imports; "
+    "this shim will be removed in v4.0.0.",
     DeprecationWarning,
     stacklevel=2,
 )
