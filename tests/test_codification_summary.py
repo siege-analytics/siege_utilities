@@ -168,12 +168,14 @@ class TestToDict:
         assert d["demographics"]["total_block_population"] == 5000
         assert d["demographics"]["pct_asian"] == 0.05
         assert d["demographics"]["pct_housing_occupied"] == 0.90
+        assert d["demographics"]["pct_housing_vacant"] == 0.10
 
     def test_urbanicity_section(self):
         p = AreaPortrait(urbanicity=_urbanicity())
         d = p.to_dict()
         assert d["urbanicity"]["dominant_locale"] == "11"
-        assert d["urbanicity"]["distribution"] == {"city": 0.7, "suburb": 0.3}
+        assert d["urbanicity"]["distribution"] == {"11": 0.7, "21": 0.3}
+        assert d["urbanicity"]["category_distribution"] == {"city": 0.7, "suburb": 0.3}
 
     def test_recency_section(self):
         p = AreaPortrait(recency=_recency())

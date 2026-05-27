@@ -82,12 +82,14 @@ class AreaPortrait:
                 "pct_asian": self.demographics.pct_asian,
                 "pct_voting_age": self.demographics.pct_voting_age,
                 "pct_housing_occupied": self.demographics.pct_housing_occupied,
+                "pct_housing_vacant": self.demographics.pct_housing_vacant,
             }
         if self.urbanicity:
             d["urbanicity"] = {
                 "dominant_category": self.urbanicity.dominant_category,
                 "dominant_locale": self.urbanicity.dominant_locale,
-                "distribution": self.urbanicity.category_distribution,
+                "distribution": self.urbanicity.distribution,
+                "category_distribution": self.urbanicity.category_distribution,
             }
         if self.recency:
             d["recency"] = {
