@@ -524,7 +524,12 @@ class PostGISConnector:
         if gdf.crs is not None:
             try:
                 srid = gdf.crs.to_epsg()
-            except Exception:
+            except Exception as exc:
+                log.warning(
+                    "Could not derive EPSG code from CRS %r, "
+                    "falling back to STORAGE_CRS (%s): %s",
+                    gdf.crs, settings.STORAGE_CRS, exc,
+                )
                 srid = None
         srid = srid or settings.STORAGE_CRS
         if not isinstance(srid, int):
