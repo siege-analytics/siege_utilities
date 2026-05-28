@@ -26,15 +26,18 @@ try:
     from pyspark.sql.types import *  # noqa: F401, F403
     from pyspark.sql.functions import *  # noqa: F401, F403
     from pyspark.sql.utils import AnalysisException as _SparkAnalysisException
-    from py4j.protocol import Py4JJavaError as _Py4JError
-    _SPARK_ERRORS = (_SparkAnalysisException, _Py4JError, ValueError, TypeError)
+    try:
+        from py4j.protocol import Py4JJavaError as _Py4JError
+    except ImportError:
+        _Py4JError = _SparkAnalysisException
     PYSPARK_AVAILABLE = True
 except ImportError:
     PYSPARK_AVAILABLE = False
     DataFrame = None
     SparkSession = None
     Column = None
-    _SPARK_ERRORS = (ValueError, TypeError)
+    _SparkAnalysisException = Exception
+    _Py4JError = Exception
 
 try:
     from tabulate import tabulate
@@ -68,7 +71,7 @@ def sanitise_dataframe_column_names(df: "DataFrame") ->Optional["DataFrame"]:
             )
         log_info(message)
         return df
-    except _SPARK_ERRORS as e:
+    except (_SparkAnalysisException, _Py4JError, AttributeError, TypeError) as e:
         message = (
             f'There was a problem sanitising column names for dataframe {df}:\n{e}'
             )
@@ -97,7 +100,7 @@ def tabulate_null_vs_not_null(df: "DataFrame", column_name: str) ->Optional[
             NOT_NULL_COLUMNS_NAME))
         result_df.show(truncate=False)
         return result_df
-    except _SPARK_ERRORS as e:
+    except (_SparkAnalysisException, _Py4JError, AttributeError, TypeError, ValueError) as e:
         log_error(
             f'Error in tabulate_null_vs_not_null for column {column_name}: {e}'
             )
@@ -118,7 +121,7 @@ def get_row_count(df: "DataFrame") ->Optional[int]:
         count = df.count()
         log_info(f'Row count for dataframe: {count}')
         return count
-    except _SPARK_ERRORS as e:
+    except (_SparkAnalysisException, _Py4JError, AttributeError) as e:
         log_error(f'Error getting row count: {e}')
         return None
 
@@ -140,7 +143,7 @@ def repartition_and_cache(df: "DataFrame", partitions: int=100) ->Optional[
         log_info(
             f'Dataframe repartitioned to {partitions} partitions and cached.')
         return df
-    except _SPARK_ERRORS as e:
+    except (_SparkAnalysisException, _Py4JError, AttributeError, ValueError) as e:
         log_error(f'Error repartitioning and caching dataframe: {e}')
         return None
 
@@ -160,7 +163,7 @@ def register_temp_table(df: "DataFrame", table_name: str) ->bool:
         df.createOrReplaceTempView(table_name)
         log_info(f"Temporary view '{table_name}' registered.")
         return True
-    except _SPARK_ERRORS as e:
+    except (_SparkAnalysisException, _Py4JError, AttributeError, ValueError) as e:
         log_error(f"Error registering temporary table '{table_name}': {e}")
         return False
 
@@ -185,7 +188,7 @@ def move_column_to_front_of_dataframe(df: "DataFrame", column_name: str
         df_reordered = df.select(*new_column_order)
         df_reordered.printSchema()
         return df_reordered
-    except _SPARK_ERRORS as e:
+    except (_SparkAnalysisException, _Py4JError, AttributeError, ValueError, KeyError) as e:
         log_error(f'Error repartitioning and caching dataframe: {e}')
         return None
 
@@ -207,7 +210,7 @@ def write_df_to_parquet(df: "DataFrame", path: str, mode: str='overwrite'
         df.write.mode(mode).parquet(path)
         log_info(f"Dataframe written to parquet at {path} with mode '{mode}'")
         return True
-    except (*_SPARK_ERRORS, OSError) as e:
+    except (_SparkAnalysisException, _Py4JError, OSError, AttributeError) as e:
         log_error(f'Error writing dataframe to parquet at {path}: {e}')
         return False
 
@@ -227,7 +230,7 @@ def read_parquet_to_df(spark: "SparkSession", path: str) ->Optional["DataFrame"]
         df = spark.read.parquet(path)
         log_info(f'Successfully read parquet from {path}')
         return df
-    except (*_SPARK_ERRORS, OSError) as e:
+    except (_SparkAnalysisException, _Py4JError, OSError, AttributeError) as e:
         log_error(f'Error reading parquet from {path}: {e}')
         return None
 
@@ -345,7 +348,7 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
         _log_info(f'Inferred schema: {inferred_schema}')
         df_with_json = df.withColumn('parsed_json', from_json(col(
             json_column), inferred_schema))
-    except _SPARK_ERRORS as e:
+    except (_SparkAnalysisException, _Py4JError, ValueError, TypeError, KeyError, AttributeError) as e:
         _log_error(f'Error inferring schema for {json_column}: {e}')
         _log_info(f'Falling back to string schema for {json_column}')
         try:
@@ -377,7 +380,7 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
             df_with_json = df_with_json.withColumn('parsed_json', when(col(
                 'parsed_json').isNull(), lit(None).cast(StringType())).
                 otherwise(col('parsed_json')))
-        except _SPARK_ERRORS:
+        except (_SparkAnalysisException, _Py4JError, ValueError, TypeError):
             _log_error(
                 f'Failed even with string schema for {json_column}. Returning original dataframe.'
                 )
@@ -420,7 +423,7 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
                             df = df.withColumn(new_col_name, col(full_field))
                     df = df.drop(struct_col)
                 return df
-            except _SPARK_ERRORS as e:
+            except (_SparkAnalysisException, _Py4JError, AttributeError, KeyError) as e:
                 _log_error(f'Error in flatten_struct: {e}')
                 return df
         result_df = flatten_struct(df_with_json, 'parsed_json', prefix,
@@ -432,7 +435,7 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
             for array_column in array_columns:
                 result_df = result_df.withColumn(array_column,
                     explode_outer(col(array_column)))
-        except _SPARK_ERRORS as e:
+        except (_SparkAnalysisException, _Py4JError, AttributeError, TypeError) as e:
             _log_error(f'Error exploding arrays: {e}')
     columns_to_drop = ['parsed_json']
     if drop_original:
@@ -639,7 +642,7 @@ def prepare_dataframe_for_export(df, logger_func=None):
         _log(f'   DataFrame prepared: {original_columns} -> {final_columns} columns'
             )
         return df
-    except _SPARK_ERRORS as e:
+    except (_SparkAnalysisException, _Py4JError, ValueError, TypeError, AttributeError, KeyError) as e:
         log_error(f'Error preparing DataFrame for export: {e}')
         raise
 
@@ -675,7 +678,7 @@ def prepare_summary_dataframe(data_tuples, column_names=['metric', 'value'],
         df = spark.createDataFrame(string_data, schema)
         _log(f'Created summary DataFrame with {len(data_tuples)} rows')
         return df
-    except (*_SPARK_ERRORS, RuntimeError) as e:
+    except (_SparkAnalysisException, _Py4JError, ValueError, TypeError, AttributeError) as e:
         log_error(f'Error creating summary DataFrame: {e}')
         raise
 
@@ -697,7 +700,7 @@ def export_pyspark_df_to_excel(df, file_name='output.xlsx', sheet_name='Sheet1'
         pandas_df = df.toPandas()
         pandas_df.to_excel(file_name, sheet_name=sheet_name, index=False)
         log_info(f'DataFrame successfully exported to {file_name}')
-    except (*_SPARK_ERRORS, OSError) as e:
+    except (_SparkAnalysisException, _Py4JError, OSError, ImportError, ValueError, AttributeError) as e:
         log_error(f'Error exporting DataFrame: {e}')
 
 
@@ -805,7 +808,7 @@ def export_prepared_df_as_csv_to_path_using_delimiter(df: "DataFrame",
             ).save(str(write_path))
         log_info(f'Data successfully exported for step: {write_path.stem}')
         return True
-    except (*_SPARK_ERRORS, OSError) as e:
+    except (_SparkAnalysisException, _Py4JError, OSError, ValueError, TypeError, AttributeError) as e:
         log_error(f'Error exporting DataFrame for {write_path.stem}: {e}')
         return False
 
@@ -957,7 +960,7 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
             )
         log_info('Atomic write operation completed successfully')
         return True
-    except OSError as e:
+    except (_SparkAnalysisException, _Py4JError, OSError, ValueError, AttributeError) as e:
         log_error(f'Error in atomic write operation: {e}')
         return False
     finally:
