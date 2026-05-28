@@ -228,7 +228,7 @@ class CensusAPI:
                     time.sleep(2 ** attempt)
                 elif isinstance(e, ValueError):
                     log.error(f"Failed to parse API response: {e}")
-                    raise CensusAPIError(f"Invalid API response: {e}")
+                    raise CensusAPIError(f"Invalid API response: {e}") from e
                 else:
                     raise
 
