@@ -48,26 +48,33 @@ def get_repository_status(repo_path: str = ".") -> Dict[str, Union[str, int, boo
         last_commit_date = run_git_command("log", "-1", "--format=%cd", "--date=short", repo_path=repo_path)
         last_commit_author = run_git_command("log", "-1", "--format=%an", repo_path=repo_path)
         last_commit_message = run_git_command("log", "-1", "--format=%s", repo_path=repo_path)
-    except (RuntimeError, GitError) as exc:
-        raise GitError(f"Could not retrieve last commit info for {repo_path}") from exc
-
+    except (GitError, RuntimeError) as exc:
+        log.warning("Could not retrieve last commit info for %s: %s", repo_path, exc)
+        last_commit_hash = "unknown"
+        last_commit_date = "unknown"
+        last_commit_author = "unknown"
+        last_commit_message = "unknown"
+    
     # Get remote info
     try:
         remote_url = run_git_command("config", "--get", "remote.origin.url", repo_path=repo_path)
         upstream_branch = run_git_command("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}", repo_path=repo_path, check=False)
         if upstream_branch == "":
             upstream_branch = None
-    except (RuntimeError, GitError) as exc:
-        raise GitError(f"Could not retrieve remote info for {repo_path}") from exc
-
+    except (GitError, RuntimeError) as exc:
+        log.warning("Could not retrieve remote info for %s: %s", repo_path, exc)
+        remote_url = "unknown"
+        upstream_branch = None
+    
     # Get ahead/behind info
     ahead_behind = "0 0"
     if upstream_branch:
         try:
             ahead_behind = run_git_command("rev-list", "--count", "--left-right", f"{upstream_branch}...HEAD", repo_path=repo_path)
-        except (RuntimeError, GitError) as exc:
-            raise GitError(f"Could not determine ahead/behind for {upstream_branch}") from exc
-
+        except (GitError, RuntimeError) as exc:
+            log.warning("Could not determine ahead/behind for %s: %s", upstream_branch, exc)
+            ahead_behind = "0 0"
+    
     behind, ahead = ahead_behind.split()
 
     return {
@@ -130,11 +137,15 @@ def get_branch_info(repo_path: str = ".") -> Dict[str, Union[str, List[str], int
                             "message": message
                         }
                     })
-            except (RuntimeError, GitError) as exc:
-                raise GitError(
-                    f"Could not retrieve commit info for branch {branch_name}"
-                ) from exc
-
+            except (GitError, RuntimeError, ValueError) as exc:
+                log.warning("Could not retrieve commit info for branch %s: %s", branch_name, exc)
+                branches.append({
+                    "name": branch_name,
+                    "upstream": upstream,
+                    "tracking": tracking,
+                    "last_commit": None
+                })
+    
     # Remote branches
     remote_branches = run_git_command("branch", "-r", "--format=%(refname:short)", repo_path=repo_path)
     remote_branch_list = [branch.strip() for branch in remote_branches.split('\n') if branch.strip()]
@@ -178,11 +189,15 @@ def get_remote_info(repo_path: str = ".") -> Dict[str, Union[str, List[Dict[str,
                 "fetch_url": fetch_url if fetch_url else url,
                 "push_url": push_url if push_url else url
             })
-        except (RuntimeError, GitError) as exc:
-            raise GitError(
-                f"Could not retrieve URL for remote {remote_name}"
-            ) from exc
-
+        except (GitError, RuntimeError) as exc:
+            log.warning("Could not retrieve URL for remote %s: %s", remote_name, exc)
+            remote_info.append({
+                "name": remote_name,
+                "url": "unknown",
+                "fetch_url": "unknown",
+                "push_url": "unknown"
+            })
+    
     return {
         "remotes": remote_info,
         "total_remotes": len(remote_info),
@@ -199,22 +214,23 @@ def get_stash_list(repo_path: str = ".") -> List[Dict[str, str]]:
     """
     try:
         stash_output = run_git_command("stash", "list", "--format=%gd|%cd|%s", "--date=short", repo_path=repo_path)
-    except (RuntimeError, GitError) as exc:
-        raise GitError("Could not retrieve stash list") from exc
-
-    stashes = []
-    for line in stash_output.split('\n'):
-        if line.strip():
-            parts = line.split('|', 2)
-            if len(parts) == 3:
-                stash_ref, date, message = parts
-                stashes.append({
-                    "ref": stash_ref,
-                    "date": date,
-                    "message": message
-                })
-
-    return stashes
+        
+        stashes = []
+        for line in stash_output.split('\n'):
+            if line.strip():
+                parts = line.split('|', 2)
+                if len(parts) == 3:
+                    stash_ref, date, message = parts
+                    stashes.append({
+                        "ref": stash_ref,
+                        "date": date,
+                        "message": message
+                    })
+        
+        return stashes
+    except (GitError, RuntimeError) as exc:
+        log.warning("Could not retrieve stash list: %s", exc)
+        return []
 
 def get_tag_list(repo_path: str = ".") -> List[Dict[str, str]]:
     """Get list of tags with details.
@@ -226,22 +242,23 @@ def get_tag_list(repo_path: str = ".") -> List[Dict[str, str]]:
     """
     try:
         tag_output = run_git_command("tag", "--format=%(refname:short)|%(creatordate:short)|%(creator)", repo_path=repo_path)
-    except (RuntimeError, GitError) as exc:
-        raise GitError("Could not retrieve tag list") from exc
-
-    tags = []
-    for line in tag_output.split('\n'):
-        if line.strip():
-            parts = line.split('|', 2)
-            if len(parts) == 3:
-                tag_name, date, author = parts
-                tags.append({
-                    "name": tag_name,
-                    "date": date,
-                    "author": author
-                })
-
-    return tags
+        
+        tags = []
+        for line in tag_output.split('\n'):
+            if line.strip():
+                parts = line.split('|', 2)
+                if len(parts) == 3:
+                    tag_name, date, author = parts
+                    tags.append({
+                        "name": tag_name,
+                        "date": date,
+                        "author": author
+                    })
+        
+        return tags
+    except (GitError, RuntimeError) as exc:
+        log.warning("Could not retrieve tag list: %s", exc)
+        return []
 
 def get_log_summary(
     since: Optional[str] = None,
@@ -269,31 +286,42 @@ def get_log_summary(
 
     try:
         log_output = run_git_command(*log_args, repo_path=repo_path)
-    except (RuntimeError, GitError) as exc:
-        raise GitError("Could not retrieve commit log") from exc
-
-    commits = []
-    for line in log_output.split('\n'):
-        if line.strip():
-            parts = line.split('|', 3)
-            if len(parts) == 4:
-                hash_full, date, author_name, message = parts
-                commits.append({
-                    "hash": hash_full[:7],
-                    "hash_full": hash_full,
-                    "date": date,
-                    "author": author_name,
-                    "message": message
-                })
-
-    return {
-        "total_commits": len(commits),
-        "commits": commits,
-        "filters": {
-            "since": since,
-            "until": until,
-            "author": author,
-            "max_count": max_count
+        
+        commits = []
+        for line in log_output.split('\n'):
+            if line.strip():
+                parts = line.split('|', 3)
+                if len(parts) == 4:
+                    hash_full, date, author_name, message = parts
+                    commits.append({
+                        "hash": hash_full[:7],
+                        "hash_full": hash_full,
+                        "date": date,
+                        "author": author_name,
+                        "message": message
+                    })
+        
+        return {
+            "total_commits": len(commits),
+            "commits": commits,
+            "filters": {
+                "since": since,
+                "until": until,
+                "author": author,
+                "max_count": max_count
+            }
+        }
+    except (GitError, RuntimeError) as exc:
+        log.warning("Could not retrieve commit log: %s", exc)
+        return {
+            "total_commits": 0,
+            "commits": [],
+            "filters": {
+                "since": since,
+                "until": until,
+                "author": author,
+                "max_count": max_count
+            }
         }
     }
 
@@ -307,38 +335,45 @@ def get_file_status(repo_path: str = ".") -> Dict[str, List[str]]:
     """
     try:
         status_output = run_git_command("status", "--porcelain", repo_path=repo_path)
-    except (RuntimeError, GitError) as exc:
-        raise GitError("Could not retrieve file status") from exc
-
-    files = {
-        "staged": [],
-        "unstaged": [],
-        "untracked": [],
-        "renamed": [],
-        "deleted": []
-    }
-
-    for line in status_output.split('\n'):
-        if line.strip():
-            status = line[:2]
-            filepath = line[3:]
-
-            if status[0] == 'A':  # Added
-                files["staged"].append(filepath)
-            elif status[0] == 'M':  # Modified
-                files["staged"].append(filepath)
-            elif status[0] == 'D':  # Deleted
-                files["staged"].append(filepath)
-            elif status[0] == 'R':  # Renamed
-                files["renamed"].append(filepath)
-            elif status[1] == 'M':  # Modified (unstaged)
-                files["unstaged"].append(filepath)
-            elif status[1] == 'D':  # Deleted (unstaged)
-                files["unstaged"].append(filepath)
-            elif status == '??':  # Untracked
-                files["untracked"].append(filepath)
-
-    return files
+        
+        files = {
+            "staged": [],
+            "unstaged": [],
+            "untracked": [],
+            "renamed": [],
+            "deleted": []
+        }
+        
+        for line in status_output.split('\n'):
+            if line.strip():
+                status = line[:2]
+                filepath = line[3:]
+                
+                if status[0] == 'A':  # Added
+                    files["staged"].append(filepath)
+                elif status[0] == 'M':  # Modified
+                    files["staged"].append(filepath)
+                elif status[0] == 'D':  # Deleted
+                    files["staged"].append(filepath)
+                elif status[0] == 'R':  # Renamed
+                    files["renamed"].append(filepath)
+                elif status[1] == 'M':  # Modified (unstaged)
+                    files["unstaged"].append(filepath)
+                elif status[1] == 'D':  # Deleted (unstaged)
+                    files["unstaged"].append(filepath)
+                elif status == '??':  # Untracked
+                    files["untracked"].append(filepath)
+        
+        return files
+    except (GitError, RuntimeError) as exc:
+        log.warning("Could not retrieve file status: %s", exc)
+        return {
+            "staged": [],
+            "unstaged": [],
+            "untracked": [],
+            "renamed": [],
+            "deleted": []
+        }
 
 def get_repository_size(repo_path: str = ".") -> Dict[str, Union[int, str]]:
     """Get repository size information.
@@ -370,5 +405,13 @@ def get_repository_size(repo_path: str = ".") -> Dict[str, Union[int, str]]:
             "total_size_bytes": git_size + working_size,
             "total_size_mb": round((git_size + working_size) / (1024 * 1024), 2)
         }
-    except (OSError, PermissionError) as exc:
-        raise GitError(f"Could not calculate repository size for {repo_path}") from exc
+    except OSError as exc:
+        log.warning("Could not calculate repository size for %s: %s", repo_path, exc)
+        return {
+            "git_directory_size_bytes": 0,
+            "git_directory_size_mb": 0,
+            "working_directory_size_bytes": 0,
+            "working_directory_size_mb": 0,
+            "total_size_bytes": 0,
+            "total_size_mb": 0
+        }
