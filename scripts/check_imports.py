@@ -56,7 +56,7 @@ def analyze_imports_in_file(file_path):
 
         return imports
 
-    except Exception as e:
+    except (OSError, SyntaxError, ValueError) as e:
         return [('ERROR', str(e))]
 
 
@@ -82,7 +82,7 @@ def test_individual_module_import(module_path):
             'module': module
         }
 
-    except Exception as e:
+    except (ImportError, AttributeError, RuntimeError, OSError, ValueError, TypeError) as e:
         return {
             'success': False,
             'error': str(e),
@@ -125,7 +125,7 @@ def check_function_dependencies(module, function_name):
         except (OSError, TypeError):
             return ['Could not analyze source']
 
-    except Exception as e:
+    except (AttributeError, TypeError) as e:
         return [f'Error accessing function: {e}']
 
 
@@ -170,7 +170,7 @@ def main():
                 else:
                     print("✅ All imports successful!")
 
-            except Exception as e:
+            except (AttributeError, TypeError, ValueError, RuntimeError) as e:
                 print(f"❌ get_package_info failed: {e}")
         else:
             print("⚠️  No get_package_info function available")
@@ -180,7 +180,7 @@ def main():
         try:
             siege_utilities.log_info("Test log message from diagnostic")
             print("✅ Logging works")
-        except Exception as e:
+        except (AttributeError, TypeError, RuntimeError, OSError) as e:
             print(f"❌ Logging failed: {e}")
 
         try:
@@ -190,10 +190,10 @@ def main():
                     print("✅ String utilities work")
                 else:
                     print(f"❌ String utilities incorrect result: {result}")
-        except Exception as e:
+        except (AttributeError, TypeError, ValueError) as e:
             print(f"❌ String utilities failed: {e}")
 
-    except Exception as e:
+    except (ImportError, AttributeError, RuntimeError, OSError) as e:
         print(f"❌ Main package import failed: {e}")
         print(traceback.format_exc())
 

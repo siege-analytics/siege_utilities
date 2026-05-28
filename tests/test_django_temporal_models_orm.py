@@ -22,7 +22,7 @@ try:
     from django.db import IntegrityError
 
     HAS_GDAL = True
-except Exception:
+except (ImportError, RuntimeError):
     HAS_GDAL = False
 
 pytestmark = [

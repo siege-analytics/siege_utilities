@@ -10,7 +10,7 @@ try:
     from django.db import models as django_models  # noqa: F401
 
     _DJANGO_AVAILABLE = True
-except Exception:
+except (ImportError, RuntimeError):
     _DJANGO_AVAILABLE = False
 
 try:

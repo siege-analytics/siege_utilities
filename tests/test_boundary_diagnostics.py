@@ -697,7 +697,7 @@ class TestGetCensusBoundariesDeprecation:
             # Call will fail (no network) but we only care about the warning
             try:
                 get_census_boundaries(2020, 'county')
-            except Exception:
+            except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, ImportError):
                 pass
             dep_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
             assert len(dep_warnings) >= 1

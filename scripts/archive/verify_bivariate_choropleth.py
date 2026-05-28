@@ -66,8 +66,8 @@ def test_chart_generator_initialization():
         print("✓ ChartGenerator with branding initialized successfully")
         
         return True
-        
-    except Exception as e:
+
+    except (ImportError, RuntimeError, TypeError, ValueError, AttributeError) as e:
         print(f"✗ Failed to initialize ChartGenerator: {e}")
         return False
 
@@ -97,8 +97,8 @@ def test_method_availability():
                 return False
         
         return True
-        
-    except Exception as e:
+
+    except (ImportError, RuntimeError, TypeError, AttributeError) as e:
         print(f"✗ Failed to check methods: {e}")
         return False
 
@@ -122,8 +122,8 @@ def test_sample_data_creation():
         print(f"  Columns: {list(df.columns)}")
         
         return True
-        
-    except Exception as e:
+
+    except (ImportError, ValueError, TypeError) as e:
         print(f"✗ Failed to create sample data: {e}")
         return False
 
@@ -157,12 +157,12 @@ def test_basic_functionality():
                 height=4.0
             )
             print("✓ Basic chart creation successful")
-        except Exception as e:
+        except (AttributeError, TypeError, ValueError, RuntimeError, OSError) as e:
             print(f"⚠ Basic chart creation failed (expected if matplotlib not available): {e}")
         
         return True
         
-    except Exception as e:
+    except (ImportError, RuntimeError, TypeError, ValueError, AttributeError, OSError) as e:
         print(f"✗ Failed to test basic functionality: {e}")
         return False
 
@@ -190,7 +190,7 @@ def run_all_tests():
                 print(f"✅ {test_name} PASSED")
             else:
                 print(f"❌ {test_name} FAILED")
-        except Exception as e:
+        except (ImportError, RuntimeError, TypeError, ValueError, AttributeError, OSError) as e:
             print(f"💥 {test_name} ERROR: {e}")
     
     print("\n" + "=" * 50)

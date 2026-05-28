@@ -16,7 +16,7 @@ def tracked_files() -> list[str]:
     try:
         out = subprocess.check_output(["git", "ls-files"], text=True, timeout=60)
         return [line.strip() for line in out.splitlines() if line.strip()]
-    except Exception:
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
         # Fallback for environments without git metadata.
         return [str(p.as_posix()) for p in Path(".").rglob("*") if p.is_file()]
 

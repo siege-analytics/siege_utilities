@@ -23,7 +23,7 @@ def check_environment():
     try:
         result = subprocess.run(['java', '-version'], capture_output=True, text=True, timeout=60)
         print(f"Java version: {result.stderr.split(chr(10))[0]}")
-    except Exception as e:
+    except (OSError, subprocess.TimeoutExpired) as e:
         print(f"Java check failed: {e}")
 
 
@@ -35,7 +35,7 @@ def check_imports():
         import pyspark
         print(f"✅ PySpark version: {pyspark.__version__}")
         print(f"PySpark location: {pyspark.__file__}")
-    except Exception as e:
+    except (ImportError, OSError) as e:
         print(f"❌ PySpark import failed: {e}")
         return False
 
@@ -43,14 +43,14 @@ def check_imports():
         import py4j
         print(f"✅ Py4J version: {py4j.__version__}")
         print(f"Py4J location: {py4j.__file__}")
-    except Exception as e:
+    except (ImportError, OSError) as e:
         print(f"❌ Py4J import failed: {e}")
         return False
 
     try:
         from py4j import java_gateway  # noqa: F401
         print("✅ JavaGateway imports successfully")
-    except Exception as e:
+    except (ImportError, OSError) as e:
         print(f"❌ JavaGateway import failed: {e}")
         return False
 
@@ -89,7 +89,7 @@ def test_spark_context():
 
         return True
 
-    except Exception as e:
+    except (ImportError, RuntimeError, OSError, ValueError, TypeError) as e:
         print(f"❌ SparkContext test failed: {e}")
         print(f"Error type: {type(e)}")
         import traceback
@@ -129,7 +129,7 @@ def test_spark_session():
 
         return True
 
-    except Exception as e:
+    except (ImportError, RuntimeError, OSError, ValueError, TypeError) as e:
         print(f"❌ SparkSession test failed: {e}")
         print(f"Error type: {type(e)}")
         import traceback
@@ -152,7 +152,7 @@ def check_processes():
         else:
             print("No Spark processes found")
 
-    except Exception as e:
+    except (OSError, subprocess.TimeoutExpired) as e:
         print(f"Process check failed: {e}")
 
 
