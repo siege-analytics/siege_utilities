@@ -8,6 +8,7 @@
   ],
   "removed_symbols": [],
   "signature_changes": [
+    "clean_working_directory",
     "compare_census_datasets",
     "compare_datasets",
     "diagnose_environment",
