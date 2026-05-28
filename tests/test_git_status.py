@@ -38,13 +38,13 @@ def _mock_run(stdout: str = "", returncode: int = 0, stderr: str = ""):
 
 class TestRunGitCommand:
 
-    @mock.patch("siege_utilities.git.git_status.subprocess.run")
+    @mock.patch("siege_utilities.git._utils.subprocess.run")
     def test_success(self, mock_run):
         mock_run.return_value = _mock_run(stdout="main\n")
         result = run_git_command("branch", "--show-current")
         assert result == "main"
 
-    @mock.patch("siege_utilities.git.git_status.subprocess.run")
+    @mock.patch("siege_utilities.git._utils.subprocess.run")
     def test_failure_raises_git_error(self, mock_run):
         mock_run.side_effect = __import__("subprocess").CalledProcessError(
             1, "git", stderr="fatal: not a repo"
@@ -52,7 +52,7 @@ class TestRunGitCommand:
         with pytest.raises(GitError, match="Git command failed"):
             run_git_command("status")
 
-    @mock.patch("siege_utilities.git.git_status.subprocess.run")
+    @mock.patch("siege_utilities.git._utils.subprocess.run")
     def test_failure_check_false_returns_empty(self, mock_run):
         mock_run.side_effect = __import__("subprocess").CalledProcessError(
             1, "git", stderr="error"

@@ -26,7 +26,7 @@ from siege_utilities.git.git_operations import (
 # Helper: patch run_git_command across all tests that don't test it directly
 # ---------------------------------------------------------------------------
 RGC = "siege_utilities.git.git_operations.run_git_command"
-SUBPROCESS_RUN = "siege_utilities.git.git_operations.subprocess.run"
+SUBPROCESS_RUN = "siege_utilities.git._utils.subprocess.run"
 
 
 # ===================================================================
