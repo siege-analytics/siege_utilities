@@ -587,8 +587,11 @@ def _get_crs_bounds(crs) -> Tuple[float, float, float, float]:
         aou = crs.area_of_use
         if aou is not None:
             return (aou.south, aou.north, aou.west, aou.east)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning(
+            "Could not derive bounds from CRS %r, falling back to world bounds: %s",
+            crs, exc,
+        )
     return (-90.0, 90.0, -180.0, 180.0)
 
 
