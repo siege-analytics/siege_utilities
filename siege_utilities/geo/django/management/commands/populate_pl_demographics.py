@@ -78,7 +78,7 @@ class Command(BaseCommand):
         try:
             state_fips = normalize_state_identifier(state)
         except ValueError as e:
-            raise CommandError(str(e))
+            raise CommandError(str(e)) from e
 
         self.stdout.write(
             f"Loading PL 94-171 data: state={state_fips}, year={year}, "
@@ -95,7 +95,7 @@ class Command(BaseCommand):
                 tables=tables,
             )
         except Exception as e:
-            raise CommandError(f"Failed to download PL data: {e}")
+            raise CommandError(f"Failed to download PL data: {e}") from e
 
         if df.empty:
             self.stdout.write(self.style.WARNING("No data returned."))

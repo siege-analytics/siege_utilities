@@ -242,7 +242,7 @@ def validate_safe_path(path: FilePath,
         raise
     except Exception as e:
         # Other errors during validation
-        raise ValueError(f"Invalid path: {path_str} - {e}")
+        raise ValueError(f"Invalid path: {path_str} - {e}") from e
 
 
 def validate_file_path(file_path: FilePath,

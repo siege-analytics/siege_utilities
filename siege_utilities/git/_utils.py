@@ -19,5 +19,5 @@ def run_git_command(*args, repo_path: str = ".", check: bool = True) -> str:
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
         if check:
-            raise GitError(f"Git command failed: {' '.join(args)} - {e.stderr}")
+            raise GitError(f"Git command failed: {' '.join(args)} - {e.stderr}") from e
         return ""
