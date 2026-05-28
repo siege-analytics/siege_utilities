@@ -205,7 +205,8 @@ def get_quick_file_signature(file_path) ->str:
         try:
             stat = pathlib.Path(file_path).stat()
             return f'fallback_{stat.st_size}_{stat.st_mtime}'
-        except Exception:
+        except Exception as fallback_exc:
+            log_error(f'Fallback signature also failed for {file_path}: {fallback_exc}')
             return 'error'
 
 
@@ -243,8 +244,8 @@ def verify_file_integrity(file_path, expected_hash, algorithm='sha256') ->bool:
         current_hash = get_file_hash(file_path, algorithm)
         return current_hash is not None and current_hash.lower(
             ) == expected_hash.lower()
-    except Exception:
-        log_error(f"Failed to verify hash for {file_path}: will return False")
+    except Exception as exc:
+        log_error(f"Failed to verify hash for {file_path}: {exc}")
         return False
 
 
