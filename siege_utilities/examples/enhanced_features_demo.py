@@ -71,7 +71,8 @@ def demo_user_configuration():
     print(f"Using download directory: {download_dir}")
     
     # Get download directory with specific path
-    specific_dir = get_download_directory("/tmp/siege_demo")
+    import tempfile
+    specific_dir = get_download_directory(Path(tempfile.gettempdir()) / "siege_demo")
     print(f"Using specific directory: {specific_dir}")
 
 def demo_page_templates():
@@ -160,10 +161,10 @@ def demo_spatial_data_sources():
             counties.to_file(output_path, driver='GPKG')
             print(f"✅ Saved to: {output_path}")
         else:
-            print("❌ Failed to download Census data")
-    
+            logger.warning("Census boundary download returned None; check network connectivity and Census API availability")
+
     except Exception as e:
-        print(f"❌ Census data download failed: {e}")
+        logger.error("Census boundary download failed: %s", e)
     
     try:
         # Download Census demographic data
@@ -184,10 +185,10 @@ def demo_spatial_data_sources():
             demo_data.to_csv(output_path, index=False)
             print(f"✅ Saved to: {output_path}")
         else:
-            print("❌ Failed to download Census demographics")
-    
+            logger.warning("Census demographics download returned None; check API key and variable names")
+
     except Exception as e:
-        print(f"❌ Census demographics download failed: {e}")
+        logger.error("Census demographics download failed: %s", e)
 
 def demo_spatial_transformations():
     """Demonstrate spatial data transformations."""
@@ -237,7 +238,7 @@ def demo_spatial_transformations():
             print("⚠️ No Census data available for transformation demo")
     
     except Exception as e:
-        print(f"❌ Spatial transformation failed: {e}")
+        logger.error("Spatial transformation failed: %s", e)
 
 def demo_database_integration():
     """Demonstrate database integration."""
@@ -265,9 +266,9 @@ def demo_database_integration():
             )
             
             if success:
-                print("✅ Successfully converted to DuckDB format")
+                print("Successfully converted to DuckDB format")
             else:
-                print("❌ Failed to convert to DuckDB")
+                logger.warning("DuckDB conversion returned falsy result; check duckdb installation")
             
             # Convert to WKT format
             print("Converting to WKT format...")
@@ -281,13 +282,13 @@ def demo_database_integration():
                 counties_wkt.to_csv(wkt_path, index=False)
                 print(f"✅ Saved WKT data to: {wkt_path}")
             else:
-                print("❌ Failed to convert to WKT")
-                
+                logger.warning("WKT conversion returned None; check geometry column")
+
         else:
-            print("⚠️ No Census data available for database demo")
-    
+            logger.info("Skipping database demo: Census data not yet downloaded (run spatial_data_sources demo first)")
+
     except Exception as e:
-        print(f"❌ Database integration failed: {e}")
+        logger.error("Database integration failed: %s", e)
 
 def main():
     """Run all demos."""
@@ -319,8 +320,7 @@ def main():
                     print(f"  - {file.name} ({size_mb:.2f} MB)")
         
     except Exception as e:
-        print(f"\n❌ Demo failed with error: {e}")
-        logger.exception("Demo execution failed")
+        logger.exception("Demo execution failed: %s", e)
         return 1
     
     return 0
