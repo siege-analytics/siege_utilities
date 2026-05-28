@@ -162,7 +162,7 @@ class FacebookBusinessConnector:
 
         except Exception as e:
             logger.error("Failed to retrieve ad insights: %s", e, exc_info=True)
-            return pd.DataFrame()
+            raise
 
     def get_page_insights(self, page_id: str, start_date: str, end_date: str,
                           metrics: List[str] = None) -> pd.DataFrame:
@@ -216,7 +216,7 @@ class FacebookBusinessConnector:
 
         except Exception as e:
             logger.error("Failed to retrieve page insights: %s", e, exc_info=True)
-            return pd.DataFrame()
+            raise
 
     def get_business_insights(self, business_id: str, start_date: str, end_date: str,
                               metrics: List[str] = None) -> pd.DataFrame:
@@ -265,7 +265,7 @@ class FacebookBusinessConnector:
 
         except Exception as e:
             logger.error("Failed to retrieve business insights: %s", e, exc_info=True)
-            return pd.DataFrame()
+            raise
 
     def save_as_pandas(self, df: pd.DataFrame, output_path: str,
                        format: str = 'parquet') -> bool:
