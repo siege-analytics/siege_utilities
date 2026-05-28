@@ -377,7 +377,8 @@ def is_downloadable(url: str, timeout: int = 10) -> bool:
         response = requests.get(url, stream=True, timeout=timeout)
         return response.ok
         
-    except Exception:
+    except Exception as exc:
+        log.warning("Could not check if URL is downloadable %s: %s", url, exc)
         return False
 
 __all__ = [
