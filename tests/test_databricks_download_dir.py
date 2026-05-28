@@ -105,8 +105,10 @@ class TestGetDownloadDirectory:
         mock_uc = type("FakeUC", (), {
             "get_download_directory": staticmethod(lambda specific_path=None: unwritable),
         })()
-        with patch.dict(os.environ, {"DATABRICKS_RUNTIME_VERSION": "14.3"}), \
-             patch("siege_utilities.config.user_config.user_config", mock_uc):
+        # Patch directly on the function's own globals dict to be robust
+        # against PYTHONPATH=. causing duplicate module objects in CI.
+        monkeypatch.setitem(get_download_directory.__globals__, "user_config", mock_uc)
+        with patch.dict(os.environ, {"DATABRICKS_RUNTIME_VERSION": "14.3"}):
             result = get_download_directory()
             assert result == Path("/tmp/siege_utilities/downloads")
 
@@ -119,10 +121,14 @@ class TestGetDownloadDirectory:
         mock_uc = type("FakeUC", (), {
             "get_download_directory": staticmethod(lambda specific_path=None: unwritable),
         })()
+        monkeypatch.setitem(get_download_directory.__globals__, "user_config", mock_uc)
+        monkeypatch.setitem(
+            get_download_directory.__globals__,
+            "_is_databricks_runtime",
+            lambda: False,
+        )
         env_without_dbr = {k: v for k, v in os.environ.items()
                           if k != "DATABRICKS_RUNTIME_VERSION"}
-        with patch.dict(os.environ, env_without_dbr, clear=True), \
-             patch("siege_utilities.config.user_config.user_config", mock_uc), \
-             patch("siege_utilities.config.user_config._is_databricks_runtime", return_value=False):
+        with patch.dict(os.environ, env_without_dbr, clear=True):
             with pytest.raises(OSError, match="not writable"):
                 get_download_directory()
