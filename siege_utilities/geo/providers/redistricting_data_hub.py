@@ -1038,8 +1038,11 @@ def demographic_profile(
         ]
 
     if not population_cols:
-        log_warning("No population columns found for demographic overlay")
-        return pd.DataFrame()
+        raise ValueError(
+            "No population columns found for demographic overlay. "
+            "Expected columns starting with B01, B02, B03, B19, TOTPOP, or VAP "
+            f"with numeric dtype. Available columns: {list(census_gdf.columns)}"
+        )
 
     # Ensure same CRS
     if plan_gdf.crs != census_gdf.crs:
