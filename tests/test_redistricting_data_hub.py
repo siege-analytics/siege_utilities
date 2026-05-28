@@ -17,6 +17,7 @@ from siege_utilities.geo.providers.redistricting_data_hub import (
     RDHDatasetType,
     RDH_BASE_URL,
     US_STATES,
+    HAS_REQUESTS,
     polsby_popper,
     reock,
     convex_hull_ratio,
@@ -918,3 +919,43 @@ class TestFetchDemographicSummary:
         with patch.object(client, "list_datasets", return_value=[]):
             with pytest.raises(FileNotFoundError, match="No ACS"):
                 fetch_demographic_summary("XX", client=client)
+
+
+# ---------------------------------------------------------------------------
+# Error-path tests: empty credentials and network errors
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not HAS_REQUESTS, reason="requests library not installed")
+class TestRDHClientErrorPaths:
+
+    def test_list_datasets_raises_valueerror_on_empty_credentials(self, tmp_path):
+        """RDHClient with empty username/password raises ValueError on list_datasets()."""
+        c = RDHClient(username="", password="", cache_dir=tmp_path)
+        with pytest.raises(ValueError, match="credentials"):
+            c.list_datasets(states=["VA"])
+
+    def test_list_datasets_raises_valueerror_missing_username(self, tmp_path):
+        """RDHClient with empty username raises ValueError on list_datasets()."""
+        c = RDHClient(username="", password="secret", cache_dir=tmp_path)
+        with pytest.raises(ValueError, match="credentials"):
+            c.list_datasets(states=["VA"])
+
+    def test_list_datasets_raises_valueerror_missing_password(self, tmp_path):
+        """RDHClient with empty password raises ValueError on list_datasets()."""
+        c = RDHClient(username="user@test.com", password="", cache_dir=tmp_path)
+        with pytest.raises(ValueError, match="credentials"):
+            c.list_datasets(states=["VA"])
+
+    def test_fetch_datasets_raises_connectionerror_on_network_failure(self, client):
+        """RDHClient._fetch_datasets raises ConnectionError when the API is unreachable."""
+        import requests as req_mod
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.side_effect = req_mod.RequestException("Connection refused")
+
+        with patch.object(client._session, "get", return_value=mock_resp):
+            with pytest.raises(ConnectionError, match="RDH API request failed"):
+                client._fetch_datasets(
+                    states=["VA"], format=None, year=None,
+                    dataset_type=None, geography=None, official=None,
+                )

@@ -315,3 +315,160 @@ class TestCensusFamily:
             tables=[t1, t2],
         )
         assert fam.table_ids == ["B19001", "B19001A"]
+
+
+# ── Error path tests ──
+
+
+class TestParseTableIdInvalid:
+    """parse_table_id with various invalid inputs."""
+
+    def test_empty_string_returns_invalid(self):
+        assert parse_table_id("") is None
+
+    def test_too_short_returns_invalid(self):
+        assert parse_table_id("B19") is None
+
+    def test_no_digits_returns_invalid(self):
+        assert parse_table_id("BABCDE") is None
+
+    def test_lowercase_returns_invalid(self):
+        assert parse_table_id("b19001") is None
+
+    def test_digits_only_returns_invalid(self):
+        assert parse_table_id("19001") is None
+
+    def test_extra_trailing_chars_returns_invalid(self):
+        assert parse_table_id("B19001AB") is None
+
+    def test_special_chars_returns_invalid(self):
+        assert parse_table_id("B19-01") is None
+
+
+class TestCensusVariableParseCodeInvalid:
+    """CensusVariable.parse_code with invalid variable codes."""
+
+    def test_empty_string_returns_invalid(self):
+        assert CensusVariable.parse_code("") is None
+
+    def test_no_underscore_returns_invalid(self):
+        assert CensusVariable.parse_code("B19001001E") is None
+
+    def test_missing_sequence_returns_invalid(self):
+        assert CensusVariable.parse_code("B19001_E") is None
+
+    def test_bad_stat_type_returns_invalid(self):
+        assert CensusVariable.parse_code("B19001_001X") is None
+
+    def test_lowercase_returns_invalid(self):
+        assert CensusVariable.parse_code("b19001_001e") is None
+
+
+class TestSearchEmpty:
+    """search() with queries that yield no results."""
+
+    def test_empty_query_returns_empty(self):
+        cat = CensusCatalog()
+        cat.add_table(_make_table("B19001", concept="HOUSEHOLD INCOME"))
+        results = cat.search("")
+        assert results == []
+
+    def test_stopwords_only_query_returns_empty(self):
+        cat = CensusCatalog()
+        cat.add_table(_make_table("B19001", concept="HOUSEHOLD INCOME"))
+        results = cat.search("IN THE OF FOR")
+        assert results == []
+
+    def test_no_match_query_returns_empty(self):
+        cat = CensusCatalog()
+        cat.add_table(_make_table("B19001", concept="HOUSEHOLD INCOME"))
+        results = cat.search("XYLOPHONE QUANTUM ZEBRA")
+        assert results == []
+
+    def test_search_empty_catalog_returns_empty(self):
+        cat = CensusCatalog()
+        results = cat.search("INCOME")
+        assert results == []
+
+
+class TestRaceIterationFamiliesEmpty:
+    """detect_race_iteration_families with tables having no suffix."""
+
+    def test_no_suffix_tables_returns_empty(self):
+        tables = [
+            _make_table("B01001", concept="SEX BY AGE"),
+            _make_table("B02001", concept="RACE"),
+            _make_table("B19001", concept="HOUSEHOLD INCOME"),
+        ]
+        families = detect_race_iteration_families(tables)
+        assert families == []
+
+    def test_empty_list_returns_empty(self):
+        families = detect_race_iteration_families([])
+        assert families == []
+
+    def test_invalid_table_ids_skipped(self):
+        tables = [
+            CensusTable(table_id="bad", label="Bad", concept="Bad"),
+            CensusTable(table_id="also_bad", label="Also bad", concept="Bad"),
+        ]
+        families = detect_race_iteration_families(tables)
+        assert families == []
+
+
+class TestTopicalFamiliesEdgeCases:
+    """detect_topical_families edge cases."""
+
+    def test_single_table_returns_empty(self):
+        tables = [_make_table("B19001", concept="HOUSEHOLD INCOME")]
+        families = detect_topical_families(tables)
+        assert families == []
+
+    def test_empty_list_returns_empty(self):
+        families = detect_topical_families([])
+        assert families == []
+
+    def test_only_suffixed_tables_returns_empty(self):
+        tables = [
+            _make_table("B19001A", concept="HOUSEHOLD INCOME (WHITE)"),
+            _make_table("B19001B", concept="HOUSEHOLD INCOME (BLACK)"),
+        ]
+        families = detect_topical_families(tables)
+        assert families == []
+
+    def test_unrelated_concepts_returns_empty(self):
+        tables = [
+            _make_table("B19001", concept="HOUSEHOLD INCOME"),
+            _make_table("B19050", concept="COMPLETELY UNRELATED TOPIC"),
+        ]
+        families = detect_topical_families(tables)
+        assert families == []
+
+
+class TestCensusCatalogAddTableDuplicate:
+    """CensusCatalog.add_table with a duplicate table ID overwrites."""
+
+    def test_duplicate_table_id_overwrites(self):
+        cat = CensusCatalog()
+        table1 = _make_table("B19001", concept="ORIGINAL CONCEPT")
+        table2 = _make_table("B19001", concept="UPDATED CONCEPT")
+        cat.add_table(table1)
+        cat.add_table(table2)
+        assert len(cat) == 1
+        assert cat.get_table("B19001").concept == "UPDATED CONCEPT"
+
+
+class TestCensusTableInvalidId:
+    """CensusTable properties with invalid table_id."""
+
+    def test_root_table_id_invalid_returns_none(self):
+        table = CensusTable(table_id="bad", label="Bad", concept="Bad")
+        assert table.root_table_id is None
+
+    def test_race_suffix_invalid_returns_none(self):
+        table = CensusTable(table_id="bad", label="Bad", concept="Bad")
+        assert table.race_suffix is None
+
+    def test_parsed_id_invalid_returns_none(self):
+        table = CensusTable(table_id="bad", label="Bad", concept="Bad")
+        assert table.parsed_id is None
