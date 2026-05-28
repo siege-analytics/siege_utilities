@@ -350,6 +350,12 @@ def create_spark_session_with_databases(app_name: str = "SiegeAnalytics",
                     packages.append("mysql:mysql-connector-java:8.0.28")
                 elif connection_type == 'oracle':
                     packages.append("com.oracle.database.jdbc:ojdbc8:21.1.0.0")
+                else:
+                    logger.warning(
+                        "No JDBC driver for connection type %r (database %r); "
+                        "Spark session may not connect to this database",
+                        connection_type, db_name,
+                    )
 
     # Add common packages if none specified
     if not packages:
