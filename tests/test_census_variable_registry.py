@@ -34,13 +34,13 @@ class TestDeprecatedDictErrors:
 class TestVariableRegistryErrors:
     """Error paths for VariableRegistry."""
 
-    def test_unknown_variable_returns_unknown(self):
-        """Unknown variable description returns 'Unknown'."""
+    def test_missing_variable_returns_unknown(self):
+        """Missing variable description returns 'Unknown'."""
         reg = VariableRegistry()
         assert reg.get_description("FAKE_VAR_999") == "Unknown"
 
-    def test_resolve_unknown_group_returns_as_variable(self):
-        """Unknown group name treated as single variable code."""
+    def test_invalid_group_name_returns_as_variable(self):
+        """Invalid group name treated as single variable code."""
         reg = VariableRegistry()
         result = reg.resolve_variables("NOT_A_GROUP_XYZ")
         assert result == ["NOT_A_GROUP_XYZ"]

@@ -143,3 +143,25 @@ class TestPLTableDefinitions:
         assert hasattr(pl_downloader, "PL_TABLE_COLUMNS") or hasattr(
             pl_downloader, "PL_TABLES"
         )
+
+
+# --- Error-path tests (SU-4b) ---
+
+class TestPLDownloaderErrors:
+    """Error paths for PLFileDownloader."""
+
+    def test_invalid_geography_raises(self, tmp_path):
+        """Unknown geography level must raise ValueError."""
+        from siege_utilities.geo.census_files.pl_downloader import PLFileDownloader
+
+        dl = PLFileDownloader(cache_dir=tmp_path)
+        with pytest.raises(ValueError, match="Unknown geography level"):
+            dl.get_data(state="CA", year=2020, geography="galaxy_cluster")
+
+    def test_invalid_year_raises(self, tmp_path):
+        """Unsupported year must raise ValueError."""
+        from siege_utilities.geo.census_files.pl_downloader import PLFileDownloader
+
+        dl = PLFileDownloader(cache_dir=tmp_path)
+        with pytest.raises(ValueError, match="2010 and 2020"):
+            dl._build_geo_url("CA", 1999)
