@@ -156,7 +156,8 @@ class RedistrictingOverlay(PlaceHistoryOverlay):
         state_fips: Optional[str] = None,
     ) -> RedistrictingOverlayResult:
         if self._provider is None:
-            return RedistrictingOverlayResult(geoid=geoid)
+            log.warning("RedistrictingOverlay: no provider configured")
+            raise RuntimeError("RedistrictingOverlay requires a provider")
 
         assignments = self._provider.get_district_assignments(
             geoid, from_year, to_year, state_fips,

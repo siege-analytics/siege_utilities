@@ -199,13 +199,8 @@ class CensusAPI:
                 data = response.json()
 
                 if not data or len(data) < 2:
-                    from siege_utilities.exceptions import SiegeAPIError, handle_error
-                    return handle_error(
-                        SiegeAPIError("Census API returned empty response (< 2 rows)"),
-                        on_error=getattr(self, '_on_error', 'skip'),
-                        fallback=pd.DataFrame(),
-                        context="Census API query",
-                    )
+                    from siege_utilities.geo.census_api_client import CensusAPIError
+                    raise CensusAPIError("Census API returned empty response (< 2 rows)")
 
                 df = pd.DataFrame(data[1:], columns=data[0])
                 return df
