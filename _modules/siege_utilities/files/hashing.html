@@ -754,7 +754,8 @@
         <span class="k">try</span><span class="p">:</span>
             <span class="n">stat</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span>
             <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;fallback_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_mtime</span><span class="si">}</span><span class="s1">&#39;</span>
-        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">fallback_exc</span><span class="p">:</span>
+            <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Fallback signature also failed for </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">fallback_exc</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
             <span class="k">return</span> <span class="s1">&#39;error&#39;</span></div>
 
 
@@ -795,8 +796,8 @@
         <span class="n">current_hash</span> <span class="o">=</span> <span class="n">get_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">algorithm</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">current_hash</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">current_hash</span><span class="o">.</span><span class="n">lower</span><span class="p">(</span>
             <span class="p">)</span> <span class="o">==</span> <span class="n">expected_hash</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to verify hash for </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">: will return False&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to verify hash for </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">False</span></div>
 
 
