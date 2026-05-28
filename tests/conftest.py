@@ -15,6 +15,16 @@ import sys
 import shutil
 from unittest.mock import Mock
 
+try:
+    from hypothesis import settings as hyp_settings
+
+    hyp_settings.register_profile("ci", max_examples=100)
+    hyp_settings.register_profile("dev", max_examples=50)
+    hyp_settings.register_profile("thorough", max_examples=1000)
+    hyp_settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "ci"))
+except (ImportError, RuntimeError):
+    pass
+
 # Add the package to Python path for testing
 sys.path.insert(0, os.path.abspath('.'))
 
