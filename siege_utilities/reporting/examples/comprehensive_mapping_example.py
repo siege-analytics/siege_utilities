@@ -473,8 +473,8 @@ def create_comprehensive_powerpoint(maps_dict):
     except Exception as exc:
         print(f"Error generating PowerPoint presentation: {exc}")
         raise
-    
-    return success
+
+    return saved_to
 
 def main():
     """Main demonstration function."""

@@ -8,7 +8,6 @@ from typing import List, Dict, Optional, Union
 import re
 
 from siege_utilities.core.logging import log_info, log_warning
-from siege_utilities.exceptions import GitError
 from ._utils import run_git_command
 
 def validate_branch_naming(branch_name: str) -> Dict[str, Union[bool, str, List[str]]]:

@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import List, Dict, Optional
 
 from siege_utilities.core.logging import log_info
-from siege_utilities.exceptions import GitError
 from ._utils import run_git_command
 
 log = logging.getLogger(__name__)

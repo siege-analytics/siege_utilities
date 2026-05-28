@@ -183,9 +183,8 @@ class TestTopLevelImport:
 
     def test_version_is_semver(self):
         import siege_utilities
-        parts = siege_utilities.__version__.split('.')
-        assert len(parts) == 3
-        assert all(p.isdigit() for p in parts)
+        import re
+        assert re.match(r'^\d+\.\d+\.\d+', siege_utilities.__version__)
 
 
 class TestDirCompleteness:

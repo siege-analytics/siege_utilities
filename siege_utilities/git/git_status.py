@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import List, Dict, Optional, Union
 from datetime import datetime
 
-from siege_utilities.exceptions import GitError
 from ._utils import run_git_command
 
 log = logging.getLogger(__name__)

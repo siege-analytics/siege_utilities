@@ -1,65 +1,9 @@
 scripts/check_imports.py::F541::f-string is missing placeholders
-siege_utilities/admin/profile_manager.py::F401::'..config.enhanced_config.list_client_profiles' imported but unused
-siege_utilities/admin/profile_manager.py::F401::'..config.enhanced_config.load_client_profile' imported but unused
-siege_utilities/admin/profile_manager.py::F401::'..config.enhanced_config.load_user_profile' imported but unused
 siege_utilities/analytics/datadotworld_connector.py::F841::local variable 'dataset_info' is assigned to but never used
 siege_utilities/analytics/facebook_business.py::F401::'datetime.timedelta' imported but unused
 siege_utilities/analytics/facebook_business.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
 siege_utilities/analytics/facebook_business.py::F401::'typing.Union' imported but unused
 siege_utilities/analytics/facebook_business.py::F541::f-string is missing placeholders
-siege_utilities/analytics/google_analytics.py::F401::'datetime.timedelta' imported but unused
-siege_utilities/analytics/google_analytics.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
-siege_utilities/analytics/google_analytics.py::F401::'typing.Union' imported but unused
-siege_utilities/config/connections.py::F401::'base64' imported but unused
-siege_utilities/config/connections.py::F401::'pickle' imported but unused
-siege_utilities/config/constants.py::F401::'typing.Any' imported but unused
-siege_utilities/config/constants.py::F401::'typing.Dict' imported but unused
-siege_utilities/config/constants.py::F401::'typing.List' imported but unused
-siege_utilities/config/credential_manager.py::F401::'tempfile' imported but unused
-siege_utilities/config/credential_manager.py::F541::f-string is missing placeholders
-siege_utilities/config/credential_manager.py::F841::local variable 'result' is assigned to but never used
-siege_utilities/config/databases.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
-siege_utilities/config/directories.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
-siege_utilities/config/directories.py::F401::'siege_utilities.files.validation.PathSecurityError' imported but unused
-siege_utilities/config/enhanced_config.py::F401::'.models.BrandingConfig' imported but unused
-siege_utilities/config/enhanced_config.py::F401::'.models.ReportPreferences' imported but unused
-siege_utilities/config/enhanced_config.py::F841::local variable 'client_profile' is assigned to but never used
-siege_utilities/config/enhanced_config.py::F841::local variable 'user_profile' is assigned to but never used
-siege_utilities/config/hydra_manager.py::F401::'typing.Union' imported but unused
-siege_utilities/config/migration.py::F401::'.hydra_manager.HydraConfigManager' imported but unused
-siege_utilities/config/migration.py::F401::'.models.BrandingConfig' imported but unused
-siege_utilities/config/migration.py::F401::'.models.ReportPreferences' imported but unused
-siege_utilities/config/migration.py::F401::'typing.List' imported but unused
-siege_utilities/config/migration.py::F841::local variable 'client_profile' is assigned to but never used
-siege_utilities/config/migration.py::F841::local variable 'user_profile' is assigned to but never used
-siege_utilities/config/models/actor_types.py::F401::'.person._strip_sensitive_fields' imported but unused
-siege_utilities/config/models/credential.py::F401::'datetime.timedelta' imported but unused
-siege_utilities/config/models/database_connection.py::F401::'typing.Optional' imported but unused
-siege_utilities/config/models/user_profile.py::F401::'typing.Optional' imported but unused
-siege_utilities/config/nces_constants.py::F401::'typing.List' imported but unused
-siege_utilities/config/nces_constants.py::F401::'typing.Tuple' imported but unused
-siege_utilities/config/projects.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
-siege_utilities/config/projects.py::F401::'siege_utilities.files.validation.PathSecurityError' imported but unused
-siege_utilities/config/user_config.py::F401::'.enhanced_config.UserProfile as EnhancedUserProfile' imported but unused
-siege_utilities/config/user_config.py::F401::'.enhanced_config.load_user_profile as enhanced_load_user_profile' imported but unused
-siege_utilities/config/user_config.py::F401::'getpass' imported but unused
-siege_utilities/config/user_config.py::F401::'json' imported but unused
-siege_utilities/config/user_config.py::F401::'typing.Any' imported but unused
-siege_utilities/config/user_config.py::F401::'typing.Dict' imported but unused
-siege_utilities/config/user_config.py::F401::'typing.Union' imported but unused
-siege_utilities/core/logging.py::F401::'typing.Any' imported but unused
-siege_utilities/data/sample_data.py::F401::'..geo.get_census_data_selector' imported but unused
-siege_utilities/data/sample_data.py::F401::'..geo.select_census_datasets' imported but unused
-siege_utilities/data/sample_data.py::F401::'..geo.spatial_data.CensusDataSource' imported but unused
-siege_utilities/data/sample_data.py::F401::'faker.providers.address' imported but unused
-siege_utilities/data/sample_data.py::F401::'faker.providers.company' imported but unused
-siege_utilities/data/sample_data.py::F401::'faker.providers.internet' imported but unused
-siege_utilities/data/sample_data.py::F401::'faker.providers.person' imported but unused
-siege_utilities/data/sample_data.py::F401::'os' imported but unused
-siege_utilities/data/sample_data.py::F401::'pathlib.Path' imported but unused
-siege_utilities/data/sample_data.py::F401::'shapely.geometry.Point' imported but unused
-siege_utilities/data/sample_data.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
-siege_utilities/data/sample_data.py::F401::'typing.List' imported but unused
 siege_utilities/development/architecture.py::F401::'collections.defaultdict' imported but unused
 siege_utilities/development/architecture.py::F401::'os' imported but unused
 siege_utilities/development/architecture.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
@@ -68,81 +12,30 @@ siege_utilities/development/architecture.py::F401::'typing.List' imported but un
 siege_utilities/distributed/hdfs_config.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
 siege_utilities/distributed/hdfs_config.py::F401::'siege_utilities.core.logging.log_debug' imported but unused
 siege_utilities/distributed/hdfs_config.py::F401::'siege_utilities.core.logging.log_warning' imported but unused
-siege_utilities/distributed/hdfs_operations.py::F401::'json' imported but unused
-siege_utilities/distributed/hdfs_operations.py::F401::'os' imported but unused
-siege_utilities/distributed/hdfs_operations.py::F401::'zipfile' imported but unused
-siege_utilities/distributed/spark_utils.py::F401::'pyspark.sql.functions.isnull' imported but unused
-siege_utilities/distributed/spark_utils.py::F401::'pyspark.sql.types.BooleanType' imported but unused
-siege_utilities/distributed/spark_utils.py::F401::'pyspark.sql.types.DateType' imported but unused
-siege_utilities/distributed/spark_utils.py::F401::'pyspark.sql.types.DoubleType' imported but unused
-siege_utilities/distributed/spark_utils.py::F401::'pyspark.sql.types.FloatType' imported but unused
-siege_utilities/distributed/spark_utils.py::F401::'pyspark.sql.types.IntegerType' imported but unused
-siege_utilities/distributed/spark_utils.py::F401::'pyspark.sql.types.LongType' imported but unused
-siege_utilities/distributed/spark_utils.py::F401::'pyspark.sql.types.TimestampType' imported but unused
-siege_utilities/distributed/spark_utils.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
-siege_utilities/distributed/spark_utils.py::F401::'typing.Tuple' imported but unused
-siege_utilities/distributed/spark_utils.py::F401::'typing.Union' imported but unused
-siege_utilities/distributed/spark_utils.py::F403::'from pyspark.sql.functions import *' used; unable to detect undefined names
-siege_utilities/distributed/spark_utils.py::F403::'from pyspark.sql.types import *' used; unable to detect undefined names
-siege_utilities/distributed/spark_utils.py::F405::'ArrayType' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'DEBUG_SUBDIRECTORY' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'F' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'RESULTS_OUTPUT_DELIMITER' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'RESULTS_OUTPUT_FORMAT' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'StringType' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'StructType' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'array' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'col' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'explode_outer' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'expr' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'from_json' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'length' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'lit' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'shutil' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'split' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'tabulate' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'translate' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'trim' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F405::'when' may be undefined, or defined from star imports: pyspark.sql.functions, pyspark.sql.types
-siege_utilities/distributed/spark_utils.py::F541::f-string is missing placeholders
 siege_utilities/examples/enhanced_features_demo.py::F401::'pandas as pd' imported but unused
 siege_utilities/examples/enhanced_features_demo.py::F401::'siege_utilities.geo.download_osm_data' imported but unused
 siege_utilities/examples/enhanced_features_demo.py::F541::f-string is missing placeholders
-siege_utilities/files/hashing.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
-siege_utilities/files/hashing.py::F401::'siege_utilities.core.logging.log_debug' imported but unused
-siege_utilities/files/hashing.py::F401::'siege_utilities.core.logging.log_warning' imported but unused
-siege_utilities/files/hashing.py::F401::'siege_utilities.files.validation.PathSecurityError' imported but unused
-siege_utilities/files/operations.py::F401::'pathlib' imported but unused
-siege_utilities/files/paths.py::F401::'pathlib' imported but unused
-siege_utilities/files/paths.py::F401::'siege_utilities.files.validation.PathSecurityError' imported but unused
-siege_utilities/files/remote.py::F401::'pathlib' imported but unused
-siege_utilities/files/shell.py::F401::'pathlib.Path' imported but unused
-siege_utilities/files/shell.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
-siege_utilities/files/validation.py::F401::'typing.List' imported but unused
-siege_utilities/git/branch_analyzer.py::F401::'json' imported but unused
-siege_utilities/git/branch_analyzer.py::F401::'os' imported but unused
-siege_utilities/git/branch_analyzer.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
-siege_utilities/git/branch_analyzer.py::F401::'siege_utilities.core.logging.log_debug' imported but unused
-siege_utilities/git/branch_analyzer.py::F401::'siege_utilities.core.logging.log_error' imported but unused
-siege_utilities/git/branch_analyzer.py::F401::'siege_utilities.core.logging.log_warning' imported but unused
-siege_utilities/git/branch_analyzer.py::F401::'typing.Tuple' imported but unused
-siege_utilities/git/git_operations.py::F401::'os' imported but unused
-siege_utilities/git/git_operations.py::F401::'pathlib.Path' imported but unused
-siege_utilities/git/git_operations.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
-siege_utilities/git/git_operations.py::F401::'siege_utilities.core.logging.log_debug' imported but unused
-siege_utilities/git/git_operations.py::F401::'siege_utilities.git.validation.GitSecurityError' imported but unused
-siege_utilities/git/git_operations.py::F401::'typing.List' imported but unused
-siege_utilities/git/git_operations.py::F401::'typing.Union' imported but unused
-siege_utilities/git/git_operations.py::F541::f-string is missing placeholders
-siege_utilities/git/git_status.py::F401::'os' imported but unused
-siege_utilities/git/git_status.py::F401::'re' imported but unused
-siege_utilities/git/git_workflow.py::F401::'datetime.datetime' imported but unused
-siege_utilities/git/git_workflow.py::F401::'os' imported but unused
-siege_utilities/git/git_workflow.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
-siege_utilities/git/git_workflow.py::F401::'siege_utilities.core.logging.log_debug' imported but unused
-siege_utilities/git/git_workflow.py::F401::'siege_utilities.core.logging.log_error' imported but unused
-siege_utilities/git/git_workflow.py::F541::f-string is missing placeholders
-siege_utilities/git/git_workflow.py::F841::local variable 'validation_results' is assigned to but never used
+siege_utilities/geo/census/catalog_docs.py::F401::'.catalog.CensusSubject' imported but unused
+siege_utilities/geo/census/catalog_docs.py::F401::'typing.Optional' imported but unused
+siege_utilities/geo/census/catalog_docs.py::F541::f-string is missing placeholders
+siege_utilities/geo/census/catalog_populator.py::F401::'typing.Optional' imported but unused
+siege_utilities/geo/codification_blocks.py::F401::'dataclasses.field' imported but unused
+siege_utilities/geo/codification_blocks.py::F401::'math' imported but unused
+siege_utilities/geo/codification_demographics 2.py::F401::'dataclasses.field' imported but unused
+siege_utilities/geo/codification_demographics 2.py::F401::'typing.Any' imported but unused
+siege_utilities/geo/codification_demographics.py::F401::'dataclasses.field' imported but unused
+siege_utilities/geo/codification_demographics.py::F401::'typing.Any' imported but unused
+siege_utilities/geo/overlays/election_results.py::F401::'typing.Any' imported but unused
+siege_utilities/geo/overlays/redistricting.py::F401::'siege_utilities.geo.plan_lifecycle.PlanType' imported but unused
+siege_utilities/geo/overlays/redistricting.py::F401::'siege_utilities.geo.plan_lifecycle.RedistrictingPlan' imported but unused
+siege_utilities/geo/overlays/redistricting.py::F401::'typing.Any' imported but unused
+siege_utilities/geo/overlays/seats 2.py::F401::'typing.Any' imported but unused
+siege_utilities/geo/overlays/seats.py::F401::'typing.Any' imported but unused
+siege_utilities/geo/place_history.py::F401::'typing.Protocol' imported but unused
+siege_utilities/geo/place_history.py::F401::'typing.Union' imported but unused
+siege_utilities/geo/plan_lifecycle.py::F841::local variable 'by_id' is assigned to but never used
+siege_utilities/geo/providers/census_batch.py::F401::'typing.Optional' imported but unused
+siege_utilities/geo/providers/composite_geocoder.py::F401::'typing.Optional' imported but unused
 siege_utilities/git/validation.py::F401::'typing.Optional' imported but unused
 siege_utilities/hygiene/generate_docstrings.py::F401::'astor' imported but unused
 siege_utilities/hygiene/generate_docstrings.py::F401::'os' imported but unused
@@ -151,30 +44,6 @@ siege_utilities/hygiene/generate_docstrings.py::F401::'textwrap' imported but un
 siege_utilities/hygiene/generate_docstrings.py::F401::'typing.Any' imported but unused
 siege_utilities/hygiene/generate_docstrings.py::F401::'typing.get_type_hints' imported but unused
 siege_utilities/hygiene/generate_docstrings.py::F541::f-string is missing placeholders
-siege_utilities/hygiene/pypi_release.py::F401::'json' imported but unused
-siege_utilities/hygiene/pypi_release.py::F401::'os' imported but unused
-siege_utilities/hygiene/pypi_release.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
-siege_utilities/hygiene/pypi_release.py::F401::'typing.Dict' imported but unused
-siege_utilities/hygiene/pypi_release.py::F841::local variable 'pyproject_updated' is assigned to but never used
-siege_utilities/reporting/analytics/analytics_reports.py::F401::'datetime.timedelta' imported but unused
-siege_utilities/reporting/analytics/polling_analyzer.py::F401::'datetime.datetime' imported but unused
-siege_utilities/reporting/analytics/polling_analyzer.py::F401::'datetime.timedelta' imported but unused
-siege_utilities/reporting/analytics/polling_analyzer.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
-siege_utilities/reporting/analytics/polling_analyzer.py::F401::'siege_utilities.core.logging.log_debug' imported but unused
-siege_utilities/reporting/analytics/polling_analyzer.py::F401::'siege_utilities.core.logging.log_info' imported but unused
-siege_utilities/reporting/analytics/polling_analyzer.py::F401::'siege_utilities.core.logging.log_warning' imported but unused
-siege_utilities/reporting/analytics/polling_analyzer.py::F401::'typing.Optional' imported but unused
-siege_utilities/reporting/analytics/polling_analyzer.py::F401::'typing.Union' imported but unused
-siege_utilities/reporting/analytics/polling_analyzer.py::F841::local variable 'tablet_pct' is assigned to but never used
-siege_utilities/reporting/analytics_reports.py::F401::'datetime.timedelta' imported but unused
-siege_utilities/reporting/chart_types.py::F401::'abc.ABC' imported but unused
-siege_utilities/reporting/chart_types.py::F401::'abc.abstractmethod' imported but unused
-siege_utilities/reporting/chart_types.py::F401::'matplotlib.pyplot as plt' imported but unused
-siege_utilities/reporting/chart_types.py::F401::'pandas as pd' imported but unused
-siege_utilities/reporting/chart_types.py::F401::'pathlib.Path' imported but unused
-siege_utilities/reporting/chart_types.py::F401::'seaborn as sns' imported but unused
-siege_utilities/reporting/chart_types.py::F401::'typing.Type' imported but unused
-siege_utilities/reporting/chart_types.py::F401::'typing.Union' imported but unused
 siege_utilities/reporting/examples/bivariate_choropleth_example.py::F401::'pathlib.Path' imported but unused
 siege_utilities/reporting/examples/comprehensive_mapping_example.py::F401::'datetime.datetime' imported but unused
 siege_utilities/reporting/examples/comprehensive_mapping_example.py::F401::'datetime.timedelta' imported but unused
@@ -213,99 +82,46 @@ siege_utilities/reporting/examples/google_analytics_report_example.py::F841::loc
 siege_utilities/reporting/legend_manager.py::F401::'typing.Tuple' imported but unused
 siege_utilities/reporting/legend_manager.py::F401::'typing.Union' imported but unused
 siege_utilities/reporting/legend_manager.py::F841::local variable 'styles' is assigned to but never used
-siege_utilities/reporting/pages/page_models.py::F541::f-string is missing placeholders
-siege_utilities/reporting/powerpoint_generator.py::F401::'pptx.dml.color.RGBColor' imported but unused
-siege_utilities/reporting/powerpoint_generator.py::F401::'pptx.enum.shapes.MSO_SHAPE' imported but unused
-siege_utilities/reporting/powerpoint_generator.py::F541::f-string is missing placeholders
-siege_utilities/reporting/report_generator.py::F401::'reportlab.lib.styles.getSampleStyleSheet' imported but unused
-siege_utilities/reporting/report_generator.py::F401::'tempfile' imported but unused
-siege_utilities/reporting/report_generator.py::F841::local variable 'layout' is assigned to but never used
-siege_utilities/reporting/templates/base_template.py::F401::'reportlab.lib.enums.TA_LEFT' imported but unused
-siege_utilities/reporting/templates/base_template.py::F401::'reportlab.lib.enums.TA_RIGHT' imported but unused
-siege_utilities/reporting/templates/base_template.py::F401::'reportlab.lib.units.cm' imported but unused
-siege_utilities/reporting/templates/base_template.py::F401::'reportlab.lib.units.mm' imported but unused
-siege_utilities/reporting/templates/base_template.py::F401::'reportlab.lib.units.pica' imported but unused
-siege_utilities/reporting/templates/base_template.py::F401::'reportlab.platypus.Image' imported but unused
-siege_utilities/reporting/templates/base_template.py::F401::'reportlab.platypus.flowables.Flowable' imported but unused
-siege_utilities/reporting/templates/base_template.py::F401::'typing.Any' imported but unused
-siege_utilities/reporting/templates/base_template.py::F401::'typing.List' imported but unused
-siege_utilities/reporting/templates/content_page_template.py::F401::'pathlib.Path' imported but unused
-siege_utilities/reporting/templates/content_page_template.py::F401::'reportlab.lib.styles.ParagraphStyle' imported but unused
-siege_utilities/reporting/templates/content_page_template.py::F401::'reportlab.lib.styles.getSampleStyleSheet' imported but unused
-siege_utilities/reporting/templates/content_page_template.py::F401::'reportlab.lib.units.inch' imported but unused
-siege_utilities/reporting/templates/content_page_template.py::F401::'reportlab.platypus.Paragraph' imported but unused
-siege_utilities/reporting/templates/content_page_template.py::F401::'reportlab.platypus.Table' imported but unused
-siege_utilities/reporting/templates/content_page_template.py::F401::'reportlab.platypus.TableStyle' imported but unused
-siege_utilities/reporting/templates/content_page_template.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
-siege_utilities/reporting/templates/content_page_template.py::F401::'siege_utilities.core.logging.log_debug' imported but unused
-siege_utilities/reporting/templates/content_page_template.py::F401::'siege_utilities.core.logging.log_error' imported but unused
-siege_utilities/reporting/templates/content_page_template.py::F401::'typing.Optional' imported but unused
-siege_utilities/reporting/templates/content_page_template.py::F401::'typing.Union' imported but unused
-siege_utilities/reporting/templates/content_page_template.py::F401::'yaml' imported but unused
-siege_utilities/reporting/templates/content_page_template.py::F841::local variable 'branding_manager' is assigned to but never used
 siege_utilities/reporting/templates/page_templates.py::F401::'abc.ABC' imported but unused
 siege_utilities/reporting/templates/page_templates.py::F401::'abc.abstractmethod' imported but unused
 siege_utilities/reporting/templates/page_templates.py::F401::'typing.Union' imported but unused
-siege_utilities/reporting/templates/table_of_contents_template.py::F401::'datetime.datetime' imported but unused
-siege_utilities/reporting/templates/table_of_contents_template.py::F401::'pathlib.Path' imported but unused
-siege_utilities/reporting/templates/table_of_contents_template.py::F401::'reportlab.lib.styles.ParagraphStyle' imported but unused
-siege_utilities/reporting/templates/table_of_contents_template.py::F401::'reportlab.lib.styles.getSampleStyleSheet' imported but unused
-siege_utilities/reporting/templates/table_of_contents_template.py::F401::'reportlab.lib.units.inch' imported but unused
-siege_utilities/reporting/templates/table_of_contents_template.py::F401::'reportlab.platypus.Paragraph' imported but unused
-siege_utilities/reporting/templates/table_of_contents_template.py::F401::'reportlab.platypus.Table' imported but unused
-siege_utilities/reporting/templates/table_of_contents_template.py::F401::'reportlab.platypus.TableStyle' imported but unused
-siege_utilities/reporting/templates/table_of_contents_template.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
-siege_utilities/reporting/templates/table_of_contents_template.py::F401::'siege_utilities.core.logging.log_debug' imported but unused
-siege_utilities/reporting/templates/table_of_contents_template.py::F401::'siege_utilities.core.logging.log_error' imported but unused
-siege_utilities/reporting/templates/table_of_contents_template.py::F401::'typing.Tuple' imported but unused
-siege_utilities/reporting/templates/table_of_contents_template.py::F401::'yaml' imported but unused
-siege_utilities/reporting/templates/table_of_contents_template.py::F841::local variable 'branding_manager' is assigned to but never used
-siege_utilities/reporting/templates/title_page_template.py::F401::'pathlib.Path' imported but unused
-siege_utilities/reporting/templates/title_page_template.py::F401::'reportlab.lib.pagesizes.A4' imported but unused
-siege_utilities/reporting/templates/title_page_template.py::F401::'reportlab.lib.units.inch' imported but unused
-siege_utilities/reporting/templates/title_page_template.py::F401::'reportlab.lib.units.mm' imported but unused
-siege_utilities/reporting/templates/title_page_template.py::F401::'reportlab.pdfbase.pdfmetrics' imported but unused
-siege_utilities/reporting/templates/title_page_template.py::F401::'reportlab.pdfbase.ttfonts.TTFont' imported but unused
-siege_utilities/reporting/templates/title_page_template.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
-siege_utilities/reporting/templates/title_page_template.py::F401::'siege_utilities.core.logging.log_debug' imported but unused
-siege_utilities/reporting/templates/title_page_template.py::F401::'siege_utilities.core.logging.log_error' imported but unused
-siege_utilities/reporting/templates/title_page_template.py::F401::'typing.Optional' imported but unused
-siege_utilities/reporting/templates/title_page_template.py::F401::'yaml' imported but unused
-siege_utilities/reporting/templates/title_page_template.py::F841::local variable 'branding_manager' is assigned to but never used
-siege_utilities/reporting/wave_charts.py::F401::'matplotlib.figure' imported but unused
-siege_utilities/testing/environment.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
-siege_utilities/testing/environment.py::F841::local variable 'resolved' is assigned to but never used
-siege_utilities/testing/runner.py::F401::'os' imported but unused
-siege_utilities/testing/runner.py::F401::'siege_utilities.core.logging.get_logger' imported but unused
-tests/test_boundary_catalog.py::F401::'pytest' imported but unused
-tests/test_boundary_diagnostics.py::F401::'pathlib.Path' imported but unused
-tests/test_boundary_diagnostics.py::F401::'unittest.mock.MagicMock' imported but unused
+tests/test_batch_geocoder 2.py::F401::'typing.Union' imported but unused
+tests/test_batch_geocoder.py::F401::'typing.Union' imported but unused
 tests/test_boundary_manager.py::F401::'pytest' imported but unused
 tests/test_boundary_smoke_matrix.py::F401::'siege_utilities.geo.boundary_result.BoundaryDiscoveryError' imported but unused
 tests/test_boundary_smoke_matrix.py::F401::'siege_utilities.geo.boundary_result.BoundaryFetchResult' imported but unused
 tests/test_boundary_smoke_matrix.py::F401::'siege_utilities.geo.boundary_result.BoundaryInputError' imported but unused
 tests/test_boundary_smoke_matrix.py::F401::'unittest.mock.Mock' imported but unused
-tests/test_census_api_client.py::F401::'json' imported but unused
-tests/test_census_api_client.py::F401::'siege_utilities.geo.census_api_client.CensusAPIKeyError' imported but unused
-tests/test_census_api_client.py::F401::'siege_utilities.geo.census_api_client.get_education_data' imported but unused
-tests/test_census_api_client.py::F401::'siege_utilities.geo.census_api_client.get_housing_data' imported but unused
-tests/test_census_api_client.py::F401::'unittest.mock.MagicMock' imported but unused
-tests/test_census_api_client.py::F841::local variable 'client' is assigned to but never used
-tests/test_census_api_client.py::F841::local variable 'df' is assigned to but never used
 tests/test_census_api_integration.py::F401::'datetime.datetime' imported but unused
 tests/test_census_api_integration.py::F401::'siege_utilities.geo.census_api_client.CensusAPIError' imported but unused
 tests/test_census_api_integration.py::F401::'siege_utilities.geo.census_api_client.CensusGeographyError' imported but unused
 tests/test_census_api_integration.py::F401::'siege_utilities.geo.census_api_client.VARIABLE_GROUPS' imported but unused
+tests/test_census_batch.py::F401::'pytest' imported but unused
+tests/test_census_batch.py::F401::'siege_utilities.geo.providers.batch_geocoder.GeocodingResult' imported but unused
+tests/test_census_batch.py::F401::'unittest.mock.MagicMock' imported but unused
 tests/test_census_bug_fix.py::F401::'pandas as pd' imported but unused
 tests/test_census_bug_fix.py::F841::local variable 'result' is assigned to but never used
 tests/test_census_cache_backend.py::F401::'pytest' imported but unused
 tests/test_census_cache_django_roundtrip.py::F401::'django' imported but unused
+tests/test_census_catalog_cache.py::F401::'pathlib.Path' imported but unused
+tests/test_census_catalog_cache.py::F401::'pytest' imported but unused
+tests/test_census_catalog_cache.py::F401::'unittest.mock.MagicMock' imported but unused
+tests/test_census_catalog_docs.py::F401::'pytest' imported but unused
+tests/test_census_catalog_docs.py::F841::local variable 'written' is assigned to but never used
+tests/test_census_catalog_search.py::F401::'siege_utilities.geo.census.catalog.SearchResult' imported but unused
+tests/test_census_catalog_search.py::F841::local variable 'all_results' is assigned to but never used
 tests/test_census_data_selector_bonus.py::F401::'pytest' imported but unused
 tests/test_census_data_selector_bonus.py::F401::'siege_utilities.geo.census_dataset_mapper.CensusDataset' imported but unused
 tests/test_census_data_selector_bonus.py::F401::'siege_utilities.geo.census_dataset_mapper.DataReliability' imported but unused
 tests/test_census_data_selector_bonus.py::F401::'siege_utilities.geo.census_dataset_mapper.SurveyType' imported but unused
-tests/test_census_geocoder.py::F401::'json' imported but unused
 tests/test_chart_generator.py::F401::'pandas as pd' imported but unused
+tests/test_codification.py::F401::'pytest' imported but unused
+tests/test_codification_blocks.py::F401::'siege_utilities.geo.codification_blocks.BlockGroup' imported but unused
+tests/test_codification_blocks.py::F401::'siege_utilities.geo.codification_blocks.SpreadMetrics' imported but unused
+tests/test_codification_demographics.py::F401::'siege_utilities.geo.codification_demographics.DemographicSignature' imported but unused
+tests/test_codification_recency.py::F401::'siege_utilities.geo.codification_recency.RecencyAnalysis' imported but unused
+tests/test_codification_summary.py::F401::'pytest' imported but unused
+tests/test_codification_urbanicity.py::F401::'siege_utilities.geo.codification_urbanicity.UrbanicityDistribution' imported but unused
 tests/test_core_logging.py::F401::'siege_utilities.core.logging.temporary_logging_config' imported but unused
 tests/test_core_logging.py::F401::'unittest.mock.MagicMock' imported but unused
 tests/test_core_logging.py::F841::local variable 'logger' is assigned to but never used
@@ -316,13 +132,6 @@ tests/test_crosswalk.py::F401::'siege_utilities.geo.crosswalk.get_crosswalk_meta
 tests/test_crosswalk.py::F401::'siege_utilities.geo.crosswalk.get_merged_tracts' imported but unused
 tests/test_crosswalk.py::F401::'unittest.mock.MagicMock' imported but unused
 tests/test_data_source_registry.py::F401::'tempfile' imported but unused
-tests/test_data_split_shims.py::F841::local variable 'mod' is assigned to but never used
-tests/test_distributed.py::F841::local variable 'ops' is assigned to but never used
-tests/test_enhanced_census_utilities.py::F401::'pathlib.Path' imported but unused
-tests/test_enhanced_census_utilities.py::F401::'shutil' imported but unused
-tests/test_enhanced_census_utilities.py::F401::'tempfile' imported but unused
-tests/test_enhanced_census_utilities.py::F401::'unittest.mock.MagicMock' imported but unused
-tests/test_environment.py::F401::'pytest' imported but unused
 tests/test_geo_alignment.py::F401::'pytest' imported but unused
 tests/test_geo_alignment.py::F401::'siege_utilities.config.census_constants._ALIAS_TO_CANONICAL' imported but unused
 tests/test_geo_alignment.py::F401::'siege_utilities.config.census_constants.validate_geographic_level' imported but unused
@@ -334,22 +143,35 @@ tests/test_geoid_utils.py::F401::'siege_utilities.geo.geoid_utils.GEOID_COMPONEN
 tests/test_hydra_integration.py::F401::'siege_utilities.config.models.ContactInfo' imported but unused
 tests/test_hydra_integration.py::F401::'unittest.mock.MagicMock' imported but unused
 tests/test_hydra_integration.py::F401::'unittest.mock.patch' imported but unused
-tests/test_locale.py::F401::'pandas as pd' imported but unused
 tests/test_locale.py::F401::'shapely.geometry.Polygon' imported but unused
-tests/test_nces_download.py::F401::'pathlib.Path' imported but unused
-tests/test_nces_download.py::F401::'tempfile' imported but unused
-tests/test_nces_download.py::F401::'unittest.mock.PropertyMock' imported but unused
-tests/test_nces_service.py::F401::'pytest' imported but unused
+tests/test_naics_soc_integration.py::F401::'pytest' imported but unused
+tests/test_nlrb_cache.py::F401::'pathlib.Path' imported but unused
+tests/test_nlrb_cache.py::F401::'pytest' imported but unused
+tests/test_nlrb_clients.py::F401::'pytest' imported but unused
+tests/test_nlrb_clients.py::F401::'unittest.mock.patch' imported but unused
+tests/test_nlrb_models.py::F401::'pandas as pd' imported but unused
+tests/test_nlrb_regions.py::F401::'pytest' imported but unused
+tests/test_nlrb_regions.py::F401::'siege_utilities.geo.providers.nlrb_regions.STATE_TO_REGIONS' imported but unused
 tests/test_person_actor.py::F401::'siege_utilities.config.models.person.Person' imported but unused
 tests/test_pl_downloader.py::F401::'pandas as pd' imported but unused
 tests/test_pl_downloader.py::F401::'pathlib.Path' imported but unused
 tests/test_pl_downloader.py::F401::'pytest' imported but unused
 tests/test_pl_downloader.py::F401::'unittest.mock.MagicMock' imported but unused
 tests/test_pl_downloader.py::F401::'unittest.mock.patch' imported but unused
+tests/test_place_history.py::F401::'pytest' imported but unused
+tests/test_place_history.py::F401::'siege_utilities.geo.place_history.CrosswalkRecord' imported but unused
+tests/test_plan_lifecycle.py::F401::'pytest' imported but unused
 tests/test_pydantic_schemas.py::F401::'datetime.date' imported but unused
 tests/test_pydantic_schemas.py::F401::'pandas as pd' imported but unused
 tests/test_pydantic_v1_compat.py::F401::'siege_utilities.core.logging.log_warning' imported but unused
 tests/test_pydantic_v1_compat.py::F401::'sys' imported but unused
+tests/test_rdh_catalog 2.py::F401::'pytest' imported but unused
+tests/test_rdh_catalog 2.py::F401::'siege_utilities.geo.rdh_catalog.CoverageCell' imported but unused
+tests/test_rdh_catalog 2.py::F401::'siege_utilities.geo.rdh_catalog.SearchResult' imported but unused
+tests/test_rdh_catalog.py::F401::'pytest' imported but unused
+tests/test_rdh_catalog.py::F401::'siege_utilities.geo.rdh_catalog.CoverageCell' imported but unused
+tests/test_rdh_catalog.py::F401::'siege_utilities.geo.rdh_catalog.SearchResult' imported but unused
+tests/test_rdh_overlays.py::F401::'siege_utilities.geo.overlays.election_results.ElectionDataProvider' imported but unused
 tests/test_review_fixes.py::F401::'numpy as np' imported but unused
 tests/test_review_fixes.py::F841::local variable 'result' is assigned to but never used
 tests/test_runtime_guard.py::F401::'importlib' imported but unused
@@ -358,6 +180,7 @@ tests/test_schemas_to_gdf.py::F401::'shapely.geometry.Point' imported but unused
 tests/test_settings.py::F401::'pathlib.Path' imported but unused
 tests/test_settings.py::F401::'siege_utilities.conf.settings' imported but unused
 tests/test_settings.py::F401::'tempfile' imported but unused
+tests/test_tamu_batch.py::F401::'siege_utilities.geo.providers.tamu_batch.TAMU_BASE_URL' imported but unused
 tests/test_temporal_boundary.py::F401::'datetime.date' imported but unused
 tests/test_temporal_query.py::F401::'pandas as pd' imported but unused
 tests/test_temporal_services.py::F401::'pathlib.Path' imported but unused
@@ -374,3 +197,5 @@ tests/test_timeseries.py::F401::'tempfile' imported but unused
 tests/test_timeseries.py::F401::'unittest.mock.Mock' imported but unused
 tests/test_timeseries.py::F401::'unittest.mock.patch' imported but unused
 tests/test_timeseries_rollup_services.py::F401::'math' imported but unused
+tests/test_variable_groups_deprecation 2.py::F401::'pytest' imported but unused
+tests/test_variable_groups_deprecation.py::F401::'pytest' imported but unused

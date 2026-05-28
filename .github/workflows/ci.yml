@@ -201,6 +201,8 @@ jobs:
         uv run flake8 siege_utilities --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     
     - name: Test with pytest
+      env:
+        PYTHONPATH: .
       run: |
         uv run pytest tests/ -v --cov=siege_utilities --cov-report=xml --cov-fail-under=45 \
           --ignore=tests/test_notebooks.py \
@@ -252,7 +254,7 @@ jobs:
 
     - name: Test pydantic v1 compatibility
       run: |
-        uv run pytest tests/test_pydantic_v1_compat.py -v --no-cov
+        uv run pytest tests/test_pydantic_v1_compat.py -v --no-cov -p no:django
 
   test-core:
     runs-on: ubuntu-latest
@@ -288,7 +290,7 @@ jobs:
     name: "api contract regression"
 
     env:
-      BASELINE_VERSION: "3.18.0"
+      BASELINE_VERSION: "3.17.2"
 
     steps:
     - uses: actions/checkout@v4
@@ -352,7 +354,7 @@ jobs:
 
     - name: Test geo without GDAL
       run: |
-        uv run pytest tests/ -v --no-cov \
+        uv run pytest tests/ -v --no-cov -p no:django \
           --ignore=tests/test_nces_service.py \
           --ignore=tests/test_nces_download.py \
           --ignore=tests/test_chart_generator.py \
@@ -395,7 +397,7 @@ jobs:
 
     - name: Run smoke tests
       run: |
-        uv run pytest tests/test_smoke.py -v --no-cov
+        uv run pytest tests/test_smoke.py -v --no-cov -p no:django
 
   test-databricks:
     runs-on: ubuntu-latest
@@ -420,7 +422,7 @@ jobs:
 
     - name: Run databricks tests
       run: |
-        uv run pytest tests/test_databricks_auth_session_secrets.py tests/test_databricks_dataframe_bridge.py tests/test_databricks_lakebase_unity.py tests/test_databricks_fallback.py tests/test_databricks_download_dir.py -v --no-cov
+        uv run pytest tests/test_databricks_auth_session_secrets.py tests/test_databricks_dataframe_bridge.py tests/test_databricks_lakebase_unity.py tests/test_databricks_fallback.py tests/test_databricks_download_dir.py -v --no-cov -p no:django
 
   battle-test:
     runs-on: ubuntu-latest
