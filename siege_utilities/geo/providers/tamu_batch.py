@@ -75,7 +75,6 @@ class TAMUBatchGeocoder(BatchGeocoder):
     def geocode(
         self,
         addresses: Union[list[dict], list[str], list[AddressInput]],
-        **kwargs,
     ) -> BatchGeocodingResult:
         """Geocode addresses via the TAMU Geoservices API.
 

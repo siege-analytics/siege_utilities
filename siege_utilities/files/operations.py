@@ -481,10 +481,12 @@ def run_command(command: Union[str, List[str]],
             not when you need shell features.
 
     Returns:
-        CompletedProcess object, or None if failed
+        CompletedProcess object on success or non-zero exit.
+        None on timeout or unexpected error (when unsafe=True).
 
     Raises:
-        SecurityError: If command fails security validation (when unsafe=False)
+        SecurityError: If command fails security validation (when unsafe=False).
+        Exception: Re-raised on unexpected errors when unsafe=False.
 
     Example:
         >>> # Safe command (works by default)

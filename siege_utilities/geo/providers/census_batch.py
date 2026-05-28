@@ -72,13 +72,11 @@ class CensusBatchGeocoder(BatchGeocoder):
     def geocode(
         self,
         addresses: Union[list[dict], list[str], list[AddressInput]],
-        **kwargs,
     ) -> BatchGeocodingResult:
         """Geocode addresses via the Census Bureau batch API.
 
         Args:
             addresses: Addresses in any supported format.
-            **kwargs: Passed through to geocode_batch_chunked.
         """
         from .census_geocoder import (
             CensusVintage,
