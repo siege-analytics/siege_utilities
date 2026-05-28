@@ -655,19 +655,17 @@ class DuckDBConnector:
             if not self.connect():
                 return None
 
-        from siege_utilities.core.sql_safety import validate_sql_identifier
+        from siege_utilities.core.sql_safety import (
+            validate_sql_identifier,
+            validate_sql_fragment,
+        )
         validate_sql_identifier(table_name, "table name")
 
         try:
-            # Construct query. `table_name` is identifier-validated above.
-            # `where_clause` is intentionally a free-form SQL fragment for
-            # caller flexibility, but the docstring should warn that it's
-            # interpolated as-is — callers must not pass untrusted input.
             query = f"SELECT * FROM {table_name}"
             where_clause = kwargs.get('where_clause')
             if where_clause:
-                if not isinstance(where_clause, str):
-                    raise TypeError("where_clause must be str")
+                validate_sql_fragment(where_clause, "where_clause")
                 query += f" WHERE {where_clause}"
 
             # Execute query
