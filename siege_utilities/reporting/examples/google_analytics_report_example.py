@@ -696,7 +696,7 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
                         'users': int(year_df['totalUsers'].sum()),
                         'pageviews': int(year_df['screenPageViews'].sum()),
                     }
-            except Exception:
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
                 log.debug(f"Could not fetch longitudinal data for {year}")
 
         result = {
@@ -764,7 +764,7 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
         log.info(f"Fetched real GA4 data: {total_sessions:,} sessions, {total_users:,} users")
         return result
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         log.warning(f"Could not fetch real GA4 data: {e}")
         return None
 
@@ -1046,13 +1046,13 @@ def create_geo_country_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
         try:
             import geodatasets
             world = gpd.read_file(geodatasets.get_path('naturalearth.land'))
-        except (ImportError, Exception) as exc:
+        except (ImportError, OSError, ValueError) as exc:
             log.debug("geodatasets not available, trying geopandas built-in: %s", exc)
 
         if world is None:
             try:
                 world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
-            except Exception as exc:
+            except (OSError, ValueError, AttributeError) as exc:
                 log.debug("geopandas built-in naturalearth_lowres not available: %s", exc)
 
         if world is not None and 'name' in world.columns:
@@ -1073,7 +1073,7 @@ def create_geo_country_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
                     plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
                     plt.close()
                     return tmp.name
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as exc:
         log.warning("Choropleth generation failed, falling back to bar chart: %s", exc)
 
     # Fallback: horizontal bar chart
@@ -1141,13 +1141,13 @@ def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
         try:
             import geodatasets
             world = gpd.read_file(geodatasets.get_path('naturalearth.land'))
-        except (ImportError, Exception) as exc:
+        except (ImportError, OSError, ValueError) as exc:
             log.debug("geodatasets not available, trying geopandas built-in: %s", exc)
 
         if world is None:
             try:
                 world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
-            except Exception as exc:
+            except (OSError, ValueError, AttributeError) as exc:
                 log.debug("geopandas built-in naturalearth_lowres not available: %s", exc)
 
         # For US states, try Census TIGER
@@ -1156,7 +1156,7 @@ def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
             us_states_path = Path.home() / '.siege_utilities' / 'geo_data' / 'cb_us_state_20m.shp'
             if us_states_path.exists():
                 us_states = gpd.read_file(us_states_path)
-        except Exception as exc:
+        except (OSError, ValueError) as exc:
             log.debug("Failed to load TIGER state shapefile: %s", exc)
 
         if us_states is not None and 'NAME' in us_states.columns:
@@ -1179,7 +1179,7 @@ def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
                     fig.savefig(tmp.name, dpi=300, bbox_inches='tight')
                     plt.close(fig)
                     return tmp.name
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as exc:
         log.warning("Bivariate choropleth generation failed, falling back to bar chart: %s", exc)
 
     # Fallback: horizontal bar chart
@@ -1246,12 +1246,12 @@ def create_geo_city_scatter(ga_data: Dict[str, Any], width: float = 5.5*inch,
                 try:
                     import geodatasets
                     world = gpd.read_file(geodatasets.get_path('naturalearth.land'))
-                except (ImportError, Exception) as exc:
+                except (ImportError, OSError, ValueError) as exc:
                     log.debug("geodatasets not available, trying geopandas built-in: %s", exc)
                 if world is None:
                     try:
                         world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
-                    except Exception as exc:
+                    except (OSError, ValueError, AttributeError) as exc:
                         log.debug("geopandas built-in naturalearth_lowres not available: %s", exc)
                 if world is not None:
                     world.plot(ax=ax, color='#E8E8E8', edgecolor='#CCCCCC', linewidth=0.3)
@@ -1283,7 +1283,7 @@ def create_geo_city_scatter(ga_data: Dict[str, Any], width: float = 5.5*inch,
                 plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
                 plt.close()
                 return tmp.name
-        except Exception as exc:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as exc:
             log.warning("City scatter plot generation failed, falling back to bar chart: %s", exc)
 
     # Fallback: horizontal bar chart
@@ -1668,7 +1668,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
                     secondary_color = branding.get('colors', {}).get('secondary', secondary_color)
                     client_name = branding.get('name', client_name)
                     prepared_by = branding.get('footer', {}).get('left_text', f"Prepared by: {prepared_by}").replace('Prepared by: ', '')
-            except Exception as e:
+            except (ImportError, ValueError, KeyError, AttributeError) as e:
                 log.debug(f"Could not load branding '{branding_key}': {e}")
 
         date_range = ga_data['date_range']
@@ -1770,7 +1770,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
                 except ImportError:
                     log.debug("cairosvg not installed; skipping SVG logo (install cairosvg for SVG support)")
                     _logo_path = None
-                except Exception as e:
+                except (OSError, ValueError, TypeError) as e:
                     log.debug(f"Could not convert SVG logo: {e}")
                     _logo_path = None
             if _logo_path:
@@ -2369,7 +2369,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         log.info(f"Google Analytics report generated: {output_path}")
         return True
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, KeyError, AttributeError) as e:
         log.error(f"Error generating GA report: {e}")
         import traceback
         traceback.print_exc()
@@ -2632,7 +2632,7 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
         log.info(f"Design kit exported: {kit}")
         return True
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, KeyError) as e:
         log.error(f"Error exporting design kit: {e}")
         import traceback
         traceback.print_exc()

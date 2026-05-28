@@ -227,7 +227,7 @@ def create_state_choropleth(state_data: pd.DataFrame, value_column: str = 'sessi
                 plt.close()
                 return tmp.name
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
         log.error(f"Error creating state choropleth: {e}")
         return None
 
@@ -284,7 +284,7 @@ def create_city_heatmap(ga_city_df: pd.DataFrame, value_column: str = 'sessions'
                 m.save(tmp.name)
                 return tmp.name
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
         log.error(f"Error creating city heatmap: {e}")
         return None
 
@@ -335,7 +335,7 @@ def create_traffic_demographics_comparison(ga_state_data: pd.DataFrame,
 
         return merged
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
         log.error(f"Error fetching Census demographics: {e}")
         return ga_state_data
 
@@ -431,7 +431,7 @@ def create_bivariate_traffic_income_map(merged_data: pd.DataFrame,
                 plt.close()
                 return tmp.name
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
         log.error(f"Error creating bivariate map: {e}")
         return None
 

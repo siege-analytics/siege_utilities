@@ -227,7 +227,7 @@ class PageTemplateManager:
                     template = PageTemplate(**template_data)
                     self.templates[template.name] = template
                     log.info(f"Loaded custom template: {template.name}")
-            except Exception as e:
+            except (OSError, yaml.YAMLError, ValueError, TypeError, KeyError) as e:
                 log.warning(f"Failed to load custom template {template_file}: {e}")
     
     def get_template(self, template_name: str) -> Optional[PageTemplate]:
@@ -276,7 +276,7 @@ class PageTemplateManager:
         try:
             with open(template_file, 'w') as f:
                 yaml.dump(template.__dict__, f, default_flow_style=False)
-        except Exception as e:
+        except (OSError, yaml.YAMLError) as e:
             log.error(f"Failed to save custom template: {e}")
     
     def modify_template(self, template_name: str, **kwargs):
@@ -336,7 +336,7 @@ class PageTemplateManager:
             with open(output_path, 'w') as f:
                 yaml.dump(template.__dict__, f, default_flow_style=False)
             log.info(f"Exported template to: {output_path}")
-        except Exception as e:
+        except (OSError, yaml.YAMLError) as e:
             log.error(f"Failed to export template: {e}")
     
     def import_template(self, input_path: str, template_name: Optional[str] = None):
@@ -357,7 +357,7 @@ class PageTemplateManager:
             template = PageTemplate(**template_data)
             self.create_custom_template(template)
             log.info(f"Imported template: {template.name}")
-        except Exception as e:
+        except (OSError, yaml.YAMLError, ValueError, TypeError, KeyError) as e:
             log.error(f"Failed to import template: {e}")
     
     def get_template_preview(self, template_name: str) -> Dict[str, Any]:

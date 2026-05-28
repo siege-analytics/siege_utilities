@@ -518,7 +518,7 @@ class ReportGenerator:
             log.info(f"PDF report generated successfully: {output_path}")
             return True
 
-        except Exception as e:
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as e:
             log.error(f"Error generating PDF report: {e}")
             # Best-effort cleanup of the partial file. The variable may
             # not be bound yet if we failed before assigning it.
@@ -587,7 +587,7 @@ class ReportGenerator:
                         try:
                             import matplotlib.pyplot as plt
                             plt.close(chart)
-                        except Exception as exc:
+                        except (ValueError, TypeError, AttributeError) as exc:
                             log.debug("Could not close matplotlib figure: %s", exc)
                         # The BytesIO is now referenced by the RLImage —
                         # ReportLab keeps a handle for the build pass and
@@ -624,7 +624,7 @@ class ReportGenerator:
 
                 log.warning(f"Unknown chart type: {type(chart)}")
 
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
                 log.error(f"Error processing chart: {e}")
 
         return result
