@@ -89,6 +89,7 @@ reporting = [
     "pypdf2>=3.0.1",
     "pillow>=10.0.0",
     "fonttools>=4.40.0",
+    "geopandas>=0.13.2",
 ]
 # Analytics connectors (GA, Facebook, Snowflake, data.world)
 analytics = [
