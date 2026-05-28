@@ -480,8 +480,8 @@ class PostGISConnector:
                 if self.connection:
                     try:
                         self.connection.rollback()
-                    except Exception:
-                        pass
+                    except Exception as rb_exc:
+                        log.warning("Failed to rollback PostGIS transaction: %s", rb_exc)
                 return None
 
         cursor = None
@@ -496,8 +496,8 @@ class PostGISConnector:
             if self.connection:
                 try:
                     self.connection.rollback()
-                except Exception:
-                    pass
+                except Exception as rb_exc:
+                    log.warning("Failed to rollback PostGIS transaction: %s", rb_exc)
             return None
         finally:
             if cursor is not None:
