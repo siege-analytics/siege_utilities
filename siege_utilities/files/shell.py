@@ -194,7 +194,7 @@ def run_subprocess(command_list: Union[str, List[str]],
     except (SecurityError, ValueError) as e:
         log_error(f"Security validation failed: {e}")
         raise
-    except Exception as e:
+    except (subprocess.SubprocessError, OSError) as e:
         log_error(f"Command execution failed: {e}")
         raise
 

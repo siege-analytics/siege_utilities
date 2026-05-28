@@ -55,7 +55,7 @@ def ensure_path_exists(desired_path: FilePath) -> Path:
         log.info(f"Ensured path exists: {path_obj}")
         return path_obj
 
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to create path {desired_path}: {e}")
         raise
 
@@ -147,7 +147,7 @@ def unzip_file_to_directory(zip_file_path: FilePath,
         return None
     except PathSecurityError:
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to extract {zip_file_path}: {e}")
         return None
 
@@ -184,7 +184,7 @@ def get_file_extension(file_path: FilePath) -> str:
         return path_obj.suffix
     except PathSecurityError:
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to get extension for {file_path}: {e}")
         raise
 
@@ -221,7 +221,7 @@ def get_file_name_without_extension(file_path: FilePath) -> str:
         return path_obj.stem
     except PathSecurityError:
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to get filename for {file_path}: {e}")
         raise
 
@@ -258,7 +258,7 @@ def is_hidden_file(file_path: FilePath) -> bool:
         return path_obj.name.startswith('.')
     except PathSecurityError:
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to check if hidden: {file_path}: {e}")
         raise
 
@@ -303,7 +303,7 @@ def get_relative_path(base_path: FilePath, target_path: FilePath) -> Optional[Pa
             return None
     except PathSecurityError:
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to get relative path: {e}")
         return None
 
@@ -357,7 +357,7 @@ def find_files_by_pattern(directory: FilePath,
         return sorted(files)
     except PathSecurityError:
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to find files in {directory}: {e}")
         return []
 
@@ -415,7 +415,7 @@ def create_backup_path(original_path: FilePath,
         return backup_path
     except PathSecurityError:
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to create backup path for {original_path}: {e}")
         raise
 
@@ -444,7 +444,7 @@ def normalize_path(path: FilePath) -> Path:
         path_obj = Path(path).expanduser().resolve()
         log.debug(f"Normalized {path} to {path_obj}")
         return path_obj
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to normalize path {path}: {e}")
         raise
 
