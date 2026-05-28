@@ -8,22 +8,24 @@ using LocMemCache (configured in tests/django_project/settings.py).
 import pytest
 import pandas as pd
 
-# Skip if Django/GDAL not available
+# Skip if Django not available or not configured
 try:
     import django
-    from django.core.cache import cache
+    from django.conf import settings as _django_settings
 
-    _DJANGO_AVAILABLE = True
+    _DJANGO_CONFIGURED = _django_settings.configured
+    if _DJANGO_CONFIGURED:
+        from django.core.cache import cache
 except Exception:
-    _DJANGO_AVAILABLE = False
+    _DJANGO_CONFIGURED = False
 
 
-@pytest.mark.skipif(not _DJANGO_AVAILABLE, reason="Django not available")
+@pytest.mark.skipif(not _DJANGO_CONFIGURED, reason="Django not available or not configured")
 class TestCensusAPIDjangoCacheRoundTrip:
     """Test CensusAPIClient with cache_backend='django'."""
 
     def setup_method(self):
-        if _DJANGO_AVAILABLE:
+        if _DJANGO_CONFIGURED:
             cache.clear()
 
     def test_client_accepts_django_backend(self):

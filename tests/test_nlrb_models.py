@@ -21,7 +21,7 @@ except Exception:
 _GEODJANGO_AVAILABLE = _DJANGO_AVAILABLE and _HAS_GDAL
 
 try:
-    import pandas as pd
+    import pandas as pd  # noqa: F401
 
     _PANDAS_AVAILABLE = True
 except ImportError:
