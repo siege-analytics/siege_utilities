@@ -97,7 +97,7 @@ def generate_sha256_hash_for_file(file_path) ->Optional[str]:
         with open(path_obj, 'rb') as f:
             _update_from_file(sha256_hash, f)
         return sha256_hash.hexdigest()
-    except OSError as e:
+    except (OSError, ValueError) as e:
         log_error(f'Error generating SHA256 hash for {file_path}: {e}')
         return None
 
@@ -208,7 +208,7 @@ def get_quick_file_signature(file_path) ->str:
         return hash_obj.hexdigest()
     except PathSecurityError:
         raise
-    except OSError as e:
+    except (OSError, ValueError) as e:
         log_error(f'Error generating quick signature for {file_path}: {e}')
         try:
             stat = pathlib.Path(file_path).stat()
