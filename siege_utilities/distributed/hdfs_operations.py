@@ -11,51 +11,27 @@ from typing import Optional, Tuple, Dict, List
 log = logging.getLogger(__name__)
 
 
-def _default_hash_function(file_path: str) -> str:
-    """Default hash function using built-in hashlib.
-
-    Parameters
-    ----------
-    file_path : str
-        Path to the file to hash.
-
-    Returns
-    -------
-    str
-        SHA-256 hex digest of the file contents.
-
-    Raises
-    ------
-    OSError
-        If the file cannot be opened or read.
-    """
-    sha256_hash = hashlib.sha256()
-    with open(file_path, 'rb') as f:
-        for chunk in iter(lambda: f.read(65536), b''):
-            sha256_hash.update(chunk)
-    return sha256_hash.hexdigest()
+def _default_hash_function(file_path: str) ->str:
+    """Default hash function using built-in hashlib"""
+    try:
+        sha256_hash = hashlib.sha256()
+        with open(file_path, 'rb') as f:
+            for chunk in iter(lambda : f.read(65536), b''):
+                sha256_hash.update(chunk)
+        return sha256_hash.hexdigest()
+    except OSError as exc:
+        log.warning("Could not hash file %s, returning error signature: %s", file_path, exc)
+        return f'error_{int(time.time())}'
 
 
-def _default_quick_signature(file_path: str) -> str:
-    """Default quick signature using file stats.
-
-    Parameters
-    ----------
-    file_path : str
-        Path to the file to stat.
-
-    Returns
-    -------
-    str
-        String of ``{size}_{mtime}`` for the file.
-
-    Raises
-    ------
-    OSError
-        If the file cannot be stat'd.
-    """
-    stat = pathlib.Path(file_path).stat()
-    return f'{stat.st_size}_{stat.st_mtime}'
+def _default_quick_signature(file_path: str) ->str:
+    """Default quick signature using file stats"""
+    try:
+        stat = pathlib.Path(file_path).stat()
+        return f'{stat.st_size}_{stat.st_mtime}'
+    except OSError as exc:
+        log.warning("Could not stat file %s for quick signature: %s", file_path, exc)
+        return 'error'
 
 
 def _ensure_directory_exists(path: str):
@@ -100,7 +76,7 @@ class AbstractHDFSOperations:
             self.config.log_error(
                 'HDFS command not found - check Hadoop installation')
             return False
-        except Exception as e:
+        except (subprocess.SubprocessError, OSError) as e:
             self.config.log_error(f'HDFS check failed: {e}')
             return False
 
@@ -179,7 +155,7 @@ class AbstractHDFSOperations:
                         f'Broadcast threshold: {self.config.sedona_join_broadcast_threshold // (1024*1024)}MB')
                 except ImportError:
                     self.config.log_info('⚠️  Sedona not available')
-                except Exception as e:
+                except RuntimeError as e:
                     self.config.log_info(f'⚠️  Sedona registration failed: {e}'
                         )
 
@@ -189,7 +165,7 @@ class AbstractHDFSOperations:
             self.config.log_error(
                 'PySpark not available - install with: pip install pyspark')
             return None
-        except Exception as e:
+        except (RuntimeError, OSError) as e:
             self.config.log_error(f'Failed to create Spark session: {e}')
             return None
 
@@ -232,7 +208,7 @@ class AbstractHDFSOperations:
             else:
                 self.config.log_error('❌ Sync verification failed')
                 return None, None
-        except Exception as e:
+        except (subprocess.SubprocessError, OSError) as e:
             self.config.log_error(f'Error syncing to HDFS: {e}')
             return None, None
 
@@ -271,7 +247,7 @@ class AbstractHDFSOperations:
             else:
                 self.config.log_error('Failed to create Spark session')
                 return None, None, None
-        except Exception as e:
+        except (subprocess.SubprocessError, OSError, RuntimeError) as e:
             self.config.log_error(f'Error setting up environment: {e}')
             return None, None, None
 
