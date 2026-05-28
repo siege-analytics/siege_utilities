@@ -206,5 +206,9 @@ def _get_default_geocoder():
     try:
         from siege_utilities.geo.providers.census_batch import CensusBatchGeocoder
         return CensusBatchGeocoder()
-    except Exception:
+    except ImportError:
+        log.debug("CensusBatchGeocoder not available (missing dependency)")
+        return None
+    except Exception as exc:
+        log.warning("Failed to initialise CensusBatchGeocoder: %s", exc)
         return None

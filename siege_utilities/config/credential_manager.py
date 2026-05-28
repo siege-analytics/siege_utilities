@@ -429,9 +429,10 @@ class CredentialManager:
                 return result.stdout.strip()
             return None
             
-        except Exception:
+        except Exception as exc:
+            log_warning(f"Keychain lookup failed for {service}/{username}: {exc}")
             return None
-    
+
     def _get_from_prompt(self, service: str, username: str, field: str) -> Optional[str]:
         """Get credential via interactive prompt."""
         # Only prompt in interactive shells
