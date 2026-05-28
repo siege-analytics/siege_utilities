@@ -298,7 +298,7 @@ class AnalyticsReportGenerator:
             
         except Exception as e:
             log.error(f"Error generating GA executive summary: {e}")
-            return "Executive summary could not be generated due to data processing errors."
+            raise
 
     def _extract_ga_metrics(self, ga_data: Dict[str, Any]) -> Dict[str, Any]:
         """Extract key metrics from Google Analytics data."""
