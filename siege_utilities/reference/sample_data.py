@@ -297,7 +297,7 @@ def get_census_boundaries(year: int = 2020,
 
         return boundaries
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, AttributeError, KeyError) as e:
         log_error(f"Error downloading boundaries: {e}")
         return None
 
@@ -376,7 +376,7 @@ def join_boundaries_and_data(boundaries: gpd.GeoDataFrame,
         log_info(f"Successfully joined data: {len(result)} records")
         return result
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError) as e:
         log_error(f"Error joining boundaries and data: {e}")
         return None
 

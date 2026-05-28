@@ -41,7 +41,7 @@ def analyze_function_signature(func):
                 sig.return_annotation))
         return_desc = f'{return_type}: Description needed'
         return params, return_desc
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         log_warning(f'Could not analyze signature: {e}')
         return [], 'Any: Description needed'
 
@@ -180,7 +180,7 @@ def process_python_file(file_path):
                     f'astor not available, install with: pip install astor'
                     )
                 return False
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 log_error(f'Error converting AST back to source: {e}')
                 return False
             with open(file_path, 'w', encoding='utf-8') as f:
@@ -192,7 +192,7 @@ def process_python_file(file_path):
         else:
             log_info(f'No changes needed')
         return True
-    except Exception as e:
+    except (OSError, UnicodeDecodeError, ValueError, TypeError, AttributeError) as e:
         log_error(f'Error processing {file_path}: {e}')
         return False
 
