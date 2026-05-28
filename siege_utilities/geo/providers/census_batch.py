@@ -111,7 +111,7 @@ class CensusBatchGeocoder(BatchGeocoder):
                 _census_result_to_geocoding_result(cr)
                 for cr in census_results
             ]
-        except Exception as exc:
+        except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError) as exc:
             result.errors.append(f"Census batch geocode error: {exc}")
             log.error("Census batch geocode failed: %s", exc)
 

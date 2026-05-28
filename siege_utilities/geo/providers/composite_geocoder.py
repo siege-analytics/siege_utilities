@@ -100,7 +100,7 @@ class CompositeBatchGeocoder(BatchGeocoder):
 
             try:
                 batch_result = backend.geocode(pending_addrs)
-            except Exception as exc:
+            except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError) as exc:
                 log.warning(
                     "Backend %s failed: %s", backend.backend_name, exc
                 )

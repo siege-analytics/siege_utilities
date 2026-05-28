@@ -135,7 +135,7 @@ class OverlayRegistry:
                 instance = self._classes[name]()
                 self._overlays[name] = instance
                 return instance
-            except Exception as exc:
+            except (RuntimeError, ValueError, TypeError, AttributeError, OSError) as exc:
                 log.error("Failed to instantiate overlay %s: %s", name, exc)
                 return None
 

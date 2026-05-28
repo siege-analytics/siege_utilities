@@ -151,7 +151,7 @@ def codify_area(
 
     try:
         geocode_result = geocoder.geocode(addresses, **kwargs)
-    except Exception as exc:
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError) as exc:
         result.errors.append(f"Geocoding failed: {exc}")
         log.error("Codification geocoding failed: %s", exc)
         return result
@@ -209,6 +209,6 @@ def _get_default_geocoder():
     except ImportError:
         log.debug("CensusBatchGeocoder not available (missing dependency)")
         return None
-    except Exception as exc:
+    except (RuntimeError, ValueError, TypeError, AttributeError, OSError) as exc:
         log.warning("Failed to initialise CensusBatchGeocoder: %s", exc)
         return None

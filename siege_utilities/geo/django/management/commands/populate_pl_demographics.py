@@ -94,7 +94,7 @@ class Command(BaseCommand):
                 geography=geography,
                 tables=tables,
             )
-        except Exception as e:
+        except (OSError, ValueError, TypeError, RuntimeError) as e:
             raise CommandError(f"Failed to download PL data: {e}") from e
 
         if df.empty:

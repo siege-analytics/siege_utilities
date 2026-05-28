@@ -99,7 +99,7 @@ class CensusAPI:
             profile_key = user_config.get_api_key('census')
             if profile_key:
                 return profile_key
-        except Exception as e:
+        except (ImportError, OSError, ValueError, KeyError, AttributeError) as e:
             log.debug(f"Could not get API key from user profile: {e}")
 
         env_key = os.environ.get('CENSUS_API_KEY')
@@ -191,6 +191,9 @@ class CensusAPI:
     # ------------------------------------------------------------------
 
     def _make_request_with_retry(self, url: str) -> pd.DataFrame:
+        from siege_utilities.geo.census_api_client import (
+            CensusRateLimitError, CensusAPIError,
+        )
         last_exception = None
 
         for attempt in range(CENSUS_RETRY_ATTEMPTS):
@@ -199,7 +202,6 @@ class CensusAPI:
                 response = requests.get(url, timeout=self.timeout)
 
                 if response.status_code == 429:
-                    from siege_utilities.geo.census_api_client import CensusRateLimitError
                     raise CensusRateLimitError("Census API rate limit exceeded")
 
                 response.raise_for_status()
@@ -207,16 +209,12 @@ class CensusAPI:
                 data = response.json()
 
                 if not data or len(data) < 2:
-                    from siege_utilities.geo.census_api_client import CensusAPIError
                     raise CensusAPIError("Census API returned empty response (< 2 rows)")
 
                 df = pd.DataFrame(data[1:], columns=data[0])
                 return df
 
-            except Exception as e:
-                from siege_utilities.geo.census_api_client import (
-                    CensusRateLimitError, CensusAPIError,
-                )
+            except (CensusAPIError, requests.exceptions.RequestException, ValueError) as e:
                 if isinstance(e, CensusRateLimitError):
                     log.warning(f"Rate limit hit, waiting {CENSUS_API_RATE_LIMIT_RETRY_DELAY}s...")
                     time.sleep(CENSUS_API_RATE_LIMIT_RETRY_DELAY)
@@ -237,8 +235,7 @@ class CensusAPI:
 
         if last_exception:
             raise last_exception
-        from siege_utilities.geo.census_api_client import CensusAPIError as _CAE
-        raise _CAE("Census API request failed after all retries")
+        raise CensusAPIError("Census API request failed after all retries")
 
     # ------------------------------------------------------------------
     # Response processing
@@ -301,7 +298,7 @@ class CensusAPI:
                 continue
             try:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
-            except Exception as exc:
+            except (ValueError, TypeError) as exc:
                 log.warning("Could not convert column %s to numeric: %s", col, exc)
         return df
 
@@ -352,7 +349,7 @@ class CensusAPI:
 
         try:
             return pd.read_parquet(cache_file)
-        except Exception as e:
+        except (OSError, ValueError, TypeError) as e:
             log.warning(f"Failed to read cache file: {e}")
             return None
 
@@ -361,7 +358,7 @@ class CensusAPI:
         try:
             df.to_parquet(cache_file, index=False)
             log.debug(f"Cached data to {cache_file}")
-        except Exception as e:
+        except (OSError, ValueError, TypeError) as e:
             log.warning(f"Failed to cache data: {e}")
 
     def _django_cache_get(self, cache_key: str) -> Optional[pd.DataFrame]:
@@ -372,7 +369,7 @@ class CensusAPI:
                 log.debug(f"Django cache hit for {cache_key}")
                 return pd.DataFrame(data)
             return None
-        except Exception as e:
+        except (ImportError, AttributeError, ValueError, TypeError, OSError) as e:
             log.warning(f"Django cache get failed: {e}")
             return None
 
@@ -385,7 +382,7 @@ class CensusAPI:
                 timeout=self.cache_ttl,
             )
             log.debug(f"Django cache set for {cache_key}")
-        except Exception as e:
+        except (ImportError, AttributeError, ValueError, TypeError, OSError) as e:
             log.warning(f"Django cache set failed: {e}")
 
     def clear_cache(self) -> None:
@@ -396,7 +393,7 @@ class CensusAPI:
             for cache_file in self.cache_dir.glob('*.parquet'):
                 cache_file.unlink()
             log.info("Cleared Census API cache")
-        except Exception as e:
+        except OSError as e:
             log.warning(f"Failed to clear cache: {e}")
 
     # ------------------------------------------------------------------

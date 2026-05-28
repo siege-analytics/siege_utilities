@@ -217,7 +217,7 @@ class NominatimGazetteer:
             raise GazetteerBackendError(
                 f"Nominatim request for {name!r} failed: {exc}"
             ) from exc
-        except Exception as exc:  # pragma: no cover - defensive
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError) as exc:  # pragma: no cover - defensive
             raise GazetteerBackendError(
                 f"Nominatim request for {name!r} raised {type(exc).__name__}: {exc}"
             ) from exc
@@ -264,7 +264,7 @@ class NominatimGazetteer:
         geometry = _geometry_from_row(row)
         try:
             centroid = geometry.centroid
-        except Exception as exc:  # pragma: no cover - shapely failure
+        except (ValueError, TypeError, AttributeError) as exc:  # pragma: no cover - shapely failure
             raise GazetteerBackendError(
                 f"Nominatim: cannot compute centroid for {row.get('display_name')!r}: {exc}"
             ) from exc

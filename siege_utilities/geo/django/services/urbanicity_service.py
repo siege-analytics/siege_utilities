@@ -189,7 +189,7 @@ class UrbanicityClassificationService:
                 to_update.append(tract)
                 result.classified += 1
 
-            except Exception as exc:
+            except (ValueError, TypeError, KeyError, AttributeError) as exc:
                 result.errors.append(f"Tract {tract.geoid}: {exc}")
 
             # Flush batch

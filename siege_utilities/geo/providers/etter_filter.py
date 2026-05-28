@@ -276,7 +276,7 @@ class EtterParser:
             raise EtterParseError("Empty query string")
         try:
             geo_query = self._parser.parse(query)
-        except Exception as exc:
+        except (ValueError, TypeError, KeyError, AttributeError) as exc:
             # If the upstream raised its own low-confidence error
             # (matching by class name to avoid a hard import dependency
             # on a moving target), surface it as our typed exception.

@@ -271,7 +271,7 @@ def geocode_single(
         log_debug(f"Matched: {input_addr} -> {parsed.matched_address}")
         return parsed
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError) as e:
         raise CensusGeocodeError(
             f"Census geocode failed for {input_addr}: {e}"
         ) from e
@@ -326,7 +326,7 @@ def geocode_batch(
 
     try:
         result = cg.addressbatch(csv_path, returntype="geographies")
-    except Exception as e:
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError) as e:
         raise CensusGeocodeError(
             f"Census batch geocode failed for {len(addresses)} addresses: {e}"
         ) from e

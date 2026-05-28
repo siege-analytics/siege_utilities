@@ -92,7 +92,7 @@ class NCESPopulationService:
         try:
             downloader = self._get_downloader()
             gdf = downloader.download_locale_boundaries(year)
-        except Exception as e:
+        except (OSError, ValueError, ImportError, RuntimeError) as e:
             log.error(f"Failed to download locale boundaries: {e}")
             result.errors.append(str(e))
             return result
@@ -155,7 +155,7 @@ class NCESPopulationService:
                         result.records_created += len(objects_to_create)
                         objects_to_create = []
 
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 log.error(f"Error processing locale boundary {idx}: {e}")
                 result.errors.append(f"Locale {idx}: {e}")
 
@@ -212,13 +212,13 @@ class NCESPopulationService:
                     state_abbr = state_obj.abbreviation
                 else:
                     state_abbr = state_fips  # Might already be abbreviation
-            except Exception:
+            except (ValueError, TypeError, AttributeError):
                 state_abbr = state_fips
 
         try:
             downloader = self._get_downloader()
             gdf = downloader.download_school_locations(year, state_abbr=state_abbr)
-        except Exception as e:
+        except (OSError, ValueError, ImportError, RuntimeError) as e:
             log.error(f"Failed to download school locations: {e}")
             result.errors.append(str(e))
             return result
@@ -311,7 +311,7 @@ class NCESPopulationService:
                         result.records_created += len(objects_to_create)
                         objects_to_create = []
 
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 log.error(f"Error processing school {idx}: {e}")
                 result.errors.append(f"School {idx}: {e}")
 
@@ -365,7 +365,7 @@ class NCESPopulationService:
         try:
             downloader = self._get_downloader()
             df = downloader.download_district_data(year)
-        except Exception as e:
+        except (OSError, ValueError, ImportError, RuntimeError) as e:
             log.error(f"Failed to download district data: {e}")
             result.errors.append(str(e))
             return result

@@ -423,7 +423,7 @@ class RDHLoaderService:
             profile_df = demographic_profile(
                 plan_gdf, census_gdf, district_id_col=district_id_col,
             )
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             result.errors.append(f"Spatial join failed: {e}")
             return result
 

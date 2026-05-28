@@ -303,7 +303,7 @@ class CrosswalkClient:
             try:
                 cache_file.unlink()
                 deleted += 1
-            except Exception as e:
+            except OSError as e:
                 log.warning(f"Failed to delete {cache_file}: {e}")
 
         log.info(f"Cleared {deleted} cached crosswalk files")
@@ -430,7 +430,7 @@ class CrosswalkClient:
         try:
             df.to_parquet(cache_file, index=False)
             log.debug(f"Cached crosswalk to: {cache_file}")
-        except Exception as e:
+        except (OSError, ValueError, TypeError) as e:
             log.warning(f"Failed to cache crosswalk: {e}")
 
 

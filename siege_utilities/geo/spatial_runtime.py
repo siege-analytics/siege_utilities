@@ -75,7 +75,7 @@ def _detect_sedona_available() -> bool:
         return True
     except ImportError:
         return False
-    except Exception as exc:
+    except (RuntimeError, OSError) as exc:
         log.warning("Unexpected error detecting Sedona availability: %s", exc)
         return False
 

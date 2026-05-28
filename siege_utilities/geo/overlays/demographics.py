@@ -194,6 +194,6 @@ class DemographicsOverlay(PlaceHistoryOverlay):
         except ImportError:
             log.debug("Django demographics provider not available (Django not installed or not configured)")
             return None
-        except Exception as exc:
+        except (RuntimeError, ValueError, TypeError, AttributeError, OSError) as exc:
             log.warning("Failed to initialise Django demographics provider: %s", exc)
             return None
