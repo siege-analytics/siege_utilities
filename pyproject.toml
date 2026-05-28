@@ -59,6 +59,8 @@ geo = [
     # Required by PostGISConnector.upload_spatial_data for full-column
     # writes via gpd.GeoDataFrame.to_postgis (closes #516).
     "geoalchemy2>=0.14.0",
+    # Required by geo/spatial_data.py (BeautifulSoup HTML/XML parsing).
+    "beautifulsoup4>=4.12.0",
 ]
 # H3 hexagonal spatial index (lightweight spatial joins)
 h3 = [
