@@ -230,7 +230,7 @@ class RDHClient:
         list of RDHDataset
         """
         if not self.validate_credentials():
-            return []
+            raise ValueError("RDH credentials are invalid or missing")
 
         if format is not None:
             format = format.value if isinstance(format, RDHDataFormat) else format
@@ -272,8 +272,7 @@ class RDHClient:
             resp = self._session.get(self.base_url, params=params, timeout=60)
             resp.raise_for_status()
         except requests.RequestException as e:
-            log_error(f"RDH API request failed: {e}")
-            return []
+            raise ConnectionError(f"RDH API request failed: {e}") from e
 
         raw_data = resp.json()
         if not isinstance(raw_data, list):
