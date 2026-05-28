@@ -189,7 +189,7 @@ class TimezonePopulationService:
         Attempt to resolve UTC offset from the standard library zoneinfo.
 
         Returns (utc_offset_std, utc_offset_dst, observes_dst) tuple.
-        Falls back to (None, None, True) if resolution fails.
+        Falls back to (None, None, None) if resolution fails.
         """
         try:
             from datetime import datetime
@@ -206,5 +206,6 @@ class TimezonePopulationService:
             observes_dst = abs(std_offset - dst_offset) > 0.1
 
             return std_offset, dst_offset, observes_dst
-        except Exception:
-            return None, None, True
+        except Exception as exc:
+            log.warning("Could not resolve UTC offset for timezone %s: %s", tz_id, exc)
+            return None, None, None
