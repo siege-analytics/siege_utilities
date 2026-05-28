@@ -397,5 +397,9 @@ def _get_default_provider() -> Optional[CrosswalkProvider]:
     try:
         from siege_utilities.geo.django.providers import DjangoCrosswalkProvider
         return DjangoCrosswalkProvider()
-    except Exception:
+    except ImportError:
+        log.debug("Django crosswalk provider not available (Django not installed or not configured)")
+        return None
+    except Exception as exc:
+        log.warning("Failed to initialise Django crosswalk provider: %s", exc)
         return None
