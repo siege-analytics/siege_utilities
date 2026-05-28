@@ -281,7 +281,7 @@ jobs:
 
     - name: Test core modules
       run: |
-        uv run pytest tests/test_backward_compat.py tests/test_pydantic_v1_compat.py tests/test_sql_safety.py -v --no-cov
+        uv run pytest tests/test_backward_compat.py tests/test_pydantic_v1_compat.py tests/test_sql_safety.py -v --no-cov -p no:django
 
   api-contract-regression:
     runs-on: ubuntu-latest

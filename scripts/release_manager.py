@@ -228,7 +228,8 @@ def infer_release_impact(baseline: str, candidate: str) -> str:
         ValueError: If either version is not in X.Y.Z format.
     """
     def _parse(v: str) -> tuple[int, int, int]:
-        parts = v.split('.')
+        clean = re.sub(r'[-+].+$', '', v)
+        parts = clean.split('.')
         if len(parts) != 3:
             raise ValueError(f"Version must be X.Y.Z format, got: {v}")
         return int(parts[0]), int(parts[1]), int(parts[2])

@@ -7,7 +7,7 @@ exercised WITHOUT network, GDAL, or geopandas.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -175,7 +175,7 @@ class TestWklsFetchGeometryErrors:
                 gz._fetch_geometry("some-id")
 
     def test_resolve_failure_raises_backend_error(self, monkeypatch):
-        shapely_wkt = pytest.importorskip("shapely.wkt")
+        pytest.importorskip("shapely.wkt")
 
         fake_wkls = MagicMock()
         fake_wkls.resolve.side_effect = RuntimeError("network down")
