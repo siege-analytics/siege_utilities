@@ -5,9 +5,20 @@ Comprehensive git commands and workflow automation.
 
 from typing import Dict, Optional
 import re
+import subprocess
 
 from siege_utilities.core.logging import log_info, log_warning, log_error
 from siege_utilities.exceptions import GitError
+from siege_utilities.git.validation import (
+    GitSecurityError,
+    has_dangerous_characters,
+    validate_branch_name,
+    validate_commit_hash,
+    validate_commit_message,
+    validate_remote_name,
+    validate_repo_path,
+    validate_tag_name,
+)
 from ._utils import run_git_command
 
 def create_feature_branch(
@@ -74,12 +85,8 @@ def switch_branch(branch_name: str, repo_path: str = ".") -> Dict[str, str]:
         GitSecurityError: If branch name fails validation
     """
     # Validate inputs
-    try:
-        from siege_utilities.git.validation import validate_branch_name, validate_repo_path
-        branch_name = validate_branch_name(branch_name)
-        repo_path = str(validate_repo_path(repo_path))
-    except ImportError:
-        pass
+    branch_name = validate_branch_name(branch_name)
+    repo_path = str(validate_repo_path(repo_path))
 
     # Check if branch exists
     branches = run_git_command("branch", "--list", repo_path=repo_path)
@@ -129,13 +136,9 @@ def merge_branch(
         GitSecurityError: If branch names fail validation
     """
     # Validate inputs
-    try:
-        from siege_utilities.git.validation import validate_branch_name, validate_repo_path
-        source_branch = validate_branch_name(source_branch)
-        target_branch = validate_branch_name(target_branch)
-        repo_path = str(validate_repo_path(repo_path))
-    except ImportError:
-        pass
+    source_branch = validate_branch_name(source_branch)
+    target_branch = validate_branch_name(target_branch)
+    repo_path = str(validate_repo_path(repo_path))
 
     # Switch to target branch
     current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
@@ -197,13 +200,9 @@ def rebase_branch(
         GitSecurityError: If branch names fail validation
     """
     # Validate inputs
-    try:
-        from siege_utilities.git.validation import validate_branch_name, validate_repo_path
-        source_branch = validate_branch_name(source_branch)
-        base_branch = validate_branch_name(base_branch)
-        repo_path = str(validate_repo_path(repo_path))
-    except ImportError:
-        pass
+    source_branch = validate_branch_name(source_branch)
+    base_branch = validate_branch_name(base_branch)
+    repo_path = str(validate_repo_path(repo_path))
 
     # Switch to source branch
     current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
@@ -257,13 +256,9 @@ def stash_changes(
         GitSecurityError: If message fails validation
     """
     # Validate inputs
-    try:
-        from siege_utilities.git.validation import validate_commit_message, validate_repo_path
-        if message:
-            message = validate_commit_message(message)
-        repo_path = str(validate_repo_path(repo_path))
-    except ImportError:
-        pass
+    if message:
+        message = validate_commit_message(message)
+    repo_path = str(validate_repo_path(repo_path))
 
     stash_args = ["stash"]
     if message:
@@ -316,17 +311,11 @@ def apply_stash(
         GitSecurityError: If stash ref fails validation
     """
     # Validate inputs
-    try:
-        from siege_utilities.git.validation import has_dangerous_characters, validate_repo_path, GitSecurityError
-        # Validate stash ref format
-        import re
-        if not re.match(r'^stash@\{\d+\}$', stash_ref):
-            raise GitSecurityError(f"Invalid stash ref format: {stash_ref}")
-        if has_dangerous_characters(stash_ref):
-            raise GitSecurityError(f"Dangerous characters in stash ref: {stash_ref}")
-        repo_path = str(validate_repo_path(repo_path))
-    except ImportError:
-        pass
+    if not re.match(r'^stash@\{\d+\}$', stash_ref):
+        raise GitSecurityError(f"Invalid stash ref format: {stash_ref}")
+    if has_dangerous_characters(stash_ref):
+        raise GitSecurityError(f"Dangerous characters in stash ref: {stash_ref}")
+    repo_path = str(validate_repo_path(repo_path))
 
     stash_args = ["stash", "pop" if pop else "apply", stash_ref]
 
@@ -429,12 +418,8 @@ def reset_to_commit(
         GitSecurityError: If commit hash fails validation
     """
     # Validate inputs
-    try:
-        from siege_utilities.git.validation import validate_commit_hash, validate_repo_path
-        commit_hash = validate_commit_hash(commit_hash)
-        repo_path = str(validate_repo_path(repo_path))
-    except ImportError:
-        pass
+    commit_hash = validate_commit_hash(commit_hash)
+    repo_path = str(validate_repo_path(repo_path))
 
     valid_reset_types = ["soft", "mixed", "hard"]
     if reset_type not in valid_reset_types:
@@ -479,13 +464,9 @@ def cherry_pick_commit(
         GitSecurityError: If commit hash fails validation
     """
     # Validate inputs
-    try:
-        from siege_utilities.git.validation import validate_commit_hash, validate_repo_path
-        if not continue_on_conflict:  # Only validate if we're using the hash
-            commit_hash = validate_commit_hash(commit_hash)
-        repo_path = str(validate_repo_path(repo_path))
-    except ImportError:
-        pass
+    if not continue_on_conflict:  # Only validate if we're using the hash
+        commit_hash = validate_commit_hash(commit_hash)
+    repo_path = str(validate_repo_path(repo_path))
 
     cherry_pick_args = ["cherry-pick"]
     if continue_on_conflict:
@@ -547,33 +528,13 @@ def create_tag(
         - Validates commit hash format
         - Validates commit message content
     """
-    # Import validation functions
-    try:
-        from siege_utilities.git.validation import (
-            validate_tag_name,
-            validate_commit_message,
-            validate_commit_hash,
-            validate_repo_path,
-            GitSecurityError
-        )
-    except ImportError:
-        # Fallback: minimal validation
-        if not tag_name or not tag_name.strip():
-            raise ValueError("Tag name cannot be empty")
-        if any(c in tag_name for c in [';', '&', '|', '$', '`', '(', ')']):
-            raise ValueError(f"Tag name contains dangerous characters: {tag_name}")
-    else:
-        # Validate inputs
-        try:
-            tag_name = validate_tag_name(tag_name)
-            if message:
-                message = validate_commit_message(message)
-            if commit_hash:
-                commit_hash = validate_commit_hash(commit_hash)
-            repo_path_obj = validate_repo_path(repo_path)
-            repo_path = str(repo_path_obj)
-        except (GitSecurityError, ValueError) as e:
-            return {"status": "failed", "error": f"Validation failed: {e}"}
+    # Validate inputs
+    tag_name = validate_tag_name(tag_name)
+    if message:
+        message = validate_commit_message(message)
+    if commit_hash:
+        commit_hash = validate_commit_hash(commit_hash)
+    repo_path = str(validate_repo_path(repo_path))
 
     tag_args = ["tag"]
     if message:
@@ -630,14 +591,10 @@ def push_branch(
         GitSecurityError: If branch or remote name fails validation
     """
     # Validate inputs
-    try:
-        from siege_utilities.git.validation import validate_branch_name, validate_remote_name, validate_repo_path
-        if branch_name:
-            branch_name = validate_branch_name(branch_name)
-        remote = validate_remote_name(remote)
-        repo_path = str(validate_repo_path(repo_path))
-    except ImportError:
-        pass
+    if branch_name:
+        branch_name = validate_branch_name(branch_name)
+    remote = validate_remote_name(remote)
+    repo_path = str(validate_repo_path(repo_path))
 
     push_args = ["push"]
     if force:
@@ -689,14 +646,10 @@ def pull_branch(
         GitSecurityError: If branch or remote name fails validation
     """
     # Validate inputs
-    try:
-        from siege_utilities.git.validation import validate_branch_name, validate_remote_name, validate_repo_path
-        if branch_name:
-            branch_name = validate_branch_name(branch_name)
-        remote = validate_remote_name(remote)
-        repo_path = str(validate_repo_path(repo_path))
-    except ImportError:
-        pass
+    if branch_name:
+        branch_name = validate_branch_name(branch_name)
+    remote = validate_remote_name(remote)
+    repo_path = str(validate_repo_path(repo_path))
 
     pull_args = ["pull"]
     if rebase:
