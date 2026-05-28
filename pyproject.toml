@@ -182,6 +182,7 @@ notebooks = [
 # Databricks SDK integration
 databricks = [
     "databricks-sdk>=0.20.0",
+    "pyspark>=3.3.0",
 ]
 # Development and testing
 dev = [
