@@ -191,5 +191,9 @@ class DemographicsOverlay(PlaceHistoryOverlay):
         try:
             from siege_utilities.geo.django.providers import DjangoDemographicsProvider
             return DjangoDemographicsProvider()
-        except Exception:
+        except ImportError:
+            log.debug("Django demographics provider not available (Django not installed or not configured)")
+            return None
+        except Exception as exc:
+            log.warning("Failed to initialise Django demographics provider: %s", exc)
             return None
