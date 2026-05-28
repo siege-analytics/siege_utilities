@@ -384,3 +384,21 @@ class TestPlaceholderScaling:
         cg = ChartGenerator(max_chart_width=6.0, max_chart_height=8.5)
         img = cg._create_placeholder_chart(5.0, 3.0, "Small Placeholder")
         assert abs(img.drawWidth - 5.0 * inch) < 2.0
+
+
+class TestChartGeneratorErrorPaths:
+    """Error-path tests for ChartGenerator (SU-4b)."""
+
+    def test_empty_dataframe_bar_returns_none_or_placeholder(self):
+        import pandas as pd
+        cg = ChartGenerator()
+        result = cg.create_bar_chart(pd.DataFrame())
+        assert result is not None
+
+    def test_missing_column_bar_returns_none_or_placeholder(self):
+        import pandas as pd
+        cg = ChartGenerator()
+        result = cg.create_bar_chart(
+            pd.DataFrame({"a": [1]}), x_column="nonexistent_zz"
+        )
+        assert result is not None
