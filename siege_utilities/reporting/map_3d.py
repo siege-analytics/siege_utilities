@@ -254,6 +254,10 @@ class ThreeDMapRenderer:
         if not GEOPANDAS_AVAILABLE:
             raise ImportError("geopandas is required for create_choropleth_3d")
 
+        if gdf.crs is not None and not gdf.crs.equals("EPSG:4326"):
+            log.info("Reprojecting GeoDataFrame from %s to EPSG:4326 for pydeck", gdf.crs)
+            gdf = gdf.to_crs("EPSG:4326")
+
         # Convert GeoDataFrame to GeoJSON for pydeck
         geojson = json.loads(gdf.to_json())
 
