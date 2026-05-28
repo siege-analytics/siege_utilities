@@ -134,10 +134,21 @@ class RDHLoaderService:
             district_number = str(row[district_col]) if district_col else str(_ + 1)
 
             geom = row.geometry
-            # Ensure MultiPolygon
+            if geom is None or geom.is_empty:
+                logger.warning(
+                    "Skipping row %s: null or empty geometry", geoid or _
+                )
+                continue
+
             from django.contrib.gis.geos import GEOSGeometry
 
             geos_geom = GEOSGeometry(geom.wkt, srid=4326)
+            if geos_geom.geom_type not in ("Polygon", "MultiPolygon"):
+                logger.warning(
+                    "Skipping row %s: expected Polygon/MultiPolygon, got %s",
+                    geoid or _, geos_geom.geom_type,
+                )
+                continue
             if geos_geom.geom_type == "Polygon":
                 from django.contrib.gis.geos import MultiPolygon
 
