@@ -39,3 +39,10 @@ __all__ = [
     "GoogleAccountType",
     "GoogleAccountStatus",
 ]
+
+# Pydantic v2: rebuild models that reference other models from sibling modules
+# so that validators resolve to the correct class identity regardless of import order.
+ClientProfile.model_rebuild()
+UserProfile.model_rebuild()
+DatabaseConnection.model_rebuild()
+DataSource.model_rebuild()

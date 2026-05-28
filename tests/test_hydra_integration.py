@@ -14,8 +14,8 @@ import yaml
 
 from siege_utilities.config.hydra_manager import HydraConfigManager
 from siege_utilities.config.models import (
-    UserProfile, ClientProfile, BrandingConfig, ReportPreferences,
-    DatabaseConnection, SocialMediaAccount, ContactInfo
+    UserProfile, ClientProfile, BrandingConfig,
+    DatabaseConnection, SocialMediaAccount,
 )
 from siege_utilities.config.migration import ConfigurationMigrator
 
@@ -256,30 +256,26 @@ class TestPydanticModels:
     
     def test_client_profile_validation(self):
         """Test ClientProfile validation."""
-        from siege_utilities.config.models import ContactInfo
-        
-        contact = ContactInfo(email="test@example.com")
-        
         profile = ClientProfile(
             client_id="test_client",
             client_name="Test Client",
-            client_code="DEMO",  # Changed from TEST (reserved)
-            contact_info=contact,
+            client_code="DEMO",
+            contact_info={"email": "test@example.com"},
             industry="Technology",
-            project_count=0,  # Added required field
-            status="active",  # Added required field
-            branding_config=BrandingConfig(
-                primary_color="#1f77b4",
-                secondary_color="#ff7f0e",
-                accent_color="#2ca02c",
-                text_color="#000000",
-                background_color="#ffffff",
-                primary_font="Arial",
-                secondary_font="Arial"
-            ),
-            report_preferences=ReportPreferences()
+            project_count=0,
+            status="active",
+            branding_config={
+                "primary_color": "#1f77b4",
+                "secondary_color": "#ff7f0e",
+                "accent_color": "#2ca02c",
+                "text_color": "#000000",
+                "background_color": "#ffffff",
+                "primary_font": "Arial",
+                "secondary_font": "Arial",
+            },
+            report_preferences={},
         )
-        
+
         assert profile.client_code == "DEMO"
         assert profile.contact_info.email == "test@example.com"
         assert profile.get_summary()["client_name"] == "Test Client"

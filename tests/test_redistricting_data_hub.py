@@ -251,8 +251,8 @@ class TestListDatasets:
 
     def test_list_no_credentials(self, tmp_path):
         c = RDHClient(username="", password="", cache_dir=tmp_path)
-        results = c.list_datasets(states=["VA"])
-        assert results == []
+        with pytest.raises(ValueError, match="credentials"):
+            c.list_datasets(states=["VA"])
 
     def test_list_api_error(self, client):
         import requests
@@ -260,9 +260,8 @@ class TestListDatasets:
         mock_resp.raise_for_status.side_effect = requests.RequestException("timeout")
 
         with patch.object(client._session, "get", return_value=mock_resp):
-            results = client.list_datasets(states=["VA"])
-
-        assert results == []
+            with pytest.raises(ConnectionError, match="RDH API request failed"):
+                client.list_datasets(states=["VA"])
 
     def test_list_with_dataset_type_filter(self, client, sample_api_response):
         mock_resp = MagicMock()
@@ -860,8 +859,8 @@ class TestDemographicProfile:
         )
 
         from siege_utilities.geo.providers.redistricting_data_hub import demographic_profile
-        result = demographic_profile(plan, census)
-        assert len(result) == 0
+        with pytest.raises(ValueError, match="No population columns found"):
+            demographic_profile(plan, census)
 
 
 class TestToCrosstabInput:

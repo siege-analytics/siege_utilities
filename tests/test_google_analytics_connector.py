@@ -241,20 +241,17 @@ class TestGA4ResponseParsing:
         assert df.iloc[0]["users"] == 14950
 
     def test_not_authenticated_raises(self, connector):
-        """get_ga4_data should fail gracefully when not authenticated."""
+        """get_ga4_data should raise ValueError when not authenticated."""
         conn, ga_mod = connector
         conn.ga4_client = None
 
-        df = conn.get_ga4_data(
-            property_id="123456",
-            start_date="2025-06-01",
-            end_date="2025-06-30",
-            metrics=["sessions"],
-        )
-
-        # Should return empty DataFrame, not raise
-        assert isinstance(df, pd.DataFrame)
-        assert len(df) == 0
+        with pytest.raises(ValueError, match="Not authenticated"):
+            conn.get_ga4_data(
+                property_id="123456",
+                start_date="2025-06-01",
+                end_date="2025-06-30",
+                metrics=["sessions"],
+            )
 
 
 # ---------------------------------------------------------------------------

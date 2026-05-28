@@ -45,13 +45,6 @@ siege_utilities/hygiene/generate_docstrings.py::F401::'typing.Any' imported but 
 siege_utilities/hygiene/generate_docstrings.py::F401::'typing.get_type_hints' imported but unused
 siege_utilities/hygiene/generate_docstrings.py::F541::f-string is missing placeholders
 siege_utilities/reporting/examples/bivariate_choropleth_example.py::F401::'pathlib.Path' imported but unused
-siege_utilities/reporting/examples/comprehensive_mapping_example.py::F401::'datetime.datetime' imported but unused
-siege_utilities/reporting/examples/comprehensive_mapping_example.py::F401::'datetime.timedelta' imported but unused
-siege_utilities/reporting/examples/comprehensive_mapping_example.py::F401::'geopandas as gpd' imported but unused
-siege_utilities/reporting/examples/comprehensive_mapping_example.py::F401::'numpy as np' imported but unused
-siege_utilities/reporting/examples/comprehensive_mapping_example.py::F401::'pathlib.Path' imported but unused
-siege_utilities/reporting/examples/comprehensive_mapping_example.py::F401::'shapely.geometry.Point' imported but unused
-siege_utilities/reporting/examples/comprehensive_mapping_example.py::F401::'siege_utilities.reporting.client_branding.ClientBrandingManager' imported but unused
 siege_utilities/reporting/examples/ga_geographic_analysis.py::F401::'datetime.datetime' imported but unused
 siege_utilities/reporting/examples/ga_geographic_analysis.py::F401::'datetime.timedelta' imported but unused
 siege_utilities/reporting/examples/ga_geographic_analysis.py::F401::'folium.plugins.MarkerCluster' imported but unused
@@ -140,7 +133,6 @@ tests/test_geo_alignment.py::F401::'siege_utilities.geo.geoid_utils.normalize_ge
 tests/test_geographic_levels.py::F401::'siege_utilities.config.census_constants._ALIAS_TO_CANONICAL' imported but unused
 tests/test_geographic_levels.py::F401::'siege_utilities.config.census_constants.get_tiger_url' imported but unused
 tests/test_geoid_utils.py::F401::'siege_utilities.geo.geoid_utils.GEOID_COMPONENT_LENGTHS' imported but unused
-tests/test_hydra_integration.py::F401::'siege_utilities.config.models.ContactInfo' imported but unused
 tests/test_hydra_integration.py::F401::'unittest.mock.MagicMock' imported but unused
 tests/test_hydra_integration.py::F401::'unittest.mock.patch' imported but unused
 tests/test_locale.py::F401::'shapely.geometry.Polygon' imported but unused

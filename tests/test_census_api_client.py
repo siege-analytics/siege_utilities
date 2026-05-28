@@ -465,24 +465,24 @@ class TestDataFetching:
 
     @patch('siege_utilities.geo.census_api_client.requests.get')
     def test_fetch_handles_empty_response(self, mock_get, census_client):
-        """Test handling of empty API response."""
+        """Test that empty API response raises CensusAPIError."""
+        from siege_utilities.geo.census_api_client import CensusAPIError
+
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = []
         mock_response.raise_for_status = Mock()
         mock_get.return_value = mock_response
 
-        df = census_client.fetch_data(
-            variables=['B01001_001E'],
-            year=2020,
-            dataset='acs5',
-            geography='county',
-            state_fips='06',
-            include_moe=False
-        )
-
-        assert isinstance(df, pd.DataFrame)
-        assert len(df) == 0
+        with pytest.raises(CensusAPIError, match="empty response"):
+            census_client.fetch_data(
+                variables=['B01001_001E'],
+                year=2020,
+                dataset='acs5',
+                geography='county',
+                state_fips='06',
+                include_moe=False
+            )
 
     @patch('siege_utilities.geo.census_api_client.requests.get')
     def test_fetch_handles_rate_limit(self, mock_get, census_client):

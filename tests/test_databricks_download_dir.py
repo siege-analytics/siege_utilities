@@ -49,7 +49,7 @@ class TestDefaultDownloadDirectory:
     """Tests for platform-aware default directory selection."""
 
     def test_databricks_default_is_tmp(self):
-        with patch("siege_utilities.config.user_config._is_databricks_runtime", return_value=True):
+        with patch.dict(os.environ, {"DATABRICKS_RUNTIME_VERSION": "14.3"}):
             result = _default_download_directory()
             assert result == Path("/tmp/siege_utilities/downloads")
 
@@ -109,7 +109,7 @@ class TestGetDownloadDirectory:
             return original_access(path, mode)
         monkeypatch.setattr(os, "access", fake_access)
 
-        with patch.object(uc_mod, "_is_databricks_runtime", return_value=True):
+        with patch.dict(os.environ, {"DATABRICKS_RUNTIME_VERSION": "14.3"}):
             result = get_download_directory()
             assert result == Path("/tmp/siege_utilities/downloads")
 

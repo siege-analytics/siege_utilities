@@ -14,6 +14,13 @@ except Exception:
     _DJANGO_AVAILABLE = False
 
 try:
+    from django.contrib.gis.gdal import HAS_GDAL as _HAS_GDAL
+except Exception:
+    _HAS_GDAL = False
+
+_GEODJANGO_AVAILABLE = _DJANGO_AVAILABLE and _HAS_GDAL
+
+try:
     import pandas as pd
 
     _PANDAS_AVAILABLE = True
@@ -33,7 +40,7 @@ from siege_utilities.geo.providers.nlrb_clients import (
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(not _DJANGO_AVAILABLE, reason="Django not available")
+@pytest.mark.skipif(not _GEODJANGO_AVAILABLE, reason="GeoDjango+GDAL not available")
 class TestNLRBCaseModel:
     def test_import(self):
         from siege_utilities.geo.django.models.nlrb_cases import NLRBCase
@@ -120,7 +127,7 @@ class TestNLRBCaseModel:
         assert record.city == "Chicago"
 
 
-@pytest.mark.skipif(not _DJANGO_AVAILABLE, reason="Django not available")
+@pytest.mark.skipif(not _GEODJANGO_AVAILABLE, reason="GeoDjango+GDAL not available")
 class TestElectionResultModel:
     def test_import(self):
         from siege_utilities.geo.django.models.nlrb_cases import ElectionResult
@@ -142,7 +149,7 @@ class TestElectionResultModel:
         assert ElectionResult._meta.get_field("votes_against") is not None
 
 
-@pytest.mark.skipif(not _DJANGO_AVAILABLE, reason="Django not available")
+@pytest.mark.skipif(not _GEODJANGO_AVAILABLE, reason="GeoDjango+GDAL not available")
 class TestULPChargeModel:
     def test_import(self):
         from siege_utilities.geo.django.models.nlrb_cases import ULPCharge
@@ -162,7 +169,7 @@ class TestULPChargeModel:
         assert ULPCharge._meta.get_field("section_of_act") is not None
 
 
-@pytest.mark.skipif(not _DJANGO_AVAILABLE, reason="Django not available")
+@pytest.mark.skipif(not _GEODJANGO_AVAILABLE, reason="GeoDjango+GDAL not available")
 class TestBargainingUnitModel:
     def test_import(self):
         from siege_utilities.geo.django.models.nlrb_cases import BargainingUnit

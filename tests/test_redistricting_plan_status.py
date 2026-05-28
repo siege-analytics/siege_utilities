@@ -18,6 +18,13 @@ try:
 except ImportError:
     HAS_DJANGO = False
 
+try:
+    from django.contrib.gis.gdal import HAS_GDAL as _HAS_GDAL
+except Exception:
+    _HAS_GDAL = False
+
+HAS_GEODJANGO = HAS_DJANGO and _HAS_GDAL
+
 
 PLAN_STATUS_CHOICES = [
     ("proposed", "Proposed"),
@@ -71,7 +78,7 @@ def _bootstrap_django():
         django.setup()
 
 
-@pytest.mark.skipif(not HAS_DJANGO, reason="Django not installed")
+@pytest.mark.skipif(not HAS_GEODJANGO, reason="GeoDjango+GDAL not available")
 class TestPlanStatusField:
     @pytest.fixture(autouse=True)
     def _setup_django(self, _bootstrap_django):
@@ -97,7 +104,7 @@ class TestPlanStatusField:
         assert list(self._get_field().choices) == PLAN_STATUS_CHOICES
 
 
-@pytest.mark.skipif(not HAS_DJANGO, reason="Django not installed")
+@pytest.mark.skipif(not HAS_GEODJANGO, reason="GeoDjango+GDAL not available")
 class TestManagerFiltering:
     @pytest.fixture(autouse=True)
     def _setup_django(self, _bootstrap_django):

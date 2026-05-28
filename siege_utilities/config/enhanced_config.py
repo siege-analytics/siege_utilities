@@ -302,29 +302,26 @@ class ConfigurationMigrator:
     
     def _create_default_client_profile(self, client_code: str) -> ClientProfile:
         """Create a default client profile."""
-        from .models import ContactInfo, BrandingConfig, ReportPreferences
-        
-        # Use a valid client code if the provided one is reserved
         valid_client_code = client_code.upper() if client_code.upper() not in ["TEST", "DEFAULT", "SYSTEM"] else "DEMO"
-        
+
         return ClientProfile(
             client_id=client_code.lower(),
             client_name=client_code.title(),
             client_code=valid_client_code,
-            contact_info=ContactInfo(email=""),
+            contact_info={"email": ""},
             industry="Technology",
             project_count=0,
             status="active",
-            branding_config=BrandingConfig(
-                primary_color="#1f77b4",
-                secondary_color="#ff7f0e",
-                accent_color="#2ca02c",
-                text_color="#000000",
-                background_color="#ffffff",
-                primary_font="Arial",
-                secondary_font="Arial"
-            ),
-            report_preferences=ReportPreferences()
+            branding_config={
+                "primary_color": "#1f77b4",
+                "secondary_color": "#ff7f0e",
+                "accent_color": "#2ca02c",
+                "text_color": "#000000",
+                "background_color": "#ffffff",
+                "primary_font": "Arial",
+                "secondary_font": "Arial",
+            },
+            report_preferences={},
         )
     
     def backup_legacy_configurations(self, backup_dir: Optional[Path] = None) -> Path:
