@@ -469,6 +469,16 @@ class CensusCatalog:
         dataset: Optional[str] = None,
         max_results: int = 25,
     ) -> list[SearchResult]:
+        """Search the catalog across multiple levels.
+
+        Args:
+            query: Free-text search query.
+            level: Restrict to a single search level, or None for all.
+            dataset: Filter TABLE and VARIABLE results to tables belonging
+                to this dataset. Has no effect on FAMILY, SUBJECT, or
+                DATASET level results (those are cross-dataset).
+            max_results: Maximum results to return.
+        """
         tokens = _tokenize_query(query)
         if not tokens:
             return []

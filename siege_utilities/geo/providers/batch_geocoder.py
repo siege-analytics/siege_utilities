@@ -237,13 +237,11 @@ class BatchGeocoder(abc.ABC):
     def geocode(
         self,
         addresses: Union[list[dict], list[str], list[AddressInput]],
-        **kwargs,
     ) -> BatchGeocodingResult:
         """Geocode a batch of addresses.
 
         Args:
             addresses: List of addresses in any supported format.
-            **kwargs: Backend-specific options.
 
         Returns:
             BatchGeocodingResult with one GeocodingResult per input address.

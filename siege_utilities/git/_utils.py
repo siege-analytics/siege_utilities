@@ -6,7 +6,12 @@ from siege_utilities.exceptions import GitError
 
 
 def run_git_command(*args, repo_path: str = ".", check: bool = True) -> str:
-    """Run a git command and return the output."""
+    """Run a git command and return stdout.
+
+    When ``check=True`` (default), raises ``GitError`` on non-zero exit.
+    When ``check=False``, returns ``""`` on failure — callers must treat
+    empty string as a potential error signal, not as valid empty output.
+    """
     try:
         result = subprocess.run(
             ["git"] + list(args),
