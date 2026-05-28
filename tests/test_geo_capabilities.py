@@ -38,3 +38,48 @@ def test_geo_capabilities_lazy_import():
     from siege_utilities.geo import geo_capabilities
     caps = geo_capabilities()
     assert "tier" in caps
+
+
+# --- Error-path tests (SU-4b) ---
+
+from unittest.mock import patch
+
+from siege_utilities.geo.capabilities import _probe, geo_capabilities
+
+
+class TestProbeErrors:
+    """Error paths for _probe — import failure handling."""
+
+    def test_nonexistent_module_returns_false(self):
+        """_probe returns False for a module that cannot be imported."""
+        assert _probe("nonexistent_module_xyz_12345") is False
+
+    def test_existing_module_returns_true(self):
+        """_probe returns True for a module known to exist."""
+        assert _probe("os") is True
+
+
+class TestGeoCapabilitiesTierFallback:
+    """Tier detection when packages are missing."""
+
+    def test_none_tier_when_no_packages(self):
+        """When no spatial packages are importable, tier is 'none'."""
+        with patch(
+            "siege_utilities.geo.capabilities._probe", return_value=False
+        ):
+            caps = geo_capabilities()
+            assert caps["tier"] == "none"
+            assert caps["shapely"] is False
+            assert caps["geopandas"] is False
+
+    def test_geo_lite_tier_with_shapely_only(self):
+        """When only shapely is available, tier is 'geo-lite'."""
+
+        def selective_probe(name):
+            return name == "shapely"
+
+        with patch(
+            "siege_utilities.geo.capabilities._probe", side_effect=selective_probe
+        ):
+            caps = geo_capabilities()
+            assert caps["tier"] == "geo-lite"

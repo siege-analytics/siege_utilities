@@ -181,3 +181,22 @@ class TestConvenienceFunctions:
     def test_get_best_dataset_for_analysis(self):
         result = get_best_dataset_for_analysis("demographic", "county")
         assert isinstance(result, dict)
+
+
+# ---------------------------------------------------------------------------
+# Error-path tests (SU-4b)
+# ---------------------------------------------------------------------------
+
+
+class TestCompareDatasetErrors:
+    """Error paths for compare_datasets."""
+
+    def test_nonexistent_datasets_returns_error(self):
+        """Comparing two nonexistent datasets returns error dict."""
+        result = compare_datasets("nonexistent_1", "nonexistent_2")
+        assert "error" in result
+
+    def test_one_valid_one_invalid_returns_error(self):
+        """One valid + one invalid dataset returns error dict."""
+        result = compare_datasets("decennial_2020", "nonexistent")
+        assert "error" in result
