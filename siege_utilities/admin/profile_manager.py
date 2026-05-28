@@ -102,7 +102,7 @@ def validate_profile_location(location: Path) -> bool:
         test_file.unlink()
         
         return True
-    except Exception as e:
+    except OSError as e:
         log.debug(f"Profile location validation failed: {e}")
         return False
 
@@ -241,32 +241,32 @@ def migrate_profiles(
                     shutil.copy2(user_file, target_users / user_file.name)
                     stats["users_migrated"] += 1
                     stats["files_copied"] += 1
-                except Exception as e:
+                except OSError as e:
                     log.error(f"Failed to migrate user file {user_file}: {e}")
                     stats["errors"] += 1
-        
+
         # Migrate client profiles
         source_clients = source_location / "clients"
         if source_clients.exists():
             target_clients = target_location / "clients"
             target_clients.mkdir(parents=True, exist_ok=True)
-            
+
             for client_file in source_clients.glob("*.yaml"):
                 try:
                     shutil.copy2(client_file, target_clients / client_file.name)
                     stats["clients_migrated"] += 1
                     stats["files_copied"] += 1
-                except Exception as e:
+                except OSError as e:
                     log.error(f"Failed to migrate client file {client_file}: {e}")
                     stats["errors"] += 1
-        
+
         # Copy any other configuration files
         for config_file in source_location.glob("*.yaml"):
             if config_file.name not in ["user_config.yaml"]:
                 try:
                     shutil.copy2(config_file, target_location / config_file.name)
                     stats["files_copied"] += 1
-                except Exception as e:
+                except OSError as e:
                     log.error(f"Failed to migrate config file {config_file}: {e}")
                     stats["errors"] += 1
         
