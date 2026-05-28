@@ -485,7 +485,7 @@ class VariableRegistry:
 
         except Exception as e:
             log.error(f"Failed to list variables: {e}")
-            return pd.DataFrame(columns=['code', 'label', 'concept', 'predicateType'])
+            raise
 
     def list_groups(self) -> Dict[str, int]:
         """Return available variable groups and their variable counts."""
