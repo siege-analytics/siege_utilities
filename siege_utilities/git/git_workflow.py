@@ -268,8 +268,8 @@ def complete_feature_workflow(
             try:
                 run_git_command("push", "origin", "--delete", feature_branch, repo_path=repo_path)
                 log_info(f"Deleted remote branch: origin/{feature_branch}")
-            except Exception:
-                log_warning(f"Could not delete remote branch: origin/{feature_branch}")
+            except Exception as exc:
+                log_warning(f"Could not delete remote branch: origin/{feature_branch}: {exc}")
 
         return {
             "status": "success",
@@ -474,11 +474,12 @@ def get_workflow_status(repo_path: str = ".") -> Dict[str, Union[str, List[str],
                     "commits_behind": int(behind),
                     "ready_for_merge": int(ahead) > 0 and int(behind) == 0
                 })
-            except Exception:
+            except Exception as exc:
+                log_warning(f"Could not determine ahead/behind counts: {exc}")
                 workflow_info.update({
-                    "commits_ahead": 0,
-                    "commits_behind": 0,
-                    "ready_for_merge": False
+                    "commits_ahead": None,
+                    "commits_behind": None,
+                    "ready_for_merge": None
                 })
 
         return workflow_info
