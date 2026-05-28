@@ -279,8 +279,10 @@ class UserConfigManager:
         elif database_type == "duckdb":
             return self.user_profile.duckdb_path
         else:
-            log.warning(f"Unknown database type: {database_type}")
-            return ""
+            raise ValueError(
+                f"Unknown database type: {database_type!r}. "
+                f"Supported types: postgresql, duckdb"
+            )
     
     def set_database_connection(self, database_type: str, connection_string: str):
         """
@@ -295,7 +297,10 @@ class UserConfigManager:
         elif database_type == "duckdb":
             self.update_user_profile(duckdb_path=connection_string)
         else:
-            log.warning(f"Unknown database type: {database_type}")
+            raise ValueError(
+                f"Unknown database type: {database_type!r}. "
+                f"Supported types: postgresql, duckdb"
+            )
     
     def export_config(self, output_path: str):
         """

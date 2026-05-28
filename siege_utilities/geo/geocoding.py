@@ -587,8 +587,11 @@ def _get_crs_bounds(crs) -> Tuple[float, float, float, float]:
         aou = crs.area_of_use
         if aou is not None:
             return (aou.south, aou.north, aou.west, aou.east)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning(
+            "Could not derive bounds from CRS %r, falling back to world bounds: %s",
+            crs, exc,
+        )
     return (-90.0, 90.0, -180.0, 180.0)
 
 
@@ -703,10 +706,11 @@ class SpatiaLiteCache:
             try:
                 self._conn.enable_load_extension(True)
                 self._conn.load_extension("mod_spatialite")
-            except Exception:
-                # SpatiaLite not available — fall back to plain SQLite
-                # Spatial index won't work, but the cache is still functional
-                pass
+            except Exception as exc:
+                logger.info(
+                    "SpatiaLite extension not available, falling back to plain SQLite "
+                    "(spatial index disabled): %s", exc,
+                )
         return self._conn
 
     def _init_db(self):
@@ -716,8 +720,10 @@ class SpatiaLiteCache:
         # Check if SpatiaLite is available
         try:
             cur.execute("SELECT spatialite_version()")
+            version = cur.fetchone()
+            logger.debug("SpatiaLite version: %s", version[0] if version else "unknown")
         except sqlite3.OperationalError:
-            pass
+            logger.debug("SpatiaLite not loaded; spatial features unavailable for geocode cache")
 
         # Geocode results table
         cur.execute("""

@@ -372,6 +372,11 @@ def _normalized_centroids(
                 f"hex cartogram requires Polygon/MultiPolygon geometries; "
                 f"row {row[code_col]!r} has {gtype!r}"
             )
+        if geom.is_empty:
+            raise ValueError(
+                f"hex cartogram cannot compute centroid for empty geometry; "
+                f"row {row[code_col]!r}"
+            )
         codes.append(str(row[code_col]))
         c = geom.centroid
         raw.append((float(c.x), float(c.y)))

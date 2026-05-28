@@ -785,7 +785,7 @@ def get_file_size_mb(file_path: Union[str, Path]) -> float:
             return 0.0
         size_bytes = file_path.stat().st_size
         return round(size_bytes / (1024 * 1024), 2)
-    except Exception as e:
+    except OSError as e:
         log.error(f"Error getting file size for {file_path}: {e}")
         return 0.0
 
@@ -814,7 +814,7 @@ def list_files_recursive(
             return [p for p in directory.rglob(pattern) if p.is_file()]
         else:
             return list(directory.rglob(pattern))
-    except Exception as e:
+    except OSError as e:
         log.error(f"Error listing files in {directory}: {e}")
         return []
 

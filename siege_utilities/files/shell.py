@@ -71,7 +71,7 @@ def validate_command_safety(command: Union[str, List[str]],
         try:
             parts = shlex.split(command)
         except ValueError as e:
-            raise ValueError(f"Invalid command syntax: {e}")
+            raise ValueError(f"Invalid command syntax: {e}") from e
     else:
         parts = list(command)
 

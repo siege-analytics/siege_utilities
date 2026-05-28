@@ -3,6 +3,7 @@ Branch analysis utilities for git repositories.
 Based on the Change-Agent-AI branch status generator.
 """
 
+import logging
 import re
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +12,8 @@ from typing import List, Dict, Optional
 from siege_utilities.core.logging import log_info
 from siege_utilities.exceptions import GitError
 from ._utils import run_git_command
+
+log = logging.getLogger(__name__)
 
 def analyze_branch_status(repo_path: str = ".") -> Dict[str, str]:
     """Analyze the current branch status."""
@@ -28,7 +31,8 @@ def analyze_branch_status(repo_path: str = ".") -> Dict[str, str]:
             behind, ahead = status_output.split()
         else:
             behind, ahead = "0", "0"
-    except Exception:
+    except Exception as exc:
+        log.warning("Could not determine ahead/behind vs main for %s: %s", repo_path, exc)
         behind, ahead = "0", "0"
 
     # Get last commit info
@@ -127,7 +131,8 @@ def get_file_changes(repo_path: str = ".") -> Dict[str, List[str]]:
             "modified": modified,
             "deleted": deleted
         }
-    except Exception:
+    except Exception as exc:
+        log.warning("Could not determine file changes vs main: %s", exc)
         return {"added": [], "modified": [], "deleted": []}
 
 def get_file_stats(repo_path: str = ".") -> Dict[str, int]:

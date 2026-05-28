@@ -355,7 +355,7 @@ def validate_repo_path(repo_path: str) -> Path:
         validated_path = validate_directory_path(repo_path, must_exist=False)
         return validated_path
     except PathSecurityError as e:
-        raise GitSecurityError(f"Repository path validation failed: {e}")
+        raise GitSecurityError(f"Repository path validation failed: {e}") from e
 
 
 __all__ = [

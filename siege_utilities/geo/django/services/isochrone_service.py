@@ -183,6 +183,11 @@ class IsochroneComputeService:
             elif geom.geom_type == "MultiPolygon":
                 for poly in geom:
                     polygons.append(poly)
+            else:
+                log.warning(
+                    "Skipping non-polygon feature (type=%s) in isochrone GeoJSON",
+                    geom.geom_type,
+                )
 
         if not polygons:
             raise ValueError("No polygon geometries found in GeoJSON features")

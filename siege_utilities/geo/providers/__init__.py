@@ -12,6 +12,8 @@ Current providers:
 - :mod:`nces_download` — NCES school-district and locale boundaries
 - :mod:`redistricting_data_hub` — RDH API client (precincts, plans, CVAP,
   PL 94-171, compactness metrics)
+- :mod:`nlrb_clients` — NLRB case data from data.gov, labordata GitHub,
+  and NxGen search
 
 Not yet migrated (planned for the interface-unification follow-up epic):
 

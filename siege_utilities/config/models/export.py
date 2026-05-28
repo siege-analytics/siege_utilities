@@ -80,7 +80,7 @@ def export_entities(
     return yaml_str
 
 
-def import_entities(yaml_str_or_path: Union[str, Path]) -> Dict[str, list]:
+def import_entities(yaml_str_or_path: Union[str, Path]) -> Dict[str, Any]:
     """
     Import entities from a YAML document.
 

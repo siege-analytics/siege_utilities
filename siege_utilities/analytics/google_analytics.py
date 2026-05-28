@@ -304,7 +304,7 @@ class GoogleAnalyticsConnector:
 
         except Exception as e:
             logger.error("Failed to retrieve GA4 data: %s", e, exc_info=True)
-            return pd.DataFrame()
+            raise
 
     def get_ua_data(self, view_id: str, start_date: str, end_date: str,
                     metrics: List[str], dimensions: List[str] = None,
@@ -358,7 +358,7 @@ class GoogleAnalyticsConnector:
 
         except Exception as e:
             logger.error("Failed to retrieve UA data: %s", e, exc_info=True)
-            return pd.DataFrame()
+            raise
 
     def save_as_pandas(self, df: pd.DataFrame, output_path: str,
                        format: str = 'parquet') -> bool:

@@ -10,10 +10,13 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import os
 import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
+
+log = logging.getLogger(__name__)
 
 try:
     import shapely.geometry.base  # noqa: F401
@@ -70,7 +73,10 @@ def _detect_sedona_available() -> bool:
         import sedona  # type: ignore  # noqa: F401
 
         return True
-    except Exception:
+    except ImportError:
+        return False
+    except Exception as exc:
+        log.warning("Unexpected error detecting Sedona availability: %s", exc)
         return False
 
 

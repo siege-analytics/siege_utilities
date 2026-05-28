@@ -228,7 +228,7 @@ class CensusAPI:
                     time.sleep(2 ** attempt)
                 elif isinstance(e, ValueError):
                     log.error(f"Failed to parse API response: {e}")
-                    raise CensusAPIError(f"Invalid API response: {e}")
+                    raise CensusAPIError(f"Invalid API response: {e}") from e
                 else:
                     raise
 
@@ -298,8 +298,8 @@ class CensusAPI:
                 continue
             try:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
-            except Exception:
-                pass
+            except Exception as exc:
+                log.warning("Could not convert column %s to numeric: %s", col, exc)
         return df
 
     # ------------------------------------------------------------------

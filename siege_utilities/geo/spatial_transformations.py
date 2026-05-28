@@ -402,7 +402,8 @@ class PostGISConnector:
             table_name: Source table name
             crs: Output CRS. Defaults to
                 :func:`~siege_utilities.geo.crs.get_default_crs`.
-            **kwargs: Additional parameters
+            **kwargs: Additional parameters. Accepts ``geom_col``
+                (default ``'geom'``) to specify the geometry column name.
 
         Returns:
             GeoDataFrame with spatial data or None if failed
@@ -419,22 +420,15 @@ class PostGISConnector:
         # schema-qualified names by splitting on '.'.
         validate_identifier(table_name, label="table name", allow_dotted=True)
         try:
-            cursor = self.connection.cursor()
-            cursor.execute(
-                _pg_sql.SQL("SELECT ST_AsText(geom) as geometry FROM {}")
-                .format(_pg_sql.Identifier(*table_name.split(".")))
+            geom_col = kwargs.get('geom_col', 'geom')
+            query = _pg_sql.SQL("SELECT * FROM {}").format(
+                _pg_sql.Identifier(*table_name.split("."))
             )
-
-            rows = cursor.fetchall()
-            geometries = []
-
-            for row in rows:
-                from shapely import wkt
-                geom = wkt.loads(row[0])
-                geometries.append(geom)
-
-            # Create GeoDataFrame
-            gdf = gpd.GeoDataFrame(geometry=geometries, crs="EPSG:4326")
+            gdf = gpd.read_postgis(
+                query.as_string(self.connection),
+                self.connection,
+                geom_col=geom_col,
+            )
             log.info(f"Successfully downloaded from PostGIS: {table_name}")
             return reproject_if_needed(gdf, crs)
 
@@ -480,8 +474,8 @@ class PostGISConnector:
                 if self.connection:
                     try:
                         self.connection.rollback()
-                    except Exception:
-                        pass
+                    except Exception as rb_exc:
+                        log.warning("Failed to rollback PostGIS transaction: %s", rb_exc)
                 return None
 
         cursor = None
@@ -496,8 +490,8 @@ class PostGISConnector:
             if self.connection:
                 try:
                     self.connection.rollback()
-                except Exception:
-                    pass
+                except Exception as rb_exc:
+                    log.warning("Failed to rollback PostGIS transaction: %s", rb_exc)
             return None
         finally:
             if cursor is not None:
@@ -530,7 +524,12 @@ class PostGISConnector:
         if gdf.crs is not None:
             try:
                 srid = gdf.crs.to_epsg()
-            except Exception:
+            except Exception as exc:
+                log.warning(
+                    "Could not derive EPSG code from CRS %r, "
+                    "falling back to STORAGE_CRS (%s): %s",
+                    gdf.crs, settings.STORAGE_CRS, exc,
+                )
                 srid = None
         srid = srid or settings.STORAGE_CRS
         if not isinstance(srid, int):

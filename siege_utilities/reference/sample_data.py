@@ -327,18 +327,10 @@ def get_census_data(year: int = 2020,
     if not CENSUS_AVAILABLE:
         raise ImportError("Census utilities required. Install with: pip install siege-utilities[geo]")
 
-    try:
-        log_info(f"Getting {data_type} data for {geographic_level} level, year {year}")
-
-        # This would integrate with existing Census data functions
-        # For now, return a placeholder
-        log_warning("Census data retrieval not yet implemented")
-        log_info("This function will integrate with existing Census data utilities")
-        return None
-
-    except Exception as e:
-        log_error(f"Error getting Census data: {e}")
-        return None
+    raise NotImplementedError(
+        "get_census_data() is not yet implemented. "
+        "Use siege_utilities.geo.census.api.CensusAPI directly for Census data retrieval."
+    )
 
 
 def join_boundaries_and_data(boundaries: gpd.GeoDataFrame,

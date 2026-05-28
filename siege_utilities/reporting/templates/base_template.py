@@ -92,18 +92,16 @@ class BaseReportTemplate:
         return page_sizes.get(page_size.lower(), letter)
 
     def _load_config(self) -> dict:
-        """Loads the branding configuration from a YAML file."""
-        try:
-            with open(self.branding_config_path, 'r') as f:
-                config = yaml.safe_load(f)
-            log.info(f"Configuration loaded successfully from {self.branding_config_path}")
-            return config
-        except FileNotFoundError:
-            log.error(f"Branding config file not found: {self.branding_config_path}")
-            return {}
-        except yaml.YAMLError as e:
-            log.error(f"Error parsing branding config YAML: {e}")
-            return {}
+        """Loads the branding configuration from a YAML file.
+
+        Raises:
+            FileNotFoundError: If the branding config file does not exist.
+            yaml.YAMLError: If the YAML is malformed.
+        """
+        with open(self.branding_config_path, 'r') as f:
+            config = yaml.safe_load(f)
+        log.info(f"Configuration loaded successfully from {self.branding_config_path}")
+        return config
 
     def _register_fonts(self):
         """Registers fonts specified in branding config or uses defaults."""

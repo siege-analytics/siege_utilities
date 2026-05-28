@@ -3,12 +3,15 @@ Git status utilities for repository information and reporting.
 Comprehensive repository state analysis and monitoring.
 """
 
+import logging
 from pathlib import Path
 from typing import List, Dict, Optional, Union
 from datetime import datetime
 
 from siege_utilities.exceptions import GitError
 from ._utils import run_git_command
+
+log = logging.getLogger(__name__)
 
 def get_repository_status(repo_path: str = ".") -> Dict[str, Union[str, int, bool]]:
     """Get comprehensive repository status information."""
@@ -37,7 +40,8 @@ def get_repository_status(repo_path: str = ".") -> Dict[str, Union[str, int, boo
         last_commit_date = run_git_command("log", "-1", "--format=%cd", "--date=short", repo_path=repo_path)
         last_commit_author = run_git_command("log", "-1", "--format=%an", repo_path=repo_path)
         last_commit_message = run_git_command("log", "-1", "--format=%s", repo_path=repo_path)
-    except Exception:
+    except Exception as exc:
+        log.warning("Could not retrieve last commit info for %s: %s", repo_path, exc)
         last_commit_hash = "unknown"
         last_commit_date = "unknown"
         last_commit_author = "unknown"
@@ -49,7 +53,8 @@ def get_repository_status(repo_path: str = ".") -> Dict[str, Union[str, int, boo
         upstream_branch = run_git_command("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}", repo_path=repo_path, check=False)
         if upstream_branch == "":
             upstream_branch = None
-    except Exception:
+    except Exception as exc:
+        log.warning("Could not retrieve remote info for %s: %s", repo_path, exc)
         remote_url = "unknown"
         upstream_branch = None
     
@@ -58,7 +63,8 @@ def get_repository_status(repo_path: str = ".") -> Dict[str, Union[str, int, boo
     if upstream_branch:
         try:
             ahead_behind = run_git_command("rev-list", "--count", "--left-right", f"{upstream_branch}...HEAD", repo_path=repo_path)
-        except Exception:
+        except Exception as exc:
+            log.warning("Could not determine ahead/behind for %s: %s", upstream_branch, exc)
             ahead_behind = "0 0"
     
     behind, ahead = ahead_behind.split()
@@ -117,7 +123,8 @@ def get_branch_info(repo_path: str = ".") -> Dict[str, Union[str, List[str], int
                             "message": message
                         }
                     })
-            except Exception:
+            except Exception as exc:
+                log.warning("Could not retrieve commit info for branch %s: %s", branch_name, exc)
                 branches.append({
                     "name": branch_name,
                     "upstream": upstream,
@@ -162,7 +169,8 @@ def get_remote_info(repo_path: str = ".") -> Dict[str, Union[str, List[Dict[str,
                 "fetch_url": fetch_url if fetch_url else url,
                 "push_url": push_url if push_url else url
             })
-        except Exception:
+        except Exception as exc:
+            log.warning("Could not retrieve URL for remote %s: %s", remote_name, exc)
             remote_info.append({
                 "name": remote_name,
                 "url": "unknown",
@@ -195,7 +203,8 @@ def get_stash_list(repo_path: str = ".") -> List[Dict[str, str]]:
                     })
         
         return stashes
-    except Exception:
+    except Exception as exc:
+        log.warning("Could not retrieve stash list: %s", exc)
         return []
 
 def get_tag_list(repo_path: str = ".") -> List[Dict[str, str]]:
@@ -217,7 +226,8 @@ def get_tag_list(repo_path: str = ".") -> List[Dict[str, str]]:
                     })
         
         return tags
-    except Exception:
+    except Exception as exc:
+        log.warning("Could not retrieve tag list: %s", exc)
         return []
 
 def get_log_summary(
@@ -265,7 +275,8 @@ def get_log_summary(
                 "max_count": max_count
             }
         }
-    except Exception:
+    except Exception as exc:
+        log.warning("Could not retrieve commit log: %s", exc)
         return {
             "total_commits": 0,
             "commits": [],
@@ -312,7 +323,8 @@ def get_file_status(repo_path: str = ".") -> Dict[str, List[str]]:
                     files["untracked"].append(filepath)
         
         return files
-    except Exception:
+    except Exception as exc:
+        log.warning("Could not retrieve file status: %s", exc)
         return {
             "staged": [],
             "unstaged": [],
@@ -345,7 +357,8 @@ def get_repository_size(repo_path: str = ".") -> Dict[str, Union[int, str]]:
             "total_size_bytes": git_size + working_size,
             "total_size_mb": round((git_size + working_size) / (1024 * 1024), 2)
         }
-    except Exception:
+    except Exception as exc:
+        log.warning("Could not calculate repository size for %s: %s", repo_path, exc)
         return {
             "git_directory_size_bytes": 0,
             "git_directory_size_mb": 0,

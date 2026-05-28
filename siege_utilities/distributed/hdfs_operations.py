@@ -2,11 +2,14 @@
 Abstract HDFS Operations - Fully Configurable and Reusable
 Zero hard-coded project dependencies
 """
-import subprocess
-import pathlib
-import time
 import hashlib
+import logging
+import pathlib
+import subprocess
+import time
 from typing import Optional, Tuple, Dict, List
+
+log = logging.getLogger(__name__)
 
 
 def _default_hash_function(file_path: str) ->str:
@@ -17,7 +20,8 @@ def _default_hash_function(file_path: str) ->str:
             for chunk in iter(lambda : f.read(65536), b''):
                 sha256_hash.update(chunk)
         return sha256_hash.hexdigest()
-    except Exception:
+    except Exception as exc:
+        log.warning("Could not hash file %s, returning error signature: %s", file_path, exc)
         return f'error_{int(time.time())}'
 
 
@@ -26,7 +30,8 @@ def _default_quick_signature(file_path: str) ->str:
     try:
         stat = pathlib.Path(file_path).stat()
         return f'{stat.st_size}_{stat.st_mtime}'
-    except Exception:
+    except Exception as exc:
+        log.warning("Could not stat file %s for quick signature: %s", file_path, exc)
         return 'error'
 
 

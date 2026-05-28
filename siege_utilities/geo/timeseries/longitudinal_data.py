@@ -319,7 +319,10 @@ def _merge_to_wide_format(
         Wide-format DataFrame
     """
     if not yearly_data:
-        return pd.DataFrame()
+        raise ValueError(
+            "No yearly data to merge: yearly_data is empty. "
+            "Check that the Census API returned data for the requested years."
+        )
 
     # Start with the most recent year for base info
     years = sorted(yearly_data.keys())

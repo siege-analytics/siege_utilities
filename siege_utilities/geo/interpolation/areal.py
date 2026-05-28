@@ -61,14 +61,14 @@ def _ensure_common_crs(
     """Ensure both GeoDataFrames share the same CRS, reprojecting if needed."""
     warnings = []
 
-    if source.crs is None or target.crs is None:
-        warnings.append(
-            "One or both GeoDataFrames lack a CRS. Assuming EPSG:4326."
+    if source.crs is None:
+        raise ValueError(
+            "source GeoDataFrame has no CRS. Set one with .set_crs() before interpolation."
         )
-        if source.crs is None:
-            source = source.set_crs("EPSG:4326")
-        if target.crs is None:
-            target = target.set_crs("EPSG:4326")
+    if target.crs is None:
+        raise ValueError(
+            "target GeoDataFrame has no CRS. Set one with .set_crs() before interpolation."
+        )
 
     if source.crs != target.crs:
         warnings.append(

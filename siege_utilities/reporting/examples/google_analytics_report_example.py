@@ -1046,14 +1046,14 @@ def create_geo_country_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
         try:
             import geodatasets
             world = gpd.read_file(geodatasets.get_path('naturalearth.land'))
-        except (ImportError, Exception):
-            pass
+        except (ImportError, Exception) as exc:
+            log.debug("geodatasets not available, trying geopandas built-in: %s", exc)
 
         if world is None:
             try:
                 world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
-            except Exception:
-                pass
+            except Exception as exc:
+                log.debug("geopandas built-in naturalearth_lowres not available: %s", exc)
 
         if world is not None and 'name' in world.columns:
             world['ga_sessions'] = world['name'].map(country_sessions).fillna(0)
@@ -1073,8 +1073,8 @@ def create_geo_country_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
                     plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
                     plt.close()
                     return tmp.name
-    except Exception:
-        pass
+    except Exception as exc:
+        log.warning("Choropleth generation failed, falling back to bar chart: %s", exc)
 
     # Fallback: horizontal bar chart
     sorted_countries = sorted(country_sessions.items(), key=lambda x: x[1], reverse=True)[:10]
@@ -1141,14 +1141,14 @@ def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
         try:
             import geodatasets
             world = gpd.read_file(geodatasets.get_path('naturalearth.land'))
-        except (ImportError, Exception):
-            pass
+        except (ImportError, Exception) as exc:
+            log.debug("geodatasets not available, trying geopandas built-in: %s", exc)
 
         if world is None:
             try:
                 world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
-            except Exception:
-                pass
+            except Exception as exc:
+                log.debug("geopandas built-in naturalearth_lowres not available: %s", exc)
 
         # For US states, try Census TIGER
         us_states = None
@@ -1156,8 +1156,8 @@ def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
             us_states_path = Path.home() / '.siege_utilities' / 'geo_data' / 'cb_us_state_20m.shp'
             if us_states_path.exists():
                 us_states = gpd.read_file(us_states_path)
-        except Exception:
-            pass
+        except Exception as exc:
+            log.debug("Failed to load TIGER state shapefile: %s", exc)
 
         if us_states is not None and 'NAME' in us_states.columns:
             us_states['ga_sessions'] = us_states['NAME'].map(region_sessions).fillna(0)
@@ -1179,8 +1179,8 @@ def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
                     fig.savefig(tmp.name, dpi=300, bbox_inches='tight')
                     plt.close(fig)
                     return tmp.name
-    except Exception:
-        pass
+    except Exception as exc:
+        log.warning("Bivariate choropleth generation failed, falling back to bar chart: %s", exc)
 
     # Fallback: horizontal bar chart
     sorted_regions = sorted(region_sessions.items(), key=lambda x: x[1], reverse=True)[:10]
@@ -1246,17 +1246,17 @@ def create_geo_city_scatter(ga_data: Dict[str, Any], width: float = 5.5*inch,
                 try:
                     import geodatasets
                     world = gpd.read_file(geodatasets.get_path('naturalearth.land'))
-                except (ImportError, Exception):
-                    pass
+                except (ImportError, Exception) as exc:
+                    log.debug("geodatasets not available, trying geopandas built-in: %s", exc)
                 if world is None:
                     try:
                         world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        log.debug("geopandas built-in naturalearth_lowres not available: %s", exc)
                 if world is not None:
                     world.plot(ax=ax, color='#E8E8E8', edgecolor='#CCCCCC', linewidth=0.3)
-            except ImportError:
-                pass
+            except ImportError as exc:
+                log.debug("geopandas not available for basemap: %s", exc)
 
             # Normalize sizes
             max_sessions = max(sessions) if sessions else 1
@@ -1283,8 +1283,8 @@ def create_geo_city_scatter(ga_data: Dict[str, Any], width: float = 5.5*inch,
                 plt.savefig(tmp.name, dpi=300, bbox_inches='tight')
                 plt.close()
                 return tmp.name
-        except Exception:
-            pass
+        except Exception as exc:
+            log.warning("City scatter plot generation failed, falling back to bar chart: %s", exc)
 
     # Fallback: horizontal bar chart
     sorted_cities = sorted(geo, key=lambda x: x.get('sessions', 0), reverse=True)[:10]

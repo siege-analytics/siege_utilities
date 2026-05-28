@@ -20,6 +20,7 @@ from siege_utilities.geo.locale import (
     TOWN_FRINGE,
     TOWN_REMOTE,
     LocaleCode,
+    LocaleIndex,
     LocaleType,
     NCESLocaleClassifier,
     locale_from_code,
@@ -372,6 +373,185 @@ class TestClassifyPolygon:
         assert isinstance(result, dict)
         total = sum(result.values())
         assert abs(total - 1.0) < 0.01  # fractions sum to ~1
+
+
+class TestLocaleIndex:
+    """Tests for the LocaleIndex precomputed mapping."""
+
+    def test_add_and_get(self):
+        idx = LocaleIndex()
+        idx.add("48453001100", 11)
+        result = idx.get("48453001100")
+        assert result is not None
+        assert result.code == 11
+
+    def test_get_returns_none_for_missing(self):
+        idx = LocaleIndex()
+        assert idx.get("nonexistent") is None
+
+    def test_add_bulk(self):
+        idx = LocaleIndex()
+        idx.add_bulk({"01001": 11, "01002": 43})
+        assert len(idx) == 2
+        assert idx.get("01001").code == 11
+        assert idx.get("01002").code == 43
+
+    def test_contains(self):
+        idx = LocaleIndex({"01001": 11})
+        assert "01001" in idx
+        assert "99999" not in idx
+
+    def test_from_dataframe(self):
+        df = pd.DataFrame({
+            "geoid": ["01001", "01002", "01003"],
+            "locale_code": [11, 43, 21],
+        })
+        idx = LocaleIndex.from_dataframe(df)
+        assert len(idx) == 3
+        assert idx.get("01001").code == 11
+
+    def test_from_dataframe_skips_invalid_codes(self):
+        df = pd.DataFrame({
+            "geoid": ["01001", "01002"],
+            "locale_code": [11, 99],
+        })
+        idx = LocaleIndex.from_dataframe(df)
+        assert len(idx) == 1
+
+    def test_from_dataframe_custom_columns(self):
+        df = pd.DataFrame({
+            "tract_id": ["48453001100"],
+            "nces_code": [21],
+        })
+        idx = LocaleIndex.from_dataframe(df, geoid_col="tract_id", locale_col="nces_code")
+        assert idx.get("48453001100").code == 21
+
+
+class TestClassifyGeoid:
+    """Tests for GEOID-based classification."""
+
+    def test_classify_geoid_with_index(self):
+        classifier = NCESLocaleClassifier(
+            urbanized_areas=_empty_gdf(),
+            urban_clusters=_empty_gdf(),
+            principal_cities=_empty_gdf(),
+            place_populations={},
+        )
+        classifier.locale_index = LocaleIndex({"48453001100": 11})
+        result = classifier.classify_geoid("48453001100")
+        assert result is not None
+        assert result.code == 11
+
+    def test_classify_geoid_returns_none_without_index(self):
+        classifier = NCESLocaleClassifier(
+            urbanized_areas=_empty_gdf(),
+            urban_clusters=_empty_gdf(),
+            principal_cities=_empty_gdf(),
+            place_populations={},
+        )
+        assert classifier.classify_geoid("48453001100") is None
+
+    def test_classify_geoid_returns_none_for_missing(self):
+        classifier = NCESLocaleClassifier(
+            urbanized_areas=_empty_gdf(),
+            urban_clusters=_empty_gdf(),
+            principal_cities=_empty_gdf(),
+            place_populations={},
+        )
+        classifier.locale_index = LocaleIndex({"48453001100": 11})
+        assert classifier.classify_geoid("nonexistent") is None
+
+    def test_classify_geoid_or_point_uses_index(self):
+        ua = _make_ua((-78, 38, -76, 40), pop=500_000)
+        pc = _make_principal_cities((-78, 38, -76, 40), pop=300_000)
+        classifier = NCESLocaleClassifier(
+            urbanized_areas=ua,
+            urban_clusters=None,
+            principal_cities=pc,
+            place_populations={"00100": 300_000},
+        )
+        classifier.locale_index = LocaleIndex({"48453001100": 43})
+        # GEOID maps to Rural-Remote (43), but point would be City-Large (11)
+        result = classifier.classify_geoid_or_point("48453001100", -77.0, 39.0)
+        assert result.code == 43
+
+    def test_classify_geoid_or_point_falls_back(self):
+        ua = _make_ua((-78, 38, -76, 40), pop=500_000)
+        pc = _make_principal_cities((-78, 38, -76, 40), pop=300_000)
+        classifier = NCESLocaleClassifier(
+            urbanized_areas=ua,
+            urban_clusters=None,
+            principal_cities=pc,
+            place_populations={"00100": 300_000},
+        )
+        classifier.locale_index = LocaleIndex({})
+        # GEOID not in index → falls back to spatial → City-Large
+        result = classifier.classify_geoid_or_point("nonexistent", -77.0, 39.0)
+        assert result.code == 11
+
+
+class TestClassifyPolygons:
+    """Test bulk polygon classification."""
+
+    def test_majority_adds_columns(self):
+        """classify_polygons with majority adds locale_code/label/category/subcategory."""
+        ua = _make_ua((-78, 38, -76, 40), pop=500_000)
+        classifier = NCESLocaleClassifier(
+            urbanized_areas=ua,
+            urban_clusters=None,
+            principal_cities=_empty_gdf(),
+            place_populations={},
+            ua_populations={"00001": 500_000},
+        )
+        polys = gpd.GeoDataFrame(
+            {"name": ["A", "B"]},
+            geometry=[box(-77.5, 38.5, -76.5, 39.5), box(-77.5, 38.5, -76.5, 39.5)],
+            crs="EPSG:4269",
+        )
+        result = classifier.classify_polygons(polys, method="majority")
+        assert "locale_code" in result.columns
+        assert "locale_label" in result.columns
+        assert "locale_category" in result.columns
+        assert "locale_subcategory" in result.columns
+        assert len(result) == 2
+
+    def test_distribution_adds_column(self):
+        """classify_polygons with distribution adds locale_distribution column."""
+        ua = _make_ua((-78, 38, -77, 39), pop=500_000)
+        classifier = NCESLocaleClassifier(
+            urbanized_areas=ua,
+            urban_clusters=None,
+            principal_cities=_empty_gdf(),
+            place_populations={},
+        )
+        polys = gpd.GeoDataFrame(
+            {"name": ["A"]},
+            geometry=[box(-77.5, 38.5, -76.5, 39.5)],
+            crs="EPSG:4269",
+        )
+        result = classifier.classify_polygons(polys, method="distribution")
+        assert "locale_distribution" in result.columns
+        dist = result["locale_distribution"].iloc[0]
+        assert isinstance(dist, dict)
+        assert abs(sum(dist.values()) - 1.0) < 0.01
+
+    def test_does_not_mutate_input(self):
+        """classify_polygons should return a copy, not mutate the input."""
+        ua = _make_ua((-78, 38, -76, 40), pop=500_000)
+        classifier = NCESLocaleClassifier(
+            urbanized_areas=ua,
+            urban_clusters=None,
+            principal_cities=_empty_gdf(),
+            place_populations={},
+        )
+        polys = gpd.GeoDataFrame(
+            {"name": ["A"]},
+            geometry=[box(-77.5, 38.5, -76.5, 39.5)],
+            crs="EPSG:4269",
+        )
+        original_cols = set(polys.columns)
+        classifier.classify_polygons(polys, method="majority")
+        assert set(polys.columns) == original_cols
 
 
 class TestLocaleLabel:
