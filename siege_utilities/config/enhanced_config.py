@@ -81,9 +81,7 @@ class ConfigurationMigrator:
             logger.info("Successfully migrated user profile")
             return profile
 
-        except Exception:
-            # exception() preserves the traceback; the previous
-            # error(f"...: {e}") string lost it.
+        except (OSError, yaml.YAMLError, ValueError):
             logger.exception("Failed to migrate user profile from %s", legacy_file)
             return self._create_default_user_profile()
     
@@ -134,7 +132,7 @@ class ConfigurationMigrator:
             logger.info(f"Successfully migrated client profile for: {client_code}")
             return profile
 
-        except Exception:
+        except (OSError, yaml.YAMLError, json.JSONDecodeError, ValueError):
             logger.exception(
                 "Failed to migrate client profile for %s from %s",
                 client_code, legacy_file,
@@ -180,7 +178,7 @@ class ConfigurationMigrator:
                             self.migrate_client_profile(client_file, client_code)
                             results["client_profiles"]["migrated"].append(client_code)
                             logger.info(f"Client profile migrated: {client_code}")
-                        except Exception as e:
+                        except (OSError, yaml.YAMLError, json.JSONDecodeError, ValueError) as e:
                             results["client_profiles"]["errors"].append(f"{client_code}: {e}")
                             logger.error(f"Failed to migrate client {client_code}: {e}")
                     else:
@@ -195,7 +193,7 @@ class ConfigurationMigrator:
             
             return results
             
-        except Exception as e:
+        except (OSError, yaml.YAMLError, ValueError) as e:
             logger.error(f"Migration failed: {e}")
             results["error"] = str(e)
             return results
@@ -431,7 +429,7 @@ def load_user_profile(username: str, config_dir: Optional[Path] = None) -> Optio
             return None
         return UserProfile(**data)
 
-    except Exception:
+    except (OSError, yaml.YAMLError, ValueError):
         logger.exception("Failed to load user profile %s", username)
         return None
 
@@ -487,7 +485,7 @@ def save_user_profile(profile: UserProfile, username: str, config_dir: Optional[
         logger.info(f"Saved user profile: {config_file}")
         return True
 
-    except Exception as e:
+    except (OSError, yaml.YAMLError) as e:
         logger.error(f"Failed to save user profile {username}: {e}")
         return False
 
@@ -550,7 +548,7 @@ def load_client_profile(client_code: str, config_dir: Optional[Path] = None) -> 
             return None
         return ClientProfile(**data)
 
-    except Exception:
+    except (OSError, yaml.YAMLError, ValueError):
         logger.exception("Failed to load client profile %s", client_code)
         return None
 
@@ -589,7 +587,7 @@ def save_client_profile(profile: ClientProfile, config_dir: Optional[Path] = Non
         logger.info(f"Saved client profile: {config_file}")
         return True
 
-    except Exception as e:
+    except (OSError, yaml.YAMLError) as e:
         logger.error(f"Failed to save client profile {profile.client_code}: {e}")
         return False
 
@@ -643,7 +641,7 @@ def list_client_profiles(config_dir: Optional[Path] = None) -> List[str]:
         logger.info(f"Found {len(client_codes)} client profiles: {client_codes}")
         return client_codes
         
-    except Exception as e:
+    except OSError as e:
         logger.error(f"Failed to list client profiles: {e}")
         return []
 
@@ -668,7 +666,7 @@ def export_config_yaml(config_data: Dict[str, Any], output_file: Path) -> bool:
         logger.info(f"Exported configuration to: {output_file}")
         return True
         
-    except Exception as e:
+    except (OSError, yaml.YAMLError) as e:
         logger.error(f"Failed to export configuration: {e}")
         return False
 
@@ -694,6 +692,6 @@ def import_config_yaml(input_file: Path) -> Optional[Dict[str, Any]]:
         logger.info(f"Imported configuration from: {input_file}")
         return config_data
         
-    except Exception as e:
+    except (OSError, yaml.YAMLError) as e:
         logger.error(f"Failed to import configuration: {e}")
         return None

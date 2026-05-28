@@ -201,7 +201,7 @@ def load_client_profile(
         log_info(f"Loaded client profile: {client_code}")
         return profile
         
-    except Exception as e:
+    except (OSError, json.JSONDecodeError) as e:
         log_error(f"Error loading client profile {config_file}: {e}")
         return None
 
@@ -254,7 +254,7 @@ def update_client_profile(
         log_info(f"Updated client profile: {client_code}")
         return True
         
-    except Exception as e:
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as e:
         log_error(f"Error updating client profile {client_code}: {e}")
         return False
 
@@ -299,7 +299,7 @@ def list_client_profiles(
                 'config_file': str(config_file)
             })
             
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, KeyError) as e:
             log_error(f"Error reading client profile {config_file}: {e}")
     
     log_info(f"Found {len(clients)} client profiles")
@@ -341,7 +341,7 @@ def search_client_profiles(
             with open(config_file, 'r') as f:
                 profile = json.load(f)
             all_profiles.append(profile)
-        except Exception:
+        except (OSError, json.JSONDecodeError):
             logger.warning("Skipping unreadable client config: %s", config_file, exc_info=True)
             continue
     
@@ -420,7 +420,7 @@ def associate_client_with_project(
             log_info(f"Client {client_code} already associated with project {project_code}")
             return True
             
-    except Exception as e:
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as e:
         log_error(f"Error associating client with project: {e}")
         return False
 

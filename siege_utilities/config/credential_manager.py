@@ -373,7 +373,7 @@ class CredentialManager:
                     content = f.read().strip()
                     return content if content else None
                     
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, KeyError) as e:
             log_warning(f"Error reading credential file {file_path}: {e}")
             return None
     
@@ -475,7 +475,7 @@ class CredentialManager:
                 return result.stdout.strip()
             return None
             
-        except Exception as exc:
+        except (subprocess.SubprocessError, OSError) as exc:
             log_warning(f"Keychain lookup failed for {service}/{username}: {exc}")
             return None
 
@@ -562,7 +562,7 @@ class CredentialManager:
                 log_error(f"Failed to store in 1Password: {_redact(result.stderr)}")
                 return False
                 
-        except Exception as e:
+        except (subprocess.SubprocessError, OSError, KeyError) as e:
             log_error(f"Error storing in 1Password: {e}")
             return False
     
@@ -584,7 +584,7 @@ class CredentialManager:
                 log_error(f"Failed to store in Keychain: {_redact(result.stderr)}")
                 return False
                 
-        except Exception as e:
+        except (subprocess.SubprocessError, OSError) as e:
             log_error(f"Error storing in Keychain: {e}")
             return False
     
@@ -667,7 +667,7 @@ class CredentialManager:
                 log_error(f"Failed to store GA credentials: {_redact(result.stderr)}")
                 return False
                 
-        except Exception as e:
+        except (subprocess.SubprocessError, OSError, KeyError, TypeError) as e:
             log_error(f"Error storing Google Analytics credentials: {e}")
             return False
     
@@ -689,19 +689,27 @@ class CredentialManager:
                 ``attempts`` carries per-backend diagnostics so callers
                 can surface an actionable message.
         """
-        # Try to get from 1Password using item title
-        client_id = self._get_from_1password(item_title, 'client_id')
-        client_secret = self._get_from_1password(item_title, 'client_secret')
-
-        if client_id and client_secret:
-            return client_id, client_secret
-
-        # Fallback to general credential retrieval.  get_credential
-        # raises CredentialNotFoundError on total miss (#801).
-        client_id = self.get_credential('google-analytics', 'api', 'client_id')
-        client_secret = self.get_credential('google-analytics', 'api', 'client_secret')
-
-        return client_id, client_secret
+        try:
+            # Try to get from 1Password using item title
+            client_id = self._get_from_1password(item_title, 'client_id')
+            client_secret = self._get_from_1password(item_title, 'client_secret')
+            
+            if client_id and client_secret:
+                return client_id, client_secret
+            
+            # Fallback to general credential retrieval
+            client_id = self.get_credential('google-analytics', 'api', 'client_id')
+            client_secret = self.get_credential('google-analytics', 'api', 'client_secret')
+            
+            if client_id and client_secret:
+                return client_id, client_secret
+            
+            log_error("Could not retrieve Google Analytics credentials")
+            return None
+            
+        except (subprocess.SubprocessError, OSError, json.JSONDecodeError) as e:
+            log_error(f"Error retrieving Google Analytics credentials: {e}")
+            return None
     
     def list_stored_credentials(self, service_filter: Optional[str] = None,
                                 vault: Optional[str] = None,
@@ -756,7 +764,7 @@ class CredentialManager:
                         f"({total} total items in vault). "
                         f"Tag items with 'siege-utilities' to include them."
                     )
-            except Exception as e:
+            except (subprocess.SubprocessError, OSError, json.JSONDecodeError) as e:
                 log_warning(f"Error listing 1Password credentials: {e}")
         
         # List environment variables (siege-utilities related)
@@ -804,7 +812,7 @@ class CredentialManager:
                         'status': 'Not authenticated',
                         'description': '1Password CLI (run: op signin)'
                     }
-            except Exception:
+            except (subprocess.SubprocessError, OSError):
                 status['1password'] = {
                     'available': False,
                     'status': 'Error checking status',
@@ -949,7 +957,7 @@ def store_ga_credentials_from_file(credentials_file: Union[str, Path],
         
         return success
         
-    except Exception as e:
+    except (OSError, json.JSONDecodeError, KeyError, subprocess.SubprocessError) as e:
         log_error(f"Error storing GA credentials from file: {e}")
         return False
 
@@ -1062,7 +1070,7 @@ def store_ga_service_account_from_file(credentials_file: Union[str, Path],
     except subprocess.CalledProcessError as e:
         log_error(f"Failed to store service account credentials: {e.stderr}")
         return False
-    except Exception as e:
+    except (OSError, json.JSONDecodeError, KeyError) as e:
         log_error(f"Error storing service account credentials: {str(e)}")
         return False
 
@@ -1148,7 +1156,7 @@ def get_google_service_account_from_1password(item_title: str = "Google Analytic
     except subprocess.CalledProcessError as e:
         log_error(f"Failed to get Google service account from 1Password: {e}")
         return None
-    except Exception as e:
+    except (ValueError, KeyError, AttributeError) as e:
         log_error(f"Error retrieving Google service account: {e}")
         return None
 
@@ -1220,7 +1228,7 @@ def get_google_oauth_from_1password(
     except subprocess.CalledProcessError as e:
         log_error(f"Failed to get Google OAuth2 credentials from 1Password: {e}")
         return None
-    except Exception as e:
+    except (ValueError, IndexError, AttributeError) as e:
         log_error(f"Error retrieving Google OAuth2 credentials: {e}")
         return None
 
@@ -1268,7 +1276,7 @@ def get_google_oauth_document_from_1password(
     except json.JSONDecodeError as e:
         log_error(f"Invalid JSON in 1Password document '{item_title}': {e}")
         return None
-    except Exception as e:
+    except (OSError, UnicodeDecodeError) as e:
         log_error(f"Error retrieving Google OAuth document: {e}")
         return None
 
@@ -1295,6 +1303,6 @@ def create_temporary_service_account_file(service_account_data: Dict[str, str]) 
         log_info(f"Created temporary service account file: {temp_file_path}")
         return temp_file_path
         
-    except Exception as e:
+    except (OSError, TypeError) as e:
         log_error(f"Failed to create temporary service account file: {e}")
         return None

@@ -70,7 +70,7 @@ class ConfigurationMigrator:
             logger.info("Successfully migrated user profile")
             return profile
             
-        except Exception as e:
+        except (OSError, yaml.YAMLError, ValueError) as e:
             logger.error(f"Failed to migrate user profile: {e}")
             return self._create_default_user_profile()
     
@@ -104,7 +104,7 @@ class ConfigurationMigrator:
             logger.info(f"Successfully migrated client profile for: {client_code}")
             return profile
             
-        except Exception as e:
+        except (OSError, yaml.YAMLError, json.JSONDecodeError, ValueError) as e:
             logger.error(f"Failed to migrate client profile for {client_code}: {e}")
             return self._create_default_client_profile(client_code)
     
@@ -147,7 +147,7 @@ class ConfigurationMigrator:
                             self.migrate_client_profile(client_file, client_code)
                             results["client_profiles"]["migrated"].append(client_code)
                             logger.info(f"Client profile migrated: {client_code}")
-                        except Exception as e:
+                        except (OSError, yaml.YAMLError, json.JSONDecodeError, ValueError) as e:
                             results["client_profiles"]["errors"].append(f"{client_code}: {e}")
                             logger.error(f"Failed to migrate client {client_code}: {e}")
                     else:
@@ -162,7 +162,7 @@ class ConfigurationMigrator:
             
             return results
             
-        except Exception as e:
+        except (OSError, yaml.YAMLError, json.JSONDecodeError, ValueError) as e:
             logger.error(f"Migration failed: {e}")
             results["error"] = str(e)
             return results

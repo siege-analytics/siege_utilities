@@ -178,7 +178,7 @@ def load_connection_profile(
         log_info(f"Loaded connection profile: {connection_id}")
         return profile
         
-    except Exception as e:
+    except (OSError, json.JSONDecodeError) as e:
         log_error(f"Error loading connection profile {config_file}: {e}")
         return None
 
@@ -216,7 +216,7 @@ def find_connection_by_name(
             if profile['name'] == name:
                 return profile
                 
-        except Exception:
+        except (OSError, json.JSONDecodeError, KeyError):
             logger.warning("Skipping unreadable connection config: %s", config_file, exc_info=True)
             continue
 
@@ -270,7 +270,7 @@ def list_connection_profiles(
                 'config_file': str(config_file)
             })
             
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, KeyError) as e:
             log_error(f"Error reading connection profile {config_file}: {e}")
     
     log_info(f"Found {len(connections)} connection profiles")
@@ -322,7 +322,7 @@ def update_connection_profile(
         log_info(f"Updated connection profile: {connection_id}")
         return True
         
-    except Exception as e:
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as e:
         log_error(f"Error updating connection profile {connection_id}: {e}")
         return False
 
@@ -393,9 +393,9 @@ def verify_connection_profile(
                 spark.stop()
             except ImportError:
                 test_result['error'] = 'PySpark not available'
-            except Exception as e:
+            except (RuntimeError, ValueError, OSError) as e:
                 test_result['error'] = str(e)
-                
+
         elif connection_type == 'database':
             # Test database connection
             try:
@@ -412,9 +412,9 @@ def verify_connection_profile(
                     test_result['error'] = 'No connection string provided'
             except ImportError:
                 test_result['error'] = 'SQLAlchemy not available'
-            except Exception as e:
+            except (RuntimeError, ValueError, OSError) as e:
                 test_result['error'] = str(e)
-        
+
         else:
             test_result['error'] = f'Connection testing not implemented for {connection_type}'
         
@@ -430,7 +430,7 @@ def verify_connection_profile(
         
         log_info(f"Connection test for {connection_id}: {'SUCCESS' if test_result['success'] else 'FAILED'}")
         
-    except Exception as e:
+    except (OSError, KeyError, ValueError, json.JSONDecodeError) as e:
         test_result['error'] = str(e)
         log_error(f"Error testing connection {connection_id}: {e}")
     
@@ -543,7 +543,7 @@ def cleanup_old_connections(
                 removed_count += 1
                 log_info(f"Removed old connection: {profile['name']}")
                 
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, KeyError, ValueError) as e:
             log_error(f"Error processing connection file {config_file}: {e}")
     
     log_info(f"Cleaned up {removed_count} old connections")

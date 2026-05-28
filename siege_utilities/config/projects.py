@@ -187,7 +187,7 @@ def load_project_config(project_code: str, config_directory: str = "config") -> 
             config_dir = pathlib.Path(config_directory)
 
         config_file = config_dir / f"project_{project_code}.json"
-    except Exception as e:
+    except (OSError, ValueError) as e:
         log_error(f"Failed to access config directory: {e}")
         raise
 
@@ -202,7 +202,7 @@ def load_project_config(project_code: str, config_directory: str = "config") -> 
         log_info(f"Loaded project config: {project_code}")
         return config
 
-    except Exception as e:
+    except (OSError, json.JSONDecodeError) as e:
         log_error(f"Error loading project config {config_file}: {e}")
         return None
 
@@ -260,7 +260,7 @@ def setup_project_directories(config: Dict[str, Any]) -> bool:
         log_info(f"Project directories setup complete for {config['project_code']}")
         return True
 
-    except Exception as e:
+    except OSError as e:
         log_error(f"Error setting up project directories: {e}")
         return False
 
@@ -327,7 +327,7 @@ def list_projects(config_directory: str = "config") -> list:
             config_dir = validate_directory_path(config_directory, must_exist=False)
         except ImportError:
             config_dir = pathlib.Path(config_directory)
-    except Exception as e:
+    except (OSError, ValueError) as e:
         log_error(f"Failed to access config directory: {e}")
         raise
 
@@ -349,7 +349,7 @@ def list_projects(config_directory: str = "config") -> list:
                 'config_file': str(config_file)
             })
 
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, KeyError) as e:
             log_error(f"Error reading project config {config_file}: {e}")
 
     log_info(f"Found {len(projects)} project configurations")
@@ -397,6 +397,6 @@ def update_project_config(project_code: str, updates: Dict[str, Any],
         log_info(f"Updated project config: {project_code}")
         return True
 
-    except Exception as e:
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as e:
         log_error(f"Error updating project config {project_code}: {e}")
         return False
