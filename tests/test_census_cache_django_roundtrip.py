@@ -10,7 +10,6 @@ import pandas as pd
 
 # Skip if Django not available or not configured
 try:
-    import django
     from django.conf import settings as _django_settings
 
     _DJANGO_CONFIGURED = _django_settings.configured
