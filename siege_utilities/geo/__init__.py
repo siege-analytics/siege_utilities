@@ -93,7 +93,7 @@ _register([
 _register([
     'concatenate_addresses', 'use_nominatim_geocoder', 'NominatimGeoClassifier',
     'get_country_name', 'get_country_code', 'list_countries', 'get_coordinates',
-    'NOMINATIM_INTERNAL_URL',
+    'NOMINATIM_INTERNAL_URL', 'GeocodingError',
     'validate_geocode_data_pandas', 'mark_valid_geocode_data_pandas',
 ], '.geocoding')
 

@@ -34,6 +34,21 @@ def log_debug(message: str) -> None:
 def log_error(message: str) -> None:
     logger.error(message)
 
+
+class GeocodingError(RuntimeError):
+    """Raised when Nominatim geocoding fails for reasons other than 'no match'.
+
+    Covers network timeouts (after retries exhausted), service errors,
+    parse errors, and other unexpected failures from the geocoder.
+    Distinct from a legitimate "no result found" outcome, which still
+    returns ``None``. Use ``__cause__`` to inspect the underlying
+    exception.
+
+    Mirrors
+    :class:`siege_utilities.geo.providers.census_geocoder.CensusGeocodeError`.
+    """
+
+
 # Country code mapping for Nominatim geocoding
 COUNTRY_CODES = {
     # North America
@@ -359,7 +374,6 @@ def concatenate_addresses(street=None, city=None, state_province_area=None,
 def get_coordinates(query_address, country_codes=None, max_retries=3, server_url=None):
     """
     Get coordinates (latitude, longitude) for an address using Nominatim.
-    Returns a tuple of (latitude, longitude) or None if geocoding fails.
 
     Args:
         query_address: The address to geocode
@@ -370,23 +384,34 @@ def get_coordinates(query_address, country_codes=None, max_retries=3, server_url
             Defaults to None (public OSM Nominatim).
 
     Returns:
-        tuple: (latitude, longitude) or None if geocoding fails
+        tuple: (latitude, longitude), or ``None`` when Nominatim returned
+        no match for the address (a legitimate non-error outcome).
+
+    Raises:
+        ValueError: If ``query_address`` is empty or None.
+        GeocodingError: If geocoding failed due to a network, service, or
+            parse error — i.e., the geocoder could not even attempt to
+            match. Wraps the underlying exception via ``__cause__``.
     """
+    result_json = use_nominatim_geocoder(
+        query_address, country_codes=country_codes,
+        max_retries=max_retries, server_url=server_url,
+    )
+    if result_json is None:
+        return None
     try:
-        result_json = use_nominatim_geocoder(
-            query_address, country_codes=country_codes,
-            max_retries=max_retries, server_url=server_url,
+        data = json.loads(result_json)
+    except json.JSONDecodeError as e:
+        raise GeocodingError(
+            f"Could not parse Nominatim response for {query_address!r}"
+        ) from e
+    lat = data.get('nominatim_lat')
+    lng = data.get('nominatim_lng')
+    if lat is None or lng is None:
+        raise GeocodingError(
+            f"Nominatim response for {query_address!r} missing lat/lng fields"
         )
-        if result_json:
-            data = json.loads(result_json)
-            lat = data.get('nominatim_lat')
-            lng = data.get('nominatim_lng')
-            if lat and lng:
-                return (float(lat), float(lng))
-        return None
-    except Exception as e:
-        log_error(f"Geocoding failed for {query_address}: {e}")
-        return None
+    return (float(lat), float(lng))
 
 
 def use_nominatim_geocoder(query_address, id=None, country_codes=None,
@@ -407,18 +432,20 @@ def use_nominatim_geocoder(query_address, id=None, country_codes=None,
             don't require it).
 
     Returns:
-        JSON string of geocoding result or None if failed
+        JSON string of the geocoding result, or ``None`` when Nominatim
+        returned no match for the address (a legitimate non-error outcome).
+
+    Raises:
+        ValueError: If ``query_address`` is empty or None.
+        GeocodingError: If geocoding failed due to a network, service, or
+            parse error after retries (i.e., the geocoder could not even
+            attempt to match). Wraps the underlying geopy exception via
+            ``__cause__``.
     """
     log_debug(f'Geocoding address: {query_address}')
     if not query_address:
-        message = (
-            'query_address cannot be None, Empty address provided for geocoding'
-            )
-        log_warning(message)
-        return None
-    else:
-        message = f'Geocoding {query_address}'
-        log_info(message)
+        raise ValueError('query_address must be a non-empty string')
+    log_info(f'Geocoding {query_address}')
     if not country_codes:
         country_codes = GEOCODER_CONFIG.get('country_codes')
     # Build geocoder — use custom server domain if provided
@@ -460,13 +487,23 @@ def use_nominatim_geocoder(query_address, id=None, country_codes=None,
             if attempt == max_retries - 1:
                 message = f'All geocoding attempts failed for: {query_address}'
                 log_error(message)
-                return None
+                raise GeocodingError(
+                    f'Nominatim geocoding failed for {query_address!r} '
+                    f'after {max_retries} attempts'
+                ) from e
             time.sleep(2 ** attempt)
         except Exception as e:
             message = f'Unexpected error during geocoding: {str(e)}'
             log_error(message)
-            return None
-    return None
+            raise GeocodingError(
+                f'Unexpected error geocoding {query_address!r}'
+            ) from e
+    # Defensive: the loop only exits via return (success / no match) or
+    # raise (retries exhausted). Reaching here implies max_retries < 1.
+    raise GeocodingError(
+        f'Nominatim geocoder loop exited without result for '
+        f'{query_address!r} (max_retries={max_retries})'
+    )
 
 
 class NominatimGeoClassifier:
@@ -845,7 +882,14 @@ class SpatiaLiteCache:
         country_codes: Optional[str] = None,
         server_url: Optional[str] = None,
     ) -> Optional[Dict]:
-        """Look up cache, falling back to Nominatim if not cached."""
+        """Look up cache, falling back to Nominatim if not cached.
+
+        Returns ``None`` when the cache misses AND Nominatim has no match
+        for the address. Raises :class:`GeocodingError` when Nominatim
+        fails (network/service/parse) — callers that want fail-open
+        behavior must catch it explicitly. Raises :class:`ValueError`
+        for an empty/None ``address``.
+        """
         cached = self.get_geocode(address)
         if cached is not None:
             return cached
@@ -856,11 +900,18 @@ class SpatiaLiteCache:
         if result_json is None:
             return None
 
-        data = json.loads(result_json)
+        try:
+            data = json.loads(result_json)
+        except json.JSONDecodeError as e:
+            raise GeocodingError(
+                f"Could not parse Nominatim response for {address!r}"
+            ) from e
         lat = data.get("nominatim_lat")
         lon = data.get("nominatim_lng")
         if lat is None or lon is None:
-            return None
+            raise GeocodingError(
+                f"Nominatim response for {address!r} missing lat/lng fields"
+            )
 
         self.put_geocode(
             address, float(lat), float(lon),
