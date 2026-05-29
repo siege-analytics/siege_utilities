@@ -40,7 +40,7 @@ def _check_package(pkg_name: str, quiet: bool) -> list[str]:
         # Not a structural drift problem — would be ideal if these
         # were also lazy, but that's a separate refactor.
         return failures
-    except Exception as exc:
+    except (ImportError, AttributeError, RuntimeError, OSError) as exc:
         failures.append(f"{pkg_name}: package import failed: {exc!r}")
         return failures
 
@@ -93,7 +93,7 @@ def _check_package(pkg_name: str, quiet: bool) -> list[str]:
                 # load raises AttributeError when the optional dep is
                 # missing. Env, not drift.
                 continue
-            except Exception as exc:
+            except (ImportError, AttributeError, RuntimeError, OSError, TypeError) as exc:
                 failures.append(
                     f"{pkg_name}: failed to import {modpath} for {name!r}: {exc!r}"
                 )
@@ -154,7 +154,7 @@ def main() -> int:
     packages = ["siege_utilities"]
     try:
         root_pkg = importlib.import_module("siege_utilities")
-    except Exception as exc:
+    except (ImportError, AttributeError, RuntimeError, OSError) as exc:
         print(f"FAIL: cannot import siege_utilities: {exc!r}")
         return 1
 

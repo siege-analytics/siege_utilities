@@ -15,7 +15,7 @@ import pytest
 # Skip entire module if GDAL is not available (CI without geospatial libs)
 try:
     from django.contrib.gis.db import models as gis_models  # noqa: F401
-except Exception:
+except (ImportError, RuntimeError):
     pytest.skip("GeoDjango/GDAL not available", allow_module_level=True)
 
 

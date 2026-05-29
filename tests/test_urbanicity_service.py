@@ -12,7 +12,7 @@ try:
     from django.contrib.gis.db import models as gis_models  # noqa: F401
 
     _DJANGO_AVAILABLE = True
-except Exception:
+except (ImportError, RuntimeError):
     _DJANGO_AVAILABLE = False
 
 

@@ -88,7 +88,7 @@ class TestBaseTemplateErrors:
         # or produces a trivial PDF — either is acceptable, but not a silent hang.
         try:
             template.build_document([])
-        except Exception:
+        except (ValueError, TypeError, RuntimeError, OSError, AttributeError):
             pass  # acceptable: ReportLab may raise on empty story
 
 

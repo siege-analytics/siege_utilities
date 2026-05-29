@@ -86,7 +86,7 @@ def main():
             vault=vault,
             account=account,
         )
-    except Exception as e:
+    except (OSError, ValueError, TypeError, RuntimeError, ImportError) as e:
         print(f"\nAuthentication failed: {e}")
         sys.exit(1)
 
@@ -103,7 +103,7 @@ def main():
                 print(f"  {f['name']} ({f['mimeType']})")
         else:
             print("\nDrive access confirmed (no files found, normal for new accounts)")
-    except Exception as e:
+    except (OSError, ValueError, TypeError, RuntimeError, AttributeError) as e:
         print(f"\nDrive verification failed: {e}")
         print("Token was saved — Sheets/Docs/Slides may still work.")
 
