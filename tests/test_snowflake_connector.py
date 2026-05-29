@@ -104,7 +104,7 @@ def test_execute_query_returns_none_on_driver_error(_patch_snowflake):
 
     c = SnowflakeConnector(account="acc", user="u", password="p")
     cursor = MagicMock()
-    cursor.execute.side_effect = RuntimeError("boom")
+    cursor.execute.side_effect = ValueError("boom")
     c.connection = MagicMock()
     c.cursor = cursor
 

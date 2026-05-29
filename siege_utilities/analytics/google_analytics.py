@@ -36,9 +36,15 @@ try:
     from google.analytics.data_v1beta.types import (
         RunReportRequest, DateRange, Metric, Dimension
     )
+    from google.auth.exceptions import GoogleAuthError
+    from google.api_core.exceptions import GoogleAPICallError
     GOOGLE_ANALYTICS_AVAILABLE = True
+    _GA_AUTH_ERRORS = (GoogleAuthError, GoogleAPICallError, ValueError)
+    _GA_API_ERRORS = (GoogleAPICallError, KeyError, ValueError)
 except ImportError:
     GOOGLE_ANALYTICS_AVAILABLE = False
+    _GA_AUTH_ERRORS = (ValueError, OSError)
+    _GA_API_ERRORS = (KeyError, ValueError)
 
 try:
     from pyspark.sql import DataFrame as SparkDataFrame
@@ -159,7 +165,7 @@ class GoogleAnalyticsConnector:
 
             return True
 
-        except Exception as e:
+        except (*_GA_AUTH_ERRORS, OSError) as e:
             logger.error("Google Analytics authentication failed: %s", e, exc_info=True)
             return False
 
@@ -210,7 +216,7 @@ class GoogleAnalyticsConnector:
                 # Clean up temporary file
                 Path(temp_file).unlink(missing_ok=True)
 
-        except Exception as e:
+        except (*_GA_AUTH_ERRORS, OSError) as e:
             logger.error("Service account authentication failed: %s", e, exc_info=True)
             return False
 
@@ -389,7 +395,7 @@ class GoogleAnalyticsConnector:
             log_info(f"Saved DataFrame to {output_path} ({format} format)")
             return True
 
-        except Exception as e:
+        except (OSError, ValueError) as e:
             logger.error("Failed to save DataFrame: %s", e, exc_info=True)
             return False
 
@@ -425,7 +431,7 @@ class GoogleAnalyticsConnector:
             log_info(f"Saved DataFrame as Spark DataFrame to {output_path}")
             return True
 
-        except Exception as e:
+        except (ImportError, OSError, TypeError, RuntimeError) as e:
             logger.error("Failed to save as Spark DataFrame: %s", e, exc_info=True)
             return False
 
@@ -515,7 +521,7 @@ def load_ga_account_profile(account_id: str,
         log_info(f"Loaded GA account profile: {account_id}")
         return profile
 
-    except Exception as e:
+    except (OSError, json.JSONDecodeError) as e:
         logger.error("Failed to load GA account profile %s: %s", account_id, e, exc_info=True)
         return None
 
@@ -546,7 +552,7 @@ def list_ga_accounts_for_client(client_id: str,
             if profile.get('client_id') == client_id:
                 accounts.append(profile)
 
-        except Exception as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.error("Error reading GA account file %s: %s", config_file, e, exc_info=True)
 
     log_info(f"Found {len(accounts)} GA accounts for client: {client_id}")
@@ -645,7 +651,7 @@ def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
 
                     log_info(f"Processed GA account: {account['ga_account_id']} - {len(df)} rows")
 
-            except Exception as e:
+            except (*_GA_API_ERRORS, OSError, json.JSONDecodeError) as e:
                 error_msg = f"Error processing account {account['ga_account_id']}: {e}"
                 results['errors'].append(error_msg)
                 logger.error("Error processing account %s", account['ga_account_id'], exc_info=True)
@@ -653,7 +659,7 @@ def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
         log_info(f"Batch GA data retrieval completed: {results['accounts_processed']} accounts, {results['total_rows']} rows")
         return results
 
-    except Exception as e:
+    except (OSError, KeyError, AttributeError) as e:
         logger.error("Batch GA data retrieval failed: %s", e, exc_info=True)
         return {
             'success': False,

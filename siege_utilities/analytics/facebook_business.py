@@ -24,9 +24,12 @@ try:
     from facebook_business.adobjects.adaccount import AdAccount
     from facebook_business.adobjects.page import Page
     from facebook_business.adobjects.business import Business
+    from facebook_business.exceptions import FacebookRequestError
     FACEBOOK_BUSINESS_AVAILABLE = True
+    _FB_API_ERRORS = (FacebookRequestError, KeyError, ValueError)
 except ImportError:
     FACEBOOK_BUSINESS_AVAILABLE = False
+    _FB_API_ERRORS = (KeyError, ValueError)
 
 try:
     from pyspark.sql import DataFrame as SparkDataFrame
@@ -103,7 +106,7 @@ class FacebookBusinessConnector:
             log_info(f"Retrieved {len(accounts)} Facebook ad accounts")
             return accounts
 
-        except Exception as e:
+        except (*_FB_API_ERRORS, AttributeError) as e:
             logger.error("Failed to retrieve ad accounts: %s", e, exc_info=True)
             return []
 
@@ -296,7 +299,7 @@ class FacebookBusinessConnector:
             log_info(f"Saved DataFrame to {output_path} ({format} format)")
             return True
 
-        except Exception as e:
+        except (OSError, ValueError) as e:
             logger.error("Failed to save DataFrame: %s", e, exc_info=True)
             return False
 
@@ -332,7 +335,7 @@ class FacebookBusinessConnector:
             log_info(f"Saved DataFrame as Spark DataFrame to {output_path}")
             return True
 
-        except Exception as e:
+        except (ImportError, OSError, TypeError, RuntimeError) as e:
             logger.error("Failed to save as Spark DataFrame: %s", e, exc_info=True)
             return False
 
@@ -422,7 +425,7 @@ def load_facebook_account_profile(account_id: str,
         log_info(f"Loaded Facebook account profile: {account_id}")
         return profile
 
-    except Exception as e:
+    except (OSError, json.JSONDecodeError) as e:
         logger.error("Failed to load Facebook account profile %s: %s", account_id, e, exc_info=True)
         return None
 
@@ -453,7 +456,7 @@ def list_facebook_accounts_for_client(client_id: str,
             if profile.get('client_id') == client_id:
                 accounts.append(profile)
 
-        except Exception as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.error("Error reading Facebook account file %s: %s", config_file, e, exc_info=True)
 
     log_info(f"Found {len(accounts)} Facebook accounts for client: {client_id}")
@@ -565,7 +568,7 @@ def batch_retrieve_facebook_data(client_id: str, start_date: str, end_date: str,
 
                     log_info(f"Processed Facebook account: {account['fb_account_id']} - {len(df)} rows")
 
-            except Exception as e:
+            except (*_FB_API_ERRORS, OSError, TypeError) as e:
                 error_msg = f"Error processing account {account['fb_account_id']}: {e}"
                 results['errors'].append(error_msg)
                 logger.error("Error processing account %s", account['fb_account_id'], exc_info=True)
@@ -573,7 +576,7 @@ def batch_retrieve_facebook_data(client_id: str, start_date: str, end_date: str,
         log_info(f"Batch Facebook data retrieval completed: {results['accounts_processed']} accounts, {results['total_rows']} rows")
         return results
 
-    except Exception as e:
+    except (OSError, KeyError, AttributeError) as e:
         logger.error("Batch Facebook data retrieval failed: %s", e, exc_info=True)
         return {
             'success': False,

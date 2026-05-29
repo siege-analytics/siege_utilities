@@ -13,9 +13,18 @@ import os
 try:
     import snowflake.connector
     from snowflake.connector.pandas_tools import write_pandas, read_pandas
+    from snowflake.connector.errors import (
+        DatabaseError as _SnowflakeDatabaseError,
+        ProgrammingError as _SnowflakeProgrammingError,
+        OperationalError as _SnowflakeOperationalError,
+    )
     SNOWFLAKE_AVAILABLE = True
+    _SF_CONN_ERRORS = (_SnowflakeDatabaseError, _SnowflakeOperationalError)
+    _SF_QUERY_ERRORS = (_SnowflakeProgrammingError, _SnowflakeDatabaseError)
 except ImportError:
     SNOWFLAKE_AVAILABLE = False
+    _SF_CONN_ERRORS = (OSError,)
+    _SF_QUERY_ERRORS = (ValueError,)
 
 try:
     import pandas as pd
@@ -120,10 +129,10 @@ class SnowflakeConnector:
             log.info("Successfully connected to Snowflake")
             return True
             
-        except Exception as e:
+        except (*_SF_CONN_ERRORS, TypeError) as e:
             log.error(f"Failed to connect to Snowflake: {e}")
             return False
-    
+
     def disconnect(self) -> None:
         """Close Snowflake connection."""
         try:
@@ -132,7 +141,7 @@ class SnowflakeConnector:
             if self.connection:
                 self.connection.close()
             log.info("Disconnected from Snowflake")
-        except Exception as e:
+        except (*_SF_CONN_ERRORS, AttributeError) as e:
             log.error(f"Error disconnecting from Snowflake: {e}")
     
     def execute_query(self, query: str, params: Optional[Dict[str, Any]] = None) -> Optional[List[tuple]]:
@@ -160,10 +169,10 @@ class SnowflakeConnector:
             log.info(f"Query executed successfully. Rows returned: {len(results)}")
             return results
             
-        except Exception as e:
+        except (*_SF_QUERY_ERRORS, ValueError) as e:
             log.error(f"Query execution failed: {e}")
             return None
-    
+
     def execute_ddl(self, ddl_statement: str) -> bool:
         """
         Execute DDL statements (CREATE, ALTER, DROP, etc.).
@@ -184,11 +193,11 @@ class SnowflakeConnector:
             log.info("DDL statement executed successfully")
             return True
             
-        except Exception as e:
+        except (*_SF_QUERY_ERRORS,) as e:
             log.error(f"DDL execution failed: {e}")
             return False
-    
-    def upload_dataframe(self, 
+
+    def upload_dataframe(self,
                         df: 'pd.DataFrame',
                         table_name: str,
                         database: Optional[str] = None,
@@ -249,11 +258,11 @@ class SnowflakeConnector:
                 log.error(f"Failed to upload data to table {table_name}")
                 return False
                 
-        except Exception as e:
+        except (*_SF_QUERY_ERRORS, ValueError) as e:
             log.error(f"DataFrame upload failed: {e}")
             return False
-    
-    def download_dataframe(self, 
+
+    def download_dataframe(self,
                           query: str,
                           params: Optional[Dict[str, Any]] = None) -> Optional['pd.DataFrame']:
         """
@@ -279,7 +288,7 @@ class SnowflakeConnector:
             log.info(f"Successfully downloaded {len(df)} rows as DataFrame")
             return df
             
-        except Exception as e:
+        except (*_SF_QUERY_ERRORS, ValueError) as e:
             log.error(f"DataFrame download failed: {e}")
             return None
     
@@ -378,7 +387,7 @@ class SnowflakeConnector:
             
             return table_info
             
-        except Exception as e:
+        except (*_SF_QUERY_ERRORS, ValueError, IndexError) as e:
             log.error(f"Failed to get table info: {e}")
             return None
     
@@ -413,7 +422,7 @@ class SnowflakeConnector:
             
             return tables
             
-        except Exception as e:
+        except (*_SF_QUERY_ERRORS, ValueError, IndexError) as e:
             log.error(f"Failed to list tables: {e}")
             return None
     
