@@ -1786,6 +1786,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
                 try:
                     import cairosvg
                     _tmp_logo = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+                    _tmp_logo.close()
                     cairosvg.svg2png(url=str(Path(client_logo_path).resolve()),
                                     write_to=_tmp_logo.name, output_width=300)
                     _logo_path = _tmp_logo.name

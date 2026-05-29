@@ -334,7 +334,22 @@ class PostGISConnector:
             log.error("psycopg2 not available. Install with: pip install psycopg2-binary")
         except (_Psycopg2Error, OSError) as e:
             log.error(f"Failed to connect to PostGIS: {e}")
-    
+
+    def close(self):
+        """Close the database connection."""
+        if self.connection is not None:
+            try:
+                self.connection.close()
+            except Exception:
+                pass
+            self.connection = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        self.close()
+
     def upload_spatial_data(self, gdf: GeoDataFrame, table_name: str, **kwargs) -> bool:
         """
         Upload spatial data to PostGIS with all columns preserved.
@@ -541,37 +556,39 @@ class PostGISConnector:
         validate_sql_identifier(table_name, "table_name")
 
         cursor = self.connection.cursor()
+        try:
+            geom_types = gdf.geometry.geom_type.unique()
+            if len(geom_types) == 1:
+                pg_geom_type = geom_types[0].upper()
+            else:
+                pg_geom_type = "GEOMETRY"
 
-        geom_types = gdf.geometry.geom_type.unique()
-        if len(geom_types) == 1:
-            pg_geom_type = geom_types[0].upper()
-        else:
-            pg_geom_type = "GEOMETRY"
+            srid = None
+            if gdf.crs is not None:
+                try:
+                    srid = gdf.crs.to_epsg()
+                except (ValueError, TypeError, AttributeError, RuntimeError) as exc:
+                    log.warning(
+                        "Could not derive EPSG code from CRS %r, "
+                        "falling back to STORAGE_CRS (%s): %s",
+                        gdf.crs, settings.STORAGE_CRS, exc,
+                    )
+                    srid = None
+            srid = srid or settings.STORAGE_CRS
+            if not isinstance(srid, int):
+                raise ValueError(f"SRID must be an integer, got {type(srid)}")
 
-        srid = None
-        if gdf.crs is not None:
-            try:
-                srid = gdf.crs.to_epsg()
-            except (ValueError, TypeError, AttributeError, RuntimeError) as exc:
-                log.warning(
-                    "Could not derive EPSG code from CRS %r, "
-                    "falling back to STORAGE_CRS (%s): %s",
-                    gdf.crs, settings.STORAGE_CRS, exc,
-                )
-                srid = None
-        srid = srid or settings.STORAGE_CRS
-        if not isinstance(srid, int):
-            raise ValueError(f"SRID must be an integer, got {type(srid)}")
+            create_sql = f"""
+            CREATE TABLE IF NOT EXISTS {table_name} (
+                id SERIAL PRIMARY KEY,
+                geom GEOMETRY({pg_geom_type}, {srid})
+            );
+            """
 
-        create_sql = f"""
-        CREATE TABLE IF NOT EXISTS {table_name} (
-            id SERIAL PRIMARY KEY,
-            geom GEOMETRY({pg_geom_type}, {srid})
-        );
-        """
-
-        cursor.execute(create_sql)
-        self.connection.commit()
+            cursor.execute(create_sql)
+            self.connection.commit()
+        finally:
+            cursor.close()
 
 
 class DuckDBConnector:
@@ -611,7 +628,22 @@ class DuckDBConnector:
         except (_DuckDBError, OSError) as e:
             log.error(f"Failed to connect to DuckDB: {e}")
             return False
-    
+
+    def close(self):
+        """Close the database connection."""
+        if self.connection is not None:
+            try:
+                self.connection.close()
+            except Exception:
+                pass
+            self.connection = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        self.close()
+
     def upload_spatial_data(self, gdf: GeoDataFrame, table_name: str, **kwargs) -> bool:
         """
         Upload spatial data to DuckDB.
@@ -785,8 +817,8 @@ def convert_spatial_format(gdf: GeoDataFrame, output_format: str, **kwargs) -> b
 
 def upload_to_postgis(gdf: GeoDataFrame, table_name: str, connection_string: Optional[str] = None, **kwargs) -> bool:
     """Upload spatial data to PostGIS."""
-    connector = PostGISConnector(connection_string)
-    return connector.upload_spatial_data(gdf, table_name, **kwargs)
+    with PostGISConnector(connection_string) as connector:
+        return connector.upload_spatial_data(gdf, table_name, **kwargs)
 
 
 def download_from_postgis(table_name: str, connection_string: Optional[str] = None, **kwargs) -> GeoDataFrame:
@@ -796,8 +828,8 @@ def download_from_postgis(table_name: str, connection_string: Optional[str] = No
         SpatialQueryError: If the connection is unavailable or the
             query fails.
     """
-    connector = PostGISConnector(connection_string)
-    return connector.download_spatial_data(table_name, **kwargs)
+    with PostGISConnector(connection_string) as connector:
+        return connector.download_spatial_data(table_name, **kwargs)
 
 
 def execute_postgis_query(query: str, connection_string: Optional[str] = None, **kwargs) -> Union[GeoDataFrame, int]:
@@ -807,8 +839,8 @@ def execute_postgis_query(query: str, connection_string: Optional[str] = None, *
         SpatialQueryError: If the connection is unavailable or the
             query fails.
     """
-    connector = PostGISConnector(connection_string)
-    return connector.execute_spatial_query(query, **kwargs)
+    with PostGISConnector(connection_string) as connector:
+        return connector.execute_spatial_query(query, **kwargs)
 
 
 def upload_to_duckdb(gdf: GeoDataFrame, table_name: str, db_path: Optional[str] = None, **kwargs) -> bool:
@@ -820,8 +852,8 @@ def upload_to_duckdb(gdf: GeoDataFrame, table_name: str, db_path: Optional[str] 
     if not DUCKDB_AVAILABLE:
         raise ImportError("DuckDB not available. Install with: pip install duckdb")
 
-    connector = DuckDBConnector(db_path)
-    return connector.upload_spatial_data(gdf, table_name, **kwargs)
+    with DuckDBConnector(db_path) as connector:
+        return connector.upload_spatial_data(gdf, table_name, **kwargs)
 
 
 def download_from_duckdb(table_name: str, db_path: Optional[str] = None, **kwargs) -> GeoDataFrame:
@@ -835,8 +867,8 @@ def download_from_duckdb(table_name: str, db_path: Optional[str] = None, **kwarg
     if not DUCKDB_AVAILABLE:
         raise ImportError("DuckDB not available. Install with: pip install duckdb")
 
-    connector = DuckDBConnector(db_path)
-    return connector.download_spatial_data(table_name, **kwargs)
+    with DuckDBConnector(db_path) as connector:
+        return connector.download_spatial_data(table_name, **kwargs)
 
 
 def execute_duckdb_query(query: str, db_path: Optional[str] = None, **kwargs) -> Union[GeoDataFrame, int]:
@@ -850,8 +882,8 @@ def execute_duckdb_query(query: str, db_path: Optional[str] = None, **kwargs) ->
     if not DUCKDB_AVAILABLE:
         raise ImportError("DuckDB not available. Install with: pip install duckdb")
 
-    connector = DuckDBConnector(db_path)
-    return connector.execute_spatial_query(query, **kwargs)
+    with DuckDBConnector(db_path) as connector:
+        return connector.execute_spatial_query(query, **kwargs)
 
 
 __all__ = [
