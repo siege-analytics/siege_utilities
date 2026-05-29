@@ -704,7 +704,10 @@ class NCESLocaleClassifier:
         ua_populations: Dict[str, int] = {}
         if uac_pop_col and uac_id_col:
             for _, row in urbanized_areas.iterrows():
-                ua_populations[str(row[uac_id_col])] = int(row[uac_pop_col])
+                try:
+                    ua_populations[str(row[uac_id_col])] = int(row[uac_pop_col])
+                except (ValueError, TypeError):
+                    continue
 
         # Download Place boundaries
         try:

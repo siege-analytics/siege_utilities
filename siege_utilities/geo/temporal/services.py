@@ -133,7 +133,10 @@ class TemporalTimeseriesBuilder:
                 moe_by_year: dict[int, float | int] = {}
 
                 for _, row in bid_rows.iterrows():
-                    yr = int(row["year"])
+                    raw_yr = row["year"]
+                    if raw_yr is None or (isinstance(raw_yr, float) and raw_yr != raw_yr):
+                        continue
+                    yr = int(raw_yr)
                     if yr not in years_sorted:
                         continue
                     vals = row.get("values", {})
