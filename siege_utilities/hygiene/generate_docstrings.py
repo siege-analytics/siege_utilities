@@ -43,7 +43,7 @@ def analyze_function_signature(func):
         return params, return_desc
     except (ValueError, TypeError, AttributeError) as e:
         log_warning(f'Could not analyze signature: {e}')
-        return [], 'Any: Description needed'
+        raise
 
 
 def categorize_function(func_name):

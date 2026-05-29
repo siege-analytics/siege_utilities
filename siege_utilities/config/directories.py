@@ -468,7 +468,7 @@ def clean_empty_directories(base_path: str, keep_gitkeep: bool = True) -> int:
 
     except OSError as e:
         log_error(f"Error cleaning directories: {e}")
-        return 0
+        raise
 
 
 def list_directory_configs(config_directory: str = "config") -> List[Dict[str, Any]]:
