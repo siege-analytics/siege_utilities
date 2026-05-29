@@ -218,7 +218,7 @@ def count_lines(file_path: FilePath, encoding: str = 'utf-8') -> Optional[int]:
     except PathSecurityError:
         # Re-raise security errors
         raise
-    except OSError as e:
+    except (OSError, UnicodeDecodeError) as e:
         log.error(f"Failed to count lines in {file_path}: {e}")
         return None
 
@@ -589,10 +589,10 @@ def run_command(command: Union[str, List[str]],
     except subprocess.TimeoutExpired:
         log.error(f"Command timed out: {command}")
         return None
-    except (subprocess.SubprocessError, OSError, ValueError) as e:
+    except (OSError, ValueError) as e:
         log.error(f"Failed to run command {command}: {e}")
         if not unsafe:
-            raise  # Re-raise security exceptions
+            raise
         return None
 
 # Backward compatibility aliases
@@ -713,7 +713,7 @@ def safe_file_write(
         with open(file_path, "w", encoding=encoding) as f:
             f.write(content)
         return True
-    except OSError as e:
+    except (OSError, TypeError) as e:
         log.error(f"Error writing to {file_path}: {e}")
         return False
 
@@ -795,7 +795,7 @@ def safe_json_read(
             return default
         with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except (OSError, json.JSONDecodeError) as e:
+    except (OSError, ValueError, UnicodeDecodeError) as e:
         log.error(f"Error reading JSON from {file_path}: {e}")
         return default
 
