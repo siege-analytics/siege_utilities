@@ -207,6 +207,7 @@ dev = [
     "nbformat>=5.7.0",
     "black>=21.0.0",
     "flake8>=3.8.0",
+    "bandit>=1.7.0",
     "astor>=0.8.1",
     "django>=4.2.0",
     "djangorestframework>=3.14.0",
@@ -333,6 +334,17 @@ markers = [
     "databricks: tests requiring Databricks runtime or SDK",
     "requires_api_key: connector smoke tests that hit a live external API; require ~/.siege-test-credentials.yaml. Skipped by default; opt in with `pytest -m requires_api_key`.",
 ]
+
+[tool.bandit]
+exclude_dirs = ["tests", "scripts/archive"]
+skips = [
+    "B101",  # assert used — acceptable in tests and invariant checks
+    "B404",  # import subprocess — used by CI scripts and shell utilities
+    "B603",  # subprocess without shell=True — already the safe pattern
+]
+
+[tool.bandit.assert_used]
+skips = ["*_test.py", "test_*.py"]
 
 [tool.coverage.report]
 fail_under = 20
