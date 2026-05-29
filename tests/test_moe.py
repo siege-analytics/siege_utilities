@@ -118,11 +118,18 @@ class TestMoeProportion:
         assert result.moe > 0
 
     def test_bounded_to_01(self):
-        # Numerator > denominator (unusual but possible)
         num = Estimate(value=110, moe=10)
         den = Estimate(value=100, moe=5)
         result = moe_proportion(num, den)
         assert result.value <= 1.0
+
+    def test_non_nested_warns(self, caplog):
+        num = Estimate(value=110, moe=10)
+        den = Estimate(value=100, moe=5)
+        import logging
+        with caplog.at_level(logging.WARNING, logger="siege_utilities.data.statistics.moe_propagation"):
+            moe_proportion(num, den)
+        assert any("moe_ratio()" in m for m in caplog.messages)
 
     def test_zero_denominator(self):
         num = Estimate(value=50, moe=10)
