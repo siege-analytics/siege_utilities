@@ -268,11 +268,17 @@ def compute_area_weights(
     """
     source, target, _ = _ensure_common_crs(source_gdf, target_gdf)
 
-    # Use an equal-area projection for accurate area computation
     source_ea = source.to_crs("ESRI:54009")
     target_ea = target.to_crs("ESRI:54009")
 
-    # Compute intersections via spatial overlay
+    source_areas = source_ea.geometry.area
+    target_areas = target_ea.geometry.area
+
+    source_ea = source_ea.copy()
+    target_ea = target_ea.copy()
+    source_ea["_src_idx"] = range(len(source_ea))
+    target_ea["_tgt_idx"] = range(len(target_ea))
+
     overlay = gpd.overlay(source_ea, target_ea, how="intersection", keep_geom_type=False)
 
     if overlay.empty:
@@ -284,15 +290,17 @@ def compute_area_weights(
 
     overlap_areas = overlay.geometry.area
 
-    # Build result — use overlay's index tracking
-    # gpd.overlay preserves original indices in columns if they were set
     records = []
     for i, row in overlay.iterrows():
-        overlap_area = overlap_areas[i]
-        # Source and target indices depend on overlay behavior
-        # For now, return the raw intersection areas
+        src_i = int(row["_src_idx"])
+        tgt_i = int(row["_tgt_idx"])
+        ov_area = overlap_areas[i]
         records.append({
-            "overlap_area": overlap_area,
+            "source_idx": src_i,
+            "target_idx": tgt_i,
+            "overlap_area": ov_area,
+            "source_fraction": ov_area / source_areas.iloc[src_i] if source_areas.iloc[src_i] > 0 else 0.0,
+            "target_fraction": ov_area / target_areas.iloc[tgt_i] if target_areas.iloc[tgt_i] > 0 else 0.0,
             "geometry": row.geometry,
         })
 
