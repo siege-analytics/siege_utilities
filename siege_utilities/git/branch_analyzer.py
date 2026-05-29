@@ -16,7 +16,13 @@ from ._utils import run_git_command
 log = logging.getLogger(__name__)
 
 def analyze_branch_status(repo_path: str = ".") -> Dict[str, str]:
-    """Analyze the current branch status."""
+    """Analyze the current branch status.
+
+    Raises
+    ------
+    GitError
+        If the ahead/behind comparison against main fails.
+    """
     repo_path = Path(repo_path).resolve()
 
     if not (repo_path / ".git").exists():
@@ -32,8 +38,9 @@ def analyze_branch_status(repo_path: str = ".") -> Dict[str, str]:
         else:
             behind, ahead = "0", "0"
     except Exception as exc:
-        log.warning("Could not determine ahead/behind vs main for %s: %s", repo_path, exc)
-        behind, ahead = "0", "0"
+        raise GitError(
+            f"Could not determine ahead/behind vs main for {repo_path}: {exc}"
+        ) from exc
 
     # Get last commit info
     last_commit_hash = run_git_command("rev-parse", "HEAD", repo_path=repo_path)[:7]
@@ -107,33 +114,40 @@ def categorize_commits(commits: List[Dict[str, str]]) -> Dict[str, List[Dict[str
     return categories
 
 def get_file_changes(repo_path: str = ".") -> Dict[str, List[str]]:
-    """Get files that differ from main branch."""
+    """Get files that differ from main branch.
+
+    Raises
+    ------
+    GitError
+        If the diff comparison against main fails.
+    """
+    # Get list of changed files
     try:
-        # Get list of changed files
         changed_files = run_git_command("diff", "--name-status", "main...HEAD", repo_path=repo_path)
-
-        added = []
-        modified = []
-        deleted = []
-
-        for line in changed_files.split('\n'):
-            if line.strip():
-                status, filepath = line.split('\t', 1)
-                if status == 'A':
-                    added.append(filepath)
-                elif status == 'M':
-                    modified.append(filepath)
-                elif status == 'D':
-                    deleted.append(filepath)
-
-        return {
-            "added": added,
-            "modified": modified,
-            "deleted": deleted
-        }
     except Exception as exc:
-        log.warning("Could not determine file changes vs main: %s", exc)
-        return {"added": [], "modified": [], "deleted": []}
+        raise GitError(
+            f"Could not determine file changes vs main: {exc}"
+        ) from exc
+
+    added = []
+    modified = []
+    deleted = []
+
+    for line in changed_files.split('\n'):
+        if line.strip():
+            status, filepath = line.split('\t', 1)
+            if status == 'A':
+                added.append(filepath)
+            elif status == 'M':
+                modified.append(filepath)
+            elif status == 'D':
+                deleted.append(filepath)
+
+    return {
+        "added": added,
+        "modified": modified,
+        "deleted": deleted
+    }
 
 def get_file_stats(repo_path: str = ".") -> Dict[str, int]:
     """Get statistics about file changes."""
