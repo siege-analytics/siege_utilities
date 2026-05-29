@@ -492,9 +492,8 @@ def use_nominatim_geocoder(query_address, id=None, country_codes=None,
                     f'after {max_retries} attempts'
                 ) from e
             time.sleep(2 ** attempt)
-        except (ValueError, TypeError, KeyError, AttributeError) as e:
-            message = f'Unexpected error during geocoding: {str(e)}'
-            log_error(message)
+        except Exception as e:
+            log_error(f'Unexpected error during geocoding: {e}')
             raise GeocodingError(
                 f'Unexpected error geocoding {query_address!r}'
             ) from e

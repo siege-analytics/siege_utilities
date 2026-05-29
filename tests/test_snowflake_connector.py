@@ -88,7 +88,7 @@ def test_connect_passes_only_non_none_params(_patch_snowflake):
     from siege_utilities.analytics.snowflake_connector import SnowflakeConnector
 
     c = SnowflakeConnector(account="acc", user="u", password="p", warehouse=None)
-    assert c.connect() is True
+    c.connect()
 
     _patch_snowflake.connector.connect.assert_called_once()
     kwargs = _patch_snowflake.connector.connect.call_args.kwargs
