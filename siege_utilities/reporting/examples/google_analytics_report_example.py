@@ -772,6 +772,7 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
 def create_kpi_dashboard(ga_data: Dict[str, Any]) -> List[Flowable]:
     """Create a row of KPI cards for the dashboard section."""
     if not REPORTLAB_AVAILABLE:
+        log.warning("reportlab not installed — skipping KPI dashboard (pip install reportlab)")
         return []
 
     totals = ga_data['totals']
@@ -829,6 +830,7 @@ def create_traffic_trend_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
         Path to the temporary PNG file, or ``None`` if matplotlib unavailable.
     """
     if not MATPLOTLIB_AVAILABLE:
+        log.warning("matplotlib not installed — skipping chart (pip install matplotlib)")
         return None
 
     daily = ga_data['daily_data']
@@ -881,6 +883,7 @@ def create_traffic_sources_chart(ga_data: Dict[str, Any], width: float = 5.5*inc
         Path to the temporary PNG file, or ``None`` if matplotlib unavailable.
     """
     if not MATPLOTLIB_AVAILABLE:
+        log.warning("matplotlib not installed — skipping chart (pip install matplotlib)")
         return None
 
     sources = ga_data['traffic_sources']
@@ -925,6 +928,7 @@ def create_device_breakdown_chart(ga_data: Dict[str, Any], width: float = 5.5*in
         Path to the temporary PNG file, or ``None`` if matplotlib unavailable.
     """
     if not MATPLOTLIB_AVAILABLE:
+        log.warning("matplotlib not installed — skipping chart (pip install matplotlib)")
         return None
 
     devices = ga_data['devices']
@@ -1022,6 +1026,7 @@ def create_geo_country_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
     Fallback: horizontal bar chart of top countries.
     """
     if not MATPLOTLIB_AVAILABLE:
+        log.warning("matplotlib not installed — skipping chart (pip install matplotlib)")
         return None
 
     geo = ga_data.get('geo_data', [])
@@ -1114,6 +1119,7 @@ def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
     Fallback: horizontal bar chart of top regions.
     """
     if not MATPLOTLIB_AVAILABLE:
+        log.warning("matplotlib not installed — skipping chart (pip install matplotlib)")
         return None
 
     geo = ga_data.get('geo_data', [])
@@ -1220,6 +1226,7 @@ def create_geo_city_scatter(ga_data: Dict[str, Any], width: float = 5.5*inch,
     Fallback: horizontal bar chart of top cities.
     """
     if not MATPLOTLIB_AVAILABLE:
+        log.warning("matplotlib not installed — skipping chart (pip install matplotlib)")
         return None
 
     geo = ga_data.get('geo_data', [])
@@ -1319,6 +1326,7 @@ def create_continent_donut_chart(ga_data: Dict[str, Any], width: float = 5.5*inc
                                   vector_export_path: Optional[str] = None) -> Optional[str]:
     """Create a donut chart of sessions by continent."""
     if not MATPLOTLIB_AVAILABLE:
+        log.warning("matplotlib not installed — skipping chart (pip install matplotlib)")
         return None
 
     geo = ga_data.get('geo_data', [])
@@ -1434,6 +1442,7 @@ def create_period_comparison_chart(ga_data: Dict[str, Any], width: float = 5.5*i
     day number (not date), so periods of different lengths align from day 1.
     """
     if not MATPLOTLIB_AVAILABLE:
+        log.warning("matplotlib not installed — skipping chart (pip install matplotlib)")
         return None
 
     daily = ga_data.get('daily_data', {})
