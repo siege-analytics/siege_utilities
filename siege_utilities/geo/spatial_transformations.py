@@ -709,8 +709,8 @@ class DuckDBConnector:
                 df['geometry'] = df['geometry_wkt'].apply(wkt.loads)
                 df = df.drop(columns=['geometry_wkt'])
 
-            # Create GeoDataFrame
-            gdf = gpd.GeoDataFrame(df, geometry='geometry')
+            # Create GeoDataFrame — default to WGS84 since WKT lacks SRID
+            gdf = gpd.GeoDataFrame(df, geometry='geometry', crs="EPSG:4326")
 
             log.info(f"Successfully downloaded from DuckDB: {table_name}")
             return reproject_if_needed(gdf, crs)
@@ -756,7 +756,8 @@ class DuckDBConnector:
                     df['geometry'] = df['geometry_wkt'].apply(wkt.loads)
                     df = df.drop(columns=['geometry_wkt'])
 
-                gdf = gpd.GeoDataFrame(df, geometry='geometry')
+                # Default to WGS84 since WKT lacks SRID metadata
+                gdf = gpd.GeoDataFrame(df, geometry='geometry', crs="EPSG:4326")
 
                 log.info("Successfully executed DuckDB query")
                 return reproject_if_needed(gdf, crs)
