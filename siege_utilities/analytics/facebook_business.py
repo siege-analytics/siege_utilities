@@ -108,7 +108,7 @@ class FacebookBusinessConnector:
 
         except (*_FB_API_ERRORS, AttributeError) as e:
             logger.error("Failed to retrieve ad accounts: %s", e, exc_info=True)
-            return []
+            raise
 
     def get_ad_insights(self, ad_account_id: str, start_date: str, end_date: str,
                         fields: List[str] = None, breakdowns: List[str] = None) -> pd.DataFrame:
