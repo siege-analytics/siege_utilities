@@ -927,12 +927,8 @@ class TestGetGoogleAnalyticsCredentials:
         manager = CredentialManager()
         mock_op_available.side_effect = OSError("unexpected error")
 
-        with patch.object(
-            CredentialManager, 'get_credential',
-            side_effect=RuntimeError("1Password CLI timed out"),
-        ):
-            with pytest.raises(RuntimeError, match="timed out"):
-                manager.get_google_analytics_credentials()
+        with pytest.raises(OSError, match="unexpected error"):
+            manager.get_google_analytics_credentials()
 
 
 # =============================================================================

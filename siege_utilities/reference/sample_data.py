@@ -458,8 +458,9 @@ def get_census_county_sample(state_fips: str = "06",
             all_tracts.append(tract_data)
 
     if not all_tracts:
-        log_error("No tract data generated")
-        return None
+        raise ValueError(
+            f"No tract data generated for state={state_fips}, county={county_fips}"
+        )
 
     # Combine all tracts
     county_data = pd.concat(all_tracts, ignore_index=True)
