@@ -10,7 +10,6 @@ from __future__ import annotations
 import pandas as pd
 import numpy as np
 from typing import Dict, Optional, Union, Any, Tuple, TYPE_CHECKING
-import warnings
 
 # Type checking imports for optional dependencies
 if TYPE_CHECKING:
@@ -32,7 +31,6 @@ try:
     FAKER_AVAILABLE = True
 except ImportError:
     FAKER_AVAILABLE = False
-    warnings.warn("Faker not available. Install with: pip install Faker")
 
 try:
     import geopandas as gpd
@@ -41,7 +39,6 @@ try:
 except ImportError:
     GEOPANDAS_AVAILABLE = False
     gpd = None  # type: ignore[assignment]
-    warnings.warn("GeoPandas not available. Install with: pip install geopandas")
 
 # Import existing Census utilities (kept as availability probe even though
 # the imported names are accessed lazily elsewhere)
@@ -51,7 +48,6 @@ try:
     CENSUS_AVAILABLE = True
 except ImportError:
     CENSUS_AVAILABLE = False
-    warnings.warn("Census utilities not available")
 
 # Initialize Faker instances for different locales
 if FAKER_AVAILABLE:
