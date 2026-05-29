@@ -36,7 +36,29 @@ The library requires Python 3.11+. Geospatial extras (`[geo]`, `[geodjango]`) de
 
 ## Install
 
-See [Installation Options](#installation-options) for all supported install commands (`base`, `geo-lite`, `geo`, `geodjango`, `all`).
+See [Installation Options](#installation-options) for all supported install commands, or use the table below to find the right extras for your workflow.
+
+### Getting Started by Use Case
+
+Not sure which extras you need? Find your use case below. Each `pip install`
+command pulls exactly the dependencies that use case requires — nothing more.
+Extras are defined in `pyproject.toml`; this table is a curated subset of the
+most common combinations.
+
+| Use Case | Install Command | What You Get |
+|----------|----------------|--------------|
+| **Geocoding + Demographics + Maps** | `pip install siege-utilities[geo,reporting,data]` | Census geocoder, geopandas, matplotlib, folium, plotly, pandas, numpy |
+| **Survey Analysis + Reports** | `pip install siege-utilities[survey,reporting,data]` | RIM weighting (weightipy), chart generation, PDF/PPTX export, pandas |
+| **Analytics Connectors** | `pip install siege-utilities[analytics,data]` | Google Analytics, Facebook, Snowflake, data.world, pandas |
+| **Multi-Engine DataFrames (local)** | `pip install siege-utilities[performance]` | DuckDB backend for fast local analytics |
+| **Multi-Engine DataFrames (cluster)** | `pip install siege-utilities[distributed]` | PySpark + Apache Sedona for distributed spatial processing |
+| **GeoDjango Spatial Platform** | `pip install siege-utilities[geo,geodjango,data]` | Full spatial models, services, management commands, PostGIS |
+| **Project Configuration** | `pip install siege-utilities[config-extras]` | Hydra + hydra-zen + OmegaConf structured configs |
+| **Database Pipelines** | `pip install siege-utilities[database,data]` | SQLAlchemy, psycopg2, pandas, numpy |
+| **Web Scraping + Data** | `pip install siege-utilities[web,data]` | BeautifulSoup, lxml, pandas |
+
+Combine any extras freely: `pip install siege-utilities[geo,reporting,data,survey]`.
+For a full install with everything: `pip install siege-utilities[all]`.
 
 ## Quick Usage
 
