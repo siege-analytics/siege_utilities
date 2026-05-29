@@ -343,6 +343,67 @@ class DataFrameEngine(ABC):
 
     # -- Spatial geometry loading (concrete defaults) ----------------------
 
+    # Mapping from user-facing format names to Fiona/GDAL driver strings.
+    # ``"auto"`` is handled specially (no driver kwarg → infer from path).
+    _FORMAT_DRIVERS: Dict[str, str] = {
+        "geojson": "GeoJSON",
+        "shapefile": "ESRI Shapefile",
+        "gpkg": "GPKG",
+        "geopackage": "GPKG",
+    }
+    # Formats that require ``gpd.read_parquet`` instead of ``gpd.read_file``.
+    _PARQUET_FORMATS = frozenset({"parquet", "geoparquet"})
+
+    def _load_spatial(
+        self,
+        path: str,
+        *,
+        geometry_col: str = "geometry",
+        format: str = "auto",
+        crs: Optional[str] = None,
+    ) -> Any:
+        """Shared implementation for :meth:`load_polygons` and :meth:`load_lines`.
+
+        Handles explicit ``format`` selection and ``geometry_col`` renaming
+        so that the public API contract is honoured by the default engine.
+        """
+        import geopandas as gpd
+        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+
+        fmt = format.lower().strip() if format else "auto"
+
+        if fmt == "auto":
+            gdf = gpd.read_file(path)
+        elif fmt in self._PARQUET_FORMATS:
+            gdf = gpd.read_parquet(path)
+        elif fmt in self._FORMAT_DRIVERS:
+            gdf = gpd.read_file(path, driver=self._FORMAT_DRIVERS[fmt])
+        else:
+            supported = sorted(
+                list(self._FORMAT_DRIVERS.keys())
+                + list(self._PARQUET_FORMATS)
+                + ["auto"]
+            )
+            raise ValueError(
+                f"Unsupported format {format!r}. "
+                f"Supported formats: {supported}."
+            )
+
+        gdf = reproject_if_needed(gdf, crs or get_default_crs())
+
+        # Honour geometry_col: rename the active geometry column if needed.
+        active_geom = gdf.geometry.name
+        if geometry_col != active_geom:
+            if geometry_col in gdf.columns:
+                # A non-geometry column with the target name exists; set it
+                # as the active geometry (caller asserts it *is* geometry).
+                gdf = gdf.set_geometry(geometry_col)
+            else:
+                # Rename the current geometry column to the requested name.
+                gdf = gdf.rename_geometry(geometry_col)
+
+        return gdf
+
     def load_polygons(
         self,
         path: str,
@@ -356,30 +417,23 @@ class DataFrameEngine(ABC):
         Handles GeoJSON, Shapefile, GeoParquet, GPKG, WKT CSV.
         Returns engine-native DataFrame with a geometry column.
 
-        The default implementation ignores ``format`` and ``geometry_col``;
-        it delegates to ``read_spatial`` which infers the format from the
-        path. ``SparkEngine.load_polygons`` overrides this method and
-        honours both parameters (parquet vs geojson branching, and
-        renaming a ``geom`` column to ``geometry_col`` when present).
-        Other engines may add similar overrides; until then, callers that
-        rely on these parameters should test with the engine they intend
-        to use.
+        Parameters
+        ----------
+        path : str
+            Path to the spatial file.
+        geometry_col : str
+            Name for the geometry column in the returned DataFrame. If the
+            source data uses a different column name it will be renamed.
+        format : str
+            Spatial format hint. ``"auto"`` (default) infers from the file
+            extension. Explicit values: ``"geojson"``, ``"shapefile"``,
+            ``"gpkg"``, ``"geopackage"``, ``"parquet"``, ``"geoparquet"``.
+        crs : str or None
+            Target CRS. Defaults to ``EPSG:4326`` via ``get_default_crs()``.
         """
-        import warnings
-        if format != "auto":
-            warnings.warn(
-                f"load_polygons: format={format!r} is ignored by the default "
-                f"engine; read_spatial infers the format from the path. "
-                f"Use SparkEngine for explicit format control.",
-                stacklevel=2,
-            )
-        if geometry_col != "geometry":
-            warnings.warn(
-                f"load_polygons: geometry_col={geometry_col!r} is ignored by "
-                f"the default engine. Use SparkEngine for column renaming.",
-                stacklevel=2,
-            )
-        return self.read_spatial(path, crs=crs)
+        return self._load_spatial(
+            path, geometry_col=geometry_col, format=format, crs=crs,
+        )
 
     def load_points(
         self,
@@ -417,25 +471,25 @@ class DataFrameEngine(ABC):
         """Load line/multiline geometries from any supported spatial format.
 
         Same interface as :meth:`load_polygons` -- works for roads, rivers,
-        transit routes, or any linear feature. The default implementation
-        ignores ``format`` and ``geometry_col`` (same shape as the default
-        ``load_polygons``); engines that override may honour them.
+        transit routes, or any linear feature.
+
+        Parameters
+        ----------
+        path : str
+            Path to the spatial file.
+        geometry_col : str
+            Name for the geometry column in the returned DataFrame. If the
+            source data uses a different column name it will be renamed.
+        format : str
+            Spatial format hint. ``"auto"`` (default) infers from the file
+            extension. Explicit values: ``"geojson"``, ``"shapefile"``,
+            ``"gpkg"``, ``"geopackage"``, ``"parquet"``, ``"geoparquet"``.
+        crs : str or None
+            Target CRS. Defaults to ``EPSG:4326`` via ``get_default_crs()``.
         """
-        import warnings
-        if format != "auto":
-            warnings.warn(
-                f"load_lines: format={format!r} is ignored by the default "
-                f"engine; read_spatial infers the format from the path. "
-                f"Use SparkEngine for explicit format control.",
-                stacklevel=2,
-            )
-        if geometry_col != "geometry":
-            warnings.warn(
-                f"load_lines: geometry_col={geometry_col!r} is ignored by "
-                f"the default engine. Use SparkEngine for column renaming.",
-                stacklevel=2,
-            )
-        return self.read_spatial(path, crs=crs)
+        return self._load_spatial(
+            path, geometry_col=geometry_col, format=format, crs=crs,
+        )
 
     # -- Spatial boundary operations (concrete defaults) -------------------
 
