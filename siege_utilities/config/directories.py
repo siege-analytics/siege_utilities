@@ -269,7 +269,7 @@ def load_directory_config(config_name: str, config_directory: str = "config") ->
         log_info(f"Loaded directory config: {config_name}")
         return config
 
-    except Exception as e:
+    except (OSError, json.JSONDecodeError) as e:
         log_error(f"Error loading directory config {config_file}: {e}")
         return None
 
@@ -321,7 +321,7 @@ def ensure_directories_exist(paths: Dict[str, str]) -> bool:
         log_info(f"Verified/created {len(paths)} directories")
         return True
 
-    except Exception as e:
+    except OSError as e:
         log_error(f"Error ensuring directories exist: {e}")
         return False
 
@@ -385,7 +385,7 @@ def get_directory_info(directory_path: str) -> Dict[str, Any]:
         log_info(f"Directory info for {directory_path}: {file_count} files, {total_size_mb} MB")
         return info
 
-    except Exception as e:
+    except OSError as e:
         log_error(f"Error getting directory info for {directory_path}: {e}")
         return {'path': str(dir_path), 'exists': False, 'error': str(e)}
 
@@ -466,7 +466,7 @@ def clean_empty_directories(base_path: str, keep_gitkeep: bool = True) -> int:
         log_info(f"Cleaned {removed_count} empty directories from {base_path}")
         return removed_count
 
-    except Exception as e:
+    except OSError as e:
         log_error(f"Error cleaning directories: {e}")
         return 0
 
@@ -523,7 +523,7 @@ def list_directory_configs(config_directory: str = "config") -> List[Dict[str, A
                 'paths': list(config.get('paths', {}).keys())
             })
 
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, KeyError) as e:
             log_error(f"Error reading directory config {config_file}: {e}")
 
     log_info(f"Found {len(configs)} directory configurations")

@@ -124,7 +124,7 @@ class UserConfigManager:
                         if 'default_figure_size' in config_data and isinstance(config_data['default_figure_size'], list):
                             config_data['default_figure_size'] = tuple(config_data['default_figure_size'])
                         return UserProfile(**config_data)
-            except Exception as e:
+            except (OSError, yaml.YAMLError, ValueError, KeyError) as e:
                 log.warning(f"Failed to load user config: {e}")
 
         # Return default profile
@@ -138,7 +138,7 @@ class UserConfigManager:
             config_dict = self._convert_to_yaml_safe(config_dict)
             with open(self.user_config_file, 'w') as f:
                 yaml.dump(config_dict, f, default_flow_style=False)
-        except Exception as e:
+        except (OSError, yaml.YAMLError, TypeError) as e:
             log.error(f"Failed to save user config: {e}")
 
     def _convert_to_yaml_safe(self, obj):
@@ -320,7 +320,7 @@ class UserConfigManager:
                 yaml.dump(config_data, f, default_flow_style=False)
             
             log.info(f"Configuration exported to: {output_path}")
-        except Exception as e:
+        except (OSError, yaml.YAMLError) as e:
             log.error(f"Failed to export configuration: {e}")
     
     def import_config(self, input_path: str):
@@ -341,7 +341,7 @@ class UserConfigManager:
             
             self._save_user_profile()
             log.info(f"Configuration imported from: {input_path}")
-        except Exception as e:
+        except (OSError, yaml.YAMLError, AttributeError) as e:
             log.error(f"Failed to import configuration: {e}")
 
 # Global instance
@@ -392,7 +392,7 @@ def get_download_directory(specific_path: Optional[str] = None, client_code: Opt
                 # Client profiles don't have download_directory anymore,
                 # use a client-specific subdirectory instead
                 download_dir = user_config.get_download_directory() / "clients" / client_code.lower()
-        except Exception as e:
+        except (ImportError, OSError, yaml.YAMLError, ValueError) as e:
             log.debug(f"Could not load client profile for {client_code}: {e}")
 
     # Priority 3 & 4: User's preferred directory or default

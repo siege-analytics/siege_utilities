@@ -527,7 +527,7 @@ class TestGetFromKeychain:
 
     def test_returns_none_on_exception(self, mock_op_available):
         manager = CredentialManager()
-        mock_op_available.side_effect = Exception("keychain error")
+        mock_op_available.side_effect = OSError("keychain error")
 
         result = manager._get_from_keychain('my-service', 'my-user')
         assert result is None
@@ -772,7 +772,7 @@ class TestStoreIn1Password:
         manager, mock_run = manager_with_account
 
         mock_run.reset_mock()
-        mock_run.side_effect = Exception("network error")
+        mock_run.side_effect = subprocess.SubprocessError("network error")
 
         result = manager._store_in_1password('test-svc', 'user', 'pass', 'password')
         assert result is False
@@ -801,7 +801,7 @@ class TestStoreInKeychain:
 
     def test_returns_false_on_exception(self, mock_op_available):
         manager = CredentialManager()
-        mock_op_available.side_effect = Exception("keychain write error")
+        mock_op_available.side_effect = OSError("keychain write error")
 
         result = manager._store_in_keychain('svc', 'user', 'secret')
         assert result is False
@@ -925,7 +925,7 @@ class TestGetGoogleAnalyticsCredentials:
     def test_propagates_transport_errors(self, mock_op_available):
         """Non-CredentialNotFoundError exceptions propagate to the caller."""
         manager = CredentialManager()
-        mock_op_available.return_value = Mock(returncode=1, stdout='', stderr='')
+        mock_op_available.side_effect = OSError("unexpected error")
 
         with patch.object(
             CredentialManager, 'get_credential',
@@ -979,7 +979,7 @@ class TestListStoredCredentials:
 
     def test_handles_1password_exception(self, mock_op_available):
         manager = CredentialManager()
-        mock_op_available.side_effect = Exception("op error")
+        mock_op_available.side_effect = subprocess.SubprocessError("op error")
 
         # Should not raise
         results = manager.list_stored_credentials()
@@ -1056,7 +1056,7 @@ class TestBackendStatus:
 
     def test_1password_status_on_exception(self, mock_op_available):
         manager = CredentialManager()
-        mock_op_available.side_effect = Exception("error")
+        mock_op_available.side_effect = subprocess.SubprocessError("error")
         status = manager.backend_status()
         assert status['1password']['available'] is False
 
@@ -1162,7 +1162,7 @@ class TestGetGoogleSAFrom1Password:
 
     def test_returns_none_on_general_exception(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
-            mock_run.side_effect = RuntimeError("unexpected")
+            mock_run.side_effect = ValueError("unexpected")
             result = get_google_service_account_from_1password()
             assert result is None
 
@@ -1380,7 +1380,7 @@ class TestGetGoogleOAuthDocumentFrom1Password:
 
     def test_returns_none_on_general_exception(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
-            mock_run.side_effect = RuntimeError("unexpected")
+            mock_run.side_effect = OSError("unexpected")
             result = get_google_oauth_document_from_1password()
             assert result is None
 

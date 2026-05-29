@@ -160,7 +160,7 @@ def load_database_config(db_name: str, config_directory: str = "config") -> Opti
         log_info(f"Loaded database config: {db_name}")
         return config
 
-    except Exception as e:
+    except (OSError, json.JSONDecodeError) as e:
         log_error(f"Error loading database config {config_file}: {e}")
         return None
 
@@ -256,7 +256,7 @@ def test_database_connection(db_name: str, config_directory: str = "config") -> 
             log_info("Install with: pip install sqlalchemy")
             return False
 
-    except Exception as e:
+    except (OSError, KeyError, TypeError) as e:
         log_error(f"Database connection test failed for {db_name}: {e}")
         return False
 
@@ -298,7 +298,7 @@ def list_database_configs(config_directory: str = "config") -> list:
                 'config_file': str(config_file)
             })
 
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, KeyError) as e:
             log_error(f"Error reading database config {config_file}: {e}")
 
     log_info(f"Found {len(databases)} database configurations")

@@ -11,6 +11,7 @@ from omegaconf import OmegaConf
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 import logging
+import yaml
 
 from .models import (
     UserProfile,
@@ -143,9 +144,9 @@ class HydraConfigManager:
                         branding_data[key] = value
                     else:
                         branding_data[key] = value
-        except Exception as e:
+        except (OSError, KeyError, ValueError) as e:
             logger.warning(f"Could not load client-specific branding for {client_code}: {e}")
-        
+
         # Extract client profile data
         if 'default' in config_data:
             profile_data = config_data['default']
@@ -180,7 +181,7 @@ class HydraConfigManager:
             profile = ClientProfile(**profile_data)
             logger.info(f"Loaded client profile for: {client_code}")
             return profile
-        except Exception as e:
+        except (ValueError, KeyError, TypeError) as e:
             logger.error(f"Failed to validate client profile for {client_code}: {e}")
             raise
     
@@ -307,7 +308,7 @@ class HydraConfigManager:
                 branding = BrandingConfig(**branding_data)
                 logger.info(f"Loaded client-specific branding for: {client_code}")
                 return branding
-            except Exception as e:
+            except (OSError, KeyError, ValueError) as e:
                 logger.warning(f"Could not load client-specific branding for {client_code}: {e}")
                 # Fall back to default
         
@@ -355,7 +356,7 @@ class HydraConfigManager:
             user = User.from_yaml(user_file)
             logger.info(f"Loaded modern User: {person_id}")
             return user
-        except Exception as e:
+        except (OSError, yaml.YAMLError, ValueError) as e:
             logger.error(f"Failed to load User {person_id}: {e}")
             return None
 
@@ -381,7 +382,7 @@ class HydraConfigManager:
             client = Client.from_yaml(client_file)
             logger.info(f"Loaded modern Client: {client_code}")
             return client
-        except Exception as e:
+        except (OSError, yaml.YAMLError, ValueError) as e:
             logger.error(f"Failed to load Client {client_code}: {e}")
             return None
 
@@ -404,7 +405,7 @@ class HydraConfigManager:
             user.to_yaml(path=user_file)
             logger.info(f"Saved modern User: {user.person_id}")
             return True
-        except Exception as e:
+        except (OSError, yaml.YAMLError) as e:
             logger.error(f"Failed to save User {user.person_id}: {e}")
             return False
 
@@ -427,7 +428,7 @@ class HydraConfigManager:
             client.to_yaml(path=client_file)
             logger.info(f"Saved modern Client: {client.client_code}")
             return True
-        except Exception as e:
+        except (OSError, yaml.YAMLError) as e:
             logger.error(f"Failed to save Client {client.client_code}: {e}")
             return False
 
