@@ -363,7 +363,10 @@ def is_downloadable(url: str, timeout: int = 10) -> bool:
         
     Returns:
         True if the URL points to a downloadable file
-        
+
+    Raises:
+        Exception: If the network request fails (logged before re-raise)
+
     Example:
         >>> if is_downloadable("https://example.com/file.zip"):
         ...     print("URL is downloadable")
@@ -372,14 +375,14 @@ def is_downloadable(url: str, timeout: int = 10) -> bool:
         info = get_file_info(url, timeout)
         if info and info['size'] > 0:
             return True
-        
+
         # Try a GET request to see if we can access the content
         response = requests.get(url, stream=True, timeout=timeout)
         return response.ok
-        
+
     except Exception as exc:
         log.warning("Could not check if URL is downloadable %s: %s", url, exc)
-        return False
+        raise
 
 __all__ = [
     'download_file',
