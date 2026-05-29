@@ -392,6 +392,7 @@ from .credential_manager import (
 # Import credential management functions
 from .credential_manager import (
     CredentialManager,
+    CredentialNotFoundError,
     get_credential,
     store_credential,
     store_ga_credentials_from_file,
@@ -494,7 +495,8 @@ __all__ = [
     'create_temporary_service_account_file',
     
     # Credential management functions
-    'CredentialManager', 'get_credential', 'store_credential', 
+    'CredentialManager', 'CredentialNotFoundError',
+    'get_credential', 'store_credential',
     'store_ga_credentials_from_file', 'get_ga_credentials', 'credential_status',
     'store_ga_service_account_from_file', 'get_ga_service_account_credentials',
     

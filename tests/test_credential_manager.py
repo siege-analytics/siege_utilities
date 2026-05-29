@@ -28,6 +28,7 @@ import pytest
 
 from siege_utilities.config.credential_manager import (
     CredentialManager,
+    CredentialNotFoundError,
     get_credential,
     store_credential,
     get_google_service_account_from_1password,
@@ -603,11 +604,47 @@ class TestGetCredentialInstance:
             result = manager.get_credential('myservice', 'user', 'password')
             assert result == 'env_secret'
 
-    def test_returns_none_when_all_fail(self, mock_op_available):
+    def test_raises_when_all_backends_fail(self, mock_op_available):
+        """Aggregate get_credential raises CredentialNotFoundError when
+        every available backend was consulted and none had the credential
+        (#801). Returning None from the aggregate was an SU-1 violation:
+        the caller could not distinguish "not configured" from "backend
+        silently said no." Per-backend helpers still return None for the
+        per-backend fall-through; only the aggregate raises."""
         manager = CredentialManager(backend_priority=['env'])
         with patch.dict(os.environ, {}, clear=True):
-            result = manager.get_credential('nonexistent', 'user', 'password')
-            assert result is None
+            with pytest.raises(CredentialNotFoundError) as excinfo:
+                manager.get_credential('nonexistent', 'user', 'password')
+            err = excinfo.value
+            assert err.service == 'nonexistent'
+            assert err.field == 'password'
+            # The single configured backend ('env') must be in the attempt log
+            backends_tried = [name for name, _ in err.attempts]
+            assert 'env' in backends_tried
+
+    def test_raise_lists_skipped_backends_explicitly(self, mock_op_available):
+        """When a backend is unavailable (1password not installed,
+        keychain on Linux, etc.) the attempt log must record it as
+        'skipped' rather than omit it -- so the caller can see WHY
+        1Password wasn't consulted."""
+        manager = CredentialManager(backend_priority=['1password', 'env'])
+        manager.available_backends['1password'] = False
+        with patch.dict(os.environ, {}, clear=True):
+            with pytest.raises(CredentialNotFoundError) as excinfo:
+                manager.get_credential('svc', 'user', 'password')
+            attempts = dict(excinfo.value.attempts)
+            assert 'skipped' in attempts['1password']
+            assert attempts['env'] == 'no credential found'
+
+    def test_raise_records_unknown_backend(self, mock_op_available):
+        """Unknown backend names in priority list are recorded in the
+        attempt log so the caller can debug a typoed config entry."""
+        manager = CredentialManager(backend_priority=['unknown_backend'])
+        with pytest.raises(CredentialNotFoundError) as excinfo:
+            manager.get_credential('svc', 'user', 'password')
+        attempts = dict(excinfo.value.attempts)
+        # available_backends.get('unknown_backend') returns False -> "skipped"
+        assert 'skipped' in attempts['unknown_backend']
 
     def test_unknown_backend_skipped(self, mock_op_available):
         manager = CredentialManager(backend_priority=['unknown_backend', 'env'])

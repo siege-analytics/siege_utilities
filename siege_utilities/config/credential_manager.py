@@ -61,6 +61,37 @@ _REDACT_PATTERNS = [
 ]
 
 
+class CredentialNotFoundError(LookupError):
+    """Raised by ``get_credential`` when no configured backend yields a value.
+
+    Distinct from backend transport / auth errors, which propagate directly
+    from the per-backend helpers (``_get_from_1password`` etc.). This error
+    means: every available backend was consulted, each said "I don't have
+    this credential," and there's nothing left to try. Callers that want
+    to treat absence as a soft condition should catch this explicitly --
+    do NOT swallow the broader ``LookupError`` / ``Exception``, since that
+    masks the per-backend transport errors the helpers raise.
+
+    Carries the per-backend attempt log on ``attempts`` so callers can
+    surface actionable diagnostics ("1Password skipped: CLI not installed;
+    keychain: no entry; env: no matching variable").
+    """
+
+    def __init__(self, service: str, field: str,
+                 attempts: List[Tuple[str, str]]):
+        self.service = service
+        self.field = field
+        self.attempts = list(attempts)
+        if attempts:
+            lines = "\n".join(f"  - {b}: {o}" for b, o in attempts)
+        else:
+            lines = "  (no backends configured)"
+        super().__init__(
+            f"Could not retrieve {field!r} for {service!r} from any backend.\n"
+            f"Backends tried:\n{lines}"
+        )
+
+
 def _redact(text: str, *, max_len: int = 300) -> str:
     """Redact likely-secret substrings and clamp length for logging."""
     if not text:
@@ -209,7 +240,7 @@ class CredentialManager:
     def get_credential(self, service: str, username: str, field: str = "password",
                       search_paths: Optional[List[Path]] = None,
                       vault: Optional[str] = None,
-                      account: Optional[str] = None) -> Optional[str]:
+                      account: Optional[str] = None) -> str:
         """
         Retrieve credential using configured backend priority.
 
@@ -222,22 +253,37 @@ class CredentialManager:
             account: 1Password account override (falls back to default_account)
 
         Returns:
-            Credential value or None if not found
+            Credential value as a string.
+
+        Raises:
+            CredentialNotFoundError: when every configured + available backend
+                was consulted and none had the credential. The error's
+                ``attempts`` list names each backend and its outcome
+                ("skipped" / "no credential" / unknown-backend), so callers
+                can surface a precise diagnostic instead of guessing.
+            Exception: backend-specific transport / auth / permission errors
+                (e.g., 1Password CLI non-found-nonzero exits) propagate
+                directly from the per-backend helpers without being
+                wrapped. See SU-1 in CLAUDE.md.
         """
+        # Backend helpers return None for "this backend does not have the
+        # credential" and raise for transport / auth / permission failures.
+        # An earlier version caught all exceptions here and continued to
+        # the next backend, which silently fell through from 1Password to
+        # keychain to prompt on transient errors -- causing the operator
+        # to be prompted for credentials 1Password actually has.
+        #
+        # The aggregate previously also `return None` on total miss,
+        # giving the caller no way to distinguish "credential not
+        # configured" from "every backend silently said no." Per SU-1
+        # ("errors are not data") that endstate now raises with a
+        # per-backend attempt log.
+        attempts: List[Tuple[str, str]] = []
         for backend in self.backend_priority:
             if not self.available_backends.get(backend, False):
+                attempts.append((backend, "skipped: backend not available"))
                 continue
 
-            # Backend helpers now return None for "this backend does not
-            # have the credential" and raise for transport / auth /
-            # permission failures. An earlier version caught all
-            # exceptions here and continued to the next backend, which
-            # silently fell through from 1Password to keychain to prompt
-            # on transient errors -- causing the operator to be prompted
-            # for credentials 1Password actually has. Per writing-code:7
-            # (silent error swallowing) the rule is: backend says "not
-            # found" -> fall through; backend errors -> propagate so the
-            # caller can decide.
             if backend == 'files':
                 value = self._get_from_files(service, username, field, search_paths)
             elif backend == 'env':
@@ -249,16 +295,16 @@ class CredentialManager:
             elif backend == 'prompt':
                 value = self._get_from_prompt(service, username, field)
             else:
+                attempts.append((backend, "skipped: unknown backend"))
                 continue
 
             if value:
                 log_info(f"Retrieved {field} for {service} from {backend}")
                 return value
-            # value is None: this backend legitimately does not have the
-            # credential; continue to the next backend.
+            attempts.append((backend, "no credential found"))
 
         log_warning(f"Could not retrieve {field} for {service} from any backend")
-        return None
+        raise CredentialNotFoundError(service, field, attempts)
     
     def _get_from_files(self, service: str, username: str, field: str, 
                        additional_paths: Optional[List[Path]] = None) -> Optional[str]:
@@ -602,9 +648,15 @@ class CredentialManager:
             
             if result.returncode == 0:
                 log_info(f"Stored Google Analytics credentials: '{item_title}'")
-                
-                # Verify storage
-                test_client_id = self.get_credential('google-analytics', 'api', 'client_id')
+
+                # Verify storage. get_credential now raises on total miss
+                # (SU-1, #801); treat the raise the same as the empty-value
+                # path -- the prior contract was "verification failed ->
+                # return False" and that's preserved.
+                try:
+                    test_client_id = self.get_credential('google-analytics', 'api', 'client_id')
+                except CredentialNotFoundError:
+                    test_client_id = None
                 if test_client_id:
                     log_info("Google Analytics credential storage verified")
                     return True
@@ -629,24 +681,34 @@ class CredentialManager:
         Returns:
             Tuple of (client_id, client_secret) or None if not found
         """
+        # TODO(#801-followup): this aggregate has the same shape as the
+        # bug #801 fixed in get_credential -- it falls through two
+        # sources and returns None on total miss instead of raising. Keep
+        # the current None contract here until a dedicated ticket audits
+        # callers (GoogleAnalyticsConnector ergonomics).
         try:
             # Try to get from 1Password using item title
             client_id = self._get_from_1password(item_title, 'client_id')
             client_secret = self._get_from_1password(item_title, 'client_secret')
-            
+
             if client_id and client_secret:
                 return client_id, client_secret
-            
-            # Fallback to general credential retrieval
+
+            # Fallback to general credential retrieval. get_credential
+            # now raises CredentialNotFoundError on total miss; catch as
+            # part of the broad except below so the None contract holds.
             client_id = self.get_credential('google-analytics', 'api', 'client_id')
             client_secret = self.get_credential('google-analytics', 'api', 'client_secret')
-            
+
             if client_id and client_secret:
                 return client_id, client_secret
-            
+
             log_error("Could not retrieve Google Analytics credentials")
             return None
-            
+
+        except CredentialNotFoundError as e:
+            log_warning(f"Google Analytics credentials not found in any backend: {e}")
+            return None
         except Exception as e:
             log_error(f"Error retrieving Google Analytics credentials: {e}")
             return None
@@ -807,7 +869,7 @@ def _get_default_manager(vault: Optional[str] = None,
 def get_credential(service: str, username: str, field: str = "password",
                   search_paths: Optional[List[Union[str, Path]]] = None,
                   vault: Optional[str] = None,
-                  account: Optional[str] = None) -> Optional[str]:
+                  account: Optional[str] = None) -> str:
     """
     Get credential using default credential manager.
 
@@ -820,7 +882,15 @@ def get_credential(service: str, username: str, field: str = "password",
         account: 1Password account shorthand or UUID
 
     Returns:
-        Credential value or None
+        Credential value as a string.
+
+    Raises:
+        CredentialNotFoundError: when no configured backend yields the
+            credential. See ``CredentialManager.get_credential`` for the
+            attempt-log shape.
+        Exception: backend-specific transport / auth errors propagate
+            from the underlying helpers (e.g., 1Password CLI nonzero
+            exits other than "not found").
     """
     manager = _get_default_manager(vault=vault, account=account)
     path_objects = [Path(p) for p in search_paths] if search_paths else None
@@ -1004,22 +1074,31 @@ def store_ga_service_account_from_file(credentials_file: Union[str, Path],
 def get_ga_service_account_credentials() -> Optional[Dict[str, str]]:
     """
     Get Google Analytics service account credentials.
-    
+
     Returns:
         Dict with service account data or None
+
+    Note:
+        TODO(#801-followup): same SU-1 shape as the original #801 bug --
+        aggregate returns None on total miss. Kept None-returning until
+        a dedicated ticket audits the GA SA callers.
     """
     manager = CredentialManager()
-    
-    # Try to get service account email first
-    client_email = manager.get_credential('google-analytics-sa', 'service', 'client_email')
-    if not client_email:
+
+    # get_credential now raises CredentialNotFoundError on total miss
+    # (#801); this helper documents "Returns Dict or None" so we catch
+    # explicitly and preserve the None contract. We catch around all four
+    # lookups together: if any one field is absent, the SA is incomplete
+    # and there's nothing to return.
+    try:
+        client_email = manager.get_credential('google-analytics-sa', 'service', 'client_email')
+        project_id = manager.get_credential('google-analytics-sa', 'service', 'project_id')
+        private_key = manager.get_credential('google-analytics-sa', 'service', 'private_key')
+        private_key_id = manager.get_credential('google-analytics-sa', 'service', 'private_key_id')
+    except CredentialNotFoundError as exc:
+        log_warning(f"Incomplete Google service account in credential store: {exc}")
         return None
-    
-    # Get other required fields
-    project_id = manager.get_credential('google-analytics-sa', 'service', 'project_id')
-    private_key = manager.get_credential('google-analytics-sa', 'service', 'private_key')
-    private_key_id = manager.get_credential('google-analytics-sa', 'service', 'private_key_id')
-    
+
     if all([client_email, project_id, private_key, private_key_id]):
         return {
             'client_email': client_email,
@@ -1028,7 +1107,7 @@ def get_ga_service_account_credentials() -> Optional[Dict[str, str]]:
             'private_key_id': private_key_id,
             'type': 'service_account'
         }
-    
+
     return None
 
 
