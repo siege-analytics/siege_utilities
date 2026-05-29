@@ -92,6 +92,7 @@ reporting = [
     "pypdf2>=3.0.1",
     "pillow>=10.0.0",
     "fonttools>=4.40.0",
+    "python-pptx>=1.0.0",
     "geopandas>=0.13.2",
     "pandas>=2.0.0",
     "scipy>=1.11.0",
@@ -259,6 +260,7 @@ all = [
     "pypdf2>=3.0.1",
     "pillow>=10.0.0",
     "fonttools>=4.40.0",
+    "python-pptx>=1.0.0",
     # analytics
     "google-auth>=2.40.3",
     "google-auth-oauthlib>=1.2.2",
