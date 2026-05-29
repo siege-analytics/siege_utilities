@@ -115,7 +115,7 @@ class CrosswalkPopulationService:
         Returns:
             Relationship type string
         """
-        weight = float(row.get("weight", row.get("WEIGHT", 1.0)))
+        weight = float(row.get("weight") or row.get("WEIGHT") or 1.0)
 
         if weight >= 0.9999:
             # Check if target GEOID equals source GEOID
@@ -243,7 +243,7 @@ class CrosswalkPopulationService:
                 relationship = self._determine_relationship(row, all_rows_for_source)
 
                 # Get weight
-                weight = float(row.get("weight", 1.0))
+                weight = float(row.get("weight") or 1.0)
                 if weight > 1.0:
                     weight = 1.0
                 if weight < 0.0:

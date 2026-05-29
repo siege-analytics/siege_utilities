@@ -173,7 +173,7 @@ class Command(BaseCommand):
                             dataset="dec_pl",
                             year=year,
                             values=values,
-                            total_population=int(total_pop) if total_pop else None,
+                            total_population=int(total_pop) if total_pop is not None else None,
                         )
                     )
 
