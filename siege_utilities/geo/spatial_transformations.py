@@ -410,7 +410,7 @@ class PostGISConnector:
             log.error(f"Failed to upload to PostGIS: {e}")
             return False
     
-    def download_spatial_data(self, table_name: str, *, crs: str | None = None, **kwargs) -> Optional[GeoDataFrame]:
+    def download_spatial_data(self, table_name: str, *, crs: str | None = None, **kwargs) -> GeoDataFrame:
         """
         Download spatial data from PostGIS.
 
@@ -422,13 +422,16 @@ class PostGISConnector:
                 (default ``'geom'``) to specify the geometry column name.
 
         Returns:
-            GeoDataFrame with spatial data or None if failed
+            GeoDataFrame with spatial data.
+
+        Raises:
+            SpatialQueryError: If the connection is unavailable or the
+                query fails.
         """
         from siege_utilities.geo.crs import reproject_if_needed
 
         if not self.connection:
-            log.error("No PostGIS connection available")
-            return None
+            raise SpatialQueryError("No PostGIS connection available")
 
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
         from psycopg2 import sql as _pg_sql
@@ -449,8 +452,7 @@ class PostGISConnector:
             return reproject_if_needed(gdf, crs)
 
         except (_Psycopg2Error, OSError, ValueError, TypeError, AttributeError, KeyError) as e:
-            log.error(f"Failed to download from PostGIS: {e}")
-            return None
+            raise SpatialQueryError(f"PostGIS download failed for {table_name}: {e}") from e
     
     def execute_spatial_query(self, query: str, *, crs: str | None = None, **kwargs) -> Union[GeoDataFrame, int]:
         """
@@ -510,7 +512,7 @@ class PostGISConnector:
             self.connection.commit()
             rowcount = cursor.rowcount
             log.info("Successfully executed PostGIS query")
-            return gpd.GeoDataFrame()
+            return rowcount
         except (_Psycopg2Error, OSError, ValueError, TypeError, AttributeError) as e:
             log.error(f"Failed to execute PostGIS query: {e}")
             if self.connection:
@@ -662,7 +664,7 @@ class DuckDBConnector:
             log.error(f"Failed to upload to DuckDB: {e}")
             return False
     
-    def download_spatial_data(self, table_name: str, *, crs: str | None = None, **kwargs) -> Optional[GeoDataFrame]:
+    def download_spatial_data(self, table_name: str, *, crs: str | None = None, **kwargs) -> GeoDataFrame:
         """
         Download spatial data from DuckDB.
 
@@ -673,13 +675,17 @@ class DuckDBConnector:
             **kwargs: Additional parameters
 
         Returns:
-            GeoDataFrame with spatial data or None if failed
+            GeoDataFrame with spatial data.
+
+        Raises:
+            SpatialQueryError: If the connection is unavailable or the
+                query fails.
         """
         from siege_utilities.geo.crs import reproject_if_needed
 
         if not self.connection:
             if not self.connect():
-                return None
+                raise SpatialQueryError("No DuckDB connection available")
 
         from siege_utilities.core.sql_safety import (
             validate_sql_identifier,
@@ -708,14 +714,18 @@ class DuckDBConnector:
 
             log.info(f"Successfully downloaded from DuckDB: {table_name}")
             return reproject_if_needed(gdf, crs)
-            
+
         except (_DuckDBError, OSError, ValueError, TypeError, AttributeError, ImportError) as e:
-            log.error(f"Failed to download from DuckDB: {e}")
-            return None
+            raise SpatialQueryError(f"DuckDB download failed for {table_name}: {e}") from e
     
-    def execute_spatial_query(self, query: str, *, crs: str | None = None, **kwargs) -> GeoDataFrame:
+    def execute_spatial_query(self, query: str, *, crs: str | None = None, **kwargs) -> Union[GeoDataFrame, int]:
         """
         Execute a spatial SQL query.
+
+        For SELECT queries the result is a :class:`GeoDataFrame`.
+        For non-SELECT queries (INSERT, UPDATE, DELETE, DDL) the result
+        is the ``cursor.rowcount`` integer (``-1`` when the row count
+        is not determinable, e.g. DDL).
 
         Args:
             query: SQL query string
@@ -724,7 +734,7 @@ class DuckDBConnector:
             **kwargs: Additional parameters
 
         Returns:
-            Query results as GeoDataFrame.
+            GeoDataFrame for SELECT queries, int rowcount for others.
 
         Raises:
             SpatialQueryError: If the connection is unavailable or the
@@ -738,21 +748,28 @@ class DuckDBConnector:
                 raise SpatialQueryError("No DuckDB connection available")
 
         try:
-            # Execute query
-            df = self.connection.execute(query).df()
+            if query.strip().upper().startswith('SELECT'):
+                df = self.connection.execute(query).df()
 
-            # Convert WKT back to geometries if present
-            if 'geometry_wkt' in df.columns:
-                from shapely import wkt
-                df['geometry'] = df['geometry_wkt'].apply(wkt.loads)
-                df = df.drop(columns=['geometry_wkt'])
+                if 'geometry_wkt' in df.columns:
+                    from shapely import wkt
+                    df['geometry'] = df['geometry_wkt'].apply(wkt.loads)
+                    df = df.drop(columns=['geometry_wkt'])
 
-            # Create GeoDataFrame
-            gdf = gpd.GeoDataFrame(df, geometry='geometry')
+                gdf = gpd.GeoDataFrame(df, geometry='geometry')
 
+                log.info("Successfully executed DuckDB query")
+                return reproject_if_needed(gdf, crs)
+
+            result = self.connection.execute(query)
+            try:
+                row = result.fetchone()
+                rowcount = row[0] if row is not None else -1
+            except (_DuckDBError, TypeError):
+                rowcount = -1
             log.info("Successfully executed DuckDB query")
-            return reproject_if_needed(gdf, crs)
-            
+            return rowcount
+
         except (_DuckDBError, OSError, ValueError, TypeError, AttributeError, ImportError) as e:
             log.error(f"Failed to execute DuckDB query: {e}")
             raise SpatialQueryError(f"DuckDB query failed: {e}") from e
@@ -771,8 +788,13 @@ def upload_to_postgis(gdf: GeoDataFrame, table_name: str, connection_string: Opt
     return connector.upload_spatial_data(gdf, table_name, **kwargs)
 
 
-def download_from_postgis(table_name: str, connection_string: Optional[str] = None, **kwargs) -> Optional[GeoDataFrame]:
-    """Download spatial data from PostGIS."""
+def download_from_postgis(table_name: str, connection_string: Optional[str] = None, **kwargs) -> GeoDataFrame:
+    """Download spatial data from PostGIS.
+
+    Raises:
+        SpatialQueryError: If the connection is unavailable or the
+            query fails.
+    """
     connector = PostGISConnector(connection_string)
     return connector.download_spatial_data(table_name, **kwargs)
 
@@ -789,26 +811,34 @@ def execute_postgis_query(query: str, connection_string: Optional[str] = None, *
 
 
 def upload_to_duckdb(gdf: GeoDataFrame, table_name: str, db_path: Optional[str] = None, **kwargs) -> bool:
-    """Upload spatial data to DuckDB (optional)."""
+    """Upload spatial data to DuckDB (optional).
+
+    Raises:
+        ImportError: If DuckDB is not installed.
+    """
     if not DUCKDB_AVAILABLE:
-        log.error("DuckDB not available. Install with: pip install duckdb")
-        return False
-    
+        raise ImportError("DuckDB not available. Install with: pip install duckdb")
+
     connector = DuckDBConnector(db_path)
     return connector.upload_spatial_data(gdf, table_name, **kwargs)
 
 
-def download_from_duckdb(table_name: str, db_path: Optional[str] = None, **kwargs) -> Optional[GeoDataFrame]:
-    """Download spatial data from DuckDB (optional)."""
+def download_from_duckdb(table_name: str, db_path: Optional[str] = None, **kwargs) -> GeoDataFrame:
+    """Download spatial data from DuckDB (optional).
+
+    Raises:
+        SpatialQueryError: If the connection is unavailable or the
+            query fails.
+        ImportError: If DuckDB is not installed.
+    """
     if not DUCKDB_AVAILABLE:
-        log.error("DuckDB not available. Install with: pip install duckdb")
-        return None
-    
+        raise ImportError("DuckDB not available. Install with: pip install duckdb")
+
     connector = DuckDBConnector(db_path)
     return connector.download_spatial_data(table_name, **kwargs)
 
 
-def execute_duckdb_query(query: str, db_path: Optional[str] = None, **kwargs) -> GeoDataFrame:
+def execute_duckdb_query(query: str, db_path: Optional[str] = None, **kwargs) -> Union[GeoDataFrame, int]:
     """Execute a spatial SQL query on DuckDB (optional).
 
     Raises:
