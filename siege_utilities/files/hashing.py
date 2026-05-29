@@ -168,10 +168,12 @@ def get_quick_file_signature(file_path) ->str:
         file_path: Path to the file
 
     Returns:
-        Quick signature string ('missing', 'error', or hash)
+        Quick signature string ('missing', fallback stat string, or hash)
 
     Raises:
         PathSecurityError: If path fails security validation
+        Exception: If both primary and fallback signature generation fail
+            (logged before re-raise)
 
     Example:
         >>> sig = get_quick_file_signature("data.txt")
@@ -213,7 +215,7 @@ def get_quick_file_signature(file_path) ->str:
             return f'fallback_{stat.st_size}_{stat.st_mtime}'
         except Exception as fallback_exc:
             log_error(f'Fallback signature also failed for {file_path}: {fallback_exc}')
-            return 'error'
+            raise
 
 
 def verify_file_integrity(file_path, expected_hash, algorithm='sha256') ->bool:
@@ -229,10 +231,11 @@ def verify_file_integrity(file_path, expected_hash, algorithm='sha256') ->bool:
         algorithm: Hash algorithm used
 
     Returns:
-        True if file matches expected hash, False otherwise
+        True if file matches expected hash, False if hash does not match
 
     Raises:
         PathSecurityError: If path fails security validation
+        Exception: If hash computation fails (logged before re-raise)
 
     Example:
         >>> expected = "abc123..."
@@ -252,7 +255,7 @@ def verify_file_integrity(file_path, expected_hash, algorithm='sha256') ->bool:
             ) == expected_hash.lower()
     except Exception as exc:
         log_error(f"Failed to verify hash for {file_path}: {exc}")
-        return False
+        raise
 
 
 def test_hash_functions():
