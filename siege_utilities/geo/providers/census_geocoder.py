@@ -409,3 +409,94 @@ def _safe_float(val) -> Optional[float]:
         return float(val)
     except (ValueError, TypeError):
         return None
+
+
+def geocode_results_to_dataframe(
+    results: list[CensusGeocodeResult],
+) -> "pd.DataFrame":
+    """Convert a list of CensusGeocodeResult to a pandas DataFrame.
+
+    Extracts all dataclass fields and computed GEOID properties into a
+    flat DataFrame with standard column names. This eliminates the
+    per-field list-comprehension boilerplate that every caller of
+    :func:`geocode_batch` otherwise has to write.
+
+    Args:
+        results: List of :class:`CensusGeocodeResult` objects, typically
+            returned by :func:`geocode_batch` or :func:`geocode_batch_chunked`.
+
+    Returns:
+        DataFrame with columns: ``input_id``, ``input_address``, ``matched``,
+        ``match_type``, ``matched_address``, ``latitude``, ``longitude``,
+        ``state_geoid``, ``county_geoid``, ``tract_geoid``, ``block_geoid``,
+        ``block_group_geoid``, ``state_fips``, ``county_fips``, ``tract``,
+        ``block``, ``side``, ``tiger_line_id``.
+        For unmatched rows, latitude/longitude are ``None`` and GEOID
+        columns are empty strings.
+
+    Raises:
+        TypeError: If *results* is not a list.
+
+    Example::
+
+        results = geocode_batch(addresses)
+        df = geocode_results_to_dataframe(results)
+        # df now has tract_geoid, block_geoid, lat/lon, etc.
+    """
+    import pandas as pd
+
+    if not isinstance(results, list):
+        raise TypeError(
+            f"results must be a list of CensusGeocodeResult, got {type(results).__name__}"
+        )
+
+    _COLUMNS = [
+        "input_id",
+        "input_address",
+        "matched",
+        "match_type",
+        "matched_address",
+        "latitude",
+        "longitude",
+        "state_geoid",
+        "county_geoid",
+        "tract_geoid",
+        "block_geoid",
+        "block_group_geoid",
+        "state_fips",
+        "county_fips",
+        "tract",
+        "block",
+        "side",
+        "tiger_line_id",
+    ]
+
+    if not results:
+        return pd.DataFrame(columns=_COLUMNS)
+
+    rows = []
+    for r in results:
+        rows.append(
+            {
+                "input_id": r.input_id,
+                "input_address": r.input_address,
+                "matched": r.matched,
+                "match_type": r.match_type,
+                "matched_address": r.matched_address,
+                "latitude": r.lat,
+                "longitude": r.lon,
+                "state_geoid": r.state_geoid,
+                "county_geoid": r.county_geoid,
+                "tract_geoid": r.tract_geoid,
+                "block_geoid": r.block_geoid,
+                "block_group_geoid": r.block_group_geoid,
+                "state_fips": r.state_fips,
+                "county_fips": r.county_fips,
+                "tract": r.tract,
+                "block": r.block,
+                "side": r.side,
+                "tiger_line_id": r.tiger_line_id,
+            }
+        )
+
+    return pd.DataFrame(rows, columns=_COLUMNS)

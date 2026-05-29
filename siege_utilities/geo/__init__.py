@@ -113,7 +113,7 @@ _register([
     'CensusGeocodeError',
     'CensusVintage', 'CensusGeocodeResult',
     'select_vintage_for_cycle', 'geocode_single', 'geocode_batch',
-    'geocode_batch_chunked',
+    'geocode_batch_chunked', 'geocode_results_to_dataframe',
 ], '.providers.census_geocoder')
 
 # --- census_api_client ---
