@@ -9,8 +9,6 @@ import importlib
 import sys
 
 # Explicit map of public names to their source modules.
-# PySpark re-exports (col, lit, when, etc.) come through spark_utils
-# via its `from pyspark.sql.functions import *`.
 _LAZY_IMPORTS = {}
 
 
@@ -49,29 +47,11 @@ _register([
 
 __all__ = list(_LAZY_IMPORTS.keys())
 
-# Track whether spark_utils has been fully loaded (for PySpark re-exports)
-_spark_utils_module = None  # cached module or False (import failed)
-
 
 def __getattr__(name):
-    global _spark_utils_module
-
-    # 1. Check explicit registry
     if name in _LAZY_IMPORTS:
         mod = importlib.import_module(_LAZY_IMPORTS[name], __package__)
         val = getattr(mod, name)
-        setattr(sys.modules[__name__], name, val)
-        return val
-
-    # 2. Fallback: try spark_utils for PySpark re-exports (col, lit, when, etc.)
-    if _spark_utils_module is None:
-        try:
-            _spark_utils_module = importlib.import_module('.spark_utils', __package__)
-        except ImportError:
-            _spark_utils_module = False  # Don't retry import on failure
-
-    if _spark_utils_module and hasattr(_spark_utils_module, name):
-        val = getattr(_spark_utils_module, name)
         setattr(sys.modules[__name__], name, val)
         return val
 
