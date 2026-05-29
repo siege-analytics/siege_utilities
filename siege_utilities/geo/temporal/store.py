@@ -158,10 +158,10 @@ class TemporalDataStore:
     ) -> Path:
         """Persist demographic snapshot data as Parquet."""
         if year is None:
-            if "year" in snapshots.columns:
+            if "year" in snapshots.columns and not snapshots.empty:
                 year = int(snapshots["year"].iloc[0])
             else:
-                raise ValueError("year must be provided or present in DataFrame")
+                raise ValueError("year must be provided or present in a non-empty DataFrame")
 
         dest = self._demographics_path(geography_type, dataset, year)
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -216,11 +216,11 @@ class TemporalDataStore:
     ) -> Path:
         """Persist pre-computed time-series data as Parquet."""
         if variable_code is None:
-            if "variable_code" in series.columns:
+            if "variable_code" in series.columns and not series.empty:
                 variable_code = str(series["variable_code"].iloc[0])
             else:
                 raise ValueError(
-                    "variable_code must be provided or present in DataFrame"
+                    "variable_code must be provided or present in a non-empty DataFrame"
                 )
 
         dest = self._timeseries_path(geography_type, variable_code, dataset)

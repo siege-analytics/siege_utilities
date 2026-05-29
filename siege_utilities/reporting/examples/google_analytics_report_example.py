@@ -59,6 +59,18 @@ from siege_utilities.reporting.report_generator import ReportGenerator
 log = logging.getLogger(__name__)
 
 
+def _safe_int(value, default: int = 0) -> int:
+    """Coerce a value to int, returning *default* for None/NaN/non-numeric."""
+    if value is None:
+        return default
+    if isinstance(value, float) and (value != value or value in (float("inf"), float("-inf"))):
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+
 class KPICard(Flowable):
     """A custom flowable for displaying KPI metrics in a card format."""
 
@@ -428,12 +440,12 @@ def generate_sample_ga_data(start_date: datetime, end_date: datetime) -> Dict[st
             'users': daily_users[worst_day_idx],
         },
         'best_week': {
-            'week': int(weekly_agg.loc[best_week_idx, 'week']),
-            'sessions': int(weekly_agg.loc[best_week_idx, 'sessions']),
+            'week': _safe_int(weekly_agg.loc[best_week_idx, 'week']),
+            'sessions': _safe_int(weekly_agg.loc[best_week_idx, 'sessions']),
         },
         'worst_week': {
-            'week': int(weekly_agg.loc[worst_week_idx, 'week']),
-            'sessions': int(weekly_agg.loc[worst_week_idx, 'sessions']),
+            'week': _safe_int(weekly_agg.loc[worst_week_idx, 'week']),
+            'sessions': _safe_int(weekly_agg.loc[worst_week_idx, 'sessions']),
         },
         'weekly_data': weekly_agg.to_dict('records'),
         'longitudinal': longitudinal_data,
@@ -592,10 +604,10 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
                 traffic_sources.append({
                     'source': row.get('sessionDefaultChannelGrouping', 'unknown'),
                     'medium': 'channel',
-                    'sessions': int(row['sessions']),
-                    'users': int(row.get('totalUsers', 0)),
-                    'bounce_rate': float(row.get('bounceRate', 0)),
-                    'avg_duration': float(row.get('averageSessionDuration', 0)),
+                    'sessions': _safe_int(row.get('sessions', 0)),
+                    'users': _safe_int(row.get('totalUsers', 0)),
+                    'bounce_rate': float(row.get('bounceRate', 0) or 0),
+                    'avg_duration': float(row.get('averageSessionDuration', 0) or 0),
                 })
 
         # Devices
@@ -604,8 +616,8 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
             for _, row in device_df.iterrows():
                 devices.append({
                     'device': row.get('deviceCategory', 'unknown'),
-                    'sessions': int(row['sessions']),
-                    'bounce_rate': float(row.get('bounceRate', 0)),
+                    'sessions': _safe_int(row.get('sessions', 0)),
+                    'bounce_rate': float(row.get('bounceRate', 0) or 0),
                 })
 
         # Geographic data (top 5 cities)
@@ -616,21 +628,22 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
                     'country': row.get('country', 'Unknown'),
                     'region': row.get('region', 'Unknown'),
                     'city': row.get('city', 'Unknown'),
-                    'sessions': int(row['sessions']),
-                    'users': int(row.get('totalUsers', 0)),
+                    'sessions': _safe_int(row.get('sessions', 0)),
+                    'users': _safe_int(row.get('totalUsers', 0)),
                 })
 
         # Top pages
         top_pages = []
         if pages_df is not None and not pages_df.empty:
             for _, row in pages_df.nlargest(5, 'screenPageViews').iterrows():
+                pv = _safe_int(row.get('screenPageViews', 0))
                 top_pages.append({
                     'page': row.get('pagePath', '/'),
-                    'pageviews': int(row['screenPageViews']),
-                    'unique_views': int(row['screenPageViews'] * 0.85),
-                    'avg_time': float(row.get('averageSessionDuration', 0)),
-                    'bounce_rate': float(row.get('bounceRate', 0)),
-                    'exit_rate': float(row.get('bounceRate', 0)) * 0.8,
+                    'pageviews': pv,
+                    'unique_views': int(pv * 0.85),
+                    'avg_time': float(row.get('averageSessionDuration', 0) or 0),
+                    'bounce_rate': float(row.get('bounceRate', 0) or 0),
+                    'exit_rate': float(row.get('bounceRate', 0) or 0) * 0.8,
                 })
 
         # Best/worst day
@@ -2602,9 +2615,9 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
             'branding_key': branding_key,
             'date_range': {'start': date_range['start'], 'end': date_range['end']},
             'totals': {
-                'sessions': int(totals['sessions']),
-                'users': int(totals['users']),
-                'pageviews': int(totals['pageviews']),
+                'sessions': _safe_int(totals.get('sessions', 0)),
+                'users': _safe_int(totals.get('users', 0)),
+                'pageviews': _safe_int(totals.get('pageviews', 0)),
                 'avg_bounce_rate': float(round(totals['avg_bounce_rate'], 1)),
                 'avg_session_duration': float(round(totals['avg_session_duration'], 0)),
                 'pages_per_session': float(round(totals['pages_per_session'], 2)),
