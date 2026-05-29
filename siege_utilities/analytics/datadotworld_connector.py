@@ -17,6 +17,12 @@ except ImportError:
     DATADOTWORLD_AVAILABLE = False
 
 try:
+    import requests
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    REQUESTS_AVAILABLE = False
+
+try:
     import pandas as pd
     PANDAS_AVAILABLE = True
 except ImportError:
@@ -68,7 +74,7 @@ class DataDotWorldConnector:
             if 'api_token' in config and config['api_token']:
                 self.api_token = config['api_token']
                     
-        except Exception as e:
+        except (json.JSONDecodeError, OSError) as e:
             log.error(f"Failed to load configuration: {e}")
             raise
     
@@ -89,7 +95,7 @@ class DataDotWorldConnector:
             
             log.info("Data.world client initialized successfully")
             
-        except Exception as e:
+        except (ImportError, AttributeError, TypeError) as e:
             log.error(f"Failed to initialize Data.world client: {e}")
             raise
     
@@ -144,7 +150,7 @@ class DataDotWorldConnector:
             log.info(f"Found {len(datasets)} datasets matching query: {query}")
             return datasets
             
-        except Exception as e:
+        except (requests.RequestException, KeyError, ValueError) as e:
             log.error(f"Dataset search failed: {e}")
             return None
     
@@ -180,7 +186,7 @@ class DataDotWorldConnector:
             log.info(f"Retrieved dataset info for: {dataset_id}")
             return info
             
-        except Exception as e:
+        except (requests.RequestException, KeyError, ValueError) as e:
             log.error(f"Failed to get dataset info for {dataset_id}: {e}")
             return None
     
@@ -214,7 +220,7 @@ class DataDotWorldConnector:
             log.info(f"Found {len(file_list)} files in dataset: {dataset_id}")
             return file_list
             
-        except Exception as e:
+        except (requests.RequestException, KeyError, ValueError) as e:
             log.error(f"Failed to list files for dataset {dataset_id}: {e}")
             return None
     
@@ -249,7 +255,7 @@ class DataDotWorldConnector:
             log.info(f"Successfully downloaded {file_name} to {output_path}")
             return output_path
             
-        except Exception as e:
+        except (OSError, requests.RequestException) as e:
             log.error(f"Failed to download file {file_name} from dataset {dataset_id}: {e}")
             return None
     
@@ -281,7 +287,7 @@ class DataDotWorldConnector:
             log.info(f"Successfully loaded dataset {dataset_id} as DataFrame with {len(df)} rows")
             return df
             
-        except Exception as e:
+        except (requests.RequestException, ValueError) as e:
             log.error(f"Failed to load dataset {dataset_id} as DataFrame: {e}")
             return None
     
@@ -315,7 +321,7 @@ class DataDotWorldConnector:
             log.info(f"Successfully executed {query_type.upper()} query on dataset {dataset_id}")
             return df
             
-        except Exception as e:
+        except (requests.RequestException, ValueError) as e:
             log.error(f"Query execution failed on dataset {dataset_id}: {e}")
             return None
     
@@ -336,7 +342,7 @@ class DataDotWorldConnector:
             log.info(f"Retrieved schema for dataset: {dataset_id}")
             return schema
             
-        except Exception as e:
+        except (requests.RequestException, KeyError, ValueError) as e:
             log.error(f"Failed to get schema for dataset {dataset_id}: {e}")
             return None
     
@@ -382,7 +388,7 @@ class DataDotWorldConnector:
             log.info(f"Successfully created dataset: {created_id}")
             return created_id
             
-        except Exception as e:
+        except (requests.RequestException, ValueError) as e:
             log.error(f"Failed to create dataset: {e}")
             return None
     
@@ -418,7 +424,7 @@ class DataDotWorldConnector:
             log.info(f"Successfully uploaded {file_name} to dataset {dataset_id}")
             return True
             
-        except Exception as e:
+        except (FileNotFoundError, OSError, requests.RequestException) as e:
             log.error(f"Failed to upload file to dataset {dataset_id}: {e}")
             return False
     
@@ -466,7 +472,7 @@ class DataDotWorldConnector:
             log.info(f"Successfully updated dataset: {dataset_id}")
             return True
             
-        except Exception as e:
+        except (requests.RequestException, ValueError) as e:
             log.error(f"Failed to update dataset {dataset_id}: {e}")
             return False
     
@@ -490,7 +496,7 @@ class DataDotWorldConnector:
             log.info(f"Successfully deleted dataset: {dataset_id}")
             return True
             
-        except Exception as e:
+        except (requests.RequestException, ValueError) as e:
             log.error(f"Failed to delete dataset {dataset_id}: {e}")
             return False
 
