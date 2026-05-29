@@ -334,7 +334,10 @@ class RDHLoaderService:
         updated = 0
         for district in plan.districts.all():
             if district.geoid in cvap_lookup:
-                district.cvap = int(cvap_lookup[district.geoid])
+                raw = cvap_lookup[district.geoid]
+                if raw is None or (isinstance(raw, float) and raw != raw):
+                    continue
+                district.cvap = int(raw)
                 district.save(update_fields=["cvap"])
                 updated += 1
 
