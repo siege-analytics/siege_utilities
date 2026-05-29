@@ -325,6 +325,7 @@ def find_files_by_pattern(directory: FilePath,
 
     Raises:
         PathSecurityError: If path fails security validation
+        OSError: If the directory cannot be read
 
     Example:
         >>> files = find_files_by_pattern("data", "*.csv", recursive=True)
@@ -358,8 +359,7 @@ def find_files_by_pattern(directory: FilePath,
     except PathSecurityError:
         raise
     except OSError as e:
-        log.error(f"Failed to find files in {directory}: {e}")
-        return []
+        raise OSError(f"Failed to find files in {directory}: {e}") from e
 
 def create_backup_path(original_path: FilePath,
                       backup_suffix: str = ".backup",

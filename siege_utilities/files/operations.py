@@ -808,17 +808,17 @@ def get_file_size_mb(file_path: Union[str, Path]) -> float:
         file_path: Path to file
 
     Returns:
-        File size in MB (0.0 if file doesn't exist)
+        File size in MB.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+        OSError: If the file size cannot be determined.
     """
-    try:
-        file_path = Path(file_path)
-        if not file_path.exists():
-            return 0.0
-        size_bytes = file_path.stat().st_size
-        return round(size_bytes / (1024 * 1024), 2)
-    except OSError as e:
-        log.error(f"Error getting file size for {file_path}: {e}")
-        return 0.0
+    file_path = Path(file_path)
+    if not file_path.exists():
+        raise FileNotFoundError(f"File does not exist: {file_path}")
+    size_bytes = file_path.stat().st_size
+    return round(size_bytes / (1024 * 1024), 2)
 
 
 def list_files_recursive(
@@ -836,18 +836,18 @@ def list_files_recursive(
 
     Returns:
         List of Path objects
+
+    Raises:
+        FileNotFoundError: If the directory does not exist.
+        OSError: If the directory cannot be read.
     """
-    try:
-        directory = Path(directory)
-        if not directory.exists():
-            return []
-        if exclude_dirs:
-            return [p for p in directory.rglob(pattern) if p.is_file()]
-        else:
-            return list(directory.rglob(pattern))
-    except OSError as e:
-        log.error(f"Error listing files in {directory}: {e}")
-        return []
+    directory = Path(directory)
+    if not directory.exists():
+        raise FileNotFoundError(f"Directory does not exist: {directory}")
+    if exclude_dirs:
+        return [p for p in directory.rglob(pattern) if p.is_file()]
+    else:
+        return list(directory.rglob(pattern))
 
 
 __all__ = [

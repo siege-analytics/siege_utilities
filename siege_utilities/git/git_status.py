@@ -229,8 +229,7 @@ def get_stash_list(repo_path: str = ".") -> List[Dict[str, str]]:
         
         return stashes
     except (GitError, RuntimeError) as exc:
-        log.warning("Could not retrieve stash list: %s", exc)
-        return []
+        raise GitError(f"Could not retrieve stash list: {exc}") from exc
 
 def get_tag_list(repo_path: str = ".") -> List[Dict[str, str]]:
     """Get list of tags with details.
@@ -257,8 +256,7 @@ def get_tag_list(repo_path: str = ".") -> List[Dict[str, str]]:
         
         return tags
     except (GitError, RuntimeError) as exc:
-        log.warning("Could not retrieve tag list: %s", exc)
-        return []
+        raise GitError(f"Could not retrieve tag list: {exc}") from exc
 
 def get_log_summary(
     since: Optional[str] = None,
@@ -323,7 +321,6 @@ def get_log_summary(
                 "max_count": max_count
             }
         }
-    }
 
 def get_file_status(repo_path: str = ".") -> Dict[str, List[str]]:
     """Get detailed status of all files in the repository.
