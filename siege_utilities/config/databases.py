@@ -319,6 +319,12 @@ def create_spark_session_with_databases(app_name: str = "SiegeAnalytics",
     Returns:
         Configured Spark session or None if PySpark not available
 
+    Raises:
+        ValueError: If a database config declares a ``connection_type`` for which
+            no JDBC driver is registered. Supported types: ``postgres``, ``mysql``,
+            ``oracle``. The error names the offending type so callers can either
+            add a supported config or extend the dispatch.
+
     Example:
         >>> spark = siege_utilities.create_spark_session_with_databases(
         ...     "Analytics App",
@@ -337,6 +343,7 @@ def create_spark_session_with_databases(app_name: str = "SiegeAnalytics",
 
     # Add database drivers based on configured databases
     packages = []
+    supported_connection_types = ('postgres', 'mysql', 'oracle')
 
     if database_names:
         for db_name in database_names:
@@ -351,10 +358,13 @@ def create_spark_session_with_databases(app_name: str = "SiegeAnalytics",
                 elif connection_type == 'oracle':
                     packages.append("com.oracle.database.jdbc:ojdbc8:21.1.0.0")
                 else:
-                    logger.warning(
-                        "No JDBC driver for connection type %r (database %r); "
-                        "Spark session may not connect to this database",
-                        connection_type, db_name,
+                    raise ValueError(
+                        f"Unsupported connection_type {connection_type!r} for "
+                        f"database {db_name!r}. Supported types: "
+                        f"{', '.join(supported_connection_types)}. "
+                        f"Previously this case silently loaded the PostgreSQL "
+                        f"JDBC driver, which produced misleading connection "
+                        f"errors at runtime."
                     )
 
     # Add common packages if none specified
