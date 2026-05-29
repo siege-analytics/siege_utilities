@@ -212,8 +212,13 @@ def start_feature_workflow(
             "workflow": "feature_started"
         }
 
-    except (RuntimeError, GitError) as e:
-        raise GitError(f"Feature workflow failed for {branch_name}: {e}") from e
+    except (GitError, RuntimeError) as e:
+        return {
+            "status": "failed",
+            "error": str(e),
+            "branch_name": branch_name,
+            "base_branch": base_branch
+        }
 
 def complete_feature_workflow(
     feature_branch: str,
@@ -263,7 +268,7 @@ def complete_feature_workflow(
             try:
                 run_git_command("push", "origin", "--delete", feature_branch, repo_path=repo_path)
                 log_info(f"Deleted remote branch: origin/{feature_branch}")
-            except (RuntimeError, GitError) as exc:
+            except (GitError, RuntimeError) as exc:
                 log_warning(f"Could not delete remote branch: origin/{feature_branch}: {exc}")
 
         return {
@@ -275,8 +280,13 @@ def complete_feature_workflow(
             "workflow": "feature_completed"
         }
 
-    except (RuntimeError, GitError) as e:
-        raise GitError(f"Feature completion failed for {feature_branch}: {e}") from e
+    except (GitError, RuntimeError) as e:
+        return {
+            "status": "failed",
+            "error": str(e),
+            "feature_branch": feature_branch,
+            "target_branch": target_branch
+        }
 
 def hotfix_workflow(
     hotfix_name: str,
@@ -321,8 +331,13 @@ def hotfix_workflow(
             "workflow": "hotfix_started"
         }
 
-    except (RuntimeError, GitError) as e:
-        raise GitError(f"Hotfix workflow failed for {branch_name}: {e}") from e
+    except (GitError, RuntimeError) as e:
+        return {
+            "status": "failed",
+            "error": str(e),
+            "branch_name": branch_name,
+            "base_branch": base_branch
+        }
 
 def release_workflow(
     version: str,
@@ -375,8 +390,14 @@ def release_workflow(
             "workflow": "release_started"
         }
 
-    except (RuntimeError, GitError) as e:
-        raise GitError(f"Release workflow failed for {version}: {e}") from e
+    except (GitError, RuntimeError) as e:
+        return {
+            "status": "failed",
+            "error": str(e),
+            "branch_name": branch_name,
+            "version": version,
+            "base_branch": base_branch
+        }
 
 def _update_version_files(version: str, repo_path: str) -> None:
     """Update common version files."""
@@ -453,7 +474,7 @@ def get_workflow_status(repo_path: str = ".") -> Dict[str, Union[str, List[str],
                     "commits_behind": int(behind),
                     "ready_for_merge": int(ahead) > 0 and int(behind) == 0
                 })
-            except (RuntimeError, GitError) as exc:
+            except (GitError, RuntimeError, ValueError) as exc:
                 log_warning(f"Could not determine ahead/behind counts: {exc}")
                 workflow_info.update({
                     "commits_ahead": None,
@@ -463,5 +484,10 @@ def get_workflow_status(repo_path: str = ".") -> Dict[str, Union[str, List[str],
 
         return workflow_info
 
-    except (RuntimeError, GitError) as e:
-        raise GitError(f"Could not determine workflow status: {e}") from e
+    except (GitError, RuntimeError) as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "current_branch": "unknown",
+            "workflow_type": "unknown"
+        }

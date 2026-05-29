@@ -46,7 +46,7 @@ def create_feature_branch(
         try:
             run_git_command("pull", "origin", base_branch, repo_path=repo_path, check=False)
             log_info(f"Pulled latest changes from {base_branch}")
-        except (RuntimeError, GitError) as exc:
+        except (GitError, RuntimeError) as exc:
             log_warning(f"Could not pull latest from {base_branch} (continuing anyway): {exc}")
 
     # Create and switch to new branch
@@ -58,7 +58,7 @@ def create_feature_branch(
         try:
             run_git_command("push", "-u", "origin", branch_name, repo_path=repo_path, check=False)
             log_info(f"Pushed branch to remote: origin/{branch_name}")
-        except (RuntimeError, GitError) as exc:
+        except (GitError, RuntimeError) as exc:
             log_warning(f"Could not push to remote (continuing anyway): {exc}")
 
     return {
