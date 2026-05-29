@@ -237,3 +237,80 @@ class TestEscapeStringLiteral:
         from siege_utilities.core.sql_safety import escape_sql_string_literal
         with pytest.raises(TypeError):
             escape_sql_string_literal(123)  # type: ignore[arg-type]
+
+
+class TestValidateSqlFragment:
+    """validate_sql_fragment blocks dangerous structural SQL patterns."""
+
+    def test_valid_where_clause(self):
+        from siege_utilities.core.sql_safety import validate_sql_fragment
+        assert validate_sql_fragment("state_fips = '06'") == "state_fips = '06'"
+
+    def test_valid_comparison(self):
+        from siege_utilities.core.sql_safety import validate_sql_fragment
+        assert validate_sql_fragment("population > 1000 AND area_sqmi < 50")
+
+    def test_rejects_semicolon_injection(self):
+        from siege_utilities.core.sql_safety import validate_sql_fragment
+        with pytest.raises(ValueError, match="Dangerous pattern"):
+            validate_sql_fragment("1=1; DROP TABLE users")
+
+    def test_rejects_line_comment(self):
+        from siege_utilities.core.sql_safety import validate_sql_fragment
+        with pytest.raises(ValueError, match="Dangerous pattern"):
+            validate_sql_fragment("1=1 -- comment")
+
+    def test_rejects_block_comment(self):
+        from siege_utilities.core.sql_safety import validate_sql_fragment
+        with pytest.raises(ValueError, match="Dangerous pattern"):
+            validate_sql_fragment("1=1 /* hidden */")
+
+    def test_rejects_union(self):
+        from siege_utilities.core.sql_safety import validate_sql_fragment
+        with pytest.raises(ValueError, match="Dangerous pattern"):
+            validate_sql_fragment("1=1 UNION SELECT * FROM passwords")
+
+    def test_rejects_drop(self):
+        from siege_utilities.core.sql_safety import validate_sql_fragment
+        with pytest.raises(ValueError, match="Dangerous pattern"):
+            validate_sql_fragment("DROP TABLE users")
+
+    def test_rejects_delete(self):
+        from siege_utilities.core.sql_safety import validate_sql_fragment
+        with pytest.raises(ValueError, match="Dangerous pattern"):
+            validate_sql_fragment("DELETE FROM users WHERE 1=1")
+
+    def test_rejects_insert(self):
+        from siege_utilities.core.sql_safety import validate_sql_fragment
+        with pytest.raises(ValueError, match="Dangerous pattern"):
+            validate_sql_fragment("INSERT INTO users VALUES (1)")
+
+    def test_rejects_update(self):
+        from siege_utilities.core.sql_safety import validate_sql_fragment
+        with pytest.raises(ValueError, match="Dangerous pattern"):
+            validate_sql_fragment("UPDATE users SET admin=1")
+
+    def test_rejects_create(self):
+        from siege_utilities.core.sql_safety import validate_sql_fragment
+        with pytest.raises(ValueError, match="Dangerous pattern"):
+            validate_sql_fragment("CREATE TABLE evil (id int)")
+
+    def test_rejects_copy(self):
+        from siege_utilities.core.sql_safety import validate_sql_fragment
+        with pytest.raises(ValueError, match="Dangerous pattern"):
+            validate_sql_fragment("COPY secrets TO '/tmp/loot'")
+
+    def test_rejects_non_string(self):
+        from siege_utilities.core.sql_safety import validate_sql_fragment
+        with pytest.raises(TypeError):
+            validate_sql_fragment(42)  # type: ignore[arg-type]
+
+    def test_case_insensitive(self):
+        from siege_utilities.core.sql_safety import validate_sql_fragment
+        with pytest.raises(ValueError, match="Dangerous pattern"):
+            validate_sql_fragment("union select * from users")
+
+    def test_label_in_error_message(self):
+        from siege_utilities.core.sql_safety import validate_sql_fragment
+        with pytest.raises(ValueError, match="where_clause"):
+            validate_sql_fragment("1=1; DROP TABLE x", "where_clause")
