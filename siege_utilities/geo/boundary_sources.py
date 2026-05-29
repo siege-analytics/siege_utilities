@@ -71,7 +71,7 @@ def load_census_boundaries(
 
     try:
         df = engine.load_polygons(path)
-    except Exception as e:
+    except (OSError, ValueError, RuntimeError, ImportError) as e:
         raise FileNotFoundError(
             f"Census boundaries not staged at {path}. "
             f"Run stage_census_boundaries() first."
@@ -106,7 +106,7 @@ def load_gadm_boundaries(
 
     try:
         df = engine.load_polygons(path)
-    except Exception:
+    except (OSError, ValueError, RuntimeError, ImportError):
         # Fallback: load via GADM provider + engine conversion
         return _load_gadm_via_provider(engine, level, country)
 

@@ -149,7 +149,7 @@ def open_swmaps(path: str) -> SWMapsArchive:
             member = sqlite_members[0]
             zf.extract(member, tmp)
             db_path = os.path.join(tmp, member)
-    except Exception:
+    except (OSError, ValueError, RuntimeError, KeyError):
         shutil.rmtree(tmp, ignore_errors=True)
         raise
 

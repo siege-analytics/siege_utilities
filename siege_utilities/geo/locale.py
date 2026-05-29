@@ -711,7 +711,7 @@ class NCESLocaleClassifier:
             places_gdf = census.get_geographic_boundaries(
                 year=year, geographic_level="place",
             )
-        except Exception:
+        except (OSError, ValueError, RuntimeError, ImportError):
             log.warning("Could not load Place boundaries; principal city detection limited")
             import geopandas as gpd
             places_gdf = gpd.GeoDataFrame()

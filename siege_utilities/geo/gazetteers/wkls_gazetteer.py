@@ -197,7 +197,7 @@ class WklsGazetteer:
             # to_arrow_table avoids the optional pandas dep (we can
             # iterate Arrow rows directly).
             arrow = df.to_arrow_table()
-        except Exception as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError) as exc:
             raise GazetteerBackendError(
                 f"WKLS search for {name!r} failed: {exc}"
             ) from exc
@@ -229,7 +229,7 @@ class WklsGazetteer:
             ) from exc
         try:
             wkt_str = wkls.resolve(place_id).wkt()
-        except Exception as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError) as exc:
             raise GazetteerBackendError(
                 f"WKLS geometry fetch for id={place_id!r} failed: {exc}"
             ) from exc

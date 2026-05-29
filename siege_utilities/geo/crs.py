@@ -147,7 +147,7 @@ def _normalize_crs(value: Any) -> str:
 
     try:
         crs = CRS.from_user_input(value)
-    except Exception as exc:
+    except (ValueError, TypeError, RuntimeError) as exc:
         log.debug("Could not parse CRS from %r, falling back to str(): %s", value, exc)
         return str(value)
     epsg = crs.to_epsg()

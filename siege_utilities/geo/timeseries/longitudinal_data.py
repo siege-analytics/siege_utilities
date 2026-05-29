@@ -175,7 +175,7 @@ def get_longitudinal_data(
             else:
                 log.warning(f"  No data returned for {year}")
 
-        except Exception as e:
+        except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError) as e:
             if strict_years:
                 raise ValueError(
                     f"Failed to fetch data for year {year}: {e}. "
@@ -271,7 +271,7 @@ def _normalize_boundaries_multi_year(
                 geoid_column='GEOID'
             )
             normalized[year] = normalized_df
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             log.warning(
                 f"  Could not normalize {year} data: {e}. Using original boundaries."
             )
@@ -707,7 +707,7 @@ class LongitudinalAligner:
                 current_df = self._apply_crosswalk_step(
                     current_df, src, tgt, geo, sfips, geoid_column,
                 )
-            except Exception as exc:
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
                 log.warning(
                     "Crosswalk %d→%d failed (%s), trying areal interpolation",
                     src, tgt, exc,
@@ -720,7 +720,7 @@ class LongitudinalAligner:
                     warnings.append(
                         f"Used areal interpolation for {src}→{tgt} (crosswalk unavailable)"
                     )
-                except Exception as areal_exc:
+                except (ValueError, TypeError, KeyError, AttributeError, OSError) as areal_exc:
                     msg = (
                         f"Both crosswalk and areal interpolation failed for "
                         f"{src}→{tgt}: {areal_exc}"

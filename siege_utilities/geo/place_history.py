@@ -371,7 +371,7 @@ def place_history(
         result.lineage = _build_lineage(
             geoid, from_year, to_year, provider, state_fips
         )
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
         result.errors.append(f"Lineage build failed: {exc}")
         log.error("Failed to build lineage for %s: %s", geoid, exc)
 
@@ -385,7 +385,7 @@ def place_history(
                 result.overlays[name] = overlay_impl.fetch(
                     geoid, from_year, to_year, state_fips
                 )
-            except Exception as exc:
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
                 result.errors.append(f"Overlay '{name}' failed: {exc}")
                 log.warning("Overlay %s failed for %s: %s", name, geoid, exc)
 
@@ -400,6 +400,6 @@ def _get_default_provider() -> Optional[CrosswalkProvider]:
     except ImportError:
         log.debug("Django crosswalk provider not available (Django not installed or not configured)")
         return None
-    except Exception as exc:
+    except (RuntimeError, ValueError, TypeError, AttributeError, OSError) as exc:
         log.warning("Failed to initialise Django crosswalk provider: %s", exc)
         return None

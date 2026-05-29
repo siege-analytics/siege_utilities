@@ -411,7 +411,16 @@ def get_coordinates(query_address, country_codes=None, max_retries=3, server_url
         raise GeocodingError(
             f"Nominatim response for {query_address!r} missing lat/lng fields"
         )
-    return (float(lat), float(lng))
+        if result_json:
+            data = json.loads(result_json)
+            lat = data.get('nominatim_lat')
+            lng = data.get('nominatim_lng')
+            if lat and lng:
+                return (float(lat), float(lng))
+        return None
+    except (ValueError, TypeError, KeyError, AttributeError) as e:
+        log_error(f"Geocoding failed for {query_address}: {e}")
+        return None
 
 
 def use_nominatim_geocoder(query_address, id=None, country_codes=None,
@@ -492,7 +501,7 @@ def use_nominatim_geocoder(query_address, id=None, country_codes=None,
                     f'after {max_retries} attempts'
                 ) from e
             time.sleep(2 ** attempt)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError) as e:
             message = f'Unexpected error during geocoding: {str(e)}'
             log_error(message)
             raise GeocodingError(
@@ -624,7 +633,7 @@ def _get_crs_bounds(crs) -> Tuple[float, float, float, float]:
         aou = crs.area_of_use
         if aou is not None:
             return (aou.south, aou.north, aou.west, aou.east)
-    except Exception as exc:
+    except (ValueError, TypeError, RuntimeError, AttributeError) as exc:
         logger.warning(
             "Could not derive bounds from CRS %r, falling back to world bounds: %s",
             crs, exc,
@@ -743,7 +752,7 @@ class SpatiaLiteCache:
             try:
                 self._conn.enable_load_extension(True)
                 self._conn.load_extension("mod_spatialite")
-            except Exception as exc:
+            except (sqlite3.OperationalError, RuntimeError, AttributeError) as exc:
                 logger.info(
                     "SpatiaLite extension not available, falling back to plain SQLite "
                     "(spatial index disabled): %s", exc,

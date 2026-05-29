@@ -180,6 +180,6 @@ class UrbanicityOverlay(PlaceHistoryOverlay):
         except ImportError:
             log.debug("Django urbanicity provider not available (Django not installed or not configured)")
             return None
-        except Exception as exc:
+        except (RuntimeError, ValueError, TypeError, AttributeError, OSError) as exc:
             log.warning("Failed to initialise Django urbanicity provider: %s", exc)
             return None

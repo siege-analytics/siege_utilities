@@ -38,10 +38,18 @@ class SpatialQueryError(RuntimeError):
 try:
     import duckdb
     DUCKDB_AVAILABLE = True
+    _DuckDBError = duckdb.Error
     log.info("DuckDB available for enhanced spatial operations")
 except ImportError:
     DUCKDB_AVAILABLE = False
+    _DuckDBError = Exception
     log.info("DuckDB not available - using standard geospatial stack")
+
+# Conditional import for psycopg2 error base class (optional dependency)
+try:
+    from psycopg2 import Error as _Psycopg2Error
+except ImportError:
+    _Psycopg2Error = Exception
 
 
 class SpatialDataTransformer:
@@ -51,7 +59,7 @@ class SpatialDataTransformer:
         """Initialize the spatial data transformer."""
         try:
             self.user_config = get_user_config()
-        except Exception as e:
+        except (ImportError, OSError, ValueError, KeyError, AttributeError) as e:
             log.warning(f"Failed to load user config: {e}")
             # Use None (not {}) so callers branching on `is None` work
             # uniformly across SpatialDataTransformer / PostGISConnector
@@ -108,7 +116,7 @@ class SpatialDataTransformer:
                 log.error(f"Unsupported output format: {output_format}")
                 return False
                 
-        except Exception as e:
+        except (OSError, ValueError, TypeError, AttributeError, KeyError, ImportError) as e:
             log.error(f"Format conversion failed: {e}")
             return False
     
@@ -119,7 +127,7 @@ class SpatialDataTransformer:
             gdf.to_file(output_path, driver='ESRI Shapefile')
             log.info(f"Successfully converted to Shapefile: {output_path}")
             return True
-        except Exception as e:
+        except (OSError, ValueError, TypeError, RuntimeError) as e:
             log.error(f"Failed to convert to Shapefile: {e}")
             return False
     
@@ -130,7 +138,7 @@ class SpatialDataTransformer:
             gdf.to_file(output_path, driver='GeoJSON')
             log.info(f"Successfully converted to GeoJSON: {output_path}")
             return True
-        except Exception as e:
+        except (OSError, ValueError, TypeError, RuntimeError) as e:
             log.error(f"Failed to convert to GeoJSON: {e}")
             return False
     
@@ -141,7 +149,7 @@ class SpatialDataTransformer:
             gdf.to_file(output_path, driver='GPKG')
             log.info(f"Successfully converted to GeoPackage: {output_path}")
             return True
-        except Exception as e:
+        except (OSError, ValueError, TypeError, RuntimeError) as e:
             log.error(f"Failed to convert to GeoPackage: {e}")
             return False
     
@@ -152,7 +160,7 @@ class SpatialDataTransformer:
             gdf.to_file(output_path, driver='KML')
             log.info(f"Successfully converted to KML: {output_path}")
             return True
-        except Exception as e:
+        except (OSError, ValueError, TypeError, RuntimeError) as e:
             log.error(f"Failed to convert to KML: {e}")
             return False
     
@@ -163,7 +171,7 @@ class SpatialDataTransformer:
             gdf.to_file(output_path, driver='GML')
             log.info(f"Successfully converted to GML: {output_path}")
             return True
-        except Exception as e:
+        except (OSError, ValueError, TypeError, RuntimeError) as e:
             log.error(f"Failed to convert to GML: {e}")
             return False
     
@@ -180,7 +188,7 @@ class SpatialDataTransformer:
             wkt_data.to_csv(output_path, index=False)
             log.info(f"Successfully converted to WKT: {output_path}")
             return True
-        except Exception as e:
+        except (OSError, ValueError, TypeError, AttributeError) as e:
             log.error(f"Failed to convert to WKT: {e}")
             return False
     
@@ -197,7 +205,7 @@ class SpatialDataTransformer:
             wkb_data.to_pickle(output_path)
             log.info(f"Successfully converted to WKB: {output_path}")
             return True
-        except Exception as e:
+        except (OSError, ValueError, TypeError, AttributeError) as e:
             log.error(f"Failed to convert to WKB: {e}")
             return False
     
@@ -231,7 +239,7 @@ class SpatialDataTransformer:
             
             log.info(f"Successfully generated PostGIS SQL: {output_path}")
             return True
-        except Exception as e:
+        except (OSError, ValueError, TypeError, AttributeError, ImportError) as e:
             log.error(f"Failed to convert to PostGIS: {e}")
             return False
     
@@ -247,7 +255,7 @@ class SpatialDataTransformer:
             if db_path is None and self.user_config is not None:
                 try:
                     db_path = self.user_config.get_database_connection('duckdb')
-                except Exception as e:
+                except (AttributeError, ValueError, KeyError, TypeError) as e:
                     log.warning(f"user_config.get_database_connection('duckdb') failed: {e}")
             db_path = db_path or ':memory:'
             table_name = kwargs.get('table_name', 'spatial_data')
@@ -270,7 +278,7 @@ class SpatialDataTransformer:
                 finally:
                     try:
                         con.unregister("siege_upload_df")
-                    except Exception as cleanup_exc:
+                    except (_DuckDBError, RuntimeError) as cleanup_exc:
                         log.warning(
                             "Failed to unregister siege_upload_df: %s",
                             cleanup_exc,
@@ -279,7 +287,7 @@ class SpatialDataTransformer:
             log.info(f"Successfully uploaded to DuckDB table: {table_name}")
             return True
 
-        except Exception as e:
+        except (_DuckDBError, OSError, ValueError, TypeError, AttributeError, KeyError) as e:
             log.error(f"Failed to convert to DuckDB: {e}")
             return False
 
@@ -299,14 +307,14 @@ class PostGISConnector:
         """
         try:
             self.user_config = get_user_config()
-        except Exception as e:
+        except (ImportError, OSError, ValueError, KeyError, AttributeError) as e:
             log.warning(f"Failed to load user config: {e}")
             self.user_config = None
 
         if connection_string is None and self.user_config is not None:
             try:
                 connection_string = self.user_config.get_database_connection('postgresql')
-            except Exception as e:
+            except (AttributeError, ValueError, KeyError, TypeError) as e:
                 log.warning(f"user_config.get_database_connection('postgresql') failed: {e}")
                 connection_string = None
         self.connection_string = connection_string
@@ -324,7 +332,7 @@ class PostGISConnector:
             log.info("Successfully connected to PostGIS")
         except ImportError:
             log.error("psycopg2 not available. Install with: pip install psycopg2-binary")
-        except Exception as e:
+        except (_Psycopg2Error, OSError) as e:
             log.error(f"Failed to connect to PostGIS: {e}")
     
     def upload_spatial_data(self, gdf: GeoDataFrame, table_name: str, **kwargs) -> bool:
@@ -398,7 +406,7 @@ class PostGISConnector:
             )
             return True
 
-        except Exception as e:
+        except (_Psycopg2Error, OSError, ValueError, TypeError, AttributeError, ImportError) as e:
             log.error(f"Failed to upload to PostGIS: {e}")
             return False
     
@@ -440,7 +448,7 @@ class PostGISConnector:
             log.info(f"Successfully downloaded from PostGIS: {table_name}")
             return reproject_if_needed(gdf, crs)
 
-        except Exception as e:
+        except (_Psycopg2Error, OSError, ValueError, TypeError, AttributeError, KeyError) as e:
             log.error(f"Failed to download from PostGIS: {e}")
             return None
     
@@ -482,7 +490,7 @@ class PostGISConnector:
                 gdf = gpd.read_postgis(query, self.connection, geom_col=geom_col)
                 log.info("Successfully executed PostGIS query")
                 return reproject_if_needed(gdf, crs)
-            except Exception as e:
+            except (_Psycopg2Error, OSError, ValueError, TypeError, AttributeError) as e:
                 # read_postgis raises sqlalchemy / pandas / geopandas
                 # exceptions depending on the failure mode; catch broadly
                 # and roll back so the psycopg2 connection is not left in
@@ -491,7 +499,7 @@ class PostGISConnector:
                 if self.connection:
                     try:
                         self.connection.rollback()
-                    except Exception as rb_exc:
+                    except (_Psycopg2Error, OSError) as rb_exc:
                         log.warning("Failed to rollback PostGIS transaction: %s", rb_exc)
                 raise SpatialQueryError(f"PostGIS query failed: {e}") from e
 
@@ -502,13 +510,13 @@ class PostGISConnector:
             self.connection.commit()
             rowcount = cursor.rowcount
             log.info("Successfully executed PostGIS query")
-            return rowcount
-        except Exception as e:
+            return gpd.GeoDataFrame()
+        except (_Psycopg2Error, OSError, ValueError, TypeError, AttributeError) as e:
             log.error(f"Failed to execute PostGIS query: {e}")
             if self.connection:
                 try:
                     self.connection.rollback()
-                except Exception as rb_exc:
+                except (_Psycopg2Error, OSError) as rb_exc:
                     log.warning("Failed to rollback PostGIS transaction: %s", rb_exc)
             raise SpatialQueryError(f"PostGIS query failed: {e}") from e
         finally:
@@ -542,7 +550,7 @@ class PostGISConnector:
         if gdf.crs is not None:
             try:
                 srid = gdf.crs.to_epsg()
-            except Exception as exc:
+            except (ValueError, TypeError, AttributeError, RuntimeError) as exc:
                 log.warning(
                     "Could not derive EPSG code from CRS %r, "
                     "falling back to STORAGE_CRS (%s): %s",
@@ -579,14 +587,14 @@ class DuckDBConnector:
         
         try:
             self.user_config = get_user_config()
-        except Exception as e:
+        except (ImportError, OSError, ValueError, KeyError, AttributeError) as e:
             log.warning(f"Failed to load user config: {e}")
             self.user_config = None
 
         if db_path is None and self.user_config is not None:
             try:
                 db_path = self.user_config.get_database_connection('duckdb')
-            except Exception as e:
+            except (AttributeError, ValueError, KeyError, TypeError) as e:
                 log.warning(f"user_config.get_database_connection('duckdb') failed: {e}")
                 db_path = None
         self.db_path = db_path or ':memory:'
@@ -598,7 +606,7 @@ class DuckDBConnector:
             self.connection = duckdb.connect(self.db_path)
             log.info("Successfully connected to DuckDB")
             return True
-        except Exception as e:
+        except (_DuckDBError, OSError) as e:
             log.error(f"Failed to connect to DuckDB: {e}")
             return False
     
@@ -641,7 +649,7 @@ class DuckDBConnector:
             finally:
                 try:
                     self.connection.unregister("siege_upload_df")
-                except Exception as cleanup_exc:
+                except (_DuckDBError, RuntimeError) as cleanup_exc:
                     log.warning(
                         "Failed to unregister siege_upload_df: %s",
                         cleanup_exc,
@@ -650,7 +658,7 @@ class DuckDBConnector:
             log.info(f"Successfully uploaded to DuckDB: {table_name}")
             return True
 
-        except Exception as e:
+        except (_DuckDBError, OSError, ValueError, TypeError, AttributeError) as e:
             log.error(f"Failed to upload to DuckDB: {e}")
             return False
     
@@ -701,7 +709,7 @@ class DuckDBConnector:
             log.info(f"Successfully downloaded from DuckDB: {table_name}")
             return reproject_if_needed(gdf, crs)
             
-        except Exception as e:
+        except (_DuckDBError, OSError, ValueError, TypeError, AttributeError, ImportError) as e:
             log.error(f"Failed to download from DuckDB: {e}")
             return None
     
@@ -744,10 +752,8 @@ class DuckDBConnector:
 
             log.info("Successfully executed DuckDB query")
             return reproject_if_needed(gdf, crs)
-
-        except SpatialQueryError:
-            raise
-        except Exception as e:
+            
+        except (_DuckDBError, OSError, ValueError, TypeError, AttributeError, ImportError) as e:
             log.error(f"Failed to execute DuckDB query: {e}")
             raise SpatialQueryError(f"DuckDB query failed: {e}") from e
 

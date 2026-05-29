@@ -194,7 +194,7 @@ class CatalogCache:
             catalog = _catalog_from_dict(data)
             log.debug("Cache hit for %s/%d", dataset, year)
             return catalog
-        except Exception as e:
+        except (OSError, ValueError, UnicodeDecodeError) as e:
             log.warning("Failed to read cache for %s/%d: %s", dataset, year, e)
             return None
 
@@ -208,7 +208,7 @@ class CatalogCache:
                 encoding="utf-8",
             )
             log.debug("Cached catalog for %s/%d to %s", dataset, year, path)
-        except Exception as e:
+        except (OSError, ValueError, TypeError) as e:
             log.warning("Failed to cache catalog for %s/%d: %s", dataset, year, e)
 
     def clear(self, dataset: str = "", year: int = 0) -> int:

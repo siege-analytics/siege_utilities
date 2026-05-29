@@ -23,6 +23,13 @@ from typing import Optional
 
 log = logging.getLogger(__name__)
 
+try:
+    import requests
+    _RequestException = requests.exceptions.RequestException
+except ImportError:  # pragma: no cover
+    requests = None  # type: ignore[assignment]
+    _RequestException = OSError  # type: ignore[assignment, misc]
+
 
 def _requests():
     import requests
@@ -230,7 +237,7 @@ class NLRBDatagovClient:
                 timeout=self._timeout,
             )
             resp.raise_for_status()
-        except Exception as exc:
+        except (_RequestException, OSError) as exc:
             result.errors.append(f"HTTP error fetching data.gov: {exc}")
             return result
 
@@ -358,7 +365,7 @@ class NLRBLabordataClient:
         try:
             resp = self._get_session().get(url, timeout=self._timeout)
             resp.raise_for_status()
-        except Exception as exc:
+        except (_RequestException, OSError) as exc:
             log.warning("labordata: failed to download %s: %s", dataset, exc)
             return None
 
@@ -469,7 +476,7 @@ class NLRBNxGenClient:
         try:
             resp = self._get_session().get(url, timeout=self._timeout)
             resp.raise_for_status()
-        except Exception as exc:
+        except (_RequestException, OSError) as exc:
             result.errors.append(f"NxGen HTTP error: {exc}")
             return result
 
@@ -539,7 +546,7 @@ class NLRBNxGenClient:
                         region=_extract_region(case_num),
                         source="nxgen",
                     ))
-        except Exception as exc:
+        except (ValueError, TypeError, KeyError, AttributeError) as exc:
             log.warning("NxGen parse failed (expected — page structure may have changed): %s", exc)
 
         return records

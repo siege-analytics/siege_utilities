@@ -272,7 +272,7 @@ def update_census_inventory(
             if r.status_code == 200:
                 return r.content
             log.debug("census inventory crawl: %s → %s", url, r.status_code)
-        except Exception as exc:
+        except (requests.exceptions.RequestException, OSError) as exc:
             log.debug("census inventory crawl: %s → %s", url, exc)
         return None
 
@@ -329,7 +329,7 @@ def load_census_inventory(path: Optional[Path] = None) -> Optional[dict]:
     try:
         with open(p) as fh:
             return json.load(fh)
-    except Exception as exc:
+    except (OSError, ValueError, UnicodeDecodeError) as exc:
         log.warning("could not load census inventory from %s: %s", p, exc)
         return None
 
@@ -485,7 +485,7 @@ class CensusDirectoryDiscovery:
                         years = self._parse_year_links(response.content)
                         self.cache[cache_key] = (time.time(), years)
                         return years
-                    except Exception as e2:
+                    except (requests.exceptions.RequestException, OSError) as e2:
                         last_exception = e2
                 else:
                     log.error(
@@ -589,13 +589,13 @@ class CensusDirectoryDiscovery:
                 self.cache[cache_key] = (time.time(), directories)
                 return directories
 
-            except Exception as e:
+            except (requests.exceptions.RequestException, OSError) as e:
                 return handle_error(
                     SiegeGeoError(f"Failed to get contents for year {year} (SSL bypass): {e}"),
                     on_error=on_error, fallback=[], context=f"TIGER directory listing for {year}",
                 )
 
-        except Exception as e:
+        except (requests.exceptions.RequestException, OSError) as e:
             # On rate-limit (429), substitute the static known-directory list
             # instead of returning [] (which silently skips every boundary type).
             # Only override "skip" callers — "raise"/"warn" callers still see
@@ -882,7 +882,7 @@ class CensusDirectoryDiscovery:
 
         except (BoundaryInputError, BoundaryDiscoveryError, BoundaryConfigurationError):
             raise
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, requests.exceptions.RequestException, OSError) as e:
             raise BoundaryDiscoveryError(
                 f"Failed to construct URL for {boundary_type} in year {year}: {e}",
                 context={**ctx, "original_error": str(e)},
@@ -1064,7 +1064,7 @@ class CensusDirectoryDiscovery:
                 )
             except BoundaryUrlValidationError:
                 raise
-            except Exception as e:
+            except (requests.exceptions.RequestException, OSError) as e:
                 ctx["fallback_error"] = str(e)
                 raise BoundaryUrlValidationError(
                     f"URL validation failed for {url} (with SSL bypass): {e}",
@@ -1076,7 +1076,7 @@ class CensusDirectoryDiscovery:
                 f"URL validation timed out after {self.timeout}s: {url}",
                 context=ctx,
             ) from e
-        except Exception as e:
+        except (requests.exceptions.RequestException, OSError) as e:
             ctx["error_type"] = type(e).__name__
             raise BoundaryUrlValidationError(
                 f"URL validation failed for {url}: {e}",
@@ -1119,7 +1119,7 @@ class SpatialDataSource:
         # Get user configuration for API keys and preferences
         try:
             self.user_config = get_user_config()
-        except Exception as e:
+        except (ImportError, OSError, ValueError, KeyError, AttributeError) as e:
             log.warning(f"Failed to load user config: {e}")
             self.user_config = {}
     
@@ -1399,7 +1399,7 @@ class CensusDataSource(SpatialDataSource):
                 message=str(e),
                 context={**base_ctx, **e.context},
             )
-        except Exception as e:
+        except (OSError, ValueError, TypeError, KeyError, AttributeError, requests.exceptions.RequestException, ImportError) as e:
             return BoundaryFetchResult.fail(
                 error_code="UNEXPECTED_ERROR",
                 error_stage="unknown",
@@ -1560,7 +1560,7 @@ class CensusDataSource(SpatialDataSource):
             download_success = False
             try:
                 download_success = download_file(url, zip_filename)
-            except Exception as ssl_error:
+            except (OSError, requests.exceptions.RequestException, ValueError) as ssl_error:
                 if "SSL" in str(ssl_error) or "certificate" in str(ssl_error).lower():
                     log.warning(f"SSL verification failed, retrying without verification: {ssl_error}")
                     download_success = download_file(url, zip_filename, verify_ssl=False)
@@ -1624,7 +1624,7 @@ class CensusDataSource(SpatialDataSource):
             # Read with GeoPandas
             try:
                 gdf = gpd.read_file(shapefile_path)
-            except Exception as read_err:
+            except (OSError, ValueError, RuntimeError, TypeError, KeyError) as read_err:
                 raise BoundaryParseError(
                     f"GeoPandas failed to read shapefile {shapefile_path}: {read_err}",
                     context={
@@ -1649,15 +1649,15 @@ class CensusDataSource(SpatialDataSource):
             if zip_filename and unzip_dir:
                 try:
                     self._cleanup_temp_files(zip_filename, unzip_dir)
-                except Exception:
+                except OSError:
                     pass
             raise
-        except Exception as e:
+        except (OSError, requests.exceptions.RequestException, ValueError, TypeError, AttributeError, KeyError, RuntimeError) as e:
             # Cleanup on unexpected failure
             if zip_filename and unzip_dir:
                 try:
                     self._cleanup_temp_files(zip_filename, unzip_dir)
-                except Exception:
+                except OSError:
                     pass
             raise BoundaryDownloadError(
                 f"Unexpected error downloading/processing TIGER data: {e}",
@@ -1687,7 +1687,7 @@ class CensusDataSource(SpatialDataSource):
             if unzip_dir.exists():
                 import shutil
                 shutil.rmtree(unzip_dir)
-        except Exception as e:
+        except OSError as e:
             log.warning(f"Failed to cleanup temporary files: {e}")
 
 
@@ -1738,7 +1738,7 @@ class GovernmentDataSource(SpatialDataSource):
             
         except SpatialDataError:
             raise
-        except Exception as e:
+        except (requests.exceptions.RequestException, OSError, ValueError, TypeError, AttributeError, KeyError) as e:
             raise SpatialDataError(
                 f"Failed to download dataset {dataset_id}: {e}"
             ) from e
@@ -1769,7 +1769,7 @@ class GovernmentDataSource(SpatialDataSource):
             return data.get('result', {})
         except SpatialDataError:
             raise
-        except Exception as e:
+        except (requests.exceptions.RequestException, OSError, ValueError) as e:
             raise SpatialDataError(
                 f"Error getting dataset metadata from {url}: {e}"
             ) from e
@@ -1849,7 +1849,7 @@ class GovernmentDataSource(SpatialDataSource):
             
             return gdf
             
-        except Exception as e:
+        except (OSError, ValueError, TypeError, AttributeError, RuntimeError, requests.exceptions.RequestException) as e:
             raise SpatialDataError(
                 f"Failed to process dataset from {url}: {e}"
             ) from e
@@ -1902,7 +1902,7 @@ class OpenStreetMapDataSource(SpatialDataSource):
             log.info(f"Downloaded {len(gdf)} features from OpenStreetMap")
             return gdf
             
-        except Exception as e:
+        except (requests.exceptions.RequestException, OSError, ValueError, TypeError, AttributeError) as e:
             raise SpatialDataError(
                 f"Failed to download OSM data: {e}"
             ) from e

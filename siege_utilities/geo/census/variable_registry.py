@@ -428,7 +428,7 @@ class VariableRegistry:
                     'predicateType': data.get('predicateType', ''),
                     'source': 'api',
                 }
-        except Exception as e:
+        except (requests.exceptions.RequestException, OSError, ValueError) as e:
             log.debug(f"Could not fetch variable metadata: {e}")
 
         return {'code': variable, 'label': 'Unknown', 'source': 'unknown'}
@@ -483,7 +483,7 @@ class VariableRegistry:
 
             return df.sort_values('code').reset_index(drop=True)
 
-        except Exception as e:
+        except (requests.exceptions.RequestException, OSError, ValueError) as e:
             log.error(f"Failed to list variables: {e}")
             raise
 

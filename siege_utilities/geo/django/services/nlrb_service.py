@@ -189,6 +189,6 @@ class NLRBPopulationService:
                 dissolved = MultiPolygon(dissolved)
 
             return dissolved
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             log.debug(f"County dissolve unavailable: {e}")
             return None

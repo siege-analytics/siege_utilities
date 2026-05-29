@@ -420,7 +420,7 @@ class PrecinctVTDReconciler:
             try:
                 overlaps = self._spatial.compute_overlaps(precinct_ids)
                 spatial_mappings = reconcile_spatial(overlaps)
-            except Exception as exc:
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
                 errors.append(f"Spatial reconciliation error: {exc}")
 
         if self._names is not None:
@@ -429,7 +429,7 @@ class PrecinctVTDReconciler:
                 vnames = self._names.get_vtd_names()
                 if pnames and vnames:
                     name_mappings = reconcile_names(pnames, vnames)
-            except Exception as exc:
+            except (ValueError, TypeError, KeyError, AttributeError) as exc:
                 errors.append(f"Name matching error: {exc}")
 
         merged = _merge_mappings(spatial_mappings, name_mappings, official_mappings)
