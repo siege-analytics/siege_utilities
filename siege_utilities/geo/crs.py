@@ -70,13 +70,26 @@ def reproject_if_needed(gdf, crs: str | None = None):
 
     If *crs* is ``None``, uses :func:`get_default_crs`.
     Returns the GeoDataFrame unchanged if it is already in *crs* or is empty.
+
+    When the GeoDataFrame has no CRS (``gdf.crs is None``) and a target is
+    specified, the target CRS is **set** (not reprojected) on the assumption
+    that the data is already in the target CRS. A warning is logged because
+    this assumption may be wrong.
     """
     if gdf is None:
         return None
     target = crs or get_default_crs()
     if not target or len(gdf) == 0:
         return gdf
-    if gdf.crs and str(gdf.crs).upper() != target.upper():
+    if gdf.crs is None:
+        log.warning(
+            "GeoDataFrame has no CRS; setting to %s without reprojection. "
+            "If the data is in a different CRS, results will be incorrect.",
+            target,
+        )
+        gdf = gdf.set_crs(target)
+        return gdf
+    if str(gdf.crs).upper() != target.upper():
         return gdf.to_crs(target)
     return gdf
 
