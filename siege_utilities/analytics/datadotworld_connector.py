@@ -236,7 +236,7 @@ class DataDotWorldConnector:
         try:
             if not output_path:
                 # Use default download directory
-                from siege_utilities.files import get_download_directory
+                from siege_utilities.config.user_config import get_download_directory
                 output_path = get_download_directory() / "datadotworld" / dataset_id.replace('/', '_') / file_name
             
             # Ensure output directory exists
