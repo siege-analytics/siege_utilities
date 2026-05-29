@@ -880,30 +880,59 @@ class TestStoreGoogleAnalyticsCredentials:
 # =============================================================================
 
 class TestGetGoogleAnalyticsCredentials:
-    """Tests for get_google_analytics_credentials."""
+    """Tests for get_google_analytics_credentials.
 
-    def test_returns_tuple_from_1password(self, mock_op_available):
+    Mocks at CredentialManager.get_credential level (contract boundary)
+    rather than subprocess.  Mirrors the #836 test-relayering precedent.
+    """
+
+    def test_returns_tuple_when_get_credential_succeeds(self, mock_op_available):
         manager = CredentialManager()
-        mock_op_available.return_value = Mock(returncode=0, stdout='found_value\n', stderr='')
+        # 1Password item lookup returns nothing; fall through to get_credential
+        mock_op_available.return_value = Mock(returncode=1, stdout='', stderr='')
+
+        with patch.object(
+            CredentialManager, 'get_credential', side_effect=['cid', 'csec']
+        ):
+            result = manager.get_google_analytics_credentials()
+
+        assert result == ('cid', 'csec')
+
+    def test_returns_tuple_from_1password_item(self, mock_op_available):
+        """When _get_from_1password yields both fields, get_credential is not called."""
+        manager = CredentialManager()
+        mock_op_available.return_value = Mock(returncode=0, stdout='op_value\n', stderr='')
 
         result = manager.get_google_analytics_credentials()
-        assert result is not None
         assert isinstance(result, tuple)
         assert len(result) == 2
 
-    def test_returns_none_when_not_found(self, mock_op_available):
+    def test_raises_credential_not_found_on_total_miss(self, mock_op_available):
         manager = CredentialManager()
-        mock_op_available.return_value = Mock(returncode=1, stdout='', stderr='not found')
+        # 1Password item lookup returns nothing
+        mock_op_available.return_value = Mock(returncode=1, stdout='', stderr='')
 
-        result = manager.get_google_analytics_credentials()
-        assert result is None
+        with patch.object(
+            CredentialManager, 'get_credential',
+            side_effect=CredentialNotFoundError('google-analytics', 'client_id', [('env', 'not set')]),
+        ):
+            with pytest.raises(CredentialNotFoundError) as exc_info:
+                manager.get_google_analytics_credentials()
 
-    def test_returns_none_on_exception(self, mock_op_available):
+            assert exc_info.value.service == 'google-analytics'
+            assert exc_info.value.field == 'client_id'
+
+    def test_propagates_transport_errors(self, mock_op_available):
+        """Non-CredentialNotFoundError exceptions propagate to the caller."""
         manager = CredentialManager()
-        mock_op_available.side_effect = Exception("unexpected error")
+        mock_op_available.return_value = Mock(returncode=1, stdout='', stderr='')
 
-        result = manager.get_google_analytics_credentials()
-        assert result is None
+        with patch.object(
+            CredentialManager, 'get_credential',
+            side_effect=RuntimeError("1Password CLI timed out"),
+        ):
+            with pytest.raises(RuntimeError, match="timed out"):
+                manager.get_google_analytics_credentials()
 
 
 # =============================================================================
@@ -1072,11 +1101,21 @@ class TestConvenienceFunctions:
         assert isinstance(result, dict)
         assert 'env' in result
 
-    def test_get_ga_credentials_convenience(self, mock_op_available):
+    def test_get_ga_credentials_convenience_success(self, mock_op_available):
         mock_op_available.return_value = Mock(returncode=0, stdout='value\n', stderr='')
         result = get_ga_credentials()
-        # Either tuple or None
-        assert result is None or isinstance(result, tuple)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+
+    def test_get_ga_credentials_convenience_raises(self, mock_op_available):
+        """Module-level get_ga_credentials propagates CredentialNotFoundError."""
+        mock_op_available.return_value = Mock(returncode=1, stdout='', stderr='')
+        with patch.object(
+            CredentialManager, 'get_credential',
+            side_effect=CredentialNotFoundError('google-analytics', 'client_id', []),
+        ):
+            with pytest.raises(CredentialNotFoundError):
+                get_ga_credentials()
 
 
 # =============================================================================
