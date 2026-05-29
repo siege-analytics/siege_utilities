@@ -1510,36 +1510,51 @@ class TestStoreGAServiceAccountFromFile:
 # =============================================================================
 
 class TestGetGAServiceAccountCredentials:
-    """Tests for get_ga_service_account_credentials."""
+    """Tests for get_ga_service_account_credentials.
 
-    def test_returns_none_when_no_email(self, mock_op_available):
-        mock_op_available.return_value = Mock(returncode=1, stdout='', stderr='not found')
+    These patch ``CredentialManager.get_credential`` directly rather than
+    mocking the ``op`` subprocess. The previous subprocess-level mocks
+    only worked when 1Password happened to be the active backend in the
+    test env -- a fragility the old ``None or isinstance(result, dict)``
+    assertion was a tell for. Patching at the contract layer makes the
+    assertions deterministic regardless of which backends are configured.
+    """
+
+    @patch('siege_utilities.config.credential_manager.CredentialManager.get_credential')
+    def test_raises_when_first_field_missing(self, mock_get):
+        mock_get.side_effect = CredentialNotFoundError(
+            'google-analytics-sa', 'client_email', [('1password', 'no credential found')]
+        )
+        with pytest.raises(CredentialNotFoundError) as excinfo:
+            get_ga_service_account_credentials()
+        assert excinfo.value.field == 'client_email'
+        assert excinfo.value.service == 'google-analytics-sa'
+
+    @patch('siege_utilities.config.credential_manager.CredentialManager.get_credential')
+    def test_raises_when_partial_field_missing(self, mock_get):
+        def side_effect(service, username, field, *args, **kwargs):
+            if field == 'private_key':
+                raise CredentialNotFoundError(
+                    service, field, [('1password', 'no credential found')]
+                )
+            return f'value-for-{field}'
+
+        mock_get.side_effect = side_effect
+        with pytest.raises(CredentialNotFoundError) as excinfo:
+            get_ga_service_account_credentials()
+        assert excinfo.value.field == 'private_key'
+
+    @patch('siege_utilities.config.credential_manager.CredentialManager.get_credential')
+    def test_returns_dict_when_all_fields_found(self, mock_get):
+        mock_get.side_effect = lambda service, username, field, *a, **kw: f'value-for-{field}'
         result = get_ga_service_account_credentials()
-        assert result is None
-
-    def test_returns_dict_when_all_fields_found(self, mock_op_available):
-        mock_op_available.return_value = Mock(returncode=0, stdout='found_value\n', stderr='')
-        result = get_ga_service_account_credentials()
-        if result is not None:
-            assert 'type' in result
-            assert result['type'] == 'service_account'
-
-    def test_returns_none_when_partial_fields(self, mock_op_available):
-        """If some fields are found but not all, returns None."""
-        call_count = [0]
-
-        def side_effect(cmd, **kwargs):
-            call_count[0] += 1
-            # First call finds client_email, subsequent calls fail
-            if call_count[0] <= 5:  # enough for the initial get_credential call
-                return Mock(returncode=0, stdout='email@test.com\n', stderr='')
-            return Mock(returncode=1, stdout='', stderr='not found')
-
-        mock_op_available.side_effect = side_effect
-        # This test is complex because of the multi-backend fallthrough;
-        # just verify it doesn't crash
-        result = get_ga_service_account_credentials()
-        assert result is None or isinstance(result, dict)
+        assert result == {
+            'client_email': 'value-for-client_email',
+            'project_id': 'value-for-project_id',
+            'private_key': 'value-for-private_key',
+            'private_key_id': 'value-for-private_key_id',
+            'type': 'service_account',
+        }
 
 
 # =============================================================================

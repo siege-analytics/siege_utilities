@@ -1071,44 +1071,30 @@ def store_ga_service_account_from_file(credentials_file: Union[str, Path],
         return False
 
 
-def get_ga_service_account_credentials() -> Optional[Dict[str, str]]:
+def get_ga_service_account_credentials() -> Dict[str, str]:
     """
     Get Google Analytics service account credentials.
 
     Returns:
-        Dict with service account data or None
+        Dict with keys ``client_email``, ``project_id``, ``private_key``,
+        ``private_key_id``, ``type`` (always ``"service_account"``).
 
-    Note:
-        TODO(#801-followup): same SU-1 shape as the original #801 bug --
-        aggregate returns None on total miss. Kept None-returning until
-        a dedicated ticket audits the GA SA callers.
+    Raises:
+        CredentialNotFoundError: when any required field cannot be
+            retrieved from any configured backend. The error's ``field``
+            attribute names which field was missing; ``attempts`` carries
+            per-backend diagnostics so callers can surface an actionable
+            message instead of a generic "service account not configured."
     """
     manager = CredentialManager()
-
-    # get_credential now raises CredentialNotFoundError on total miss
-    # (#801); this helper documents "Returns Dict or None" so we catch
-    # explicitly and preserve the None contract. We catch around all four
-    # lookups together: if any one field is absent, the SA is incomplete
-    # and there's nothing to return.
-    try:
-        client_email = manager.get_credential('google-analytics-sa', 'service', 'client_email')
-        project_id = manager.get_credential('google-analytics-sa', 'service', 'project_id')
-        private_key = manager.get_credential('google-analytics-sa', 'service', 'private_key')
-        private_key_id = manager.get_credential('google-analytics-sa', 'service', 'private_key_id')
-    except CredentialNotFoundError as exc:
-        log_warning(f"Incomplete Google service account in credential store: {exc}")
-        return None
-
-    if all([client_email, project_id, private_key, private_key_id]):
-        return {
-            'client_email': client_email,
-            'project_id': project_id,
-            'private_key': private_key,
-            'private_key_id': private_key_id,
-            'type': 'service_account'
-        }
-
-    return None
+    service = 'google-analytics-sa'
+    return {
+        'client_email': manager.get_credential(service, 'service', 'client_email'),
+        'project_id': manager.get_credential(service, 'service', 'project_id'),
+        'private_key': manager.get_credential(service, 'service', 'private_key'),
+        'private_key_id': manager.get_credential(service, 'service', 'private_key_id'),
+        'type': 'service_account',
+    }
 
 
 def get_google_service_account_from_1password(item_title: str = "Google Analytics Service Account - Multi-Client Reporter",
