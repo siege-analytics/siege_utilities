@@ -34,7 +34,8 @@ class TestGeocodeSingle:
     def test_no_match_returns_unmatched_result_not_error(self):
         """No match is a return-value concern, not an exception."""
         fake = MagicMock()
-        fake.onelineaddress.return_value = {"result": {"addressMatches": []}}
+        # censusgeocode v0.5+ returns empty list-like for no match
+        fake.onelineaddress.return_value = []
         with patch(
             "siege_utilities.geo.providers.census_geocoder._get_geocoder",
             return_value=fake,
