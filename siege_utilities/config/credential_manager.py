@@ -689,27 +689,26 @@ class CredentialManager:
                 ``attempts`` carries per-backend diagnostics so callers
                 can surface an actionable message.
         """
-        try:
-            # Try to get from 1Password using item title
-            client_id = self._get_from_1password(item_title, 'client_id')
-            client_secret = self._get_from_1password(item_title, 'client_secret')
-            
-            if client_id and client_secret:
-                return client_id, client_secret
-            
-            # Fallback to general credential retrieval
-            client_id = self.get_credential('google-analytics', 'api', 'client_id')
-            client_secret = self.get_credential('google-analytics', 'api', 'client_secret')
-            
-            if client_id and client_secret:
-                return client_id, client_secret
-            
-            log_error("Could not retrieve Google Analytics credentials")
-            return None
-            
-        except (subprocess.SubprocessError, OSError, json.JSONDecodeError) as e:
-            log_error(f"Error retrieving Google Analytics credentials: {e}")
-            return None
+        # Try to get from 1Password using item title
+        client_id = self._get_from_1password(item_title, 'client_id')
+        client_secret = self._get_from_1password(item_title, 'client_secret')
+
+        if client_id and client_secret:
+            return client_id, client_secret
+
+        # Fallback to general credential retrieval
+        client_id = self.get_credential('google-analytics', 'api', 'client_id')
+        client_secret = self.get_credential('google-analytics', 'api', 'client_secret')
+
+        if client_id and client_secret:
+            return client_id, client_secret
+
+        missing_field = 'client_id' if not client_id else 'client_secret'
+        raise CredentialNotFoundError(
+            'google-analytics', missing_field,
+            [('1password', f'item {item_title!r} missing field'),
+             ('general', 'get_credential returned falsy')],
+        )
     
     def list_stored_credentials(self, service_filter: Optional[str] = None,
                                 vault: Optional[str] = None,

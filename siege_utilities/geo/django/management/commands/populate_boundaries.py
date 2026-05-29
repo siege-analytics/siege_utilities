@@ -8,6 +8,8 @@ Usage:
     python manage.py populate_boundaries --year 2020 --type all --state 06
 """
 
+from typing import Optional
+
 from django.core.management.base import BaseCommand, CommandError
 
 from siege_utilities.geo.django.services import BoundaryPopulationService
@@ -73,7 +75,7 @@ class Command(BaseCommand):
             help="Link child boundaries to parent boundaries after population",
         )
 
-    def _normalize_state(self, state_input: str) -> str:
+    def _normalize_state(self, state_input: str) -> Optional[str]:
         """Convert state input to FIPS code."""
         if not state_input:
             return None

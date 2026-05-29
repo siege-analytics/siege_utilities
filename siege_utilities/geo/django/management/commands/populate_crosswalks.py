@@ -6,6 +6,8 @@ Usage:
     python manage.py populate_crosswalks --source-year 2010 --target-year 2020 --type tract --state 06
 """
 
+from typing import Optional
+
 from django.core.management.base import BaseCommand, CommandError
 
 from siege_utilities.geo.django.services import CrosswalkPopulationService
@@ -62,7 +64,7 @@ class Command(BaseCommand):
             help="Batch size for database operations",
         )
 
-    def _normalize_state(self, state_input: str) -> str:
+    def _normalize_state(self, state_input: str) -> Optional[str]:
         """Convert state input to FIPS code."""
         if not state_input:
             return None
