@@ -753,70 +753,72 @@ class SpatiaLiteCache:
     def _init_db(self):
         conn = self._get_conn()
         cur = conn.cursor()
-
-        # Check if SpatiaLite is available
         try:
-            cur.execute("SELECT spatialite_version()")
-            version = cur.fetchone()
-            logger.debug("SpatiaLite version: %s", version[0] if version else "unknown")
-        except sqlite3.OperationalError:
-            logger.debug("SpatiaLite not loaded; spatial features unavailable for geocode cache")
+            # Check if SpatiaLite is available
+            try:
+                cur.execute("SELECT spatialite_version()")
+                version = cur.fetchone()
+                logger.debug("SpatiaLite version: %s", version[0] if version else "unknown")
+            except sqlite3.OperationalError:
+                logger.debug("SpatiaLite not loaded; spatial features unavailable for geocode cache")
 
-        # Geocode results table
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS geocode_cache (
-                address_hash TEXT PRIMARY KEY,
-                address_raw TEXT NOT NULL,
-                latitude REAL NOT NULL,
-                longitude REAL NOT NULL,
-                point_wkt TEXT NOT NULL,
-                source TEXT NOT NULL DEFAULT 'nominatim',
-                raw_response TEXT,
-                created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-            )
-        """)
+            # Geocode results table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS geocode_cache (
+                    address_hash TEXT PRIMARY KEY,
+                    address_raw TEXT NOT NULL,
+                    latitude REAL NOT NULL,
+                    longitude REAL NOT NULL,
+                    point_wkt TEXT NOT NULL,
+                    source TEXT NOT NULL DEFAULT 'nominatim',
+                    raw_response TEXT,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                )
+            """)
 
-        # Boundary lookup table
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS boundary_cache (
-                geoid TEXT NOT NULL,
-                vintage_year INTEGER NOT NULL,
-                point_wkt TEXT,
-                boundary_wkt TEXT,
-                source TEXT NOT NULL DEFAULT 'tiger',
-                created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                PRIMARY KEY (geoid, vintage_year)
-            )
-        """)
+            # Boundary lookup table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS boundary_cache (
+                    geoid TEXT NOT NULL,
+                    vintage_year INTEGER NOT NULL,
+                    point_wkt TEXT,
+                    boundary_wkt TEXT,
+                    source TEXT NOT NULL DEFAULT 'tiger',
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    PRIMARY KEY (geoid, vintage_year)
+                )
+            """)
 
-        # Crosswalk mapping table
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS crosswalk_cache (
-                source_geoid TEXT NOT NULL,
-                target_geoid TEXT NOT NULL,
-                weight REAL NOT NULL DEFAULT 1.0,
-                source TEXT NOT NULL DEFAULT 'census',
-                created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                PRIMARY KEY (source_geoid, target_geoid)
-            )
-        """)
+            # Crosswalk mapping table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS crosswalk_cache (
+                    source_geoid TEXT NOT NULL,
+                    target_geoid TEXT NOT NULL,
+                    weight REAL NOT NULL DEFAULT 1.0,
+                    source TEXT NOT NULL DEFAULT 'census',
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    PRIMARY KEY (source_geoid, target_geoid)
+                )
+            """)
 
-        # Indexes
-        cur.execute("""
-            CREATE INDEX IF NOT EXISTS idx_geocode_source
-            ON geocode_cache(source)
-        """)
-        cur.execute("""
-            CREATE INDEX IF NOT EXISTS idx_geocode_lat_lon
-            ON geocode_cache(latitude, longitude)
-        """)
-        cur.execute("""
-            CREATE INDEX IF NOT EXISTS idx_boundary_vintage
-            ON boundary_cache(vintage_year)
-        """)
+            # Indexes
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_geocode_source
+                ON geocode_cache(source)
+            """)
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_geocode_lat_lon
+                ON geocode_cache(latitude, longitude)
+            """)
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_boundary_vintage
+                ON boundary_cache(vintage_year)
+            """)
 
-        conn.commit()
+            conn.commit()
+        finally:
+            cur.close()
 
     # ------------------------------------------------------------------
     # Geocode cache operations

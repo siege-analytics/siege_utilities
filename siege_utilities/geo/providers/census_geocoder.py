@@ -24,6 +24,7 @@ Usage:
 import csv
 import io
 import logging
+import os
 import tempfile
 from dataclasses import dataclass
 from enum import Enum
@@ -330,6 +331,8 @@ def geocode_batch(
         raise CensusGeocodeError(
             f"Census batch geocode failed for {len(addresses)} addresses: {e}"
         ) from e
+    finally:
+        os.unlink(csv_path)
 
     # Parse batch results.
     #
