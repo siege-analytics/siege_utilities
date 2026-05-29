@@ -2,6 +2,8 @@
 Database connection model with comprehensive validation.
 """
 
+from urllib.parse import quote_plus
+
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 import re
 
@@ -144,12 +146,14 @@ class DatabaseConnection(BaseModel):
     
     def get_connection_string(self) -> str:
         """Generate connection string for the database."""
+        user = quote_plus(self.username)
+        pw = quote_plus(self.password)
         if self.connection_type == 'postgresql':
             ssl_mode = '?sslmode=require' if self.ssl_enabled else ''
-            return f"postgresql://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}{ssl_mode}"
+            return f"postgresql://{user}:{pw}@{self.host}:{self.port}/{self.database}{ssl_mode}"
         elif self.connection_type == 'mysql':
             ssl_mode = '?ssl=true' if self.ssl_enabled else ''
-            return f"mysql://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}{ssl_mode}"
+            return f"mysql://{user}:{pw}@{self.host}:{self.port}/{self.database}{ssl_mode}"
         elif self.connection_type == 'sqlite':
             return f"sqlite:///{self.database}"
         elif self.connection_type == 'duckdb':
