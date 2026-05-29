@@ -879,11 +879,11 @@ class TestDefaultHashFunction:
         assert len(result) == 64  # SHA256 hex length
         assert all(c in '0123456789abcdef' for c in result)
 
-    def test_returns_error_on_missing_file(self):
-        """Returns error string for missing file."""
+    def test_raises_on_missing_file(self):
+        """Raises OSError for missing file instead of returning fake signature."""
         from siege_utilities.distributed.hdfs_operations import _default_hash_function
-        result = _default_hash_function('/nonexistent/file.txt')
-        assert result.startswith('error_')
+        with pytest.raises(OSError):
+            _default_hash_function('/nonexistent/file.txt')
 
 
 class TestDefaultQuickSignature:
@@ -901,11 +901,11 @@ class TestDefaultQuickSignature:
         parts = result.split('_')
         assert len(parts) == 2
 
-    def test_returns_error_on_missing_file(self):
-        """Returns 'error' for missing file."""
+    def test_raises_on_missing_file(self):
+        """Raises OSError for missing file instead of returning fake signature."""
         from siege_utilities.distributed.hdfs_operations import _default_quick_signature
-        result = _default_quick_signature('/nonexistent/file.txt')
-        assert result == 'error'
+        with pytest.raises(OSError):
+            _default_quick_signature('/nonexistent/file.txt')
 
 
 class TestConvenienceFunction:
