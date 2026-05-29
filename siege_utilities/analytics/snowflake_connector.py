@@ -104,34 +104,32 @@ class SnowflakeConnector:
             log.error(f"Failed to load configuration: {e}")
             raise
     
-    def connect(self) -> bool:
-        """Establish connection to Snowflake."""
+    def connect(self) -> None:
+        """Establish connection to Snowflake.
+
+        Raises:
+            ConnectionError: If the connection attempt fails.
+        """
+        connection_params = {
+            'account': self.account,
+            'user': self.user,
+            'warehouse': self.warehouse,
+            'database': self.database,
+            'schema': self.schema,
+            'role': self.role
+        }
+
+        if self.password:
+            connection_params['password'] = self.password
+
+        connection_params = {k: v for k, v in connection_params.items() if v is not None}
+
         try:
-            connection_params = {
-                'account': self.account,
-                'user': self.user,
-                'warehouse': self.warehouse,
-                'database': self.database,
-                'schema': self.schema,
-                'role': self.role
-            }
-            
-            # Add password if provided
-            if self.password:
-                connection_params['password'] = self.password
-            
-            # Remove None values
-            connection_params = {k: v for k, v in connection_params.items() if v is not None}
-            
             self.connection = snowflake.connector.connect(**connection_params)
             self.cursor = self.connection.cursor()
-            
             log.info("Successfully connected to Snowflake")
-            return True
-            
         except (*_SF_CONN_ERRORS, TypeError) as e:
-            log.error(f"Failed to connect to Snowflake: {e}")
-            return False
+            raise ConnectionError(f"Failed to connect to Snowflake: {e}") from e
 
     def disconnect(self) -> None:
         """Close Snowflake connection."""
@@ -156,8 +154,7 @@ class SnowflakeConnector:
             Query results as list of tuples
         """
         if not self.connection:
-            if not self.connect():
-                return None
+            self.connect()
         
         try:
             if params:
@@ -184,8 +181,7 @@ class SnowflakeConnector:
             True if successful, False otherwise
         """
         if not self.connection:
-            if not self.connect():
-                return False
+            self.connect()
         
         try:
             self.cursor.execute(ddl_statement)
@@ -223,8 +219,7 @@ class SnowflakeConnector:
             return False
         
         if not self.connection:
-            if not self.connect():
-                return False
+            self.connect()
         
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
         validate_identifier(table_name, label="table name")
@@ -280,8 +275,7 @@ class SnowflakeConnector:
             return None
         
         if not self.connection:
-            if not self.connect():
-                return None
+            self.connect()
         
         try:
             df = read_pandas(self.connection, query, params)
@@ -341,8 +335,7 @@ class SnowflakeConnector:
             Dictionary with table information
         """
         if not self.connection:
-            if not self.connect():
-                return None
+            self.connect()
         
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
         validate_identifier(table_name, label="table name")
@@ -403,8 +396,7 @@ class SnowflakeConnector:
             List of table names
         """
         if not self.connection:
-            if not self.connect():
-                return None
+            self.connect()
         
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
         try:
