@@ -58,8 +58,11 @@ def _update_from_file(hash_obj, fp) -> None:
 
 
 def generate_sha256_hash_for_file(file_path) ->Optional[str]:
-    """
-    Generate SHA256 hash for a file - chunked reading for large files
+    """Generate SHA256 hash for a file - chunked reading for large files.
+
+    .. deprecated:: 3.19.0
+        Use :func:`calculate_file_hash` or :func:`get_file_hash` instead.
+        Will be removed in v4.0.0.
 
     SECURITY: This function validates paths to prevent path traversal attacks
     and access to sensitive system files.
@@ -78,11 +81,14 @@ def generate_sha256_hash_for_file(file_path) ->Optional[str]:
         >>>
         >>> # This will raise PathSecurityError
         >>> generate_sha256_hash_for_file("/etc/shadow")  # Sensitive file blocked
-
-    Security Changes:
-        - Now validates paths to block path traversal
-        - Blocks access to sensitive system files
     """
+    import warnings
+    warnings.warn(
+        "generate_sha256_hash_for_file is deprecated and will be removed in v4.0.0. "
+        "Use calculate_file_hash or get_file_hash instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     try:
         path_obj = _validated_path(file_path, must_exist=True)
         if not path_obj.exists() or not path_obj.is_file():

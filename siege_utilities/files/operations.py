@@ -597,11 +597,32 @@ def run_command(command: Union[str, List[str]],
 
 # Backward compatibility aliases
 rmtree = remove_tree
-check_if_file_exists_at_path = file_exists
+
+
+def check_if_file_exists_at_path(path: FilePath) -> bool:
+    """Check if a file exists at the specified path.
+
+    .. deprecated:: 3.19.0
+        Use :func:`file_exists` instead. Will be removed in v4.0.0.
+    """
+    import warnings
+    warnings.warn(
+        "check_if_file_exists_at_path is deprecated and will be removed in v4.0.0. "
+        "Use file_exists instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return file_exists(path)
+
 
 def delete_existing_file_and_replace_it_with_an_empty_file(file_path: FilePath, create_parents: bool = True) -> bool:
-    """
-    Backward compatibility function that deletes existing file and replaces it with empty file.
+    """Backward compatibility function that deletes existing file and replaces it with empty file.
+
+    .. deprecated:: 3.19.0
+        Use :func:`touch_file` for creating empty files. Note that ``touch_file``
+        does not delete the existing file first; if you need delete-then-create
+        semantics, call ``Path.unlink()`` before ``touch_file()``.
+        Will be removed in v4.0.0.
 
     SECURITY: Validates paths to prevent path traversal attacks.
 
@@ -615,6 +636,14 @@ def delete_existing_file_and_replace_it_with_an_empty_file(file_path: FilePath, 
     Raises:
         PathSecurityError: If path fails security validation
     """
+    import warnings
+    warnings.warn(
+        "delete_existing_file_and_replace_it_with_an_empty_file is deprecated and "
+        "will be removed in v4.0.0. Use touch_file instead (note: touch_file does "
+        "not delete the existing file first).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     try:
         # Validate path
         try:
