@@ -26,6 +26,14 @@ log = logging.getLogger(__name__)
 FilePath = Union[str, Path]
 GeoDataFrame = gpd.GeoDataFrame if _GEOPANDAS_AVAILABLE else None
 
+
+class SpatialQueryError(RuntimeError):
+    """Raised when a spatial SQL query fails.
+
+    Use the ``__cause__`` attribute (set via ``raise ... from e``) to
+    inspect the underlying database exception.
+    """
+
 # Try to import DuckDB (optional)
 try:
     import duckdb
@@ -436,9 +444,14 @@ class PostGISConnector:
             log.error(f"Failed to download from PostGIS: {e}")
             return None
     
-    def execute_spatial_query(self, query: str, *, crs: str | None = None, **kwargs) -> Optional[GeoDataFrame]:
+    def execute_spatial_query(self, query: str, *, crs: str | None = None, **kwargs) -> Union[GeoDataFrame, int]:
         """
         Execute a spatial SQL query.
+
+        For SELECT queries the result is a :class:`GeoDataFrame`.
+        For non-SELECT queries (INSERT, UPDATE, DELETE, DDL) the result
+        is the ``cursor.rowcount`` integer (``-1`` when the row count
+        is not determinable, e.g. DDL).
 
         Args:
             query: SQL query string
@@ -447,13 +460,17 @@ class PostGISConnector:
             **kwargs: Additional parameters
 
         Returns:
-            Query results as GeoDataFrame or None if failed
+            GeoDataFrame for SELECT queries, int rowcount for others.
+
+        Raises:
+            SpatialQueryError: If the connection is unavailable or the
+                query fails. The original exception is chained as
+                ``__cause__``.
         """
         from siege_utilities.geo.crs import reproject_if_needed
 
         if not self.connection:
-            log.error("No PostGIS connection available")
-            return None
+            raise SpatialQueryError("No PostGIS connection available")
 
         if query.strip().upper().startswith('SELECT'):
             try:
@@ -476,15 +493,16 @@ class PostGISConnector:
                         self.connection.rollback()
                     except Exception as rb_exc:
                         log.warning("Failed to rollback PostGIS transaction: %s", rb_exc)
-                return None
+                raise SpatialQueryError(f"PostGIS query failed: {e}") from e
 
         cursor = None
         try:
             cursor = self.connection.cursor()
             cursor.execute(query)
             self.connection.commit()
+            rowcount = cursor.rowcount
             log.info("Successfully executed PostGIS query")
-            return gpd.GeoDataFrame()
+            return rowcount
         except Exception as e:
             log.error(f"Failed to execute PostGIS query: {e}")
             if self.connection:
@@ -492,7 +510,7 @@ class PostGISConnector:
                     self.connection.rollback()
                 except Exception as rb_exc:
                     log.warning("Failed to rollback PostGIS transaction: %s", rb_exc)
-            return None
+            raise SpatialQueryError(f"PostGIS query failed: {e}") from e
         finally:
             if cursor is not None:
                 cursor.close()
@@ -689,7 +707,7 @@ class DuckDBConnector:
             log.error(f"Failed to download from DuckDB: {e}")
             return None
     
-    def execute_spatial_query(self, query: str, *, crs: str | None = None, **kwargs) -> Optional[GeoDataFrame]:
+    def execute_spatial_query(self, query: str, *, crs: str | None = None, **kwargs) -> GeoDataFrame:
         """
         Execute a spatial SQL query.
 
@@ -700,13 +718,18 @@ class DuckDBConnector:
             **kwargs: Additional parameters
 
         Returns:
-            Query results as GeoDataFrame or None if failed
+            Query results as GeoDataFrame.
+
+        Raises:
+            SpatialQueryError: If the connection is unavailable or the
+                query fails. The original exception is chained as
+                ``__cause__``.
         """
         from siege_utilities.geo.crs import reproject_if_needed
 
         if not self.connection:
             if not self.connect():
-                return None
+                raise SpatialQueryError("No DuckDB connection available")
 
         try:
             # Execute query
@@ -723,10 +746,12 @@ class DuckDBConnector:
 
             log.info("Successfully executed DuckDB query")
             return reproject_if_needed(gdf, crs)
-            
+
+        except SpatialQueryError:
+            raise
         except Exception as e:
             log.error(f"Failed to execute DuckDB query: {e}")
-            return None
+            raise SpatialQueryError(f"DuckDB query failed: {e}") from e
 
 
 # Convenience functions
@@ -748,8 +773,13 @@ def download_from_postgis(table_name: str, connection_string: Optional[str] = No
     return connector.download_spatial_data(table_name, **kwargs)
 
 
-def execute_postgis_query(query: str, connection_string: Optional[str] = None, **kwargs) -> Optional[GeoDataFrame]:
-    """Execute a spatial SQL query on PostGIS."""
+def execute_postgis_query(query: str, connection_string: Optional[str] = None, **kwargs) -> Union[GeoDataFrame, int]:
+    """Execute a spatial SQL query on PostGIS.
+
+    Raises:
+        SpatialQueryError: If the connection is unavailable or the
+            query fails.
+    """
     connector = PostGISConnector(connection_string)
     return connector.execute_spatial_query(query, **kwargs)
 
@@ -774,17 +804,23 @@ def download_from_duckdb(table_name: str, db_path: Optional[str] = None, **kwarg
     return connector.download_spatial_data(table_name, **kwargs)
 
 
-def execute_duckdb_query(query: str, db_path: Optional[str] = None, **kwargs) -> Optional[GeoDataFrame]:
-    """Execute a spatial SQL query on DuckDB (optional)."""
+def execute_duckdb_query(query: str, db_path: Optional[str] = None, **kwargs) -> GeoDataFrame:
+    """Execute a spatial SQL query on DuckDB (optional).
+
+    Raises:
+        SpatialQueryError: If the connection is unavailable or the
+            query fails.
+        ImportError: If DuckDB is not installed.
+    """
     if not DUCKDB_AVAILABLE:
-        log.error("DuckDB not available. Install with: pip install duckdb")
-        return None
-    
+        raise ImportError("DuckDB not available. Install with: pip install duckdb")
+
     connector = DuckDBConnector(db_path)
     return connector.execute_spatial_query(query, **kwargs)
 
 
 __all__ = [
+    'SpatialQueryError',
     'SpatialDataTransformer',
     'PostGISConnector',
     'DuckDBConnector',
