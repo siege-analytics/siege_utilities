@@ -19,7 +19,7 @@ def _default_hash_function(file_path: str) ->str:
             for chunk in iter(lambda : f.read(65536), b''):
                 sha256_hash.update(chunk)
         return sha256_hash.hexdigest()
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         log.warning("Could not hash file %s, returning error signature: %s", file_path, exc)
         return f'error_{int(time.time())}'
 
@@ -76,7 +76,7 @@ class AbstractHDFSOperations:
             self.config.log_error(
                 'HDFS command not found - check Hadoop installation')
             return False
-        except (subprocess.SubprocessError, OSError) as e:
+        except (OSError, ValueError) as e:
             self.config.log_error(f'HDFS check failed: {e}')
             return False
 
@@ -88,6 +88,11 @@ class AbstractHDFSOperations:
         """
         try:
             from pyspark.sql import SparkSession
+            from pyspark.sql.utils import AnalysisException as _SparkAnalysisException
+            try:
+                from py4j.protocol import Py4JJavaError as _Py4JError
+            except ImportError:
+                _Py4JError = _SparkAnalysisException
             self.config.log_info(
                 f'Creating Spark session: {self.config.app_name}')
             self.config.log_info(
@@ -155,7 +160,7 @@ class AbstractHDFSOperations:
                         f'Broadcast threshold: {self.config.sedona_join_broadcast_threshold // (1024*1024)}MB')
                 except ImportError:
                     self.config.log_info('⚠️  Sedona not available')
-                except RuntimeError as e:
+                except (_Py4JError, RuntimeError, ValueError, AttributeError) as e:
                     self.config.log_info(f'⚠️  Sedona registration failed: {e}'
                         )
 
@@ -165,7 +170,7 @@ class AbstractHDFSOperations:
             self.config.log_error(
                 'PySpark not available - install with: pip install pyspark')
             return None
-        except (RuntimeError, OSError) as e:
+        except (_Py4JError, RuntimeError, OSError, ValueError) as e:
             self.config.log_error(f'Failed to create Spark session: {e}')
             return None
 
@@ -208,7 +213,7 @@ class AbstractHDFSOperations:
             else:
                 self.config.log_error('❌ Sync verification failed')
                 return None, None
-        except (subprocess.SubprocessError, OSError) as e:
+        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired, ValueError) as e:
             self.config.log_error(f'Error syncing to HDFS: {e}')
             return None, None
 
@@ -247,7 +252,7 @@ class AbstractHDFSOperations:
             else:
                 self.config.log_error('Failed to create Spark session')
                 return None, None, None
-        except (subprocess.SubprocessError, OSError, RuntimeError) as e:
+        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired, ImportError, ValueError) as e:
             self.config.log_error(f'Error setting up environment: {e}')
             return None, None, None
 
