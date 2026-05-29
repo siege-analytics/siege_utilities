@@ -145,7 +145,7 @@ def is_sensitive_path(path: FilePath) -> bool:
 
         return False
 
-    except Exception:
+    except OSError:
         # If we can't resolve, assume it's potentially dangerous
         return True
 
@@ -240,7 +240,7 @@ def validate_safe_path(path: FilePath,
     except PathSecurityError:
         # Re-raise our security errors
         raise
-    except Exception as e:
+    except (OSError, ValueError) as e:
         # Other errors during validation
         raise ValueError(f"Invalid path: {path_str} - {e}") from e
 

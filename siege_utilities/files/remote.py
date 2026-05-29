@@ -197,17 +197,17 @@ def download_file(url: str, local_filename: FilePath,
                 log.info(f'Successfully downloaded {url} to {local_path} without SSL verification')
                 return str(local_path)
                 
-        except Exception as retry_error:
+        except (requests.exceptions.RequestException, OSError) as retry_error:
             log.error(f'Download failed even without SSL verification: {retry_error}')
             return False
-            
+
     except requests.exceptions.Timeout:
         log.error(f'Download timed out for {url}')
         return False
     except requests.exceptions.RequestException as e:
         log.error(f'Request error downloading {url}: {e}')
         return False
-    except Exception as e:
+    except OSError as e:
         log.error(f'Unexpected error downloading {url}: {e}')
         return False
 
@@ -269,7 +269,7 @@ def generate_local_path_from_url(url: str, directory_path: FilePath,
             return local_path
     except PathSecurityError:
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f'Error generating local path from {url}: {e}')
         return False
 
@@ -307,7 +307,7 @@ def download_file_with_retry(url: str, local_filename: FilePath,
             if result:
                 return result
                 
-        except Exception as e:
+        except (requests.exceptions.RequestException, OSError) as e:
             log.warning(f'Download attempt {attempt + 1} failed: {e}')
     
     log.error(f'Download failed after {max_retries + 1} attempts for {url}')
@@ -349,7 +349,7 @@ def get_file_info(url: str, timeout: int = 10) -> Optional[dict]:
         log.debug(f'File info for {url}: {info}')
         return info
         
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         log.error(f'Error getting file info for {url}: {e}')
         return None
 
@@ -379,8 +379,8 @@ def is_downloadable(url: str, timeout: int = 10) -> bool:
         # Try a GET request to see if we can access the content
         response = requests.get(url, stream=True, timeout=timeout)
         return response.ok
-
-    except Exception as exc:
+        
+    except requests.exceptions.RequestException as exc:
         log.warning("Could not check if URL is downloadable %s: %s", url, exc)
         raise
 

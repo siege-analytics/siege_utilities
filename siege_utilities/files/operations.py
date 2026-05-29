@@ -57,7 +57,7 @@ def remove_tree(path: FilePath) -> bool:
 
     except PathSecurityError:
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to remove {path}: {e}")
         return False
 
@@ -111,7 +111,7 @@ def file_exists(path: FilePath) -> bool:
     except PathSecurityError:
         # Re-raise security errors
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f"Error checking file existence for {path}: {e}")
         return False
 
@@ -152,7 +152,7 @@ def touch_file(path: FilePath, create_parents: bool = True) -> bool:
 
     except PathSecurityError:
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to create file {path}: {e}")
         return False
 
@@ -218,7 +218,7 @@ def count_lines(file_path: FilePath, encoding: str = 'utf-8') -> Optional[int]:
     except PathSecurityError:
         # Re-raise security errors
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to count lines in {file_path}: {e}")
         return None
 
@@ -275,7 +275,7 @@ def copy_file(source: FilePath, destination: FilePath, overwrite: bool = False) 
 
     except PathSecurityError:
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to copy {source} to {destination}: {e}")
         return False
 
@@ -332,7 +332,7 @@ def move_file(source: FilePath, destination: FilePath, overwrite: bool = False) 
 
     except PathSecurityError:
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to move {source} to {destination}: {e}")
         return False
 
@@ -394,7 +394,7 @@ def get_file_size(file_path: FilePath) -> Optional[int]:
     except PathSecurityError:
         # Re-raise security errors
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to get file size for {file_path}: {e}")
         return None
 
@@ -452,7 +452,7 @@ def list_directory(path: FilePath,
 
     except PathSecurityError:
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to list directory {path}: {e}")
         return None
 
@@ -589,7 +589,7 @@ def run_command(command: Union[str, List[str]],
     except subprocess.TimeoutExpired:
         log.error(f"Command timed out: {command}")
         return None
-    except Exception as e:
+    except (subprocess.SubprocessError, OSError, ValueError) as e:
         log.error(f"Failed to run command {command}: {e}")
         if not unsafe:
             raise  # Re-raise security exceptions
@@ -666,7 +666,7 @@ def delete_existing_file_and_replace_it_with_an_empty_file(file_path: FilePath, 
         return True
     except PathSecurityError:
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to create empty file {file_path}: {e}")
         return False
 
@@ -713,7 +713,7 @@ def safe_file_write(
         with open(file_path, "w", encoding=encoding) as f:
             f.write(content)
         return True
-    except Exception as e:
+    except OSError as e:
         log.error(f"Error writing to {file_path}: {e}")
         return False
 
@@ -740,7 +740,7 @@ def safe_file_read(
             return default
         with open(file_path, "r", encoding=encoding) as f:
             return f.read()
-    except Exception as e:
+    except (OSError, UnicodeDecodeError) as e:
         log.error(f"Error reading {file_path}: {e}")
         return default
 
@@ -770,7 +770,7 @@ def safe_json_write(
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=indent, ensure_ascii=False)
         return True
-    except Exception as e:
+    except (OSError, TypeError, ValueError) as e:
         log.error(f"Error writing JSON to {file_path}: {e}")
         return False
 
@@ -795,7 +795,7 @@ def safe_json_read(
             return default
         with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception as e:
+    except (OSError, json.JSONDecodeError) as e:
         log.error(f"Error reading JSON from {file_path}: {e}")
         return default
 

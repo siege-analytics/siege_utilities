@@ -97,7 +97,7 @@ def generate_sha256_hash_for_file(file_path) ->Optional[str]:
         with open(path_obj, 'rb') as f:
             _update_from_file(sha256_hash, f)
         return sha256_hash.hexdigest()
-    except Exception as e:
+    except OSError as e:
         log_error(f'Error generating SHA256 hash for {file_path}: {e}')
         return None
 
@@ -144,7 +144,7 @@ def get_file_hash(file_path, algorithm='sha256') ->Optional[str]:
         with open(path_obj, 'rb') as f:
             _update_from_file(hash_func, f)
         return hash_func.hexdigest()
-    except Exception as e:
+    except (OSError, ValueError) as e:
         log_error(f'Error generating {algorithm} hash for {file_path}: {e}')
         return None
 
@@ -208,12 +208,12 @@ def get_quick_file_signature(file_path) ->str:
         return hash_obj.hexdigest()
     except PathSecurityError:
         raise
-    except Exception as e:
+    except OSError as e:
         log_error(f'Error generating quick signature for {file_path}: {e}')
         try:
             stat = pathlib.Path(file_path).stat()
             return f'fallback_{stat.st_size}_{stat.st_mtime}'
-        except Exception as fallback_exc:
+        except OSError as fallback_exc:
             log_error(f'Fallback signature also failed for {file_path}: {fallback_exc}')
             raise
 
@@ -253,7 +253,7 @@ def verify_file_integrity(file_path, expected_hash, algorithm='sha256') ->bool:
         current_hash = get_file_hash(file_path, algorithm)
         return current_hash is not None and current_hash.lower(
             ) == expected_hash.lower()
-    except Exception as exc:
+    except (OSError, ValueError) as exc:
         log_error(f"Failed to verify hash for {file_path}: {exc}")
         raise
 
