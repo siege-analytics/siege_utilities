@@ -671,47 +671,37 @@ class CredentialManager:
             log_error(f"Error storing Google Analytics credentials: {e}")
             return False
     
-    def get_google_analytics_credentials(self, item_title: str = "Google Analytics API") -> Optional[Tuple[str, str]]:
+    def get_google_analytics_credentials(self, item_title: str = "Google Analytics API") -> Tuple[str, str]:
         """
         Get Google Analytics credentials for GoogleAnalyticsConnector.
-        
+
         Args:
             item_title: Title of the credential item
-            
+
         Returns:
-            Tuple of (client_id, client_secret) or None if not found
+            Tuple of (client_id, client_secret).
+
+        Raises:
+            CredentialNotFoundError: when neither 1Password item lookup
+                nor the general credential backends yield both
+                ``client_id`` and ``client_secret``.  The error's
+                ``field`` attribute names which field was missing;
+                ``attempts`` carries per-backend diagnostics so callers
+                can surface an actionable message.
         """
-        # TODO(#801-followup): this aggregate has the same shape as the
-        # bug #801 fixed in get_credential -- it falls through two
-        # sources and returns None on total miss instead of raising. Keep
-        # the current None contract here until a dedicated ticket audits
-        # callers (GoogleAnalyticsConnector ergonomics).
-        try:
-            # Try to get from 1Password using item title
-            client_id = self._get_from_1password(item_title, 'client_id')
-            client_secret = self._get_from_1password(item_title, 'client_secret')
+        # Try to get from 1Password using item title
+        client_id = self._get_from_1password(item_title, 'client_id')
+        client_secret = self._get_from_1password(item_title, 'client_secret')
 
-            if client_id and client_secret:
-                return client_id, client_secret
+        if client_id and client_secret:
+            return client_id, client_secret
 
-            # Fallback to general credential retrieval. get_credential
-            # now raises CredentialNotFoundError on total miss; catch as
-            # part of the broad except below so the None contract holds.
-            client_id = self.get_credential('google-analytics', 'api', 'client_id')
-            client_secret = self.get_credential('google-analytics', 'api', 'client_secret')
+        # Fallback to general credential retrieval.  get_credential
+        # raises CredentialNotFoundError on total miss (#801).
+        client_id = self.get_credential('google-analytics', 'api', 'client_id')
+        client_secret = self.get_credential('google-analytics', 'api', 'client_secret')
 
-            if client_id and client_secret:
-                return client_id, client_secret
-
-            log_error("Could not retrieve Google Analytics credentials")
-            return None
-
-        except CredentialNotFoundError as e:
-            log_warning(f"Google Analytics credentials not found in any backend: {e}")
-            return None
-        except Exception as e:
-            log_error(f"Error retrieving Google Analytics credentials: {e}")
-            return None
+        return client_id, client_secret
     
     def list_stored_credentials(self, service_filter: Optional[str] = None,
                                 vault: Optional[str] = None,
@@ -964,12 +954,18 @@ def store_ga_credentials_from_file(credentials_file: Union[str, Path],
         return False
 
 
-def get_ga_credentials() -> Optional[Tuple[str, str]]:
+def get_ga_credentials() -> Tuple[str, str]:
     """
     Get Google Analytics credentials for connector.
-    
+
     Returns:
-        Tuple of (client_id, client_secret) or None
+        Tuple of (client_id, client_secret).
+
+    Raises:
+        CredentialNotFoundError: when no configured backend yields both
+            ``client_id`` and ``client_secret``.  See
+            ``CredentialManager.get_google_analytics_credentials`` for
+            details.
     """
     manager = _get_default_manager()
     return manager.get_google_analytics_credentials()
