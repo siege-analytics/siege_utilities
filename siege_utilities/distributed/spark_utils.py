@@ -647,7 +647,7 @@ def prepare_dataframe_for_export(df, logger_func=None):
         raise
 
 
-def prepare_summary_dataframe(data_tuples, column_names=['metric', 'value'],
+def prepare_summary_dataframe(data_tuples, column_names=None,
     logger_func=None):
     """
     Helper function to create summary DataFrames with consistent string types.
@@ -661,6 +661,8 @@ def prepare_summary_dataframe(data_tuples, column_names=['metric', 'value'],
     Returns:
         Spark DataFrame with all string columns
     """
+    if column_names is None:
+        column_names = ['metric', 'value']
     _log = logger_func if logger_func else log_info
     try:
         string_data = []
