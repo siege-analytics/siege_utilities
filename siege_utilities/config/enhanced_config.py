@@ -643,7 +643,7 @@ def list_client_profiles(config_dir: Optional[Path] = None) -> List[str]:
         
     except OSError as e:
         logger.error(f"Failed to list client profiles: {e}")
-        return []
+        raise
 
 
 def export_config_yaml(config_data: Dict[str, Any], output_file: Path) -> bool:
