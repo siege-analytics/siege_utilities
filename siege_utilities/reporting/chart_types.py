@@ -510,7 +510,7 @@ class ChartTypeRegistry:
                 yaml.dump(config_data, f, default_flow_style=False)
             
             log.info(f"Exported chart type configuration to: {output_path}")
-        except Exception as e:
+        except (OSError, yaml.YAMLError, AttributeError) as e:
             log.error(f"Failed to export chart type configuration: {e}")
 
 # Global instance

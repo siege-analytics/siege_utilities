@@ -104,7 +104,7 @@ def example_basic_bivariate_choropleth():
         
         return chart
         
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
         print(f"✗ Error creating basic bivariate choropleth: {e}")
         return None
 
@@ -144,7 +144,7 @@ def example_advanced_bivariate_choropleth():
         
         return chart
         
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
         print(f"✗ Error creating advanced bivariate choropleth: {e}")
         return None
 
@@ -186,7 +186,7 @@ def example_custom_chart_configuration():
         
         return chart
         
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
         print(f"✗ Error creating custom chart configuration: {e}")
         return None
 
@@ -223,7 +223,7 @@ def example_dataframe_integration():
         
         return chart
         
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
         print(f"✗ Error creating DataFrame integration chart: {e}")
         return None
 
@@ -264,7 +264,7 @@ def example_advanced_choropleth():
         
         return chart
         
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
         print(f"✗ Error creating advanced choropleth: {e}")
         return None
 
@@ -294,7 +294,7 @@ def run_all_examples():
             chart = example_func()
             if chart:
                 charts.append(chart)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
             print(f"✗ Example {example_func.__name__} failed: {e}")
     
     print(f"\n📊 Summary: {len(charts)} out of {len(examples)} examples completed successfully")
@@ -356,7 +356,7 @@ def create_report_with_bivariate_maps():
         
         return report_section
         
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
         print(f"✗ Error creating report section: {e}")
         return None
 

@@ -130,7 +130,7 @@ class BarChartMixin:
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
             log.error(f"Error creating bar chart: {e}")
             return self._create_placeholder_chart(width, height, f"Chart Error: {str(e)}")
 
@@ -215,7 +215,7 @@ class BarChartMixin:
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
             log.error(f"Error creating line chart: {e}")
             return self._create_placeholder_chart(width, height, f"Chart Error: {str(e)}")
 
@@ -324,7 +324,7 @@ class BarChartMixin:
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
             log.error(f"Error creating pie chart: {e}")
             return self._create_placeholder_chart(width, height, f"Chart Error: {str(e)}")
 
@@ -388,6 +388,6 @@ class BarChartMixin:
 
             return "<br/>".join(chart_lines)
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
             log.error(f"Error creating proportional text bar chart: {e}")
             return f"<i>Error creating text bar chart: {str(e)}</i>"

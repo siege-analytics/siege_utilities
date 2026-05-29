@@ -518,7 +518,7 @@ def main():
         print("   4. Apply client branding and customization")
         print("   5. Deploy in production reporting workflows")
         
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
         print(f"\n❌ Error during demonstration: {e}")
         import traceback
         traceback.print_exc()

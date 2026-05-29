@@ -157,7 +157,7 @@ class BaseReportTemplate:
                         )
                         log.info(f"Font family '{font_family}' processed.")
                         registered_families.add(font_family)
-                except Exception as e:
+                except (OSError, ValueError, KeyError) as e:
                     log.error(f"Failed to register font family '{font_family}': {e}")
 
             # Set default styles to use registered fonts
@@ -171,7 +171,7 @@ class BaseReportTemplate:
             else:
                 log.warning("Liberation-Serif not fully registered. Defaulting to standard ReportLab fonts.")
                 
-        except Exception as e:
+        except (OSError, ValueError, KeyError, AttributeError) as e:
             log.error(f"Error in font registration: {e}")
 
     def _add_custom_styles(self):
@@ -338,7 +338,7 @@ class BaseReportTemplate:
                                      width=img_width, height=img_height, mask='auto')
 
                     current_header_x += img_width + 0.1 * inch
-                except Exception as e:
+                except (OSError, ValueError, TypeError, AttributeError) as e:
                     log.error(f"Error drawing main header logo: {e}")
 
         # Left Header Text
@@ -379,7 +379,7 @@ class BaseReportTemplate:
                     canvas.drawImage(footer_logo_path, current_footer_x, footer_y_pos - footer_img_height / 2,
                                      width=footer_img_width, height=footer_img_height, mask='auto')
                     current_footer_x += footer_img_width + 0.1 * inch
-                except Exception as e:
+                except (OSError, ValueError, TypeError, AttributeError) as e:
                     log.error(f"Error drawing footer logo: {e}")
 
         # Left Footer Text

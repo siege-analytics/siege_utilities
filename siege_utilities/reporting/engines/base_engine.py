@@ -240,7 +240,7 @@ class BaseChartEngine:
                         facecolor='white', edgecolor='none', pad_inches=0.1)
             log.info(f"Saved vector chart: {out}")
             return out
-        except Exception as e:
+        except (OSError, ValueError, TypeError) as e:
             log.error(f"Error saving vector chart to {output_path}: {e}")
             return None
 
@@ -314,7 +314,7 @@ class BaseChartEngine:
 
             return rl_image
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
             log.error(f"Error converting matplotlib figure to ReportLab Image: {e}")
             return self._create_placeholder_chart(width, height, "Image Conversion Error")
 
@@ -348,7 +348,7 @@ class BaseChartEngine:
                 sw, sh = self._scale_dimensions(width, height)
                 return Image("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
                            width=sw*inch, height=sh*inch)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, OSError) as e:
             log.error(f"Error creating placeholder chart: {e}")
             # Return a minimal image — still honour auto-scaling
             sw, sh = self._scale_dimensions(width, height)
@@ -446,7 +446,7 @@ class BaseChartEngine:
             else:
                 return self.create_bar_chart(df, x_column, y_columns[0] if y_columns else None, title, width, height)
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
             log.error(f"Error generating chart from DataFrame: {e}")
             return self._create_placeholder_chart(width, height, "DataFrame Chart Error")
 
@@ -500,6 +500,6 @@ class BaseChartEngine:
             else:
                 return self.create_bar_chart(chart_config['data'], title=chart_config.get('title', ''), width=width, height=height)
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
             log.error(f"Error creating custom chart: {e}")
             return self._create_placeholder_chart(width, height, "Custom Chart Error")
