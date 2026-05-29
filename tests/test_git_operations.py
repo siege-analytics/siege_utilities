@@ -304,11 +304,8 @@ class TestMergeBranch:
 
         assert ("checkout", "main") in call_log
 
-    def test_merge_failure_returns_error(self):
-        call_count = [0]
-
+    def test_merge_failure_raises_git_error(self):
         def fake_rgc(*args, **kwargs):
-            call_count[0] += 1
             if args[0] == "branch":
                 return "main"
             if args[0] == "pull":
@@ -318,9 +315,8 @@ class TestMergeBranch:
             return ""
 
         with patch(RGC, side_effect=fake_rgc):
-            result = merge_branch("feature/x")
-        assert result["status"] == "failed"
-        assert "error" in result
+            with pytest.raises(GitError, match="Merge of feature/x into main failed"):
+                merge_branch("feature/x")
 
 
 # ===================================================================
@@ -376,7 +372,7 @@ class TestRebaseBranch:
 
         assert ("checkout", "feature/x") in call_log
 
-    def test_rebase_failure(self):
+    def test_rebase_failure_raises_git_error(self):
         def fake_rgc(*args, **kwargs):
             if args[0] == "branch":
                 return "feature/x"
@@ -385,9 +381,8 @@ class TestRebaseBranch:
             return ""
 
         with patch(RGC, side_effect=fake_rgc):
-            result = rebase_branch("feature/x")
-        assert result["status"] == "failed"
-        assert "error" in result
+            with pytest.raises(GitError, match="Rebase of feature/x onto main failed"):
+                rebase_branch("feature/x")
 
 
 # ===================================================================
@@ -447,11 +442,10 @@ class TestStashChanges:
             result = stash_changes()
         assert result["stash_hash"] == "0"
 
-    def test_stash_failure(self):
+    def test_stash_failure_raises_git_error(self):
         with patch(RGC, side_effect=GitError("stash failed")):
-            result = stash_changes()
-        assert result["status"] == "failed"
-        assert "error" in result
+            with pytest.raises(GitError, match="Stash failed"):
+                stash_changes()
 
 
 # ===================================================================
@@ -500,11 +494,10 @@ class TestApplyStash:
         assert call_log[0] == ("stash", "apply", "stash@{2}")
         assert result["stash_ref"] == "stash@{2}"
 
-    def test_apply_failure(self):
+    def test_apply_failure_raises_git_error(self):
         with patch(RGC, side_effect=GitError("conflict")):
-            result = apply_stash()
-        assert result["status"] == "failed"
-        assert "error" in result
+            with pytest.raises(GitError, match="Stash apply failed"):
+                apply_stash()
 
 
 # ===================================================================
@@ -575,18 +568,15 @@ class TestCleanWorkingDirectory:
                 result = clean_working_directory(force=False)
         assert result["status"] == "success"
 
-    def test_clean_failure(self):
-        call_count = [0]
-
+    def test_clean_failure_raises_git_error(self):
         def fake_rgc(*args, **kwargs):
-            call_count[0] += 1
             if "-n" in args:
                 return "Would remove foo.txt"
             raise GitError("clean failed")
 
         with patch(RGC, side_effect=fake_rgc):
-            result = clean_working_directory(force=True)
-        assert result["status"] == "failed"
+            with pytest.raises(GitError, match="Clean failed"):
+                clean_working_directory(force=True)
 
 
 # ===================================================================
@@ -636,11 +626,10 @@ class TestResetToCommit:
         with pytest.raises(ValueError, match="Invalid reset type"):
             reset_to_commit("abc1234", reset_type="superhard")
 
-    def test_reset_failure(self):
+    def test_reset_failure_raises_git_error(self):
         with patch(RGC, side_effect=GitError("reset failed")):
-            result = reset_to_commit("abc1234")
-        assert result["status"] == "failed"
-        assert "error" in result
+            with pytest.raises(GitError, match="Reset to abc1234"):
+                reset_to_commit("abc1234")
 
     def test_return_dict_shape(self):
         with patch(RGC, return_value=""):
@@ -683,11 +672,10 @@ class TestCherryPickCommit:
         assert result["continue_on_conflict"] is True
         assert ("cherry-pick", "--continue") in call_log
 
-    def test_cherry_pick_failure(self):
+    def test_cherry_pick_failure_raises_git_error(self):
         with patch(RGC, side_effect=GitError("cherry-pick conflict")):
-            result = cherry_pick_commit("abc1234")
-        assert result["status"] == "failed"
-        assert "error" in result
+            with pytest.raises(GitError, match="Cherry-pick failed"):
+                cherry_pick_commit("abc1234")
 
 
 # ===================================================================
@@ -755,11 +743,10 @@ class TestCreateTag:
         assert len(push_calls) == 1
         assert "v1.0.0" in push_calls[0]
 
-    def test_tag_creation_failure(self):
+    def test_tag_creation_failure_raises_git_error(self):
         with patch(RGC, side_effect=GitError("tag exists")):
-            result = create_tag("v1.0.0")
-        assert result["status"] == "failed"
-        assert "error" in result
+            with pytest.raises(GitError, match="Tag creation for v1.0.0 failed"):
+                create_tag("v1.0.0")
 
     def test_empty_tag_name_fallback_validation(self):
         """When validation module is not importable, fallback checks empty name."""
@@ -834,11 +821,10 @@ class TestPushBranch:
         assert "upstream" in push_calls[0]
         assert result["remote"] == "upstream"
 
-    def test_push_failure(self):
+    def test_push_failure_raises_git_error(self):
         with patch(RGC, side_effect=GitError("push rejected")):
-            result = push_branch()
-        assert result["status"] == "failed"
-        assert "error" in result
+            with pytest.raises(GitError, match="Push to origin failed"):
+                push_branch()
 
 
 # ===================================================================
@@ -901,11 +887,10 @@ class TestPullBranch:
         pull_calls = [c for c in call_log if c[0] == "pull"]
         assert "upstream" in pull_calls[0]
 
-    def test_pull_failure(self):
+    def test_pull_failure_raises_git_error(self):
         with patch(RGC, side_effect=GitError("pull failed")):
-            result = pull_branch()
-        assert result["status"] == "failed"
-        assert "error" in result
+            with pytest.raises(GitError, match="Pull from origin failed"):
+                pull_branch()
 
     def test_return_dict_shape(self):
         with patch(RGC, return_value=""):

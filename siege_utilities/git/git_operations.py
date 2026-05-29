@@ -7,7 +7,7 @@ from typing import Dict, Optional
 import re
 import subprocess
 
-from siege_utilities.core.logging import log_info, log_warning, log_error
+from siege_utilities.core.logging import log_info, log_warning
 from siege_utilities.exceptions import GitError
 from siege_utilities.git.validation import (
     GitSecurityError,
@@ -46,7 +46,7 @@ def create_feature_branch(
         try:
             run_git_command("pull", "origin", base_branch, repo_path=repo_path, check=False)
             log_info(f"Pulled latest changes from {base_branch}")
-        except Exception as exc:
+        except (RuntimeError, GitError) as exc:
             log_warning(f"Could not pull latest from {base_branch} (continuing anyway): {exc}")
 
     # Create and switch to new branch
@@ -58,7 +58,7 @@ def create_feature_branch(
         try:
             run_git_command("push", "-u", "origin", branch_name, repo_path=repo_path, check=False)
             log_info(f"Pushed branch to remote: origin/{branch_name}")
-        except Exception as exc:
+        except (RuntimeError, GitError) as exc:
             log_warning(f"Could not push to remote (continuing anyway): {exc}")
 
     return {
@@ -164,9 +164,7 @@ def merge_branch(
         merge_status = "success"
         log_info(f"Successfully merged {source_branch} into {target_branch}")
     except (RuntimeError, GitError) as e:
-        merge_status = "failed"
-        log_error(f"Merge failed: {e}")
-        return {"status": merge_status, "error": str(e)}
+        raise GitError(f"Merge of {source_branch} into {target_branch} failed: {e}") from e
 
     return {
         "source_branch": source_branch,
@@ -223,9 +221,7 @@ def rebase_branch(
         rebase_status = "success"
         log_info(f"Successfully rebased {source_branch} onto {base_branch}")
     except (RuntimeError, GitError) as e:
-        rebase_status = "failed"
-        log_error(f"Rebase failed: {e}")
-        return {"status": rebase_status, "error": str(e)}
+        raise GitError(f"Rebase of {source_branch} onto {base_branch} failed: {e}") from e
 
     return {
         "source_branch": source_branch,
@@ -285,9 +281,7 @@ def stash_changes(
             "include_untracked": include_untracked
         }
     except (RuntimeError, GitError) as e:
-        stash_status = "failed"
-        log_error(f"Stash failed: {e}")
-        return {"status": stash_status, "error": str(e)}
+        raise GitError(f"Stash failed: {e}") from e
 
 def apply_stash(
     stash_ref: str = "stash@{0}",
@@ -325,9 +319,7 @@ def apply_stash(
         action = "popped" if pop else "applied"
         log_info(f"Stash {stash_ref} {action} successfully")
     except (RuntimeError, GitError) as e:
-        apply_status = "failed"
-        log_error(f"Stash apply failed: {e}")
-        return {"status": apply_status, "error": str(e)}
+        raise GitError(f"Stash apply failed: {e}") from e
 
     return {
         "stash_ref": stash_ref,
@@ -386,9 +378,7 @@ def clean_working_directory(
         clean_status = "success"
         log_info("Working directory cleaned successfully")
     except (RuntimeError, GitError) as e:
-        clean_status = "failed"
-        log_error(f"Clean failed: {e}")
-        return {"status": clean_status, "error": str(e)}
+        raise GitError(f"Clean failed: {e}") from e
 
     return {
         "status": clean_status,
@@ -432,9 +422,7 @@ def reset_to_commit(
         reset_status = "success"
         log_info(f"Reset to commit {commit_hash} ({reset_type}) successful")
     except (RuntimeError, GitError) as e:
-        reset_status = "failed"
-        log_error(f"Reset failed: {e}")
-        return {"status": reset_status, "error": str(e)}
+        raise GitError(f"Reset to {commit_hash} ({reset_type}) failed: {e}") from e
 
     return {
         "commit_hash": commit_hash,
@@ -480,9 +468,7 @@ def cherry_pick_commit(
         action = "continued" if continue_on_conflict else "applied"
         log_info(f"Cherry-pick {action} successfully")
     except (RuntimeError, GitError) as e:
-        cherry_pick_status = "failed"
-        log_error(f"Cherry-pick failed: {e}")
-        return {"status": cherry_pick_status, "error": str(e)}
+        raise GitError(f"Cherry-pick failed: {e}") from e
 
     return {
         "commit_hash": commit_hash,
@@ -555,9 +541,7 @@ def create_tag(
             log_info(f"Tag {tag_name} pushed to remote")
             tag_status = "pushed"
     except (RuntimeError, GitError) as e:
-        tag_status = "failed"
-        log_error(f"Tag creation failed: {e}")
-        return {"status": tag_status, "error": str(e)}
+        raise GitError(f"Tag creation for {tag_name} failed: {e}") from e
 
     return {
         "tag_name": tag_name,
@@ -611,9 +595,7 @@ def push_branch(
         force_text = " (force)" if force else ""
         log_info(f"Branch pushed to {remote}{force_text} successfully")
     except (RuntimeError, GitError) as e:
-        push_status = "failed"
-        log_error(f"Push failed: {e}")
-        return {"status": push_status, "error": str(e)}
+        raise GitError(f"Push to {remote} failed: {e}") from e
 
     return {
         "branch_name": branch_name,
@@ -666,9 +648,7 @@ def pull_branch(
         rebase_text = " (rebase)" if rebase else ""
         log_info(f"Changes pulled from {remote}{rebase_text} successfully")
     except (RuntimeError, GitError) as e:
-        pull_status = "failed"
-        log_error(f"Pull failed: {e}")
-        return {"status": pull_status, "error": str(e)}
+        raise GitError(f"Pull from {remote} failed: {e}") from e
 
     return {
         "branch_name": branch_name,
