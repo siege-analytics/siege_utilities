@@ -173,7 +173,7 @@ def ensure_sample_dataset(
                     f.write(chunk)
                 f.flush()
                 os.fsync(f.fileno())
-        except Exception as e:
+        except (OSError, ValueError) as e:
             raise SampleDatasetError(
                 f"failed to download sample dataset {name!r} from {url}: {e}"
             ) from e
@@ -197,7 +197,7 @@ def ensure_sample_dataset(
 
         os.replace(tmp, target)
         return target
-    except Exception:
+    except (SampleDatasetError, OSError, ValueError):
         if tmp.exists():
             try:
                 tmp.unlink()

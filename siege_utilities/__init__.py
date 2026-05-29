@@ -28,7 +28,7 @@ from .core.string_utils import remove_wrapping_quotes_and_trim  # noqa: F401
 try:
     from importlib.metadata import version as _meta_version
     __version__ = _meta_version("siege-utilities")
-except Exception:
+except (ImportError, ValueError, ModuleNotFoundError):
     __version__ = "3.18.1-dev"  # fallback for editable installs without metadata
 __author__ = "Siege Analytics"
 __description__ = "Comprehensive utilities for data engineering, analytics, and distributed computing"
