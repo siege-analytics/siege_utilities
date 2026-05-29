@@ -411,16 +411,7 @@ def get_coordinates(query_address, country_codes=None, max_retries=3, server_url
         raise GeocodingError(
             f"Nominatim response for {query_address!r} missing lat/lng fields"
         )
-        if result_json:
-            data = json.loads(result_json)
-            lat = data.get('nominatim_lat')
-            lng = data.get('nominatim_lng')
-            if lat and lng:
-                return (float(lat), float(lng))
-        return None
-    except (ValueError, TypeError, KeyError, AttributeError) as e:
-        log_error(f"Geocoding failed for {query_address}: {e}")
-        return None
+    return (float(lat), float(lng))
 
 
 def use_nominatim_geocoder(query_address, id=None, country_codes=None,
