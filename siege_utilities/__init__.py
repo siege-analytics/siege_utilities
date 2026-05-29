@@ -227,11 +227,11 @@ _register_lazy([
     'normalize_fips_code',
 ], '.geo.spatial_data', deps=['geopandas'])
 
-# normalize_state_identifier is an alias for normalize_state_identifier_standalone
+# normalize_state_identifier delegates to the canonical config version;
+# no geopandas dependency needed for pure FIPS lookup.
 _register_lazy(
     ['normalize_state_identifier'],
-    '.geo.spatial_data', deps=['geopandas'],
-    renames={'normalize_state_identifier': 'normalize_state_identifier_standalone'},
+    '.config.census_registry',
 )
 
 # ── Databricks helpers (requires databricks-sdk, pyspark) ────────────
@@ -502,7 +502,7 @@ def get_package_info() -> Dict[str, Any]:
         'get_state_by_abbreviation': 'geo', 'get_state_by_name': 'geo',
         'validate_state_fips': 'geo', 'get_state_name': 'geo',
         'get_state_abbreviation': 'geo', 'download_dataset': 'geo',
-        'get_unified_fips_data': 'geo', 'normalize_state_identifier': 'geo',
+        'get_unified_fips_data': 'geo', 'normalize_state_identifier': 'config',
         'generate_docstring_template': 'hygiene',
         'analyze_function_signature': 'hygiene',
         'generate_architecture_diagram': 'development',
