@@ -54,6 +54,14 @@ class CensusAPI:
         cache_ttl: int = CENSUS_API_CACHE_TIMEOUT,
     ):
         self.api_key = self._resolve_api_key(api_key)
+        if self.api_key is None:
+            log.warning(
+                "No Census API key configured. The Census Bureau API will "
+                "still work but enforces much lower rate limits "
+                "(500 requests/day vs 50,000 with a key). "
+                "Set the CENSUS_API_KEY environment variable or configure "
+                "a 'census' API key in your siege_utilities user profile."
+            )
         self.timeout = timeout or get_service_timeout('census_api') or CENSUS_API_DEFAULT_TIMEOUT
         self.base_url = CENSUS_API_BASE_URL
         self.cache_backend = cache_backend
