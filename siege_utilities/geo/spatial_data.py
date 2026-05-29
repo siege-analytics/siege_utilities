@@ -2149,8 +2149,27 @@ def get_unified_fips_data() -> Dict[str, Dict[str, Any]]:
     return census_source.get_comprehensive_state_info()
 
 def normalize_state_identifier_standalone(identifier: str) -> str:
-    """Normalize state identifier - standalone function."""
-    return census_source.normalize_state_identifier(identifier)
+    """Normalize a state identifier to its 2-digit FIPS code.
+
+    Delegates to :func:`siege_utilities.config.census_registry.normalize_state_identifier`,
+    the canonical implementation.
+
+    Parameters
+    ----------
+    identifier : str
+        Any of: 2-digit FIPS code, 2-letter abbreviation, or full state name.
+
+    Returns
+    -------
+    str
+        Zero-padded 2-digit FIPS code.
+
+    Raises
+    ------
+    ValueError
+        If *identifier* doesn't match any known state, territory, or DC.
+    """
+    return normalize_state_identifier(identifier)
 
 def normalize_state_input(raw_input: str) -> str:
     """
