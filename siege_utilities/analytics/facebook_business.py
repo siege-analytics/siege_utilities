@@ -271,7 +271,7 @@ class FacebookBusinessConnector:
             raise
 
     def save_as_pandas(self, df: pd.DataFrame, output_path: str,
-                       format: str = 'parquet') -> bool:
+                       format: str = 'parquet') -> None:
         """
         Save DataFrame as Pandas format.
 
@@ -280,31 +280,26 @@ class FacebookBusinessConnector:
             output_path: Output file path
             format: Output format (parquet, csv, excel, etc.)
 
-        Returns:
-            True if save successful
+        Raises:
+            ValueError: If format is not supported.
+            OSError: On filesystem failure.
         """
-        try:
-            output_path = pathlib.Path(output_path)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = pathlib.Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
-            if format.lower() == 'parquet':
-                df.to_parquet(output_path, index=False)
-            elif format.lower() == 'csv':
-                df.to_csv(output_path, index=False)
-            elif format.lower() == 'excel':
-                df.to_excel(output_path, index=False)
-            else:
-                raise ValueError(f"Unsupported format: {format}")
+        if format.lower() == 'parquet':
+            df.to_parquet(output_path, index=False)
+        elif format.lower() == 'csv':
+            df.to_csv(output_path, index=False)
+        elif format.lower() == 'excel':
+            df.to_excel(output_path, index=False)
+        else:
+            raise ValueError(f"Unsupported format: {format}")
 
-            log_info(f"Saved DataFrame to {output_path} ({format} format)")
-            return True
-
-        except (OSError, ValueError) as e:
-            logger.error("Failed to save DataFrame: %s", e, exc_info=True)
-            return False
+        log_info(f"Saved DataFrame to {output_path} ({format} format)")
 
     def save_as_spark(self, df: pd.DataFrame, output_path: str,
-                      spark_session: Optional[SparkSession] = None) -> bool:
+                      spark_session: Optional[SparkSession] = None) -> None:
         """
         Save DataFrame as Spark DataFrame and optionally to storage.
 
@@ -313,31 +308,22 @@ class FacebookBusinessConnector:
             output_path: Output path for Spark DataFrame
             spark_session: Optional SparkSession (will create if not provided)
 
-        Returns:
-            True if save successful
+        Raises:
+            ImportError: If PySpark is not installed.
+            OSError: On storage failure.
         """
-        try:
-            if not SPARK_AVAILABLE:
-                raise ImportError("PySpark not available. Install: pip install pyspark")
+        if not SPARK_AVAILABLE:
+            raise ImportError("PySpark not available. Install: pip install pyspark")
 
-            # Create Spark session if not provided
-            if not spark_session:
-                spark_session = SparkSession.builder \
-                    .appName("FacebookBusinessData") \
-                    .getOrCreate()
+        if not spark_session:
+            spark_session = SparkSession.builder \
+                .appName("FacebookBusinessData") \
+                .getOrCreate()
 
-            # Convert to Spark DataFrame
-            spark_df = spark_session.createDataFrame(df)
+        spark_df = spark_session.createDataFrame(df)
+        spark_df.write.mode('overwrite').parquet(output_path)
 
-            # Save to storage
-            spark_df.write.mode('overwrite').parquet(output_path)
-
-            log_info(f"Saved DataFrame as Spark DataFrame to {output_path}")
-            return True
-
-        except (ImportError, OSError, TypeError, RuntimeError) as e:
-            logger.error("Failed to save as Spark DataFrame: %s", e, exc_info=True)
-            return False
+        log_info(f"Saved DataFrame as Spark DataFrame to {output_path}")
 
 
 def create_facebook_account_profile(client_id: str, fb_account_id: str,
@@ -410,7 +396,11 @@ def load_facebook_account_profile(account_id: str,
         config_directory: Directory containing config files
 
     Returns:
-        Facebook account profile dictionary or None if not found
+        Facebook account profile dictionary, or None if no profile file exists.
+
+    Raises:
+        OSError: If the file exists but cannot be read.
+        json.JSONDecodeError: If the file exists but contains invalid JSON.
     """
     config_dir = pathlib.Path(config_directory) / "facebook_business"
     config_file = config_dir / f"fb_account_{account_id}.json"
@@ -418,16 +408,11 @@ def load_facebook_account_profile(account_id: str,
     if not config_file.exists():
         return None
 
-    try:
-        with open(config_file, 'r', encoding='utf-8') as f:
-            profile = json.load(f)
+    with open(config_file, 'r', encoding='utf-8') as f:
+        profile = json.load(f)
 
-        log_info(f"Loaded Facebook account profile: {account_id}")
-        return profile
-
-    except (OSError, json.JSONDecodeError) as e:
-        logger.error("Failed to load Facebook account profile %s: %s", account_id, e, exc_info=True)
-        return None
+    log_info(f"Loaded Facebook account profile: {account_id}")
+    return profile
 
 
 def list_facebook_accounts_for_client(client_id: str,
@@ -478,109 +463,91 @@ def batch_retrieve_facebook_data(client_id: str, start_date: str, end_date: str,
         output_directory: Directory to save output files
 
     Returns:
-        Dictionary with retrieval results
+        Dictionary with retrieval results.
+
+    Raises:
+        ValueError: If no Facebook accounts found for the client.
     """
-    try:
-        # Get client's Facebook accounts
-        accounts = list_facebook_accounts_for_client(client_id)
+    accounts = list_facebook_accounts_for_client(client_id)
 
-        if not accounts:
-            return {
-                'success': False,
-                'error': f'No Facebook accounts found for client: {client_id}',
-                'accounts_processed': 0,
-                'total_rows': 0
-            }
+    if not accounts:
+        raise ValueError(f"No Facebook accounts found for client: {client_id}")
 
-        # Setup output directory
-        output_dir = pathlib.Path(output_directory)
-        output_dir.mkdir(parents=True, exist_ok=True)
+    # Setup output directory
+    output_dir = pathlib.Path(output_directory)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-        results = {
-            'success': True,
-            'client_id': client_id,
-            'start_date': start_date,
-            'end_date': end_date,
-            'accounts_processed': 0,
-            'total_rows': 0,
-            'output_files': [],
-            'errors': []
-        }
+    results = {
+        'success': True,
+        'client_id': client_id,
+        'start_date': start_date,
+        'end_date': end_date,
+        'accounts_processed': 0,
+        'total_rows': 0,
+        'output_files': [],
+        'errors': []
+    }
 
-        _VALID_DATA_TYPES = {'ad_account', 'page', 'business'}
-        if data_types is not None:
-            unknown = set(data_types) - _VALID_DATA_TYPES
-            if unknown:
-                import warnings
-                warnings.warn(
-                    f"batch_retrieve_facebook_data: unrecognized data_types "
-                    f"{sorted(unknown)}; valid values are {sorted(_VALID_DATA_TYPES)}",
-                    stacklevel=2,
+    _VALID_DATA_TYPES = {'ad_account', 'page', 'business'}
+    if data_types is not None:
+        unknown = set(data_types) - _VALID_DATA_TYPES
+        if unknown:
+            import warnings
+            warnings.warn(
+                f"batch_retrieve_facebook_data: unrecognized data_types "
+                f"{sorted(unknown)}; valid values are {sorted(_VALID_DATA_TYPES)}",
+                stacklevel=2,
+            )
+
+    # Process each account
+    for account in accounts:
+        try:
+            if data_types is not None and account['account_type'] not in data_types:
+                continue
+
+            if not account.get('access_token'):
+                results['errors'].append(f"No access token for account: {account['fb_account_id']}")
+                continue
+
+            connector = FacebookBusinessConnector(account['access_token'])
+
+            if account['account_type'] == 'ad_account':
+                df = connector.get_ad_insights(
+                    account['fb_account_id_raw'], start_date, end_date
                 )
+            elif account['account_type'] == 'page':
+                df = connector.get_page_insights(
+                    account['fb_account_id_raw'], start_date, end_date
+                )
+            elif account['account_type'] == 'business':
+                df = connector.get_business_insights(
+                    account['fb_account_id_raw'], start_date, end_date
+                )
+            else:
+                results['errors'].append(f"Unknown account type: {account['account_type']}")
+                continue
 
-        # Process each account
-        for account in accounts:
-            try:
-                # Skip accounts whose type doesn't match the requested data_types
-                if data_types is not None and account['account_type'] not in data_types:
-                    continue
+            if not df.empty:
+                output_file = output_dir / f"{account['fb_account_id']}_{start_date}_{end_date}.parquet"
 
-                # Load access token
-                if not account.get('access_token'):
-                    results['errors'].append(f"No access token for account: {account['fb_account_id']}")
-                    continue
+                if output_format in ['pandas', 'both']:
+                    connector.save_as_pandas(df, str(output_file), 'parquet')
+                    results['output_files'].append(str(output_file))
 
-                # Create connector
-                connector = FacebookBusinessConnector(account['access_token'])
+                if output_format in ['spark', 'both'] and SPARK_AVAILABLE:
+                    spark_output = output_dir / f"{account['fb_account_id']}_{start_date}_{end_date}_spark"
+                    connector.save_as_spark(df, str(spark_output))
+                    results['output_files'].append(str(spark_output))
 
-                # Retrieve data based on account type
-                if account['account_type'] == 'ad_account':
-                    df = connector.get_ad_insights(
-                        account['fb_account_id_raw'], start_date, end_date
-                    )
-                elif account['account_type'] == 'page':
-                    df = connector.get_page_insights(
-                        account['fb_account_id_raw'], start_date, end_date
-                    )
-                elif account['account_type'] == 'business':
-                    df = connector.get_business_insights(
-                        account['fb_account_id_raw'], start_date, end_date
-                    )
-                else:
-                    results['errors'].append(f"Unknown account type: {account['account_type']}")
-                    continue
+                results['total_rows'] += len(df)
+                results['accounts_processed'] += 1
 
-                if not df.empty:
-                    # Save data
-                    output_file = output_dir / f"{account['fb_account_id']}_{start_date}_{end_date}.parquet"
+                log_info(f"Processed Facebook account: {account['fb_account_id']} - {len(df)} rows")
 
-                    if output_format in ['pandas', 'both']:
-                        connector.save_as_pandas(df, str(output_file), 'parquet')
-                        results['output_files'].append(str(output_file))
+        except (*_FB_API_ERRORS, OSError, TypeError) as e:
+            error_msg = f"Error processing account {account['fb_account_id']}: {e}"
+            results['errors'].append(error_msg)
+            logger.error("Error processing account %s", account['fb_account_id'], exc_info=True)
 
-                    if output_format in ['spark', 'both'] and SPARK_AVAILABLE:
-                        spark_output = output_dir / f"{account['fb_account_id']}_{start_date}_{end_date}_spark"
-                        connector.save_as_spark(df, str(spark_output))
-                        results['output_files'].append(str(spark_output))
-
-                    results['total_rows'] += len(df)
-                    results['accounts_processed'] += 1
-
-                    log_info(f"Processed Facebook account: {account['fb_account_id']} - {len(df)} rows")
-
-            except (*_FB_API_ERRORS, OSError, TypeError) as e:
-                error_msg = f"Error processing account {account['fb_account_id']}: {e}"
-                results['errors'].append(error_msg)
-                logger.error("Error processing account %s", account['fb_account_id'], exc_info=True)
-
-        log_info(f"Batch Facebook data retrieval completed: {results['accounts_processed']} accounts, {results['total_rows']} rows")
-        return results
-
-    except (OSError, KeyError, AttributeError) as e:
-        logger.error("Batch Facebook data retrieval failed: %s", e, exc_info=True)
-        return {
-            'success': False,
-            'error': str(e),
-            'accounts_processed': 0,
-            'total_rows': 0
-        }
+    log_info(f"Batch Facebook data retrieval completed: {results['accounts_processed']} accounts, {results['total_rows']} rows")
+    return results
