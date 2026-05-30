@@ -340,7 +340,8 @@ def _merge_to_wide_format(
                 result = result.merge(
                     df[['GEOID', var]].rename(columns={var: col_name}),
                     on='GEOID',
-                    how='outer'
+                    how='outer',
+                    validate='one_to_one',
                 )
 
             # Include MOE if present
@@ -351,7 +352,8 @@ def _merge_to_wide_format(
                     result = result.merge(
                         df[['GEOID', moe_var]].rename(columns={moe_var: moe_col_name}),
                         on='GEOID',
-                        how='outer'
+                        how='outer',
+                        validate='one_to_one',
                     )
 
     return result
@@ -455,7 +457,8 @@ def _add_geometry(
     merged = boundaries.merge(
         df,
         on='_join_geoid',
-        how='right'
+        how='right',
+        validate='one_to_one',
     )
 
     # Clean up join key and redundant boundary GEOID
@@ -865,7 +868,9 @@ class LongitudinalAligner:
             )
 
         # Merge data onto source boundaries
-        source_gdf = source_boundaries.merge(df, left_on="GEOID", right_on=geoid_column)
+        source_gdf = source_boundaries.merge(
+            df, left_on="GEOID", right_on=geoid_column, validate='one_to_one',
+        )
         numeric_cols = [
             c for c in df.columns
             if c != geoid_column and df[c].dtype.kind in ("i", "f")

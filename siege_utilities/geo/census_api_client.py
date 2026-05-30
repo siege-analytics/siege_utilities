@@ -579,6 +579,7 @@ def get_census_data_with_geometry(
         on='_join_geoid',
         how='left',
         suffixes=('', '_demo'),
+        validate='many_to_one',
     )
 
     merged_gdf = merged_gdf.drop(columns=['_join_geoid'])
@@ -648,6 +649,7 @@ def join_demographics_to_shapes(
         demographics_df,
         on='_join_geoid',
         how=how,
+        validate='many_to_one',
     )
 
     merged = merged.drop(columns=['_join_geoid'])
