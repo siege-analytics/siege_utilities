@@ -234,8 +234,9 @@ def _run_subprocess_unrestricted(command_list: Union[str, List[str]],
         "This is dangerous and will be removed in future versions."
     )
 
+    cmd = shlex.join(command_list) if isinstance(command_list, list) else command_list
     p = subprocess.Popen(
-        command_list,
+        cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         shell=True  # DANGER: No validation
