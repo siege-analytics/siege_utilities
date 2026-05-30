@@ -57,7 +57,7 @@ def _update_from_file(hash_obj, fp) -> None:
         hash_obj.update(chunk)
 
 
-def generate_sha256_hash_for_file(file_path) ->Optional[str]:
+def generate_sha256_hash_for_file(file_path) -> str:
     """Generate SHA256 hash for a file - chunked reading for large files.
 
     .. deprecated:: 3.19.0
@@ -71,16 +71,13 @@ def generate_sha256_hash_for_file(file_path) ->Optional[str]:
         file_path: Path to the file (str or Path object)
 
     Returns:
-        SHA256 hash as hexadecimal string, or None if error
+        SHA256 hash as hexadecimal string.
 
     Raises:
-        PathSecurityError: If path fails security validation
-
-    Example:
-        >>> hash_val = generate_sha256_hash_for_file("data.txt")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> generate_sha256_hash_for_file("/etc/shadow")  # Sensitive file blocked
+        PathSecurityError: If path fails security validation.
+        FileNotFoundError: If the file does not exist.
+        ValueError: If the path is not a regular file.
+        OSError: On I/O failure.
     """
     import warnings
     warnings.warn(
@@ -89,22 +86,12 @@ def generate_sha256_hash_for_file(file_path) ->Optional[str]:
         DeprecationWarning,
         stacklevel=2,
     )
-    try:
-        path_obj = _validated_path(file_path, must_exist=True)
-        if not path_obj.exists() or not path_obj.is_file():
-            return None
-        sha256_hash = hashlib.sha256()
-        with open(path_obj, 'rb') as f:
-            _update_from_file(sha256_hash, f)
-        return sha256_hash.hexdigest()
-    except (OSError, ValueError) as e:
-        log_error(f'Error generating SHA256 hash for {file_path}: {e}')
-        return None
+    return get_file_hash(file_path, 'sha256')
 
 
-def get_file_hash(file_path, algorithm='sha256') ->Optional[str]:
+def get_file_hash(file_path, algorithm='sha256') -> str:
     """
-    Generate hash for a file using specified algorithm
+    Generate hash for a file using specified algorithm.
 
     SECURITY: This function validates paths to prevent path traversal attacks
     and access to sensitive system files.
@@ -114,44 +101,35 @@ def get_file_hash(file_path, algorithm='sha256') ->Optional[str]:
         algorithm: Hash algorithm to use ('sha256', 'md5', 'sha1', etc.)
 
     Returns:
-        Hash as hexadecimal string, or None if error
+        Hash as hexadecimal string.
 
     Raises:
-        PathSecurityError: If path fails security validation
-
-    Example:
-        >>> hash_val = get_file_hash("data.txt", "sha256")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> get_file_hash("../../../etc/passwd")  # Path traversal blocked
-
-    Security Changes:
-        - Now validates paths to block path traversal
-        - Blocks access to sensitive system files
+        PathSecurityError: If path fails security validation.
+        FileNotFoundError: If the file does not exist.
+        ValueError: If the path is not a regular file or algorithm is unknown.
+        OSError: On I/O failure.
     """
-    try:
-        path_obj = _validated_path(file_path, must_exist=True)
-        if not path_obj.exists() or not path_obj.is_file():
-            return None
-        if algorithm.lower() == 'sha256':
-            hash_func = hashlib.sha256()
-        elif algorithm.lower() == 'md5':
-            hash_func = hashlib.md5()
-        elif algorithm.lower() == 'sha1':
-            hash_func = hashlib.sha1()
-        else:
-            hash_func = hashlib.new(algorithm)
-        with open(path_obj, 'rb') as f:
-            _update_from_file(hash_func, f)
-        return hash_func.hexdigest()
-    except (OSError, ValueError) as e:
-        log_error(f'Error generating {algorithm} hash for {file_path}: {e}')
-        return None
+    path_obj = _validated_path(file_path, must_exist=True)
+    if not path_obj.exists():
+        raise FileNotFoundError(f"File does not exist: {path_obj}")
+    if not path_obj.is_file():
+        raise ValueError(f"Path is not a file: {path_obj}")
+    if algorithm.lower() == 'sha256':
+        hash_func = hashlib.sha256()
+    elif algorithm.lower() == 'md5':
+        hash_func = hashlib.md5()
+    elif algorithm.lower() == 'sha1':
+        hash_func = hashlib.sha1()
+    else:
+        hash_func = hashlib.new(algorithm)
+    with open(path_obj, 'rb') as f:
+        _update_from_file(hash_func, f)
+    return hash_func.hexdigest()
 
 
-def calculate_file_hash(file_path) ->Optional[str]:
+def calculate_file_hash(file_path) -> str:
     """
-    Alias for get_file_hash with SHA256 - for backward compatibility
+    Alias for get_file_hash with SHA256 - for backward compatibility.
     """
     return get_file_hash(file_path, 'sha256')
 
