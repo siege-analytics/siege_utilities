@@ -271,7 +271,7 @@ class FacebookBusinessConnector:
             raise
 
     def save_as_pandas(self, df: pd.DataFrame, output_path: str,
-                       format: str = 'parquet') -> bool:
+                       format: str = 'parquet') -> None:
         """
         Save DataFrame as Pandas format.
 
@@ -280,31 +280,26 @@ class FacebookBusinessConnector:
             output_path: Output file path
             format: Output format (parquet, csv, excel, etc.)
 
-        Returns:
-            True if save successful
+        Raises:
+            ValueError: If format is not supported.
+            OSError: If the file cannot be written.
         """
-        try:
-            output_path = pathlib.Path(output_path)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = pathlib.Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
-            if format.lower() == 'parquet':
-                df.to_parquet(output_path, index=False)
-            elif format.lower() == 'csv':
-                df.to_csv(output_path, index=False)
-            elif format.lower() == 'excel':
-                df.to_excel(output_path, index=False)
-            else:
-                raise ValueError(f"Unsupported format: {format}")
+        if format.lower() == 'parquet':
+            df.to_parquet(output_path, index=False)
+        elif format.lower() == 'csv':
+            df.to_csv(output_path, index=False)
+        elif format.lower() == 'excel':
+            df.to_excel(output_path, index=False)
+        else:
+            raise ValueError(f"Unsupported format: {format}")
 
-            log_info(f"Saved DataFrame to {output_path} ({format} format)")
-            return True
-
-        except (OSError, ValueError) as e:
-            logger.error("Failed to save DataFrame: %s", e, exc_info=True)
-            return False
+        log_info(f"Saved DataFrame to {output_path} ({format} format)")
 
     def save_as_spark(self, df: pd.DataFrame, output_path: str,
-                      spark_session: Optional[SparkSession] = None) -> bool:
+                      spark_session: Optional[SparkSession] = None) -> None:
         """
         Save DataFrame as Spark DataFrame and optionally to storage.
 
@@ -313,31 +308,26 @@ class FacebookBusinessConnector:
             output_path: Output path for Spark DataFrame
             spark_session: Optional SparkSession (will create if not provided)
 
-        Returns:
-            True if save successful
+        Raises:
+            ImportError: If PySpark is not installed.
+            OSError: If the output path is not writable.
         """
-        try:
-            if not SPARK_AVAILABLE:
-                raise ImportError("PySpark not available. Install: pip install pyspark")
+        if not SPARK_AVAILABLE:
+            raise ImportError("PySpark not available. Install: pip install pyspark")
 
-            # Create Spark session if not provided
-            if not spark_session:
-                spark_session = SparkSession.builder \
-                    .appName("FacebookBusinessData") \
-                    .getOrCreate()
+        # Create Spark session if not provided
+        if not spark_session:
+            spark_session = SparkSession.builder \
+                .appName("FacebookBusinessData") \
+                .getOrCreate()
 
-            # Convert to Spark DataFrame
-            spark_df = spark_session.createDataFrame(df)
+        # Convert to Spark DataFrame
+        spark_df = spark_session.createDataFrame(df)
 
-            # Save to storage
-            spark_df.write.mode('overwrite').parquet(output_path)
+        # Save to storage
+        spark_df.write.mode('overwrite').parquet(output_path)
 
-            log_info(f"Saved DataFrame as Spark DataFrame to {output_path}")
-            return True
-
-        except (ImportError, OSError, TypeError, RuntimeError) as e:
-            logger.error("Failed to save as Spark DataFrame: %s", e, exc_info=True)
-            return False
+        log_info(f"Saved DataFrame as Spark DataFrame to {output_path}")
 
 
 def create_facebook_account_profile(client_id: str, fb_account_id: str,
@@ -411,6 +401,10 @@ def load_facebook_account_profile(account_id: str,
 
     Returns:
         Facebook account profile dictionary or None if not found
+
+    Raises:
+        OSError: If the file exists but cannot be read.
+        json.JSONDecodeError: If the file contains invalid JSON.
     """
     config_dir = pathlib.Path(config_directory) / "facebook_business"
     config_file = config_dir / f"fb_account_{account_id}.json"
@@ -418,16 +412,11 @@ def load_facebook_account_profile(account_id: str,
     if not config_file.exists():
         return None
 
-    try:
-        with open(config_file, 'r', encoding='utf-8') as f:
-            profile = json.load(f)
+    with open(config_file, 'r', encoding='utf-8') as f:
+        profile = json.load(f)
 
-        log_info(f"Loaded Facebook account profile: {account_id}")
-        return profile
-
-    except (OSError, json.JSONDecodeError) as e:
-        logger.error("Failed to load Facebook account profile %s: %s", account_id, e, exc_info=True)
-        return None
+    log_info(f"Loaded Facebook account profile: {account_id}")
+    return profile
 
 
 def list_facebook_accounts_for_client(client_id: str,
