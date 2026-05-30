@@ -327,7 +327,7 @@ class ChartTypeRegistry:
         categories = set(chart_type.category for chart_type in self.chart_types.values())
         return sorted(list(categories))
     
-    def create_chart(self, chart_type_name: str, **kwargs) -> Optional[Figure]:
+    def create_chart(self, chart_type_name: str, **kwargs) -> Figure:
         """
         Create a chart using the specified chart type.
 
@@ -531,6 +531,6 @@ def register_chart_type(chart_type: ChartType):
     """Register a new chart type."""
     get_chart_registry().register_chart_type(chart_type)
 
-def create_chart(chart_type_name: str, **kwargs) -> Optional[Figure]:
+def create_chart(chart_type_name: str, **kwargs) -> Figure:
     """Create a chart using the specified chart type."""
     return get_chart_registry().create_chart(chart_type_name, **kwargs)
