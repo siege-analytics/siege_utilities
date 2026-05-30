@@ -24,6 +24,12 @@ except ImportError:
     TQDM_AVAILABLE = False
     tqdm = None
 
+try:
+    from siege_utilities.files.validation import PathSecurityError
+except ImportError:
+    class PathSecurityError(Exception):
+        """Stub for when validation module is unavailable."""
+
 # Get logger for this module
 log = logging.getLogger(__name__)
 
