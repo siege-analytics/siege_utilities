@@ -161,133 +161,119 @@ def aggregate_by_state(ga_city_df: pd.DataFrame) -> pd.DataFrame:
 
 def create_state_choropleth(state_data: pd.DataFrame, value_column: str = 'sessions',
                             title: str = "Website Traffic by State",
-                            output_path: Optional[str] = None) -> Optional[str]:
+                            output_path: Optional[str] = None) -> str:
     """
     Create a choropleth map of US states colored by a metric.
     """
     if not GEOPANDAS_AVAILABLE or not MATPLOTLIB_AVAILABLE:
-        log.warning("GeoPandas or matplotlib not available for choropleth")
-        return None
+        raise RuntimeError("GeoPandas or matplotlib not available for choropleth")
 
-    try:
-        # Load US states shapefile (from Census TIGER/Line)
-        if GEO_AVAILABLE:
-            states_gdf = get_geographic_boundaries(
-                boundary_type='state',
-                year=2020,
-                state=None  # All states
-            )
-        else:
-            log.warning("siege_utilities geo module not available")
-            return None
+    if not GEO_AVAILABLE:
+        raise RuntimeError("siege_utilities geo module not available for choropleth")
 
-        if states_gdf is None or states_gdf.empty:
-            log.warning("Could not load state boundaries")
-            return None
+    states_gdf = get_geographic_boundaries(
+        boundary_type='state',
+        year=2020,
+        state=None
+    )
 
-        # Merge with GA data
-        merged = states_gdf.merge(
-            state_data,
-            left_on='STATEFP',
-            right_on='state_fips',
-            how='left'
-        )
+    if states_gdf is None or states_gdf.empty:
+        raise ValueError("Could not load state boundaries")
 
-        # Create figure
-        fig, ax = plt.subplots(1, 1, figsize=(14, 8))
+    # Merge with GA data
+    merged = states_gdf.merge(
+        state_data,
+        left_on='STATEFP',
+        right_on='state_fips',
+        how='left'
+    )
 
-        # Plot states
-        merged.plot(
-            column=value_column,
-            ax=ax,
-            legend=True,
-            cmap='Blues',
-            missing_kwds={'color': 'lightgray', 'label': 'No data'},
-            legend_kwds={'label': value_column.replace('_', ' ').title()}
-        )
+    # Create figure
+    fig, ax = plt.subplots(1, 1, figsize=(14, 8))
 
-        # Styling
-        ax.set_title(title, fontsize=16, fontweight='bold')
-        ax.set_axis_off()
+    # Plot states
+    merged.plot(
+        column=value_column,
+        ax=ax,
+        legend=True,
+        cmap='Blues',
+        missing_kwds={'color': 'lightgray', 'label': 'No data'},
+        legend_kwds={'label': value_column.replace('_', ' ').title()}
+    )
 
-        # Crop to continental US
-        ax.set_xlim(-130, -65)
-        ax.set_ylim(24, 50)
+    # Styling
+    ax.set_title(title, fontsize=16, fontweight='bold')
+    ax.set_axis_off()
 
-        plt.tight_layout()
+    # Crop to continental US
+    ax.set_xlim(-130, -65)
+    ax.set_ylim(24, 50)
 
-        # Save or return path
-        if output_path:
-            plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.tight_layout()
+
+    # Save or return path
+    if output_path:
+        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        return output_path
+    else:
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+            plt.savefig(tmp.name, dpi=150, bbox_inches='tight')
             plt.close()
-            return output_path
-        else:
-            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
-                plt.savefig(tmp.name, dpi=150, bbox_inches='tight')
-                plt.close()
-                return tmp.name
+            return tmp.name
 
-    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
-        log.error(f"Error creating state choropleth: {e}")
-        return None
 
 
 def create_city_heatmap(ga_city_df: pd.DataFrame, value_column: str = 'sessions',
-                        output_path: Optional[str] = None) -> Optional[str]:
+                        output_path: Optional[str] = None) -> str:
     """
     Create an interactive heatmap of traffic intensity by city.
     """
     if not FOLIUM_AVAILABLE:
-        log.warning("Folium not available for heatmap")
-        return None
+        raise RuntimeError("Folium not available for heatmap")
 
-    try:
-        # Filter to geocoded cities
-        valid = ga_city_df[ga_city_df['latitude'].notna()].copy()
+    # Filter to geocoded cities
+    valid = ga_city_df[ga_city_df['latitude'].notna()].copy()
 
-        if valid.empty:
-            log.warning("No geocoded cities for heatmap")
-            return None
+    if valid.empty:
+        raise ValueError("No geocoded cities for heatmap")
 
-        # Create base map centered on US
-        center_lat = valid['latitude'].mean()
-        center_lon = valid['longitude'].mean()
-        m = folium.Map(location=[center_lat, center_lon], zoom_start=4)
+    # Create base map centered on US
+    center_lat = valid['latitude'].mean()
+    center_lon = valid['longitude'].mean()
+    m = folium.Map(location=[center_lat, center_lon], zoom_start=4)
 
-        # Prepare heatmap data
-        heat_data = []
-        for _, row in valid.iterrows():
-            col_max = valid[value_column].max()
-            weight = (row[value_column] / col_max) if col_max else 0
-            heat_data.append([row['latitude'], row['longitude'], weight])
+    # Prepare heatmap data
+    heat_data = []
+    for _, row in valid.iterrows():
+        col_max = valid[value_column].max()
+        weight = (row[value_column] / col_max) if col_max else 0
+        heat_data.append([row['latitude'], row['longitude'], weight])
 
-        # Add heatmap layer
-        HeatMap(heat_data, radius=25, blur=15).add_to(m)
+    # Add heatmap layer
+    HeatMap(heat_data, radius=25, blur=15).add_to(m)
 
-        # Add markers for top cities
-        top_cities = valid.nlargest(10, value_column)
-        for _, row in top_cities.iterrows():
-            folium.CircleMarker(
-                location=[row['latitude'], row['longitude']],
-                radius=8,
-                popup=f"{row['city']}: {row[value_column]:,} {value_column}",
-                color='red',
-                fill=True,
-                fill_opacity=0.7
-            ).add_to(m)
+    # Add markers for top cities
+    top_cities = valid.nlargest(10, value_column)
+    for _, row in top_cities.iterrows():
+        folium.CircleMarker(
+            location=[row['latitude'], row['longitude']],
+            radius=8,
+            popup=f"{row['city']}: {row[value_column]:,} {value_column}",
+            color='red',
+            fill=True,
+            fill_opacity=0.7
+        ).add_to(m)
 
-        # Save map
-        if output_path:
-            m.save(output_path)
-            return output_path
-        else:
-            with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as tmp:
-                m.save(tmp.name)
-                return tmp.name
+    # Save map
+    if output_path:
+        m.save(output_path)
+        return output_path
+    else:
+        with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as tmp:
+            m.save(tmp.name)
+            return tmp.name
 
-    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
-        log.error(f"Error creating city heatmap: {e}")
-        return None
 
 
 def create_traffic_demographics_comparison(ga_state_data: pd.DataFrame,
@@ -342,99 +328,95 @@ def create_traffic_demographics_comparison(ga_state_data: pd.DataFrame,
 
 
 def create_bivariate_traffic_income_map(merged_data: pd.DataFrame,
-                                         output_path: Optional[str] = None) -> Optional[str]:
+                                         output_path: Optional[str] = None) -> str:
     """
     Create a bivariate choropleth showing traffic vs income.
     """
     if not GEOPANDAS_AVAILABLE or not MATPLOTLIB_AVAILABLE:
-        return None
+        raise RuntimeError("GeoPandas or matplotlib not available for bivariate map")
 
-    try:
-        if GEO_AVAILABLE:
-            states_gdf = get_geographic_boundaries(
-                boundary_type='state',
-                year=2020,
-                state=None
-            )
-        else:
-            return None
+    if not GEO_AVAILABLE:
+        raise RuntimeError("siege_utilities geo module not available for bivariate map")
 
-        if states_gdf is None or states_gdf.empty:
-            return None
+    states_gdf = get_geographic_boundaries(
+        boundary_type='state',
+        year=2020,
+        state=None
+    )
 
-        # Merge data
-        gdf = states_gdf.merge(
-            merged_data,
-            left_on='STATEFP',
-            right_on='state_fips',
-            how='left'
-        )
+    if states_gdf is None or states_gdf.empty:
+        raise ValueError("Could not load state boundaries for bivariate map")
 
-        # Create quantile bins for both variables
-        gdf['traffic_bin'] = pd.qcut(gdf['sessions'].fillna(0), q=3, labels=['Low', 'Medium', 'High'])
-        gdf['income_bin'] = pd.qcut(gdf['median_income'].fillna(0), q=3, labels=['Low', 'Medium', 'High'])
+    # Merge data
+    gdf = states_gdf.merge(
+        merged_data,
+        left_on='STATEFP',
+        right_on='state_fips',
+        how='left'
+    )
 
-        # Create bivariate color matrix
-        bivariate_colors = {
-            ('Low', 'Low'): '#e8e8e8',
-            ('Low', 'Medium'): '#b8d6be',
-            ('Low', 'High'): '#73ae80',
-            ('Medium', 'Low'): '#b5c0da',
-            ('Medium', 'Medium'): '#90b2b3',
-            ('Medium', 'High'): '#5a9178',
-            ('High', 'Low'): '#6c83b5',
-            ('High', 'Medium'): '#567994',
-            ('High', 'High'): '#2a5a5b',
-        }
+    # Create quantile bins for both variables
+    gdf['traffic_bin'] = pd.qcut(gdf['sessions'].fillna(0), q=3, labels=['Low', 'Medium', 'High'])
+    gdf['income_bin'] = pd.qcut(gdf['median_income'].fillna(0), q=3, labels=['Low', 'Medium', 'High'])
 
-        def get_color(row):
-            if pd.isna(row['traffic_bin']) or pd.isna(row['income_bin']):
-                return '#ffffff'
-            return bivariate_colors.get((row['traffic_bin'], row['income_bin']), '#ffffff')
+    # Create bivariate color matrix
+    bivariate_colors = {
+        ('Low', 'Low'): '#e8e8e8',
+        ('Low', 'Medium'): '#b8d6be',
+        ('Low', 'High'): '#73ae80',
+        ('Medium', 'Low'): '#b5c0da',
+        ('Medium', 'Medium'): '#90b2b3',
+        ('Medium', 'High'): '#5a9178',
+        ('High', 'Low'): '#6c83b5',
+        ('High', 'Medium'): '#567994',
+        ('High', 'High'): '#2a5a5b',
+    }
 
-        gdf['color'] = gdf.apply(get_color, axis=1)
+    def get_color(row):
+        if pd.isna(row['traffic_bin']) or pd.isna(row['income_bin']):
+            return '#ffffff'
+        return bivariate_colors.get((row['traffic_bin'], row['income_bin']), '#ffffff')
 
-        # Create figure
-        fig, ax = plt.subplots(1, 1, figsize=(14, 10))
+    gdf['color'] = gdf.apply(get_color, axis=1)
 
-        # Plot with custom colors
-        gdf.plot(
-            ax=ax,
-            color=gdf['color'],
-            edgecolor='white',
-            linewidth=0.5
-        )
+    # Create figure
+    fig, ax = plt.subplots(1, 1, figsize=(14, 10))
 
-        # Title and styling
-        ax.set_title('Website Traffic vs. Median Income by State', fontsize=16, fontweight='bold')
-        ax.set_axis_off()
-        ax.set_xlim(-130, -65)
-        ax.set_ylim(24, 50)
+    # Plot with custom colors
+    gdf.plot(
+        ax=ax,
+        color=gdf['color'],
+        edgecolor='white',
+        linewidth=0.5
+    )
 
-        # Add legend
-        legend_elements = [
-            Patch(facecolor='#73ae80', label='High Income, Low Traffic'),
-            Patch(facecolor='#2a5a5b', label='High Income, High Traffic'),
-            Patch(facecolor='#e8e8e8', label='Low Income, Low Traffic'),
-            Patch(facecolor='#6c83b5', label='Low Income, High Traffic'),
-        ]
-        ax.legend(handles=legend_elements, loc='lower right', fontsize=9)
+    # Title and styling
+    ax.set_title('Website Traffic vs. Median Income by State', fontsize=16, fontweight='bold')
+    ax.set_axis_off()
+    ax.set_xlim(-130, -65)
+    ax.set_ylim(24, 50)
 
-        plt.tight_layout()
+    # Add legend
+    legend_elements = [
+        Patch(facecolor='#73ae80', label='High Income, Low Traffic'),
+        Patch(facecolor='#2a5a5b', label='High Income, High Traffic'),
+        Patch(facecolor='#e8e8e8', label='Low Income, Low Traffic'),
+        Patch(facecolor='#6c83b5', label='Low Income, High Traffic'),
+    ]
+    ax.legend(handles=legend_elements, loc='lower right', fontsize=9)
 
-        if output_path:
-            plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.tight_layout()
+
+    if output_path:
+        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        return output_path
+    else:
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+            plt.savefig(tmp.name, dpi=150, bbox_inches='tight')
             plt.close()
-            return output_path
-        else:
-            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
-                plt.savefig(tmp.name, dpi=150, bbox_inches='tight')
-                plt.close()
-                return tmp.name
+            return tmp.name
 
-    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
-        log.error(f"Error creating bivariate map: {e}")
-        return None
 
 
 def generate_geographic_insights(merged_data: pd.DataFrame) -> List[str]:

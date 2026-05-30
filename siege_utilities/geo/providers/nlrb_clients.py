@@ -357,17 +357,13 @@ class NLRBLabordataClient:
         )
         return result
 
-    def _download_csv(self, dataset: str) -> Optional[list[dict]]:
+    def _download_csv(self, dataset: str) -> list[dict]:
         path = LABORDATA_FILES.get(dataset)
         if not path:
-            return None
+            raise ValueError(f"Unknown labordata dataset: {dataset!r}")
         url = self._base_url + path
-        try:
-            resp = self._get_session().get(url, timeout=self._timeout)
-            resp.raise_for_status()
-        except (_RequestException, OSError) as exc:
-            log.warning("labordata: failed to download %s: %s", dataset, exc)
-            return None
+        resp = self._get_session().get(url, timeout=self._timeout)
+        resp.raise_for_status()
 
         reader = csv.DictReader(io.StringIO(resp.text))
         return list(reader)

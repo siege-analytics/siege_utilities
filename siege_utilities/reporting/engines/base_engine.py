@@ -217,7 +217,7 @@ class BaseChartEngine:
         return self._create_placeholder_chart(width, height, f"{label} — saved to {map_path}")
 
     def save_figure_as_vector(self, fig, output_path: Union[str, Path],
-                              fmt: str = 'svg') -> Optional[Path]:
+                              fmt: str = 'svg') -> Path:
         """Save a matplotlib figure as a vector file (SVG, EPS, or PDF).
 
         Args:
@@ -226,23 +226,22 @@ class BaseChartEngine:
             fmt: Vector format — ``'svg'``, ``'eps'``, or ``'pdf'``.
 
         Returns:
-            Path to the saved file, or ``None`` on error.
+            Path to the saved file.
+
+        Raises:
+            ValueError: If *fmt* is not one of the allowed formats.
+            OSError: If the file cannot be written.
         """
         allowed = {'svg', 'eps', 'pdf'}
         if fmt not in allowed:
-            log.error(f"Unsupported vector format '{fmt}'; expected one of {allowed}")
-            return None
+            raise ValueError(f"Unsupported vector format '{fmt}'; expected one of {allowed}")
 
-        try:
-            out = Path(output_path).with_suffix(f'.{fmt}')
-            out.parent.mkdir(parents=True, exist_ok=True)
-            fig.savefig(str(out), format=fmt, bbox_inches='tight',
-                        facecolor='white', edgecolor='none', pad_inches=0.1)
-            log.info(f"Saved vector chart: {out}")
-            return out
-        except (OSError, ValueError, TypeError) as e:
-            log.error(f"Error saving vector chart to {output_path}: {e}")
-            return None
+        out = Path(output_path).with_suffix(f'.{fmt}')
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(str(out), format=fmt, bbox_inches='tight',
+                    facecolor='white', edgecolor='none', pad_inches=0.1)
+        log.info(f"Saved vector chart: {out}")
+        return out
 
     def _matplotlib_to_reportlab_image(self, fig, width: float, height: float,
                                        max_width: Optional[float] = None,

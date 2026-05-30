@@ -432,42 +432,38 @@ class ReportGenerator:
                            output_path: str, template_config: str = None) -> bool:
         """
         Generate a comprehensive PDF report with full document structure.
-        
+
         Args:
             report_content: Report content structure
             output_path: Output PDF file path
             template_config: Template configuration file path
-            
+
         Returns:
-            True if successful, False otherwise
+            True on success.
+
+        Raises:
+            OSError: If the output directory cannot be created or is not writable,
+                or if the final rename fails.
+            ValueError, TypeError, KeyError, AttributeError: On malformed input.
         """
+        # Pre-check writability: ReportLab buffers the entire PDF in
+        # memory and only attempts disk I/O at the very end. A
+        # missing parent dir or a read-only mount that was
+        # discoverable up-front would otherwise burn a full
+        # generation pass (slow on multi-hundred-page reports)
+        # before failing. Build to a sibling temp file and rename
+        # atomically so a partial PDF never appears at *output_path*.
+        final = Path(output_path)
+        parent = final.parent if str(final.parent) else Path(".")
+        parent.mkdir(parents=True, exist_ok=True)
+        if not os.access(parent, os.W_OK):
+            raise OSError(
+                f"generate_pdf_report: output directory {parent} is not writable"
+            )
+
+        tmp_path = parent / f".{final.name}.{uuid.uuid4().hex[:8]}.part"
+
         try:
-            # Pre-check writability: ReportLab buffers the entire PDF in
-            # memory and only attempts disk I/O at the very end. A
-            # missing parent dir or a read-only mount that was
-            # discoverable up-front would otherwise burn a full
-            # generation pass (slow on multi-hundred-page reports)
-            # before failing. Build to a sibling temp file and rename
-            # atomically so a partial PDF never appears at *output_path*.
-            final = Path(output_path)
-            parent = final.parent if str(final.parent) else Path(".")
-            try:
-                parent.mkdir(parents=True, exist_ok=True)
-            except OSError as exc:
-                log.error(
-                    "generate_pdf_report: cannot create output directory "
-                    "%s: %s", parent, exc,
-                )
-                return False
-            if not os.access(parent, os.W_OK):
-                log.error(
-                    "generate_pdf_report: output directory %s is not "
-                    "writable", parent,
-                )
-                return False
-
-            tmp_path = parent / f".{final.name}.{uuid.uuid4().hex[:8]}.part"
-
             # Initialize template with the temp path; we rename to the
             # final name only after a successful build.
             template = self._get_template(str(tmp_path), template_config)
@@ -497,37 +493,29 @@ class ReportGenerator:
 
             # Build PDF using the template's build_document method
             template.build_document(story)
-
-            # Atomic rename. os.replace is atomic on POSIX and on Windows
-            # (per docs) when source and dest live on the same FS — which
-            # they do, since we created the temp alongside the target.
+        except BaseException:
             try:
-                os.replace(tmp_path, final)
-            except OSError as exc:
-                log.error(
-                    "generate_pdf_report: built %s but could not rename "
-                    "to %s: %s", tmp_path, final, exc,
-                )
-                try:
-                    if tmp_path.exists():
-                        tmp_path.unlink()
-                except OSError:
-                    pass
-                return False
-
-            log.info(f"PDF report generated successfully: {output_path}")
-            return True
-
-        except (OSError, ValueError, TypeError, KeyError, AttributeError) as e:
-            log.error(f"Error generating PDF report: {e}")
-            # Best-effort cleanup of the partial file. The variable may
-            # not be bound yet if we failed before assigning it.
-            try:
-                if 'tmp_path' in locals() and tmp_path.exists():
+                if tmp_path.exists():
                     tmp_path.unlink()
             except OSError:
                 pass
-            return False
+            raise
+
+        # Atomic rename. os.replace is atomic on POSIX and on Windows
+        # (per docs) when source and dest live on the same FS — which
+        # they do, since we created the temp alongside the target.
+        try:
+            os.replace(tmp_path, final)
+        except OSError:
+            try:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+            except OSError:
+                pass
+            raise
+
+        log.info(f"PDF report generated successfully: {output_path}")
+        return True
 
     def _process_chart_list(self, charts: List[Any], width: float = 6,
                              height: float = 4) -> List:

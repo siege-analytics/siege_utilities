@@ -265,35 +265,30 @@ class BaseReportTemplate:
                 return str(cached_path)
 
             log.info(f"Downloading image from URL: {image_source}")
-            try:
-                response = requests.get(image_source, stream=True, timeout=30)
-                response.raise_for_status()
+            response = requests.get(image_source, stream=True, timeout=30)
+            response.raise_for_status()
 
-                # More robust extension determination from content type
-                content_type = response.headers.get('Content-Type', '').lower()
-                if 'image/jpeg' in content_type:
-                    cached_path = cached_path.with_suffix('.jpg')
-                elif 'image/png' in content_type:
-                    cached_path = cached_path.with_suffix('.png')
-                elif 'image/gif' in content_type:
-                    cached_path = cached_path.with_suffix('.gif')
+            # More robust extension determination from content type
+            content_type = response.headers.get('Content-Type', '').lower()
+            if 'image/jpeg' in content_type:
+                cached_path = cached_path.with_suffix('.jpg')
+            elif 'image/png' in content_type:
+                cached_path = cached_path.with_suffix('.png')
+            elif 'image/gif' in content_type:
+                cached_path = cached_path.with_suffix('.gif')
 
-                with open(cached_path, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        f.write(chunk)
-                log.info(f"Image cached to: {cached_path}")
-                return str(cached_path)
-            except requests.exceptions.RequestException as e:
-                log.error(f"Error downloading image from {image_source}: {e}")
-                return None
+            with open(cached_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            log.info(f"Image cached to: {cached_path}")
+            return str(cached_path)
         else:
             local_path = Path(image_source)
             if local_path.exists():
                 log.debug(f"Using local image file: {local_path}")
                 return str(local_path)
             else:
-                log.error(f"Local image file not found: {local_path}")
-                return None
+                raise FileNotFoundError(f"Local image file not found: {local_path}")
 
     def _header_footer_on_page(self, canvas, doc):
         """

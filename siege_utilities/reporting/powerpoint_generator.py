@@ -525,7 +525,14 @@ class PowerPointGenerator:
 
             # Process each section
             for section in presentation_content.get('sections', []):
-                slide = self._create_slide_from_section(section, prs)
+                try:
+                    slide = self._create_slide_from_section(section, prs)
+                except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+                    log.warning(
+                        "Skipping slide for section %r: %s",
+                        section.get('type', 'text_slide'), e,
+                    )
+                    continue
                 if slide and section.get('notes'):
                     notes_slide = slide.notes_slide
                     notes_slide.notes_text_frame.text = section['notes']
@@ -1168,33 +1175,27 @@ class PowerPointGenerator:
             Created slide object
         """
         section_type = section.get('type', 'text_slide')
-        
-        try:
-            if section_type == 'title_slide':
-                return self._create_title_slide(section, prs)
-            elif section_type == 'table_of_contents':
-                return self._create_toc_slide(section, prs)
-            elif section_type == 'agenda':
-                return self._create_agenda_slide(section, prs)
-            elif section_type == 'text_slide':
-                return self._create_text_slide(section, prs)
-            elif section_type == 'chart_slide':
-                return self._create_chart_slide(section, prs)
-            elif section_type == 'map_slide':
-                return self._create_map_slide(section, prs)
-            elif section_type == 'table_slide':
-                return self._create_table_slide(section, prs)
-            elif section_type == 'comparison_slide':
-                return self._create_comparison_slide(section, prs)
-            elif section_type == 'summary_slide':
-                return self._create_summary_slide(section, prs)
-            else:
-                # Default to text slide
-                return self._create_text_slide(section, prs)
-                
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            log.error(f"Error creating slide for section {section_type}: {e}")
-            return None
+
+        if section_type == 'title_slide':
+            return self._create_title_slide(section, prs)
+        elif section_type == 'table_of_contents':
+            return self._create_toc_slide(section, prs)
+        elif section_type == 'agenda':
+            return self._create_agenda_slide(section, prs)
+        elif section_type == 'text_slide':
+            return self._create_text_slide(section, prs)
+        elif section_type == 'chart_slide':
+            return self._create_chart_slide(section, prs)
+        elif section_type == 'map_slide':
+            return self._create_map_slide(section, prs)
+        elif section_type == 'table_slide':
+            return self._create_table_slide(section, prs)
+        elif section_type == 'comparison_slide':
+            return self._create_comparison_slide(section, prs)
+        elif section_type == 'summary_slide':
+            return self._create_summary_slide(section, prs)
+        else:
+            return self._create_text_slide(section, prs)
 
     def _create_title_slide(self, section: Dict[str, Any], prs: Presentation) -> Any:
         """Create a title slide."""
