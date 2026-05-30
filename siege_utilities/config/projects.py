@@ -143,7 +143,7 @@ def save_project_config(config: Dict[str, Any], config_directory: str = "config"
     project_code = config['project_code']
     config_file = config_dir / f"project_{project_code}.json"
 
-    with open(config_file, 'w') as f:
+    with open(config_file, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=2)
 
     log_info(f"Saved project config to: {config_file}")
@@ -196,7 +196,7 @@ def load_project_config(project_code: str, config_directory: str = "config") -> 
         return None
 
     try:
-        with open(config_file, 'r') as f:
+        with open(config_file, 'r', encoding='utf-8') as f:
             config = json.load(f)
 
         log_info(f"Loaded project config: {project_code}")
@@ -339,7 +339,7 @@ def list_projects(config_directory: str = "config") -> list:
 
     for config_file in config_dir.glob("project_*.json"):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 config = json.load(f)
 
             projects.append({

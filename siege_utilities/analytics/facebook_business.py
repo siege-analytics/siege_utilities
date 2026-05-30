@@ -393,7 +393,7 @@ def save_facebook_account_profile(profile: Dict[str, Any],
     account_id = profile['fb_account_id']
     config_file = config_dir / f"fb_account_{account_id}.json"
 
-    with open(config_file, 'w') as f:
+    with open(config_file, 'w', encoding='utf-8') as f:
         json.dump(profile, f, indent=2)
 
     log_info(f"Saved Facebook account profile to: {config_file}")
@@ -419,7 +419,7 @@ def load_facebook_account_profile(account_id: str,
         return None
 
     try:
-        with open(config_file, 'r') as f:
+        with open(config_file, 'r', encoding='utf-8') as f:
             profile = json.load(f)
 
         log_info(f"Loaded Facebook account profile: {account_id}")
@@ -450,7 +450,7 @@ def list_facebook_accounts_for_client(client_id: str,
     accounts = []
     for config_file in config_dir.glob("fb_account_*.json"):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 profile = json.load(f)
 
             if profile.get('client_id') == client_id:

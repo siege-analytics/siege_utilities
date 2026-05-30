@@ -89,9 +89,9 @@ class SnowflakeConnector:
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
         
         try:
-            with open(config_path, 'r') as f:
+            with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
-            
+
             _ALLOWED_CONFIG_KEYS = frozenset({
                 "account", "user", "password", "warehouse",
                 "database", "schema", "role",

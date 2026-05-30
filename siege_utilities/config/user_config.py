@@ -317,9 +317,9 @@ class UserConfigManager:
             config_data.pop('facebook_business_key', None)
             config_data.pop('census_api_key', None)
             
-            with open(output_path, 'w') as f:
+            with open(output_path, 'w', encoding='utf-8') as f:
                 yaml.dump(config_data, f, default_flow_style=False)
-            
+
             log.info(f"Configuration exported to: {output_path}")
         except (OSError, yaml.YAMLError) as e:
             log.error(f"Failed to export configuration: {e}")
@@ -332,9 +332,9 @@ class UserConfigManager:
             input_path: Path to import configuration from
         """
         try:
-            with open(input_path, 'r') as f:
+            with open(input_path, 'r', encoding='utf-8') as f:
                 config_data = yaml.safe_load(f)
-            
+
             # Update profile with imported data
             for key, value in config_data.items():
                 if hasattr(self.user_profile, key):

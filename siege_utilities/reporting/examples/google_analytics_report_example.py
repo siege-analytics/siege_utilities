@@ -2469,7 +2469,7 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
         # ── 2. Tables (CSV) ──
         # Daily performance
         daily = ga_data['daily_data']
-        with open(tables_dir / 'daily_performance.csv', 'w', newline='') as f:
+        with open(tables_dir / 'daily_performance.csv', 'w', newline='', encoding='utf-8') as f:
             w = csv.writer(f)
             w.writerow(['Date', 'Sessions', 'Users', 'Pageviews', 'Bounce Rate (%)', 'Avg Duration (s)'])
             for i in range(len(daily['dates'])):
@@ -2478,7 +2478,7 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
                             f"{daily['avg_duration'][i]:.0f}"])
 
         # Traffic sources
-        with open(tables_dir / 'traffic_sources.csv', 'w', newline='') as f:
+        with open(tables_dir / 'traffic_sources.csv', 'w', newline='', encoding='utf-8') as f:
             w = csv.writer(f)
             w.writerow(['Source', 'Medium', 'Sessions', 'Users', 'Bounce Rate (%)', 'Avg Duration (s)'])
             for src in sorted(ga_data['traffic_sources'], key=lambda x: x['sessions'], reverse=True):
@@ -2486,7 +2486,7 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
                             f"{src['bounce_rate']:.1f}", f"{src['avg_duration']:.1f}"])
 
         # Top pages
-        with open(tables_dir / 'top_pages.csv', 'w', newline='') as f:
+        with open(tables_dir / 'top_pages.csv', 'w', newline='', encoding='utf-8') as f:
             w = csv.writer(f)
             w.writerow(['Page', 'Pageviews', 'Unique Views', 'Avg Time (s)', 'Bounce Rate (%)', 'Exit Rate (%)'])
             for p in ga_data['top_pages']:
@@ -2494,7 +2494,7 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
                             f"{p['avg_time']:.1f}", f"{p['bounce_rate']:.1f}", f"{p['exit_rate']:.1f}"])
 
         # Geographic data
-        with open(tables_dir / 'geographic.csv', 'w', newline='') as f:
+        with open(tables_dir / 'geographic.csv', 'w', newline='', encoding='utf-8') as f:
             w = csv.writer(f)
             w.writerow(['Country', 'Region', 'City', 'Continent', 'Sessions', 'Users'])
             for loc in sorted(ga_data['geo_data'], key=lambda x: x.get('sessions', 0), reverse=True):
@@ -2502,14 +2502,14 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
                             loc.get('continent', ''), loc.get('sessions', 0), loc.get('users', 0)])
 
         # Device breakdown
-        with open(tables_dir / 'devices.csv', 'w', newline='') as f:
+        with open(tables_dir / 'devices.csv', 'w', newline='', encoding='utf-8') as f:
             w = csv.writer(f)
             w.writerow(['Device', 'Sessions', 'Bounce Rate (%)'])
             for d in ga_data['devices']:
                 w.writerow([d['device'], d['sessions'], f"{d['bounce_rate']:.1f}"])
 
         # KPI summary
-        with open(tables_dir / 'kpi_summary.csv', 'w', newline='') as f:
+        with open(tables_dir / 'kpi_summary.csv', 'w', newline='', encoding='utf-8') as f:
             w = csv.writer(f)
             w.writerow(['Metric', 'Value', 'Change vs Prior (%)'])
             w.writerow(['Sessions', totals['sessions'], f"{changes['sessions']:+.1f}"])
@@ -2522,7 +2522,7 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
         # Period comparison (if available)
         prior = ga_data.get('prior_period')
         if prior:
-            with open(tables_dir / 'period_comparison.csv', 'w', newline='') as f:
+            with open(tables_dir / 'period_comparison.csv', 'w', newline='', encoding='utf-8') as f:
                 w = csv.writer(f)
                 w.writerow(['Metric', 'Current Period', 'Prior Period', 'Change'])
                 w.writerow(['Sessions', totals['sessions'], prior.get('sessions', 0), f"{changes['sessions']:+.1f}%"])
@@ -2535,7 +2535,7 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
         # Longitudinal / YoY
         longitudinal = ga_data.get('longitudinal', {})
         if longitudinal:
-            with open(tables_dir / 'year_over_year.csv', 'w', newline='') as f:
+            with open(tables_dir / 'year_over_year.csv', 'w', newline='', encoding='utf-8') as f:
                 w = csv.writer(f)
                 w.writerow(['Year', 'Sessions', 'Users', 'Pageviews'])
                 for year in sorted(longitudinal.keys()):
@@ -2606,7 +2606,7 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
         lines.append("")
         lines.append("Charts are available as SVG (vector, editable) in `charts/` and PNG (raster, 300 DPI) in `charts-png/`.")
 
-        with open(text_dir / 'report_text.md', 'w') as f:
+        with open(text_dir / 'report_text.md', 'w', encoding='utf-8') as f:
             f.write('\n'.join(lines))
 
         # ── 4. Metadata (YAML or plain text) ──
@@ -2635,11 +2635,11 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
         }
 
         if _has_yaml:
-            with open(kit / 'metadata.yaml', 'w') as f:
+            with open(kit / 'metadata.yaml', 'w', encoding='utf-8') as f:
                 yaml.dump(metadata, f, default_flow_style=False, sort_keys=False)
         else:
             # Fallback: write as readable text
-            with open(kit / 'metadata.txt', 'w') as f:
+            with open(kit / 'metadata.txt', 'w', encoding='utf-8') as f:
                 for k, v in metadata.items():
                     if isinstance(v, dict):
                         f.write(f"\n{k}:\n")

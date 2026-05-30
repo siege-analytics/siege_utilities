@@ -214,7 +214,7 @@ def save_directory_config(paths: Dict[str, str], config_name: str,
         'created_date': str(pathlib.Path().stat().st_mtime)
     }
 
-    with open(config_file, 'w') as f:
+    with open(config_file, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=2)
 
     log_info(f"Saved directory config to: {config_file}")
@@ -263,7 +263,7 @@ def load_directory_config(config_name: str, config_directory: str = "config") ->
         return None
 
     try:
-        with open(config_file, 'r') as f:
+        with open(config_file, 'r', encoding='utf-8') as f:
             config = json.load(f)
 
         log_info(f"Loaded directory config: {config_name}")
@@ -513,7 +513,7 @@ def list_directory_configs(config_directory: str = "config") -> List[Dict[str, A
 
     for config_file in config_dir.glob("directories_*.json"):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 config = json.load(f)
 
             configs.append({

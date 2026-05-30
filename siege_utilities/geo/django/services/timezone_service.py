@@ -107,7 +107,7 @@ class TimezonePopulationService:
                     return result
                 data = json.loads(zf.read(geojson_names[0]))
         else:
-            with open(geojson_path) as f:
+            with open(geojson_path, encoding='utf-8') as f:
                 data = json.load(f)
 
         features = data.get("features", [])
