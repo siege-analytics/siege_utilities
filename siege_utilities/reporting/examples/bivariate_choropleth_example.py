@@ -72,96 +72,74 @@ def create_sample_geodata():
 def example_basic_bivariate_choropleth():
     """
     Example 1: Basic bivariate choropleth using Folium.
-    
+
     This example shows how to create a simple bivariate choropleth map
     using the Folium-based method.
     """
     print("=== Example 1: Basic Bivariate Choropleth (Folium) ===")
-    
-    # Initialize chart generator
+
     chart_gen = ChartGenerator()
-    
-    # Create sample data
     data = create_sample_data()
-    
-    try:
-        # Create bivariate choropleth
-        chart = chart_gen.create_bivariate_choropleth(
-            data=data,
-            location_column='state',
-            value_column1='population_density',
-            value_column2='median_income',
-            title="Population Density vs Median Income by State",
-            width=10.0,
-            height=8.0
-        )
-        
-        print("✓ Basic bivariate choropleth created successfully")
-        print(f"Chart type: {type(chart)}")
-        print(f"Chart dimensions: {chart.drawWidth} x {chart.drawHeight}")
-        
-        return chart
-        
-    except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-        print(f"✗ Error creating basic bivariate choropleth: {e}")
-        return None
+
+    chart = chart_gen.create_bivariate_choropleth(
+        data=data,
+        location_column='state',
+        value_column1='population_density',
+        value_column2='median_income',
+        title="Population Density vs Median Income by State",
+        width=10.0,
+        height=8.0
+    )
+
+    print("✓ Basic bivariate choropleth created successfully")
+    print(f"Chart type: {type(chart)}")
+    print(f"Chart dimensions: {chart.drawWidth} x {chart.drawHeight}")
+
+    return chart
 
 def example_advanced_bivariate_choropleth():
     """
     Example 2: Advanced bivariate choropleth using matplotlib and geopandas.
-    
+
     This example demonstrates the more sophisticated approach using matplotlib
     for better control over styling and legends.
     """
     print("\n=== Example 2: Advanced Bivariate Choropleth (Matplotlib) ===")
-    
-    # Initialize chart generator
+
     chart_gen = ChartGenerator()
-    
-    # Create sample data
     data = create_sample_data()
     geodata = create_sample_geodata()
-    
-    try:
-        # Create advanced bivariate choropleth
-        chart = chart_gen.create_bivariate_choropleth_matplotlib(
-            data=data,
-            geodata=geodata,
-            location_column='state',
-            value_column1='population_density',
-            value_column2='median_income',
-            title="Advanced Bivariate Choropleth: Population Density vs Income",
-            width=12.0,
-            height=10.0,
-            color_scheme='custom'
-        )
-        
-        print("✓ Advanced bivariate choropleth created successfully")
-        print(f"Chart type: {type(chart)}")
-        print(f"Chart dimensions: {chart.drawWidth} x {chart.drawHeight}")
-        
-        return chart
-        
-    except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-        print(f"✗ Error creating advanced bivariate choropleth: {e}")
-        return None
+
+    chart = chart_gen.create_bivariate_choropleth_matplotlib(
+        data=data,
+        geodata=geodata,
+        location_column='state',
+        value_column1='population_density',
+        value_column2='median_income',
+        title="Advanced Bivariate Choropleth: Population Density vs Income",
+        width=12.0,
+        height=10.0,
+        color_scheme='custom'
+    )
+
+    print("✓ Advanced bivariate choropleth created successfully")
+    print(f"Chart type: {type(chart)}")
+    print(f"Chart dimensions: {chart.drawWidth} x {chart.drawHeight}")
+
+    return chart
 
 def example_custom_chart_configuration():
     """
     Example 3: Using custom chart configuration for bivariate choropleth.
-    
+
     This example shows how to use the custom chart configuration
     system with bivariate choropleth maps.
     """
     print("\n=== Example 3: Custom Chart Configuration ===")
-    
-    # Initialize chart generator
+
     chart_gen = ChartGenerator()
-    
-    # Create sample data
     data = create_sample_data()
-    
-    # Custom chart configuration
+
     chart_config = {
         'type': 'bivariate_choropleth',
         'title': 'Custom Bivariate Choropleth Configuration',
@@ -169,102 +147,78 @@ def example_custom_chart_configuration():
         'location_column': 'state',
         'value_columns': ['population_density', 'median_income']
     }
-    
-    try:
-        # Create chart using custom configuration
-        chart = chart_gen.create_custom_chart(
-            chart_config=chart_config,
-            width=10.0,
-            height=8.0
-        )
-        
-        print("✓ Custom chart configuration bivariate choropleth created successfully")
-        print(f"Chart type: {type(chart)}")
-        print(f"Chart dimensions: {chart.drawWidth} x {chart.drawHeight}")
-        
-        return chart
-        
-    except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-        print(f"✗ Error creating custom chart configuration: {e}")
-        return None
+
+    chart = chart_gen.create_custom_chart(
+        chart_config=chart_config,
+        width=10.0,
+        height=8.0
+    )
+
+    print("✓ Custom chart configuration bivariate choropleth created successfully")
+    print(f"Chart type: {type(chart)}")
+    print(f"Chart dimensions: {chart.drawWidth} x {chart.drawHeight}")
+
+    return chart
 
 def example_dataframe_integration():
     """
     Example 4: Integration with DataFrame-based chart generation.
-    
+
     This example shows how to use the DataFrame integration methods
     with bivariate choropleth maps.
     """
     print("\n=== Example 4: DataFrame Integration ===")
-    
-    # Initialize chart generator
+
     chart_gen = ChartGenerator()
-    
-    # Create sample data
     data = create_sample_data()
-    
-    try:
-        # Create bivariate choropleth using DataFrame method
-        chart = chart_gen.generate_chart_from_dataframe(
-            df=data,
-            chart_type='bivariate_choropleth',
-            x_column='state',
-            y_columns=['population_density', 'median_income'],
-            title="DataFrame Integration Example",
-            width=10.0,
-            height=8.0
-        )
-        
-        print("✓ DataFrame integration bivariate choropleth created successfully")
-        print(f"Chart type: {type(chart)}")
-        print(f"Chart dimensions: {chart.drawWidth} x {chart.drawHeight}")
-        
-        return chart
-        
-    except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-        print(f"✗ Error creating DataFrame integration chart: {e}")
-        return None
+
+    chart = chart_gen.generate_chart_from_dataframe(
+        df=data,
+        chart_type='bivariate_choropleth',
+        x_column='state',
+        y_columns=['population_density', 'median_income'],
+        title="DataFrame Integration Example",
+        width=10.0,
+        height=8.0
+    )
+
+    print("✓ DataFrame integration bivariate choropleth created successfully")
+    print(f"Chart type: {type(chart)}")
+    print(f"Chart dimensions: {chart.drawWidth} x {chart.drawHeight}")
+
+    return chart
 
 def example_advanced_choropleth():
     """
     Example 5: Advanced choropleth with classification options.
-    
+
     This example demonstrates the advanced choropleth functionality
     with different classification methods.
     """
     print("\n=== Example 5: Advanced Choropleth with Classification ===")
-    
-    # Initialize chart generator
+
     chart_gen = ChartGenerator()
-    
-    # Create sample data
     data = create_sample_data()
     geodata = create_sample_geodata()
-    
-    try:
-        # Create advanced choropleth with quantile classification
-        chart = chart_gen.create_advanced_choropleth(
-            data=data,
-            geodata=geodata,
-            location_column='state',
-            value_column='population_density',
-            title="Advanced Choropleth: Population Density (Quantile Classification)",
-            width=12.0,
-            height=10.0,
-            classification='quantiles',
-            bins=5,
-            color_scheme='YlOrRd'
-        )
-        
-        print("✓ Advanced choropleth with classification created successfully")
-        print(f"Chart type: {type(chart)}")
-        print(f"Chart dimensions: {chart.drawWidth} x {chart.drawHeight}")
-        
-        return chart
-        
-    except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-        print(f"✗ Error creating advanced choropleth: {e}")
-        return None
+
+    chart = chart_gen.create_advanced_choropleth(
+        data=data,
+        geodata=geodata,
+        location_column='state',
+        value_column='population_density',
+        title="Advanced Choropleth: Population Density (Quantile Classification)",
+        width=12.0,
+        height=10.0,
+        classification='quantiles',
+        bins=5,
+        color_scheme='YlOrRd'
+    )
+
+    print("✓ Advanced choropleth with classification created successfully")
+    print(f"Chart type: {type(chart)}")
+    print(f"Chart dimensions: {chart.drawWidth} x {chart.drawHeight}")
+
+    return chart
 
 def run_all_examples():
     """
@@ -302,61 +256,49 @@ def run_all_examples():
 def create_report_with_bivariate_maps():
     """
     Example 6: Create a complete report section with bivariate choropleth maps.
-    
+
     This example shows how to integrate bivariate choropleth maps
     into the complete reporting system.
     """
     print("\n=== Example 6: Report Integration ===")
-    
-    # Initialize chart generator
+
     chart_gen = ChartGenerator()
-    
-    # Create sample data
     data = create_sample_data()
-    
-    try:
-        # Create multiple charts for the report
-        charts = []
-        
-        # Chart 1: Basic bivariate choropleth
-        chart1 = chart_gen.create_bivariate_choropleth(
-            data=data,
-            location_column='state',
-            value_column1='population_density',
-            value_column2='median_income',
-            title="Population Density vs Median Income",
-            width=8.0,
-            height=6.0
-        )
-        charts.append(chart1)
-        
-        # Chart 2: Scatter plot for comparison
-        chart2 = chart_gen.create_scatter_plot(
-            data=data,
-            x_column='population_density',
-            y_column='median_income',
-            title="Population Density vs Median Income (Scatter)",
-            width=8.0,
-            height=6.0
-        )
-        charts.append(chart2)
-        
-        # Create report section
-        report_section = chart_gen.create_chart_section(
-            title="Geographic Analysis: Population and Income Patterns",
-            charts=charts,
-            description="This section analyzes the relationship between population density and median income across different states using bivariate choropleth maps and supporting visualizations."
-        )
-        
-        print("✓ Report section with bivariate maps created successfully")
-        print(f"Number of charts in section: {len(charts)}")
-        print(f"Report section length: {len(report_section)} elements")
-        
-        return report_section
-        
-    except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-        print(f"✗ Error creating report section: {e}")
-        return None
+
+    charts = []
+
+    chart1 = chart_gen.create_bivariate_choropleth(
+        data=data,
+        location_column='state',
+        value_column1='population_density',
+        value_column2='median_income',
+        title="Population Density vs Median Income",
+        width=8.0,
+        height=6.0
+    )
+    charts.append(chart1)
+
+    chart2 = chart_gen.create_scatter_plot(
+        data=data,
+        x_column='population_density',
+        y_column='median_income',
+        title="Population Density vs Median Income (Scatter)",
+        width=8.0,
+        height=6.0
+    )
+    charts.append(chart2)
+
+    report_section = chart_gen.create_chart_section(
+        title="Geographic Analysis: Population and Income Patterns",
+        charts=charts,
+        description="This section analyzes the relationship between population density and median income across different states using bivariate choropleth maps and supporting visualizations."
+    )
+
+    print("✓ Report section with bivariate maps created successfully")
+    print(f"Number of charts in section: {len(charts)}")
+    print(f"Report section length: {len(report_section)} elements")
+
+    return report_section
 
 if __name__ == "__main__":
     """
