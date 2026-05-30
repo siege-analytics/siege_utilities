@@ -140,7 +140,7 @@ class MapChartMixin:
             return self._save_folium_map(m, "temp_choropleth_map.html",
                                         "Choropleth Map", width, height)
 
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
+        except (ValueError, TypeError, KeyError, IndexError, OSError) as e:
             log.error(f"Error creating choropleth map: {e}")
             return self._create_placeholder_chart(width, height, f"Map Error: {str(e)}")
 
@@ -231,7 +231,7 @@ class MapChartMixin:
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+        except (ValueError, TypeError, KeyError, IndexError) as e:
             log.error(f"Error creating bivariate choropleth with matplotlib: {e}")
             return self._create_placeholder_chart(width, height, f"Bivariate Choropleth Error: {str(e)}")
 
@@ -335,7 +335,7 @@ class MapChartMixin:
             legend_ax.set_ylabel(var2, fontsize=9, fontweight='bold')
             legend_ax.tick_params(length=0, labelsize=8)
 
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+        except (ValueError, TypeError, KeyError, IndexError) as e:
             log.warning(f"Could not add bivariate legend: {e}")
 
     def create_advanced_choropleth(self, data: Union[pd.DataFrame, Dict[str, Any]],
@@ -423,7 +423,7 @@ class MapChartMixin:
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+        except (ValueError, TypeError, KeyError, IndexError) as e:
             log.error(f"Error creating advanced choropleth: {e}")
             return self._create_placeholder_chart(width, height, f"Advanced Choropleth Error: {str(e)}")
 
@@ -523,7 +523,7 @@ class MapChartMixin:
             return self._save_folium_map(m, "temp_marker_map.html",
                                         "Marker Map", width, height)
 
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
+        except (ValueError, TypeError, KeyError, IndexError, OSError) as e:
             log.error(f"Error creating marker map: {e}")
             return self._create_placeholder_chart(width, height, f"Marker Map Error: {str(e)}")
 
@@ -596,7 +596,7 @@ class MapChartMixin:
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+        except (ValueError, TypeError, KeyError, IndexError) as e:
             log.error(f"Error creating 3D map: {e}")
             return self._create_placeholder_chart(width, height, f"3D Map Error: {str(e)}")
 
@@ -669,7 +669,7 @@ class MapChartMixin:
             return self._save_folium_map(m, "temp_heatmap.html",
                                         "Heatmap", width, height)
 
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
+        except (ValueError, TypeError, KeyError, IndexError, OSError) as e:
             log.error(f"Error creating heatmap: {e}")
             return self._create_placeholder_chart(width, height, f"Heatmap Error: {str(e)}")
 
@@ -765,7 +765,7 @@ class MapChartMixin:
             return self._save_folium_map(m, "temp_cluster_map.html",
                                         "Cluster Map", width, height)
 
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
+        except (ValueError, TypeError, KeyError, IndexError, OSError) as e:
             log.error(f"Error creating cluster map: {e}")
             return self._create_placeholder_chart(width, height, f"Cluster Map Error: {str(e)}")
 
@@ -868,7 +868,7 @@ class MapChartMixin:
             return self._save_folium_map(m, "temp_flow_map.html",
                                         "Flow Map", width, height)
 
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
+        except (ValueError, TypeError, KeyError, IndexError, OSError) as e:
             log.error(f"Error creating flow map: {e}")
             return self._create_placeholder_chart(width, height, f"Flow Map Error: {str(e)}")
 
@@ -971,6 +971,6 @@ class MapChartMixin:
             return self._save_folium_map(m, "temp_bivariate_choropleth.html",
                                         "Bivariate Choropleth", width, height)
 
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
+        except (ValueError, TypeError, KeyError, IndexError, OSError) as e:
             log.error(f"Error creating bivariate choropleth map: {e}")
             return self._create_placeholder_chart(width, height, f"Bivariate Choropleth Error: {str(e)}")

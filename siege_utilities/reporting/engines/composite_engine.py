@@ -189,7 +189,7 @@ class CompositeChartMixin:
             ax.set_title(title, fontsize=13, fontweight='bold')
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+        except (ValueError, TypeError, KeyError, IndexError) as e:
             log.error(f"Error creating convergence diagram: {e}")
             return self._create_placeholder_chart(width, height, f"Convergence Diagram Error: {str(e)}")
 
@@ -256,7 +256,7 @@ class CompositeChartMixin:
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+        except (ValueError, TypeError, KeyError, IndexError) as e:
             log.error(f"Error creating dashboard: {e}")
             return self._create_placeholder_chart(width, height, f"Dashboard Error: {str(e)}")
 
@@ -308,7 +308,7 @@ class CompositeChartMixin:
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+        except (ValueError, TypeError, KeyError, IndexError) as e:
             log.error(f"Error creating DataFrame summary charts: {e}")
             return self._create_placeholder_chart(width, height, f"Summary Charts Error: {str(e)}")
 
@@ -324,7 +324,7 @@ class CompositeChartMixin:
                 ax.bar(labels, values, color=self.default_colors['primary'])
                 ax.set_title(title)
                 ax.grid(True, alpha=0.3)
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+        except (ValueError, TypeError, KeyError, IndexError) as e:
             log.error(f"Error creating bar subplot: {e}")
 
     def _create_line_subplot(self, ax, chart_config: Dict[str, Any], title: str):
@@ -341,7 +341,7 @@ class CompositeChartMixin:
 
             ax.set_title(title)
             ax.grid(True, alpha=0.3)
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+        except (ValueError, TypeError, KeyError, IndexError) as e:
             log.error(f"Error creating line subplot: {e}")
 
     def _create_pie_subplot(self, ax, chart_config: Dict[str, Any], title: str):
@@ -353,7 +353,7 @@ class CompositeChartMixin:
 
             ax.pie(values, labels=labels, autopct='%1.1f%%', colors=self.color_palette[:len(values)])
             ax.set_title(title)
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+        except (ValueError, TypeError, KeyError, IndexError) as e:
             log.error(f"Error creating pie subplot: {e}")
 
     def _create_scatter_subplot(self, ax, chart_config: Dict[str, Any], title: str):
@@ -366,5 +366,5 @@ class CompositeChartMixin:
             ax.scatter(x_values, y_values, alpha=0.6, color=self.default_colors['primary'])
             ax.set_title(title)
             ax.grid(True, alpha=0.3)
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+        except (ValueError, TypeError, KeyError, IndexError) as e:
             log.error(f"Error creating scatter subplot: {e}")

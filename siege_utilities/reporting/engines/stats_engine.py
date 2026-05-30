@@ -94,7 +94,7 @@ class StatsChartMixin:
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+        except (ValueError, TypeError, KeyError, IndexError) as e:
             log.error(f"Error creating heatmap: {e}")
             return self._create_placeholder_chart(width, height, f"Heatmap Error: {str(e)}")
 
@@ -148,7 +148,7 @@ class StatsChartMixin:
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+        except (ValueError, TypeError, KeyError, IndexError) as e:
             log.error(f"Error creating scatter plot: {e}")
             return self._create_placeholder_chart(width, height, f"Scatter Plot Error: {str(e)}")
 
@@ -222,6 +222,6 @@ class StatsChartMixin:
 
             return "<br/>".join(chart_lines)
 
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+        except (ValueError, TypeError, KeyError, IndexError) as e:
             log.error(f"Error creating text heatmap: {e}")
             return f"<i>Error creating text heatmap: {str(e)}</i>"
