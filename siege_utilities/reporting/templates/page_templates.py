@@ -4,6 +4,7 @@ Provides base templates and customization capabilities for different page types.
 """
 
 import logging
+import threading
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union, Callable
 from dataclasses import dataclass, field
@@ -383,13 +384,19 @@ class PageTemplateManager:
             'custom_elements': template.custom_elements
         }
 
-# Global instance
-template_manager = PageTemplateManager()
+_template_manager = None
+_template_manager_lock = threading.Lock()
+
 
 def get_template_manager() -> PageTemplateManager:
-    """Get the global template manager."""
-    return template_manager
+    """Get or create the global template manager."""
+    global _template_manager
+    if _template_manager is None:
+        with _template_manager_lock:
+            if _template_manager is None:
+                _template_manager = PageTemplateManager()
+    return _template_manager
 
 def get_template(template_name: str) -> Optional[PageTemplate]:
     """Get a template by name."""
-    return template_manager.get_template(template_name)
+    return get_template_manager().get_template(template_name)
