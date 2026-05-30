@@ -155,16 +155,11 @@ def load_database_config(db_name: str, config_directory: str = "config") -> Opti
         log_warning(f"Database config not found: {config_file}")
         return None
 
-    try:
-        with open(config_file, 'r', encoding='utf-8') as f:
-            config = json.load(f)
+    with open(config_file, 'r', encoding='utf-8') as f:
+        config = json.load(f)
 
-        log_info(f"Loaded database config: {db_name}")
-        return config
-
-    except (OSError, json.JSONDecodeError) as e:
-        log_error(f"Error loading database config {config_file}: {e}")
-        return None
+    log_info(f"Loaded database config: {db_name}")
+    return config
 
 
 def get_spark_database_options(db_name: str, config_directory: str = "config") -> Optional[Dict[str, str]]:
@@ -325,7 +320,7 @@ def create_spark_session_with_databases(app_name: str = "SiegeAnalytics",
         config_directory: Directory containing config files
 
     Returns:
-        Configured Spark session or None if PySpark not available
+        Configured Spark session.
 
     Raises:
         ValueError: If a database config declares a ``connection_type`` for which
@@ -342,9 +337,10 @@ def create_spark_session_with_databases(app_name: str = "SiegeAnalytics",
 
     try:
         from pyspark.sql import SparkSession
-    except ImportError:
-        log_warning("PySpark not available. Install with: pip install pyspark")
-        return None
+    except ImportError as e:
+        raise ImportError(
+            "PySpark not available. Install with: pip install pyspark"
+        ) from e
 
     # Build Spark session
     builder = SparkSession.builder.appName(app_name)

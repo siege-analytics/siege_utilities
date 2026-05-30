@@ -170,17 +170,12 @@ def load_connection_profile(
     if not config_file.exists():
         log_warning(f"Connection profile not found: {config_file}")
         return None
-    
-    try:
-        with open(config_file, 'r', encoding='utf-8') as f:
-            profile = json.load(f)
 
-        log_info(f"Loaded connection profile: {connection_id}")
-        return profile
-        
-    except (OSError, json.JSONDecodeError) as e:
-        log_error(f"Error loading connection profile {config_file}: {e}")
-        return None
+    with open(config_file, 'r', encoding='utf-8') as f:
+        profile = json.load(f)
+
+    log_info(f"Loaded connection profile: {connection_id}")
+    return profile
 
 
 def find_connection_by_name(
@@ -281,50 +276,43 @@ def update_connection_profile(
     connection_id: str,
     updates: Dict[str, Any],
     config_directory: str = "config"
-) -> bool:
+) -> None:
     """
     Update an existing connection profile.
-    
+
     Args:
         connection_id: Connection ID to update
         updates: Dictionary of updates to apply
         config_directory: Directory containing config files
-        
-    Returns:
-        True if successful, False otherwise
-        
+
+    Raises:
+        FileNotFoundError: If the connection profile does not exist.
+        OSError: On filesystem failures.
+        json.JSONDecodeError: If the profile file is corrupt.
+
     Example:
-        >>> success = siege_utilities.update_connection_profile(
+        >>> siege_utilities.update_connection_profile(
         ...     "uuid-here",
         ...     {"metadata": {"status": "inactive"}}
         ... )
     """
-    
+
     profile = load_connection_profile(connection_id, config_directory)
-    
+
     if profile is None:
-        log_error(f"Cannot update - connection profile not found: {connection_id}")
-        return False
-    
-    try:
-        # Apply updates recursively
-        def update_nested_dict(target: Dict, updates: Dict):
-            for key, value in updates.items():
-                if key in target and isinstance(target[key], dict) and isinstance(value, dict):
-                    update_nested_dict(target[key], value)
-                else:
-                    target[key] = value
-        
-        update_nested_dict(profile, updates)
-        
-        # Save updated profile
-        save_connection_profile(profile, config_directory)
-        log_info(f"Updated connection profile: {connection_id}")
-        return True
-        
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as e:
-        log_error(f"Error updating connection profile {connection_id}: {e}")
-        return False
+        raise FileNotFoundError(f"Cannot update - connection profile not found: {connection_id}")
+
+    def update_nested_dict(target: Dict, updates: Dict):
+        for key, value in updates.items():
+            if key in target and isinstance(target[key], dict) and isinstance(value, dict):
+                update_nested_dict(target[key], value)
+            else:
+                target[key] = value
+
+    update_nested_dict(profile, updates)
+
+    save_connection_profile(profile, config_directory)
+    log_info(f"Updated connection profile: {connection_id}")
 
 
 def verify_connection_profile(

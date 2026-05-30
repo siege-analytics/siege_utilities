@@ -410,28 +410,21 @@ def load_user_profile(username: str, config_dir: Optional[Path] = None) -> Optio
         DeprecationWarning,
         stacklevel=2,
     )
-    try:
-        config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "users"
-        config_file = config_dir / f"{username}.yaml"
-        
-        if not config_file.exists():
-            logger.warning(f"User profile not found: {config_file}")
-            return None
-            
-        with open(config_file, 'r', encoding='utf-8') as f:
-            data = yaml.safe_load(f)
+    config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "users"
+    config_file = config_dir / f"{username}.yaml"
 
-        if not isinstance(data, dict):
-            logger.error(
-                "User profile %s is not a YAML mapping (got %s); cannot load.",
-                config_file, type(data).__name__,
-            )
-            return None
-        return UserProfile(**data)
-
-    except (OSError, yaml.YAMLError, ValueError):
-        logger.exception("Failed to load user profile %s", username)
+    if not config_file.exists():
+        logger.warning(f"User profile not found: {config_file}")
         return None
+
+    with open(config_file, 'r', encoding='utf-8') as f:
+        data = yaml.safe_load(f)
+
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"User profile {config_file} is not a YAML mapping (got {type(data).__name__})"
+        )
+    return UserProfile(**data)
 
 
 def _convert_to_yaml_safe(obj: Any) -> Any:
@@ -450,7 +443,7 @@ def _convert_to_yaml_safe(obj: Any) -> Any:
         return obj
 
 
-def save_user_profile(profile: UserProfile, username: str, config_dir: Optional[Path] = None) -> bool:
+def save_user_profile(profile: UserProfile, username: str, config_dir: Optional[Path] = None) -> None:
     """
     Save user profile to YAML file (legacy compatibility).
 
@@ -462,32 +455,26 @@ def save_user_profile(profile: UserProfile, username: str, config_dir: Optional[
         username: Username to save as
         config_dir: Configuration directory
 
-    Returns:
-        True if successful, False otherwise
+    Raises:
+        OSError: On filesystem failures.
+        yaml.YAMLError: On serialization failures.
     """
     warnings.warn(
         "save_user_profile() is deprecated and will be removed in v4.0.0. Use HydraConfigManager.save_user() for the modern User model.",
         DeprecationWarning,
         stacklevel=2,
     )
-    try:
-        config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "users"
-        config_dir.mkdir(parents=True, exist_ok=True)
-        config_file = config_dir / f"{username}.yaml"
+    config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "users"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config_file = config_dir / f"{username}.yaml"
 
-        # Convert to dict and make YAML-safe
-        profile_data = profile.model_dump()
-        profile_data = _convert_to_yaml_safe(profile_data)
+    profile_data = profile.model_dump()
+    profile_data = _convert_to_yaml_safe(profile_data)
 
-        with open(config_file, 'w', encoding='utf-8') as f:
-            yaml.dump(profile_data, f, default_flow_style=False)
+    with open(config_file, 'w', encoding='utf-8') as f:
+        yaml.dump(profile_data, f, default_flow_style=False)
 
-        logger.info(f"Saved user profile: {config_file}")
-        return True
-
-    except (OSError, yaml.YAMLError) as e:
-        logger.error(f"Failed to save user profile {username}: {e}")
-        return False
+    logger.info(f"Saved user profile: {config_file}")
 
 
 def get_download_directory(username: str, config_dir: Optional[Path] = None) -> Path:
@@ -529,31 +516,24 @@ def load_client_profile(client_code: str, config_dir: Optional[Path] = None) -> 
         DeprecationWarning,
         stacklevel=2,
     )
-    try:
-        config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "clients"
-        config_file = config_dir / f"{client_code}.yaml"
-        
-        if not config_file.exists():
-            logger.warning(f"Client profile not found: {config_file}")
-            return None
-            
-        with open(config_file, 'r', encoding='utf-8') as f:
-            data = yaml.safe_load(f)
+    config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "clients"
+    config_file = config_dir / f"{client_code}.yaml"
 
-        if not isinstance(data, dict):
-            logger.error(
-                "Client profile %s is not a YAML mapping (got %s); cannot load.",
-                config_file, type(data).__name__,
-            )
-            return None
-        return ClientProfile(**data)
-
-    except (OSError, yaml.YAMLError, ValueError):
-        logger.exception("Failed to load client profile %s", client_code)
+    if not config_file.exists():
+        logger.warning(f"Client profile not found: {config_file}")
         return None
 
+    with open(config_file, 'r', encoding='utf-8') as f:
+        data = yaml.safe_load(f)
 
-def save_client_profile(profile: ClientProfile, config_dir: Optional[Path] = None) -> bool:
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"Client profile {config_file} is not a YAML mapping (got {type(data).__name__})"
+        )
+    return ClientProfile(**data)
+
+
+def save_client_profile(profile: ClientProfile, config_dir: Optional[Path] = None) -> None:
     """
     Save client profile to YAML file (legacy compatibility).
 
@@ -564,32 +544,26 @@ def save_client_profile(profile: ClientProfile, config_dir: Optional[Path] = Non
         profile: ClientProfile object to save
         config_dir: Configuration directory
 
-    Returns:
-        True if successful, False otherwise
+    Raises:
+        OSError: On filesystem failures.
+        yaml.YAMLError: On serialization failures.
     """
     warnings.warn(
         "save_client_profile() is deprecated and will be removed in v4.0.0. Use HydraConfigManager.save_client() for the modern Client model.",
         DeprecationWarning,
         stacklevel=2,
     )
-    try:
-        config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "clients"
-        config_dir.mkdir(parents=True, exist_ok=True)
-        config_file = config_dir / f"{profile.client_code}.yaml"
+    config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "clients"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config_file = config_dir / f"{profile.client_code}.yaml"
 
-        # Convert to dict and make YAML-safe
-        profile_data = profile.model_dump()
-        profile_data = _convert_to_yaml_safe(profile_data)
+    profile_data = profile.model_dump()
+    profile_data = _convert_to_yaml_safe(profile_data)
 
-        with open(config_file, 'w', encoding='utf-8') as f:
-            yaml.dump(profile_data, f, default_flow_style=False)
+    with open(config_file, 'w', encoding='utf-8') as f:
+        yaml.dump(profile_data, f, default_flow_style=False)
 
-        logger.info(f"Saved client profile: {config_file}")
-        return True
-
-    except (OSError, yaml.YAMLError) as e:
-        logger.error(f"Failed to save client profile {profile.client_code}: {e}")
-        return False
+    logger.info(f"Saved client profile: {config_file}")
 
 
 class SiegeConfig:
@@ -609,13 +583,13 @@ class SiegeConfig:
         """Get client profile."""
         return load_client_profile(client_code, self.config_dir / "profiles" / "clients")
     
-    def save_user_profile(self, profile: UserProfile, username: str) -> bool:
+    def save_user_profile(self, profile: UserProfile, username: str) -> None:
         """Save user profile."""
-        return save_user_profile(profile, username, self.config_dir / "profiles" / "users")
-    
-    def save_client_profile(self, profile: ClientProfile) -> bool:
+        save_user_profile(profile, username, self.config_dir / "profiles" / "users")
+
+    def save_client_profile(self, profile: ClientProfile) -> None:
         """Save client profile."""
-        return save_client_profile(profile, self.config_dir / "profiles" / "clients")
+        save_client_profile(profile, self.config_dir / "profiles" / "clients")
 
 
 # Additional utility functions
@@ -646,52 +620,46 @@ def list_client_profiles(config_dir: Optional[Path] = None) -> List[str]:
         raise
 
 
-def export_config_yaml(config_data: Dict[str, Any], output_file: Path) -> bool:
+def export_config_yaml(config_data: Dict[str, Any], output_file: Path) -> None:
     """
     Export configuration data to YAML file (legacy compatibility).
-    
+
     Args:
         config_data: Configuration data to export
         output_file: Output file path
-        
-    Returns:
-        True if successful, False otherwise
+
+    Raises:
+        OSError: On filesystem failures.
+        yaml.YAMLError: On serialization failures.
     """
-    try:
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(output_file, 'w', encoding='utf-8') as f:
-            yaml.dump(config_data, f, default_flow_style=False)
-            
-        logger.info(f"Exported configuration to: {output_file}")
-        return True
-        
-    except (OSError, yaml.YAMLError) as e:
-        logger.error(f"Failed to export configuration: {e}")
-        return False
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(output_file, 'w', encoding='utf-8') as f:
+        yaml.dump(config_data, f, default_flow_style=False)
+
+    logger.info(f"Exported configuration to: {output_file}")
 
 
 def import_config_yaml(input_file: Path) -> Optional[Dict[str, Any]]:
     """
     Import configuration data from YAML file (legacy compatibility).
-    
+
     Args:
         input_file: Input file path
-        
+
     Returns:
-        Configuration data or None if failed
+        Configuration data or None if file does not exist.
+
+    Raises:
+        OSError: On filesystem failures (other than file not found).
+        yaml.YAMLError: On parsing failures.
     """
-    try:
-        if not input_file.exists():
-            logger.warning(f"Configuration file not found: {input_file}")
-            return None
-            
-        with open(input_file, 'r', encoding='utf-8') as f:
-            config_data = yaml.safe_load(f)
-            
-        logger.info(f"Imported configuration from: {input_file}")
-        return config_data
-        
-    except (OSError, yaml.YAMLError) as e:
-        logger.error(f"Failed to import configuration: {e}")
+    if not input_file.exists():
+        logger.warning(f"Configuration file not found: {input_file}")
         return None
+
+    with open(input_file, 'r', encoding='utf-8') as f:
+        config_data = yaml.safe_load(f)
+
+    logger.info(f"Imported configuration from: {input_file}")
+    return config_data

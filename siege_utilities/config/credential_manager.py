@@ -500,7 +500,7 @@ class CredentialManager:
     def store_credential(self, service: str, username: str, value: str,
                         field: str = "password", backend: str = "1password",
                         vault: Optional[str] = None,
-                        account: Optional[str] = None) -> bool:
+                        account: Optional[str] = None) -> None:
         """
         Store credential in specified backend.
 
@@ -513,163 +513,146 @@ class CredentialManager:
             vault: 1Password vault override (falls back to default_vault)
             account: 1Password account override (falls back to default_account)
 
-        Returns:
-            True if successful, False otherwise
+        Raises:
+            ValueError: If the requested backend is not available or unknown.
+            RuntimeError: If the backend fails to store the credential.
+            subprocess.SubprocessError: On CLI transport failures.
+            OSError: On filesystem failures.
         """
         if backend == '1password' and self.available_backends.get('1password'):
-            return self._store_in_1password(service, username, value, field,
-                                            vault=vault, account=account)
+            self._store_in_1password(service, username, value, field,
+                                     vault=vault, account=account)
         elif backend == 'keychain' and self.available_backends.get('keychain'):
-            return self._store_in_keychain(service, username, value)
+            self._store_in_keychain(service, username, value)
         elif backend == 'env':
-            return self._store_in_env(service, username, value, field)
+            self._store_in_env(service, username, value, field)
         else:
-            log_error(f"Backend '{backend}' not available")
-            return False
+            raise ValueError(f"Backend '{backend}' not available. Available: "
+                           f"{[k for k, v in self.available_backends.items() if v]}")
     
     def _store_in_1password(self, service: str, username: str, value: str, field: str,
                             vault: Optional[str] = None,
-                            account: Optional[str] = None) -> bool:
-        """Store credential in 1Password."""
-        try:
-            op_flags = self._build_op_flags(vault=vault, account=account)
+                            account: Optional[str] = None) -> None:
+        """Store credential in 1Password.
 
-            # Check if item exists, update or create
-            existing = self._get_from_1password(service, field, vault=vault, account=account)
+        Raises:
+            RuntimeError: If the 1Password CLI returns a non-zero exit code.
+            subprocess.SubprocessError: On CLI transport failures (timeout, etc.).
+            OSError: On filesystem failures.
+        """
+        op_flags = self._build_op_flags(vault=vault, account=account)
 
-            if existing:
-                cmd = ['op', 'item', 'edit', service, f'{field}[password]'] + op_flags
-                result = subprocess.run(
-                    cmd, input=value, capture_output=True, text=True, timeout=60,
-                )
-            else:
-                cmd = [
-                    'op', 'item', 'create',
-                    '--category=login',
-                    f'--title={service}',
-                    f'username={username}',
-                    f'{field}[password]',
-                    f'--tags=siege-utilities,{service}'
-                ] + op_flags
-                result = subprocess.run(
-                    cmd, input=value, capture_output=True, text=True, timeout=60,
-                )
-            
-            if result.returncode == 0:
-                log_info(f"Stored {field} for {service} in 1Password")
-                return True
-            else:
-                log_error(f"Failed to store in 1Password: {_redact(result.stderr)}")
-                return False
-                
-        except (subprocess.SubprocessError, OSError, KeyError) as e:
-            log_error(f"Error storing in 1Password: {e}")
-            return False
+        existing = self._get_from_1password(service, field, vault=vault, account=account)
+
+        if existing:
+            cmd = ['op', 'item', 'edit', service, f'{field}[password]'] + op_flags
+            result = subprocess.run(
+                cmd, input=value, capture_output=True, text=True, timeout=60,
+            )
+        else:
+            cmd = [
+                'op', 'item', 'create',
+                '--category=login',
+                f'--title={service}',
+                f'username={username}',
+                f'{field}[password]',
+                f'--tags=siege-utilities,{service}'
+            ] + op_flags
+            result = subprocess.run(
+                cmd, input=value, capture_output=True, text=True, timeout=60,
+            )
+
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"Failed to store {field} for {service} in 1Password "
+                f"(exit {result.returncode}): {_redact(result.stderr)}"
+            )
+        log_info(f"Stored {field} for {service} in 1Password")
     
-    def _store_in_keychain(self, service: str, username: str, value: str) -> bool:
-        """Store credential in Apple Keychain."""
-        try:
-            result = subprocess.run([
-                'security', 'add-generic-password',
-                '-s', service,
-                '-a', username,
-                '-w', value,
-                '-U'  # Update if exists
-            ], capture_output=True, text=True, timeout=60)
-            
-            if result.returncode == 0:
-                log_info(f"Stored credential for {service} in Keychain")
-                return True
-            else:
-                log_error(f"Failed to store in Keychain: {_redact(result.stderr)}")
-                return False
-                
-        except (subprocess.SubprocessError, OSError) as e:
-            log_error(f"Error storing in Keychain: {e}")
-            return False
+    def _store_in_keychain(self, service: str, username: str, value: str) -> None:
+        """Store credential in Apple Keychain.
+
+        Raises:
+            RuntimeError: If the security CLI returns a non-zero exit code.
+            subprocess.SubprocessError: On CLI transport failures (timeout, etc.).
+            OSError: On filesystem failures.
+        """
+        result = subprocess.run([
+            'security', 'add-generic-password',
+            '-s', service,
+            '-a', username,
+            '-w', value,
+            '-U'  # Update if exists
+        ], capture_output=True, text=True, timeout=60)
+
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"Failed to store credential for {service} in Keychain "
+                f"(exit {result.returncode}): {_redact(result.stderr)}"
+            )
+        log_info(f"Stored credential for {service} in Keychain")
     
-    def _store_in_env(self, service: str, username: str, value: str, field: str) -> bool:
+    def _store_in_env(self, service: str, username: str, value: str, field: str) -> None:
         """Store credential as environment variable (session only)."""
         env_var = f"{service.upper()}_{field.upper()}".replace('-', '_')
         os.environ[env_var] = value
         log_info(f"Stored {field} for {service} as environment variable {env_var}")
-        return True
     
     def store_google_analytics_credentials(self, credentials_data: Dict[str, Any],
                                          item_title: str = "Google Analytics API",
-                                         vault: Optional[str] = None) -> bool:
+                                         vault: Optional[str] = None) -> None:
         """
         Store Google Analytics OAuth credentials.
-        
+
         Args:
             credentials_data: OAuth2 credentials from Google Cloud Console
             item_title: Title for the credential item
             vault: 1Password vault (uses default if not specified)
-            
-        Returns:
-            True if successful, False otherwise
+
+        Raises:
+            ValueError: If 1Password is not available or credentials format is invalid.
+            RuntimeError: If the 1Password CLI fails to store the item.
+            subprocess.SubprocessError: On CLI transport failures.
+            OSError: On filesystem failures.
         """
         if not self.available_backends.get('1password'):
-            log_error("1Password not available for storing GA credentials")
-            return False
-        
-        vault = vault or self.default_vault
-        
-        try:
-            if 'installed' not in credentials_data:
-                log_error("Invalid Google Analytics credentials format")
-                return False
-            
-            creds = credentials_data['installed']
-            
-            # Create comprehensive 1Password item with both individual fields and raw JSON
-            import json
-            raw_json = json.dumps(credentials_data, indent=2)
-            
-            cmd = [
-                'op', 'item', 'create',
-                '--category=API Credential',
-                f'--title={item_title}',
-                f'--vault={vault}',
-                f'client_id={creds["client_id"]}',
-                f'client_secret={creds["client_secret"]}',
-                f'auth_uri={creds["auth_uri"]}',
-                f'token_uri={creds["token_uri"]}',
-                f'raw_json[text]={raw_json}',
-                '--tags=google-analytics,api,oauth2,siege-utilities'
-            ]
-            
-            # Add redirect URIs if present
-            if 'redirect_uris' in creds:
-                redirect_uris = ','.join(creds['redirect_uris'])
-                cmd.append(f'redirect_uris={redirect_uris}')
-            
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-            
-            if result.returncode == 0:
-                log_info(f"Stored Google Analytics credentials: '{item_title}'")
+            raise ValueError("1Password not available for storing GA credentials")
 
-                # Verify storage. get_credential now raises on total miss
-                # (SU-1, #801); treat the raise the same as the empty-value
-                # path -- the prior contract was "verification failed ->
-                # return False" and that's preserved.
-                try:
-                    test_client_id = self.get_credential('google-analytics', 'api', 'client_id')
-                except CredentialNotFoundError:
-                    test_client_id = None
-                if test_client_id:
-                    log_info("Google Analytics credential storage verified")
-                    return True
-                else:
-                    log_warning("Could not verify GA credential storage")
-                    return False
-            else:
-                log_error(f"Failed to store GA credentials: {_redact(result.stderr)}")
-                return False
-                
-        except (subprocess.SubprocessError, OSError, KeyError, TypeError) as e:
-            log_error(f"Error storing Google Analytics credentials: {e}")
-            return False
+        vault = vault or self.default_vault
+
+        if 'installed' not in credentials_data:
+            raise ValueError("Invalid Google Analytics credentials format: missing 'installed' key")
+
+        creds = credentials_data['installed']
+
+        raw_json = json.dumps(credentials_data, indent=2)
+
+        cmd = [
+            'op', 'item', 'create',
+            '--category=API Credential',
+            f'--title={item_title}',
+            f'--vault={vault}',
+            f'client_id={creds["client_id"]}',
+            f'client_secret={creds["client_secret"]}',
+            f'auth_uri={creds["auth_uri"]}',
+            f'token_uri={creds["token_uri"]}',
+            f'raw_json[text]={raw_json}',
+            '--tags=google-analytics,api,oauth2,siege-utilities'
+        ]
+
+        if 'redirect_uris' in creds:
+            redirect_uris = ','.join(creds['redirect_uris'])
+            cmd.append(f'redirect_uris={redirect_uris}')
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"Failed to store GA credentials (exit {result.returncode}): "
+                f"{_redact(result.stderr)}"
+            )
+
+        log_info(f"Stored Google Analytics credentials: '{item_title}'")
     
     def get_google_analytics_credentials(self, item_title: str = "Google Analytics API") -> Tuple[str, str]:
         """
@@ -898,7 +881,7 @@ def get_credential(service: str, username: str, field: str = "password",
 def store_credential(service: str, username: str, value: str,
                     field: str = "password", backend: str = "1password",
                     vault: Optional[str] = None,
-                    account: Optional[str] = None) -> bool:
+                    account: Optional[str] = None) -> None:
     """
     Store credential using default credential manager.
 
@@ -911,54 +894,54 @@ def store_credential(service: str, username: str, value: str,
         vault: 1Password vault (overrides default "Private")
         account: 1Password account shorthand or UUID
 
-    Returns:
-        True if successful
+    Raises:
+        ValueError: If the requested backend is not available.
+        RuntimeError: If the backend fails to store the credential.
+        subprocess.SubprocessError: On CLI transport failures.
+        OSError: On filesystem failures.
     """
     manager = _get_default_manager(vault=vault, account=account)
-    return manager.store_credential(service, username, value, field, backend,
-                                    vault=vault, account=account)
+    manager.store_credential(service, username, value, field, backend,
+                             vault=vault, account=account)
 
 
 def store_ga_credentials_from_file(credentials_file: Union[str, Path],
                                  item_title: str = "Google Analytics API - Multi-Client Reporter",
                                  vault: str = "Private",
-                                 delete_file: bool = True) -> bool:
+                                 delete_file: bool = True) -> None:
     """
     Store Google Analytics credentials from JSON file.
-    
+
     Args:
         credentials_file: Path to OAuth2 JSON file
         item_title: Title for 1Password item
         vault: 1Password vault
-        delete_file: Whether to delete source file
-        
-    Returns:
-        True if successful
-    """
-    try:
-        credentials_file = Path(credentials_file)
-        
-        if not credentials_file.exists():
-            log_error(f"Credentials file not found: {credentials_file}")
-            return False
-        
-        with open(credentials_file, 'r', encoding='utf-8') as f:
-            credentials_data = json.load(f)
+        delete_file: Whether to delete source file after successful storage
 
-        manager = CredentialManager(default_vault=vault)
-        success = manager.store_google_analytics_credentials(
-            credentials_data, item_title, vault
-        )
-        
-        if success and delete_file:
-            credentials_file.unlink()
-            log_info(f"Deleted source credentials file: {credentials_file}")
-        
-        return success
-        
-    except (OSError, json.JSONDecodeError, KeyError, subprocess.SubprocessError) as e:
-        log_error(f"Error storing GA credentials from file: {e}")
-        return False
+    Raises:
+        FileNotFoundError: If the credentials file does not exist.
+        json.JSONDecodeError: If the file is not valid JSON.
+        ValueError: If 1Password is not available or credentials format is invalid.
+        RuntimeError: If the 1Password CLI fails.
+        subprocess.SubprocessError: On CLI transport failures.
+        OSError: On filesystem failures.
+    """
+    credentials_file = Path(credentials_file)
+
+    if not credentials_file.exists():
+        raise FileNotFoundError(f"Credentials file not found: {credentials_file}")
+
+    with open(credentials_file, 'r', encoding='utf-8') as f:
+        credentials_data = json.load(f)
+
+    manager = CredentialManager(default_vault=vault)
+    manager.store_google_analytics_credentials(
+        credentials_data, item_title, vault
+    )
+
+    if delete_file:
+        credentials_file.unlink()
+        log_info(f"Deleted source credentials file: {credentials_file}")
 
 
 def get_ga_credentials() -> Tuple[str, str]:
@@ -985,93 +968,71 @@ def credential_status() -> Dict[str, Dict[str, Any]]:
 
 
 def store_ga_service_account_from_file(credentials_file: Union[str, Path],
-                                      item_title: str = "Google Analytics Service Account", 
+                                      item_title: str = "Google Analytics Service Account",
                                       vault: str = "Private",
-                                      delete_file: bool = False) -> bool:
+                                      delete_file: bool = False) -> None:
     """
     Store Google Analytics service account credentials in 1Password.
-    
+
     Args:
         credentials_file: Path to service account JSON file
         item_title: Title for 1Password item
         vault: 1Password vault name
         delete_file: Whether to delete file after storing
-        
-    Returns:
-        True if successful
-    """
-    try:
-        credentials_file = Path(credentials_file)
-        
-        if not credentials_file.exists():
-            log_error(f"Service account file not found: {credentials_file}")
-            return False
-        
-        # Read service account JSON
-        with open(credentials_file, 'r', encoding='utf-8') as f:
-            service_account_data = json.load(f)
-        
-        # Validate service account format
-        required_fields = ['type', 'project_id', 'private_key_id', 'private_key', 'client_email']
-        if not all(field in service_account_data for field in required_fields):
-            log_error("Invalid service account credentials format")
-            return False
-        
-        if service_account_data.get('type') != 'service_account':
-            log_error("Not a service account credentials file")
-            return False
-        
-        # Create comprehensive 1Password item with service account data
-        raw_json = json.dumps(service_account_data, indent=2)
-        
-        cmd = [
-            'op', 'item', 'create',
-            '--category=API Credential',
-            f'--title={item_title}',
-            f'--vault={vault}',
-            f'project_id={service_account_data["project_id"]}',
-            f'client_email={service_account_data["client_email"]}',
-            f'private_key_id={service_account_data["private_key_id"]}',
-            f'private_key[password]={service_account_data["private_key"]}',
-            f'raw_json[text]={raw_json}',
-            '--tags=google-analytics,service-account,ga4,siege-utilities'
-        ]
-        
-        # Add optional fields if present
-        if 'client_id' in service_account_data:
-            cmd.append(f'client_id={service_account_data["client_id"]}')
-        if 'auth_uri' in service_account_data:
-            cmd.append(f'auth_uri={service_account_data["auth_uri"]}')
-        if 'token_uri' in service_account_data:
-            cmd.append(f'token_uri={service_account_data["token_uri"]}')
-        
-        # Execute 1Password command — check=True raises on non-zero so
-        # we don't need to bind the result to a name.
-        subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=60)
 
-        log_info(f"Stored Google Analytics service account: '{item_title}'")
-        
-        # Verify storage by retrieving client_email
-        test_email = get_credential('google-analytics-sa', service_account_data['client_email'], 'client_email')
-        if test_email:
-            log_info("Service account credential storage verified")
-            
-            # Delete original file if requested
-            if delete_file:
-                credentials_file.unlink()
-                log_info(f"Deleted original file: {credentials_file}")
-            
-            return True
-        else:
-            log_warning("Could not verify service account storage (but likely successful)")
-            return True  # Still consider success since 1Password command succeeded
-            
-    except subprocess.CalledProcessError as e:
-        log_error(f"Failed to store service account credentials: {e.stderr}")
-        return False
-    except (OSError, json.JSONDecodeError, KeyError) as e:
-        log_error(f"Error storing service account credentials: {str(e)}")
-        return False
+    Raises:
+        FileNotFoundError: If the credentials file does not exist.
+        ValueError: If the file is not a valid service account JSON.
+        json.JSONDecodeError: If the file is not valid JSON.
+        subprocess.CalledProcessError: If the 1Password CLI fails.
+        OSError: On filesystem failures.
+    """
+    credentials_file = Path(credentials_file)
+
+    if not credentials_file.exists():
+        raise FileNotFoundError(f"Service account file not found: {credentials_file}")
+
+    with open(credentials_file, 'r', encoding='utf-8') as f:
+        service_account_data = json.load(f)
+
+    required_fields = ['type', 'project_id', 'private_key_id', 'private_key', 'client_email']
+    missing = [f for f in required_fields if f not in service_account_data]
+    if missing:
+        raise ValueError(f"Invalid service account credentials format, missing fields: {missing}")
+
+    if service_account_data.get('type') != 'service_account':
+        raise ValueError(
+            f"Not a service account credentials file (type={service_account_data.get('type')!r})"
+        )
+
+    raw_json = json.dumps(service_account_data, indent=2)
+
+    cmd = [
+        'op', 'item', 'create',
+        '--category=API Credential',
+        f'--title={item_title}',
+        f'--vault={vault}',
+        f'project_id={service_account_data["project_id"]}',
+        f'client_email={service_account_data["client_email"]}',
+        f'private_key_id={service_account_data["private_key_id"]}',
+        f'private_key[password]={service_account_data["private_key"]}',
+        f'raw_json[text]={raw_json}',
+        '--tags=google-analytics,service-account,ga4,siege-utilities'
+    ]
+
+    if 'client_id' in service_account_data:
+        cmd.append(f'client_id={service_account_data["client_id"]}')
+    if 'auth_uri' in service_account_data:
+        cmd.append(f'auth_uri={service_account_data["auth_uri"]}')
+    if 'token_uri' in service_account_data:
+        cmd.append(f'token_uri={service_account_data["token_uri"]}')
+
+    subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=60)
+    log_info(f"Stored Google Analytics service account: '{item_title}'")
+
+    if delete_file:
+        credentials_file.unlink()
+        log_info(f"Deleted original file: {credentials_file}")
 
 
 def get_ga_service_account_credentials() -> Dict[str, str]:
@@ -1102,10 +1063,9 @@ def get_ga_service_account_credentials() -> Dict[str, str]:
 
 def get_google_service_account_from_1password(item_title: str = "Google Analytics Service Account - Multi-Client Reporter",
                                               vault: Optional[str] = None,
-                                              account: Optional[str] = None) -> Optional[Dict[str, str]]:
+                                              account: Optional[str] = None) -> Dict[str, str]:
     """
     Get Google service account credentials from 1Password.
-    Based on working implementation from GA project.
 
     Args:
         item_title: Title of the 1Password item containing service account
@@ -1113,62 +1073,56 @@ def get_google_service_account_from_1password(item_title: str = "Google Analytic
         account: 1Password account shorthand or UUID
 
     Returns:
-        Service account credentials dictionary or None if not found
+        Service account credentials dictionary.
+
+    Raises:
+        subprocess.CalledProcessError: If the 1Password CLI fails to retrieve
+            one or more required fields.
+        subprocess.TimeoutExpired: If a CLI call times out.
+        OSError: On filesystem failures.
     """
-    try:
-        import subprocess
+    op_flags = []
+    if vault:
+        op_flags.append(f'--vault={vault}')
+    if account:
+        op_flags.append(f'--account={account}')
 
-        op_flags = []
-        if vault:
-            op_flags.append(f'--vault={vault}')
-        if account:
-            op_flags.append(f'--account={account}')
+    def get_field(field_name: str) -> str:
+        cmd = ['op', 'item', 'get', item_title, f'--field={field_name}', '--reveal'] + op_flags
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=60)
+        value = result.stdout.strip()
 
-        def get_field(field_name: str) -> str:
-            """Get a specific field from the 1Password item"""
-            cmd = ['op', 'item', 'get', item_title, f'--field={field_name}', '--reveal'] + op_flags
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=60)
-            value = result.stdout.strip()
-            
-            # Clean up private key - remove extra quotes and fix newlines
-            if field_name == 'private_key':
-                value = value.strip('"')  # Remove surrounding quotes
-                value = value.replace('\\n', '\n')  # Fix escaped newlines
-            
-            return value
-        
-        service_account = {
-            "type": "service_account",
-            "project_id": get_field('project_id'),
-            "private_key_id": get_field('private_key_id'),
-            "private_key": get_field('private_key'),
-            "client_email": get_field('client_email'),
-            "client_id": get_field('client_id'),
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs"
-        }
-        
-        log_info(f"Retrieved Google service account: {service_account['client_email']}")
-        return service_account
-        
-    except subprocess.CalledProcessError as e:
-        log_error(f"Failed to get Google service account from 1Password: {e}")
-        return None
-    except (ValueError, KeyError, AttributeError) as e:
-        log_error(f"Error retrieving Google service account: {e}")
-        return None
+        if field_name == 'private_key':
+            value = value.strip('"')
+            value = value.replace('\\n', '\n')
+
+        return value
+
+    service_account = {
+        "type": "service_account",
+        "project_id": get_field('project_id'),
+        "private_key_id": get_field('private_key_id'),
+        "private_key": get_field('private_key'),
+        "client_email": get_field('client_email'),
+        "client_id": get_field('client_id'),
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs"
+    }
+
+    log_info(f"Retrieved Google service account: {service_account['client_email']}")
+    return service_account
 
 
 def get_google_oauth_from_1password(
     item_title: str = "Google Analytics API - Multi-Client Reporter",
     vault: Optional[str] = None,
     account: Optional[str] = None,
-) -> Optional[Dict[str, str]]:
+) -> Dict[str, str]:
     """Get Google OAuth2 client credentials from 1Password.
 
-    Returns dict with client_id, client_secret, project_id, redirect_uri
-    suitable for GoogleAnalyticsConnector(auth_method="oauth2").
+    Returns dict with client_id, client_secret, and optionally project_id
+    and redirect_uri, suitable for GoogleAnalyticsConnector(auth_method="oauth2").
 
     Args:
         item_title: Title of the 1Password item containing OAuth2 credentials
@@ -1176,67 +1130,65 @@ def get_google_oauth_from_1password(
         account: 1Password account shorthand or UUID
 
     Returns:
-        Dict with OAuth2 credential fields, or None if not found
+        Dict with OAuth2 credential fields.
+
+    Raises:
+        CredentialNotFoundError: If client_id or client_secret cannot be
+            retrieved from the specified 1Password item.
+        subprocess.SubprocessError: On CLI transport failures (timeout, etc.).
+        OSError: On filesystem failures.
     """
-    try:
-        op_flags = []
-        if vault:
-            op_flags.append(f'--vault={vault}')
-        if account:
-            op_flags.append(f'--account={account}')
+    op_flags = []
+    if vault:
+        op_flags.append(f'--vault={vault}')
+    if account:
+        op_flags.append(f'--account={account}')
 
-        def get_field(field_name: str) -> Optional[str]:
-            cmd = ['op', 'item', 'get', item_title, f'--field={field_name}', '--reveal'] + op_flags
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-            if result.returncode == 0:
-                return result.stdout.strip()
-            return None
-
-        client_id = get_field('client_id')
-        client_secret = get_field('client_secret')
-
-        if not client_id or not client_secret:
-            log_warning(f"Could not retrieve OAuth2 credentials from 1Password item '{item_title}'")
-            return None
-
-        creds = {
-            'client_id': client_id,
-            'client_secret': client_secret,
-        }
-
-        # Get redirect_uri (stored as comma-separated redirect_uris)
-        redirect_uris = get_field('redirect_uris')
-        if redirect_uris:
-            # Take the first URI from the comma-separated list
-            creds['redirect_uri'] = redirect_uris.split(',')[0].strip()
-
-        # Try to extract project_id from raw_json if available
-        raw_json_str = get_field('raw_json')
-        if raw_json_str:
-            try:
-                raw_data = json.loads(raw_json_str)
-                installed = raw_data.get('installed', raw_data)
-                if 'project_id' in installed:
-                    creds['project_id'] = installed['project_id']
-            except (json.JSONDecodeError, TypeError):
-                pass
-
-        log_info(f"Retrieved Google OAuth2 credentials from 1Password: {client_id[:20]}...")
-        return creds
-
-    except subprocess.CalledProcessError as e:
-        log_error(f"Failed to get Google OAuth2 credentials from 1Password: {e}")
+    def get_field(field_name: str) -> Optional[str]:
+        cmd = ['op', 'item', 'get', item_title, f'--field={field_name}', '--reveal'] + op_flags
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if result.returncode == 0:
+            return result.stdout.strip()
         return None
-    except (ValueError, IndexError, AttributeError) as e:
-        log_error(f"Error retrieving Google OAuth2 credentials: {e}")
-        return None
+
+    client_id = get_field('client_id')
+    client_secret = get_field('client_secret')
+
+    if not client_id or not client_secret:
+        missing_field = 'client_id' if not client_id else 'client_secret'
+        raise CredentialNotFoundError(
+            'google-analytics-oauth', missing_field,
+            [('1password', f"item {item_title!r} missing required field")]
+        )
+
+    creds: Dict[str, str] = {
+        'client_id': client_id,
+        'client_secret': client_secret,
+    }
+
+    redirect_uris = get_field('redirect_uris')
+    if redirect_uris:
+        creds['redirect_uri'] = redirect_uris.split(',')[0].strip()
+
+    raw_json_str = get_field('raw_json')
+    if raw_json_str:
+        try:
+            raw_data = json.loads(raw_json_str)
+            installed = raw_data.get('installed', raw_data)
+            if 'project_id' in installed:
+                creds['project_id'] = installed['project_id']
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    log_info(f"Retrieved Google OAuth2 credentials from 1Password: {client_id[:20]}...")
+    return creds
 
 
 def get_google_oauth_document_from_1password(
     item_title: str = "Google OAuth Client - siege_utilities",
     vault: Optional[str] = None,
     account: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
+) -> Dict[str, Any]:
     """Get Google OAuth2 client secret JSON from a 1Password DOCUMENT item.
 
     Unlike :func:`get_google_oauth_from_1password` which reads individual fields,
@@ -1249,59 +1201,45 @@ def get_google_oauth_document_from_1password(
         account: 1Password account shorthand or UUID.
 
     Returns:
-        Parsed client secret dict (contains ``"installed"`` or ``"web"`` key),
-        or ``None`` if not found.
+        Parsed client secret dict (contains ``"installed"`` or ``"web"`` key).
+
+    Raises:
+        subprocess.CalledProcessError: If the 1Password CLI fails to retrieve
+            the document (item not found, auth failure, etc.).
+        json.JSONDecodeError: If the document content is not valid JSON.
+        subprocess.TimeoutExpired: If the CLI call times out.
+        OSError: On filesystem failures.
     """
-    try:
-        cmd = ['op', 'document', 'get', item_title]
-        if vault:
-            cmd.append(f'--vault={vault}')
-        if account:
-            cmd.append(f'--account={account}')
+    cmd = ['op', 'document', 'get', item_title]
+    if vault:
+        cmd.append(f'--vault={vault}')
+    if account:
+        cmd.append(f'--account={account}')
 
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=60)
-        client_config = json.loads(result.stdout)
-        log_info(f"Retrieved Google OAuth document from 1Password: {item_title}")
-        return client_config
-
-    except subprocess.CalledProcessError as e:
-        stderr = e.stderr.strip() if e.stderr else "(no stderr)"
-        log_error(
-            f"Failed to get Google OAuth document from 1Password: {e}\n"
-            f"  op stderr: {stderr}\n"
-            f"  command: {' '.join(e.cmd)}"
-        )
-        return None
-    except json.JSONDecodeError as e:
-        log_error(f"Invalid JSON in 1Password document '{item_title}': {e}")
-        return None
-    except (OSError, UnicodeDecodeError) as e:
-        log_error(f"Error retrieving Google OAuth document: {e}")
-        return None
+    result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=60)
+    client_config = json.loads(result.stdout)
+    log_info(f"Retrieved Google OAuth document from 1Password: {item_title}")
+    return client_config
 
 
-def create_temporary_service_account_file(service_account_data: Dict[str, str]) -> Optional[str]:
+def create_temporary_service_account_file(service_account_data: Dict[str, str]) -> str:
     """
     Create a temporary service account file for Google APIs.
     Useful for APIs that require a file path.
-    
+
     Args:
         service_account_data: Service account credentials dictionary
-        
+
     Returns:
-        Path to temporary file or None if failed
+        Path to temporary file.
+
+    Raises:
+        OSError: On filesystem failures.
+        TypeError: If service_account_data is not JSON-serializable.
     """
-    try:
-        # `tempfile` and `json` are imported at module scope so tests can
-        # monkeypatch `tempfile.NamedTemporaryFile` via the module
-        # attribute.
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(service_account_data, f, indent=2)
-            temp_file_path = f.name
-        
-        log_info(f"Created temporary service account file: {temp_file_path}")
-        return temp_file_path
-        
-    except (OSError, TypeError) as e:
-        log_error(f"Failed to create temporary service account file: {e}")
-        return None
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        json.dump(service_account_data, f, indent=2)
+        temp_file_path = f.name
+
+    log_info(f"Created temporary service account file: {temp_file_path}")
+    return temp_file_path

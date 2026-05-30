@@ -344,6 +344,11 @@ class HydraConfigManager:
 
         Returns:
             User instance, or None if file not found.
+
+        Raises:
+            OSError: On filesystem failures.
+            yaml.YAMLError: On parsing failures.
+            ValueError: On validation failures.
         """
         profiles_dir = profiles_dir or self.config_dir / "profiles" / "users"
         user_file = profiles_dir / f"{person_id}.yaml"
@@ -352,13 +357,9 @@ class HydraConfigManager:
             logger.warning(f"User profile not found: {user_file}")
             return None
 
-        try:
-            user = User.from_yaml(user_file)
-            logger.info(f"Loaded modern User: {person_id}")
-            return user
-        except (OSError, yaml.YAMLError, ValueError) as e:
-            logger.error(f"Failed to load User {person_id}: {e}")
-            return None
+        user = User.from_yaml(user_file)
+        logger.info(f"Loaded modern User: {person_id}")
+        return user
 
     def load_client(self, client_code: str, profiles_dir: Optional[Path] = None) -> Optional[Client]:
         """
@@ -370,6 +371,11 @@ class HydraConfigManager:
 
         Returns:
             Client instance, or None if file not found.
+
+        Raises:
+            OSError: On filesystem failures.
+            yaml.YAMLError: On parsing failures.
+            ValueError: On validation failures.
         """
         profiles_dir = profiles_dir or self.config_dir / "profiles" / "clients"
         client_file = profiles_dir / f"{client_code}.yaml"
@@ -378,15 +384,11 @@ class HydraConfigManager:
             logger.warning(f"Client profile not found: {client_file}")
             return None
 
-        try:
-            client = Client.from_yaml(client_file)
-            logger.info(f"Loaded modern Client: {client_code}")
-            return client
-        except (OSError, yaml.YAMLError, ValueError) as e:
-            logger.error(f"Failed to load Client {client_code}: {e}")
-            return None
+        client = Client.from_yaml(client_file)
+        logger.info(f"Loaded modern Client: {client_code}")
+        return client
 
-    def save_user(self, user: User, profiles_dir: Optional[Path] = None) -> bool:
+    def save_user(self, user: User, profiles_dir: Optional[Path] = None) -> None:
         """
         Save a modern User to YAML file.
 
@@ -394,22 +396,18 @@ class HydraConfigManager:
             user: User instance to save.
             profiles_dir: Directory to save the YAML file. Defaults to config_dir/profiles/users.
 
-        Returns:
-            True if successful, False otherwise.
+        Raises:
+            OSError: On filesystem failures.
+            yaml.YAMLError: On serialization failures.
         """
         profiles_dir = profiles_dir or self.config_dir / "profiles" / "users"
         profiles_dir.mkdir(parents=True, exist_ok=True)
         user_file = profiles_dir / f"{user.person_id}.yaml"
 
-        try:
-            user.to_yaml(path=user_file)
-            logger.info(f"Saved modern User: {user.person_id}")
-            return True
-        except (OSError, yaml.YAMLError) as e:
-            logger.error(f"Failed to save User {user.person_id}: {e}")
-            return False
+        user.to_yaml(path=user_file)
+        logger.info(f"Saved modern User: {user.person_id}")
 
-    def save_client(self, client: Client, profiles_dir: Optional[Path] = None) -> bool:
+    def save_client(self, client: Client, profiles_dir: Optional[Path] = None) -> None:
         """
         Save a modern Client to YAML file.
 
@@ -417,20 +415,16 @@ class HydraConfigManager:
             client: Client instance to save.
             profiles_dir: Directory to save the YAML file. Defaults to config_dir/profiles/clients.
 
-        Returns:
-            True if successful, False otherwise.
+        Raises:
+            OSError: On filesystem failures.
+            yaml.YAMLError: On serialization failures.
         """
         profiles_dir = profiles_dir or self.config_dir / "profiles" / "clients"
         profiles_dir.mkdir(parents=True, exist_ok=True)
         client_file = profiles_dir / f"{client.client_code}.yaml"
 
-        try:
-            client.to_yaml(path=client_file)
-            logger.info(f"Saved modern Client: {client.client_code}")
-            return True
-        except (OSError, yaml.YAMLError) as e:
-            logger.error(f"Failed to save Client {client.client_code}: {e}")
-            return False
+        client.to_yaml(path=client_file)
+        logger.info(f"Saved modern Client: {client.client_code}")
 
     def cleanup(self):
         """Clean up Hydra instance."""

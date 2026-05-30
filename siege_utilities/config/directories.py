@@ -262,19 +262,14 @@ def load_directory_config(config_name: str, config_directory: str = "config") ->
         log_warning(f"Directory config not found: {config_file}")
         return None
 
-    try:
-        with open(config_file, 'r', encoding='utf-8') as f:
-            config = json.load(f)
+    with open(config_file, 'r', encoding='utf-8') as f:
+        config = json.load(f)
 
-        log_info(f"Loaded directory config: {config_name}")
-        return config
-
-    except (OSError, json.JSONDecodeError) as e:
-        log_error(f"Error loading directory config {config_file}: {e}")
-        return None
+    log_info(f"Loaded directory config: {config_name}")
+    return config
 
 
-def ensure_directories_exist(paths: Dict[str, str]) -> bool:
+def ensure_directories_exist(paths: Dict[str, str]) -> None:
     """
     Ensure all directories in a path configuration exist.
 
@@ -283,47 +278,33 @@ def ensure_directories_exist(paths: Dict[str, str]) -> bool:
     Args:
         paths: Dictionary of directory paths
 
-    Returns:
-        True if all directories exist or were created successfully
-
     Raises:
-        PathSecurityError: If any path fails security validation
+        PathSecurityError: If any path fails security validation.
+        OSError: On filesystem failures.
 
     Example:
         >>> dir_config = load_directory_config("my_project_dirs")
         >>> if dir_config:
-        ...     success = siege_utilities.ensure_directories_exist(dir_config['paths'])
+        ...     siege_utilities.ensure_directories_exist(dir_config['paths'])
         >>>
         >>> # This will raise PathSecurityError
         >>> ensure_directories_exist({"bad": "../../etc"})  # Path traversal blocked
-
-    Security Changes:
-        - Now validates each directory path to block path traversal
-        - Blocks creating directories in sensitive system locations
     """
 
-    try:
-        for name, path in paths.items():
-            # Validate each directory path
-            try:
-                from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
-                dir_path = validate_directory_path(path, must_exist=False)
-            except ImportError:
-                dir_path = pathlib.Path(path)
-            dir_path.mkdir(parents=True, exist_ok=True)
+    for name, path in paths.items():
+        try:
+            from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
+            dir_path = validate_directory_path(path, must_exist=False)
+        except ImportError:
+            dir_path = pathlib.Path(path)
+        dir_path.mkdir(parents=True, exist_ok=True)
 
-            # Ensure .gitkeep exists
-            gitkeep = dir_path / ".gitkeep"
-            gitkeep.touch(exist_ok=True)
+        gitkeep = dir_path / ".gitkeep"
+        gitkeep.touch(exist_ok=True)
 
-            log_debug(f"Ensured directory exists: {path}")
+        log_debug(f"Ensured directory exists: {path}")
 
-        log_info(f"Verified/created {len(paths)} directories")
-        return True
-
-    except OSError as e:
-        log_error(f"Error ensuring directories exist: {e}")
-        return False
+    log_info(f"Verified/created {len(paths)} directories")
 
 
 def get_directory_info(directory_path: str) -> Dict[str, Any]:
