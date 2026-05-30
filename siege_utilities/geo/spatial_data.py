@@ -18,6 +18,8 @@ import geopandas as gpd
 import requests
 from bs4 import BeautifulSoup
 
+from siege_utilities.exceptions import SiegeGeoError
+
 from siege_utilities.geo.crs import reproject_if_needed
 
 # Opt-in TLS-verification bypass for environments behind broken
@@ -64,7 +66,7 @@ from .boundary_result import (
 log = logging.getLogger(__name__)
 
 
-class SpatialDataError(RuntimeError):
+class SpatialDataError(SiegeGeoError, RuntimeError):
     """Raised when a non-boundary spatial data fetch fails unexpectedly.
 
     Used by GovernmentDataSource and OpenStreetMapDataSource, which load

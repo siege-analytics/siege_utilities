@@ -46,6 +46,7 @@ if TYPE_CHECKING:
 import requests  # noqa: F401 — tests mock this module attribute
 
 from ..config import normalize_state_identifier
+from ..exceptions import SiegeGeoError
 
 # Re-export constants and sub-components for backward compatibility
 from .census.variable_registry import VARIABLE_GROUPS, VARIABLE_DESCRIPTIONS  # noqa: F401
@@ -59,7 +60,7 @@ log = logging.getLogger(__name__)
 # CUSTOM EXCEPTIONS
 # =============================================================================
 
-class CensusAPIError(Exception):
+class CensusAPIError(SiegeGeoError):
     """Base exception for Census API errors."""
     pass
 

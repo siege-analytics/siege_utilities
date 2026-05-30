@@ -22,6 +22,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Optional, Protocol, runtime_checkable
 
+from siege_utilities.exceptions import SiegeGeoError
+
 __all__ = [
     "Gazetteer",
     "GazetteerResult",
@@ -37,7 +39,7 @@ __all__ = [
 # Exceptions
 # ---------------------------------------------------------------------------
 
-class GazetteerError(RuntimeError):
+class GazetteerError(SiegeGeoError, RuntimeError):
     """Base class for all gazetteer failures."""
 
 
