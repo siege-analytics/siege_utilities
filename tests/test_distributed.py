@@ -428,15 +428,14 @@ class TestSanitiseDataframeColumnNames:
         assert result is sanitised_df
         mock_df.toDF.assert_called_once_with('first_name', 'last_name', 'age')
 
-    def test_returns_none_on_error(self):
-        """Returns None when an exception occurs."""
+    def test_raises_on_error(self):
+        """Raises when an exception occurs."""
         from siege_utilities.distributed.spark_utils import sanitise_dataframe_column_names
         mock_df = Mock()
         mock_df.toDF.side_effect = Exception("test error")
-        # columns is accessed in the log message format string before toDF
         mock_df.columns = ['col1']
-        result = sanitise_dataframe_column_names(mock_df)
-        assert result is None
+        with pytest.raises(Exception, match="test error"):
+            sanitise_dataframe_column_names(mock_df)
 
 
 class TestGetRowCount:
@@ -449,12 +448,13 @@ class TestGetRowCount:
         mock_df.count.return_value = 42
         assert get_row_count(mock_df) == 42
 
-    def test_returns_none_on_error(self):
-        """Returns None when an exception occurs."""
+    def test_raises_on_error(self):
+        """Raises when an exception occurs."""
         from siege_utilities.distributed.spark_utils import get_row_count
         mock_df = Mock()
         mock_df.count.side_effect = Exception("count failed")
-        assert get_row_count(mock_df) is None
+        with pytest.raises(Exception, match="count failed"):
+            get_row_count(mock_df)
 
 
 class TestRepartitionAndCache:
@@ -480,12 +480,13 @@ class TestRepartitionAndCache:
         mock_df.repartition.assert_called_once_with(100)
         assert result is cached
 
-    def test_returns_none_on_error(self):
-        """Returns None when an exception occurs."""
+    def test_raises_on_error(self):
+        """Raises when an exception occurs."""
         from siege_utilities.distributed.spark_utils import repartition_and_cache
         mock_df = Mock()
         mock_df.repartition.side_effect = Exception("repartition failed")
-        assert repartition_and_cache(mock_df) is None
+        with pytest.raises(Exception, match="repartition failed"):
+            repartition_and_cache(mock_df)
 
 
 class TestRegisterTempTable:
@@ -495,16 +496,16 @@ class TestRegisterTempTable:
         """Calls createOrReplaceTempView with correct name."""
         from siege_utilities.distributed.spark_utils import register_temp_table
         mock_df = Mock()
-        result = register_temp_table(mock_df, 'my_table')
+        register_temp_table(mock_df, 'my_table')
         mock_df.createOrReplaceTempView.assert_called_once_with('my_table')
-        assert result is True
 
-    def test_returns_false_on_error(self):
-        """Returns False when an exception occurs."""
+    def test_raises_on_error(self):
+        """Raises when an exception occurs."""
         from siege_utilities.distributed.spark_utils import register_temp_table
         mock_df = Mock()
         mock_df.createOrReplaceTempView.side_effect = Exception("failed")
-        assert register_temp_table(mock_df, 'table') is False
+        with pytest.raises(Exception, match="failed"):
+            register_temp_table(mock_df, 'table')
 
 
 class TestMoveColumnToFront:
@@ -522,14 +523,14 @@ class TestMoveColumnToFront:
         mock_df.select.assert_called_once_with('target', 'a', 'b', 'c')
         assert result is reordered
 
-    def test_returns_none_on_error(self):
-        """Returns None on error."""
+    def test_raises_on_error(self):
+        """Raises on error."""
         from siege_utilities.distributed.spark_utils import move_column_to_front_of_dataframe
         mock_df = Mock()
         mock_df.columns = ['a', 'b']
         mock_df.select.side_effect = Exception("fail")
-        result = move_column_to_front_of_dataframe(mock_df, 'a')
-        assert result is None
+        with pytest.raises(Exception, match="fail"):
+            move_column_to_front_of_dataframe(mock_df, 'a')
 
     def test_column_already_first(self):
         """Column already at front still works."""
@@ -551,17 +552,17 @@ class TestWriteDfToParquet:
         """Calls df.write.mode().parquet()."""
         from siege_utilities.distributed.spark_utils import write_df_to_parquet
         mock_df = Mock()
-        result = write_df_to_parquet(mock_df, '/output/path', mode='overwrite')
+        write_df_to_parquet(mock_df, '/output/path', mode='overwrite')
         mock_df.write.mode.assert_called_once_with('overwrite')
         mock_df.write.mode.return_value.parquet.assert_called_once_with('/output/path')
-        assert result is True
 
-    def test_returns_false_on_error(self):
-        """Returns False on error."""
+    def test_raises_on_error(self):
+        """Raises on error."""
         from siege_utilities.distributed.spark_utils import write_df_to_parquet
         mock_df = Mock()
         mock_df.write.mode.side_effect = Exception("write failed")
-        assert write_df_to_parquet(mock_df, '/path') is False
+        with pytest.raises(Exception, match="write failed"):
+            write_df_to_parquet(mock_df, '/path')
 
 
 class TestReadParquetToDf:
@@ -576,11 +577,12 @@ class TestReadParquetToDf:
         mock_spark_session.read.parquet.assert_called_once_with('/input/path')
         assert result is expected_df
 
-    def test_returns_none_on_error(self, mock_spark_session):
-        """Returns None on error."""
+    def test_raises_on_error(self, mock_spark_session):
+        """Raises on error."""
         from siege_utilities.distributed.spark_utils import read_parquet_to_df
         mock_spark_session.read.parquet.side_effect = Exception("read failed")
-        assert read_parquet_to_df(mock_spark_session, '/bad/path') is None
+        with pytest.raises(Exception, match="read failed"):
+            read_parquet_to_df(mock_spark_session, '/bad/path')
 
 
 class TestValidateGeocodeData:
@@ -648,14 +650,13 @@ class TestExportPysparkDfToExcel:
         # Function returns None on success (no return value)
         assert result is None
 
-    def test_handles_error_gracefully(self):
-        """Does not raise on error (logs instead)."""
+    def test_raises_on_error(self):
+        """Raises when conversion fails."""
         from siege_utilities.distributed.spark_utils import export_pyspark_df_to_excel
         mock_df = Mock()
         mock_df.toPandas.side_effect = Exception("conversion failed")
-        # Should not raise; returns None on error
-        result = export_pyspark_df_to_excel(mock_df, 'output.xlsx')
-        assert result is None
+        with pytest.raises(Exception, match="conversion failed"):
+            export_pyspark_df_to_excel(mock_df, 'output.xlsx')
 
 
 # ================================================================
