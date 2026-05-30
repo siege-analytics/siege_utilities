@@ -50,7 +50,7 @@ RESULTS_OUTPUT_FORMAT = 'csv'
 RESULTS_OUTPUT_DELIMITER = ','
 DEBUG_SUBDIRECTORY = Path('debug_output')
 
-def sanitise_dataframe_column_names(df: "DataFrame") ->Optional["DataFrame"]:
+def sanitise_dataframe_column_names(df: "DataFrame") -> "DataFrame":
     """
     Cleans dataframe column names by converting them to lowercase and replacing
     slashes/spaces with underscores.
@@ -59,28 +59,16 @@ def sanitise_dataframe_column_names(df: "DataFrame") ->Optional["DataFrame"]:
         df (DataFrame): Input Spark DataFrame.
 
     Returns:
-        Optional["DataFrame"]: Sanitised DataFrame or None if an error occurred.
+        DataFrame: Sanitised DataFrame.
     """
-    try:
-        message = f'Sanitising column names for dataframe {df}'
-        log_info(message)
-        df = df.toDF(*[c.lower().strip().replace('/', '_').replace(' ', '_'
-            ) for c in df.columns])
-        message = (
-            f'Successfully sanitised columns for dataframe {df}: {list(df.columns)}'
-            )
-        log_info(message)
-        return df
-    except (_SparkAnalysisException, _Py4JError, AttributeError, TypeError) as e:
-        message = (
-            f'There was a problem sanitising column names for dataframe {df}:\n{e}'
-            )
-        log_error(message)
-        return None
+    log_info(f'Sanitising column names for dataframe {df}')
+    df = df.toDF(*[c.lower().strip().replace('/', '_').replace(' ', '_')
+                   for c in df.columns])
+    log_info(f'Successfully sanitised columns for dataframe {df}: {list(df.columns)}')
+    return df
 
 
-def tabulate_null_vs_not_null(df: "DataFrame", column_name: str) ->Optional[
-    DataFrame]:
+def tabulate_null_vs_not_null(df: "DataFrame", column_name: str) -> "DataFrame":
     """
     Returns a dataframe showing the count of null and non-null values for a given column.
 
@@ -89,25 +77,19 @@ def tabulate_null_vs_not_null(df: "DataFrame", column_name: str) ->Optional[
         column_name (str): Name of the column to analyze.
 
     Returns:
-        Optional["DataFrame"]: Resulting DataFrame with null vs non-null counts.
+        DataFrame: Resulting DataFrame with null vs non-null counts.
     """
-    try:
-        NULL_COLUMNS_NAME = f'{column_name}_null_count'
-        NOT_NULL_COLUMNS_NAME = f'{column_name}_not_null_count'
-        result_df = df.groupBy(column_name).agg(sum(when(col(column_name).
-            isNull(), 1).otherwise(0)).alias(NULL_COLUMNS_NAME), sum(when(
-            col(column_name).isNotNull(), 1).otherwise(0)).alias(
-            NOT_NULL_COLUMNS_NAME))
-        result_df.show(truncate=False)
-        return result_df
-    except (_SparkAnalysisException, _Py4JError, AttributeError, TypeError, ValueError) as e:
-        log_error(
-            f'Error in tabulate_null_vs_not_null for column {column_name}: {e}'
-            )
-        return None
+    NULL_COLUMNS_NAME = f'{column_name}_null_count'
+    NOT_NULL_COLUMNS_NAME = f'{column_name}_not_null_count'
+    result_df = df.groupBy(column_name).agg(
+        sum(when(col(column_name).isNull(), 1).otherwise(0)).alias(NULL_COLUMNS_NAME),
+        sum(when(col(column_name).isNotNull(), 1).otherwise(0)).alias(NOT_NULL_COLUMNS_NAME)
+    )
+    result_df.show(truncate=False)
+    return result_df
 
 
-def get_row_count(df: "DataFrame") ->Optional[int]:
+def get_row_count(df: "DataFrame") -> int:
     """
     Returns the count of rows in the dataframe.
 
@@ -115,19 +97,14 @@ def get_row_count(df: "DataFrame") ->Optional[int]:
         df (DataFrame): Input Spark DataFrame.
 
     Returns:
-        Optional[int]: Row count or None if an error occurred.
+        int: Row count.
     """
-    try:
-        count = df.count()
-        log_info(f'Row count for dataframe: {count}')
-        return count
-    except (_SparkAnalysisException, _Py4JError, AttributeError) as e:
-        log_error(f'Error getting row count: {e}')
-        return None
+    count = df.count()
+    log_info(f'Row count for dataframe: {count}')
+    return count
 
 
-def repartition_and_cache(df: "DataFrame", partitions: int=100) ->Optional[
-    DataFrame]:
+def repartition_and_cache(df: "DataFrame", partitions: int = 100) -> "DataFrame":
     """
     Repartitions and caches a dataframe.
 
@@ -136,40 +113,26 @@ def repartition_and_cache(df: "DataFrame", partitions: int=100) ->Optional[
         partitions (int, optional): Number of partitions. Default is 100.
 
     Returns:
-        Optional["DataFrame"]: Repartitioned and cached DataFrame or None if an error occurred.
+        DataFrame: Repartitioned and cached DataFrame.
     """
-    try:
-        df = df.repartition(partitions).cache()
-        log_info(
-            f'Dataframe repartitioned to {partitions} partitions and cached.')
-        return df
-    except (_SparkAnalysisException, _Py4JError, AttributeError, ValueError) as e:
-        log_error(f'Error repartitioning and caching dataframe: {e}')
-        return None
+    df = df.repartition(partitions).cache()
+    log_info(f'Dataframe repartitioned to {partitions} partitions and cached.')
+    return df
 
 
-def register_temp_table(df: "DataFrame", table_name: str) ->bool:
+def register_temp_table(df: "DataFrame", table_name: str) -> None:
     """
     Registers a temporary view from a dataframe.
 
     Args:
         df (DataFrame): Input Spark DataFrame.
         table_name (str): Name for the temporary view.
-
-    Returns:
-        bool: True if successful, False otherwise.
     """
-    try:
-        df.createOrReplaceTempView(table_name)
-        log_info(f"Temporary view '{table_name}' registered.")
-        return True
-    except (_SparkAnalysisException, _Py4JError, AttributeError, ValueError) as e:
-        log_error(f"Error registering temporary table '{table_name}': {e}")
-        return False
+    df.createOrReplaceTempView(table_name)
+    log_info(f"Temporary view '{table_name}' registered.")
 
 
-def move_column_to_front_of_dataframe(df: "DataFrame", column_name: str
-    ) ->Optional["DataFrame"]:
+def move_column_to_front_of_dataframe(df: "DataFrame", column_name: str) -> "DataFrame":
     """Reorder *df* so *column_name* is the leftmost column.
 
     The Spark schema order is what most CSV / parquet readers surface
@@ -177,24 +140,16 @@ def move_column_to_front_of_dataframe(df: "DataFrame", column_name: str
     left-to-right. Moving the join key / identifier to the front makes
     the rest of the pipeline more readable without changing semantics.
 
-    Returns the reordered DataFrame, or ``None`` on failure (logged).
     The original *df* is unchanged.
     """
-    try:
-        columns = list(df.columns)
-        column_to_move = column_name
-        new_column_order = [column_to_move] + [col for col in columns if
-            col != column_to_move]
-        df_reordered = df.select(*new_column_order)
-        df_reordered.printSchema()
-        return df_reordered
-    except (_SparkAnalysisException, _Py4JError, AttributeError, ValueError, KeyError) as e:
-        log_error(f'Error repartitioning and caching dataframe: {e}')
-        return None
+    columns = list(df.columns)
+    new_column_order = [column_name] + [c for c in columns if c != column_name]
+    df_reordered = df.select(*new_column_order)
+    df_reordered.printSchema()
+    return df_reordered
 
 
-def write_df_to_parquet(df: "DataFrame", path: str, mode: str='overwrite'
-    ) ->bool:
+def write_df_to_parquet(df: "DataFrame", path: str, mode: str = 'overwrite') -> None:
     """
     Writes a DataFrame to a Parquet file.
 
@@ -202,20 +157,12 @@ def write_df_to_parquet(df: "DataFrame", path: str, mode: str='overwrite'
         df (DataFrame): Input Spark DataFrame.
         path (str): Output path.
         mode (str): Write mode. Defaults to "overwrite".
-
-    Returns:
-        bool: True if successful, False otherwise.
     """
-    try:
-        df.write.mode(mode).parquet(path)
-        log_info(f"Dataframe written to parquet at {path} with mode '{mode}'")
-        return True
-    except (_SparkAnalysisException, _Py4JError, OSError, AttributeError) as e:
-        log_error(f'Error writing dataframe to parquet at {path}: {e}')
-        return False
+    df.write.mode(mode).parquet(path)
+    log_info(f"Dataframe written to parquet at {path} with mode '{mode}'")
 
 
-def read_parquet_to_df(spark: "SparkSession", path: str) ->Optional["DataFrame"]:
+def read_parquet_to_df(spark: "SparkSession", path: str) -> "DataFrame":
     """
     Reads a Parquet file into a Spark DataFrame.
 
@@ -224,15 +171,11 @@ def read_parquet_to_df(spark: "SparkSession", path: str) ->Optional["DataFrame"]
         path (str): Path to the Parquet file.
 
     Returns:
-        Optional["DataFrame"]: Loaded DataFrame or None if an error occurred.
+        DataFrame: Loaded DataFrame.
     """
-    try:
-        df = spark.read.parquet(path)
-        log_info(f'Successfully read parquet from {path}')
-        return df
-    except (_SparkAnalysisException, _Py4JError, OSError, AttributeError) as e:
-        log_error(f'Error reading parquet from {path}: {e}')
-        return None
+    df = spark.read.parquet(path)
+    log_info(f'Successfully read parquet from {path}')
+    return df
 
 
 def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
@@ -913,8 +856,8 @@ def backup_full_dataframe(df, step_name: str) -> None:
 
 
 def atomic_write_with_staging(df: "DataFrame", final_destination: str,
-    staging_directory: str, file_format: str='csv', delimiter: str=',',
-    header: bool=True, mode: str='overwrite') ->bool:
+    staging_directory: str, file_format: str = 'csv', delimiter: str = ',',
+    header: bool = True, mode: str = 'overwrite') -> None:
     """
     Performs atomic write operations using a staging directory to prevent partial/corrupted files.
     """
@@ -939,8 +882,7 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
         log_info('Successfully wrote data to staging directory')
         if os.path.exists(final_destination):
             backup_dir = f'{final_destination}_backup_{int(time.time())}'
-            if os.path.isdir(final_destination) and os.listdir(
-                final_destination):
+            if os.path.isdir(final_destination) and os.listdir(final_destination):
                 log_info(f'Backing up existing data to {backup_dir}')
                 shutil.move(final_destination, backup_dir)
                 log_info('Existing data backed up successfully')
@@ -958,20 +900,15 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
             else:
                 shutil.copy2(source_path, dest_path)
             files_moved += 1
-        log_info(f'Successfully moved {files_moved} items to final destination'
-            )
+        log_info(f'Successfully moved {files_moved} items to final destination')
         log_info('Atomic write operation completed successfully')
-        return True
-    except (_SparkAnalysisException, _Py4JError, OSError, ValueError, AttributeError) as e:
-        log_error(f'Error in atomic write operation: {e}')
-        return False
     finally:
         try:
             if os.path.exists(staging_directory):
                 shutil.rmtree(staging_directory)
                 log_info('Cleaned up staging directory')
         except OSError as cleanup_error:
-            log_error(f'Error cleaning up staging directory: {cleanup_error}')
+            log_warning(f'Error cleaning up staging directory: {cleanup_error}')
 
 
 def create_unique_staging_directory(base_path, operation_name: str = 'operation') -> str:
