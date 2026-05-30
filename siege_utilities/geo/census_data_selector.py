@@ -170,18 +170,20 @@ class CensusDataSelector:
         
         return filtered
     
-    def _filter_by_variables(self, datasets: List, 
+    def _filter_by_variables(self, datasets: List,
                            required_variables: List[str]) -> List:
         """Filter datasets by variable availability."""
-        
+        if not required_variables:
+            return list(datasets)
+
         filtered = []
         for dataset in datasets:
             # Check if dataset has most required variables
             available_vars = [var.lower() for var in dataset.variables]
             required_vars = [var.lower() for var in required_variables]
-            
+
             # Calculate variable coverage
-            coverage = sum(1 for var in required_vars 
+            coverage = sum(1 for var in required_vars
                          if any(req_var in var for req_var in available_vars))
             coverage_ratio = coverage / len(required_vars)
             

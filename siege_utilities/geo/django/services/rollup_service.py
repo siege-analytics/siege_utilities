@@ -268,9 +268,9 @@ class DemographicRollupService:
                                 v * p for v, p in zip(values, pops)
                             ) / total_pop
                         else:
-                            agg_value = sum(values) / len(values)
+                            agg_value = sum(values) / len(values) if values else 0
                     else:
-                        agg_value = sum(values) / len(values)
+                        agg_value = sum(values) / len(values) if values else 0
                 else:
                     result.errors.append(f"Unknown operation: {operation}")
                     break
