@@ -12,6 +12,7 @@ GeoPackage is available as an alternative via format="gpkg" (boundaries only).
 from __future__ import annotations
 
 import logging
+import threading
 from datetime import date
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
@@ -24,6 +25,7 @@ log = logging.getLogger(__name__)
 
 _DEFAULT_ROOT = Path.home() / ".siege_utilities" / "store" / "temporal"
 _SINGLETON: Optional["TemporalDataStore"] = None
+_SINGLETON_LOCK = threading.Lock()
 
 
 class TemporalDataStore:
@@ -281,7 +283,9 @@ def get_temporal_store(
     """Get or create the singleton TemporalDataStore."""
     global _SINGLETON
     if _SINGLETON is None or (root_dir is not None):
-        _SINGLETON = TemporalDataStore(root_dir=root_dir, format=format)
+        with _SINGLETON_LOCK:
+            if _SINGLETON is None or (root_dir is not None):
+                _SINGLETON = TemporalDataStore(root_dir=root_dir, format=format)
     return _SINGLETON
 
 

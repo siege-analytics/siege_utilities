@@ -33,6 +33,7 @@ This file provides the backward-compatible ``CensusAPIClient`` facade.
 """
 
 import logging
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Any, TYPE_CHECKING
@@ -428,13 +429,16 @@ def get_housing_data(
 
 # Module-level client for convenience
 _default_client: Optional[CensusAPIClient] = None
+_default_client_lock = threading.Lock()
 
 
 def get_census_api_client() -> CensusAPIClient:
     """Get or create the default Census API client."""
     global _default_client
     if _default_client is None:
-        _default_client = CensusAPIClient()
+        with _default_client_lock:
+            if _default_client is None:
+                _default_client = CensusAPIClient()
     return _default_client
 
 
