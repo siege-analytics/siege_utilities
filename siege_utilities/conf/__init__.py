@@ -59,16 +59,14 @@ class Settings:
 
         # 3. Django settings
         try:
+            from django.core.exceptions import ImproperlyConfigured
             from django.conf import settings as django_settings
 
             if hasattr(django_settings, name):
                 return getattr(django_settings, name)
         except ImportError:
             pass
-        except Exception:
-            # django.core.exceptions.ImproperlyConfigured when
-            # DJANGO_SETTINGS_MODULE is unset; can't narrow further
-            # without importing from Django itself.
+        except ImproperlyConfigured:
             pass
 
         # 4. YAML file

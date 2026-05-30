@@ -189,6 +189,12 @@ def get_spark_database_options(db_name: str, config_directory: str = "config") -
     if config is None:
         return None
 
+    required_keys = ('jdbc_url', 'jdbc_driver', 'username', 'password')
+    missing = [k for k in required_keys if k not in config]
+    if missing:
+        log_error(f"Database config {db_name!r} missing required keys: {missing}")
+        return None
+
     spark_options = {
         'url': config['jdbc_url'],
         'driver': config['jdbc_driver'],
@@ -351,6 +357,10 @@ def create_spark_session_with_databases(app_name: str = "SiegeAnalytics",
         for db_name in database_names:
             config = load_database_config(db_name, config_directory)
             if config:
+                if 'connection_type' not in config:
+                    raise ValueError(
+                        f"Database config {db_name!r} missing 'connection_type' key"
+                    )
                 connection_type = config['connection_type'].lower()
 
                 if connection_type == 'postgres':
