@@ -22,8 +22,6 @@ import logging
 # Import the ChartGenerator
 from ..chart_generator import ChartGenerator
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 def create_sample_data():

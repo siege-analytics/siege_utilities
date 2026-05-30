@@ -106,6 +106,9 @@ class GEOIDValidator:
             and self.geography_level == other.geography_level
         )
 
+    def __hash__(self):
+        return hash(self.geography_level)
+
     def __repr__(self):
         return f"GEOIDValidator('{self.geography_level}')"
 
