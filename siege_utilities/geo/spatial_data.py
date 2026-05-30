@@ -1667,7 +1667,7 @@ class CensusDataSource(SpatialDataSource):
     
     def _standardize_census_columns(self, gdf: GeoDataFrame, geographic_level: str) -> GeoDataFrame:
         """Standardize Census column names and types."""
-        # Convert column names to lowercase
+        gdf = gdf.copy()
         gdf.columns = [col.lower() for col in gdf.columns]
         
         # Ensure geometry column is properly named

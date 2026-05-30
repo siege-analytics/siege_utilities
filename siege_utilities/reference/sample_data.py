@@ -873,7 +873,7 @@ def _create_tract_geodataframe(population_data: pd.DataFrame, tract_info: Dict) 
             (min_lon - lon_buffer, max_lat + lat_buffer)
         ])
 
-        # Add tract boundary to population data
+        population_data = population_data.copy()
         population_data['tract_geometry'] = tract_boundary
 
         return gpd.GeoDataFrame(population_data, geometry='tract_geometry')
