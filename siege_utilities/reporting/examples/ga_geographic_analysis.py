@@ -257,7 +257,8 @@ def create_city_heatmap(ga_city_df: pd.DataFrame, value_column: str = 'sessions'
         # Prepare heatmap data
         heat_data = []
         for _, row in valid.iterrows():
-            weight = row[value_column] / valid[value_column].max()  # Normalize
+            col_max = valid[value_column].max()
+            weight = (row[value_column] / col_max) if col_max else 0
             heat_data.append([row['latitude'], row['longitude'], weight])
 
         # Add heatmap layer

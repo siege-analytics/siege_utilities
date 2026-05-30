@@ -406,7 +406,7 @@ def generate_sample_ga_data(start_date: datetime, end_date: datetime) -> Dict[st
             'pageviews': total_pageviews,
             'avg_bounce_rate': avg_bounce_rate,
             'avg_session_duration': avg_session_duration,
-            'pages_per_session': total_pageviews / total_sessions,
+            'pages_per_session': (total_pageviews / total_sessions) if total_sessions else 0,
         },
         'prior_period': {
             'users': prior_users,
@@ -420,10 +420,10 @@ def generate_sample_ga_data(start_date: datetime, end_date: datetime) -> Dict[st
             'users': prior_daily_users,
         },
         'changes': {
-            'users': ((total_users - prior_users) / prior_users) * 100,
-            'sessions': ((total_sessions - prior_sessions) / prior_sessions) * 100,
+            'users': (((total_users - prior_users) / prior_users) * 100) if prior_users else 0,
+            'sessions': (((total_sessions - prior_sessions) / prior_sessions) * 100) if prior_sessions else 0,
             'bounce_rate': avg_bounce_rate - prior_bounce,
-            'duration': ((avg_session_duration - prior_duration) / prior_duration) * 100,
+            'duration': (((avg_session_duration - prior_duration) / prior_duration) * 100) if prior_duration else 0,
         },
         'traffic_sources': traffic_sources,
         'top_pages': top_pages,
