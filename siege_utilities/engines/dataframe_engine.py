@@ -646,10 +646,12 @@ class DataFrameEngine(ABC):
 
         Returns
         -------
-        DataFrame
+        pd.DataFrame
             Points enriched with ``{layer_name}_*`` columns for every
             polygon-side column from each boundary layer. Bare polygon
-            column names never appear in the output.
+            column names never appear in the output. Always returns a
+            pandas DataFrame regardless of engine (column-inspection
+            requires pandas semantics).
         """
         # Snapshot point-side schema before the first join so we know
         # exactly which columns belong to the points and which were

@@ -104,7 +104,8 @@ def interpolate_areal(
             These are area-weighted averaged.
         allocate_total: If True, ensure 100% of source area is allocated.
         n_jobs: Number of parallel jobs (-1 for all CPUs).
-        crs: Output CRS for the result GeoDataFrame (default ``"EPSG:4326"``).
+        crs: Output CRS for the result GeoDataFrame
+            (default: value of ``get_default_crs()``).
 
     Returns:
         ArealInterpolationResult with interpolated GeoDataFrame in *crs*.
@@ -190,7 +191,7 @@ def interpolate_extensive(
         variables: Column names of extensive variables.
         allocate_total: Ensure all source area is allocated.
         n_jobs: Parallel jobs.
-        crs: Output CRS (default ``"EPSG:4326"``).
+        crs: Output CRS (default: value of ``get_default_crs()``).
 
     Returns:
         ArealInterpolationResult.
@@ -225,7 +226,7 @@ def interpolate_intensive(
         variables: Column names of intensive variables.
         allocate_total: Ensure all source area is allocated.
         n_jobs: Parallel jobs.
-        crs: Output CRS (default ``"EPSG:4326"``).
+        crs: Output CRS (default: value of ``get_default_crs()``).
 
     Returns:
         ArealInterpolationResult.
@@ -261,7 +262,7 @@ def compute_area_weights(
     Args:
         source_gdf: Source polygons.
         target_gdf: Target polygons.
-        crs: Output CRS (default ``"EPSG:4326"``).
+        crs: Output CRS (default: value of ``get_default_crs()``).
 
     Returns:
         GeoDataFrame with overlap weights in *crs*.
@@ -269,8 +270,12 @@ def compute_area_weights(
     source, target, _ = _ensure_common_crs(source_gdf, target_gdf)
 
     # Use an equal-area projection for accurate area computation
-    source_ea = source.to_crs("ESRI:54009")
-    target_ea = target.to_crs("ESRI:54009")
+    source_ea = source.to_crs("ESRI:54009").copy()
+    target_ea = target.to_crs("ESRI:54009").copy()
+
+    # Tag each polygon with a trackable index before overlay
+    source_ea["_src_idx"] = range(len(source_ea))
+    target_ea["_tgt_idx"] = range(len(target_ea))
 
     # Compute intersections via spatial overlay
     overlay = gpd.overlay(source_ea, target_ea, how="intersection", keep_geom_type=False)
@@ -279,22 +284,28 @@ def compute_area_weights(
         log.warning("No intersections found between source and target polygons.")
         return gpd.GeoDataFrame(
             columns=["source_idx", "target_idx", "overlap_area",
-                      "source_fraction", "target_fraction"],
+                      "source_fraction", "target_fraction", "geometry"],
         )
 
-    overlap_areas = overlay.geometry.area
+    # Compute areas
+    overlay["overlap_area"] = overlay.geometry.area
+    source_areas = source_ea.geometry.area
+    target_areas = target_ea.geometry.area
 
-    # Build result — use overlay's index tracking
-    # gpd.overlay preserves original indices in columns if they were set
-    records = []
-    for i, row in overlay.iterrows():
-        overlap_area = overlap_areas[i]
-        # Source and target indices depend on overlay behavior
-        # For now, return the raw intersection areas
-        records.append({
-            "overlap_area": overlap_area,
-            "geometry": row.geometry,
-        })
+    overlay["source_idx"] = overlay["_src_idx"].astype(int)
+    overlay["target_idx"] = overlay["_tgt_idx"].astype(int)
+    overlay["source_fraction"] = overlay.apply(
+        lambda row: row["overlap_area"] / source_areas.iloc[int(row["_src_idx"])]
+        if source_areas.iloc[int(row["_src_idx"])] > 0 else 0.0,
+        axis=1,
+    )
+    overlay["target_fraction"] = overlay.apply(
+        lambda row: row["overlap_area"] / target_areas.iloc[int(row["_tgt_idx"])]
+        if target_areas.iloc[int(row["_tgt_idx"])] > 0 else 0.0,
+        axis=1,
+    )
 
-    result = gpd.GeoDataFrame(records, crs="ESRI:54009")
+    result = overlay[["source_idx", "target_idx", "overlap_area",
+                      "source_fraction", "target_fraction", "geometry"]].copy()
+    result = gpd.GeoDataFrame(result, crs="ESRI:54009")
     return reproject_if_needed(result, crs)

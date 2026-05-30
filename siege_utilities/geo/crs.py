@@ -60,7 +60,18 @@ def set_default_crs(crs: str) -> None:
     Args:
         crs: Any CRS string accepted by ``pyproj`` (e.g. ``"EPSG:4326"``,
             ``"EPSG:3857"``, ``"ESRI:102003"``).
+
+    Raises:
+        ValueError: If *crs* is not a valid CRS recognized by pyproj.
     """
+    from pyproj import CRS as _PyprojCRS
+    from pyproj.exceptions import CRSError
+
+    try:
+        _PyprojCRS.from_user_input(crs)
+    except CRSError as e:
+        raise ValueError(f"Invalid CRS: {crs!r} — {e}") from e
+
     global _DEFAULT_CRS  # noqa: PLW0603
     _DEFAULT_CRS = crs
 

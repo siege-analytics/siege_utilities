@@ -1715,7 +1715,7 @@ class GovernmentDataSource(SpatialDataSource):
         
         Args:
             dataset_id: Unique identifier for the dataset
-            format_type: Preferred format (geojson, shapefile, kml)
+            format_type: Preferred format (geojson, shapefile)
             
         Returns:
             GeoDataFrame with spatial data or None if failed
