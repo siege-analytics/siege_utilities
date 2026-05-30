@@ -1577,14 +1577,16 @@ def generate_insights(ga_data: Dict[str, Any]) -> List[str]:
                        "Consider improving page load times and content relevance.")
 
     # Traffic source insight
-    top_source = max(sources, key=lambda x: x['sessions'])
-    insights.append(f"'{top_source['source'].title()}' is the primary traffic driver, "
-                   f"contributing {top_source['sessions']:,} sessions ({top_source['sessions']/totals['sessions']*100:.1f}% of total).")
+    total_sessions = totals['sessions']
+    if sources and total_sessions > 0:
+        top_source = max(sources, key=lambda x: x['sessions'])
+        insights.append(f"'{top_source['source'].title()}' is the primary traffic driver, "
+                       f"contributing {top_source['sessions']:,} sessions ({top_source['sessions']/total_sessions*100:.1f}% of total).")
 
     # Device insight
     mobile = next((d for d in devices if d['device'] == 'mobile'), None)
-    if mobile:
-        mobile_pct = mobile['sessions'] / totals['sessions'] * 100
+    if mobile and total_sessions > 0:
+        mobile_pct = mobile['sessions'] / total_sessions * 100
         if mobile_pct > 50:
             insights.append(f"Mobile traffic accounts for {mobile_pct:.1f}% of sessions. "
                            "Ensure your site provides an excellent mobile experience.")
@@ -1613,7 +1615,7 @@ def generate_recommendations(ga_data: Dict[str, Any]) -> List[str]:
 
     # Traffic source recommendations
     organic = next((s for s in sources if s['source'] == 'organic'), None)
-    if organic and organic['sessions'] / totals['sessions'] < 0.40:
+    if organic and totals['sessions'] > 0 and organic['sessions'] / totals['sessions'] < 0.40:
         recommendations.append("Invest in SEO to increase organic traffic share. "
                               "Focus on keyword research and content optimization.")
 
