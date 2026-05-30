@@ -188,11 +188,22 @@ class TestInterpolateAreal:
 class TestComputeAreaWeights:
     """Tests for the area weight computation."""
 
-    def test_full_overlap_returns_data(self, source_gdf, target_gdf):
+    def test_full_overlap_returns_all_columns(self, source_gdf, target_gdf):
         from siege_utilities.geo.interpolation import compute_area_weights
 
         weights = compute_area_weights(source_gdf, target_gdf)
         assert len(weights) > 0
+        expected_cols = {"source_idx", "target_idx", "overlap_area",
+                        "source_fraction", "target_fraction", "geometry"}
+        assert expected_cols.issubset(set(weights.columns))
+
+    def test_source_fraction_sums_to_one(self, source_gdf, target_gdf):
+        from siege_utilities.geo.interpolation import compute_area_weights
+
+        weights = compute_area_weights(source_gdf, target_gdf)
+        for src_idx in weights["source_idx"].unique():
+            frac_sum = weights[weights["source_idx"] == src_idx]["source_fraction"].sum()
+            np.testing.assert_allclose(frac_sum, 1.0, atol=0.01)
 
     def test_no_overlap_returns_empty(self):
         from siege_utilities.geo.interpolation import compute_area_weights
@@ -205,3 +216,6 @@ class TestComputeAreaWeights:
         )
         weights = compute_area_weights(source, target)
         assert len(weights) == 0
+        expected_cols = {"source_idx", "target_idx", "overlap_area",
+                        "source_fraction", "target_fraction"}
+        assert expected_cols.issubset(set(weights.columns))

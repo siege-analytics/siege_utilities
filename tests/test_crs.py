@@ -68,3 +68,23 @@ def test_reproject_if_needed_with_changed_default():
         assert result.crs.to_epsg() == 3857
     finally:
         set_default_crs(original)
+
+
+def test_set_default_crs_rejects_invalid():
+    """set_default_crs raises ValueError for an unrecognized CRS string."""
+    import pytest
+
+    with pytest.raises(ValueError, match="Invalid CRS"):
+        set_default_crs("NOT_A_REAL_CRS")
+
+
+def test_set_default_crs_accepts_valid():
+    """set_default_crs accepts common CRS strings without raising."""
+    original = get_default_crs()
+    try:
+        set_default_crs("EPSG:3857")
+        assert get_default_crs() == "EPSG:3857"
+        set_default_crs("ESRI:54009")
+        assert get_default_crs() == "ESRI:54009"
+    finally:
+        set_default_crs(original)
