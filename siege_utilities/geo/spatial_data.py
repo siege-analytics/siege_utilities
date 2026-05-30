@@ -1834,8 +1834,10 @@ class GovernmentDataSource(SpatialDataSource):
                 else:
                     gdf = gpd.read_file(local_filename)
             else:
-                log.error(f"Unsupported format: {format_type}")
-                return None
+                raise ValueError(
+                    f"Unsupported format: {format_type!r}. "
+                    f"Supported: 'geojson', 'shapefile'."
+                )
             
             # Best-effort cleanup of the downloaded file. Narrow to OSError
             # (the only family os.remove raises) and log at debug level so

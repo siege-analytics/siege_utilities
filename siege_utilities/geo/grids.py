@@ -105,9 +105,13 @@ def index_points(
     forwarded to the underlying function (e.g. ``as_token=False`` for
     S2).
 
+    If *engine* is provided, delegates to ``engine.index_points()``
+    instead of the standalone H3/S2 functions. Concrete engines may
+    have native fast paths (e.g. Sedona UDFs for Spark).
+
     Returns:
         ``pd.Series`` of cell IDs (H3 hex strings or S2 cell tokens by
-        default).
+        default), or engine-native column if *engine* is given.
     """
     if engine is not None:
         # Engine path: hand off to the DataFrameEngine.index_points override.
