@@ -92,7 +92,7 @@ def _get_progress_bar(*args, **kwargs):
 def download_file(url: str, local_filename: FilePath,
                  chunk_size: int = 8192,
                  timeout: int = 30,
-                 verify_ssl: bool = True) -> Union[str, bool]:
+                 verify_ssl: bool = True) -> str:
     """
     Download a file from a URL to a local file with progress bar.
 
@@ -106,130 +106,69 @@ def download_file(url: str, local_filename: FilePath,
         verify_ssl: Whether to verify SSL certificates
 
     Returns:
-        The local filename if successful, False otherwise
+        The local filename as a string.
 
     Raises:
-        PathSecurityError: If local path fails security validation
-
-    Example:
-        >>> result = download_file("https://example.com/file.zip", "downloads/file.zip")
-        >>> if result:
-        ...     print(f"Downloaded to {result}")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> download_file("https://example.com/file.zip", "../../../etc/passwd")  # Path traversal blocked
-
-    Security Changes:
-        - Now validates local file paths to block path traversal
-        - Blocks writing to sensitive system locations
+        PathSecurityError: If local path fails security validation.
+        requests.exceptions.HTTPError: If the server returns a non-2xx status.
+        requests.exceptions.Timeout: On request timeout.
+        requests.exceptions.RequestException: On other network failures.
+        OSError: On filesystem failure.
     """
     _check_requests_dependency()
 
+    log.info(f'Downloading {url} to {local_filename}')
+
     try:
-        log.info(f'Downloading {url} to {local_filename}')
+        from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+        local_path = validate_safe_path(local_filename, allow_absolute=True)
+    except ImportError:
+        local_path = Path(local_filename)
 
-        # Validate local file path
-        try:
-            from siege_utilities.files.validation import validate_safe_path, PathSecurityError
-            local_path = validate_safe_path(local_filename, allow_absolute=True)
-        except ImportError:
-            local_path = Path(local_filename)
+    local_path.parent.mkdir(parents=True, exist_ok=True)
 
-        local_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Make the request with streaming, using smart SSL verification
-        ssl_verify = _get_ssl_verify_path() if verify_ssl else False
-        headers = {'User-Agent': 'siege_utilities/1.0 (Census/GIS data client)'}
+    ssl_verify = _get_ssl_verify_path() if verify_ssl else False
+    headers = {'User-Agent': 'siege_utilities/1.0 (Census/GIS data client)'}
+
+    try:
         with requests.get(url, stream=True, allow_redirects=True,
                          timeout=timeout, verify=ssl_verify,
                          headers=headers) as response:
-            
-            if not response.ok:
-                log.error(f'Download failed: HTTP {response.status_code} - {response.reason}')
-                return False
-            
-            # Get total size for progress bar
-            total_size = _safe_content_length(response)
-            
-            if total_size > 0:
-                log.info(f'Download started, file size: {total_size} bytes')
-            else:
-                log.info('Download started, file size unknown')
-            
-            # Download with progress bar
-            with open(local_path, 'wb') as file:
-                with _get_progress_bar(
-                    total=total_size,
-                    unit='B',
-                    unit_scale=True,
-                    desc=local_path.name,
-                    ascii=True
-                ) as progress_bar:
-                    
-                    for chunk in response.iter_content(chunk_size=chunk_size):
-                        if chunk:
-                            file.write(chunk)
-                            progress_bar.update(len(chunk))
-            
+            response.raise_for_status()
+            _download_response_to_file(response, local_path, chunk_size)
             log.info(f'Successfully downloaded {url} to {local_path}')
             return str(local_path)
-    except PathSecurityError:
-        raise
+
     except requests.exceptions.SSLError as e:
         log.warning(f'SSL verification failed for {url}, retrying without verification: {e}')
-        # Retry without SSL verification
-        try:
-            headers = {'User-Agent': 'siege_utilities/1.0 (Census/GIS data client)'}
-            with requests.get(url, stream=True, allow_redirects=True,
-                           timeout=timeout, verify=False,
-                           headers=headers) as response:
-                
-                if not response.ok:
-                    log.error(f'Download failed without SSL: HTTP {response.status_code} - {response.reason}')
-                    return False
-                
-                # Get total size for progress bar
-                total_size = _safe_content_length(response)
-                
-                if total_size > 0:
-                    log.info(f'Download started without SSL, file size: {total_size} bytes')
-                else:
-                    log.info('Download started without SSL, file size unknown')
-                
-                # Download with progress bar
-                with open(local_path, 'wb') as file:
-                    with _get_progress_bar(
-                        total=total_size,
-                        unit='B',
-                        unit_scale=True,
-                        desc=f"{local_path.name} (no SSL)",
-                        ascii=True
-                    ) as progress_bar:
-                        
-                        for chunk in response.iter_content(chunk_size=chunk_size):
-                            if chunk:
-                                file.write(chunk)
-                                progress_bar.update(len(chunk))
-                
-                log.info(f'Successfully downloaded {url} to {local_path} without SSL verification')
-                return str(local_path)
-                
-        except (OSError, ValueError) as retry_error:
-            log.error(f'Download failed even without SSL verification: {retry_error}')
-            return False
+        with requests.get(url, stream=True, allow_redirects=True,
+                       timeout=timeout, verify=False,
+                       headers=headers) as response:
+            response.raise_for_status()
+            _download_response_to_file(response, local_path, chunk_size)
+            log.info(f'Successfully downloaded {url} to {local_path} without SSL verification')
+            return str(local_path)
 
-    except requests.exceptions.Timeout:
-        log.error(f'Download timed out for {url}')
-        return False
-    except requests.exceptions.RequestException as e:
-        log.error(f'Request error downloading {url}: {e}')
-        return False
-    except (OSError, ValueError) as e:
-        log.error(f'Unexpected error downloading {url}: {e}')
-        return False
+
+def _download_response_to_file(response, local_path: Path, chunk_size: int) -> None:
+    """Write a streaming response to a local file with progress bar."""
+    total_size = _safe_content_length(response)
+
+    with open(local_path, 'wb') as file:
+        with _get_progress_bar(
+            total=total_size,
+            unit='B',
+            unit_scale=True,
+            desc=local_path.name,
+            ascii=True
+        ) as progress_bar:
+            for chunk in response.iter_content(chunk_size=chunk_size):
+                if chunk:
+                    file.write(chunk)
+                    progress_bar.update(len(chunk))
 
 def generate_local_path_from_url(url: str, directory_path: FilePath,
-                                as_string: bool = True) -> Union[Path, str, bool]:
+                                as_string: bool = True) -> Union[Path, str]:
     """
     Generate a local file path from a URL.
 
@@ -241,165 +180,127 @@ def generate_local_path_from_url(url: str, directory_path: FilePath,
         as_string: Whether to return the result as a string
 
     Returns:
-        Path object, string, or False if failed
+        Path object or string.
 
     Raises:
-        PathSecurityError: If directory path fails security validation
-
-    Example:
-        >>> path = generate_local_path_from_url("https://example.com/file.zip", "downloads")
-        >>> print(f"Local path: {path}")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> generate_local_path_from_url("https://example.com/file.zip", "../../../etc")  # Path traversal blocked
-
-    Security Changes:
-        - Now validates directory paths to block path traversal
-        - Blocks writing to sensitive system locations
+        PathSecurityError: If directory path fails security validation.
+        ValueError: If no filename can be extracted from the URL.
+        OSError: On directory creation failure.
     """
+    parsed_url = urlparse(url)
+    remote_filename = parsed_url.path.split('/')[-1]
+
+    if not remote_filename:
+        raise ValueError(f'Could not extract filename from URL: {url}')
+
     try:
-        # Parse URL to get filename
-        parsed_url = urlparse(url)
-        remote_filename = parsed_url.path.split('/')[-1]
+        from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+        dir_path = validate_directory_path(directory_path, must_exist=False)
+    except ImportError:
+        dir_path = Path(directory_path)
 
-        if not remote_filename:
-            log.warning(f'Could not extract filename from URL: {url}')
-            return False
+    dir_path.mkdir(parents=True, exist_ok=True)
 
-        # Validate directory path
-        try:
-            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
-            dir_path = validate_directory_path(directory_path, must_exist=False)
-        except ImportError:
-            dir_path = Path(directory_path)
+    local_path = dir_path / remote_filename
 
-        dir_path.mkdir(parents=True, exist_ok=True)
-        
-        # Create full local path
-        local_path = dir_path / remote_filename
-        
-        log.info(f'Generated local path: {local_path}')
-        
-        if as_string:
-            return str(local_path)
-        else:
-            return local_path
-    except PathSecurityError:
-        raise
-    except (OSError, ValueError) as e:
-        log.error(f'Error generating local path from {url}: {e}')
-        return False
+    log.info(f'Generated local path: {local_path}')
+
+    if as_string:
+        return str(local_path)
+    else:
+        return local_path
 
 def download_file_with_retry(url: str, local_filename: FilePath,
                             max_retries: int = 3,
                             retry_delay: int = 5,
-                            **kwargs) -> Union[str, bool]:
+                            **kwargs) -> str:
     """
     Download a file with automatic retry on failure.
-    
+
     Args:
         url: The URL to download from
         local_filename: The local path where the file should be saved
         max_retries: Maximum number of retry attempts
         retry_delay: Delay between retries in seconds
         **kwargs: Additional arguments passed to download_file
-        
+
     Returns:
-        The local filename if successful, False otherwise
-        
-    Example:
-        >>> result = download_file_with_retry("https://example.com/file.zip", "file.zip")
-        >>> if result:
-        ...     print("Download succeeded after retries")
+        The local filename as a string.
+
+    Raises:
+        The last exception from download_file after all retries are exhausted.
     """
     import time
-    
+
+    last_error: Optional[BaseException] = None
     for attempt in range(max_retries + 1):
         try:
             if attempt > 0:
                 log.info(f'Retry attempt {attempt}/{max_retries} for {url}')
                 time.sleep(retry_delay)
-            
-            result = download_file(url, local_filename, **kwargs)
-            if result:
-                return result
-                
-        except (OSError, ValueError) as e:
-            log.warning(f'Download attempt {attempt + 1} failed: {e}')
-    
-    log.error(f'Download failed after {max_retries + 1} attempts for {url}')
-    return False
 
-def get_file_info(url: str, timeout: int = 10) -> Optional[dict]:
+            return download_file(url, local_filename, **kwargs)
+
+        except (OSError, requests.exceptions.RequestException) as e:
+            last_error = e
+            log.warning(f'Download attempt {attempt + 1} failed: {e}')
+
+    raise last_error  # type: ignore[misc]
+
+def get_file_info(url: str, timeout: int = 10) -> dict:
     """
     Get information about a remote file without downloading it.
-    
+
     Args:
         url: URL to get information about
         timeout: Request timeout in seconds
-        
+
     Returns:
-        Dictionary with file information, or None if failed
-        
-    Example:
-        >>> info = get_file_info("https://example.com/file.zip")
-        >>> if info:
-        ...     print(f"File size: {info['size']} bytes")
+        Dictionary with file information (url, size, content_type, last_modified, etag).
+
+    Raises:
+        requests.exceptions.HTTPError: If the server returns a non-2xx status.
+        requests.exceptions.RequestException: On network failure.
     """
-    try:
-        log.debug(f'Getting file info for {url}')
-        
-        response = requests.head(url, timeout=timeout, allow_redirects=True)
-        
-        if not response.ok:
-            log.warning(f'Failed to get file info: HTTP {response.status_code}')
-            return None
-        
-        info = {
-            'url': url,
-            'size': _safe_content_length(response),
-            'content_type': response.headers.get('content-type', 'unknown'),
-            'last_modified': response.headers.get('last-modified'),
-            'etag': response.headers.get('etag')
-        }
-        
-        log.debug(f'File info for {url}: {info}')
-        return info
-        
-    except (OSError, ValueError) as e:
-        log.error(f'Error getting file info for {url}: {e}')
-        return None
+    _check_requests_dependency()
+    log.debug(f'Getting file info for {url}')
+
+    response = requests.head(url, timeout=timeout, allow_redirects=True)
+    response.raise_for_status()
+
+    info = {
+        'url': url,
+        'size': _safe_content_length(response),
+        'content_type': response.headers.get('content-type', 'unknown'),
+        'last_modified': response.headers.get('last-modified'),
+        'etag': response.headers.get('etag')
+    }
+
+    log.debug(f'File info for {url}: {info}')
+    return info
 
 def is_downloadable(url: str, timeout: int = 10) -> bool:
     """
     Check if a URL points to a downloadable file.
-    
+
     Args:
         url: URL to check
         timeout: Request timeout in seconds
-        
+
     Returns:
-        True if the URL points to a downloadable file
+        True if the URL points to a downloadable file (has content).
 
     Raises:
-        Exception: If the network request fails (logged before re-raise)
-
-    Example:
-        >>> if is_downloadable("https://example.com/file.zip"):
-        ...     print("URL is downloadable")
+        requests.exceptions.RequestException: On network failure.
     """
-    try:
-        info = get_file_info(url, timeout)
-        if info and info['size'] > 0:
-            return True
+    _check_requests_dependency()
+    info = get_file_info(url, timeout)
+    if info['size'] > 0:
+        return True
 
-        # Try a GET request to see if we can access the content
-        response = requests.get(url, stream=True, timeout=timeout)
-        return response.ok
-        
-    except (OSError, ValueError) as exc:
-        log.warning("Could not check if URL is downloadable %s: %s", url, exc)
-        raise
+    response = requests.get(url, stream=True, timeout=timeout)
+    response.close()
+    return response.ok
 
 __all__ = [
     'download_file',
