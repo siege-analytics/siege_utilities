@@ -192,6 +192,7 @@ class NCESDownloader:
             locale_subcategory, name, geometry.
         """
         import geopandas as gpd
+        import pandas as pd
 
         from siege_utilities.config.nces_constants import (
             get_locale_category,
@@ -222,8 +223,7 @@ class NCESDownloader:
                 f"Available columns: {list(gdf.columns)}"
             )
 
-        # Ensure integer codes
-        gdf["locale_code"] = gdf[locale_col].astype(int)
+        gdf["locale_code"] = pd.to_numeric(gdf[locale_col], errors="coerce").fillna(0).astype(int)
 
         # Add derived columns
         gdf["locale_category"] = gdf["locale_code"].apply(get_locale_category)

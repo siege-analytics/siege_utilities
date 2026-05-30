@@ -585,9 +585,9 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
         daily_df['date'] = pd.to_datetime(daily_df['date'])
         daily_df = daily_df.sort_values('date')
         dates = daily_df['date'].tolist()
-        daily_sessions = daily_df['sessions'].astype(int).tolist()
-        daily_users = daily_df['totalUsers'].astype(int).tolist()
-        daily_pageviews = daily_df['screenPageViews'].astype(int).tolist()
+        daily_sessions = pd.to_numeric(daily_df['sessions'], errors='coerce').fillna(0).astype(int).tolist()
+        daily_users = pd.to_numeric(daily_df['totalUsers'], errors='coerce').fillna(0).astype(int).tolist()
+        daily_pageviews = pd.to_numeric(daily_df['screenPageViews'], errors='coerce').fillna(0).astype(int).tolist()
         daily_bounce = daily_df['bounceRate'].astype(float).tolist()
         daily_duration = daily_df['averageSessionDuration'].astype(float).tolist()
 
@@ -685,8 +685,8 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
         if prior_has_data and 'date' in prior_df.columns:
             prior_sorted = prior_df.sort_values('date')
             prior_daily_dates = prior_sorted['date'].tolist()
-            prior_daily_sessions_list = prior_sorted['sessions'].astype(int).tolist()
-            prior_daily_users_list = prior_sorted['totalUsers'].astype(int).tolist()
+            prior_daily_sessions_list = pd.to_numeric(prior_sorted['sessions'], errors='coerce').fillna(0).astype(int).tolist()
+            prior_daily_users_list = pd.to_numeric(prior_sorted['totalUsers'], errors='coerce').fillna(0).astype(int).tolist()
 
         # Longitudinal data (fetch yearly totals)
         current_year = end_dt.year
