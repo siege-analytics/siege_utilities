@@ -26,6 +26,7 @@ Example usage:
 """
 
 import logging
+import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Union
@@ -440,13 +441,16 @@ class CrosswalkClient:
 
 # Module-level client instance
 _default_client: Optional[CrosswalkClient] = None
+_default_client_lock = threading.Lock()
 
 
 def get_crosswalk_client() -> CrosswalkClient:
     """Get or create the default crosswalk client."""
     global _default_client
     if _default_client is None:
-        _default_client = CrosswalkClient()
+        with _default_client_lock:
+            if _default_client is None:
+                _default_client = CrosswalkClient()
     return _default_client
 
 

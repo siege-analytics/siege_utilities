@@ -6,6 +6,7 @@ Provides clean, type-safe access to Census, Government, and OpenStreetMap data.
 import logging
 import os
 import re
+import threading
 import time
 import warnings
 import warnings as _warnings_mod
@@ -2303,26 +2304,33 @@ def download_dataset(
 _census_source = None
 _government_source = None
 _osm_source = None
+_source_lock = threading.Lock()
 
 
 def _get_census_source() -> "CensusDataSource":
     global _census_source
     if _census_source is None:
-        _census_source = CensusDataSource()
+        with _source_lock:
+            if _census_source is None:
+                _census_source = CensusDataSource()
     return _census_source
 
 
 def _get_government_source() -> "GovernmentDataSource":
     global _government_source
     if _government_source is None:
-        _government_source = GovernmentDataSource("https://data.gov")
+        with _source_lock:
+            if _government_source is None:
+                _government_source = GovernmentDataSource("https://data.gov")
     return _government_source
 
 
 def _get_osm_source() -> "OpenStreetMapDataSource":
     global _osm_source
     if _osm_source is None:
-        _osm_source = OpenStreetMapDataSource()
+        with _source_lock:
+            if _osm_source is None:
+                _osm_source = OpenStreetMapDataSource()
     return _osm_source
 
 
