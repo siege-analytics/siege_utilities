@@ -8,6 +8,7 @@ All other modules are loaded on first access via PEP 562 __getattr__.
 import importlib
 import logging
 import sys
+import threading
 from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -353,8 +354,8 @@ _register_lazy([
 
 # ── PEP 562 __getattr__ (lazy loading) ───────────────────────────────
 
-# Track which distributed module names we've already cached (avoid repeated lookups)
-_distributed_module = None  # cached module or False (import failed)
+_distributed_module = None
+_distributed_module_lock = threading.Lock()
 
 
 def __getattr__(name):
@@ -376,12 +377,13 @@ def __getattr__(name):
             raise
 
     # 2. Fallback: try the distributed module for PySpark re-exports
-    #    (col, lit, when, sum, etc. — ~524 functions from pyspark.sql.functions)
     if _distributed_module is None:
-        try:
-            _distributed_module = importlib.import_module('.distributed', __package__)
-        except ImportError:
-            _distributed_module = False  # Don't retry import on failure
+        with _distributed_module_lock:
+            if _distributed_module is None:
+                try:
+                    _distributed_module = importlib.import_module('.distributed', __package__)
+                except ImportError:
+                    _distributed_module = False
 
     if _distributed_module and hasattr(_distributed_module, name):
         val = getattr(_distributed_module, name)
