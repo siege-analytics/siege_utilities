@@ -35,6 +35,10 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 
+class SnowflakeQueryError(Exception):
+    """Raised when a Snowflake query or operation fails."""
+
+
 class SnowflakeConnector:
     """Snowflake data warehouse connector with advanced features."""
     
@@ -142,7 +146,7 @@ class SnowflakeConnector:
         except (*_SF_CONN_ERRORS, AttributeError) as e:
             log.error(f"Error disconnecting from Snowflake: {e}")
     
-    def execute_query(self, query: str, params: Optional[Dict[str, Any]] = None) -> Optional[List[tuple]]:
+    def execute_query(self, query: str, params: Optional[Dict[str, Any]] = None) -> List[tuple]:
         """
         Execute a SQL query.
         
@@ -167,8 +171,7 @@ class SnowflakeConnector:
             return results
             
         except (*_SF_QUERY_ERRORS, ValueError) as e:
-            log.error(f"Query execution failed: {e}")
-            return None
+            raise SnowflakeQueryError(f"Query execution failed: {e}") from e
 
     def execute_ddl(self, ddl_statement: str) -> bool:
         """
@@ -215,8 +218,7 @@ class SnowflakeConnector:
             True if successful, False otherwise
         """
         if not PANDAS_AVAILABLE:
-            log.error("Pandas not available for DataFrame operations")
-            return False
+            raise ImportError("Pandas not available for DataFrame operations. Install with: pip install pandas")
         
         if not self.connection:
             self.connect()
@@ -259,7 +261,7 @@ class SnowflakeConnector:
 
     def download_dataframe(self,
                           query: str,
-                          params: Optional[Dict[str, Any]] = None) -> Optional['pd.DataFrame']:
+                          params: Optional[Dict[str, Any]] = None) -> 'pd.DataFrame':
         """
         Download data from Snowflake as pandas DataFrame.
         
@@ -271,20 +273,18 @@ class SnowflakeConnector:
             Pandas DataFrame with query results
         """
         if not PANDAS_AVAILABLE:
-            log.error("Pandas not available for DataFrame operations")
-            return None
-        
+            raise ImportError("Pandas not available for DataFrame operations. Install with: pip install pandas")
+
         if not self.connection:
             self.connect()
-        
+
         try:
             df = read_pandas(self.connection, query, params)
             log.info(f"Successfully downloaded {len(df)} rows as DataFrame")
             return df
-            
+
         except (*_SF_QUERY_ERRORS, ValueError) as e:
-            log.error(f"DataFrame download failed: {e}")
-            return None
+            raise SnowflakeQueryError(f"DataFrame download failed: {e}") from e
     
     def _create_table_from_dataframe(self, df: 'pd.DataFrame', table_name: str, overwrite: bool) -> None:
         """Create Snowflake table based on DataFrame structure."""
@@ -322,7 +322,7 @@ class SnowflakeConnector:
         else:
             return 'VARCHAR(16777216)'
     
-    def get_table_info(self, table_name: str, database: Optional[str] = None, schema: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def get_table_info(self, table_name: str, database: Optional[str] = None, schema: Optional[str] = None) -> Dict[str, Any]:
         """
         Get information about a Snowflake table.
         
@@ -381,8 +381,7 @@ class SnowflakeConnector:
             return table_info
             
         except (*_SF_QUERY_ERRORS, ValueError, IndexError) as e:
-            log.error(f"Failed to get table info: {e}")
-            return None
+            raise SnowflakeQueryError(f"Failed to get table info: {e}") from e
     
     def list_tables(self, database: Optional[str] = None, schema: Optional[str] = None) -> Optional[List[str]]:
         """
@@ -415,8 +414,7 @@ class SnowflakeConnector:
             return tables
             
         except (*_SF_QUERY_ERRORS, ValueError, IndexError) as e:
-            log.error(f"Failed to list tables: {e}")
-            return None
+            raise SnowflakeQueryError(f"Failed to list tables: {e}") from e
     
     def __enter__(self):
         """Context manager entry."""

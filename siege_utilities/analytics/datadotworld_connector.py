@@ -31,6 +31,10 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 
+class DataDotWorldError(Exception):
+    """Raised when a data.world operation fails."""
+
+
 class DataDotWorldConnector:
     """Data.world connector with advanced data discovery and access features."""
     
@@ -103,7 +107,7 @@ class DataDotWorldConnector:
                        query: str,
                        limit: int = 50,
                        owner: Optional[str] = None,
-                       tags: Optional[List[str]] = None) -> Optional[List[Dict[str, Any]]]:
+                       tags: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """
         Search for datasets on data.world.
         
@@ -151,10 +155,9 @@ class DataDotWorldConnector:
             return datasets
             
         except (requests.RequestException, KeyError, ValueError) as e:
-            log.error(f"Dataset search failed: {e}")
-            return None
+            raise DataDotWorldError(f"Dataset search failed: {e}") from e
     
-    def get_dataset_info(self, dataset_id: str) -> Optional[Dict[str, Any]]:
+    def get_dataset_info(self, dataset_id: str) -> Dict[str, Any]:
         """
         Get detailed information about a specific dataset.
         
@@ -187,10 +190,9 @@ class DataDotWorldConnector:
             return info
             
         except (requests.RequestException, KeyError, ValueError) as e:
-            log.error(f"Failed to get dataset info for {dataset_id}: {e}")
-            return None
+            raise DataDotWorldError(f"Failed to get dataset info for {dataset_id}: {e}") from e
     
-    def list_dataset_files(self, dataset_id: str) -> Optional[List[Dict[str, Any]]]:
+    def list_dataset_files(self, dataset_id: str) -> List[Dict[str, Any]]:
         """
         List all files in a dataset.
         
@@ -221,13 +223,12 @@ class DataDotWorldConnector:
             return file_list
             
         except (requests.RequestException, KeyError, ValueError) as e:
-            log.error(f"Failed to list files for dataset {dataset_id}: {e}")
-            return None
+            raise DataDotWorldError(f"Failed to list files for dataset {dataset_id}: {e}") from e
     
     def download_file(self, 
                      dataset_id: str,
                      file_name: str,
-                     output_path: Optional[Union[str, Path]] = None) -> Optional[Union[str, Path]]:
+                     output_path: Optional[Union[str, Path]] = None) -> Union[str, Path]:
         """
         Download a specific file from a dataset.
         
@@ -256,12 +257,11 @@ class DataDotWorldConnector:
             return output_path
             
         except (OSError, requests.RequestException) as e:
-            log.error(f"Failed to download file {file_name} from dataset {dataset_id}: {e}")
-            return None
+            raise DataDotWorldError(f"Failed to download file {file_name} from dataset {dataset_id}: {e}") from e
     
     def load_dataset_as_dataframe(self, 
                                  dataset_id: str,
-                                 file_name: Optional[str] = None) -> Optional['pd.DataFrame']:
+                                 file_name: Optional[str] = None) -> 'pd.DataFrame':
         """
         Load a dataset file directly as a pandas DataFrame.
         
@@ -273,8 +273,7 @@ class DataDotWorldConnector:
             Pandas DataFrame with the data
         """
         if not PANDAS_AVAILABLE:
-            log.error("Pandas not available for DataFrame operations")
-            return None
+            raise ImportError("Pandas not available for DataFrame operations. Install with: pip install pandas")
         
         try:
             if file_name:
@@ -288,13 +287,12 @@ class DataDotWorldConnector:
             return df
             
         except (requests.RequestException, ValueError) as e:
-            log.error(f"Failed to load dataset {dataset_id} as DataFrame: {e}")
-            return None
+            raise DataDotWorldError(f"Failed to load dataset {dataset_id} as DataFrame: {e}") from e
     
     def query_dataset(self, 
                      dataset_id: str,
                      query: str,
-                     query_type: str = 'sql') -> Optional['pd.DataFrame']:
+                     query_type: str = 'sql') -> 'pd.DataFrame':
         """
         Execute a query against a dataset.
         
@@ -307,8 +305,7 @@ class DataDotWorldConnector:
             Pandas DataFrame with query results
         """
         if not PANDAS_AVAILABLE:
-            log.error("Pandas not available for DataFrame operations")
-            return None
+            raise ImportError("Pandas not available for DataFrame operations. Install with: pip install pandas")
         
         try:
             if query_type.lower() == 'sql':
@@ -322,10 +319,9 @@ class DataDotWorldConnector:
             return df
             
         except (requests.RequestException, ValueError) as e:
-            log.error(f"Query execution failed on dataset {dataset_id}: {e}")
-            return None
+            raise DataDotWorldError(f"Query execution failed on dataset {dataset_id}: {e}") from e
     
-    def get_dataset_schema(self, dataset_id: str) -> Optional[Dict[str, Any]]:
+    def get_dataset_schema(self, dataset_id: str) -> Dict[str, Any]:
         """
         Get the schema information for a dataset.
         
@@ -343,8 +339,7 @@ class DataDotWorldConnector:
             return schema
             
         except (requests.RequestException, KeyError, ValueError) as e:
-            log.error(f"Failed to get schema for dataset {dataset_id}: {e}")
-            return None
+            raise DataDotWorldError(f"Failed to get schema for dataset {dataset_id}: {e}") from e
     
     def create_dataset(self, 
                       owner: str,
@@ -353,7 +348,7 @@ class DataDotWorldConnector:
                       description: str,
                       tags: Optional[List[str]] = None,
                       license: str = 'Public Domain',
-                      visibility: str = 'OPEN') -> Optional[str]:
+                      visibility: str = 'OPEN') -> str:
         """
         Create a new dataset on data.world.
         
@@ -389,8 +384,7 @@ class DataDotWorldConnector:
             return created_id
             
         except (requests.RequestException, ValueError) as e:
-            log.error(f"Failed to create dataset: {e}")
-            return None
+            raise DataDotWorldError(f"Failed to create dataset: {e}") from e
     
     def upload_file(self, 
                    dataset_id: str,
@@ -425,8 +419,7 @@ class DataDotWorldConnector:
             return True
             
         except (FileNotFoundError, OSError, requests.RequestException) as e:
-            log.error(f"Failed to upload file to dataset {dataset_id}: {e}")
-            return False
+            raise DataDotWorldError(f"Failed to upload file to dataset {dataset_id}: {e}") from e
     
     def update_dataset(self, 
                       dataset_id: str,
@@ -463,8 +456,7 @@ class DataDotWorldConnector:
                 update_params['license'] = license
             
             if not update_params:
-                log.warning("No update parameters provided")
-                return False
+                raise ValueError("No update parameters provided (pass at least one of title, description, tags, license)")
             
             # Update dataset
             self.client.update_dataset(dataset_id, **update_params)
@@ -473,9 +465,8 @@ class DataDotWorldConnector:
             return True
             
         except (requests.RequestException, ValueError) as e:
-            log.error(f"Failed to update dataset {dataset_id}: {e}")
-            return False
-    
+            raise DataDotWorldError(f"Failed to update dataset {dataset_id}: {e}") from e
+
     def delete_dataset(self, dataset_id: str) -> bool:
         """
         Delete a dataset.
@@ -497,8 +488,7 @@ class DataDotWorldConnector:
             return True
             
         except (requests.RequestException, ValueError) as e:
-            log.error(f"Failed to delete dataset {dataset_id}: {e}")
-            return False
+            raise DataDotWorldError(f"Failed to delete dataset {dataset_id}: {e}") from e
 
 
 # Convenience functions
@@ -509,7 +499,7 @@ def get_datadotworld_connector(config_file: Optional[Union[str, Path]] = None) -
 
 def search_datadotworld_datasets(query: str, 
                                 config_file: Optional[Union[str, Path]] = None,
-                                **kwargs) -> Optional[List[Dict[str, Any]]]:
+                                **kwargs) -> List[Dict[str, Any]]:
     """Convenience function to search for datasets."""
     with get_datadotworld_connector(config_file) as dw:
         return dw.search_datasets(query, **kwargs)
@@ -517,7 +507,7 @@ def search_datadotworld_datasets(query: str,
 
 def load_datadotworld_dataset(dataset_id: str,
                              config_file: Optional[Union[str, Path]] = None,
-                             **kwargs) -> Optional['pd.DataFrame']:
+                             **kwargs) -> 'pd.DataFrame':
     """Convenience function to load a dataset as DataFrame."""
     with get_datadotworld_connector(config_file) as dw:
         return dw.load_dataset_as_dataframe(dataset_id, **kwargs)
@@ -526,7 +516,7 @@ def load_datadotworld_dataset(dataset_id: str,
 def query_datadotworld_dataset(dataset_id: str,
                               query: str,
                               config_file: Optional[Union[str, Path]] = None,
-                              **kwargs) -> Optional['pd.DataFrame']:
+                              **kwargs) -> 'pd.DataFrame':
     """Convenience function to query a dataset."""
     with get_datadotworld_connector(config_file) as dw:
         return dw.query_dataset(dataset_id, query, **kwargs)
@@ -534,7 +524,7 @@ def query_datadotworld_dataset(dataset_id: str,
 
 def search_datasets(query: str,
                    config_file: Optional[Union[str, Path]] = None,
-                   **kwargs) -> Optional[List[Dict[str, Any]]]:
+                   **kwargs) -> List[Dict[str, Any]]:
     """
     Standalone function to search for datasets.
     
@@ -551,7 +541,7 @@ def search_datasets(query: str,
 
 def list_datasets(limit: int = 50,
                  config_file: Optional[Union[str, Path]] = None,
-                 **kwargs) -> Optional[List[Dict[str, Any]]]:
+                 **kwargs) -> List[Dict[str, Any]]:
     """
     Standalone function to list available datasets.
     
