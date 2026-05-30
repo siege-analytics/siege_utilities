@@ -270,6 +270,7 @@ class CensusAPI:
 
     @staticmethod
     def _construct_geoid(df: pd.DataFrame, geography: str) -> pd.DataFrame:
+        df = df.copy()
         if geography == 'state':
             df['GEOID'] = df['state']
         elif geography == 'county':
@@ -299,6 +300,7 @@ class CensusAPI:
 
     @staticmethod
     def _convert_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
+        df = df.copy()
         skip_cols = {'GEOID', 'NAME'}
         for col in df.columns:
             if col in skip_cols:
