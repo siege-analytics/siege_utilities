@@ -778,8 +778,7 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
         return result
 
     except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
-        log.warning(f"Could not fetch real GA4 data: {e}")
-        return None
+        raise RuntimeError(f"Could not fetch real GA4 data: {e}") from e
 
 
 def create_kpi_dashboard(ga_data: Dict[str, Any]) -> List[Flowable]:
@@ -1649,7 +1648,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
                            vector_export_dir: Optional[str] = None,
                            raster_export_dir: Optional[str] = None,
                            client_logo_path: Optional[str] = None,
-                           company_logo_path: Optional[str] = None) -> bool:
+                           company_logo_path: Optional[str] = None) -> None:
     """
     Generate a comprehensive Google Analytics PDF report with professional styling.
 
@@ -1671,740 +1670,732 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         client_logo_path: Path to client logo image for the cover page (upper right).
         company_logo_path: Path to company/agency logo for the cover page footer.
 
-    Returns:
-        True if successful
+    Raises:
+        ImportError: If ReportLab is not installed.
+        OSError: If file I/O fails.
     """
     if not REPORTLAB_AVAILABLE:
-        log.error("ReportLab not available - cannot generate PDF")
-        return False
+        raise ImportError("ReportLab not available - cannot generate PDF (pip install reportlab)")
 
-    try:
-        # Load branding colors
-        primary_color = '#1E3A5F'
-        secondary_color = '#2E7D32'
-        if branding_key:
+    # Load branding colors
+    primary_color = '#1E3A5F'
+    secondary_color = '#2E7D32'
+    if branding_key:
+        try:
+            from siege_utilities.reporting.client_branding import ClientBrandingManager
+            mgr = ClientBrandingManager()
+            branding = mgr.get_client_branding(branding_key)
+            if branding:
+                primary_color = branding.get('colors', {}).get('primary', primary_color)
+                secondary_color = branding.get('colors', {}).get('secondary', secondary_color)
+                client_name = branding.get('name', client_name)
+                prepared_by = branding.get('footer', {}).get('left_text', f"Prepared by: {prepared_by}").replace('Prepared by: ', '')
+        except (ImportError, ValueError, KeyError, AttributeError) as e:
+            log.debug(f"Could not load branding '{branding_key}': {e}")
+
+    date_range = ga_data['date_range']
+    totals = ga_data['totals']
+    changes = ga_data['changes']
+
+    # Header/footer callback
+    def _header_footer(canvas_obj, doc_obj):
+        canvas_obj.saveState()
+        canvas_obj.setFont('Helvetica-Bold', 8)
+        canvas_obj.setFillColor(colors.HexColor(primary_color))
+        canvas_obj.drawString(0.75*inch, letter[1] - 0.4*inch, report_title)
+        canvas_obj.setFont('Helvetica', 7)
+        canvas_obj.setFillColor(colors.HexColor('#666666'))
+        canvas_obj.drawString(0.75*inch, letter[1] - 0.52*inch, f"{client_name}  |  {date_range['start']} to {date_range['end']}")
+        # Footer
+        canvas_obj.setFont('Helvetica', 7)
+        canvas_obj.drawString(0.75*inch, 0.4*inch, f"Page {doc_obj.page}")
+        canvas_obj.drawRightString(letter[0] - 0.75*inch, 0.4*inch, prepared_by)
+        canvas_obj.restoreState()
+
+    # Create document with room for header/footer
+    doc = SimpleDocTemplate(
+        output_path,
+        pagesize=letter,
+        rightMargin=0.75*inch,
+        leftMargin=0.75*inch,
+        topMargin=0.85*inch,
+        bottomMargin=0.7*inch
+    )
+
+    styles = getSampleStyleSheet()
+
+    # Branding-aware styles
+    title_style = ParagraphStyle(
+        'CustomTitle', parent=styles['Title'],
+        fontSize=28, spaceAfter=8, alignment=TA_CENTER,
+        textColor=colors.HexColor(primary_color), fontName='Helvetica-Bold'
+    )
+    subtitle_style = ParagraphStyle(
+        'CustomSubtitle', parent=styles['Normal'],
+        fontSize=14, alignment=TA_CENTER, textColor=colors.HexColor('#666666'),
+        spaceAfter=20
+    )
+    heading_style = ParagraphStyle(
+        'CustomHeading', parent=styles['Heading1'],
+        fontSize=16, spaceBefore=20, spaceAfter=10,
+        textColor=colors.HexColor(primary_color)
+    )
+    subheading_style = ParagraphStyle(
+        'CustomSubheading', parent=styles['Heading2'],
+        fontSize=13, spaceBefore=15, spaceAfter=8,
+        textColor=colors.HexColor('#34495e')
+    )
+    body_style = ParagraphStyle(
+        'CustomBody', parent=styles['Normal'],
+        fontSize=10, leading=14, spaceBefore=6, spaceAfter=6
+    )
+    bullet_style = ParagraphStyle(
+        'CustomBullet', parent=styles['Normal'],
+        fontSize=10, leading=14, leftIndent=20, bulletIndent=10,
+        spaceBefore=3, spaceAfter=3
+    )
+    details_style = ParagraphStyle(
+        'Details', parent=styles['Normal'],
+        fontSize=11, spaceAfter=6, alignment=TA_LEFT
+    )
+
+    # Standard table styles
+    primary_table_style = [
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(primary_color)),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F8F9FA')),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E9ECEF')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#F8F9FA'), colors.white]),
+    ]
+
+    green_table_style = list(primary_table_style)
+    green_table_style[0] = ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(secondary_color))
+
+    story = []
+
+    # ── TITLE PAGE ──
+    # Client logo (upper right)
+    if client_logo_path and Path(client_logo_path).exists():
+        _logo_path = client_logo_path
+        # ReportLab can't render SVG directly; convert to PNG first
+        if Path(client_logo_path).suffix.lower() == '.svg':
             try:
-                from siege_utilities.reporting.client_branding import ClientBrandingManager
-                mgr = ClientBrandingManager()
-                branding = mgr.get_client_branding(branding_key)
-                if branding:
-                    primary_color = branding.get('colors', {}).get('primary', primary_color)
-                    secondary_color = branding.get('colors', {}).get('secondary', secondary_color)
-                    client_name = branding.get('name', client_name)
-                    prepared_by = branding.get('footer', {}).get('left_text', f"Prepared by: {prepared_by}").replace('Prepared by: ', '')
-            except (ImportError, ValueError, KeyError, AttributeError) as e:
-                log.debug(f"Could not load branding '{branding_key}': {e}")
-
-        date_range = ga_data['date_range']
-        totals = ga_data['totals']
-        changes = ga_data['changes']
-
-        # Header/footer callback
-        def _header_footer(canvas_obj, doc_obj):
-            canvas_obj.saveState()
-            canvas_obj.setFont('Helvetica-Bold', 8)
-            canvas_obj.setFillColor(colors.HexColor(primary_color))
-            canvas_obj.drawString(0.75*inch, letter[1] - 0.4*inch, report_title)
-            canvas_obj.setFont('Helvetica', 7)
-            canvas_obj.setFillColor(colors.HexColor('#666666'))
-            canvas_obj.drawString(0.75*inch, letter[1] - 0.52*inch, f"{client_name}  |  {date_range['start']} to {date_range['end']}")
-            # Footer
-            canvas_obj.setFont('Helvetica', 7)
-            canvas_obj.drawString(0.75*inch, 0.4*inch, f"Page {doc_obj.page}")
-            canvas_obj.drawRightString(letter[0] - 0.75*inch, 0.4*inch, prepared_by)
-            canvas_obj.restoreState()
-
-        # Create document with room for header/footer
-        doc = SimpleDocTemplate(
-            output_path,
-            pagesize=letter,
-            rightMargin=0.75*inch,
-            leftMargin=0.75*inch,
-            topMargin=0.85*inch,
-            bottomMargin=0.7*inch
-        )
-
-        styles = getSampleStyleSheet()
-
-        # Branding-aware styles
-        title_style = ParagraphStyle(
-            'CustomTitle', parent=styles['Title'],
-            fontSize=28, spaceAfter=8, alignment=TA_CENTER,
-            textColor=colors.HexColor(primary_color), fontName='Helvetica-Bold'
-        )
-        subtitle_style = ParagraphStyle(
-            'CustomSubtitle', parent=styles['Normal'],
-            fontSize=14, alignment=TA_CENTER, textColor=colors.HexColor('#666666'),
-            spaceAfter=20
-        )
-        heading_style = ParagraphStyle(
-            'CustomHeading', parent=styles['Heading1'],
-            fontSize=16, spaceBefore=20, spaceAfter=10,
-            textColor=colors.HexColor(primary_color)
-        )
-        subheading_style = ParagraphStyle(
-            'CustomSubheading', parent=styles['Heading2'],
-            fontSize=13, spaceBefore=15, spaceAfter=8,
-            textColor=colors.HexColor('#34495e')
-        )
-        body_style = ParagraphStyle(
-            'CustomBody', parent=styles['Normal'],
-            fontSize=10, leading=14, spaceBefore=6, spaceAfter=6
-        )
-        bullet_style = ParagraphStyle(
-            'CustomBullet', parent=styles['Normal'],
-            fontSize=10, leading=14, leftIndent=20, bulletIndent=10,
-            spaceBefore=3, spaceAfter=3
-        )
-        details_style = ParagraphStyle(
-            'Details', parent=styles['Normal'],
-            fontSize=11, spaceAfter=6, alignment=TA_LEFT
-        )
-
-        # Standard table styles
-        primary_table_style = [
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(primary_color)),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F8F9FA')),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E9ECEF')),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#F8F9FA'), colors.white]),
-        ]
-
-        green_table_style = list(primary_table_style)
-        green_table_style[0] = ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(secondary_color))
-
-        story = []
-
-        # ── TITLE PAGE ──
-        # Client logo (upper right)
-        if client_logo_path and Path(client_logo_path).exists():
-            _logo_path = client_logo_path
-            # ReportLab can't render SVG directly; convert to PNG first
-            if Path(client_logo_path).suffix.lower() == '.svg':
-                try:
-                    import cairosvg
-                    _tmp_logo = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
-                    _tmp_logo.close()
-                    cairosvg.svg2png(url=str(Path(client_logo_path).resolve()),
-                                    write_to=_tmp_logo.name, output_width=300)
-                    _logo_path = _tmp_logo.name
-                except ImportError:
-                    log.debug("cairosvg not installed; skipping SVG logo (install cairosvg for SVG support)")
-                    _logo_path = None
-                except (OSError, ValueError, TypeError) as e:
-                    log.debug(f"Could not convert SVG logo: {e}")
-                    _logo_path = None
-            if _logo_path:
-                logo_img = RLImage(_logo_path, width=1.5*inch, height=1.0*inch)
-                logo_img.hAlign = 'RIGHT'
-                story.append(logo_img)
-            story.append(Spacer(1, 0.5*inch))
-        else:
-            story.append(Spacer(1, 1.5*inch))
-
-        story.append(Paragraph(client_name, title_style))
-        story.append(Paragraph("Comprehensive Website Performance Analysis", subtitle_style))
-        story.append(Spacer(1, 0.3*inch))
-        story.append(Paragraph(report_title, ParagraphStyle(
-            'ReportTitle', parent=styles['Heading1'],
-            fontSize=20, alignment=TA_CENTER, fontName='Helvetica-Bold'
-        )))
+                import cairosvg
+                _tmp_logo = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+                _tmp_logo.close()
+                cairosvg.svg2png(url=str(Path(client_logo_path).resolve()),
+                                write_to=_tmp_logo.name, output_width=300)
+                _logo_path = _tmp_logo.name
+            except ImportError:
+                log.debug("cairosvg not installed; skipping SVG logo (install cairosvg for SVG support)")
+                _logo_path = None
+            except (OSError, ValueError, TypeError) as e:
+                log.debug(f"Could not convert SVG logo: {e}")
+                _logo_path = None
+        if _logo_path:
+            logo_img = RLImage(_logo_path, width=1.5*inch, height=1.0*inch)
+            logo_img.hAlign = 'RIGHT'
+            story.append(logo_img)
         story.append(Spacer(1, 0.5*inch))
-        story.append(Paragraph(f"<b>Report Date:</b> {datetime.now().strftime('%B %d, %Y')}", details_style))
-        story.append(Paragraph(f"<b>Period Covered:</b> {date_range['start']} to {date_range['end']}", details_style))
-        story.append(Paragraph(f"<b>Prepared By:</b> {prepared_by}", details_style))
-        data_source = ga_data.get('data_source', 'sample')
-        story.append(Paragraph(f"<b>Data Source:</b> {'GA4 API (Live)' if data_source == 'ga4_api' else 'Sample Data'}", details_style))
+    else:
+        story.append(Spacer(1, 1.5*inch))
 
-        # Company logo (bottom of title page)
-        if company_logo_path and Path(company_logo_path).exists():
-            story.append(Spacer(1, 1.0*inch))
-            company_logo = RLImage(company_logo_path, width=1.2*inch, height=0.6*inch)
-            company_logo.hAlign = 'RIGHT'
-            story.append(company_logo)
-        story.append(PageBreak())
+    story.append(Paragraph(client_name, title_style))
+    story.append(Paragraph("Comprehensive Website Performance Analysis", subtitle_style))
+    story.append(Spacer(1, 0.3*inch))
+    story.append(Paragraph(report_title, ParagraphStyle(
+        'ReportTitle', parent=styles['Heading1'],
+        fontSize=20, alignment=TA_CENTER, fontName='Helvetica-Bold'
+    )))
+    story.append(Spacer(1, 0.5*inch))
+    story.append(Paragraph(f"<b>Report Date:</b> {datetime.now().strftime('%B %d, %Y')}", details_style))
+    story.append(Paragraph(f"<b>Period Covered:</b> {date_range['start']} to {date_range['end']}", details_style))
+    story.append(Paragraph(f"<b>Prepared By:</b> {prepared_by}", details_style))
+    data_source = ga_data.get('data_source', 'sample')
+    story.append(Paragraph(f"<b>Data Source:</b> {'GA4 API (Live)' if data_source == 'ga4_api' else 'Sample Data'}", details_style))
 
-        # ── TABLE OF CONTENTS ──
-        story.append(Paragraph("Table of Contents", heading_style))
+    # Company logo (bottom of title page)
+    if company_logo_path and Path(company_logo_path).exists():
+        story.append(Spacer(1, 1.0*inch))
+        company_logo = RLImage(company_logo_path, width=1.2*inch, height=0.6*inch)
+        company_logo.hAlign = 'RIGHT'
+        story.append(company_logo)
+    story.append(PageBreak())
+
+    # ── TABLE OF CONTENTS ──
+    story.append(Paragraph("Table of Contents", heading_style))
+    story.append(Spacer(1, 12))
+    toc_items = [
+        "1. Executive Summary",
+        "2. Key Performance Indicators",
+        "3. Traffic Trends",
+        "4. Traffic Sources Analysis",
+        "5. Device Analysis",
+        "6. Top Pages Performance",
+        "7. Geographic Distribution",
+        "    7.1 Country Analysis",
+        "    7.2 Regional Analysis",
+        "    7.3 City Analysis",
+        "    7.4 Continental Analysis",
+        "    7.5 Geographic Summary",
+    ]
+    next_section = 8
+    if ga_data.get('prior_daily_data', {}).get('sessions'):
+        toc_items.append(f"{next_section}. Period-over-Period Comparison")
+        next_section += 1
+    if ga_data.get('longitudinal'):
+        toc_items.append(f"{next_section}. Year-over-Year Analysis")
+        next_section += 1
+    if ga_data.get('best_day'):
+        toc_items.append(f"{next_section}. Performance Highlights")
+        next_section += 1
+    toc_items.append(f"{next_section}. Key Insights")
+    next_section += 1
+    toc_items.append(f"{next_section}. Recommendations")
+    next_section += 1
+    toc_items.append("")
+    toc_items.append("APPENDICES")
+    toc_items.append("    A. Complete Daily Performance Data")
+    toc_items.append("    B. Complete Traffic Sources Data")
+    toc_items.append("    C. Complete Device Category Data")
+    toc_items.append("    D. Complete Geographic Data")
+
+    toc_style = ParagraphStyle(
+        'TOC', parent=styles['Normal'], fontSize=12, spaceBefore=4, spaceAfter=4,
+        leftIndent=20
+    )
+    for item in toc_items:
+        story.append(Paragraph(item, toc_style))
+    story.append(PageBreak())
+
+    # ── 1. EXECUTIVE SUMMARY ──
+    story.append(Paragraph("1. Executive Summary", heading_style))
+    summary_text = (
+        f"This report provides a comprehensive analysis of website performance for the period "
+        f"{date_range['start']} to {date_range['end']}. During this period, the website received "
+        f"<b>{totals['users']:,}</b> unique users and <b>{totals['sessions']:,}</b> sessions, "
+        f"representing a <b>{changes['users']:+.1f}%</b> change in users compared to the prior period."
+    )
+    story.append(Paragraph(summary_text, body_style))
+    story.append(Spacer(1, 8))
+    summary_text2 = (
+        f"Key performance indicators show an average bounce rate of <b>{totals['avg_bounce_rate']:.1f}%</b> "
+        f"and average session duration of <b>{totals['avg_session_duration']:.0f} seconds</b>. "
+        f"Users viewed an average of <b>{totals['pages_per_session']:.1f} pages</b> per session."
+    )
+    story.append(Paragraph(summary_text2, body_style))
+    story.append(Spacer(1, 15))
+
+    # Key Performance Highlights table
+    avg_daily = totals['sessions'] / max(1, len(ga_data['daily_data']['sessions']))
+    kph_data = [
+        ["Metric", "Value", "Details"],
+        ["Total Sessions", f"{totals['sessions']:,}", f"Average: {avg_daily:.0f} per day"],
+        ["Total Users", f"{totals['users']:,}", "Unique visitors"],
+        ["Total Pageviews", f"{totals['pageviews']:,}", f"{totals['pages_per_session']:.1f} pages/session"],
+        ["Avg Bounce Rate", f"{totals['avg_bounce_rate']:.1f}%", f"{changes['bounce_rate']:+.1f}% vs prior"],
+        ["Avg Session Duration", f"{totals['avg_session_duration']:.0f}s", f"{changes['duration']:+.1f}% vs prior"],
+    ]
+    if ga_data.get('best_day'):
+        kph_data.append(["Best Day", f"{ga_data['best_day']['sessions']:,} sessions", ga_data['best_day']['date']])
+    if ga_data.get('worst_day'):
+        kph_data.append(["Lowest Day", f"{ga_data['worst_day']['sessions']:,} sessions", ga_data['worst_day']['date']])
+
+    kph_table = Table(kph_data, colWidths=[2*inch, 1.5*inch, 2.8*inch])
+    kph_table.setStyle(TableStyle(primary_table_style))
+    story.append(kph_table)
+    fn = create_footnote_paragraph(['sessions', 'users', 'bounce_rate', 'pageviews', 'avg_session_duration'])
+    if fn:
+        story.append(fn)
+    story.append(Spacer(1, 20))
+
+    # ── 2. KPI DASHBOARD ──
+    story.append(Paragraph("2. Key Performance Indicators", heading_style))
+    story.extend(create_kpi_dashboard(ga_data))
+    story.append(PageBreak())
+
+    # Resolve export paths
+    _vec_dir = Path(vector_export_dir) if vector_export_dir else None
+    if _vec_dir:
+        _vec_dir.mkdir(parents=True, exist_ok=True)
+        log.info(f"Vector chart export enabled: {_vec_dir}")
+
+    _ras_dir = Path(raster_export_dir) if raster_export_dir else None
+    if _ras_dir:
+        _ras_dir.mkdir(parents=True, exist_ok=True)
+        log.info(f"Raster chart export enabled: {_ras_dir}")
+
+    def _save_raster(chart_path: Optional[str], name: str) -> None:
+        """Copy a chart's temp PNG to the raster export directory."""
+        if _ras_dir and chart_path and Path(chart_path).exists():
+            import shutil
+            dest = _ras_dir / f"{name}.png"
+            shutil.copy2(chart_path, dest)
+            log.info(f"Saved raster chart: {dest}")
+
+    # ── 3. TRAFFIC TRENDS ──
+    story.append(Paragraph("3. Traffic Trends", heading_style))
+    trend_chart = create_traffic_trend_chart(
+        ga_data,
+        vector_export_path=str(_vec_dir / 'traffic_trends.svg') if _vec_dir else None,
+    )
+    _save_raster(trend_chart, 'traffic_trends')
+    if trend_chart:
+        story.append(RLImage(trend_chart, width=5.5*inch, height=3.5*inch))
         story.append(Spacer(1, 12))
-        toc_items = [
-            "1. Executive Summary",
-            "2. Key Performance Indicators",
-            "3. Traffic Trends",
-            "4. Traffic Sources Analysis",
-            "5. Device Analysis",
-            "6. Top Pages Performance",
-            "7. Geographic Distribution",
-            "    7.1 Country Analysis",
-            "    7.2 Regional Analysis",
-            "    7.3 City Analysis",
-            "    7.4 Continental Analysis",
-            "    7.5 Geographic Summary",
-        ]
-        next_section = 8
-        if ga_data.get('prior_daily_data', {}).get('sessions'):
-            toc_items.append(f"{next_section}. Period-over-Period Comparison")
-            next_section += 1
-        if ga_data.get('longitudinal'):
-            toc_items.append(f"{next_section}. Year-over-Year Analysis")
-            next_section += 1
-        if ga_data.get('best_day'):
-            toc_items.append(f"{next_section}. Performance Highlights")
-            next_section += 1
-        toc_items.append(f"{next_section}. Key Insights")
-        next_section += 1
-        toc_items.append(f"{next_section}. Recommendations")
-        next_section += 1
-        toc_items.append("")
-        toc_items.append("APPENDICES")
-        toc_items.append("    A. Complete Daily Performance Data")
-        toc_items.append("    B. Complete Traffic Sources Data")
-        toc_items.append("    C. Complete Device Category Data")
-        toc_items.append("    D. Complete Geographic Data")
+    else:
+        story.append(Paragraph("Traffic trend chart unavailable (matplotlib not installed).", body_style))
+    story.append(PageBreak())
 
-        toc_style = ParagraphStyle(
-            'TOC', parent=styles['Normal'], fontSize=12, spaceBefore=4, spaceAfter=4,
-            leftIndent=20
-        )
-        for item in toc_items:
-            story.append(Paragraph(item, toc_style))
-        story.append(PageBreak())
+    # ── 4. TRAFFIC SOURCES ──
+    story.append(Paragraph("4. Traffic Sources Analysis", heading_style))
+    source_chart = create_traffic_sources_chart(
+        ga_data,
+        vector_export_path=str(_vec_dir / 'traffic_sources.svg') if _vec_dir else None,
+    )
+    _save_raster(source_chart, 'traffic_sources')
+    if source_chart:
+        story.append(RLImage(source_chart, width=5.5*inch, height=3.5*inch))
+        story.append(Spacer(1, 12))
 
-        # ── 1. EXECUTIVE SUMMARY ──
-        story.append(Paragraph("1. Executive Summary", heading_style))
-        summary_text = (
-            f"This report provides a comprehensive analysis of website performance for the period "
-            f"{date_range['start']} to {date_range['end']}. During this period, the website received "
-            f"<b>{totals['users']:,}</b> unique users and <b>{totals['sessions']:,}</b> sessions, "
-            f"representing a <b>{changes['users']:+.1f}%</b> change in users compared to the prior period."
-        )
-        story.append(Paragraph(summary_text, body_style))
+    source_table_data = create_traffic_sources_table(ga_data)
+    # Heatmap the sessions column (index 2)
+    source_table = Table(source_table_data, colWidths=[1.2*inch, 1*inch, 1*inch, 1*inch, 1*inch, 1.2*inch])
+    source_table.setStyle(create_heatmapped_table_style(
+        source_table_data, value_column_index=2,
+        base_style=primary_table_style, color_scheme='blue'
+    ))
+    story.append(source_table)
+    fn = create_footnote_paragraph(['source', 'medium', 'sessions', 'bounce_rate'])
+    if fn:
+        story.append(fn)
+    story.append(Spacer(1, 20))
+
+    # ── 5. DEVICE ANALYSIS ──
+    story.append(Paragraph("5. Device Analysis", heading_style))
+    device_chart = create_device_breakdown_chart(
+        ga_data,
+        vector_export_path=str(_vec_dir / 'device_breakdown.svg') if _vec_dir else None,
+    )
+    _save_raster(device_chart, 'device_breakdown')
+    if device_chart:
+        story.append(RLImage(device_chart, width=5.5*inch, height=3.5*inch))
+    else:
+        story.append(Paragraph("Device analysis chart unavailable (matplotlib not installed).", body_style))
+    story.append(PageBreak())
+
+    # ── 6. TOP PAGES ──
+    story.append(Paragraph("6. Top Pages Performance", heading_style))
+    pages_table_data = create_top_pages_table(ga_data)
+    pages_table = Table(pages_table_data, colWidths=[2.2*inch, 0.9*inch, 0.9*inch, 0.8*inch, 0.9*inch, 0.8*inch])
+    pages_table.setStyle(create_heatmapped_table_style(
+        pages_table_data, value_column_index=1,
+        base_style=[
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(primary_color)),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
+        ],
+        color_scheme='blue'
+    ))
+    story.append(pages_table)
+    story.append(Spacer(1, 20))
+
+    # ── 7. GEOGRAPHIC DISTRIBUTION ──
+    story.append(Paragraph("7. Geographic Distribution", heading_style))
+
+    # 7.1 Country Analysis
+    story.append(Paragraph("7.1 Country Analysis", subheading_style))
+    country_chart = create_geo_country_chart(
+        ga_data,
+        vector_export_path=str(_vec_dir / 'geo_country.svg') if _vec_dir else None,
+    )
+    _save_raster(country_chart, 'geo_country')
+    if country_chart:
+        story.append(RLImage(country_chart, width=5.5*inch, height=3.5*inch))
         story.append(Spacer(1, 8))
-        summary_text2 = (
-            f"Key performance indicators show an average bounce rate of <b>{totals['avg_bounce_rate']:.1f}%</b> "
-            f"and average session duration of <b>{totals['avg_session_duration']:.0f} seconds</b>. "
-            f"Users viewed an average of <b>{totals['pages_per_session']:.1f} pages</b> per session."
-        )
-        story.append(Paragraph(summary_text2, body_style))
-        story.append(Spacer(1, 15))
 
-        # Key Performance Highlights table
-        avg_daily = totals['sessions'] / max(1, len(ga_data['daily_data']['sessions']))
-        kph_data = [
-            ["Metric", "Value", "Details"],
-            ["Total Sessions", f"{totals['sessions']:,}", f"Average: {avg_daily:.0f} per day"],
-            ["Total Users", f"{totals['users']:,}", "Unique visitors"],
-            ["Total Pageviews", f"{totals['pageviews']:,}", f"{totals['pages_per_session']:.1f} pages/session"],
-            ["Avg Bounce Rate", f"{totals['avg_bounce_rate']:.1f}%", f"{changes['bounce_rate']:+.1f}% vs prior"],
-            ["Avg Session Duration", f"{totals['avg_session_duration']:.0f}s", f"{changes['duration']:+.1f}% vs prior"],
-        ]
-        if ga_data.get('best_day'):
-            kph_data.append(["Best Day", f"{ga_data['best_day']['sessions']:,} sessions", ga_data['best_day']['date']])
-        if ga_data.get('worst_day'):
-            kph_data.append(["Lowest Day", f"{ga_data['worst_day']['sessions']:,} sessions", ga_data['worst_day']['date']])
-
-        kph_table = Table(kph_data, colWidths=[2*inch, 1.5*inch, 2.8*inch])
-        kph_table.setStyle(TableStyle(primary_table_style))
-        story.append(kph_table)
-        fn = create_footnote_paragraph(['sessions', 'users', 'bounce_rate', 'pageviews', 'avg_session_duration'])
-        if fn:
-            story.append(fn)
-        story.append(Spacer(1, 20))
-
-        # ── 2. KPI DASHBOARD ──
-        story.append(Paragraph("2. Key Performance Indicators", heading_style))
-        story.extend(create_kpi_dashboard(ga_data))
-        story.append(PageBreak())
-
-        # Resolve export paths
-        _vec_dir = Path(vector_export_dir) if vector_export_dir else None
-        if _vec_dir:
-            _vec_dir.mkdir(parents=True, exist_ok=True)
-            log.info(f"Vector chart export enabled: {_vec_dir}")
-
-        _ras_dir = Path(raster_export_dir) if raster_export_dir else None
-        if _ras_dir:
-            _ras_dir.mkdir(parents=True, exist_ok=True)
-            log.info(f"Raster chart export enabled: {_ras_dir}")
-
-        def _save_raster(chart_path: Optional[str], name: str) -> None:
-            """Copy a chart's temp PNG to the raster export directory."""
-            if _ras_dir and chart_path and Path(chart_path).exists():
-                import shutil
-                dest = _ras_dir / f"{name}.png"
-                shutil.copy2(chart_path, dest)
-                log.info(f"Saved raster chart: {dest}")
-
-        # ── 3. TRAFFIC TRENDS ──
-        story.append(Paragraph("3. Traffic Trends", heading_style))
-        trend_chart = create_traffic_trend_chart(
-            ga_data,
-            vector_export_path=str(_vec_dir / 'traffic_trends.svg') if _vec_dir else None,
-        )
-        _save_raster(trend_chart, 'traffic_trends')
-        if trend_chart:
-            story.append(RLImage(trend_chart, width=5.5*inch, height=3.5*inch))
-            story.append(Spacer(1, 12))
-        else:
-            story.append(Paragraph("Traffic trend chart unavailable (matplotlib not installed).", body_style))
-        story.append(PageBreak())
-
-        # ── 4. TRAFFIC SOURCES ──
-        story.append(Paragraph("4. Traffic Sources Analysis", heading_style))
-        source_chart = create_traffic_sources_chart(
-            ga_data,
-            vector_export_path=str(_vec_dir / 'traffic_sources.svg') if _vec_dir else None,
-        )
-        _save_raster(source_chart, 'traffic_sources')
-        if source_chart:
-            story.append(RLImage(source_chart, width=5.5*inch, height=3.5*inch))
-            story.append(Spacer(1, 12))
-
-        source_table_data = create_traffic_sources_table(ga_data)
-        # Heatmap the sessions column (index 2)
-        source_table = Table(source_table_data, colWidths=[1.2*inch, 1*inch, 1*inch, 1*inch, 1*inch, 1.2*inch])
-        source_table.setStyle(create_heatmapped_table_style(
-            source_table_data, value_column_index=2,
-            base_style=primary_table_style, color_scheme='blue'
-        ))
-        story.append(source_table)
-        fn = create_footnote_paragraph(['source', 'medium', 'sessions', 'bounce_rate'])
-        if fn:
-            story.append(fn)
-        story.append(Spacer(1, 20))
-
-        # ── 5. DEVICE ANALYSIS ──
-        story.append(Paragraph("5. Device Analysis", heading_style))
-        device_chart = create_device_breakdown_chart(
-            ga_data,
-            vector_export_path=str(_vec_dir / 'device_breakdown.svg') if _vec_dir else None,
-        )
-        _save_raster(device_chart, 'device_breakdown')
-        if device_chart:
-            story.append(RLImage(device_chart, width=5.5*inch, height=3.5*inch))
-        else:
-            story.append(Paragraph("Device analysis chart unavailable (matplotlib not installed).", body_style))
-        story.append(PageBreak())
-
-        # ── 6. TOP PAGES ──
-        story.append(Paragraph("6. Top Pages Performance", heading_style))
-        pages_table_data = create_top_pages_table(ga_data)
-        pages_table = Table(pages_table_data, colWidths=[2.2*inch, 0.9*inch, 0.9*inch, 0.8*inch, 0.9*inch, 0.8*inch])
-        pages_table.setStyle(create_heatmapped_table_style(
-            pages_table_data, value_column_index=1,
-            base_style=[
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(primary_color)),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-                ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 9),
-                ('FONTSIZE', (0, 1), (-1, -1), 8),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
-            ],
-            color_scheme='blue'
-        ))
-        story.append(pages_table)
-        story.append(Spacer(1, 20))
-
-        # ── 7. GEOGRAPHIC DISTRIBUTION ──
-        story.append(Paragraph("7. Geographic Distribution", heading_style))
-
-        # 7.1 Country Analysis
-        story.append(Paragraph("7.1 Country Analysis", subheading_style))
-        country_chart = create_geo_country_chart(
-            ga_data,
-            vector_export_path=str(_vec_dir / 'geo_country.svg') if _vec_dir else None,
-        )
-        _save_raster(country_chart, 'geo_country')
-        if country_chart:
-            story.append(RLImage(country_chart, width=5.5*inch, height=3.5*inch))
-            story.append(Spacer(1, 8))
-
-        # Country heatmapped table
-        geo = ga_data.get('geo_data', [])
-        country_sessions = {}
-        for loc in geo:
-            c = loc.get('country', 'Unknown')
-            country_sessions[c] = country_sessions.get(c, 0) + loc.get('sessions', 0)
-        if country_sessions:
-            total_geo_sessions = sum(country_sessions.values())
-            country_table_data = [['Country', 'Sessions', '% of Total']]
-            for country, sessions in sorted(country_sessions.items(), key=lambda x: x[1], reverse=True):
-                pct = (sessions / total_geo_sessions * 100) if total_geo_sessions else 0
-                country_table_data.append([country, f'{sessions:,}', f'{pct:.1f}%'])
-            country_table = Table(country_table_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
-            country_table.setStyle(create_heatmapped_table_style(
-                country_table_data, value_column_index=1,
-                base_style=green_table_style, color_scheme='green'
-            ))
-            story.append(country_table)
-        story.append(Spacer(1, 12))
-
-        # 7.2 Regional Analysis
-        story.append(Paragraph("7.2 Regional Analysis", subheading_style))
-        region_chart = create_geo_region_chart(
-            ga_data,
-            vector_export_path=str(_vec_dir / 'geo_region.svg') if _vec_dir else None,
-        )
-        _save_raster(region_chart, 'geo_region')
-        if region_chart:
-            story.append(RLImage(region_chart, width=5.5*inch, height=3.5*inch))
-            story.append(Spacer(1, 8))
-
-        region_sessions = {}
-        for loc in geo:
-            r = loc.get('region', 'Unknown')
-            region_sessions[r] = region_sessions.get(r, 0) + loc.get('sessions', 0)
-        if region_sessions:
-            total_region = sum(region_sessions.values())
-            region_table_data = [['Region', 'Sessions', '% of Total']]
-            for region, sessions in sorted(region_sessions.items(), key=lambda x: x[1], reverse=True):
-                pct = (sessions / total_region * 100) if total_region else 0
-                region_table_data.append([region, f'{sessions:,}', f'{pct:.1f}%'])
-            region_table = Table(region_table_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
-            region_table.setStyle(create_heatmapped_table_style(
-                region_table_data, value_column_index=1,
-                base_style=green_table_style, color_scheme='green'
-            ))
-            story.append(region_table)
-        story.append(PageBreak())
-
-        # 7.3 City Analysis
-        story.append(Paragraph("7.3 City Analysis", subheading_style))
-        city_chart = create_geo_city_scatter(
-            ga_data,
-            vector_export_path=str(_vec_dir / 'geo_city.svg') if _vec_dir else None,
-        )
-        _save_raster(city_chart, 'geo_city')
-        if city_chart:
-            story.append(RLImage(city_chart, width=5.5*inch, height=3.5*inch))
-            story.append(Spacer(1, 8))
-
-        # City heatmapped table (original geo table)
-        geo_table_data = create_geo_table(ga_data)
-        geo_table = Table(geo_table_data, colWidths=[1.8*inch, 1.5*inch, 1.2*inch, 1.2*inch])
-        geo_table.setStyle(create_heatmapped_table_style(
-            geo_table_data, value_column_index=2,
+    # Country heatmapped table
+    geo = ga_data.get('geo_data', [])
+    country_sessions = {}
+    for loc in geo:
+        c = loc.get('country', 'Unknown')
+        country_sessions[c] = country_sessions.get(c, 0) + loc.get('sessions', 0)
+    if country_sessions:
+        total_geo_sessions = sum(country_sessions.values())
+        country_table_data = [['Country', 'Sessions', '% of Total']]
+        for country, sessions in sorted(country_sessions.items(), key=lambda x: x[1], reverse=True):
+            pct = (sessions / total_geo_sessions * 100) if total_geo_sessions else 0
+            country_table_data.append([country, f'{sessions:,}', f'{pct:.1f}%'])
+        country_table = Table(country_table_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
+        country_table.setStyle(create_heatmapped_table_style(
+            country_table_data, value_column_index=1,
             base_style=green_table_style, color_scheme='green'
         ))
-        story.append(geo_table)
-        story.append(PageBreak())
+        story.append(country_table)
+    story.append(Spacer(1, 12))
 
-        # 7.4 Continental Analysis
-        story.append(Paragraph("7.4 Continental Analysis", subheading_style))
-        continent_chart = create_continent_donut_chart(
+    # 7.2 Regional Analysis
+    story.append(Paragraph("7.2 Regional Analysis", subheading_style))
+    region_chart = create_geo_region_chart(
+        ga_data,
+        vector_export_path=str(_vec_dir / 'geo_region.svg') if _vec_dir else None,
+    )
+    _save_raster(region_chart, 'geo_region')
+    if region_chart:
+        story.append(RLImage(region_chart, width=5.5*inch, height=3.5*inch))
+        story.append(Spacer(1, 8))
+
+    region_sessions = {}
+    for loc in geo:
+        r = loc.get('region', 'Unknown')
+        region_sessions[r] = region_sessions.get(r, 0) + loc.get('sessions', 0)
+    if region_sessions:
+        total_region = sum(region_sessions.values())
+        region_table_data = [['Region', 'Sessions', '% of Total']]
+        for region, sessions in sorted(region_sessions.items(), key=lambda x: x[1], reverse=True):
+            pct = (sessions / total_region * 100) if total_region else 0
+            region_table_data.append([region, f'{sessions:,}', f'{pct:.1f}%'])
+        region_table = Table(region_table_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
+        region_table.setStyle(create_heatmapped_table_style(
+            region_table_data, value_column_index=1,
+            base_style=green_table_style, color_scheme='green'
+        ))
+        story.append(region_table)
+    story.append(PageBreak())
+
+    # 7.3 City Analysis
+    story.append(Paragraph("7.3 City Analysis", subheading_style))
+    city_chart = create_geo_city_scatter(
+        ga_data,
+        vector_export_path=str(_vec_dir / 'geo_city.svg') if _vec_dir else None,
+    )
+    _save_raster(city_chart, 'geo_city')
+    if city_chart:
+        story.append(RLImage(city_chart, width=5.5*inch, height=3.5*inch))
+        story.append(Spacer(1, 8))
+
+    # City heatmapped table (original geo table)
+    geo_table_data = create_geo_table(ga_data)
+    geo_table = Table(geo_table_data, colWidths=[1.8*inch, 1.5*inch, 1.2*inch, 1.2*inch])
+    geo_table.setStyle(create_heatmapped_table_style(
+        geo_table_data, value_column_index=2,
+        base_style=green_table_style, color_scheme='green'
+    ))
+    story.append(geo_table)
+    story.append(PageBreak())
+
+    # 7.4 Continental Analysis
+    story.append(Paragraph("7.4 Continental Analysis", subheading_style))
+    continent_chart = create_continent_donut_chart(
+        ga_data,
+        vector_export_path=str(_vec_dir / 'geo_continent.svg') if _vec_dir else None,
+    )
+    _save_raster(continent_chart, 'geo_continent')
+    if continent_chart:
+        story.append(RLImage(continent_chart, width=5.5*inch, height=3.5*inch))
+        story.append(Spacer(1, 8))
+
+    continent_sessions = {}
+    for loc in geo:
+        c = loc.get('continent')
+        if c:
+            continent_sessions[c] = continent_sessions.get(c, 0) + loc.get('sessions', 0)
+    if continent_sessions:
+        total_cont = sum(continent_sessions.values())
+        cont_table_data = [['Continent', 'Sessions', '% of Total']]
+        for cont, sessions in sorted(continent_sessions.items(), key=lambda x: x[1], reverse=True):
+            pct = (sessions / total_cont * 100) if total_cont else 0
+            cont_table_data.append([cont, f'{sessions:,}', f'{pct:.1f}%'])
+        cont_table = Table(cont_table_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
+        cont_table.setStyle(create_heatmapped_table_style(
+            cont_table_data, value_column_index=1,
+            base_style=green_table_style, color_scheme='green'
+        ))
+        story.append(cont_table)
+    story.append(Spacer(1, 12))
+
+    # 7.5 Geographic Summary
+    story.append(Paragraph("7.5 Geographic Summary", subheading_style))
+    geo_summary_data = create_geo_summary_table(ga_data)
+    if geo_summary_data:
+        summary_table = Table(geo_summary_data, colWidths=[1.5*inch, 2*inch, 1.2*inch, 1.3*inch])
+        summary_table.setStyle(TableStyle(primary_table_style))
+        story.append(summary_table)
+    story.append(PageBreak())
+
+    # ── PERIOD-OVER-PERIOD COMPARISON (if prior daily data available) ──
+    pop_section = 8
+    has_pop = bool(ga_data.get('prior_daily_data', {}).get('sessions'))
+    if has_pop:
+        story.append(Paragraph(f"{pop_section}. Period-over-Period Comparison", heading_style))
+        story.append(Paragraph(
+            "Daily sessions for the current period compared against the equivalent prior period.",
+            body_style
+        ))
+        story.append(Spacer(1, 10))
+
+        pop_chart = create_period_comparison_chart(
             ga_data,
-            vector_export_path=str(_vec_dir / 'geo_continent.svg') if _vec_dir else None,
+            vector_export_path=str(_vec_dir / 'period_comparison.svg') if _vec_dir else None,
         )
-        _save_raster(continent_chart, 'geo_continent')
-        if continent_chart:
-            story.append(RLImage(continent_chart, width=5.5*inch, height=3.5*inch))
+        _save_raster(pop_chart, 'period_comparison')
+        if pop_chart:
+            story.append(RLImage(pop_chart, width=5.5*inch, height=4.0*inch))
             story.append(Spacer(1, 8))
 
-        continent_sessions = {}
-        for loc in geo:
-            c = loc.get('continent')
-            if c:
-                continent_sessions[c] = continent_sessions.get(c, 0) + loc.get('sessions', 0)
-        if continent_sessions:
-            total_cont = sum(continent_sessions.values())
-            cont_table_data = [['Continent', 'Sessions', '% of Total']]
-            for cont, sessions in sorted(continent_sessions.items(), key=lambda x: x[1], reverse=True):
-                pct = (sessions / total_cont * 100) if total_cont else 0
-                cont_table_data.append([cont, f'{sessions:,}', f'{pct:.1f}%'])
-            cont_table = Table(cont_table_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
-            cont_table.setStyle(create_heatmapped_table_style(
-                cont_table_data, value_column_index=1,
-                base_style=green_table_style, color_scheme='green'
-            ))
-            story.append(cont_table)
-        story.append(Spacer(1, 12))
-
-        # 7.5 Geographic Summary
-        story.append(Paragraph("7.5 Geographic Summary", subheading_style))
-        geo_summary_data = create_geo_summary_table(ga_data)
-        if geo_summary_data:
-            summary_table = Table(geo_summary_data, colWidths=[1.5*inch, 2*inch, 1.2*inch, 1.3*inch])
-            summary_table.setStyle(TableStyle(primary_table_style))
-            story.append(summary_table)
+        # Summary table
+        prior_p = ga_data.get('prior_period', {})
+        pop_table_data = [
+            ['Metric', 'Current Period', 'Prior Period', 'Change'],
+            ['Sessions', f"{totals['sessions']:,}", f"{prior_p.get('sessions', 0):,}",
+             f"{changes['sessions']:+.1f}%"],
+            ['Users', f"{totals['users']:,}", f"{prior_p.get('users', 0):,}",
+             f"{changes['users']:+.1f}%"],
+            ['Bounce Rate', f"{totals['avg_bounce_rate']:.1f}%",
+             f"{prior_p.get('avg_bounce_rate', 0):.1f}%",
+             f"{changes['bounce_rate']:+.1f} pts"],
+            ['Avg Duration', f"{totals['avg_session_duration']:.0f}s",
+             f"{prior_p.get('avg_session_duration', 0):.0f}s",
+             f"{changes['duration']:+.1f}%"],
+        ]
+        pop_table = Table(pop_table_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+        pop_table.setStyle(TableStyle(primary_table_style))
+        story.append(pop_table)
+        fn = create_footnote_paragraph(['sessions', 'users', 'bounce_rate', 'avg_session_duration'])
+        if fn:
+            story.append(fn)
         story.append(PageBreak())
 
-        # ── PERIOD-OVER-PERIOD COMPARISON (if prior daily data available) ──
-        pop_section = 8
-        has_pop = bool(ga_data.get('prior_daily_data', {}).get('sessions'))
-        if has_pop:
-            story.append(Paragraph(f"{pop_section}. Period-over-Period Comparison", heading_style))
-            story.append(Paragraph(
-                "Daily sessions for the current period compared against the equivalent prior period.",
-                body_style
-            ))
-            story.append(Spacer(1, 10))
+    # ── YEAR-OVER-YEAR ANALYSIS (if available) ──
+    yoy_section = (pop_section + 1) if has_pop else pop_section
+    longitudinal = ga_data.get('longitudinal', {})
+    if longitudinal:
+        story.append(Paragraph(f"{yoy_section}. Year-over-Year Analysis", heading_style))
+        story.append(Paragraph(
+            "Longitudinal comparison of website performance across years.",
+            body_style
+        ))
+        story.append(Spacer(1, 10))
 
-            pop_chart = create_period_comparison_chart(
-                ga_data,
-                vector_export_path=str(_vec_dir / 'period_comparison.svg') if _vec_dir else None,
-            )
-            _save_raster(pop_chart, 'period_comparison')
-            if pop_chart:
-                story.append(RLImage(pop_chart, width=5.5*inch, height=4.0*inch))
-                story.append(Spacer(1, 8))
+        yoy_header = ["Year", "Sessions", "Users", "Pageviews", "Growth Rate"]
+        yoy_rows = []
+        years_sorted = sorted(longitudinal.keys())
+        prev_sessions = None
+        for year in years_sorted:
+            year_data = longitudinal[year]
+            sessions = year_data['sessions']
+            growth = "Baseline"
+            if prev_sessions and prev_sessions > 0:
+                rate = ((sessions - prev_sessions) / prev_sessions) * 100
+                growth = f"{rate:+.1f}%"
+            yoy_rows.append([
+                year if year == years_sorted[-1] else year,
+                f"{sessions:,}",
+                f"{year_data['users']:,}",
+                f"{year_data['pageviews']:,}",
+                growth,
+            ])
+            prev_sessions = sessions
 
-            # Summary table
-            prior_p = ga_data.get('prior_period', {})
-            pop_table_data = [
-                ['Metric', 'Current Period', 'Prior Period', 'Change'],
-                ['Sessions', f"{totals['sessions']:,}", f"{prior_p.get('sessions', 0):,}",
-                 f"{changes['sessions']:+.1f}%"],
-                ['Users', f"{totals['users']:,}", f"{prior_p.get('users', 0):,}",
-                 f"{changes['users']:+.1f}%"],
-                ['Bounce Rate', f"{totals['avg_bounce_rate']:.1f}%",
-                 f"{prior_p.get('avg_bounce_rate', 0):.1f}%",
-                 f"{changes['bounce_rate']:+.1f} pts"],
-                ['Avg Duration', f"{totals['avg_session_duration']:.0f}s",
-                 f"{prior_p.get('avg_session_duration', 0):.0f}s",
-                 f"{changes['duration']:+.1f}%"],
-            ]
-            pop_table = Table(pop_table_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
-            pop_table.setStyle(TableStyle(primary_table_style))
-            story.append(pop_table)
-            fn = create_footnote_paragraph(['sessions', 'users', 'bounce_rate', 'avg_session_duration'])
-            if fn:
-                story.append(fn)
-            story.append(PageBreak())
-
-        # ── YEAR-OVER-YEAR ANALYSIS (if available) ──
-        yoy_section = (pop_section + 1) if has_pop else pop_section
-        longitudinal = ga_data.get('longitudinal', {})
-        if longitudinal:
-            story.append(Paragraph(f"{yoy_section}. Year-over-Year Analysis", heading_style))
-            story.append(Paragraph(
-                "Longitudinal comparison of website performance across years.",
-                body_style
-            ))
-            story.append(Spacer(1, 10))
-
-            yoy_header = ["Year", "Sessions", "Users", "Pageviews", "Growth Rate"]
-            yoy_rows = []
-            years_sorted = sorted(longitudinal.keys())
-            prev_sessions = None
-            for year in years_sorted:
-                year_data = longitudinal[year]
-                sessions = year_data['sessions']
-                growth = "Baseline"
-                if prev_sessions and prev_sessions > 0:
-                    rate = ((sessions - prev_sessions) / prev_sessions) * 100
-                    growth = f"{rate:+.1f}%"
-                yoy_rows.append([
-                    year if year == years_sorted[-1] else year,
-                    f"{sessions:,}",
-                    f"{year_data['users']:,}",
-                    f"{year_data['pageviews']:,}",
-                    growth,
-                ])
-                prev_sessions = sessions
-
-            yoy_table_data = [yoy_header] + yoy_rows
-            yoy_table = Table(yoy_table_data, colWidths=[1.2*inch, 1.4*inch, 1.4*inch, 1.4*inch, 1.2*inch])
-            yoy_table.setStyle(create_heatmapped_table_style(
-                yoy_table_data, value_column_index=1,
-                base_style=green_table_style, color_scheme='green'
-            ))
-            story.append(yoy_table)
-            story.append(Spacer(1, 20))
-
-        # ── PERFORMANCE HIGHLIGHTS (best/worst) ──
-        best_day = ga_data.get('best_day')
-        worst_day = ga_data.get('worst_day')
-        best_week = ga_data.get('best_week')
-        worst_week = ga_data.get('worst_week')
-        if best_day or best_week:
-            highlight_section = yoy_section + (1 if longitudinal else 0)
-            story.append(Paragraph(f"{highlight_section}. Performance Highlights", heading_style))
-
-            highlights = [["Metric", "Value", "Details"]]
-            if best_day:
-                highlights.append(["Best Day", f"{best_day['sessions']:,} sessions", best_day['date']])
-            if worst_day:
-                highlights.append(["Lowest Day", f"{worst_day['sessions']:,} sessions", worst_day['date']])
-            if best_week:
-                highlights.append(["Best Week", f"{best_week['sessions']:,} sessions", f"Week {best_week['week']}"])
-            if worst_week:
-                highlights.append(["Lowest Week", f"{worst_week['sessions']:,} sessions", f"Week {worst_week['week']}"])
-
-            hl_table = Table(highlights, colWidths=[2*inch, 2*inch, 2.3*inch])
-            hl_table.setStyle(TableStyle(primary_table_style))
-            story.append(hl_table)
-            story.append(Spacer(1, 20))
-            story.append(PageBreak())
-
-        if not (best_day or best_week):
-            story.append(PageBreak())
-
-        # ── INSIGHTS ──
-        insights_num = yoy_section + (1 if longitudinal else 0) + (1 if (best_day or best_week) else 0)
-        story.append(Paragraph(f"{insights_num}. Key Insights", heading_style))
-        insights = generate_insights(ga_data)
-        for insight in insights:
-            story.append(Paragraph(f"-- {insight}", bullet_style))
+        yoy_table_data = [yoy_header] + yoy_rows
+        yoy_table = Table(yoy_table_data, colWidths=[1.2*inch, 1.4*inch, 1.4*inch, 1.4*inch, 1.2*inch])
+        yoy_table.setStyle(create_heatmapped_table_style(
+            yoy_table_data, value_column_index=1,
+            base_style=green_table_style, color_scheme='green'
+        ))
+        story.append(yoy_table)
         story.append(Spacer(1, 20))
 
-        # ── RECOMMENDATIONS ──
-        story.append(Paragraph(f"{insights_num + 1}. Recommendations", heading_style))
-        recommendations = generate_recommendations(ga_data)
-        for i, rec in enumerate(recommendations, 1):
-            story.append(Paragraph(f"<b>{i}.</b> {rec}", bullet_style))
-        story.append(Spacer(1, 30))
+    # ── PERFORMANCE HIGHLIGHTS (best/worst) ──
+    best_day = ga_data.get('best_day')
+    worst_day = ga_data.get('worst_day')
+    best_week = ga_data.get('best_week')
+    worst_week = ga_data.get('worst_week')
+    if best_day or best_week:
+        highlight_section = yoy_section + (1 if longitudinal else 0)
+        story.append(Paragraph(f"{highlight_section}. Performance Highlights", heading_style))
 
-        # ── APPENDICES ──
-        appendix_table_style = [
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(primary_color)),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 8),
-            ('FONTSIZE', (0, 1), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-            ('TOPPADDING', (0, 1), (-1, -1), 3),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E9ECEF')),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#F8F9FA'), colors.white]),
-        ]
+        highlights = [["Metric", "Value", "Details"]]
+        if best_day:
+            highlights.append(["Best Day", f"{best_day['sessions']:,} sessions", best_day['date']])
+        if worst_day:
+            highlights.append(["Lowest Day", f"{worst_day['sessions']:,} sessions", worst_day['date']])
+        if best_week:
+            highlights.append(["Best Week", f"{best_week['sessions']:,} sessions", f"Week {best_week['week']}"])
+        if worst_week:
+            highlights.append(["Lowest Week", f"{worst_week['sessions']:,} sessions", f"Week {worst_week['week']}"])
 
-        story.append(PageBreak())
-        story.append(Paragraph("APPENDICES", heading_style))
-        story.append(Spacer(1, 12))
-
-        # Appendix A: Complete Daily Performance Data
-        story.append(Paragraph("Appendix A: Complete Daily Performance Data", subheading_style))
-        daily = ga_data['daily_data']
-        daily_table_data = [['Date', 'Sessions', 'Users', 'Pageviews', 'Bounce Rate', 'Avg Duration']]
-        # Sort by sessions descending
-        daily_rows = list(zip(
-            daily['dates'], daily['sessions'], daily['users'],
-            daily['pageviews'], daily['bounce_rate'], daily['avg_duration']
-        ))
-        daily_rows.sort(key=lambda x: x[1], reverse=True)
-        for date, sessions, users, pvs, bounce, duration in daily_rows:
-            daily_table_data.append([
-                date, f'{sessions:,}', f'{users:,}', f'{pvs:,}',
-                f'{bounce:.1f}%', f'{duration:.0f}s'
-            ])
-        daily_app_table = Table(daily_table_data, colWidths=[1.2*inch, 0.9*inch, 0.9*inch, 0.9*inch, 1*inch, 1*inch])
-        daily_app_table.setStyle(TableStyle(appendix_table_style))
-        story.append(daily_app_table)
+        hl_table = Table(highlights, colWidths=[2*inch, 2*inch, 2.3*inch])
+        hl_table.setStyle(TableStyle(primary_table_style))
+        story.append(hl_table)
+        story.append(Spacer(1, 20))
         story.append(PageBreak())
 
-        # Appendix B: Complete Traffic Sources Data
-        story.append(Paragraph("Appendix B: Complete Traffic Sources Data", subheading_style))
-        sources = ga_data['traffic_sources']
-        total_src_sessions = sum(s['sessions'] for s in sources)
-        src_table_data = [['Source', 'Medium', 'Sessions', '% of Total', 'Bounce Rate', 'Avg Duration']]
-        for src in sorted(sources, key=lambda x: x['sessions'], reverse=True):
-            pct = (src['sessions'] / total_src_sessions * 100) if total_src_sessions else 0
-            src_table_data.append([
-                src['source'], src['medium'], f"{src['sessions']:,}",
-                f'{pct:.1f}%', f"{src['bounce_rate']:.1f}%", f"{src['avg_duration']:.1f}s"
-            ])
-        src_app_table = Table(src_table_data, colWidths=[1.2*inch, 0.9*inch, 0.9*inch, 0.8*inch, 1*inch, 1*inch])
-        src_app_table.setStyle(TableStyle(appendix_table_style))
-        story.append(src_app_table)
+    if not (best_day or best_week):
         story.append(PageBreak())
 
-        # Appendix C: Complete Device Category Data
-        story.append(Paragraph("Appendix C: Complete Device Category Data", subheading_style))
-        devices = ga_data['devices']
-        total_dev_sessions = sum(d['sessions'] for d in devices)
-        dev_table_data = [['Device', 'Sessions', '% of Total', 'Bounce Rate']]
-        for dev in sorted(devices, key=lambda x: x['sessions'], reverse=True):
-            pct = (dev['sessions'] / total_dev_sessions * 100) if total_dev_sessions else 0
-            dev_table_data.append([
-                dev['device'].title(), f"{dev['sessions']:,}",
-                f'{pct:.1f}%', f"{dev['bounce_rate']:.1f}%"
-            ])
-        dev_app_table = Table(dev_table_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
-        dev_app_table.setStyle(TableStyle(appendix_table_style))
-        story.append(dev_app_table)
-        story.append(PageBreak())
+    # ── INSIGHTS ──
+    insights_num = yoy_section + (1 if longitudinal else 0) + (1 if (best_day or best_week) else 0)
+    story.append(Paragraph(f"{insights_num}. Key Insights", heading_style))
+    insights = generate_insights(ga_data)
+    for insight in insights:
+        story.append(Paragraph(f"-- {insight}", bullet_style))
+    story.append(Spacer(1, 20))
 
-        # Appendix D: Complete Geographic Data
-        story.append(Paragraph("Appendix D: Complete Geographic Data", subheading_style))
-        geo = ga_data.get('geo_data', [])
+    # ── RECOMMENDATIONS ──
+    story.append(Paragraph(f"{insights_num + 1}. Recommendations", heading_style))
+    recommendations = generate_recommendations(ga_data)
+    for i, rec in enumerate(recommendations, 1):
+        story.append(Paragraph(f"<b>{i}.</b> {rec}", bullet_style))
+    story.append(Spacer(1, 30))
 
-        # D.1 All Countries
-        story.append(Paragraph("All Countries", ParagraphStyle(
-            'AppendixSub', parent=styles['Normal'], fontSize=10, spaceBefore=10,
-            spaceAfter=6, fontName='Helvetica-Bold'
-        )))
-        country_agg = {}
-        for loc in geo:
-            c = loc.get('country', 'Unknown')
-            country_agg[c] = country_agg.get(c, 0) + loc.get('sessions', 0)
-        total_geo = sum(country_agg.values())
-        country_app_data = [['Country', 'Sessions', '% of Total']]
-        for country, sessions in sorted(country_agg.items(), key=lambda x: x[1], reverse=True):
-            pct = (sessions / total_geo * 100) if total_geo else 0
-            country_app_data.append([country, f'{sessions:,}', f'{pct:.1f}%'])
-        country_app_table = Table(country_app_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
-        country_app_table.setStyle(TableStyle(appendix_table_style))
-        story.append(country_app_table)
-        story.append(Spacer(1, 12))
+    # ── APPENDICES ──
+    appendix_table_style = [
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(primary_color)),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+        ('TOPPADDING', (0, 1), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E9ECEF')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#F8F9FA'), colors.white]),
+    ]
 
-        # D.2 All Regions
-        story.append(Paragraph("All Regions", ParagraphStyle(
-            'AppendixSub2', parent=styles['Normal'], fontSize=10, spaceBefore=10,
-            spaceAfter=6, fontName='Helvetica-Bold'
-        )))
-        region_agg = {}
-        for loc in geo:
-            r = loc.get('region', 'Unknown')
-            region_agg[r] = region_agg.get(r, 0) + loc.get('sessions', 0)
-        region_app_data = [['Region', 'Sessions', '% of Total']]
-        for region, sessions in sorted(region_agg.items(), key=lambda x: x[1], reverse=True):
-            pct = (sessions / total_geo * 100) if total_geo else 0
-            region_app_data.append([region, f'{sessions:,}', f'{pct:.1f}%'])
-        region_app_table = Table(region_app_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
-        region_app_table.setStyle(TableStyle(appendix_table_style))
-        story.append(region_app_table)
-        story.append(Spacer(1, 12))
+    story.append(PageBreak())
+    story.append(Paragraph("APPENDICES", heading_style))
+    story.append(Spacer(1, 12))
 
-        # D.3 All Cities
-        story.append(Paragraph("All Cities", ParagraphStyle(
-            'AppendixSub3', parent=styles['Normal'], fontSize=10, spaceBefore=10,
-            spaceAfter=6, fontName='Helvetica-Bold'
-        )))
-        city_app_data = [['City', 'Region', 'Country', 'Sessions']]
-        for loc in sorted(geo, key=lambda x: x.get('sessions', 0), reverse=True):
-            city_app_data.append([
-                loc.get('city', 'Unknown'), loc.get('region', 'Unknown'),
-                loc.get('country', 'Unknown'), f"{loc.get('sessions', 0):,}"
-            ])
-        city_app_table = Table(city_app_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
-        city_app_table.setStyle(TableStyle(appendix_table_style))
-        story.append(city_app_table)
+    # Appendix A: Complete Daily Performance Data
+    story.append(Paragraph("Appendix A: Complete Daily Performance Data", subheading_style))
+    daily = ga_data['daily_data']
+    daily_table_data = [['Date', 'Sessions', 'Users', 'Pageviews', 'Bounce Rate', 'Avg Duration']]
+    # Sort by sessions descending
+    daily_rows = list(zip(
+        daily['dates'], daily['sessions'], daily['users'],
+        daily['pageviews'], daily['bounce_rate'], daily['avg_duration']
+    ))
+    daily_rows.sort(key=lambda x: x[1], reverse=True)
+    for date, sessions, users, pvs, bounce, duration in daily_rows:
+        daily_table_data.append([
+            date, f'{sessions:,}', f'{users:,}', f'{pvs:,}',
+            f'{bounce:.1f}%', f'{duration:.0f}s'
+        ])
+    daily_app_table = Table(daily_table_data, colWidths=[1.2*inch, 0.9*inch, 0.9*inch, 0.9*inch, 1*inch, 1*inch])
+    daily_app_table.setStyle(TableStyle(appendix_table_style))
+    story.append(daily_app_table)
+    story.append(PageBreak())
 
-        # Build with header/footer
-        doc.build(story, onFirstPage=lambda c, d: None, onLaterPages=_header_footer)
+    # Appendix B: Complete Traffic Sources Data
+    story.append(Paragraph("Appendix B: Complete Traffic Sources Data", subheading_style))
+    sources = ga_data['traffic_sources']
+    total_src_sessions = sum(s['sessions'] for s in sources)
+    src_table_data = [['Source', 'Medium', 'Sessions', '% of Total', 'Bounce Rate', 'Avg Duration']]
+    for src in sorted(sources, key=lambda x: x['sessions'], reverse=True):
+        pct = (src['sessions'] / total_src_sessions * 100) if total_src_sessions else 0
+        src_table_data.append([
+            src['source'], src['medium'], f"{src['sessions']:,}",
+            f'{pct:.1f}%', f"{src['bounce_rate']:.1f}%", f"{src['avg_duration']:.1f}s"
+        ])
+    src_app_table = Table(src_table_data, colWidths=[1.2*inch, 0.9*inch, 0.9*inch, 0.8*inch, 1*inch, 1*inch])
+    src_app_table.setStyle(TableStyle(appendix_table_style))
+    story.append(src_app_table)
+    story.append(PageBreak())
 
-        log.info(f"Google Analytics report generated: {output_path}")
-        return True
+    # Appendix C: Complete Device Category Data
+    story.append(Paragraph("Appendix C: Complete Device Category Data", subheading_style))
+    devices = ga_data['devices']
+    total_dev_sessions = sum(d['sessions'] for d in devices)
+    dev_table_data = [['Device', 'Sessions', '% of Total', 'Bounce Rate']]
+    for dev in sorted(devices, key=lambda x: x['sessions'], reverse=True):
+        pct = (dev['sessions'] / total_dev_sessions * 100) if total_dev_sessions else 0
+        dev_table_data.append([
+            dev['device'].title(), f"{dev['sessions']:,}",
+            f'{pct:.1f}%', f"{dev['bounce_rate']:.1f}%"
+        ])
+    dev_app_table = Table(dev_table_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+    dev_app_table.setStyle(TableStyle(appendix_table_style))
+    story.append(dev_app_table)
+    story.append(PageBreak())
 
-    except (OSError, ValueError, TypeError, KeyError, AttributeError) as e:
-        log.error(f"Error generating GA report: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    # Appendix D: Complete Geographic Data
+    story.append(Paragraph("Appendix D: Complete Geographic Data", subheading_style))
+    geo = ga_data.get('geo_data', [])
+
+    # D.1 All Countries
+    story.append(Paragraph("All Countries", ParagraphStyle(
+        'AppendixSub', parent=styles['Normal'], fontSize=10, spaceBefore=10,
+        spaceAfter=6, fontName='Helvetica-Bold'
+    )))
+    country_agg = {}
+    for loc in geo:
+        c = loc.get('country', 'Unknown')
+        country_agg[c] = country_agg.get(c, 0) + loc.get('sessions', 0)
+    total_geo = sum(country_agg.values())
+    country_app_data = [['Country', 'Sessions', '% of Total']]
+    for country, sessions in sorted(country_agg.items(), key=lambda x: x[1], reverse=True):
+        pct = (sessions / total_geo * 100) if total_geo else 0
+        country_app_data.append([country, f'{sessions:,}', f'{pct:.1f}%'])
+    country_app_table = Table(country_app_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
+    country_app_table.setStyle(TableStyle(appendix_table_style))
+    story.append(country_app_table)
+    story.append(Spacer(1, 12))
+
+    # D.2 All Regions
+    story.append(Paragraph("All Regions", ParagraphStyle(
+        'AppendixSub2', parent=styles['Normal'], fontSize=10, spaceBefore=10,
+        spaceAfter=6, fontName='Helvetica-Bold'
+    )))
+    region_agg = {}
+    for loc in geo:
+        r = loc.get('region', 'Unknown')
+        region_agg[r] = region_agg.get(r, 0) + loc.get('sessions', 0)
+    region_app_data = [['Region', 'Sessions', '% of Total']]
+    for region, sessions in sorted(region_agg.items(), key=lambda x: x[1], reverse=True):
+        pct = (sessions / total_geo * 100) if total_geo else 0
+        region_app_data.append([region, f'{sessions:,}', f'{pct:.1f}%'])
+    region_app_table = Table(region_app_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
+    region_app_table.setStyle(TableStyle(appendix_table_style))
+    story.append(region_app_table)
+    story.append(Spacer(1, 12))
+
+    # D.3 All Cities
+    story.append(Paragraph("All Cities", ParagraphStyle(
+        'AppendixSub3', parent=styles['Normal'], fontSize=10, spaceBefore=10,
+        spaceAfter=6, fontName='Helvetica-Bold'
+    )))
+    city_app_data = [['City', 'Region', 'Country', 'Sessions']]
+    for loc in sorted(geo, key=lambda x: x.get('sessions', 0), reverse=True):
+        city_app_data.append([
+            loc.get('city', 'Unknown'), loc.get('region', 'Unknown'),
+            loc.get('country', 'Unknown'), f"{loc.get('sessions', 0):,}"
+        ])
+    city_app_table = Table(city_app_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+    city_app_table.setStyle(TableStyle(appendix_table_style))
+    story.append(city_app_table)
+
+    # Build with header/footer
+    doc.build(story, onFirstPage=lambda c, d: None, onLaterPages=_header_footer)
+
+    log.info(f"Google Analytics report generated: {output_path}")
 
 
 def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
                       client_name: str = "Client",
                       prepared_by: str = "Siege Analytics",
-                      branding_key: Optional[str] = None) -> bool:
+                      branding_key: Optional[str] = None) -> None:
     """
     Export a complete design kit for InDesign/Illustrator handoff.
 
@@ -2425,8 +2416,9 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
         prepared_by: Preparer name for metadata
         branding_key: Optional branding template key
 
-    Returns:
-        True if successful
+    Raises:
+        OSError: If directory creation or file I/O fails.
+        KeyError: If expected keys are missing from ga_data.
     """
     import csv
     try:
@@ -2435,234 +2427,225 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
     except ImportError:
         _has_yaml = False
 
-    try:
-        kit = Path(output_dir)
-        charts_dir = kit / 'charts'
-        charts_png_dir = kit / 'charts-png'
-        tables_dir = kit / 'tables'
-        text_dir = kit / 'text'
+    kit = Path(output_dir)
+    charts_dir = kit / 'charts'
+    charts_png_dir = kit / 'charts-png'
+    tables_dir = kit / 'tables'
+    text_dir = kit / 'text'
 
-        for d in [charts_dir, charts_png_dir, tables_dir, text_dir]:
-            d.mkdir(parents=True, exist_ok=True)
+    for d in [charts_dir, charts_png_dir, tables_dir, text_dir]:
+        d.mkdir(parents=True, exist_ok=True)
 
-        date_range = ga_data['date_range']
-        totals = ga_data['totals']
-        changes = ga_data['changes']
+    date_range = ga_data['date_range']
+    totals = ga_data['totals']
+    changes = ga_data['changes']
 
-        # ── 1. Charts (SVG + PNG) ──
-        chart_funcs = [
-            ('traffic_trends', create_traffic_trend_chart),
-            ('traffic_sources', create_traffic_sources_chart),
-            ('device_breakdown', create_device_breakdown_chart),
-            ('geo_country', create_geo_country_chart),
-            ('geo_region', create_geo_region_chart),
-            ('geo_city', create_geo_city_scatter),
-            ('geo_continent', create_continent_donut_chart),
-        ]
-        if ga_data.get('prior_daily_data', {}).get('sessions'):
-            chart_funcs.append(('period_comparison', create_period_comparison_chart))
+    # ── 1. Charts (SVG + PNG) ──
+    chart_funcs = [
+        ('traffic_trends', create_traffic_trend_chart),
+        ('traffic_sources', create_traffic_sources_chart),
+        ('device_breakdown', create_device_breakdown_chart),
+        ('geo_country', create_geo_country_chart),
+        ('geo_region', create_geo_region_chart),
+        ('geo_city', create_geo_city_scatter),
+        ('geo_continent', create_continent_donut_chart),
+    ]
+    if ga_data.get('prior_daily_data', {}).get('sessions'):
+        chart_funcs.append(('period_comparison', create_period_comparison_chart))
 
-        for name, func in chart_funcs:
-            chart_path = func(ga_data, vector_export_path=str(charts_dir / f'{name}.svg'))
-            if chart_path and Path(chart_path).exists():
-                import shutil
-                shutil.copy2(chart_path, charts_png_dir / f'{name}.png')
+    for name, func in chart_funcs:
+        chart_path = func(ga_data, vector_export_path=str(charts_dir / f'{name}.svg'))
+        if chart_path and Path(chart_path).exists():
+            import shutil
+            shutil.copy2(chart_path, charts_png_dir / f'{name}.png')
 
-        # ── 2. Tables (CSV) ──
-        # Daily performance
-        daily = ga_data['daily_data']
-        with open(tables_dir / 'daily_performance.csv', 'w', newline='', encoding='utf-8') as f:
+    # ── 2. Tables (CSV) ──
+    # Daily performance
+    daily = ga_data['daily_data']
+    with open(tables_dir / 'daily_performance.csv', 'w', newline='', encoding='utf-8') as f:
+        w = csv.writer(f)
+        w.writerow(['Date', 'Sessions', 'Users', 'Pageviews', 'Bounce Rate (%)', 'Avg Duration (s)'])
+        for i in range(len(daily['dates'])):
+            w.writerow([daily['dates'][i], daily['sessions'][i], daily['users'][i],
+                        daily['pageviews'][i], f"{daily['bounce_rate'][i]:.1f}",
+                        f"{daily['avg_duration'][i]:.0f}"])
+
+    # Traffic sources
+    with open(tables_dir / 'traffic_sources.csv', 'w', newline='', encoding='utf-8') as f:
+        w = csv.writer(f)
+        w.writerow(['Source', 'Medium', 'Sessions', 'Users', 'Bounce Rate (%)', 'Avg Duration (s)'])
+        for src in sorted(ga_data['traffic_sources'], key=lambda x: x['sessions'], reverse=True):
+            w.writerow([src['source'], src['medium'], src['sessions'], src['users'],
+                        f"{src['bounce_rate']:.1f}", f"{src['avg_duration']:.1f}"])
+
+    # Top pages
+    with open(tables_dir / 'top_pages.csv', 'w', newline='', encoding='utf-8') as f:
+        w = csv.writer(f)
+        w.writerow(['Page', 'Pageviews', 'Unique Views', 'Avg Time (s)', 'Bounce Rate (%)', 'Exit Rate (%)'])
+        for p in ga_data['top_pages']:
+            w.writerow([p['page'], p['pageviews'], p['unique_views'],
+                        f"{p['avg_time']:.1f}", f"{p['bounce_rate']:.1f}", f"{p['exit_rate']:.1f}"])
+
+    # Geographic data
+    with open(tables_dir / 'geographic.csv', 'w', newline='', encoding='utf-8') as f:
+        w = csv.writer(f)
+        w.writerow(['Country', 'Region', 'City', 'Continent', 'Sessions', 'Users'])
+        for loc in sorted(ga_data['geo_data'], key=lambda x: x.get('sessions', 0), reverse=True):
+            w.writerow([loc.get('country', ''), loc.get('region', ''), loc.get('city', ''),
+                        loc.get('continent', ''), loc.get('sessions', 0), loc.get('users', 0)])
+
+    # Device breakdown
+    with open(tables_dir / 'devices.csv', 'w', newline='', encoding='utf-8') as f:
+        w = csv.writer(f)
+        w.writerow(['Device', 'Sessions', 'Bounce Rate (%)'])
+        for d in ga_data['devices']:
+            w.writerow([d['device'], d['sessions'], f"{d['bounce_rate']:.1f}"])
+
+    # KPI summary
+    with open(tables_dir / 'kpi_summary.csv', 'w', newline='', encoding='utf-8') as f:
+        w = csv.writer(f)
+        w.writerow(['Metric', 'Value', 'Change vs Prior (%)'])
+        w.writerow(['Sessions', totals['sessions'], f"{changes['sessions']:+.1f}"])
+        w.writerow(['Users', totals['users'], f"{changes['users']:+.1f}"])
+        w.writerow(['Pageviews', totals['pageviews'], f"{changes.get('pageviews', 0):+.1f}"])
+        w.writerow(['Avg Bounce Rate', f"{totals['avg_bounce_rate']:.1f}%", f"{changes['bounce_rate']:+.1f}"])
+        w.writerow(['Avg Session Duration', f"{totals['avg_session_duration']:.0f}s", f"{changes['duration']:+.1f}"])
+        w.writerow(['Pages per Session', f"{totals['pages_per_session']:.2f}", ""])
+
+    # Period comparison (if available)
+    prior = ga_data.get('prior_period')
+    if prior:
+        with open(tables_dir / 'period_comparison.csv', 'w', newline='', encoding='utf-8') as f:
             w = csv.writer(f)
-            w.writerow(['Date', 'Sessions', 'Users', 'Pageviews', 'Bounce Rate (%)', 'Avg Duration (s)'])
-            for i in range(len(daily['dates'])):
-                w.writerow([daily['dates'][i], daily['sessions'][i], daily['users'][i],
-                            daily['pageviews'][i], f"{daily['bounce_rate'][i]:.1f}",
-                            f"{daily['avg_duration'][i]:.0f}"])
+            w.writerow(['Metric', 'Current Period', 'Prior Period', 'Change'])
+            w.writerow(['Sessions', totals['sessions'], prior.get('sessions', 0), f"{changes['sessions']:+.1f}%"])
+            w.writerow(['Users', totals['users'], prior.get('users', 0), f"{changes['users']:+.1f}%"])
+            w.writerow(['Bounce Rate', f"{totals['avg_bounce_rate']:.1f}%",
+                        f"{prior.get('avg_bounce_rate', 0):.1f}%", f"{changes['bounce_rate']:+.1f} pts"])
+            w.writerow(['Avg Duration', f"{totals['avg_session_duration']:.0f}s",
+                        f"{prior.get('avg_session_duration', 0):.0f}s", f"{changes['duration']:+.1f}%"])
 
-        # Traffic sources
-        with open(tables_dir / 'traffic_sources.csv', 'w', newline='', encoding='utf-8') as f:
+    # Longitudinal / YoY
+    longitudinal = ga_data.get('longitudinal', {})
+    if longitudinal:
+        with open(tables_dir / 'year_over_year.csv', 'w', newline='', encoding='utf-8') as f:
             w = csv.writer(f)
-            w.writerow(['Source', 'Medium', 'Sessions', 'Users', 'Bounce Rate (%)', 'Avg Duration (s)'])
-            for src in sorted(ga_data['traffic_sources'], key=lambda x: x['sessions'], reverse=True):
-                w.writerow([src['source'], src['medium'], src['sessions'], src['users'],
-                            f"{src['bounce_rate']:.1f}", f"{src['avg_duration']:.1f}"])
+            w.writerow(['Year', 'Sessions', 'Users', 'Pageviews'])
+            for year in sorted(longitudinal.keys()):
+                yd = longitudinal[year]
+                w.writerow([year, yd['sessions'], yd['users'], yd['pageviews']])
 
-        # Top pages
-        with open(tables_dir / 'top_pages.csv', 'w', newline='', encoding='utf-8') as f:
-            w = csv.writer(f)
-            w.writerow(['Page', 'Pageviews', 'Unique Views', 'Avg Time (s)', 'Bounce Rate (%)', 'Exit Rate (%)'])
-            for p in ga_data['top_pages']:
-                w.writerow([p['page'], p['pageviews'], p['unique_views'],
-                            f"{p['avg_time']:.1f}", f"{p['bounce_rate']:.1f}", f"{p['exit_rate']:.1f}"])
+    # ── 3. Report text (Markdown) ──
+    insights = generate_insights(ga_data)
+    recommendations = generate_recommendations(ga_data)
 
-        # Geographic data
-        with open(tables_dir / 'geographic.csv', 'w', newline='', encoding='utf-8') as f:
-            w = csv.writer(f)
-            w.writerow(['Country', 'Region', 'City', 'Continent', 'Sessions', 'Users'])
-            for loc in sorted(ga_data['geo_data'], key=lambda x: x.get('sessions', 0), reverse=True):
-                w.writerow([loc.get('country', ''), loc.get('region', ''), loc.get('city', ''),
-                            loc.get('continent', ''), loc.get('sessions', 0), loc.get('users', 0)])
+    lines = [
+        f"# {client_name}",
+        "## Google Analytics Performance Report",
+        "",
+        f"**Date Range:** {date_range['start']} to {date_range['end']}",
+        f"**Prepared by:** {prepared_by}",
+        "",
+        "---",
+        "",
+        "## Executive Summary",
+        "",
+        "| Metric | Value | Change vs Prior |",
+        "|--------|-------|-----------------|",
+        f"| Sessions | {totals['sessions']:,} | {changes['sessions']:+.1f}% |",
+        f"| Users | {totals['users']:,} | {changes['users']:+.1f}% |",
+        f"| Pageviews | {totals['pageviews']:,} | {changes.get('pageviews', 0):+.1f}% |",
+        f"| Bounce Rate | {totals['avg_bounce_rate']:.1f}% | {changes['bounce_rate']:+.1f} pts |",
+        f"| Avg Duration | {totals['avg_session_duration']:.0f}s | {changes['duration']:+.1f}% |",
+        f"| Pages/Session | {totals['pages_per_session']:.2f} | |",
+        "",
+    ]
 
-        # Device breakdown
-        with open(tables_dir / 'devices.csv', 'w', newline='', encoding='utf-8') as f:
-            w = csv.writer(f)
-            w.writerow(['Device', 'Sessions', 'Bounce Rate (%)'])
-            for d in ga_data['devices']:
-                w.writerow([d['device'], d['sessions'], f"{d['bounce_rate']:.1f}"])
+    best_day = ga_data.get('best_day')
+    worst_day = ga_data.get('worst_day')
+    if best_day:
+        lines.append(f"**Best Day:** {best_day['date']} ({best_day['sessions']:,} sessions)")
+    if worst_day:
+        lines.append(f"**Lowest Day:** {worst_day['date']} ({worst_day['sessions']:,} sessions)")
+    lines.append("")
 
-        # KPI summary
-        with open(tables_dir / 'kpi_summary.csv', 'w', newline='', encoding='utf-8') as f:
-            w = csv.writer(f)
-            w.writerow(['Metric', 'Value', 'Change vs Prior (%)'])
-            w.writerow(['Sessions', totals['sessions'], f"{changes['sessions']:+.1f}"])
-            w.writerow(['Users', totals['users'], f"{changes['users']:+.1f}"])
-            w.writerow(['Pageviews', totals['pageviews'], f"{changes.get('pageviews', 0):+.1f}"])
-            w.writerow(['Avg Bounce Rate', f"{totals['avg_bounce_rate']:.1f}%", f"{changes['bounce_rate']:+.1f}"])
-            w.writerow(['Avg Session Duration', f"{totals['avg_session_duration']:.0f}s", f"{changes['duration']:+.1f}"])
-            w.writerow(['Pages per Session', f"{totals['pages_per_session']:.2f}", ""])
+    lines.append("## Key Insights")
+    lines.append("")
+    for insight in insights:
+        lines.append(f"- {insight}")
+    lines.append("")
 
-        # Period comparison (if available)
-        prior = ga_data.get('prior_period')
-        if prior:
-            with open(tables_dir / 'period_comparison.csv', 'w', newline='', encoding='utf-8') as f:
-                w = csv.writer(f)
-                w.writerow(['Metric', 'Current Period', 'Prior Period', 'Change'])
-                w.writerow(['Sessions', totals['sessions'], prior.get('sessions', 0), f"{changes['sessions']:+.1f}%"])
-                w.writerow(['Users', totals['users'], prior.get('users', 0), f"{changes['users']:+.1f}%"])
-                w.writerow(['Bounce Rate', f"{totals['avg_bounce_rate']:.1f}%",
-                            f"{prior.get('avg_bounce_rate', 0):.1f}%", f"{changes['bounce_rate']:+.1f} pts"])
-                w.writerow(['Avg Duration', f"{totals['avg_session_duration']:.0f}s",
-                            f"{prior.get('avg_session_duration', 0):.0f}s", f"{changes['duration']:+.1f}%"])
+    lines.append("## Recommendations")
+    lines.append("")
+    for i, rec in enumerate(recommendations, 1):
+        lines.append(f"{i}. {rec}")
+    lines.append("")
 
-        # Longitudinal / YoY
-        longitudinal = ga_data.get('longitudinal', {})
-        if longitudinal:
-            with open(tables_dir / 'year_over_year.csv', 'w', newline='', encoding='utf-8') as f:
-                w = csv.writer(f)
-                w.writerow(['Year', 'Sessions', 'Users', 'Pageviews'])
-                for year in sorted(longitudinal.keys()):
-                    yd = longitudinal[year]
-                    w.writerow([year, yd['sessions'], yd['users'], yd['pageviews']])
+    lines.append("---")
+    lines.append("")
+    lines.append("## Chart Inventory")
+    lines.append("")
+    lines.append("| File | Description |")
+    lines.append("|------|-------------|")
+    lines.append("| traffic_trends | Daily sessions and users over the date range |")
+    lines.append("| traffic_sources | Top traffic sources (organic, direct, social, etc.) |")
+    lines.append("| device_breakdown | Desktop vs mobile vs tablet split |")
+    lines.append("| geo_country | Sessions by country |")
+    lines.append("| geo_region | Sessions by state/region |")
+    lines.append("| geo_city | City-level session distribution |")
+    lines.append("| geo_continent | Continental traffic breakdown |")
+    if ga_data.get('prior_daily_data', {}).get('sessions'):
+        lines.append("| period_comparison | Current vs prior period daily overlay |")
+    lines.append("")
+    lines.append("Charts are available as SVG (vector, editable) in `charts/` and PNG (raster, 300 DPI) in `charts-png/`.")
 
-        # ── 3. Report text (Markdown) ──
-        insights = generate_insights(ga_data)
-        recommendations = generate_recommendations(ga_data)
+    with open(text_dir / 'report_text.md', 'w', encoding='utf-8') as f:
+        f.write('\n'.join(lines))
 
-        lines = [
-            f"# {client_name}",
-            "## Google Analytics Performance Report",
-            "",
-            f"**Date Range:** {date_range['start']} to {date_range['end']}",
-            f"**Prepared by:** {prepared_by}",
-            "",
-            "---",
-            "",
-            "## Executive Summary",
-            "",
-            "| Metric | Value | Change vs Prior |",
-            "|--------|-------|-----------------|",
-            f"| Sessions | {totals['sessions']:,} | {changes['sessions']:+.1f}% |",
-            f"| Users | {totals['users']:,} | {changes['users']:+.1f}% |",
-            f"| Pageviews | {totals['pageviews']:,} | {changes.get('pageviews', 0):+.1f}% |",
-            f"| Bounce Rate | {totals['avg_bounce_rate']:.1f}% | {changes['bounce_rate']:+.1f} pts |",
-            f"| Avg Duration | {totals['avg_session_duration']:.0f}s | {changes['duration']:+.1f}% |",
-            f"| Pages/Session | {totals['pages_per_session']:.2f} | |",
-            "",
-        ]
+    # ── 4. Metadata (YAML or plain text) ──
+    metadata = {
+        'client_name': client_name,
+        'prepared_by': prepared_by,
+        'branding_key': branding_key,
+        'date_range': {'start': date_range['start'], 'end': date_range['end']},
+        'totals': {
+            'sessions': _safe_int(totals.get('sessions', 0)),
+            'users': _safe_int(totals.get('users', 0)),
+            'pageviews': _safe_int(totals.get('pageviews', 0)),
+            'avg_bounce_rate': float(round(totals['avg_bounce_rate'], 1)),
+            'avg_session_duration': float(round(totals['avg_session_duration'], 0)),
+            'pages_per_session': float(round(totals['pages_per_session'], 2)),
+        },
+        'changes_vs_prior': {
+            'sessions': float(round(changes['sessions'], 1)),
+            'users': float(round(changes['users'], 1)),
+            'pageviews': float(round(changes.get('pageviews', 0), 1)),
+            'bounce_rate': float(round(changes['bounce_rate'], 1)),
+            'duration': float(round(changes['duration'], 1)),
+        },
+        'chart_files': [name for name, _ in chart_funcs],
+        'table_files': [f.name for f in sorted(tables_dir.glob('*.csv'))],
+    }
 
-        best_day = ga_data.get('best_day')
-        worst_day = ga_data.get('worst_day')
-        if best_day:
-            lines.append(f"**Best Day:** {best_day['date']} ({best_day['sessions']:,} sessions)")
-        if worst_day:
-            lines.append(f"**Lowest Day:** {worst_day['date']} ({worst_day['sessions']:,} sessions)")
-        lines.append("")
+    if _has_yaml:
+        with open(kit / 'metadata.yaml', 'w', encoding='utf-8') as f:
+            yaml.dump(metadata, f, default_flow_style=False, sort_keys=False)
+    else:
+        # Fallback: write as readable text
+        with open(kit / 'metadata.txt', 'w', encoding='utf-8') as f:
+            for k, v in metadata.items():
+                if isinstance(v, dict):
+                    f.write(f"\n{k}:\n")
+                    for kk, vv in v.items():
+                        f.write(f"  {kk}: {vv}\n")
+                elif isinstance(v, list):
+                    f.write(f"\n{k}:\n")
+                    for item in v:
+                        f.write(f"  - {item}\n")
+                else:
+                    f.write(f"{k}: {v}\n")
 
-        lines.append("## Key Insights")
-        lines.append("")
-        for insight in insights:
-            lines.append(f"- {insight}")
-        lines.append("")
-
-        lines.append("## Recommendations")
-        lines.append("")
-        for i, rec in enumerate(recommendations, 1):
-            lines.append(f"{i}. {rec}")
-        lines.append("")
-
-        lines.append("---")
-        lines.append("")
-        lines.append("## Chart Inventory")
-        lines.append("")
-        lines.append("| File | Description |")
-        lines.append("|------|-------------|")
-        lines.append("| traffic_trends | Daily sessions and users over the date range |")
-        lines.append("| traffic_sources | Top traffic sources (organic, direct, social, etc.) |")
-        lines.append("| device_breakdown | Desktop vs mobile vs tablet split |")
-        lines.append("| geo_country | Sessions by country |")
-        lines.append("| geo_region | Sessions by state/region |")
-        lines.append("| geo_city | City-level session distribution |")
-        lines.append("| geo_continent | Continental traffic breakdown |")
-        if ga_data.get('prior_daily_data', {}).get('sessions'):
-            lines.append("| period_comparison | Current vs prior period daily overlay |")
-        lines.append("")
-        lines.append("Charts are available as SVG (vector, editable) in `charts/` and PNG (raster, 300 DPI) in `charts-png/`.")
-
-        with open(text_dir / 'report_text.md', 'w', encoding='utf-8') as f:
-            f.write('\n'.join(lines))
-
-        # ── 4. Metadata (YAML or plain text) ──
-        metadata = {
-            'client_name': client_name,
-            'prepared_by': prepared_by,
-            'branding_key': branding_key,
-            'date_range': {'start': date_range['start'], 'end': date_range['end']},
-            'totals': {
-                'sessions': _safe_int(totals.get('sessions', 0)),
-                'users': _safe_int(totals.get('users', 0)),
-                'pageviews': _safe_int(totals.get('pageviews', 0)),
-                'avg_bounce_rate': float(round(totals['avg_bounce_rate'], 1)),
-                'avg_session_duration': float(round(totals['avg_session_duration'], 0)),
-                'pages_per_session': float(round(totals['pages_per_session'], 2)),
-            },
-            'changes_vs_prior': {
-                'sessions': float(round(changes['sessions'], 1)),
-                'users': float(round(changes['users'], 1)),
-                'pageviews': float(round(changes.get('pageviews', 0), 1)),
-                'bounce_rate': float(round(changes['bounce_rate'], 1)),
-                'duration': float(round(changes['duration'], 1)),
-            },
-            'chart_files': [name for name, _ in chart_funcs],
-            'table_files': [f.name for f in sorted(tables_dir.glob('*.csv'))],
-        }
-
-        if _has_yaml:
-            with open(kit / 'metadata.yaml', 'w', encoding='utf-8') as f:
-                yaml.dump(metadata, f, default_flow_style=False, sort_keys=False)
-        else:
-            # Fallback: write as readable text
-            with open(kit / 'metadata.txt', 'w', encoding='utf-8') as f:
-                for k, v in metadata.items():
-                    if isinstance(v, dict):
-                        f.write(f"\n{k}:\n")
-                        for kk, vv in v.items():
-                            f.write(f"  {kk}: {vv}\n")
-                    elif isinstance(v, list):
-                        f.write(f"\n{k}:\n")
-                        for item in v:
-                            f.write(f"  - {item}\n")
-                    else:
-                        f.write(f"{k}: {v}\n")
-
-        log.info(f"Design kit exported: {kit}")
-        return True
-
-    except (OSError, ValueError, TypeError, KeyError) as e:
-        log.error(f"Error exporting design kit: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
-
+    log.info(f"Design kit exported: {kit}")
 
 def main():
     """Main demonstration function."""
@@ -2685,29 +2668,24 @@ def main():
     output_path = "ga_performance_report.pdf"
     print(f"\nGenerating PDF report: {output_path}...")
 
-    success = generate_ga_report_pdf(
+    generate_ga_report_pdf(
         ga_data=ga_data,
         output_path=output_path,
         client_name="Demo Company",
         report_title="Website Analytics Report"
     )
 
-    if success:
-        print(f"\n Report generated successfully: {output_path}")
-        print("\nReport includes:")
-        print("  - Executive Summary")
-        print("  - KPI Dashboard with metric cards")
-        print("  - Traffic Trends chart")
-        print("  - Traffic Sources analysis")
-        print("  - Device breakdown")
-        print("  - Top Pages performance table")
-        print("  - Geographic distribution")
-        print("  - Automated Insights")
-        print("  - Actionable Recommendations")
-    else:
-        print("\n Report generation failed. Check logs for details.")
-
-    return success
+    print(f"\nReport generated successfully: {output_path}")
+    print("\nReport includes:")
+    print("  - Executive Summary")
+    print("  - KPI Dashboard with metric cards")
+    print("  - Traffic Trends chart")
+    print("  - Traffic Sources analysis")
+    print("  - Device breakdown")
+    print("  - Top Pages performance table")
+    print("  - Geographic distribution")
+    print("  - Automated Insights")
+    print("  - Actionable Recommendations")
 
 
 if __name__ == "__main__":
