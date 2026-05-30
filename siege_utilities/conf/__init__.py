@@ -63,7 +63,12 @@ class Settings:
 
             if hasattr(django_settings, name):
                 return getattr(django_settings, name)
-        except (ImportError, Exception):
+        except ImportError:
+            pass
+        except Exception:
+            # django.core.exceptions.ImproperlyConfigured when
+            # DJANGO_SETTINGS_MODULE is unset; can't narrow further
+            # without importing from Django itself.
             pass
 
         # 4. YAML file
