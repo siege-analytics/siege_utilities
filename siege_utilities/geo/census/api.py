@@ -218,14 +218,21 @@ class CensusAPI:
                 if isinstance(e, CensusRateLimitError):
                     log.warning(f"Rate limit hit, waiting {CENSUS_API_RATE_LIMIT_RETRY_DELAY}s...")
                     time.sleep(CENSUS_API_RATE_LIMIT_RETRY_DELAY)
-                    last_exception = CensusRateLimitError("Census API rate limit exceeded after retries")
+                    last_exception = CensusRateLimitError(
+                        f"Census API rate limit exceeded after {attempt + 1} attempts"
+                    )
+                    last_exception.__cause__ = e
                 elif isinstance(e, requests.exceptions.Timeout):
                     log.warning(f"Request timeout (attempt {attempt + 1})")
-                    last_exception = CensusAPIError("Census API request timed out")
+                    last_exception = CensusAPIError(
+                        f"Census API request timed out after {attempt + 1} attempts"
+                    )
+                    last_exception.__cause__ = e
                     time.sleep(2 ** attempt)
                 elif isinstance(e, requests.exceptions.RequestException):
                     log.warning(f"Request failed: {e}")
                     last_exception = CensusAPIError(f"Census API request failed: {e}")
+                    last_exception.__cause__ = e
                     time.sleep(2 ** attempt)
                 elif isinstance(e, ValueError):
                     log.error(f"Failed to parse API response: {e}")
