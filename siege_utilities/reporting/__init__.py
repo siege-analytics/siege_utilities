@@ -62,21 +62,43 @@ _register([
 _register(['ContentPageTemplate', 'create_content_page'], '.templates.content_page_template')
 
 __all__ = [
-    'BaseReportTemplate', 'ReportGenerator', 'ChartGenerator',
-    'create_bar_chart', 'create_line_chart', 'create_scatter_plot',
-    'create_pie_chart', 'create_heatmap',
-    'create_convergence_diagram',
-    'ClientBrandingManager', 'AnalyticsReportGenerator', 'PowerPointGenerator',
-    'get_report_output_directory', 'create_report_generator', 'create_powerpoint_generator',
-    'export_branding_config', 'import_branding_config', 'export_chart_type_config',
-    'decode_rl_image', 'show_rl_image', 'save_rl_image',
+    # Templates
+    'BaseReportTemplate',
     'TitlePageTemplate', 'create_title_page',
     'TableOfContentsTemplate', 'create_table_of_contents',
     'generate_sections_from_report_structure',
     'ContentPageTemplate', 'create_content_page',
+    # Generators
+    'ReportGenerator', 'PowerPointGenerator', 'AnalyticsReportGenerator',
+    'ChartGenerator', 'ChartTypeRegistry',
+    # Chart creation functions
+    'create_bar_chart', 'create_line_chart', 'create_scatter_plot',
+    'create_pie_chart', 'create_heatmap',
+    'create_choropleth_map', 'create_bivariate_choropleth',
+    'create_marker_map', 'create_flow_map',
+    'create_convergence_diagram',
+    'create_dashboard', 'create_dataframe_summary_charts',
+    'generate_chart_from_dataframe',
+    # Branding
+    'ClientBrandingManager',
+    # Image utilities
+    'decode_rl_image', 'show_rl_image', 'save_rl_image',
+    # Analytics
+    'PollingAnalyzer',
+    # Page models
+    'Argument', 'TableType',
+    # Hex cartograms
+    'Algorithm', 'Sizing',
+    'BUILTIN_LAYOUTS', 'hex_tile_layout', 'hex_tile_map', 'register_layout',
+    # IDML export
+    'IDMLExporter', 'export_report_idml', 'SIMPLEIDML_AVAILABLE',
+    # 3D maps
     'ThreeDMapRenderer', 'PYDECK_AVAILABLE',
     'create_3d_hexbin', 'create_3d_columns',
-    'IDMLExporter', 'export_report_idml', 'SIMPLEIDML_AVAILABLE',
+    # Module-level convenience functions
+    'get_report_output_directory', 'create_report_generator',
+    'create_powerpoint_generator',
+    'export_branding_config', 'import_branding_config', 'export_chart_type_config',
 ]
 
 
