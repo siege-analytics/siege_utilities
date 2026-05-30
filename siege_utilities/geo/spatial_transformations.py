@@ -576,7 +576,7 @@ class PostGISConnector:
                     srid = None
             srid = srid or settings.STORAGE_CRS
             if not isinstance(srid, int):
-                raise ValueError(f"SRID must be an integer, got {type(srid)}")
+                raise TypeError(f"SRID must be an integer, got {type(srid)}")
 
             create_sql = f"""
             CREATE TABLE IF NOT EXISTS {table_name} (
