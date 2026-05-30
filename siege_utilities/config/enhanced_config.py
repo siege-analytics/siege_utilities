@@ -61,7 +61,7 @@ class ConfigurationMigrator:
             return self._create_default_user_profile()
         
         try:
-            with open(legacy_file, 'r') as f:
+            with open(legacy_file, 'r', encoding='utf-8') as f:
                 legacy_data = yaml.safe_load(f)
 
             # safe_load returns None for empty docs, lists/scalars for
@@ -105,7 +105,7 @@ class ConfigurationMigrator:
             # json.load on .toml/.cfg/anything-else and silently raising
             # JSONDecodeError hides the real cause.
             suffix = legacy_file.suffix.lower()
-            with open(legacy_file, 'r') as f:
+            with open(legacy_file, 'r', encoding='utf-8') as f:
                 if suffix in ('.yaml', '.yml'):
                     legacy_data = yaml.safe_load(f)
                 elif suffix == '.json':
@@ -418,7 +418,7 @@ def load_user_profile(username: str, config_dir: Optional[Path] = None) -> Optio
             logger.warning(f"User profile not found: {config_file}")
             return None
             
-        with open(config_file, 'r') as f:
+        with open(config_file, 'r', encoding='utf-8') as f:
             data = yaml.safe_load(f)
 
         if not isinstance(data, dict):
@@ -479,7 +479,7 @@ def save_user_profile(profile: UserProfile, username: str, config_dir: Optional[
         profile_data = profile.model_dump()
         profile_data = _convert_to_yaml_safe(profile_data)
 
-        with open(config_file, 'w') as f:
+        with open(config_file, 'w', encoding='utf-8') as f:
             yaml.dump(profile_data, f, default_flow_style=False)
 
         logger.info(f"Saved user profile: {config_file}")
@@ -537,7 +537,7 @@ def load_client_profile(client_code: str, config_dir: Optional[Path] = None) -> 
             logger.warning(f"Client profile not found: {config_file}")
             return None
             
-        with open(config_file, 'r') as f:
+        with open(config_file, 'r', encoding='utf-8') as f:
             data = yaml.safe_load(f)
 
         if not isinstance(data, dict):
@@ -581,7 +581,7 @@ def save_client_profile(profile: ClientProfile, config_dir: Optional[Path] = Non
         profile_data = profile.model_dump()
         profile_data = _convert_to_yaml_safe(profile_data)
 
-        with open(config_file, 'w') as f:
+        with open(config_file, 'w', encoding='utf-8') as f:
             yaml.dump(profile_data, f, default_flow_style=False)
 
         logger.info(f"Saved client profile: {config_file}")
@@ -660,7 +660,7 @@ def export_config_yaml(config_data: Dict[str, Any], output_file: Path) -> bool:
     try:
         output_file.parent.mkdir(parents=True, exist_ok=True)
         
-        with open(output_file, 'w') as f:
+        with open(output_file, 'w', encoding='utf-8') as f:
             yaml.dump(config_data, f, default_flow_style=False)
             
         logger.info(f"Exported configuration to: {output_file}")
@@ -686,7 +686,7 @@ def import_config_yaml(input_file: Path) -> Optional[Dict[str, Any]]:
             logger.warning(f"Configuration file not found: {input_file}")
             return None
             
-        with open(input_file, 'r') as f:
+        with open(input_file, 'r', encoding='utf-8') as f:
             config_data = yaml.safe_load(f)
             
         logger.info(f"Imported configuration from: {input_file}")

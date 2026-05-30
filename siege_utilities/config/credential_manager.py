@@ -350,7 +350,7 @@ class CredentialManager:
         """Extract credential from a specific file."""
         try:
             if file_path.suffix.lower() == '.json':
-                with open(file_path, 'r') as f:
+                with open(file_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                 
                 # Handle different JSON structures
@@ -369,7 +369,7 @@ class CredentialManager:
                     return self._find_field_in_dict(data, field)
             
             else:  # Plain text file
-                with open(file_path, 'r') as f:
+                with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read().strip()
                     return content if content else None
                     
@@ -942,9 +942,9 @@ def store_ga_credentials_from_file(credentials_file: Union[str, Path],
             log_error(f"Credentials file not found: {credentials_file}")
             return False
         
-        with open(credentials_file, 'r') as f:
+        with open(credentials_file, 'r', encoding='utf-8') as f:
             credentials_data = json.load(f)
-        
+
         manager = CredentialManager(default_vault=vault)
         success = manager.store_google_analytics_credentials(
             credentials_data, item_title, vault
@@ -1008,7 +1008,7 @@ def store_ga_service_account_from_file(credentials_file: Union[str, Path],
             return False
         
         # Read service account JSON
-        with open(credentials_file, 'r') as f:
+        with open(credentials_file, 'r', encoding='utf-8') as f:
             service_account_data = json.load(f)
         
         # Validate service account format
