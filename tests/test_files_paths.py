@@ -87,12 +87,13 @@ class TestGetRelativePath:
         result = get_relative_path(base, target)
         assert result == Path("sub/file.txt")
 
-    def test_target_outside_base_returns_none(self, tmp_path):
+    def test_target_outside_base_raises(self, tmp_path):
         base = tmp_path / "a"
         base.mkdir()
         other = tmp_path / "b"
         other.mkdir()
-        assert get_relative_path(base, other) is None
+        with pytest.raises(ValueError):
+            get_relative_path(base, other)
 
 
 class TestFindFilesByPattern:
@@ -114,11 +115,9 @@ class TestFindFilesByPattern:
         result = find_files_by_pattern(tmp_path, "*.csv", recursive=True)
         assert len(result) == 2
 
-    def test_missing_directory_returns_empty(self, tmp_path):
-        # validation.validate_directory_path may raise on must_exist; fall
-        # back behavior returns []
-        result = find_files_by_pattern(tmp_path / "nope", "*", recursive=False)
-        assert result == []
+    def test_missing_directory_raises(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            find_files_by_pattern(tmp_path / "nope", "*", recursive=False)
 
     def test_result_is_sorted(self, tmp_path):
         for name in ["c.txt", "a.txt", "b.txt"]:
@@ -170,15 +169,15 @@ class TestUnzipFileToDirectory:
         assert (result / "inner" / "hello.txt").read_text() == "hi"
         assert (result / "outer.txt").read_text() == "outside"
 
-    def test_missing_archive_returns_none(self, tmp_path):
-        result = unzip_file_to_directory(tmp_path / "nope.zip")
-        assert result is None
+    def test_missing_archive_raises(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            unzip_file_to_directory(tmp_path / "nope.zip")
 
-    def test_bad_zip_returns_none(self, tmp_path):
+    def test_bad_zip_raises(self, tmp_path):
         fake = tmp_path / "bad.zip"
         fake.write_text("not a real zip")
-        result = unzip_file_to_directory(fake)
-        assert result is None
+        with pytest.raises(zipfile.BadZipFile):
+            unzip_file_to_directory(fake)
 
     def test_zip_slip_member_skipped(self, tmp_path):
         """Zip-slip member with traversal must NOT escape target_dir."""

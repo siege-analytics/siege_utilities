@@ -1,5 +1,7 @@
 """Tests for siege_utilities.files.operations — file manipulation utilities."""
 
+import pytest
+
 from siege_utilities.files.operations import (
     remove_tree,
     file_exists,
@@ -24,18 +26,18 @@ class TestRemoveTree:
     def test_remove_file(self, tmp_path):
         f = tmp_path / "test.txt"
         f.write_text("hello")
-        assert remove_tree(str(f)) is True
+        remove_tree(str(f))
         assert not f.exists()
 
     def test_remove_directory(self, tmp_path):
         d = tmp_path / "subdir"
         d.mkdir()
         (d / "file.txt").write_text("data")
-        assert remove_tree(str(d)) is True
+        remove_tree(str(d))
         assert not d.exists()
 
     def test_nonexistent(self, tmp_path):
-        assert remove_tree(str(tmp_path / "nope")) is False
+        remove_tree(str(tmp_path / "nope"))
 
 
 class TestFileExists:
@@ -51,18 +53,18 @@ class TestFileExists:
 class TestTouchFile:
     def test_create(self, tmp_path):
         f = tmp_path / "new.txt"
-        assert touch_file(str(f)) is True
+        touch_file(str(f))
         assert f.exists()
 
     def test_create_with_parents(self, tmp_path):
         f = tmp_path / "a" / "b" / "c.txt"
-        assert touch_file(str(f)) is True
+        touch_file(str(f))
         assert f.exists()
 
     def test_existing_file(self, tmp_path):
         f = tmp_path / "existing.txt"
         f.write_text("data")
-        assert touch_file(str(f)) is True
+        touch_file(str(f))
 
 
 class TestCountLines:
@@ -77,8 +79,8 @@ class TestCountLines:
         assert count_lines(str(f)) == 0
 
     def test_nonexistent(self, tmp_path):
-        result = count_lines(str(tmp_path / "nope.txt"))
-        assert result == 0 or result is None
+        with pytest.raises(FileNotFoundError):
+            count_lines(str(tmp_path / "nope.txt"))
 
 
 class TestCopyFile:
@@ -86,8 +88,20 @@ class TestCopyFile:
         src = tmp_path / "src.txt"
         src.write_text("content")
         dst = tmp_path / "dst.txt"
-        assert copy_file(str(src), str(dst)) is True
+        copy_file(str(src), str(dst))
         assert dst.read_text() == "content"
+
+    def test_copy_no_overwrite(self, tmp_path):
+        src = tmp_path / "src.txt"
+        src.write_text("content")
+        dst = tmp_path / "dst.txt"
+        dst.write_text("existing")
+        with pytest.raises(FileExistsError):
+            copy_file(str(src), str(dst))
+
+    def test_copy_nonexistent_source(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            copy_file(str(tmp_path / "nope.txt"), str(tmp_path / "dst.txt"))
 
 
 class TestMoveFile:
@@ -95,9 +109,17 @@ class TestMoveFile:
         src = tmp_path / "src.txt"
         src.write_text("content")
         dst = tmp_path / "dst.txt"
-        assert move_file(str(src), str(dst)) is True
+        move_file(str(src), str(dst))
         assert not src.exists()
         assert dst.read_text() == "content"
+
+    def test_move_no_overwrite(self, tmp_path):
+        src = tmp_path / "src.txt"
+        src.write_text("content")
+        dst = tmp_path / "dst.txt"
+        dst.write_text("existing")
+        with pytest.raises(FileExistsError):
+            move_file(str(src), str(dst))
 
 
 class TestGetFileSize:
@@ -107,6 +129,10 @@ class TestGetFileSize:
         size = get_file_size(str(f))
         assert size == 5
 
+    def test_nonexistent(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            get_file_size(str(tmp_path / "nope.txt"))
+
 
 class TestListDirectory:
     def test_list(self, tmp_path):
@@ -114,6 +140,10 @@ class TestListDirectory:
         (tmp_path / "b.txt").write_text("b")
         result = list_directory(str(tmp_path))
         assert len(result) >= 2
+
+    def test_nonexistent(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            list_directory(str(tmp_path / "nope"))
 
 
 class TestEnsureDirectoryExists:
@@ -149,6 +179,11 @@ class TestSafeJsonWriteRead:
     def test_read_nonexistent(self, tmp_path):
         result = safe_json_read(str(tmp_path / "nope.json"))
         assert result is None or result == {}
+
+    def test_write_unserializable(self, tmp_path):
+        f = tmp_path / "bad.json"
+        with pytest.raises(TypeError):
+            safe_json_write(str(f), {"fn": lambda: None})
 
 
 class TestGetFileSizeMb:
