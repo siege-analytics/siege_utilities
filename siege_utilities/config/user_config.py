@@ -117,7 +117,7 @@ class UserConfigManager:
         """Load user profile from configuration file."""
         if self.user_config_file.exists():
             try:
-                with open(self.user_config_file, 'r') as f:
+                with open(self.user_config_file, 'r', encoding='utf-8') as f:
                     config_data = yaml.safe_load(f)
                     if config_data:
                         # Convert lists back to tuples for specific fields
@@ -136,7 +136,7 @@ class UserConfigManager:
             config_dict = asdict(self.user_profile)
             # Convert tuples to lists for YAML compatibility
             config_dict = self._convert_to_yaml_safe(config_dict)
-            with open(self.user_config_file, 'w') as f:
+            with open(self.user_config_file, 'w', encoding='utf-8') as f:
                 yaml.dump(config_dict, f, default_flow_style=False)
         except (OSError, yaml.YAMLError, TypeError) as e:
             log.error(f"Failed to save user config: {e}")

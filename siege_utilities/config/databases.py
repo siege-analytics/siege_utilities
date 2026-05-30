@@ -125,7 +125,7 @@ def save_database_config(config: Dict[str, Any], config_directory: str = "config
     log_warning(f"Saving database config with password in plain text to {config_file}")
     log_warning("In production, consider using environment variables or encryption")
 
-    with open(config_file, 'w') as f:
+    with open(config_file, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=2)
 
     log_info(f"Saved database config to: {config_file}")
@@ -156,7 +156,7 @@ def load_database_config(db_name: str, config_directory: str = "config") -> Opti
         return None
 
     try:
-        with open(config_file, 'r') as f:
+        with open(config_file, 'r', encoding='utf-8') as f:
             config = json.load(f)
 
         log_info(f"Loaded database config: {db_name}")
@@ -289,7 +289,7 @@ def list_database_configs(config_directory: str = "config") -> list:
 
     for config_file in config_dir.glob("database_*.json"):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 config = json.load(f)
 
             databases.append({
