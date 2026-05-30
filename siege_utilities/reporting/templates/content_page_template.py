@@ -21,7 +21,7 @@ except ImportError:
     inch = None
     Table = TableStyle = Paragraph = None
     getSampleStyleSheet = ParagraphStyle = None
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 
 from siege_utilities.core.logging import log_info, log_warning
@@ -340,7 +340,7 @@ class ContentPageTemplate:
         self.canvas.setFont('Helvetica', 9)
         
         # Left side - generation info
-        footer_text = f"Generated: {datetime.now().strftime('%B %d, %Y')}"
+        footer_text = f"Generated: {datetime.now(tz=timezone.utc).strftime('%B %d, %Y')}"
         self.canvas.drawString(self.margin_left, 15, footer_text)
         
         # Right side - page number

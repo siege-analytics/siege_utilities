@@ -10,7 +10,7 @@ from typing import Optional, Dict, Union, Generator
 from dataclasses import dataclass, field
 from contextlib import contextmanager
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Type aliases for better readability
 LogLevel = Union[str, int]
@@ -178,7 +178,7 @@ class LoggerManager:
                 )
             else:
                 # Individual file handler
-                log_file = config.log_dir / f"{logger.name}_{datetime.now():%Y%m%d_%H%M%S}.log"
+                log_file = config.log_dir / f"{logger.name}_{datetime.now(tz=timezone.utc):%Y%m%d_%H%M%S}.log"
                 config.log_dir.mkdir(parents=True, exist_ok=True)
                 
                 file_handler = self._create_rotating_file_handler(

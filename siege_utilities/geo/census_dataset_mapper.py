@@ -7,7 +7,7 @@ making it easier to understand which datasets to use for different analysis need
 
 import json
 from typing import Dict, List, Optional, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass
 
 from siege_utilities.core.logging import log_info
@@ -577,7 +577,7 @@ class CensusDatasetMapper:
                 for rel in self.relationships
             ],
             "metadata": {
-                "last_updated": datetime.now().isoformat(),
+                "last_updated": datetime.now(tz=timezone.utc).isoformat(),
                 "total_datasets": len(self.datasets),
                 "total_relationships": len(self.relationships)
             }

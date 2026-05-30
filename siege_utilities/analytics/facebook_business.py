@@ -361,7 +361,7 @@ def create_facebook_account_profile(client_id: str, fb_account_id: str,
         'fb_account_id_raw': fb_account_id,
         'account_type': account_type,
         'access_token': access_token,
-        'created_date': datetime.now().isoformat(),
+        'created_date': datetime.now(tz=timezone.utc).isoformat(),
         'last_accessed': None,
         'status': 'active',
         'metadata': {

@@ -7,7 +7,7 @@ import json
 import pathlib
 import logging
 from typing import Dict, Any, Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -58,8 +58,8 @@ def create_connection_profile(
         'connection_type': connection_type,
         'connection_params': connection_params,
         'metadata': {
-            'created_date': datetime.now().isoformat(),
-            'last_used': datetime.now().isoformat(),
+            'created_date': datetime.now(tz=timezone.utc).isoformat(),
+            'last_used': datetime.now(tz=timezone.utc).isoformat(),
             'last_connected': None,
             'connection_count': 0,
             'status': kwargs.get('status', 'active'),
@@ -135,7 +135,7 @@ def save_connection_profile(
     config_file = connections_dir / f"connection_{connection_id}.json"
     
     # Update last_used timestamp
-    profile['metadata']['last_used'] = datetime.now().isoformat()
+    profile['metadata']['last_used'] = datetime.now(tz=timezone.utc).isoformat()
     
     with open(config_file, 'w', encoding='utf-8') as f:
         json.dump(profile, f, indent=2)
@@ -353,20 +353,20 @@ def verify_connection_profile(
         return {
             'success': False,
             'error': 'Connection profile not found',
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now(tz=timezone.utc).isoformat()
         }
     
     connection_type = profile['connection_type']
     test_result = {
         'success': False,
         'connection_type': connection_type,
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': datetime.now(tz=timezone.utc).isoformat(),
         'error': None,
         'response_time_ms': None
     }
     
     try:
-        start_time = datetime.now()
+        start_time = datetime.now(tz=timezone.utc)
         
         if connection_type == 'notebook':
             # Test notebook connection
@@ -419,12 +419,12 @@ def verify_connection_profile(
             test_result['error'] = f'Connection testing not implemented for {connection_type}'
         
         # Calculate response time
-        end_time = datetime.now()
+        end_time = datetime.now(tz=timezone.utc)
         test_result['response_time_ms'] = (end_time - start_time).total_seconds() * 1000
         
         # Update connection profile with test results
         if test_result['success']:
-            profile['metadata']['last_connected'] = datetime.now().isoformat()
+            profile['metadata']['last_connected'] = datetime.now(tz=timezone.utc).isoformat()
             profile['metadata']['connection_count'] += 1
             save_connection_profile(profile, config_directory)
         

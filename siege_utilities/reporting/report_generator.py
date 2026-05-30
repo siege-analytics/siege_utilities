@@ -8,7 +8,7 @@ import os
 import uuid
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
-from datetime import datetime
+from datetime import datetime, timezone
 import pandas as pd
 
 # Try to import PIL Image, fall back to Any if not available
@@ -109,7 +109,7 @@ class ReportGenerator:
             'type': 'analytics_report',
             'sections': [],
             'metadata': {
-                'created_date': datetime.now().isoformat(),
+                'created_date': datetime.now(tz=timezone.utc).isoformat(),
                 'total_charts': len(charts),
                 'total_insights': len(insights),
                 'total_recommendations': len(recommendations)
@@ -206,7 +206,7 @@ class ReportGenerator:
                 'author': author or 'Siege Analytics',
                 'client': client,
                 'report_type': report_type,
-                'created_date': datetime.now().isoformat(),
+                'created_date': datetime.now(tz=timezone.utc).isoformat(),
                 'version': '1.0'
             },
             'document_structure': {
@@ -221,7 +221,7 @@ class ReportGenerator:
                     'subtitle': f"{report_type.title()} Report",
                     'author': author or 'Siege Analytics',
                     'client': client,
-                    'date': datetime.now().strftime('%B %d, %Y'),
+                    'date': datetime.now(tz=timezone.utc).strftime('%B %d, %Y'),
                     'level': 0
                 }
             ]

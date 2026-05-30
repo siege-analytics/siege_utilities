@@ -81,7 +81,7 @@ class IsochroneComputeService:
         from siege_utilities.geo.django.models import IsochroneResult
 
         result = IsochroneComputeResult()
-        vintage = vintage_year or datetime.now().year
+        vintage = vintage_year or datetime.now(tz=timezone.utc).year
 
         # Check cache first
         if max_age_days is not None:

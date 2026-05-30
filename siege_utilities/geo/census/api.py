@@ -9,7 +9,7 @@ import hashlib
 import logging
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Any
 
@@ -350,8 +350,8 @@ class CensusAPI:
         if not cache_file.exists():
             return None
 
-        file_mtime = datetime.fromtimestamp(cache_file.stat().st_mtime)
-        if datetime.now() - file_mtime > timedelta(seconds=self.cache_ttl):
+        file_mtime = datetime.fromtimestamp(cache_file.stat().st_mtime, tz=timezone.utc)
+        if datetime.now(tz=timezone.utc) - file_mtime > timedelta(seconds=self.cache_ttl):
             log.debug(f"Cache expired for {cache_key}")
             cache_file.unlink()
             return None

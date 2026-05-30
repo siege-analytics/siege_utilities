@@ -4,7 +4,7 @@ Enhanced client profile model with comprehensive validation.
 
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .database_connection import DatabaseConnection
 from .social_media_account import SocialMediaAccount
@@ -225,7 +225,7 @@ class ClientProfile(BaseModel):
             raise ValueError(f'Database connection "{connection.name}" already exists')
         
         self.database_connections.append(connection)
-        self.last_updated = datetime.now()
+        self.last_updated = datetime.now(tz=timezone.utc)
     
     def add_social_media_account(self, account: SocialMediaAccount) -> None:
         """Add a new social media account."""
@@ -234,17 +234,17 @@ class ClientProfile(BaseModel):
             raise ValueError(f'Social media account for "{account.platform}" already exists')
         
         self.social_media_accounts.append(account)
-        self.last_updated = datetime.now()
+        self.last_updated = datetime.now(tz=timezone.utc)
     
     def update_branding_config(self, branding: BrandingConfig) -> None:
         """Update branding configuration."""
         self.branding_config = branding
-        self.last_updated = datetime.now()
+        self.last_updated = datetime.now(tz=timezone.utc)
     
     def update_report_preferences(self, preferences: ReportPreferences) -> None:
         """Update report preferences."""
         self.report_preferences = preferences
-        self.last_updated = datetime.now()
+        self.last_updated = datetime.now(tz=timezone.utc)
     
     def get_summary(self) -> dict:
         """Get client profile summary."""

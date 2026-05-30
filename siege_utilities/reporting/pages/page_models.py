@@ -185,7 +185,7 @@ class TitlePage(Page):
 
     def build(self, start_date, end_date):
         """Build the complete title page"""
-        from datetime import datetime
+        from datetime import datetime, timezone
 
         # Blue header bar
         blue_bar_style = self.create_blue_bar_style()
@@ -206,7 +206,7 @@ class TitlePage(Page):
 
         # Report details
         details_style = self.create_details_style()
-        self.add_paragraph("<b>Report Date:</b><br/>" + datetime.now().strftime('%B %d, %Y'), details_style)
+        self.add_paragraph("<b>Report Date:</b><br/>" + datetime.now(tz=timezone.utc).strftime('%B %d, %Y'), details_style)
         self.add_spacer(self.DETAILS_INTERNAL)
         self.add_paragraph(f"<b>Period Covered:</b><br/>{start_date} to {end_date}", details_style)
         self.add_spacer(self.DETAILS_INTERNAL)

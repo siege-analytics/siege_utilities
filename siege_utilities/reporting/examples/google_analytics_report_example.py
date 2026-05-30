@@ -18,7 +18,7 @@ Requirements:
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional, Tuple
 import logging
 import io
@@ -1814,7 +1814,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
             fontSize=20, alignment=TA_CENTER, fontName='Helvetica-Bold'
         )))
         story.append(Spacer(1, 0.5*inch))
-        story.append(Paragraph(f"<b>Report Date:</b> {datetime.now().strftime('%B %d, %Y')}", details_style))
+        story.append(Paragraph(f"<b>Report Date:</b> {datetime.now(tz=timezone.utc).strftime('%B %d, %Y')}", details_style))
         story.append(Paragraph(f"<b>Period Covered:</b> {date_range['start']} to {date_range['end']}", details_style))
         story.append(Paragraph(f"<b>Prepared By:</b> {prepared_by}", details_style))
         data_source = ga_data.get('data_source', 'sample')
@@ -2671,7 +2671,7 @@ def main():
     print("=" * 80)
 
     # Generate sample data for last 30 days
-    end_date = datetime.now()
+    end_date = datetime.now(tz=timezone.utc)
     start_date = end_date - timedelta(days=30)
 
     print(f"\nGenerating sample data for {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}...")

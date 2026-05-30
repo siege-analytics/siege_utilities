@@ -4,7 +4,7 @@ Specific actor types that extend the base Person model.
 
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional, Dict, Any, Union
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import re
 
@@ -186,13 +186,13 @@ class User(Person):
         """Add a permission to this user."""
         if permission not in self.permissions:
             self.permissions.append(permission)
-            self.last_updated = datetime.now()
+            self.last_updated = datetime.now(tz=timezone.utc)
     
     def remove_permission(self, permission: str) -> None:
         """Remove a permission from this user."""
         if permission in self.permissions:
             self.permissions.remove(permission)
-            self.last_updated = datetime.now()
+            self.last_updated = datetime.now(tz=timezone.utc)
 
     # Source credential helpers
     def get_source_credential(self, source_id: str) -> Optional[str]:
@@ -202,7 +202,7 @@ class User(Person):
     def set_source_credential(self, source_id: str, credential_ref: str) -> None:
         """Set a credential reference for a data source."""
         self.source_credentials[source_id] = credential_ref
-        self.last_updated = datetime.now()
+        self.last_updated = datetime.now(tz=timezone.utc)
 
     def has_jurisdiction_access(self, jurisdiction_name: str) -> bool:
         """Check if user is authorized for a jurisdiction (empty list = all)."""
@@ -215,7 +215,7 @@ class User(Person):
         """Assign a client to this user."""
         if client_code not in self.assigned_clients:
             self.assigned_clients.append(client_code)
-            self.last_updated = datetime.now()
+            self.last_updated = datetime.now(tz=timezone.utc)
 
     def unassign_client(self, client_code: str) -> bool:
         """Unassign a client from this user. Returns True if removed."""
@@ -223,7 +223,7 @@ class User(Person):
             self.assigned_clients.remove(client_code)
             if self.primary_client == client_code:
                 self.primary_client = None
-            self.last_updated = datetime.now()
+            self.last_updated = datetime.now(tz=timezone.utc)
             return True
         return False
 
@@ -232,7 +232,7 @@ class User(Person):
         if client_code not in self.assigned_clients:
             self.assigned_clients.append(client_code)
         self.primary_client = client_code
-        self.last_updated = datetime.now()
+        self.last_updated = datetime.now(tz=timezone.utc)
 
     def get_assigned_clients(self) -> List[str]:
         """Get list of assigned client codes."""
@@ -358,13 +358,13 @@ class Client(Person):
     def increment_project_count(self) -> None:
         """Increment the project count."""
         self.project_count += 1
-        self.last_updated = datetime.now()
+        self.last_updated = datetime.now(tz=timezone.utc)
     
     def decrement_project_count(self) -> None:
         """Decrement the project count."""
         if self.project_count > 0:
             self.project_count -= 1
-            self.last_updated = datetime.now()
+            self.last_updated = datetime.now(tz=timezone.utc)
     
     def is_active_client(self) -> bool:
         """Check if client is active."""
@@ -388,7 +388,7 @@ class Client(Person):
         """Assign a user to this client."""
         if person_id not in self.assigned_users:
             self.assigned_users.append(person_id)
-            self.last_updated = datetime.now()
+            self.last_updated = datetime.now(tz=timezone.utc)
 
     def unassign_user(self, person_id: str) -> bool:
         """Unassign a user from this client. Returns True if removed."""
@@ -396,7 +396,7 @@ class Client(Person):
             self.assigned_users.remove(person_id)
             if self.primary_user == person_id:
                 self.primary_user = None
-            self.last_updated = datetime.now()
+            self.last_updated = datetime.now(tz=timezone.utc)
             return True
         return False
 
@@ -405,7 +405,7 @@ class Client(Person):
         if person_id not in self.assigned_users:
             self.assigned_users.append(person_id)
         self.primary_user = person_id
-        self.last_updated = datetime.now()
+        self.last_updated = datetime.now(tz=timezone.utc)
 
     def get_assigned_users(self) -> List[str]:
         """Get list of assigned user person_ids."""
@@ -490,7 +490,7 @@ class Collaborator(Person):
     @classmethod
     def validate_access_expires(cls, v):
         """Validate access expiration date."""
-        if v and v <= datetime.now():
+        if v and v <= datetime.now(tz=timezone.utc):
             raise ValueError('Access expiration must be in the future')
         return v
     
@@ -518,7 +518,7 @@ class Collaborator(Person):
         """Check if collaboration access has expired."""
         if not self.access_expires:
             return False
-        return datetime.now() > self.access_expires
+        return datetime.now(tz=timezone.utc) > self.access_expires
     
     def is_collaboration_active(self) -> bool:
         """Check if collaboration is active (not expired and person is active)."""
@@ -546,16 +546,16 @@ class Collaborator(Person):
     
     def accept_invitation(self) -> None:
         """Accept collaboration invitation."""
-        self.invitation_accepted = datetime.now()
-        self.last_updated = datetime.now()
+        self.invitation_accepted = datetime.now(tz=timezone.utc)
+        self.last_updated = datetime.now(tz=timezone.utc)
     
     def extend_access(self, days: int) -> None:
         """Extend collaboration access by specified days."""
         if self.access_expires:
             self.access_expires = self.access_expires + timedelta(days=days)
         else:
-            self.access_expires = datetime.now() + timedelta(days=days)
-        self.last_updated = datetime.now()
+            self.access_expires = datetime.now(tz=timezone.utc) + timedelta(days=days)
+        self.last_updated = datetime.now(tz=timezone.utc)
 
 
 class Organization(BaseModel):
@@ -653,7 +653,7 @@ class Organization(BaseModel):
         """Add a member to this organization."""
         if person_id not in self.members:
             self.members.append(person_id)
-            self.last_updated = datetime.now()
+            self.last_updated = datetime.now(tz=timezone.utc)
     
     def remove_member(self, person_id: str) -> None:
         """Remove a member from this organization."""
@@ -661,14 +661,14 @@ class Organization(BaseModel):
             self.members.remove(person_id)
             if self.primary_contact == person_id:
                 self.primary_contact = None
-            self.last_updated = datetime.now()
+            self.last_updated = datetime.now(tz=timezone.utc)
     
     def set_primary_contact(self, person_id: str) -> None:
         """Set the primary contact for this organization."""
         if person_id not in self.members:
             self.members.append(person_id)
         self.primary_contact = person_id
-        self.last_updated = datetime.now()
+        self.last_updated = datetime.now(tz=timezone.utc)
 
     def get_summary(self) -> Dict[str, Any]:
         """Get organization summary information."""
@@ -802,7 +802,7 @@ class Collaboration(BaseModel):
     @classmethod
     def validate_end_date(cls, v):
         """Validate end date."""
-        if v and v <= datetime.now():
+        if v and v <= datetime.now(tz=timezone.utc):
             raise ValueError('End date must be in the future')
         return v
     
@@ -810,24 +810,24 @@ class Collaboration(BaseModel):
         """Add an organization to this collaboration."""
         if org_id not in self.organizations:
             self.organizations.append(org_id)
-            self.last_updated = datetime.now()
+            self.last_updated = datetime.now(tz=timezone.utc)
     
     def add_client(self, client_id: str) -> None:
         """Add a client to this collaboration."""
         if client_id not in self.clients:
             self.clients.append(client_id)
-            self.last_updated = datetime.now()
+            self.last_updated = datetime.now(tz=timezone.utc)
     
     def add_participant(self, person_id: str) -> None:
         """Add a participant to this collaboration."""
         if person_id not in self.participants:
             self.participants.append(person_id)
-            self.last_updated = datetime.now()
+            self.last_updated = datetime.now(tz=timezone.utc)
     
     def is_active(self) -> bool:
         """Check if collaboration is active."""
         return (self.status == "active" and 
-                (not self.end_date or datetime.now() < self.end_date))
+                (not self.end_date or datetime.now(tz=timezone.utc) < self.end_date))
     
     def get_summary(self) -> Dict[str, Any]:
         """Get collaboration summary information."""

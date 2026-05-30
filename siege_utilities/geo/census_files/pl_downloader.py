@@ -23,7 +23,7 @@ Example usage:
 import logging
 import threading
 import zipfile
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from io import StringIO
 from pathlib import Path
 from typing import Dict, List, Optional, Union
@@ -561,8 +561,8 @@ class PLFileDownloader:
         if not cache_file.exists():
             return False
 
-        file_mtime = datetime.fromtimestamp(cache_file.stat().st_mtime)
-        age = datetime.now() - file_mtime
+        file_mtime = datetime.fromtimestamp(cache_file.stat().st_mtime, tz=timezone.utc)
+        age = datetime.now(tz=timezone.utc) - file_mtime
 
         if age > timedelta(days=PL_CACHE_TIMEOUT_DAYS):
             return False

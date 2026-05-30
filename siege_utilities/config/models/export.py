@@ -6,7 +6,7 @@ organizations, collaborations) to a single YAML document and deserialize back.
 """
 
 from typing import List, Optional, Dict, Any, Union
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
@@ -44,7 +44,7 @@ def export_entities(
     """
     document = {
         'version': EXPORT_FORMAT_VERSION,
-        'exported_at': datetime.now().isoformat(),
+        'exported_at': datetime.now(tz=timezone.utc).isoformat(),
         'entities': {}
     }
 

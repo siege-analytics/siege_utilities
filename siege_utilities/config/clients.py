@@ -10,7 +10,7 @@ import re
 import logging
 import tempfile
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -81,8 +81,8 @@ def create_client_profile(
         'client_code': client_code,
         'contact_info': contact_info,
         'metadata': {
-            'created_date': datetime.now().isoformat(),
-            'last_updated': datetime.now().isoformat(),
+            'created_date': datetime.now(tz=timezone.utc).isoformat(),
+            'last_updated': datetime.now(tz=timezone.utc).isoformat(),
             'status': kwargs.get('status', 'active'),
             'industry': kwargs.get('industry', ''),
             'project_count': kwargs.get('project_count', 0),
@@ -139,7 +139,7 @@ def save_client_profile(
     config_file = config_dir / f"client_{client_code}.json"
 
     # Update last_updated timestamp
-    profile['metadata']['last_updated'] = datetime.now().isoformat()
+    profile['metadata']['last_updated'] = datetime.now(tz=timezone.utc).isoformat()
 
     # Atomic write: serialize to a temp file in the same directory,
     # fsync, then os.replace into place. Without this, two concurrent

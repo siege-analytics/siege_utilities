@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -183,8 +183,8 @@ class CatalogCache:
         if not path.exists():
             return None
 
-        mtime = datetime.fromtimestamp(path.stat().st_mtime)
-        if datetime.now() - mtime > timedelta(days=self.ttl_days):
+        mtime = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+        if datetime.now(tz=timezone.utc) - mtime > timedelta(days=self.ttl_days):
             log.debug("Cache expired for %s/%d", dataset, year)
             path.unlink()
             return None

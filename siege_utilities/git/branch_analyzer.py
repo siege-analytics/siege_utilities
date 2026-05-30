@@ -5,7 +5,7 @@ Based on the Change-Agent-AI branch status generator.
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Dict, Optional
 
@@ -184,7 +184,7 @@ def generate_branch_report(
     file_stats = get_file_stats(repo_path)
 
     # Generate the report
-    current_date = datetime.now().strftime("%B %d, %Y")
+    current_date = datetime.now(tz=timezone.utc).strftime("%B %d, %Y")
 
     # Determine status text (emojis removed)
     if int(status["ahead"]) > 0:
@@ -297,7 +297,7 @@ This branch represents ongoing development work with **{status['ahead']} commits
 ---
 
 **Branch Maintainer**: Development Team
-**Last Generated**: {datetime.now().strftime("%B %d, %Y at %I:%M %p")}
+**Last Generated**: {datetime.now(tz=timezone.utc).strftime("%B %d, %Y at %I:%M %p")}
 **Status**: {'IN DEVELOPMENT' if int(status['ahead']) > 0 else 'READY FOR MERGE'}"""
 
     # Save to file if specified

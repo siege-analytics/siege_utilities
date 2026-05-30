@@ -257,7 +257,7 @@ def update_census_inventory(
     import json
 
     if years is None:
-        years = list(range(2010, datetime.now().year + 1))
+        years = list(range(2010, datetime.now(tz=timezone.utc).year + 1))
 
     def _parse_dir_links(html: bytes) -> List[str]:
         soup = BeautifulSoup(html, "html.parser")
@@ -445,7 +445,7 @@ class CensusDirectoryDiscovery:
                         year = 2000 + int(match.group(1))
                     else:
                         year = int(match.group(1))
-                    if 1990 <= year <= datetime.now().year + 1:
+                    if 1990 <= year <= datetime.now(tz=timezone.utc).year + 1:
                         years.append(year)
                     break
 
@@ -517,7 +517,7 @@ class CensusDirectoryDiscovery:
 
         log.error(f"Failed to discover available years after {CENSUS_RETRY_ATTEMPTS} attempts: {last_exception}")
         log.info("Using fallback years (2010-present)")
-        return list(range(2010, datetime.now().year + 1))
+        return list(range(2010, datetime.now(tz=timezone.utc).year + 1))
     
     def get_year_directory_contents(
         self, year: int, force_refresh: bool = False, on_error: str = "skip",
@@ -1509,8 +1509,8 @@ class CensusDataSource(SpatialDataSource):
     def _validate_census_parameters(self, year: int, geographic_level: str, 
                                   state_fips: Optional[str]) -> None:
         """Validate Census API parameters."""
-        if year < 1990 or year > datetime.now().year + 1:
-            raise ValueError(f"Year {year} is outside valid range (1990-{datetime.now().year + 1})")
+        if year < 1990 or year > datetime.now(tz=timezone.utc).year + 1:
+            raise ValueError(f"Year {year} is outside valid range (1990-{datetime.now(tz=timezone.utc).year + 1})")
         
         if geographic_level in self.state_required_levels and not state_fips:
             raise ValueError(f"State FIPS required for {geographic_level}-level data")
@@ -2044,7 +2044,7 @@ def get_optimal_year(geographic_level: str, preferred_year: Optional[int] = None
         Best available year for the requested boundary type
     """
     from datetime import datetime
-    year = preferred_year if preferred_year is not None else datetime.now().year
+    year = preferred_year if preferred_year is not None else datetime.now(tz=timezone.utc).year
     return _get_census_source().get_optimal_year(year, geographic_level)
 
 def download_data(

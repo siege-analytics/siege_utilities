@@ -34,7 +34,7 @@ This file provides the backward-compatible ``CensusAPIClient`` facade.
 
 import logging
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Any, TYPE_CHECKING
 
@@ -317,7 +317,7 @@ def get_demographics(
         DataFrame with demographic data
     """
     if year is None:
-        year = datetime.now().year - 1
+        year = datetime.now(tz=timezone.utc).year - 1
 
     state_fips = normalize_state_identifier(state)
 
@@ -340,7 +340,7 @@ def get_population(
 ) -> pd.DataFrame:
     """Convenience function to get population data."""
     if year is None:
-        year = datetime.now().year - 1
+        year = datetime.now(tz=timezone.utc).year - 1
 
     state_fips = normalize_state_identifier(state)
 
@@ -364,7 +364,7 @@ def get_income_data(
 ) -> pd.DataFrame:
     """Convenience function to get income data."""
     if year is None:
-        year = datetime.now().year - 1
+        year = datetime.now(tz=timezone.utc).year - 1
 
     state_fips = normalize_state_identifier(state)
 
@@ -388,7 +388,7 @@ def get_education_data(
 ) -> pd.DataFrame:
     """Convenience function to get educational attainment data."""
     if year is None:
-        year = datetime.now().year - 1
+        year = datetime.now(tz=timezone.utc).year - 1
 
     state_fips = normalize_state_identifier(state)
 
@@ -412,7 +412,7 @@ def get_housing_data(
 ) -> pd.DataFrame:
     """Convenience function to get housing data."""
     if year is None:
-        year = datetime.now().year - 1
+        year = datetime.now(tz=timezone.utc).year - 1
 
     state_fips = normalize_state_identifier(state)
 

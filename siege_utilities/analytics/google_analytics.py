@@ -457,7 +457,7 @@ def create_ga_account_profile(client_id: str, ga_property_id: str,
         'ga_property_id': ga_property_id,
         'account_type': account_type,
         'credentials_file': credentials_file,
-        'created_date': datetime.now().isoformat(),
+        'created_date': datetime.now(tz=timezone.utc).isoformat(),
         'last_accessed': None,
         'status': 'active',
         'metadata': {

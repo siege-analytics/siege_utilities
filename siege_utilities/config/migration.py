@@ -9,7 +9,7 @@ import json
 import yaml
 from pathlib import Path
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 from .models import UserProfile, ClientProfile
@@ -305,7 +305,7 @@ class ConfigurationMigrator:
             Path to backup directory
         """
         if backup_dir is None:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
             backup_dir = self.legacy_config_dir.parent / f"config_backup_{timestamp}"
         
         backup_dir.mkdir(parents=True, exist_ok=True)

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -41,7 +41,7 @@ def _str_to_date(s: Optional[str]) -> Optional[date]:
 def _result_to_dict(result: NLRBFetchResult) -> dict:
     return {
         "source": result.source,
-        "fetched_at": datetime.now().isoformat(),
+        "fetched_at": datetime.now(tz=timezone.utc).isoformat(),
         "cases": [
             {
                 "case_number": c.case_number,

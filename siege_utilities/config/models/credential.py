@@ -4,7 +4,7 @@ Credential management model with comprehensive validation.
 
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 import re
 
@@ -144,7 +144,7 @@ class Credential(BaseModel):
     @classmethod
     def validate_expires_at(cls, v):
         """Validate expiration date."""
-        if v and v <= datetime.now():
+        if v and v <= datetime.now(tz=timezone.utc):
             raise ValueError('Expiration date must be in the future')
         return v
     
@@ -152,7 +152,7 @@ class Credential(BaseModel):
         """Check if credential is expired."""
         if not self.expires_at:
             return False
-        return datetime.now() > self.expires_at
+        return datetime.now(tz=timezone.utc) > self.expires_at
     
     def is_valid(self) -> bool:
         """Check if credential is valid (active and not expired)."""
@@ -161,7 +161,7 @@ class Credential(BaseModel):
     
     def update_last_used(self) -> None:
         """Update the last used timestamp."""
-        self.last_used = datetime.now()
+        self.last_used = datetime.now(tz=timezone.utc)
     
     def get_credential_data(self) -> Dict[str, Any]:
         """Get credential data as dictionary (excluding sensitive fields for logging)."""

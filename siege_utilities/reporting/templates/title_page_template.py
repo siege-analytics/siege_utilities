@@ -21,7 +21,7 @@ except ImportError:
     Color = HexColor = None
     pdfmetrics = None
     TTFont = None
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 
 from siege_utilities.core.logging import log_info, log_warning
@@ -216,7 +216,7 @@ class TitlePageTemplate:
             details_y -= line_height
         
         # Generation date
-        generation_date = datetime.now().strftime("%B %d, %Y")
+        generation_date = datetime.now(tz=timezone.utc).strftime("%B %d, %Y")
         self.canvas.drawString(self.margin_left, details_y, f"Generated: {generation_date}")
         details_y -= line_height
         

@@ -27,7 +27,7 @@ Example usage:
 
 import logging
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 from io import StringIO
@@ -293,11 +293,11 @@ class CrosswalkClient:
         deleted = 0
         cutoff = None
         if older_than_days is not None:
-            cutoff = datetime.now() - timedelta(days=older_than_days)
+            cutoff = datetime.now(tz=timezone.utc) - timedelta(days=older_than_days)
 
         for cache_file in self.cache_dir.glob('*.parquet'):
             if cutoff is not None:
-                file_mtime = datetime.fromtimestamp(cache_file.stat().st_mtime)
+                file_mtime = datetime.fromtimestamp(cache_file.stat().st_mtime, tz=timezone.utc)
                 if file_mtime > cutoff:
                     continue
 
@@ -333,8 +333,8 @@ class CrosswalkClient:
         if not cache_file.exists():
             return False
 
-        file_mtime = datetime.fromtimestamp(cache_file.stat().st_mtime)
-        age = datetime.now() - file_mtime
+        file_mtime = datetime.fromtimestamp(cache_file.stat().st_mtime, tz=timezone.utc)
+        age = datetime.now(tz=timezone.utc) - file_mtime
 
         if age > CROSSWALK_CACHE_TIMEOUT:
             log.debug(f"Cache expired: {cache_file.name} ({age.days} days old)")

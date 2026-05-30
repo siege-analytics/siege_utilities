@@ -10,14 +10,14 @@ Other modules should import from here (or from the backward-compatible
 shim in ``census_constants.py``).
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List
 
 # ============================================================================
 # INTERNAL: current year for dynamic range calculation
 # ============================================================================
-_CURRENT_YEAR = datetime.now().year
+_CURRENT_YEAR = datetime.now(tz=timezone.utc).year
 
 
 # ============================================================================

@@ -4,7 +4,7 @@ Base Person model with comprehensive validation and credential management.
 
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional, Dict, Any, Union
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import re
 
@@ -183,14 +183,14 @@ class Person(BaseModel):
             raise ValueError(f'Credential "{credential.name}" already exists')
         
         self.credentials.append(credential)
-        self.last_updated = datetime.now()
+        self.last_updated = datetime.now(tz=timezone.utc)
     
     def remove_credential(self, credential_name: str) -> bool:
         """Remove a credential by name."""
         for i, cred in enumerate(self.credentials):
             if cred.name == credential_name:
                 del self.credentials[i]
-                self.last_updated = datetime.now()
+                self.last_updated = datetime.now(tz=timezone.utc)
                 return True
         return False
     
@@ -217,14 +217,14 @@ class Person(BaseModel):
             raise ValueError(f'OAuth integration "{integration.name}" already exists')
         
         self.oauth_integrations.append(integration)
-        self.last_updated = datetime.now()
+        self.last_updated = datetime.now(tz=timezone.utc)
     
     def remove_oauth_integration(self, integration_name: str) -> bool:
         """Remove an OAuth integration by name."""
         for i, oauth in enumerate(self.oauth_integrations):
             if oauth.name == integration_name:
                 del self.oauth_integrations[i]
-                self.last_updated = datetime.now()
+                self.last_updated = datetime.now(tz=timezone.utc)
                 return True
         return False
     
@@ -247,14 +247,14 @@ class Person(BaseModel):
             raise ValueError(f'Database connection "{connection.name}" already exists')
         
         self.database_connections.append(connection)
-        self.last_updated = datetime.now()
+        self.last_updated = datetime.now(tz=timezone.utc)
     
     def remove_database_connection(self, connection_name: str) -> bool:
         """Remove a database connection by name."""
         for i, conn in enumerate(self.database_connections):
             if conn.name == connection_name:
                 del self.database_connections[i]
-                self.last_updated = datetime.now()
+                self.last_updated = datetime.now(tz=timezone.utc)
                 return True
         return False
     
@@ -274,14 +274,14 @@ class Person(BaseModel):
             raise ValueError(f'1Password credential "{credential.credential_name}" already exists in vault {credential.vault_id}')
         
         self.onepassword_credentials.append(credential)
-        self.last_updated = datetime.now()
+        self.last_updated = datetime.now(tz=timezone.utc)
     
     def remove_onepassword_credential(self, credential_name: str, vault_id: str) -> bool:
         """Remove a 1Password credential reference."""
         for i, cred in enumerate(self.onepassword_credentials):
             if cred.credential_name == credential_name and cred.vault_id == vault_id:
                 del self.onepassword_credentials[i]
-                self.last_updated = datetime.now()
+                self.last_updated = datetime.now(tz=timezone.utc)
                 return True
         return False
     
@@ -302,7 +302,7 @@ class Person(BaseModel):
         # Ensure we always have a default if any account exists.
         if not any(a.is_default for a in self.google_accounts):
             self.google_accounts[0].is_default = True
-        self.last_updated = datetime.now()
+        self.last_updated = datetime.now(tz=timezone.utc)
 
     def remove_google_account(self, google_account_id: str) -> bool:
         """Remove a Google account by ID."""
@@ -313,7 +313,7 @@ class Person(BaseModel):
                 if removed_default and self.google_accounts:
                     # Promote first remaining account as default.
                     self.google_accounts[0].is_default = True
-                self.last_updated = datetime.now()
+                self.last_updated = datetime.now(tz=timezone.utc)
                 return True
         return False
 
@@ -349,7 +349,7 @@ class Person(BaseModel):
                 a.is_default = False
         if not found:
             raise ValueError(f'Google account "{google_account_id}" not found')
-        self.last_updated = datetime.now()
+        self.last_updated = datetime.now(tz=timezone.utc)
 
     def list_google_accounts(self, active_only: bool = False) -> List[GoogleAccount]:
         """List Google accounts, optionally filtering to active only."""
@@ -362,7 +362,7 @@ class Person(BaseModel):
         """Add an organization to this person."""
         if org_id not in self.organizations:
             self.organizations.append(org_id)
-            self.last_updated = datetime.now()
+            self.last_updated = datetime.now(tz=timezone.utc)
     
     def remove_organization(self, org_id: str) -> None:
         """Remove an organization from this person."""
@@ -370,27 +370,27 @@ class Person(BaseModel):
             self.organizations.remove(org_id)
             if self.primary_organization == org_id:
                 self.primary_organization = None
-            self.last_updated = datetime.now()
+            self.last_updated = datetime.now(tz=timezone.utc)
     
     def set_primary_organization(self, org_id: str) -> None:
         """Set the primary organization for this person."""
         if org_id not in self.organizations:
             self.organizations.append(org_id)
         self.primary_organization = org_id
-        self.last_updated = datetime.now()
+        self.last_updated = datetime.now(tz=timezone.utc)
     
     # Collaboration Management Methods
     def add_collaboration(self, collab_id: str) -> None:
         """Add a collaboration to this person."""
         if collab_id not in self.collaborations:
             self.collaborations.append(collab_id)
-            self.last_updated = datetime.now()
+            self.last_updated = datetime.now(tz=timezone.utc)
     
     def remove_collaboration(self, collab_id: str) -> None:
         """Remove a collaboration from this person."""
         if collab_id in self.collaborations:
             self.collaborations.remove(collab_id)
-            self.last_updated = datetime.now()
+            self.last_updated = datetime.now(tz=timezone.utc)
     
     # Utility Methods
     def get_summary(self) -> Dict[str, Any]:

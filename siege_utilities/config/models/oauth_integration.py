@@ -4,7 +4,7 @@ OAuth integration model with comprehensive validation.
 
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, Dict, Any, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 import re
 
@@ -175,7 +175,7 @@ class OAuthIntegration(BaseModel):
     @classmethod
     def validate_expires_at(cls, v):
         """Validate token expiration date."""
-        if v and v <= datetime.now():
+        if v and v <= datetime.now(tz=timezone.utc):
             raise ValueError('Token expiration must be in the future')
         return v
     
@@ -183,7 +183,7 @@ class OAuthIntegration(BaseModel):
         """Check if access token is expired."""
         if not self.expires_at:
             return False
-        return datetime.now() >= self.expires_at
+        return datetime.now(tz=timezone.utc) >= self.expires_at
     
     def needs_refresh(self) -> bool:
         """Check if token needs refresh based on threshold."""
@@ -191,7 +191,7 @@ class OAuthIntegration(BaseModel):
             return False
         
         threshold_time = self.expires_at - timedelta(seconds=self.refresh_threshold)
-        return datetime.now() >= threshold_time
+        return datetime.now(tz=timezone.utc) >= threshold_time
     
     def is_valid(self) -> bool:
         """Check if integration is valid (active and has valid token)."""
@@ -201,7 +201,7 @@ class OAuthIntegration(BaseModel):
     
     def update_last_used(self) -> None:
         """Update the last used timestamp."""
-        self.last_used = datetime.now()
+        self.last_used = datetime.now(tz=timezone.utc)
     
     def update_tokens(self, access_token: str, refresh_token: Optional[str] = None, 
                      expires_in: Optional[int] = None) -> None:
@@ -211,9 +211,9 @@ class OAuthIntegration(BaseModel):
             self.refresh_token = refresh_token
         
         if expires_in:
-            self.expires_at = datetime.now() + timedelta(seconds=expires_in)
+            self.expires_at = datetime.now(tz=timezone.utc) + timedelta(seconds=expires_in)
         
-        self.last_refreshed = datetime.now()
+        self.last_refreshed = datetime.now(tz=timezone.utc)
         self.update_last_used()
     
     def get_authorization_url(self, state: Optional[str] = None) -> str:

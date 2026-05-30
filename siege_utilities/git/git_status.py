@@ -6,7 +6,7 @@ Comprehensive repository state analysis and monitoring.
 import logging
 from pathlib import Path
 from typing import List, Dict, Optional, Union
-from datetime import datetime
+from datetime import datetime, timezone
 
 from siege_utilities.exceptions import GitError
 from ._utils import run_git_command
@@ -96,7 +96,7 @@ def get_repository_status(repo_path: str = ".") -> Dict[str, Union[str, int, boo
             "behind": int(behind)
         },
         "working_directory_clean": staged_files + unstaged_files + untracked_files == 0,
-        "last_updated": datetime.now().isoformat()
+        "last_updated": datetime.now(tz=timezone.utc).isoformat()
     }
 
 def get_branch_info(repo_path: str = ".") -> Dict[str, Union[str, List[str], int]]:

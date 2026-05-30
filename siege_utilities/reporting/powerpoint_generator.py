@@ -7,7 +7,7 @@ import logging
 import uuid
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
-from datetime import datetime
+from datetime import datetime, timezone
 import pandas as pd
 
 try:
@@ -85,7 +85,7 @@ class PowerPointGenerator:
             # the first. Append a short uuid4 fragment to make the path
             # unique even at sub-second cadence; the timestamp still
             # provides human-readable sortability.
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
             suffix = uuid.uuid4().hex[:8]
             filename = (
                 f"{self.client_name.lower().replace(' ', '_')}"
@@ -145,7 +145,7 @@ class PowerPointGenerator:
         """
         try:
             # Generate filename
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
             suffix = uuid.uuid4().hex[:8]
             filename = f"{self.client_name.lower().replace(' ', '_')}_performance_presentation_{timestamp}_{suffix}.pptx"
             output_path = self.output_dir / filename
@@ -194,7 +194,7 @@ class PowerPointGenerator:
         """
         try:
             # Generate filename
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
             presentation_type = presentation_config.get('type', 'custom')
             filename = f"{self.client_name.lower().replace(' ', '_')}_{presentation_type}_presentation_{timestamp}.pptx"
             output_path = self.output_dir / filename
@@ -264,7 +264,7 @@ class PowerPointGenerator:
                 'author': author or 'Siege Analytics',
                 'client': client,
                 'presentation_type': presentation_type,
-                'created_date': datetime.now().isoformat(),
+                'created_date': datetime.now(tz=timezone.utc).isoformat(),
                 'version': '1.0'
             },
             'slide_structure': {
@@ -279,7 +279,7 @@ class PowerPointGenerator:
                     'subtitle': f"{presentation_type.title()} Presentation",
                     'author': author or 'Siege Analytics',
                     'client': client,
-                    'date': datetime.now().strftime('%B %d, %Y'),
+                    'date': datetime.now(tz=timezone.utc).strftime('%B %d, %Y'),
                     'level': 0
                 }
             ]
@@ -549,7 +549,7 @@ class PowerPointGenerator:
 
         # Set subtitle
         subtitle_shape = slide.placeholders[1]
-        subtitle_shape.text = f"Generated on {datetime.now().strftime('%B %d, %Y')}\n{self.client_name}"
+        subtitle_shape.text = f"Generated on {datetime.now(tz=timezone.utc).strftime('%B %d, %Y')}\n{self.client_name}"
 
         # Apply formatting
         self._format_title_slide(slide)
@@ -1021,7 +1021,7 @@ class PowerPointGenerator:
         """
         try:
             # Generate filename
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
             filename = f"{self.client_name.lower().replace(' ', '_')}_dataframe_presentation_{timestamp}.pptx"
             output_path = self.output_dir / filename
             
