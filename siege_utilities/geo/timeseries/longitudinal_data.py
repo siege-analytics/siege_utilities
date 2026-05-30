@@ -363,7 +363,7 @@ def _add_geometry(
     state_fips: Optional[str],
     year: int,
     county_fips: Optional[str] = None,
-) -> 'gpd.GeoDataFrame':
+) -> "Union['gpd.GeoDataFrame', pd.DataFrame]":
     """
     Add geometry to the DataFrame.
 
@@ -376,7 +376,8 @@ def _add_geometry(
             demographics scope (prevents state-wide geometry with county-filtered data)
 
     Returns:
-        GeoDataFrame with geometry, preserving canonical GEOID from demographics
+        GeoDataFrame with geometry if boundaries are available, otherwise the
+        original DataFrame unchanged.
     """
     import geopandas as gpd
     from ..spatial_data import get_census_boundaries
