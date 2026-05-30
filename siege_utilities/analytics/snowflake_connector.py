@@ -383,7 +383,7 @@ class SnowflakeConnector:
         except (*_SF_QUERY_ERRORS, ValueError, IndexError) as e:
             raise SnowflakeQueryError(f"Failed to get table info: {e}") from e
     
-    def list_tables(self, database: Optional[str] = None, schema: Optional[str] = None) -> Optional[List[str]]:
+    def list_tables(self, database: Optional[str] = None, schema: Optional[str] = None) -> List[str]:
         """
         List all tables in a database/schema.
         
@@ -454,7 +454,7 @@ def upload_to_snowflake(df: 'pd.DataFrame',
 
 def download_from_snowflake(query: str,
                            config_file: Optional[Union[str, Path]] = None,
-                           **kwargs) -> Optional['pd.DataFrame']:
+                           **kwargs) -> 'pd.DataFrame':
     """Convenience function to download DataFrame from Snowflake."""
     with get_snowflake_connector(config_file) as snow:
         return snow.download_dataframe(query, **kwargs)
@@ -462,7 +462,7 @@ def download_from_snowflake(query: str,
 
 def execute_snowflake_query(query: str,
                            config_file: Optional[Union[str, Path]] = None,
-                           **kwargs) -> Optional[List[tuple]]:
+                           **kwargs) -> List[tuple]:
     """Convenience function to execute Snowflake query."""
     with get_snowflake_connector(config_file) as snow:
         return snow.execute_query(query, **kwargs)
