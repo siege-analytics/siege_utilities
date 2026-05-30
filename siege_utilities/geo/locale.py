@@ -431,7 +431,10 @@ class NCESLocaleClassifier:
         # Fallback: check for an inline population column
         for col in ("POP", "POPULATION", "pop", "population", "POP20", "POP10"):
             if col in pc_match.columns:
-                return int(pc_match[col].iloc[0])
+                try:
+                    return int(pc_match[col].iloc[0])
+                except (ValueError, TypeError):
+                    continue
         # Default to small city if no population data available
         log.warning("No population data found for principal city match; defaulting to small city")
         return 0
@@ -448,7 +451,10 @@ class NCESLocaleClassifier:
         # Fallback: inline population column
         for col in ("POP", "POPULATION", "POP20", "POP10", "pop"):
             if col in ua_match.columns:
-                return int(ua_match[col].iloc[0])
+                try:
+                    return int(ua_match[col].iloc[0])
+                except (ValueError, TypeError):
+                    continue
         log.warning("No population data found for UA match; defaulting to small suburb")
         return 0
 
