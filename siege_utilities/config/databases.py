@@ -117,6 +117,8 @@ def save_database_config(config: Dict[str, Any], config_directory: str = "config
     config_dir.mkdir(parents=True, exist_ok=True)
 
     db_name = config['name']
+    if not db_name or '/' in db_name or '\\' in db_name or '..' in db_name:
+        raise ValueError(f"Invalid database name for filename: {db_name!r}")
     config_file = config_dir / f"database_{db_name}.json"
 
     # Warning about password storage

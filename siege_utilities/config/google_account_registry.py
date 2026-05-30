@@ -156,6 +156,9 @@ def save_google_account_profile(
     """Save a single GoogleAccount to a per-owner JSON file. Returns the path."""
     directory = Path(config_directory)
     directory.mkdir(parents=True, exist_ok=True)
+    for part_name, part_val in [("owner_id", owner_id), ("google_account_id", account.google_account_id)]:
+        if not part_val or '/' in part_val or '\\' in part_val or '..' in part_val:
+            raise ValueError(f"Invalid {part_name} for filename: {part_val!r}")
     filename = f"{owner_id}_google_account_{account.google_account_id}.json"
     path = directory / filename
     path.write_text(json.dumps(account.model_dump(mode="json"), indent=2, default=str))
@@ -168,6 +171,9 @@ def load_google_account_profile(
     config_directory: str = "config",
 ) -> Optional[GoogleAccount]:
     """Load a single GoogleAccount from a per-owner JSON file."""
+    for part_name, part_val in [("owner_id", owner_id), ("google_account_id", google_account_id)]:
+        if not part_val or '/' in part_val or '\\' in part_val or '..' in part_val:
+            raise ValueError(f"Invalid {part_name} for filename: {part_val!r}")
     filename = f"{owner_id}_google_account_{google_account_id}.json"
     path = Path(config_directory) / filename
     if not path.exists():

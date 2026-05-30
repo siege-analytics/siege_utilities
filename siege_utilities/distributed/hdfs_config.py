@@ -84,9 +84,13 @@ class HDFSConfig:
         if self.log_error_func is None:
             self.log_error_func = lambda msg: log_error(msg)
 
-    def get_cache_path(self, filename: str) ->pathlib.Path:
-        """Get path for cache files"""
-        return pathlib.Path(self.cache_directory) / filename
+    def get_cache_path(self, filename: str) -> pathlib.Path:
+        """Get path for cache files."""
+        base = pathlib.Path(self.cache_directory)
+        result = (base / filename).resolve()
+        if not str(result).startswith(str(base.resolve())):
+            raise ValueError(f"filename {filename!r} escapes cache directory")
+        return result
 
     def get_optimal_partitions(self) ->int:
         """Calculate optimal partitions for I/O heavy workloads"""
