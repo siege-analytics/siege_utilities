@@ -470,7 +470,8 @@ def get_connection_status(
     # Determine connection health
     if last_connected:
         last_connected_dt = datetime.fromisoformat(last_connected)
-        time_since_connection = datetime.now() - last_connected_dt
+        now = datetime.now(last_connected_dt.tzinfo)
+        time_since_connection = now - last_connected_dt
         
         if time_since_connection < timedelta(hours=1):
             health = 'excellent'
@@ -523,19 +524,19 @@ def cleanup_old_connections(
     if not connections_dir.exists():
         return 0
     
-    cutoff_date = datetime.now() - timedelta(days=days_old)
     removed_count = 0
-    
+
     for config_file in connections_dir.glob("connection_*.json"):
         try:
             with open(config_file, 'r') as f:
                 profile = json.load(f)
-            
+
             created_date = datetime.fromisoformat(profile['metadata']['created_date'])
             last_used = datetime.fromisoformat(profile['metadata']['last_used'])
-            
+            cutoff_date = datetime.now(created_date.tzinfo) - timedelta(days=days_old)
+
             # Remove if old and unused
-            if (created_date < cutoff_date and 
+            if (created_date < cutoff_date and
                 last_used < cutoff_date and 
                 profile['metadata']['connection_count'] == 0):
                 
