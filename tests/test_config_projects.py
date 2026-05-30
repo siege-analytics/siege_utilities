@@ -1,5 +1,6 @@
 """Tests for siege_utilities.config.projects module."""
 
+import pytest
 from pathlib import Path
 from siege_utilities.config.projects import (
     create_project_config,
@@ -131,15 +132,14 @@ class TestUpdateProjectConfig:
         config_dir = str(tmp_path / "config")
         config = create_project_config("Test", "T001", base_directory=str(tmp_path))
         save_project_config(config, config_dir)
-        result = update_project_config("T001", {"description": "Updated"}, config_dir)
-        assert result is True
+        update_project_config("T001", {"description": "Updated"}, config_dir)
         loaded = load_project_config("T001", config_dir)
         assert loaded["description"] == "Updated"
 
-    def test_update_nonexistent_returns_false(self, tmp_path):
+    def test_update_nonexistent_raises(self, tmp_path):
         config_dir = str(tmp_path / "config")
-        result = update_project_config("NONEXIST", {"description": "test"}, config_dir)
-        assert result is False
+        with pytest.raises(FileNotFoundError):
+            update_project_config("NONEXIST", {"description": "test"}, config_dir)
 
 
 class TestSetupProjectDirectories:
@@ -147,8 +147,7 @@ class TestSetupProjectDirectories:
 
     def test_creates_directories(self, tmp_path):
         config = create_project_config("Test", "T001", base_directory=str(tmp_path))
-        result = setup_project_directories(config)
-        assert result is True
+        setup_project_directories(config)
         for dir_path in config["directories"].values():
             assert Path(dir_path).exists()
 

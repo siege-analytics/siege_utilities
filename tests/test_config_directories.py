@@ -76,8 +76,7 @@ class TestEnsureDirectoriesExist:
             "data": str(tmp_path / "data"),
             "logs": str(tmp_path / "logs"),
         }
-        result = ensure_directories_exist(paths)
-        assert result is True
+        ensure_directories_exist(paths)
         assert Path(paths["data"]).exists()
         assert Path(paths["logs"]).exists()
 
