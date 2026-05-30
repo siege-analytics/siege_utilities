@@ -488,9 +488,10 @@ class MapChartMixin:
 
                 # Determine marker size based on value
                 if value_column and value_column in row:
-                    # Normalize values to marker sizes (10-50 pixels)
                     value = row[value_column]
-                    marker_size = max(10, min(50, int(10 + (value / df[value_column].max()) * 40)))
+                    col_max = df[value_column].max()
+                    normalized = (value / col_max) if col_max else 0
+                    marker_size = max(10, min(50, int(10 + normalized * 40)))
                 else:
                     marker_size = 15
 
@@ -800,7 +801,9 @@ class MapChartMixin:
             else:
                 df = data.copy()
 
-            # Calculate center point for map
+            if df.empty:
+                raise ValueError("Cannot create flow map from empty DataFrame")
+
             all_lats = df[origin_lat_column].tolist() + df[dest_lat_column].tolist()
             all_lons = df[origin_lon_column].tolist() + df[dest_lon_column].tolist()
             center_lat = sum(all_lats) / len(all_lats)
@@ -820,7 +823,9 @@ class MapChartMixin:
 
                 # Determine line weight based on flow value
                 if flow_value_column and flow_value_column in row:
-                    weight = max(1, min(10, int(row[flow_value_column] / df[flow_value_column].max() * 10)))
+                    flow_max = df[flow_value_column].max()
+                    normalized = (row[flow_value_column] / flow_max) if flow_max else 0
+                    weight = max(1, min(10, int(normalized * 10)))
                 else:
                     weight = 3
 

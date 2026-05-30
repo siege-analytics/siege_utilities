@@ -763,8 +763,14 @@ def compare_plans(
         raise ImportError("pandas is required")
 
     def _plan_stats(gdf, label):
+        if gdf.empty:
+            raise ValueError(f"Cannot compute plan stats: '{label}' has no districts")
         pops = gdf[population_col]
         ideal = pops.sum() / len(pops)
+        if ideal == 0:
+            raise ValueError(
+                f"Cannot compute plan stats: '{label}' has zero total population"
+            )
         return {
             "label": label,
             "num_districts": len(gdf),
