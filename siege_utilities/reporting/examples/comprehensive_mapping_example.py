@@ -354,14 +354,8 @@ def create_comprehensive_pdf_report(maps_dict):
     
     # Generate PDF report
     output_path = "comprehensive_geographic_report.pdf"
-    success = report_gen.generate_pdf_report(report_content, output_path)
-    
-    if success:
-        print(f"✅ PDF report generated successfully: {output_path}")
-    else:
-        print("❌ Error generating PDF report")
-    
-    return success
+    report_gen.generate_pdf_report(report_content, output_path)
+    print(f"✅ PDF report generated successfully: {output_path}")
 
 def create_comprehensive_powerpoint(maps_dict):
     """Create a comprehensive PowerPoint presentation."""

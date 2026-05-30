@@ -429,17 +429,20 @@ class ReportGenerator:
         )
 
     def generate_pdf_report(self, report_content: Dict[str, Any],
-                           output_path: str, template_config: str = None) -> bool:
+                           output_path: str, template_config: str = None) -> None:
         """
         Generate a comprehensive PDF report with full document structure.
-        
+
         Args:
             report_content: Report content structure
             output_path: Output PDF file path
             template_config: Template configuration file path
-            
-        Returns:
-            True if successful, False otherwise
+
+        Raises:
+            OSError: On filesystem failures (directory creation, write, rename).
+            PermissionError: If the output directory is not writable.
+            ValueError: On invalid report content structure.
+            TypeError: On invalid content types.
         """
         try:
             # Pre-check writability: ReportLab buffers the entire PDF in
@@ -451,20 +454,11 @@ class ReportGenerator:
             # atomically so a partial PDF never appears at *output_path*.
             final = Path(output_path)
             parent = final.parent if str(final.parent) else Path(".")
-            try:
-                parent.mkdir(parents=True, exist_ok=True)
-            except OSError as exc:
-                log.error(
-                    "generate_pdf_report: cannot create output directory "
-                    "%s: %s", parent, exc,
-                )
-                return False
+            parent.mkdir(parents=True, exist_ok=True)
             if not os.access(parent, os.W_OK):
-                log.error(
-                    "generate_pdf_report: output directory %s is not "
-                    "writable", parent,
+                raise PermissionError(
+                    f"generate_pdf_report: output directory {parent} is not writable"
                 )
-                return False
 
             tmp_path = parent / f".{final.name}.{uuid.uuid4().hex[:8]}.part"
 
@@ -504,22 +498,19 @@ class ReportGenerator:
             try:
                 os.replace(tmp_path, final)
             except OSError as exc:
-                log.error(
-                    "generate_pdf_report: built %s but could not rename "
-                    "to %s: %s", tmp_path, final, exc,
-                )
                 try:
                     if tmp_path.exists():
                         tmp_path.unlink()
                 except OSError:
                     pass
-                return False
+                raise OSError(
+                    f"generate_pdf_report: built {tmp_path} but could not "
+                    f"rename to {final}: {exc}"
+                ) from exc
 
             log.info(f"PDF report generated successfully: {output_path}")
-            return True
 
-        except (OSError, ValueError, TypeError, KeyError, AttributeError) as e:
-            log.error(f"Error generating PDF report: {e}")
+        except (OSError, ValueError, TypeError, KeyError, AttributeError):
             # Best-effort cleanup of the partial file. The variable may
             # not be bound yet if we failed before assigning it.
             try:
@@ -527,7 +518,7 @@ class ReportGenerator:
                     tmp_path.unlink()
             except OSError:
                 pass
-            return False
+            raise
 
     def _process_chart_list(self, charts: List[Any], width: float = 6,
                              height: float = 4) -> List:
