@@ -2009,11 +2009,11 @@ def download_osm_data(
 # Standalone convenience functions
 def get_available_years(force_refresh: bool = False) -> List[int]:
     """Get available Census years."""
-    return census_source.get_available_years(force_refresh)
+    return _get_census_source().get_available_years(force_refresh)
 
 def get_year_directory_contents(year: int) -> List[str]:
     """Get directory contents for a specific year."""
-    return census_source.get_year_directory_contents(year)
+    return _get_census_source().get_year_directory_contents(year)
 
 def discover_boundary_types(year: int) -> Dict[str, str]:
     """Discover available boundary types for a year.
@@ -2022,15 +2022,15 @@ def discover_boundary_types(year: int) -> Dict[str, str]:
     :meth:`CensusDataSource.discover_boundary_types`. The historical
     ``List[str]`` annotation never matched runtime behavior.
     """
-    return census_source.discover_boundary_types(year)
+    return _get_census_source().discover_boundary_types(year)
 
 def construct_download_url(year: int, geographic_level: str, state_fips: Optional[str] = None) -> str:
     """Construct download URL for Census data."""
-    return census_source.construct_download_url(year, geographic_level, state_fips)
+    return _get_census_source().construct_download_url(year, geographic_level, state_fips)
 
 def validate_download_url(url: str) -> bool:
     """Validate a download URL."""
-    return census_source.validate_download_url(url)
+    return _get_census_source().validate_download_url(url)
 
 def get_optimal_year(geographic_level: str, preferred_year: Optional[int] = None) -> int:
     """Get optimal year for geographic level.
@@ -2044,7 +2044,7 @@ def get_optimal_year(geographic_level: str, preferred_year: Optional[int] = None
     """
     from datetime import datetime
     year = preferred_year if preferred_year is not None else datetime.now().year
-    return census_source.get_optimal_year(year, geographic_level)
+    return _get_census_source().get_optimal_year(year, geographic_level)
 
 def download_data(
     year: int,
@@ -2066,7 +2066,7 @@ def download_data(
     Returns:
         GeoDataFrame with boundaries in *crs*, or None if failed.
     """
-    gdf = census_source.get_geographic_boundaries(year, geographic_level, state_fips)
+    gdf = _get_census_source().get_geographic_boundaries(year, geographic_level, state_fips)
     return reproject_if_needed(gdf, crs)
 
 def get_geographic_boundaries(
@@ -2093,7 +2093,7 @@ def get_geographic_boundaries(
         DeprecationWarning,
         stacklevel=2,
     )
-    gdf = census_source.get_geographic_boundaries(year, geographic_level, state_fips, state_identifier)
+    gdf = _get_census_source().get_geographic_boundaries(year, geographic_level, state_fips, state_identifier)
     return reproject_if_needed(gdf, crs)
 
 
@@ -2119,7 +2119,7 @@ def fetch_geographic_boundaries(
     Returns:
         BoundaryFetchResult with .success, .geodataframe in *crs*, .error_stage, etc.
     """
-    result = census_source.fetch_geographic_boundaries(
+    result = _get_census_source().fetch_geographic_boundaries(
         year=year,
         geographic_level=geographic_level,
         state_fips=state_fips,
@@ -2138,15 +2138,15 @@ def get_available_boundary_types(year: int) -> Dict[str, str]:
     historical ``List[str]`` annotation never matched runtime
     behavior.
     """
-    return census_source.get_available_boundary_types(year)
+    return _get_census_source().get_available_boundary_types(year)
 
 def refresh_discovery_cache() -> None:
     """Refresh the discovery cache."""
-    return census_source.refresh_discovery_cache()
+    return _get_census_source().refresh_discovery_cache()
 
 def get_unified_fips_data() -> Dict[str, Dict[str, Any]]:
     """Get unified FIPS data with state names and abbreviations."""
-    return census_source.get_comprehensive_state_info()
+    return _get_census_source().get_comprehensive_state_info()
 
 def normalize_state_identifier_standalone(identifier: str) -> str:
     """Normalize a state identifier to its 2-digit FIPS code.
@@ -2247,7 +2247,7 @@ def get_available_state_fips() -> Dict[str, str]:
     Same shape as :meth:`CensusDataSource.get_available_state_fips`.
     Historical ``List[str]`` annotation never matched runtime behavior.
     """
-    return census_source.get_available_state_fips()
+    return _get_census_source().get_available_state_fips()
 
 def get_state_abbreviations() -> Dict[str, str]:
     """Get a ``{fips_code: state_abbreviation}`` mapping.
@@ -2255,31 +2255,31 @@ def get_state_abbreviations() -> Dict[str, str]:
     Same shape as :meth:`CensusDataSource.get_state_abbreviations`.
     Historical ``List[str]`` annotation never matched runtime behavior.
     """
-    return census_source.get_state_abbreviations()
+    return _get_census_source().get_state_abbreviations()
 
 def get_comprehensive_state_info() -> Dict[str, Dict[str, Any]]:
     """Get comprehensive state information."""
-    return census_source.get_comprehensive_state_info()
+    return _get_census_source().get_comprehensive_state_info()
 
 def get_state_by_abbreviation(abbreviation: str) -> Optional[Dict[str, Any]]:
     """Get state info by abbreviation."""
-    return census_source.get_state_by_abbreviation(abbreviation)
+    return _get_census_source().get_state_by_abbreviation(abbreviation)
 
 def get_state_by_name(name: str) -> Optional[Dict[str, Any]]:
     """Get state info by name."""
-    return census_source.get_state_by_name(name)
+    return _get_census_source().get_state_by_name(name)
 
 def validate_state_fips(fips: str) -> bool:
     """Validate state FIPS code."""
-    return census_source.validate_state_fips(fips)
+    return _get_census_source().validate_state_fips(fips)
 
 def get_state_name(fips: str) -> Optional[str]:
     """Get state name from FIPS code."""
-    return census_source.get_state_name(fips)
+    return _get_census_source().get_state_name(fips)
 
 def get_state_abbreviation(fips: str) -> Optional[str]:
     """Get state abbreviation from FIPS code."""
-    return census_source.get_state_abbreviation(fips)
+    return _get_census_source().get_state_abbreviation(fips)
 
 def download_dataset(
     year: int,
@@ -2296,13 +2296,49 @@ def download_dataset(
         state_fips: State FIPS code.
         crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.
     """
-    gdf = census_source.download_dataset(year, geographic_level, state_fips)
+    gdf = _get_census_source().download_dataset(year, geographic_level, state_fips)
     return reproject_if_needed(gdf, crs)
 
-# Global instances for easy access
-census_source = CensusDataSource()  # Uses centralized Census timeout settings
-government_source = GovernmentDataSource("https://data.gov")
-osm_source = OpenStreetMapDataSource()
+# Lazy singletons — avoid network I/O on module import.
+_census_source = None
+_government_source = None
+_osm_source = None
+
+
+def _get_census_source() -> "CensusDataSource":
+    global _census_source
+    if _census_source is None:
+        _census_source = CensusDataSource()
+    return _census_source
+
+
+def _get_government_source() -> "GovernmentDataSource":
+    global _government_source
+    if _government_source is None:
+        _government_source = GovernmentDataSource("https://data.gov")
+    return _government_source
+
+
+def _get_osm_source() -> "OpenStreetMapDataSource":
+    global _osm_source
+    if _osm_source is None:
+        _osm_source = OpenStreetMapDataSource()
+    return _osm_source
+
+
+_LAZY_SINGLETONS = {
+    "census_source": _get_census_source,
+    "government_source": _get_government_source,
+    "osm_source": _get_osm_source,
+}
+
+
+def __getattr__(name: str):
+    factory = _LAZY_SINGLETONS.get(name)
+    if factory is not None:
+        return factory()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     # Classes
