@@ -319,7 +319,8 @@ def apply_stash(
         action = "popped" if pop else "applied"
         log_info(f"Stash {stash_ref} {action} successfully")
     except (RuntimeError, GitError) as e:
-        raise GitError(f"Stash apply failed: {e}") from e
+        action = "pop" if pop else "apply"
+        raise GitError(f"Stash {action} failed: {e}") from e
 
     return {
         "stash_ref": stash_ref,
