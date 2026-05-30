@@ -340,8 +340,8 @@ class PostGISConnector:
         if self.connection is not None:
             try:
                 self.connection.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                log.warning("Failed to close PostGIS connection: %s", exc)
             self.connection = None
 
     def __enter__(self):
@@ -634,8 +634,8 @@ class DuckDBConnector:
         if self.connection is not None:
             try:
                 self.connection.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                log.warning("Failed to close DuckDB connection: %s", exc)
             self.connection = None
 
     def __enter__(self):
