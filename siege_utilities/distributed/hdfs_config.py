@@ -66,11 +66,17 @@ class HDFSConfig:
             self.cache_directory = str(pathlib.Path.home() /
                 '.spark_hdfs_cache')
         if self.num_executors is None:
-            self.num_executors = int(os.environ.get(
-                'SPARK_EXECUTOR_INSTANCES', '4'))
+            try:
+                self.num_executors = int(os.environ.get(
+                    'SPARK_EXECUTOR_INSTANCES', '4'))
+            except (ValueError, TypeError):
+                self.num_executors = 4
         if self.executor_cores is None:
-            self.executor_cores = int(os.environ.get('SPARK_EXECUTOR_CORES',
-                '2'))
+            try:
+                self.executor_cores = int(os.environ.get(
+                    'SPARK_EXECUTOR_CORES', '2'))
+            except (ValueError, TypeError):
+                self.executor_cores = 2
         if 'SPARK_EXECUTOR_MEMORY' in os.environ:
             self.executor_memory = os.environ['SPARK_EXECUTOR_MEMORY']
         if 'SPARK_DRIVER_MEMORY' in os.environ:

@@ -36,6 +36,17 @@ log = logging.getLogger(__name__)
 # Type aliases
 FilePath = Union[str, Path]
 
+
+def _safe_content_length(response) -> int:
+    """Parse Content-Length header, returning 0 on missing or malformed values."""
+    raw = response.headers.get('content-length')
+    if raw is None:
+        return 0
+    try:
+        return int(raw)
+    except (ValueError, TypeError):
+        return 0
+
 def _get_ssl_verify_path():
     """Get the appropriate SSL certificate verification path for the current platform."""
     # macOS system CA bundle path (works better than certifi for some sites)
@@ -138,7 +149,7 @@ def download_file(url: str, local_filename: FilePath,
                 return False
             
             # Get total size for progress bar
-            total_size = int(response.headers.get('content-length', 0))
+            total_size = _safe_content_length(response)
             
             if total_size > 0:
                 log.info(f'Download started, file size: {total_size} bytes')
@@ -178,7 +189,7 @@ def download_file(url: str, local_filename: FilePath,
                     return False
                 
                 # Get total size for progress bar
-                total_size = int(response.headers.get('content-length', 0))
+                total_size = _safe_content_length(response)
                 
                 if total_size > 0:
                     log.info(f'Download started without SSL, file size: {total_size} bytes')
@@ -346,7 +357,7 @@ def get_file_info(url: str, timeout: int = 10) -> Optional[dict]:
         
         info = {
             'url': url,
-            'size': int(response.headers.get('content-length', 0)),
+            'size': _safe_content_length(response),
             'content_type': response.headers.get('content-type', 'unknown'),
             'last_modified': response.headers.get('last-modified'),
             'etag': response.headers.get('etag')

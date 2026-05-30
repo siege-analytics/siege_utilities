@@ -88,9 +88,15 @@ class Settings:
         if isinstance(default, bool):
             return val.lower() in ("true", "1", "yes")
         if isinstance(default, int):
-            return int(val)
+            try:
+                return int(val)
+            except (ValueError, TypeError):
+                return default
         if isinstance(default, float):
-            return float(val)
+            try:
+                return float(val)
+            except (ValueError, TypeError):
+                return default
         return val
 
     def _load_yaml(self) -> dict | None:
