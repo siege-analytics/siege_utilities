@@ -37,6 +37,7 @@ try:
 except ImportError:
     FOLIUM_AVAILABLE = False
     folium = None
+    plugins = None
 
 # Geographic data processing
 try:

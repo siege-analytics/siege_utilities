@@ -15,6 +15,7 @@ try:
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
     plt = None
+    mpatches = None
 
 # ReportLab for PDF generation
 try:

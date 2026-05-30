@@ -38,6 +38,8 @@ try:
     GEOPANDAS_AVAILABLE = True
 except ImportError:
     GEOPANDAS_AVAILABLE = False
+    gpd = None
+    Polygon = None
     gpd = None  # type: ignore[assignment]
 
 # Import existing Census utilities (kept as availability probe even though

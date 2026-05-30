@@ -14,6 +14,7 @@ try:
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
     plt = None
+    mpatches = None
     sns = None
 
 # Data processing
