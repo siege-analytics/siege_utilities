@@ -43,7 +43,7 @@ def run_command(cmd: List[str], description: str, log_file: Optional[str] = None
     log_info("-" * 60)
 
     if log_file:
-        with open(log_file, "w") as f:
+        with open(log_file, "w", encoding="utf-8") as f:
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,

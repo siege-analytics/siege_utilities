@@ -137,9 +137,9 @@ def save_connection_profile(
     # Update last_used timestamp
     profile['metadata']['last_used'] = datetime.now().isoformat()
     
-    with open(config_file, 'w') as f:
+    with open(config_file, 'w', encoding='utf-8') as f:
         json.dump(profile, f, indent=2)
-    
+
     log_info(f"Saved connection profile to: {config_file}")
     return str(config_file)
 
@@ -172,9 +172,9 @@ def load_connection_profile(
         return None
     
     try:
-        with open(config_file, 'r') as f:
+        with open(config_file, 'r', encoding='utf-8') as f:
             profile = json.load(f)
-        
+
         log_info(f"Loaded connection profile: {connection_id}")
         return profile
         
@@ -210,9 +210,9 @@ def find_connection_by_name(
     
     for config_file in connections_dir.glob("connection_*.json"):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 profile = json.load(f)
-            
+
             if profile['name'] == name:
                 return profile
                 
@@ -253,9 +253,9 @@ def list_connection_profiles(
     
     for config_file in connections_dir.glob("connection_*.json"):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 profile = json.load(f)
-            
+
             # Filter by type if specified
             if connection_type and profile['connection_type'] != connection_type:
                 continue
@@ -528,7 +528,7 @@ def cleanup_old_connections(
 
     for config_file in connections_dir.glob("connection_*.json"):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 profile = json.load(f)
 
             created_date = datetime.fromisoformat(profile['metadata']['created_date'])

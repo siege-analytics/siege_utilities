@@ -507,7 +507,7 @@ class ChartTypeRegistry:
                 'custom_options': chart_type.custom_options
             }
             
-            with open(output_path, 'w') as f:
+            with open(output_path, 'w', encoding='utf-8') as f:
                 yaml.dump(config_data, f, default_flow_style=False)
             
             log.info(f"Exported chart type configuration to: {output_path}")

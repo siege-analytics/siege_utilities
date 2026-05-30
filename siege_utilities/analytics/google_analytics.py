@@ -171,7 +171,7 @@ class GoogleAnalyticsConnector:
 
     def _save_credentials(self, token_path: pathlib.Path):
         """Save OAuth credentials to file."""
-        with open(token_path, 'w') as token:
+        with open(token_path, 'w', encoding='utf-8') as token:
             token.write(self.credentials.to_json())
         log_info(f"Saved credentials to: {token_path}")
 
@@ -489,7 +489,7 @@ def save_ga_account_profile(profile: Dict[str, Any],
     account_id = profile['ga_account_id']
     config_file = config_dir / f"ga_account_{account_id}.json"
 
-    with open(config_file, 'w') as f:
+    with open(config_file, 'w', encoding='utf-8') as f:
         json.dump(profile, f, indent=2)
 
     log_info(f"Saved GA account profile to: {config_file}")
@@ -515,7 +515,7 @@ def load_ga_account_profile(account_id: str,
         return None
 
     try:
-        with open(config_file, 'r') as f:
+        with open(config_file, 'r', encoding='utf-8') as f:
             profile = json.load(f)
 
         log_info(f"Loaded GA account profile: {account_id}")
@@ -546,7 +546,7 @@ def list_ga_accounts_for_client(client_id: str,
     accounts = []
     for config_file in config_dir.glob("ga_account_*.json"):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 profile = json.load(f)
 
             if profile.get('client_id') == client_id:
@@ -617,7 +617,7 @@ def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
                 if not creds_path.exists():
                     results['errors'].append(f"Credentials file not found: {creds_path}")
                     continue
-                with open(creds_path, 'r') as creds_f:
+                with open(creds_path, 'r', encoding='utf-8') as creds_f:
                     service_account_data = json.load(creds_f)
                 connector = GoogleAnalyticsConnector(
                     auth_method="service_account",

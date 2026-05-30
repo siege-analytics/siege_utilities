@@ -67,9 +67,9 @@ class DataDotWorldConnector:
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
         
         try:
-            with open(config_path, 'r') as f:
+            with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
-            
+
             # Update instance variables with config values
             if 'api_token' in config and config['api_token']:
                 self.api_token = config['api_token']

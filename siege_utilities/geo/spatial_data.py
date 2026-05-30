@@ -315,7 +315,7 @@ def update_census_inventory(
 
     save_path = Path(save_path or _DEFAULT_INVENTORY_PATH)
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(save_path, "w") as fh:
+    with open(save_path, "w", encoding="utf-8") as fh:
         json.dump(inventory, fh, indent=2)
     log.info("census inventory saved to %s", save_path)
     return inventory
@@ -328,7 +328,7 @@ def load_census_inventory(path: Optional[Path] = None) -> Optional[dict]:
     if not p.exists():
         return None
     try:
-        with open(p) as fh:
+        with open(p, encoding="utf-8") as fh:
             return json.load(fh)
     except (OSError, ValueError, UnicodeDecodeError) as exc:
         log.warning("could not load census inventory from %s: %s", p, exc)

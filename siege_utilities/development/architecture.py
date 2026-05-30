@@ -412,7 +412,7 @@ def generate_requirements_txt(setup_py_path: str = "setup.py", output_path: str 
             return False
 
         # Read and parse setup.py
-        with open(setup_path, 'r') as f:
+        with open(setup_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
         # Parse AST to extract dependencies
@@ -428,7 +428,7 @@ def generate_requirements_txt(setup_py_path: str = "setup.py", output_path: str 
                                 dependencies.append(elt.value)
 
         # Write requirements.txt
-        with open(output_path, 'w') as f:
+        with open(output_path, 'w', encoding='utf-8') as f:
             for dep in dependencies:
                 f.write(f"{dep}\n")
 
@@ -488,7 +488,7 @@ def generate_pyproject_toml(setup_py_path: str = "setup.py", output_path: str = 
             return False
 
         # Read and parse setup.py
-        with open(setup_path, 'r') as f:
+        with open(setup_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
         # Parse AST to extract package info
@@ -557,7 +557,7 @@ dependencies = [
         toml_content += '\n[tool.setuptools.packages.find]\nwhere = ["."]\ninclude = ["*"]\n'
 
         # Write pyproject.toml
-        with open(output_path, 'w') as f:
+        with open(output_path, 'w', encoding='utf-8') as f:
             f.write(toml_content)
 
         log_info(f"Generated {output_path} from {setup_py_path}")
@@ -616,7 +616,7 @@ def generate_poetry_toml(setup_py_path: str = "setup.py", output_path: str = "py
             return False
 
         # Read and parse setup.py
-        with open(setup_path, 'r') as f:
+        with open(setup_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
         # Parse AST to extract package info
@@ -677,7 +677,7 @@ python = "{package_info.get('python_requires', '>=3.8')}"
         toml_content += '\n[build-system]\nrequires = ["poetry-core"]\nbuild-backend = "poetry.core.masonry.api"\n'
 
         # Write pyproject.toml
-        with open(output_path, 'w') as f:
+        with open(output_path, 'w', encoding='utf-8') as f:
             f.write(toml_content)
 
         log_info(f"Generated Poetry-compatible {output_path} from {setup_py_path}")

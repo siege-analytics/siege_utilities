@@ -234,7 +234,7 @@ class SpatialDataTransformer:
                 + "'));"
             )
 
-            with open(output_path, 'w') as f:
+            with open(output_path, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(sql_lines))
             
             log.info(f"Successfully generated PostGIS SQL: {output_path}")

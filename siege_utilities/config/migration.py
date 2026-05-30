@@ -56,9 +56,9 @@ class ConfigurationMigrator:
             return self._create_default_user_profile()
         
         try:
-            with open(legacy_file, 'r') as f:
+            with open(legacy_file, 'r', encoding='utf-8') as f:
                 legacy_data = yaml.safe_load(f)
-            
+
             logger.info(f"Loading legacy user profile from: {legacy_file}")
             
             # Map legacy fields to new UserProfile fields
@@ -90,7 +90,7 @@ class ConfigurationMigrator:
             return self._create_default_client_profile(client_code)
         
         try:
-            with open(legacy_file, 'r') as f:
+            with open(legacy_file, 'r', encoding='utf-8') as f:
                 legacy_data = yaml.safe_load(f) if legacy_file.suffix in ['.yaml', '.yml'] else json.load(f)
             
             logger.info(f"Loading legacy client profile from: {legacy_file}")

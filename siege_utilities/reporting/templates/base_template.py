@@ -98,7 +98,7 @@ class BaseReportTemplate:
             FileNotFoundError: If the branding config file does not exist.
             yaml.YAMLError: If the YAML is malformed.
         """
-        with open(self.branding_config_path, 'r') as f:
+        with open(self.branding_config_path, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
         log.info(f"Configuration loaded successfully from {self.branding_config_path}")
         return config

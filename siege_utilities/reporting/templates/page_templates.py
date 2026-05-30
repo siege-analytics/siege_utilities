@@ -223,7 +223,7 @@ class PageTemplateManager:
         
         for template_file in custom_templates_dir.glob("*.yaml"):
             try:
-                with open(template_file, 'r') as f:
+                with open(template_file, 'r', encoding='utf-8') as f:
                     template_data = yaml.safe_load(f)
                     template = PageTemplate(**template_data)
                     self.templates[template.name] = template
@@ -275,7 +275,7 @@ class PageTemplateManager:
         
         template_file = custom_templates_dir / f"{template.name}.yaml"
         try:
-            with open(template_file, 'w') as f:
+            with open(template_file, 'w', encoding='utf-8') as f:
                 yaml.dump(template.__dict__, f, default_flow_style=False)
         except (OSError, yaml.YAMLError) as e:
             log.error(f"Failed to save custom template: {e}")
@@ -334,7 +334,7 @@ class PageTemplateManager:
             return
         
         try:
-            with open(output_path, 'w') as f:
+            with open(output_path, 'w', encoding='utf-8') as f:
                 yaml.dump(template.__dict__, f, default_flow_style=False)
             log.info(f"Exported template to: {output_path}")
         except (OSError, yaml.YAMLError) as e:
@@ -349,7 +349,7 @@ class PageTemplateManager:
             template_name: Custom name for the imported template
         """
         try:
-            with open(input_path, 'r') as f:
+            with open(input_path, 'r', encoding='utf-8') as f:
                 template_data = yaml.safe_load(f)
             
             if template_name:
