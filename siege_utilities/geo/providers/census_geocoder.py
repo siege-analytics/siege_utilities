@@ -345,7 +345,7 @@ def geocode_batch(
     if isinstance(result, list):
         for row in result:
             row_id = str(row.get("id", ""))
-            matched = row.get("match", False) is True
+            matched = bool(row.get("match", False))
             if matched:
                 parsed = CensusGeocodeResult(
                     matched=True,

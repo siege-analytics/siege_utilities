@@ -216,13 +216,17 @@ class CatalogCache:
             return 0
         if dataset and year:
             path = self._cache_path(dataset, year)
-            if path.exists():
+            try:
                 path.unlink()
                 return 1
-            return 0
+            except FileNotFoundError:
+                return 0
         count = 0
         for path in self.cache_dir.glob("*.json"):
-            path.unlink()
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                continue
             count += 1
         return count
 

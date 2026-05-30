@@ -348,8 +348,10 @@ def upload_figure_to_drive(
         log.info("Uploaded figure %r → Drive %s", filename, file_id)
         return url
     finally:
-        if os.path.exists(tmp_path):
+        try:
             os.unlink(tmp_path)
+        except FileNotFoundError:
+            pass
 
 
 def create_argument_slide(
