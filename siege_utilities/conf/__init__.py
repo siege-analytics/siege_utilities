@@ -110,7 +110,7 @@ class Settings:
                 try:
                     import yaml
 
-                    with open(candidate) as f:
+                    with open(candidate, encoding="utf-8") as f:
                         self._yaml_cache = yaml.safe_load(f) or {}
                         self._yaml_path = candidate
                 except ImportError:
@@ -131,7 +131,7 @@ class Settings:
                 try:
                     import yaml
 
-                    with open(candidate) as f:
+                    with open(candidate, encoding="utf-8") as f:
                         self._yaml_cache = yaml.safe_load(f) or {}
                         self._yaml_path = candidate
                 except ImportError:

@@ -150,7 +150,7 @@ def save_client_profile(
         dir=str(config_dir),
     )
     try:
-        with os.fdopen(fd, 'w') as f:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
             json.dump(profile, f, indent=2)
             f.flush()
             os.fsync(f.fileno())
@@ -195,7 +195,7 @@ def load_client_profile(
         return None
     
     try:
-        with open(config_file, 'r') as f:
+        with open(config_file, 'r', encoding='utf-8') as f:
             profile = json.load(f)
         
         log_info(f"Loaded client profile: {client_code}")
@@ -287,7 +287,7 @@ def list_client_profiles(
     
     for config_file in config_dir.glob("client_*.json"):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 profile = json.load(f)
             
             clients.append({
@@ -338,7 +338,7 @@ def search_client_profiles(
     # Load all profiles
     for config_file in pathlib.Path(config_directory).glob("client_*.json"):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 profile = json.load(f)
             all_profiles.append(profile)
         except (OSError, json.JSONDecodeError):
