@@ -265,9 +265,9 @@ class ClientBrandingManager:
             # Create branding config file
             config_file = client_dir / f"{_slugify_client_name(client_name)}_branding.yaml"
             
-            with open(config_file, 'w') as f:
+            with open(config_file, 'w', encoding='utf-8') as f:
                 yaml.dump(branding_config, f, default_flow_style=False, indent=2)
-            
+
             log.info(f"Created branding configuration for {client_name}: {config_file}")
             return config_file
             
@@ -295,7 +295,7 @@ class ClientBrandingManager:
             if client_dir.exists():
                 # Look for branding config files
                 for config_file in client_dir.glob("*_branding.yaml"):
-                    with open(config_file, 'r') as f:
+                    with open(config_file, 'r', encoding='utf-8') as f:
                         config = yaml.safe_load(f)
                         log.info(f"Loaded branding configuration from {config_file}")
                         return config
@@ -337,7 +337,7 @@ class ClientBrandingManager:
             client_dir = self.config_dir / _slugify_client_name(client_name)
             config_file = client_dir / f"{_slugify_client_name(client_name)}_branding.yaml"
 
-            with open(config_file, 'w') as f:
+            with open(config_file, 'w', encoding='utf-8') as f:
                 yaml.dump(current_config, f, default_flow_style=False, indent=2)
 
             log.info(f"Updated branding configuration for {client_name}")
@@ -492,16 +492,16 @@ class ClientBrandingManager:
         try:
             # Export as YAML
             if export_path.suffix.lower() in ['.yaml', '.yml']:
-                with open(export_path, 'w') as f:
+                with open(export_path, 'w', encoding='utf-8') as f:
                     yaml.dump(branding_config, f, default_flow_style=False, indent=2)
             # Export as JSON
             elif export_path.suffix.lower() == '.json':
-                with open(export_path, 'w') as f:
+                with open(export_path, 'w', encoding='utf-8') as f:
                     json.dump(branding_config, f, indent=2)
             else:
                 # Default to YAML
                 export_path = export_path.with_suffix('.yaml')
-                with open(export_path, 'w') as f:
+                with open(export_path, 'w', encoding='utf-8') as f:
                     yaml.dump(branding_config, f, default_flow_style=False, indent=2)
 
             log.info(f"Exported branding configuration for {client_name} to {export_path}")
@@ -526,10 +526,10 @@ class ClientBrandingManager:
         try:
             # Load configuration
             if import_path.suffix.lower() in ['.yaml', '.yml']:
-                with open(import_path, 'r') as f:
+                with open(import_path, 'r', encoding='utf-8') as f:
                     branding_config = yaml.safe_load(f)
             elif import_path.suffix.lower() == '.json':
-                with open(import_path, 'r') as f:
+                with open(import_path, 'r', encoding='utf-8') as f:
                     branding_config = json.load(f)
             else:
                 log.error(f"Unsupported file format: {import_path.suffix}")
