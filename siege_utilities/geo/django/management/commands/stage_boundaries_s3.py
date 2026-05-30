@@ -15,6 +15,7 @@ Usage:
     python manage.py stage_boundaries_s3 --year 2020 --type county --format parquet
 """
 
+import os
 import tempfile
 
 from django.core.management.base import BaseCommand, CommandError
@@ -88,20 +89,20 @@ class Command(BaseCommand):
         parser.add_argument(
             "--endpoint-url",
             type=str,
-            default="http://10.10.0.10:9000",
-            help="S3 endpoint URL (default: MinIO at 10.10.0.10:9000)",
+            default=os.environ.get("S3_ENDPOINT_URL", "http://localhost:9000"),
+            help="S3 endpoint URL (env: S3_ENDPOINT_URL, default: http://localhost:9000)",
         )
         parser.add_argument(
             "--access-key",
             type=str,
-            default="electinfo",
-            help="S3 access key",
+            default=os.environ.get("AWS_ACCESS_KEY_ID"),
+            help="S3 access key (env: AWS_ACCESS_KEY_ID)",
         )
         parser.add_argument(
             "--secret-key",
             type=str,
-            default="electinfo123",
-            help="S3 secret key",
+            default=os.environ.get("AWS_SECRET_ACCESS_KEY"),
+            help="S3 secret key (env: AWS_SECRET_ACCESS_KEY)",
         )
         parser.add_argument(
             "--format",
@@ -124,6 +125,11 @@ class Command(BaseCommand):
         if gpd is None:
             raise CommandError(
                 "geopandas is required. Install with: pip install siege_utilities[geo]"
+            )
+        if not options["access_key"] or not options["secret_key"]:
+            raise CommandError(
+                "S3 credentials required. Provide --access-key/--secret-key or "
+                "set AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY environment variables."
             )
 
         year = options["year"]
