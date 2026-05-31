@@ -46,6 +46,7 @@ __all__ = [
     "TOWN_DISTANT",
     "TOWN_FRINGE",
     "TOWN_REMOTE",
+    "locale_from_code",
 ]
 
 # Meters per mile — used for distance conversion after CRS projection

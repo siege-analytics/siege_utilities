@@ -32,6 +32,9 @@ __all__ = [
     "SPATIAL_WEIGHT",
     "SpatialOverlap",
     "SpatialOverlapProvider",
+    "reconcile_names",
+    "reconcile_official",
+    "reconcile_spatial",
 ]
 
 
