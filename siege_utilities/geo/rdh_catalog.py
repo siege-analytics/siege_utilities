@@ -17,6 +17,16 @@ from typing import Any, Optional
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "CatalogEntry",
+    "CoverageCell",
+    "DEFAULT_CACHE_TTL",
+    "DictRDHCatalogProvider",
+    "RDHCatalog",
+    "RDHCatalogProvider",
+    "SearchResult",
+]
+
 DEFAULT_CACHE_TTL = 30 * 24 * 3600  # 30 days in seconds
 CACHE_FILENAME = "rdh_catalog.json"
 

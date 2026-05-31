@@ -24,12 +24,26 @@ try:
 except ImportError:
     gpd = None
 
+from ..exceptions import SiegeGeoError
+
+__all__ = [
+    "BoundaryConfigurationError",
+    "BoundaryDiscoveryError",
+    "BoundaryDownloadError",
+    "BoundaryFetchResult",
+    "BoundaryInputError",
+    "BoundaryParseError",
+    "BoundaryRetrievalError",
+    "BoundaryUrlValidationError",
+    "fail",
+    "ok",
+    "raise_on_error",
+]
+
 
 # ---------------------------------------------------------------------------
 # Typed Exceptions
 # ---------------------------------------------------------------------------
-
-from ..exceptions import SiegeGeoError
 
 
 class BoundaryRetrievalError(SiegeGeoError):

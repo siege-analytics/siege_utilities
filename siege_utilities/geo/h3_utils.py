@@ -35,6 +35,16 @@ except ImportError:
     log.info("h3 not available - H3 spatial index functions will raise ImportError")
 
 
+__all__ = [
+    "h3_hex_to_boundary",
+    "h3_index_points",
+    "h3_index_polygon",
+    "h3_resolution_for_admin_level",
+    "h3_resolution_for_area",
+    "h3_spatial_join",
+]
+
+
 def _require_h3():
     """Raise ImportError if h3 is not installed."""
     if not H3_AVAILABLE:

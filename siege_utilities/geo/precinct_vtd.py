@@ -16,6 +16,24 @@ from typing import Any, Optional
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "ConfidenceLevel",
+    "DictNameMatchProvider",
+    "DictSpatialOverlapProvider",
+    "MIN_NAME_SIMILARITY",
+    "MIN_OVERLAP_PCT",
+    "NAME_WEIGHT",
+    "NameMatchProvider",
+    "OfficialCrosswalkEntry",
+    "PrecinctVTDMapping",
+    "PrecinctVTDReconciler",
+    "ReconciliationMethod",
+    "ReconciliationResult",
+    "SPATIAL_WEIGHT",
+    "SpatialOverlap",
+    "SpatialOverlapProvider",
+]
+
 
 class ReconciliationMethod(str, Enum):
     """How a precinct-VTD mapping was determined."""

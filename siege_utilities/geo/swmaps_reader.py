@@ -45,6 +45,12 @@ from typing import Iterator
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "SWMapsArchive",
+    "open_swmaps",
+    "read_features",
+]
+
 # Recognized .swmz container extensions and raw-SQLite extensions.
 _ARCHIVE_EXTS = {".swmz", ".zip"}
 _SQLITE_EXTS = {".sqlite", ".db"}
