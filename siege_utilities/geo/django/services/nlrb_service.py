@@ -17,6 +17,12 @@ from django.db import transaction
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'NLRB_REGIONS',
+    'NLRBPopulationResult',
+    'NLRBPopulationService',
+]
+
 # NLRB Region definitions: region_number → {office, states, counties}
 # States listed are the primary states covered; county-level precision
 # would require a full FIPS mapping that the NLRB doesn't publish openly.

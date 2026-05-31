@@ -21,6 +21,16 @@ if TYPE_CHECKING:
     import geopandas as gpd
     import pandas as pd
 
+__all__ = [
+    'TemporalDataStore',
+    'get_temporal_store',
+    'save_boundaries',
+    'load_boundaries',
+    'query_boundaries_at_date',
+    'save_demographics',
+    'load_demographics',
+]
+
 log = logging.getLogger(__name__)
 
 _DEFAULT_ROOT = Path.home() / ".siege_utilities" / "store" / "temporal"

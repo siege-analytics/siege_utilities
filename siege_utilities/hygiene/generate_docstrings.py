@@ -21,6 +21,18 @@ except ImportError:
     def log_debug(message): pass
 
 
+__all__ = [
+    'analyze_function_signature',
+    'categorize_function',
+    'generate_docstring_template',
+    'DocstringAdder',
+    'process_python_file',
+    'find_python_files',
+    'main',
+    'cli',
+]
+
+
 def analyze_function_signature(func):
     """Analyze a function to generate parameter and return type info."""
     try:

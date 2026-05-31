@@ -10,6 +10,18 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 import uuid
 
+__all__ = [
+    'create_connection_profile',
+    'save_connection_profile',
+    'load_connection_profile',
+    'find_connection_by_name',
+    'list_connection_profiles',
+    'update_connection_profile',
+    'verify_connection_profile',
+    'get_connection_status',
+    'cleanup_old_connections',
+]
+
 logger = logging.getLogger(__name__)
 
 

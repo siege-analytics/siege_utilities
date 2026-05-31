@@ -30,6 +30,18 @@ except ImportError:
 
 from ..chart_generator import ChartGenerator
 
+__all__ = [
+    'create_sample_data',
+    'create_sample_geodata',
+    'example_basic_bivariate_choropleth',
+    'example_advanced_bivariate_choropleth',
+    'example_custom_chart_configuration',
+    'example_dataframe_integration',
+    'example_advanced_choropleth',
+    'run_all_examples',
+    'create_report_with_bivariate_maps',
+]
+
 log = logging.getLogger(__name__)
 
 def create_sample_data():

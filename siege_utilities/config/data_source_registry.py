@@ -10,6 +10,10 @@ from typing import Dict, List, Optional
 
 import yaml
 
+__all__ = [
+    'DataSourceRegistry',
+]
+
 from .models.data_sources import (
     DataSource,
     DataSourceStatus,

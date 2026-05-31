@@ -24,6 +24,10 @@ from .models import (
 )
 from .models.actor_types import User, Client
 
+__all__ = [
+    'HydraConfigManager',
+]
+
 logger = logging.getLogger(__name__)
 
 

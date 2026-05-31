@@ -13,6 +13,17 @@ from pydantic import BaseModel, Field
 
 from .base import TemporalGeographicFeatureSchema
 
+__all__ = [
+    'EVENT_CATEGORY_CHOICES',
+    'RACE_EVENT_TYPE_CHOICES',
+    'RESULT_SOURCE_CHOICES',
+    'RaceEventSchema',
+    'RaceSchema',
+    'ReturnSnapshotSchema',
+    'SPECIAL_CAUSE_CHOICES',
+    'SpatioTemporalEventSchema',
+]
+
 
 SPECIAL_CAUSE_CHOICES = frozenset({
     "death", "resignation", "expulsion", "recall", "vacancy",

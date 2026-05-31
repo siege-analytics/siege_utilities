@@ -16,6 +16,11 @@ from .codification_demographics import DemographicSignature
 from .codification_urbanicity import UrbanicityDistribution
 from .codification_recency import RecencyAnalysis
 
+__all__ = [
+    'AreaPortrait',
+    'build_portrait',
+]
+
 log = logging.getLogger(__name__)
 
 

@@ -25,6 +25,13 @@ from siege_utilities.config.user_config import get_user_config
 from .variable_registry import VariableRegistry
 from .dataset_selector import DatasetSelector
 
+__all__ = [
+    'CENSUS_API_CACHE_TIMEOUT',
+    'CENSUS_API_DEFAULT_TIMEOUT',
+    'CENSUS_API_RATE_LIMIT_RETRY_DELAY',
+    'CensusAPI',
+]
+
 log = logging.getLogger(__name__)
 
 # Cache timeout for API responses (24 hours, matches geometry cache)

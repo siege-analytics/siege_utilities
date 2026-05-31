@@ -28,6 +28,11 @@ from typing import Dict, Any
 
 from siege_utilities.core.logging import log_info, log_warning
 
+__all__ = [
+    'TitlePageTemplate',
+    'create_title_page',
+]
+
 
 class TitlePageTemplate:
     """Professional title page generator for siege utilities reports"""

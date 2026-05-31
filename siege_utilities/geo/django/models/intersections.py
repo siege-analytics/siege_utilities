@@ -13,6 +13,13 @@ from django.db import models
 from .boundaries import County, Tract, CongressionalDistrict
 from .political import VTD
 
+__all__ = [
+    'BoundaryIntersection',
+    'CountyCDIntersection',
+    'VTDCDIntersection',
+    'TractCDIntersection',
+]
+
 
 class BoundaryIntersection(models.Model):
     """

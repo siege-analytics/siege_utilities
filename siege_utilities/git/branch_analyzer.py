@@ -13,6 +13,15 @@ from siege_utilities.core.logging import log_info
 from siege_utilities.exceptions import GitError
 from ._utils import run_git_command
 
+__all__ = [
+    'analyze_branch_status',
+    'get_commit_history',
+    'categorize_commits',
+    'get_file_changes',
+    'get_file_stats',
+    'generate_branch_report',
+]
+
 log = logging.getLogger(__name__)
 
 def analyze_branch_status(repo_path: str = ".") -> Dict[str, str]:

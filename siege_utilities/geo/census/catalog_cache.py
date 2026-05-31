@@ -26,6 +26,11 @@ from .catalog import (
     FamilyType,
 )
 
+__all__ = [
+    'CatalogCache',
+    'CatalogLoader',
+]
+
 log = logging.getLogger(__name__)
 
 _DEFAULT_CACHE_DIR = Path.home() / ".siege_utilities" / "cache" / "census_catalog"

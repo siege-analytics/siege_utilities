@@ -21,6 +21,11 @@ from .catalog import (
     FamilyType,
 )
 
+__all__ = [
+    'generate_catalog_docs',
+    'generate_catalog_markdown',
+]
+
 log = logging.getLogger(__name__)
 
 

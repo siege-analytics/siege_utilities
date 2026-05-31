@@ -7,6 +7,10 @@ to the appropriate section. The dict is flat — no nesting.
 Trial run: CRS/geo + Census defaults. Future PRs add remaining categories.
 """
 
+__all__ = [
+    'DEFAULTS',
+]
+
 DEFAULTS: dict = {
     # ── Coordinate Reference Systems ──
     "STORAGE_CRS": 4269,          # NAD83 — what Census TIGER ships as

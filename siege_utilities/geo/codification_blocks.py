@@ -12,6 +12,15 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Optional
 
+__all__ = [
+    'BlockAssignment',
+    'BlockGroup',
+    'SpreadMetrics',
+    'assign_blocks',
+    'group_by_block',
+    'compute_spread',
+]
+
 log = logging.getLogger(__name__)
 
 

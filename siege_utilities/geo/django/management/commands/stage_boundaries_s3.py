@@ -38,6 +38,7 @@ from siege_utilities.geo.django.models import (
     VTD,
 )
 
+__all__ = ['Command']
 
 GEOGRAPHY_MODEL_MAP = {
     "state": State,

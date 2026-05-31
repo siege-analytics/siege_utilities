@@ -20,6 +20,16 @@ except ImportError:
     def log_debug(message): pass
 
 
+__all__ = [
+    'ensure_env_vars',
+    'check_java_version',
+    'setup_spark_environment',
+    'get_system_info',
+    'diagnose_environment',
+    'quick_environment_setup',
+]
+
+
 def _get_sdkman_root() -> Optional[str]:
     """
     Find SDKMAN installation directory across platforms.

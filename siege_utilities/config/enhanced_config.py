@@ -19,6 +19,21 @@ try:
 except ImportError:
     HydraConfigManager = None
 
+__all__ = [
+    'ConfigurationMigrator',
+    'SiegeConfig',
+    'migrate_configurations',
+    'backup_and_migrate',
+    'load_user_profile',
+    'save_user_profile',
+    'get_download_directory',
+    'load_client_profile',
+    'save_client_profile',
+    'list_client_profiles',
+    'export_config_yaml',
+    'import_config_yaml',
+]
+
 logger = logging.getLogger(__name__)
 
 

@@ -14,6 +14,8 @@ from siege_utilities.geo.django.services.urbanicity_service import (
     UrbanicityClassificationService,
 )
 
+__all__ = ['Command']
+
 
 class Command(BaseCommand):
     """Classify Census tracts into NCES locale codes using population and distance to urban areas."""

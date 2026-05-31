@@ -12,6 +12,14 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Optional
 
+__all__ = [
+    'BlockLocale',
+    'UrbanicityDistribution',
+    'BlockLocaleProvider',
+    'DictBlockLocaleProvider',
+    'compute_urbanicity_distribution',
+]
+
 log = logging.getLogger(__name__)
 
 

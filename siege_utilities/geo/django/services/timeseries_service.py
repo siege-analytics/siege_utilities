@@ -13,6 +13,11 @@ from typing import List, Optional
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'TimeseriesResult',
+    'TimeseriesService',
+]
+
 
 @dataclass
 class TimeseriesResult:

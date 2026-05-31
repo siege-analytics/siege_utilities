@@ -7,6 +7,31 @@ This module supports the planned NCES urbanicity integration described in IMPROV
 
 from typing import Dict, Any
 
+__all__ = [
+    'NCES_BASE_URL',
+    'NCES_GEOGRAPHIC_URL',
+    'NCES_LOCALE_BOUNDARIES_URL',
+    'NCES_DOWNLOAD_ENDPOINTS',
+    'LOCALE_CATEGORIES',
+    'LOCALE_SUBCATEGORIES',
+    'LOCALE_NUMERIC_CODES',
+    'LOCALE_CODE_TO_NUMERIC',
+    'POPULATION_THRESHOLDS',
+    'DISTANCE_THRESHOLDS',
+    'NCES_FILE_PATTERNS',
+    'NCES_SUPPORTED_FORMATS',
+    'AVAILABLE_NCES_YEARS',
+    'DEFAULT_NCES_YEAR',
+    'URBANICITY_SETTINGS',
+    'CENSUS_NCES_JOIN_FIELDS',
+    'get_locale_category',
+    'get_locale_subcategory',
+    'classify_urbanicity',
+    'get_nces_download_url',
+    'validate_locale_code',
+    'get_urbanicity_info',
+]
+
 # =============================================================================
 # NCES DATA SOURCES
 # =============================================================================

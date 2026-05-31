@@ -12,6 +12,24 @@ import pandas as pd
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 
+__all__ = [
+    'GeocodingError',
+    'COUNTRY_CODES',
+    'DEFAULT_COUNTRY_CODE',
+    'NOMINATIM_INTERNAL_URL',
+    'GEOCODER_CONFIG',
+    'get_country_name',
+    'get_country_code',
+    'list_countries',
+    'concatenate_addresses',
+    'get_coordinates',
+    'use_nominatim_geocoder',
+    'NominatimGeoClassifier',
+    'validate_geocode_data_pandas',
+    'mark_valid_geocode_data_pandas',
+    'SpatiaLiteCache',
+]
+
 # Logging — bind the module logger directly. The previous fallback to
 # print() if the package-level helpers couldn't be imported routed
 # diagnostics around the user's logging configuration and bypassed log

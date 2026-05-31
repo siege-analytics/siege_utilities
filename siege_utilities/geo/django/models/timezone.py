@@ -10,6 +10,8 @@ from django.db import models
 
 from .base import TemporalBoundary
 
+__all__ = ['TimezoneGeometry']
+
 
 class TimezoneGeometry(TemporalBoundary):
     """

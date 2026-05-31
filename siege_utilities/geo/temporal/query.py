@@ -14,6 +14,12 @@ from siege_utilities.geo.crs import reproject_if_needed
 if TYPE_CHECKING:
     import geopandas as gpd
 
+__all__ = [
+    'temporal_filter',
+    'spatial_query',
+    'point_in_boundary',
+]
+
 
 def temporal_filter(
     gdf: "gpd.GeoDataFrame",

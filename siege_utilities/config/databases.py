@@ -11,6 +11,16 @@ import re
 from typing import Dict, Any, Optional
 from urllib.parse import quote_plus
 
+__all__ = [
+    'create_database_config',
+    'save_database_config',
+    'load_database_config',
+    'get_spark_database_options',
+    'test_database_connection',
+    'list_database_configs',
+    'create_spark_session_with_databases',
+]
+
 logger = logging.getLogger(__name__)
 
 # Import logging functions from core logging module

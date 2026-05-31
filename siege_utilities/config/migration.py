@@ -14,6 +14,12 @@ import logging
 
 from .models import UserProfile, ClientProfile
 
+__all__ = [
+    'ConfigurationMigrator',
+    'migrate_configurations',
+    'backup_and_migrate',
+]
+
 logger = logging.getLogger(__name__)
 
 

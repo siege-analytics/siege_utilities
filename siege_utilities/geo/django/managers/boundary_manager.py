@@ -7,6 +7,8 @@ from django.contrib.gis.geos import Point, GEOSGeometry
 from django.contrib.gis.measure import D
 from django.db import models
 
+__all__ = ['BoundaryQuerySet', 'BoundaryManager']
+
 
 class BoundaryQuerySet(gis_models.QuerySet):
     """

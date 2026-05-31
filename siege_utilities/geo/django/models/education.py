@@ -15,6 +15,15 @@ from django.db import models
 from .base import CensusTIGERBoundary, TemporalBoundary, TemporalPointFeature
 from .boundaries import State
 
+__all__ = [
+    'SchoolDistrictBase',
+    'SchoolDistrictElementary',
+    'SchoolDistrictSecondary',
+    'SchoolDistrictUnified',
+    'NCESLocaleBoundary',
+    'SchoolLocation',
+]
+
 
 class SchoolDistrictBase(CensusTIGERBoundary):
     """

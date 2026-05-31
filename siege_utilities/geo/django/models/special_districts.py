@@ -21,6 +21,17 @@ from django.db import models
 
 from .base import CensusTIGERBoundary
 
+__all__ = [
+    'SpecialDistrictBase',
+    'FireProtectionDistrict',
+    'WaterSupplyDistrict',
+    'HospitalDistrict',
+    'LibraryDistrict',
+    'CemeteryDistrict',
+    'MosquitoAbatementDistrict',
+    'OtherSpecialDistrict',
+]
+
 
 def _district_meta(verbose):
     """Build a Meta class for a special-district model with shared shape."""

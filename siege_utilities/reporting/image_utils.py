@@ -12,6 +12,12 @@ from typing import Optional, Union
 
 from siege_utilities.core.logging import log_info, log_warning
 
+__all__ = [
+    'decode_rl_image',
+    'show_rl_image',
+    'save_rl_image',
+]
+
 
 def decode_rl_image(rl_img) -> Optional[bytes]:
     """Decode a ReportLab Image's base64 data URI to raw PNG bytes.

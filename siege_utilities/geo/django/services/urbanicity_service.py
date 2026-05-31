@@ -29,6 +29,11 @@ from siege_utilities.config.nces_constants import (
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'ClassificationResult',
+    'UrbanicityClassificationService',
+]
+
 
 # Meters per mile — used to convert GeoDjango distance (meters) to miles
 # for the NCES threshold comparisons.

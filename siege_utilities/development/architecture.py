@@ -21,6 +21,23 @@ except ImportError:
     def log_error(message): pass
     def log_debug(message): pass
 
+__all__ = [
+    'analyze_package_structure',
+    'analyze_module',
+    'analyze_function',
+    'analyze_class',
+    'generate_architecture_diagram',
+    'generate_text_diagram',
+    'generate_markdown_diagram',
+    'generate_rst_diagram',
+    'main',
+    'generate_requirements_txt',
+    'generate_pyproject_toml',
+    'generate_poetry_toml',
+    'generate_uv_toml',
+]
+
+
 def analyze_package_structure(package_name: str = "siege_utilities") -> Dict[str, Any]:
     """
     Analyze the structure of the siege_utilities package.

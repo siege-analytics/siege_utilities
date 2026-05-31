@@ -15,3 +15,7 @@ _warnings.warn(
 )
 
 from ..analytics_reports import *  # noqa: F401, F403, E402
+
+# Re-export everything from the canonical module location
+from ..analytics_reports import __all__ as _upstream_all  # noqa: F401, E402
+__all__ = _upstream_all if _upstream_all else []  # noqa: E402

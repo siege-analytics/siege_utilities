@@ -27,6 +27,13 @@ from .batch_geocoder import (
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'NominatimBatchGeocoder',
+    'PUBLIC_NOMINATIM_URL',
+    'DEFAULT_RATE_LIMIT',
+    'SELF_HOSTED_RATE_LIMIT',
+]
+
 PUBLIC_NOMINATIM_URL = "https://nominatim.openstreetmap.org"
 DEFAULT_RATE_LIMIT = 1.0  # seconds between requests for public instance
 SELF_HOSTED_RATE_LIMIT = 0.05

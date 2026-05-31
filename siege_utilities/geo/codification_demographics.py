@@ -12,6 +12,14 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+__all__ = [
+    'BlockDemographics',
+    'DemographicSignature',
+    'BlockDemographicsProvider',
+    'DictBlockDemographicsProvider',
+    'compute_demographic_signature',
+]
+
 log = logging.getLogger(__name__)
 
 

@@ -14,6 +14,18 @@ from pydantic import BaseModel, Field, model_validator
 
 from .base import CensusTIGERSchema
 
+__all__ = [
+    'CHAMBER_CHOICES',
+    'DATASET_CHOICES',
+    'DistrictDemographicsSchema',
+    'OFFICE_CHOICES',
+    'PLAN_SOURCE_CHOICES',
+    'PLAN_TYPE_CHOICES',
+    'PlanDistrictSchema',
+    'PrecinctElectionResultSchema',
+    'RedistrictingPlanSchema',
+]
+
 
 CHAMBER_CHOICES = frozenset({"congress", "state_senate", "state_house"})
 PLAN_TYPE_CHOICES = frozenset({
