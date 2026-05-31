@@ -7,6 +7,14 @@ from .session import get_dbutils
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "ensure_secret_scope",
+    "get_runtime_secret",
+    "put_secret",
+    "runtime_secret_exists",
+]
+
+
 
 def get_runtime_secret(scope: str, key: str, dbutils: Optional[Any] = None) -> str:
     """Read a secret from Databricks runtime dbutils."""

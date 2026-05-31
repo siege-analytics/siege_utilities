@@ -6,6 +6,14 @@ import pandas as pd
 
 from .session import get_active_spark_session
 
+__all__ = [
+    "geopandas_to_spark",
+    "pandas_to_spark",
+    "spark_to_geopandas",
+    "spark_to_pandas",
+]
+
+
 
 def pandas_to_spark(dataframe: pd.DataFrame, spark: Optional[Any] = None) -> Any:
     """Convert a Pandas DataFrame to a Spark DataFrame."""
