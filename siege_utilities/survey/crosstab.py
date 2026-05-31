@@ -15,6 +15,20 @@ from .models import Chain, View
 
 DEFAULT_Z_VALUE = 1.96
 
+try:
+    from scipy.stats import t as _scipy_t
+    _SCIPY_T_AVAILABLE = True
+except ImportError:
+    _scipy_t = None
+    _SCIPY_T_AVAILABLE = False
+
+
+def _critical_value(n: int, confidence: float = 0.95) -> float:
+    """Return the appropriate critical value: t for n<30, z otherwise."""
+    if n < 30 and _SCIPY_T_AVAILABLE:
+        return float(_scipy_t.ppf((1 + confidence) / 2, df=n - 1))
+    return DEFAULT_Z_VALUE
+
 
 class CrosstabInputError(ValueError):
     """Raised when build_chain receives an empty or schema-incompatible DataFrame.
@@ -328,7 +342,7 @@ def _build_mean_scale(
                 if len(cat_vals) == 0:
                     continue
                 mean = float(cat_vals.mean())
-                ci = DEFAULT_Z_VALUE * float(cat_vals.std(ddof=1)) / (len(cat_vals) ** 0.5) if len(cat_vals) > 1 else 0.0
+                ci = _critical_value(len(cat_vals)) * float(cat_vals.std(ddof=1)) / (len(cat_vals) ** 0.5) if len(cat_vals) > 1 else 0.0
                 v = View(metric=str(cat), base=base, count=mean, pct=None, ci=ci)
                 cell_views.append(v)
             if top_n:
