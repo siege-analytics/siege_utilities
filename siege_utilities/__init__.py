@@ -395,7 +395,7 @@ def __getattr__(name):
 
 
 def __dir__():
-    return sorted(set(list(globals().keys()) + list(_LAZY_IMPORTS.keys())))
+    return sorted(set(list(globals().keys()) + list(_LAZY_IMPORTS.keys()) + __all__))
 
 
 # ── Introspection functions (defined here, always available) ─────────
