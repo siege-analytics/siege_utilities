@@ -360,7 +360,8 @@ __all__ = [
     'CENSUS_BASE_URL', 'CENSUS_API_BASE_URL', 'CENSUS_FTP_BASE_URL',
     'CANONICAL_GEOGRAPHIC_LEVELS', 'resolve_geographic_level',
     'GEOGRAPHIC_LEVELS', 'GEOGRAPHIC_HIERARCHY',
-    'DATASET_TYPES', 'RELIABILITY_LEVELS', 'SurveyType', 'DataReliability',
+    'DATASET_TYPES', 'RELIABILITY_LEVELS', 'SurveyType', 'DataReliability', 'GeographyLevel',
+    'VARIABLE_GROUPS', 'VARIABLE_DESCRIPTIONS',
     'STATE_FIPS_CODES', 'STATEFIPS_LOOKUP_DICT', 'FIPS_TO_STATE', 'STATE_NAMES',
     'AVAILABLE_CENSUS_YEARS', 'DEFAULT_CENSUS_YEAR', 'DECENNIAL_YEARS', 'ACS_AVAILABLE_YEARS',
     'ACS5_AVAILABLE_YEARS', 'BOUNDARY_CHANGE_YEARS',
@@ -392,6 +393,13 @@ __all__ = [
     'ensure_directory_exists', 'get_project_path', 'get_cache_path', 'get_output_path',
     'get_data_path', 'setup_standard_directories', 'get_file_type', 'get_relative_to_home',
     'initialize_siege_directories',
+
+    # Enhanced config
+    'SiegeConfig',
+    'load_user_profile', 'save_user_profile',
+    'load_client_profile', 'save_client_profile',
+    'list_client_profiles',
+    'export_config_yaml', 'import_config_yaml',
 
     # Existing config classes and functions
     'UserProfile', 'UserConfigManager', 'get_user_config', 'get_download_directory',
