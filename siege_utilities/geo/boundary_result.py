@@ -35,9 +35,6 @@ __all__ = [
     "BoundaryParseError",
     "BoundaryRetrievalError",
     "BoundaryUrlValidationError",
-    "fail",
-    "ok",
-    "raise_on_error",
 ]
 
 
