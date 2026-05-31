@@ -194,6 +194,18 @@ class TestComputeAreaWeights:
         weights = compute_area_weights(source_gdf, target_gdf)
         assert len(weights) > 0
 
+    def test_documented_columns_present(self, source_gdf, target_gdf):
+        from siege_utilities.geo.interpolation import compute_area_weights
+
+        weights = compute_area_weights(source_gdf, target_gdf)
+        assert len(weights) > 0
+        for col in ("source_idx", "target_idx", "overlap_area",
+                     "source_fraction", "target_fraction"):
+            assert col in weights.columns, f"Missing documented column: {col}"
+        assert (weights["source_fraction"] >= 0).all()
+        assert (weights["source_fraction"] <= 1.0 + 1e-6).all()
+        assert (weights["target_fraction"] >= 0).all()
+
     def test_no_overlap_returns_empty(self):
         from siege_utilities.geo.interpolation import compute_area_weights
 
