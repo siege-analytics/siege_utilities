@@ -203,6 +203,10 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
 
     Returns:
         DataFrame: The DataFrame with the JSON column flattened.
+
+    Raises:
+        ValueError: If all JSON samples are corrupt and schema cannot be inferred.
+        RuntimeError: If Spark analysis fails and the fallback path also fails.
     """
 
     def _log_info(message):
@@ -398,7 +402,11 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
 
 
 def validate_geocode_data(df, lat_col_name: str, lon_col_name: str):
-    """Filters out rows with invalid geographic coordinates using string-based column names."""
+    """Filters out rows with invalid geographic coordinates using string-based column names.
+
+    Raises:
+        ValueError: If *lat_col_name* or *lon_col_name* is not in the DataFrame.
+    """
     if lat_col_name not in df.columns or lon_col_name not in df.columns:
         raise ValueError(
             f'Columns {lat_col_name}, {lon_col_name} not found in DataFrame')
@@ -426,6 +434,9 @@ def mark_valid_geocode_data(df, lat_col_name: str, lon_col_name: str,
       lon_col_name (str): The name of the longitude column.
       output_col_name (str, optional): The name of the output column to store the validity flag.
                                        Defaults to "is_valid".
+
+    Raises:
+      ValueError: If *lat_col_name* or *lon_col_name* is not in the DataFrame.
 
     Returns:
       DataFrame: A new DataFrame with an additional column indicating geocode validity.
@@ -496,6 +507,9 @@ def reproject_geom_columns(df, geom_columns, source_srid, target_srid):
       geom_columns (list): List of column names (strings) to reproject.
       source_srid (str): The source CRS (e.g. "EPSG:4326").
       target_srid (str): The target CRS (e.g. "EPSG:27700").
+
+    Raises:
+      ValueError: If *source_srid* or *target_srid* is not a valid EPSG identifier.
 
     Returns:
       DataFrame: The DataFrame with each specified geometry column conditionally reprojected.
@@ -604,6 +618,9 @@ def prepare_summary_dataframe(data_tuples, column_names=None,
         data_tuples: List of tuples with data
         column_names: Column names for the DataFrame
         logger_func: Optional logging function
+
+    Raises:
+        RuntimeError: If no active Spark session is found.
 
     Returns:
         Spark DataFrame with all string columns
