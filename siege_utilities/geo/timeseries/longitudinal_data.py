@@ -47,6 +47,7 @@ __all__ = [
     "LongitudinalAligner",
     "get_available_years",
     "get_longitudinal_data",
+    "inflation_factor",
     "validate_longitudinal_years",
 ]
 

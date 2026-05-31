@@ -237,7 +237,7 @@ def verify_file_integrity(file_path, expected_hash, algorithm='sha256') -> bool:
     return current_hash.lower() == expected_hash.lower()
 
 
-def test_hash_functions():
+def _test_hash_functions():
     """Test the hash functions with a temporary file"""
     import tempfile
     import os
@@ -261,4 +261,4 @@ def test_hash_functions():
 
 
 if __name__ == '__main__':
-    test_hash_functions()
+    _test_hash_functions()

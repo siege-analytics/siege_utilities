@@ -67,7 +67,6 @@ from .hashing import (
     calculate_file_hash,
     get_quick_file_signature,
     verify_file_integrity,
-    test_hash_functions,
 )
 
 # Convenience function for getting download directory
@@ -152,5 +151,4 @@ __all__ = [
     'calculate_file_hash',
     'get_quick_file_signature',
     'verify_file_integrity',
-    'test_hash_functions',
 ]
