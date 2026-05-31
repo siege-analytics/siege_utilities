@@ -502,6 +502,7 @@ class CredentialManager:
                 return input(prompt)
                 
         except (EOFError, KeyboardInterrupt):
+            _logger.warning("Interactive credential prompt cancelled by user")
             return None
     
     def store_credential(self, service: str, username: str, value: str,
