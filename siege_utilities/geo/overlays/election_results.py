@@ -15,6 +15,14 @@ from siege_utilities.geo.overlay_registry import PlaceHistoryOverlay
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "DictElectionDataProvider",
+    "ElectionDataProvider",
+    "ElectionResultsOverlay",
+    "ElectionResultsOverlayResult",
+    "ElectionReturn",
+]
+
 
 @dataclass
 class ElectionReturn:

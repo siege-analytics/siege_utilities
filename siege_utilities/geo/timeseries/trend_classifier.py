@@ -30,6 +30,19 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "DEFAULT_THRESHOLDS",
+    "THRESHOLD_PRESETS",
+    "TrendCategory",
+    "TrendThresholds",
+    "classify_by_quantiles",
+    "classify_by_zscore",
+    "classify_trends",
+    "compare_trends",
+    "get_trend_summary",
+    "identify_outliers",
+]
+
 
 # =============================================================================
 # TREND CATEGORIES

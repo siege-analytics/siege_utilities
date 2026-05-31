@@ -19,6 +19,18 @@ import pandas as pd
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "AllocationEfficiencyMetrics",
+    "BoundaryStabilityMetrics",
+    "ChainLink",
+    "ReallocationChain",
+    "build_reallocation_chain",
+    "compare_vintage_stability",
+    "compute_allocation_efficiency",
+    "compute_boundary_stability",
+    "identify_volatile_boundaries",
+]
+
 
 @dataclass
 class BoundaryStabilityMetrics:

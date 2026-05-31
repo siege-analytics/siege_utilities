@@ -42,6 +42,14 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "AlignmentResult",
+    "LongitudinalAligner",
+    "get_available_years",
+    "get_longitudinal_data",
+    "validate_longitudinal_years",
+]
+
 
 # =============================================================================
 # CONFIGURATION (canonical source: siege_utilities.config.census_constants)
