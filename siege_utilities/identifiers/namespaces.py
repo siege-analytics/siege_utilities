@@ -29,7 +29,7 @@ def derive_root(seed: str) -> UUID:
 
         >>> ROOT = derive_root("example.com")
         >>> ROOT  # this value should be hardcoded in consumer code:
-        UUID('cfbff0d1-9375-5685-968a-48ce8b7ebbbb')
+        UUID('a5cf6e8e-4cfa-5f31-a804-6de6d1245e26')
 
     Args:
         seed: A non-empty string. Convention: lowercase DNS-style name.

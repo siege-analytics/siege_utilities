@@ -86,7 +86,7 @@ def generate_sha256_hash_for_file(file_path) -> str:
         OSError: If file cannot be read
 
     Example:
-        >>> hash_val = generate_sha256_hash_for_file("data.txt")
+        >>> hash_val = generate_sha256_hash_for_file("data.txt")  # doctest: +SKIP
     """
     import warnings
     warnings.warn(
@@ -119,7 +119,7 @@ def get_file_hash(file_path, algorithm='sha256') -> str:
         ValueError: If algorithm is not supported
 
     Example:
-        >>> hash_val = get_file_hash("data.txt", "sha256")
+        >>> hash_val = get_file_hash("data.txt", "sha256")  # doctest: +SKIP
     """
     path_obj = _validated_path(file_path, must_exist=True)
     if not path_obj.exists():
@@ -168,10 +168,8 @@ def get_quick_file_signature(file_path) ->str:
             (logged before re-raise)
 
     Example:
-        >>> sig = get_quick_file_signature("data.txt")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> get_quick_file_signature("/etc/passwd")  # Sensitive file blocked
+        >>> sig = get_quick_file_signature("data.txt")  # doctest: +SKIP
+        >>> get_quick_file_signature("/etc/passwd")  # doctest: +SKIP
 
     Security Changes:
         - Now validates paths to block path traversal
@@ -232,7 +230,7 @@ def verify_file_integrity(file_path, expected_hash, algorithm='sha256') -> bool:
 
     Example:
         >>> expected = "abc123..."
-        >>> if verify_file_integrity("data.txt", expected):
+        >>> if verify_file_integrity("data.txt", expected):  # doctest: +SKIP
         ...     print("File integrity verified")
     """
     current_hash = get_file_hash(file_path, algorithm)

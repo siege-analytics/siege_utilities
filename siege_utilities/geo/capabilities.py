@@ -31,8 +31,10 @@ def geo_capabilities() -> Dict[str, Any]:
     ``"none"``).
 
     >>> caps = geo_capabilities()
-    >>> caps["tier"]         # e.g. "geo-lite"
-    >>> caps["shapely"]      # True / False
+    >>> caps["tier"] in ("geodjango", "geo", "geo-lite", "none")
+    True
+    >>> isinstance(caps["shapely"], bool)
+    True
     """
     caps: Dict[str, Any] = {}
 

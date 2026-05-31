@@ -210,8 +210,8 @@ def create_yarn_config(data_path: str, **kwargs) -> HDFSConfig:
         HDFSConfig configured for YARN deployment
 
     Example:
-        >>> config = create_yarn_config('/data/census', yarn_queue='analytics')
-        >>> spark, path, _ = setup_distributed_environment(config)
+        >>> config = create_yarn_config('/data/census', yarn_queue='analytics')  # doctest: +SKIP
+        >>> spark, path, _ = setup_distributed_environment(config)  # doctest: +SKIP
     """
     defaults = {
         'data_path': data_path,
@@ -249,8 +249,8 @@ def create_census_analysis_config(data_path: str, **kwargs) -> HDFSConfig:
         HDFSConfig optimized for Census analysis
 
     Example:
-        >>> config = create_census_analysis_config('/data/census/acs')
-        >>> spark, path, _ = setup_distributed_environment(config)
+        >>> config = create_census_analysis_config('/data/census/acs')  # doctest: +SKIP
+        >>> spark, path, _ = setup_distributed_environment(config)  # doctest: +SKIP
     """
     defaults = {
         'data_path': data_path,

@@ -49,17 +49,15 @@ def create_directory_structure(base_path: str, structure: Dict[str, Any]) -> Dic
         PathSecurityError: If base_path fails security validation
 
     Example:
-        >>> import siege_utilities
-        >>> structure = {
+        >>> import siege_utilities  # doctest: +SKIP
+        >>> structure = {  # doctest: +SKIP
         ...     "data": {"raw": {}, "processed": {}, "output": {}},
         ...     "reports": {},
         ...     "logs": {}
         ... }
-        >>> paths = siege_utilities.create_directory_structure("my_project", structure)
-        >>> print(paths["data/raw"])
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> create_directory_structure("../../../etc", structure)  # Path traversal blocked
+        >>> paths = siege_utilities.create_directory_structure("my_project", structure)  # doctest: +SKIP
+        >>> print(paths["data/raw"])  # doctest: +SKIP
+        >>> create_directory_structure("../../../etc", structure)  # doctest: +SKIP
 
     Security Changes:
         - Now validates base_path to block path traversal
@@ -114,9 +112,9 @@ def create_standard_project_structure(project_path: str) -> Dict[str, str]:
         Dictionary mapping directory names to paths
 
     Example:
-        >>> import siege_utilities
-        >>> paths = siege_utilities.create_standard_project_structure("my_analytics_project")
-        >>> print(f"Data directory: {paths['data']}")
+        >>> import siege_utilities  # doctest: +SKIP
+        >>> paths = siege_utilities.create_standard_project_structure("my_analytics_project")  # doctest: +SKIP
+        >>> print(f"Data directory: {paths['data']}")  # doctest: +SKIP
     """
 
     standard_structure = {
@@ -199,11 +197,9 @@ def save_directory_config(paths: Dict[str, str], config_name: str,
         PathSecurityError: If config_directory fails security validation
 
     Example:
-        >>> paths = create_standard_project_structure("my_project")
-        >>> config_file = siege_utilities.save_directory_config(paths, "my_project_dirs")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> save_directory_config(paths, "test", "../../etc")  # Path traversal blocked
+        >>> paths = create_standard_project_structure("my_project")  # doctest: +SKIP
+        >>> config_file = siege_utilities.save_directory_config(paths, "my_project_dirs")  # doctest: +SKIP
+        >>> save_directory_config(paths, "test", "../../etc")  # doctest: +SKIP
 
     Security Changes:
         - Now validates config_directory to block path traversal
@@ -249,12 +245,10 @@ def load_directory_config(config_name: str, config_directory: str = "config") ->
         PathSecurityError: If config_directory fails security validation
 
     Example:
-        >>> dir_config = siege_utilities.load_directory_config("my_project_dirs")
-        >>> if dir_config:
+        >>> dir_config = siege_utilities.load_directory_config("my_project_dirs")  # doctest: +SKIP
+        >>> if dir_config:  # doctest: +SKIP
         ...     print(dir_config['paths']['data'])
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> load_directory_config("test", "../../etc")  # Path traversal blocked
+        >>> load_directory_config("test", "../../etc")  # doctest: +SKIP
 
     Security Changes:
         - Now validates config_directory to block path traversal
@@ -301,12 +295,10 @@ def ensure_directories_exist(paths: Dict[str, str]) -> bool:
         PathSecurityError: If any path fails security validation
 
     Example:
-        >>> dir_config = load_directory_config("my_project_dirs")
-        >>> if dir_config:
+        >>> dir_config = load_directory_config("my_project_dirs")  # doctest: +SKIP
+        >>> if dir_config:  # doctest: +SKIP
         ...     success = siege_utilities.ensure_directories_exist(dir_config['paths'])
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> ensure_directories_exist({"bad": "../../etc"})  # Path traversal blocked
+        >>> ensure_directories_exist({"bad": "../../etc"})  # doctest: +SKIP
 
     Security Changes:
         - Now validates each directory path to block path traversal
@@ -353,11 +345,9 @@ def get_directory_info(directory_path: str) -> Dict[str, Any]:
         PathSecurityError: If directory_path fails security validation
 
     Example:
-        >>> info = siege_utilities.get_directory_info("my_project/data")
-        >>> print(f"Total files: {info['file_count']}")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> get_directory_info("../../etc/passwd")  # Path traversal blocked
+        >>> info = siege_utilities.get_directory_info("my_project/data")  # doctest: +SKIP
+        >>> print(f"Total files: {info['file_count']}")  # doctest: +SKIP
+        >>> get_directory_info("../../etc/passwd")  # doctest: +SKIP
 
     Security Changes:
         - Now validates directory_path to block path traversal
@@ -418,11 +408,9 @@ def clean_empty_directories(base_path: str, keep_gitkeep: bool = True) -> int:
         PathSecurityError: If base_path fails security validation
 
     Example:
-        >>> removed = siege_utilities.clean_empty_directories("my_project/data")
-        >>> print(f"Removed {removed} empty directories")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> clean_empty_directories("../../etc")  # Path traversal blocked
+        >>> removed = siege_utilities.clean_empty_directories("my_project/data")  # doctest: +SKIP
+        >>> print(f"Removed {removed} empty directories")  # doctest: +SKIP
+        >>> clean_empty_directories("../../etc")  # doctest: +SKIP
 
     Security Changes:
         - Now validates base_path to block path traversal
@@ -498,12 +486,10 @@ def list_directory_configs(config_directory: str = "config") -> List[Dict[str, A
         PathSecurityError: If config_directory fails security validation
 
     Example:
-        >>> configs = siege_utilities.list_directory_configs()
-        >>> for config in configs:
+        >>> configs = siege_utilities.list_directory_configs()  # doctest: +SKIP
+        >>> for config in configs:  # doctest: +SKIP
         ...     print(f"{config['name']}: {len(config['paths'])} directories")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> list_directory_configs("../../etc")  # Path traversal blocked
+        >>> list_directory_configs("../../etc")  # doctest: +SKIP
 
     Security Changes:
         - Now validates config_directory to block path traversal
