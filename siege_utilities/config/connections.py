@@ -4,6 +4,7 @@ Handles notebook connections, Spark connections, and their persistence.
 """
 
 import json
+import os
 import pathlib
 import logging
 from typing import Dict, Any, Optional, List
@@ -151,6 +152,7 @@ def save_connection_profile(
     
     with open(config_file, 'w', encoding='utf-8') as f:
         json.dump(profile, f, indent=2)
+    os.chmod(config_file, 0o600)
 
     log_info(f"Saved connection profile to: {config_file}")
     return str(config_file)
