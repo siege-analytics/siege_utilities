@@ -108,6 +108,8 @@ class QCEWFiles:
         year, qtr.
         """
         df = pd.read_csv(csv_path, dtype={"area_fips": str, "industry_code": str})
+        if "year" in df.columns:
+            df = df[df["year"] == year]
         df = df[df["qtr"] == quarter]
         if state_fips:
             df = df[df["area_fips"].str.startswith(state_fips)]
