@@ -484,15 +484,13 @@ def get_census_county_sample(state_fips: str = "06",
     return county_data
 
 def get_metropolitan_sample(cbsa_code: str = "31080",
-                           county_count: int = 3,
-                           population_per_county: int = 2000) -> Union[pd.DataFrame, gpd.GeoDataFrame]:
+                           county_count: int = 3) -> Union[pd.DataFrame, gpd.GeoDataFrame]:
     """
     Generate a metropolitan area sample with multiple counties.
 
     Args:
         cbsa_code: CBSA code (default: Los Angeles metro)
         county_count: Number of counties to include
-        population_per_county: Population per county
 
     Returns:
         DataFrame or GeoDataFrame with metro data
@@ -509,7 +507,6 @@ def get_metropolitan_sample(cbsa_code: str = "31080",
             state_fips="06",
             county_fips=county_fips,
             tract_count=3,
-            population_per_tract=population_per_county // 3
         )
         county_data['cbsa_code'] = cbsa_code
         all_counties.append(county_data)
