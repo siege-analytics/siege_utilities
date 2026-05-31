@@ -21,6 +21,8 @@ from typing import Optional, Union
 
 log = logging.getLogger(__name__)
 
+__all__ = ["AddressInput", "BatchGeocoder", "BatchGeocodingResult", "GeocodingResult", "MatchQuality", "normalize_addresses"]
+
 
 # ---------------------------------------------------------------------------
 # Result schema
