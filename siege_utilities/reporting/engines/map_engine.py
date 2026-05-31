@@ -65,6 +65,10 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "MapChartMixin",
+]
+
 
 class MapChartMixin:
     """Geographic map chart methods (choropleth, marker, 3D, heatmap, cluster, flow)."""

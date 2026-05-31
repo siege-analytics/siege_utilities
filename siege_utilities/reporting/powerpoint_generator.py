@@ -21,6 +21,11 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "PowerPointGenerator",
+]
+
+
 class PowerPointGenerator:
     """
     Generates PowerPoint presentations from analytics data and report configurations.

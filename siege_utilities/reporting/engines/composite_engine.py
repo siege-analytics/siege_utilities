@@ -35,6 +35,10 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "CompositeChartMixin",
+]
+
 
 class CompositeChartMixin:
     """Composite chart methods (convergence diagram, dashboard, summary charts, subplots)."""

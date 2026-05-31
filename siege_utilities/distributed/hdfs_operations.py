@@ -10,6 +10,12 @@ from typing import Optional, Tuple, Dict, List
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "AbstractHDFSOperations",
+    "create_hdfs_operations",
+    "setup_distributed_environment",
+]
+
 
 def _default_hash_function(file_path: str) -> str:
     """Default hash function using built-in hashlib."""

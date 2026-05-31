@@ -16,6 +16,17 @@ from ..config.models import ContactInfo, BrandingConfig, ReportPreferences
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "create_default_profiles",
+    "get_default_profile_location",
+    "get_profile_location",
+    "get_profile_summary",
+    "list_profile_locations",
+    "migrate_profiles",
+    "set_profile_location",
+    "validate_profile_location",
+]
+
 # Global profile location registry
 PROFILE_LOCATIONS: Dict[str, Path] = {}
 

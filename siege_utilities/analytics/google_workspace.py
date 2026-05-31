@@ -50,6 +50,11 @@ try:
 except ImportError:
     _GOOGLE_AVAILABLE = False
 
+__all__ = [
+    "GoogleWorkspaceClient",
+    "WORKSPACE_SCOPES",
+]
+
 # Scopes needed for read/write on Docs, Sheets, Slides
 WORKSPACE_SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",

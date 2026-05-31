@@ -13,6 +13,11 @@ directly, not these helpers.
 
 from uuid import UUID, uuid5
 
+__all__ = [
+    "attestation_uuid",
+    "uuid5_from_seed",
+]
+
 # ASCII Record Separator — never appears in hash strings, version tags, or
 # file paths, so it is an unambiguous component delimiter in attestation seeds.
 _RS = "\x1e"

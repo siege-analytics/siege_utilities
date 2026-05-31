@@ -21,6 +21,19 @@ from typing import Any, Dict, List, Optional
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "batch_update",
+    "copy_document",
+    "create_document",
+    "get_document",
+    "insert_image",
+    "insert_paragraph",
+    "insert_table",
+    "insert_text",
+    "read_document_text",
+    "replace_text",
+]
+
 
 def create_document(
     client,

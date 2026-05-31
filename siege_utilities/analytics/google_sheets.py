@@ -29,6 +29,19 @@ except ImportError:
     pd = None
     _PANDAS_AVAILABLE = False
 
+__all__ = [
+    "add_sheet",
+    "append_rows",
+    "batch_update",
+    "copy_spreadsheet",
+    "create_spreadsheet",
+    "get_spreadsheet_metadata",
+    "read_dataframe",
+    "read_values",
+    "write_dataframe",
+    "write_values",
+]
+
 
 def create_spreadsheet(
     client,

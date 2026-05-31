@@ -31,6 +31,14 @@ except ImportError:  # pragma: no cover - validation should always be present
         "This is almost certainly a packaging bug — investigate."
     )
 
+__all__ = [
+    "calculate_file_hash",
+    "generate_sha256_hash_for_file",
+    "get_file_hash",
+    "get_quick_file_signature",
+    "verify_file_integrity",
+]
+
 # 64 KiB — matches stdlib hashlib's recommended buffered-read size and
 # what the reference filehash recipe uses. Centralised so we don't
 # drift across the four hash helpers below.

@@ -27,6 +27,10 @@ NORMALIZER_VERSIONS: dict[str, str] = {
 _PUNCTUATION_RE = re.compile(r"[^\w\s]", flags=re.UNICODE)
 _WHITESPACE_RE = re.compile(r"\s+")
 
+__all__ = [
+    "normalize_name_v1",
+]
+
 
 def normalize_name_v1(name: str) -> str:
     """

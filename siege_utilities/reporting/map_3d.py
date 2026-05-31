@@ -44,6 +44,13 @@ except ImportError:
 # Map styles
 # ---------------------------------------------------------------------------
 
+__all__ = [
+    "MAP_STYLES",
+    "ThreeDMapRenderer",
+    "create_3d_columns",
+    "create_3d_hexbin",
+]
+
 MAP_STYLES = {
     "dark": "mapbox://styles/mapbox/dark-v11",
     "light": "mapbox://styles/mapbox/light-v11",

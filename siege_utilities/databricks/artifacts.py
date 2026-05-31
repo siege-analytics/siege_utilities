@@ -1,5 +1,9 @@
 """Databricks artifact helpers."""
 
+__all__ = [
+    "build_databricks_run_url",
+]
+
 
 def build_databricks_run_url(host: str, workspace_id: str, run_id: str) -> str:
     """Build a direct Databricks run URL."""

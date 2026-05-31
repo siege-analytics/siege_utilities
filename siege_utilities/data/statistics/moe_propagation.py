@@ -22,6 +22,17 @@ from typing import Sequence
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "Estimate",
+    "Z_90",
+    "flag_unreliable",
+    "moe_difference",
+    "moe_product",
+    "moe_proportion",
+    "moe_ratio",
+    "moe_sum",
+]
+
 
 Z_90 = 1.645  # z-score for 90% confidence (ACS default)
 

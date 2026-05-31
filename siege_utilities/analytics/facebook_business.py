@@ -51,6 +51,15 @@ except ImportError:
     def log_error(message): pass
     def log_debug(message): pass
 
+__all__ = [
+    "FacebookBusinessConnector",
+    "batch_retrieve_facebook_data",
+    "create_facebook_account_profile",
+    "list_facebook_accounts_for_client",
+    "load_facebook_account_profile",
+    "save_facebook_account_profile",
+]
+
 
 class FacebookBusinessConnector:
     """Facebook Business connection and data retrieval manager."""

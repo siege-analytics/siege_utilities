@@ -14,6 +14,11 @@ from .chart_generator import ChartGenerator
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "AnalyticsReportGenerator",
+]
+
+
 class AnalyticsReportGenerator:
     """
     Generates analytics reports from various data sources.

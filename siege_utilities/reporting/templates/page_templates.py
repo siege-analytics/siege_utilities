@@ -13,6 +13,14 @@ from abc import ABC, abstractmethod
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "PageTemplate",
+    "PageTemplateManager",
+    "get_template",
+    "get_template_manager",
+]
+
+
 @dataclass
 class PageTemplate:
     """Base page template configuration."""
