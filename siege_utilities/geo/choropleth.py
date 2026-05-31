@@ -55,6 +55,19 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "BivariateAnalysisResult",
+    "create_bivariate_analysis",
+    "create_bivariate_choropleth",
+    "create_bivariate_companion_maps",
+    "create_bivariate_crosstab",
+    "create_choropleth",
+    "create_choropleth_comparison",
+    "create_classified_comparison",
+    "save_map",
+    "verify_bivariate_classification",
+]
+
 # Check for mapclassify (used by geopandas scheme= parameter)
 try:
     import mapclassify  # noqa: F401

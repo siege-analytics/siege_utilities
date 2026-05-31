@@ -21,6 +21,12 @@ from typing import Any, Optional, Union
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "BlockProfile",
+    "CodificationResult",
+    "codify_area",
+]
+
 
 # ---------------------------------------------------------------------------
 # Result types

@@ -45,6 +45,7 @@ def _safe_content_length(response) -> int:
     try:
         return int(raw)
     except (ValueError, TypeError):
+        log.warning("Malformed Content-Length header: %r", raw)
         return 0
 
 def _get_ssl_verify_path():
@@ -359,13 +360,14 @@ def is_downloadable(url: str, timeout: int = 10) -> bool:
         info = get_file_info(url, timeout)
         if info['size'] > 0:
             return True
-    except (ConnectionError, OSError, ValueError):
-        pass
+    except (ConnectionError, OSError, ValueError) as exc:
+        log.warning("is_downloadable: file info check failed for %s: %s", url, exc)
 
     try:
         response = requests.get(url, stream=True, timeout=timeout)
         return response.ok
-    except (OSError, ValueError):
+    except (OSError, ValueError) as exc:
+        log.warning("is_downloadable: GET request failed for %s: %s", url, exc)
         return False
 
 __all__ = [

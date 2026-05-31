@@ -159,9 +159,14 @@ class UserConfigManager:
     def update_user_profile(self, **kwargs):
         """
         Update user profile with new values.
-        
+
         Args:
-            **kwargs: Profile fields to update
+            **kwargs: Fields on :class:`UserProfile` to overwrite. Accepted
+                keys include ``username``, ``email``, ``full_name``,
+                ``preferred_download_directory``, ``default_output_format``,
+                ``preferred_map_style``, ``default_color_scheme``, and any
+                other ``UserProfile`` attribute. Unknown keys are logged as
+                warnings and ignored.
         """
         for key, value in kwargs.items():
             if hasattr(self.user_profile, key):

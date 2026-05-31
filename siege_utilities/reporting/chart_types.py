@@ -411,7 +411,9 @@ class ChartTypeRegistry:
         ----------
         chart_type_name : str
         **kwargs
-            Parameters to validate.
+            Chart parameters to validate against the chart type's
+            ``required_parameters``. If the chart type defines a custom
+            ``validate_function``, all kwargs are forwarded to it.
 
         Returns
         -------

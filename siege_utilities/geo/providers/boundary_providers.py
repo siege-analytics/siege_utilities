@@ -277,7 +277,8 @@ def resolve_boundary_provider(country: str = 'US', **kwargs: Any) -> BoundaryPro
 
     Args:
         country: ISO-2 or ISO-3 country code (default ``'US'``).
-        **kwargs: Forwarded to the provider constructor.
+        **kwargs: Forwarded to :class:`GADMProvider` constructor for non-US
+            countries. Ignored for US (CensusTIGERProvider takes no options).
 
     Returns:
         CensusTIGERProvider for US / US territories, GADMProvider otherwise.

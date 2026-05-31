@@ -25,6 +25,12 @@ from typing import Any, Optional
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "OverlayRegistry",
+    "PlaceHistoryOverlay",
+    "overlay_registry",
+]
+
 
 class PlaceHistoryOverlay(abc.ABC):
     """Base class for place history overlays.
