@@ -614,7 +614,9 @@ class DuckDBConnector:
             **kwargs: Additional parameters
 
         Returns:
-            GeoDataFrame with spatial data.
+            GeoDataFrame with spatial data.  WKT geometries stored in
+            DuckDB lack SRID metadata; EPSG:4326 is assumed as the
+            source CRS.  Pass *crs* to reproject to a different target.
 
         Raises:
             SpatialQueryError: If the connection is unavailable or the

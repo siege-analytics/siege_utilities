@@ -586,6 +586,9 @@ class NominatimGeoClassifier:
     def from_json(self, json_string):
         """Replace the classifier's lookup tables from a JSON string.
 
+        Args:
+            json_string: JSON produced by :meth:`to_json`.
+
         Inverse of :meth:`to_json` — overwrites ``place_rank_dict`` and
         ``importance_dict`` in place. Unknown top-level keys are
         ignored; missing keys leave the corresponding table empty
