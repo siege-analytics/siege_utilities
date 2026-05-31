@@ -2,6 +2,8 @@
 
 from typing import Any, Optional
 
+__all__ = ["get_active_spark_session", "get_dbutils"]
+
 
 def get_active_spark_session(create_if_missing: bool = False, app_name: str = "siege_utilities_databricks") -> Any:
     """

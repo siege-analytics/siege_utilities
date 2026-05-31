@@ -41,6 +41,16 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "AXIS_ORDER_TRAD_GIS",
+    "AXIS_ORDER_AUTH_COMPLIANT",
+    "get_default_crs",
+    "set_default_crs",
+    "reproject_if_needed",
+    "detect_crs",
+    "reproject_geom",
+]
+
 _DEFAULT_CRS: str = "EPSG:4326"
 
 # Axis-order tokens accepted by reproject_geom.

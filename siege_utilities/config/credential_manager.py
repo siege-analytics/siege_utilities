@@ -1112,6 +1112,7 @@ def get_google_service_account_from_1password(item_title: str = "Google Analytic
     Raises:
         subprocess.CalledProcessError: If 1Password CLI fails (item not found,
             auth required, etc.)
+        subprocess.TimeoutExpired: If the ``op`` command exceeds 60 s.
         OSError: If the ``op`` binary cannot be executed.
     """
     op_flags = []
@@ -1167,6 +1168,7 @@ def get_google_oauth_from_1password(
 
     Raises:
         subprocess.CalledProcessError: If 1Password CLI fails.
+        subprocess.TimeoutExpired: If the ``op`` command exceeds 60 s.
         ValueError: If the item exists but lacks client_id or client_secret.
         OSError: If the ``op`` binary cannot be executed.
     """
@@ -1237,6 +1239,7 @@ def get_google_oauth_document_from_1password(
     Raises:
         subprocess.CalledProcessError: If 1Password CLI fails (item not found,
             auth required, etc.)
+        subprocess.TimeoutExpired: If the ``op`` command exceeds 60 s.
         json.JSONDecodeError: If the document content is not valid JSON.
         OSError: If the ``op`` binary cannot be executed.
     """
