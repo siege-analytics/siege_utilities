@@ -14,6 +14,8 @@ import yaml
 from .actor_types import User, Client, Collaborator, Organization, Collaboration
 from .person import _convert_to_yaml_safe
 
+__all__ = ["EXPORT_FORMAT_VERSION", "export_entities", "import_entities"]
+
 # Version of the export format
 EXPORT_FORMAT_VERSION = "1.0"
 

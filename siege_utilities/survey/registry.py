@@ -23,6 +23,8 @@ from typing import Dict, List, Optional
 
 from .models import WaveSet
 
+__all__ = ["ClientSurveyError", "ClientSurveyRegistry"]
+
 
 class ClientSurveyError(KeyError):
     """Raised for registry-level lookup / duplication problems.

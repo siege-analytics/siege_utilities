@@ -29,6 +29,8 @@ from ..reporting.pages.page_models import Argument, TableType
 if TYPE_CHECKING:
     from .models import Chain, Stack
 
+__all__ = ["RenderError", "ArgumentCluster", "chain_to_argument", "stack_to_arguments"]
+
 try:
     import matplotlib
     matplotlib.use("Agg")

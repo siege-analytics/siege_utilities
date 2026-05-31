@@ -18,6 +18,8 @@ if TYPE_CHECKING:
     from .models import WaveSet
 
 
+__all__ = ["WavesError", "compare_waves"]
+
 class WavesError(ValueError):
     """Raised when a WaveSet operation is given incomplete or mismatched data."""
 

@@ -7,6 +7,8 @@ from typing import Optional
 from datetime import datetime
 import re
 
+__all__ = ["SocialMediaAccount"]
+
 
 class SocialMediaAccount(BaseModel):
     """

@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from enum import Enum
 
+__all__ = ["PageOrientation", "ReportFormat", "ReportPreferences"]
+
 
 class PageOrientation(str, Enum):
     """Page orientation options."""

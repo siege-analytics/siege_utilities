@@ -15,6 +15,8 @@ from .google_account import GoogleAccount
 from .oauth_integration import OAuthIntegration
 from .database_connection import DatabaseConnection
 
+__all__ = ["Person"]
+
 
 class Person(BaseModel):
     """
