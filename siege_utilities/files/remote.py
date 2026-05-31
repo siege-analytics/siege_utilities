@@ -83,7 +83,13 @@ class _DummyProgressBar:
         pass
 
 def _get_progress_bar(*args, **kwargs):
-    """Get progress bar, using tqdm if available, dummy otherwise."""
+    """Get progress bar, using tqdm if available, dummy otherwise.
+
+    Args:
+        *args: Positional arguments forwarded to tqdm.tqdm().
+        **kwargs: Forwarded to tqdm.tqdm(). Common keys: total, unit,
+            unit_scale, desc, ascii. See tqdm.tqdm for all accepted parameters.
+    """
     if TQDM_AVAILABLE:
         return tqdm.tqdm(*args, **kwargs)
     else:

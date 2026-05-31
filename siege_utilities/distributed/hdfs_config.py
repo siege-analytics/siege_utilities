@@ -124,12 +124,24 @@ class HDFSConfig:
 
 
 def create_hdfs_config(**kwargs) ->HDFSConfig:
-    """Factory function to create HDFS configuration"""
+    """Factory function to create HDFS configuration.
+
+    Args:
+        **kwargs: Forwarded to HDFSConfig(). See HDFSConfig for accepted fields
+            (e.g. data_path, master, executor_memory, enable_sedona, etc.).
+    """
     return HDFSConfig(**kwargs)
 
 
 def create_local_config(data_path: str, **kwargs) ->HDFSConfig:
-    """Create config optimized for local development"""
+    """Create config optimized for local development.
+
+    Args:
+        data_path: Path to data directory.
+        **kwargs: Override any HDFSConfig default. Merged on top of local-mode
+            defaults (num_executors=2, executor_cores=1, executor_memory='1g',
+            enable_sedona=False). See HDFSConfig for accepted fields.
+    """
     defaults = {'data_path': data_path, 'num_executors': 2,
         'executor_cores': 1, 'executor_memory': '1g', 'enable_sedona': 
         False, 'spark_log_level': 'WARN'}
@@ -138,7 +150,14 @@ def create_local_config(data_path: str, **kwargs) ->HDFSConfig:
 
 
 def create_cluster_config(data_path: str, **kwargs) ->HDFSConfig:
-    """Create config optimized for cluster deployment"""
+    """Create config optimized for cluster deployment.
+
+    Args:
+        data_path: Path to data directory.
+        **kwargs: Override any HDFSConfig default. Merged on top of cluster
+            defaults (num_executors=8, executor_cores=4, executor_memory='4g',
+            enable_sedona=True). See HDFSConfig for accepted fields.
+    """
     defaults = {'data_path': data_path, 'num_executors': 8,
         'executor_cores': 4, 'executor_memory': '4g', 'enable_sedona': True,
         'spark_log_level': 'WARN'}
@@ -147,7 +166,15 @@ def create_cluster_config(data_path: str, **kwargs) ->HDFSConfig:
 
 
 def create_geocoding_config(data_path: str, **kwargs) ->HDFSConfig:
-    """Create config optimized for geocoding workloads"""
+    """Create config optimized for geocoding workloads.
+
+    Args:
+        data_path: Path to data directory.
+        **kwargs: Override any HDFSConfig default. Merged on top of geocoding
+            defaults (app_name='GeocodingPipeline', num_executors=4,
+            executor_memory='2g', enable_sedona=True, network_timeout='1200s').
+            See HDFSConfig for accepted fields.
+    """
     defaults = {'data_path': data_path, 'app_name': 'GeocodingPipeline',
         'num_executors': 4, 'executor_cores': 2, 'executor_memory': '2g',
         'enable_sedona': True, 'network_timeout': '1200s',

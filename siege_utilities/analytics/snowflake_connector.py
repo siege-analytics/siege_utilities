@@ -443,7 +443,15 @@ def upload_to_snowflake(df: 'pd.DataFrame',
                         table_name: str,
                         config_file: Optional[Union[str, Path]] = None,
                         **kwargs) -> None:
-    """Convenience function to upload DataFrame to Snowflake."""
+    """Convenience function to upload DataFrame to Snowflake.
+
+    Args:
+        df: Pandas DataFrame to upload.
+        table_name: Target table name.
+        config_file: Path to configuration file (optional).
+        **kwargs: Forwarded to SnowflakeConnector.upload_dataframe().
+            See that method for accepted parameters.
+    """
     with get_snowflake_connector(config_file) as snow:
         snow.upload_dataframe(df, table_name, **kwargs)
 
@@ -451,7 +459,14 @@ def upload_to_snowflake(df: 'pd.DataFrame',
 def download_from_snowflake(query: str,
                            config_file: Optional[Union[str, Path]] = None,
                            **kwargs) -> 'pd.DataFrame':
-    """Convenience function to download DataFrame from Snowflake."""
+    """Convenience function to download DataFrame from Snowflake.
+
+    Args:
+        query: SQL query to execute.
+        config_file: Path to configuration file (optional).
+        **kwargs: Forwarded to SnowflakeConnector.download_dataframe().
+            See that method for accepted parameters.
+    """
     with get_snowflake_connector(config_file) as snow:
         return snow.download_dataframe(query, **kwargs)
 
@@ -459,7 +474,14 @@ def download_from_snowflake(query: str,
 def execute_snowflake_query(query: str,
                            config_file: Optional[Union[str, Path]] = None,
                            **kwargs) -> List[tuple]:
-    """Convenience function to execute Snowflake query."""
+    """Convenience function to execute Snowflake query.
+
+    Args:
+        query: SQL query string.
+        config_file: Path to configuration file (optional).
+        **kwargs: Forwarded to SnowflakeConnector.execute_query().
+            See that method for accepted parameters.
+    """
     with get_snowflake_connector(config_file) as snow:
         return snow.execute_query(query, **kwargs)
 
