@@ -70,6 +70,24 @@ from .engines import (
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "ChartGenerator",
+    "create_bar_chart",
+    "create_bivariate_choropleth",
+    "create_choropleth_map",
+    "create_convergence_diagram",
+    "create_dashboard",
+    "create_dataframe_summary_charts",
+    "create_flow_map",
+    "create_heatmap",
+    "create_line_chart",
+    "create_marker_map",
+    "create_pie_chart",
+    "create_scatter_plot",
+    "generate_chart_from_dataframe",
+]
+
+
 class ChartGenerator(BaseChartEngine, BarChartMixin, MapChartMixin, StatsChartMixin, CompositeChartMixin):
     """
     Generates charts and visualizations for reports using matplotlib, seaborn, plotly, and folium.

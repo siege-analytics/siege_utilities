@@ -49,6 +49,10 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "BaseChartEngine",
+]
+
 
 class BaseChartEngine:
     """Core infrastructure: init, colors, styling, scaling, save helpers."""

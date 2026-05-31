@@ -30,6 +30,11 @@ from siege_utilities.core.logging import log_error
 
 from ..chart_generator import ChartGenerator
 
+__all__ = [
+    "PollingAnalysisError",
+    "PollingAnalyzer",
+]
+
 
 class PollingAnalysisError(RuntimeError):
     """Raised when polling analysis cannot complete due to bad input or config."""

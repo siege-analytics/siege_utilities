@@ -22,6 +22,17 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "ChartCreationError",
+    "ChartParameterError",
+    "ChartType",
+    "ChartTypeRegistry",
+    "UnknownChartTypeError",
+    "create_chart",
+    "get_chart_registry",
+    "register_chart_type",
+]
+
 
 class UnknownChartTypeError(LookupError):
     """Raised when a chart type name is not in the registry."""

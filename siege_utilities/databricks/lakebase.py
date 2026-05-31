@@ -6,6 +6,13 @@ from typing import Dict
 
 from siege_utilities.conf import settings
 
+__all__ = [
+    "build_jdbc_url",
+    "build_lakebase_psql_command",
+    "build_pgpass_entry",
+    "parse_conninfo",
+]
+
 
 # Postgres connection-string field allow-lists. These match the typical
 # Postgres identifier rules; values matching anything outside are rejected

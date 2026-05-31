@@ -10,6 +10,11 @@ shown in the docstrings below).
 
 from uuid import NAMESPACE_URL, UUID, uuid5
 
+__all__ = [
+    "derive_root",
+    "derive_sub_namespace",
+]
+
 
 def derive_root(seed: str) -> UUID:
     """

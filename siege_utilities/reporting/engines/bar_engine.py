@@ -36,6 +36,10 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "BarChartMixin",
+]
+
 
 class BarChartMixin:
     """Bar chart, line chart, pie chart, and proportional text bar chart methods."""

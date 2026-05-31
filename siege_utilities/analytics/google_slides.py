@@ -23,6 +23,20 @@ from typing import Any, Dict, List, Optional
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "add_blank_slide",
+    "batch_update",
+    "copy_presentation",
+    "create_argument_slide",
+    "create_presentation",
+    "create_report_from_arguments",
+    "create_textbox",
+    "get_presentation",
+    "insert_image",
+    "insert_text",
+    "upload_figure_to_drive",
+]
+
 
 def create_presentation(
     client,

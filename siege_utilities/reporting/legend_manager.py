@@ -38,6 +38,15 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "ColorScheme",
+    "LegendManager",
+    "LegendPosition",
+    "create_heatmap_legend_table",
+    "get_optimal_legend_position",
+]
+
+
 class LegendPosition(Enum):
     """Enumeration of legend positions"""
     BEST = "best"

@@ -67,6 +67,18 @@ except ImportError:
     def log_error(message): pass
     def log_debug(message): pass
 
+__all__ = [
+    "GoogleAnalyticsConnector",
+    "batch_retrieve_ga_data",
+    "create_ga_account_profile",
+    "create_ga_connector_from_1password",
+    "create_ga_connector_with_oauth2",
+    "create_ga_connector_with_service_account",
+    "list_ga_accounts_for_client",
+    "load_ga_account_profile",
+    "save_ga_account_profile",
+]
+
 
 class GoogleAnalyticsConnector:
     """Google Analytics connection and data retrieval manager."""

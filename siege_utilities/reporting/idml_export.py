@@ -36,6 +36,11 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # IDML XML namespace constants
 # ---------------------------------------------------------------------------
+__all__ = [
+    "IDMLExporter",
+    "export_report_idml",
+]
+
 _IDML_NS = "http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging"
 _IDPKG = "http://ns.adobe.com/AdobeInDesign/idpkg/1.0"
 

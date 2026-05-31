@@ -35,6 +35,10 @@ from .client_branding import ClientBrandingManager, ClientBrandingNotFoundError
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "ReportGenerator",
+]
+
 
 def _escape_paragraph(text: str) -> str:
     """Escape characters ReportLab Paragraph parses as mini-HTML markup.

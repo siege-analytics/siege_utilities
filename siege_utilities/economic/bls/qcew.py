@@ -27,6 +27,12 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    "DEFAULT_CACHE_DIR",
+    "QCEW_FILE_URL",
+    "QCEWFiles",
+]
+
 
 # QCEW open-data URL pattern.
 # Example: https://data.bls.gov/cew/data/files/2024/csv/2024_qtrly_singlefile.zip
