@@ -507,7 +507,14 @@ def get_datadotworld_connector(config_file: Optional[Union[str, Path]] = None) -
 def search_datadotworld_datasets(query: str,
                                 config_file: Optional[Union[str, Path]] = None,
                                 **kwargs) -> List[Dict[str, Any]]:
-    """Convenience function to search for datasets."""
+    """Convenience function to search for datasets.
+
+    Args:
+        query: Search query string.
+        config_file: Path to configuration file (optional).
+        **kwargs: Forwarded to DataDotWorldConnector.search_datasets().
+            See that method for accepted parameters.
+    """
     with get_datadotworld_connector(config_file) as conn:
         return conn.search_datasets(query, **kwargs)
 
@@ -515,7 +522,14 @@ def search_datadotworld_datasets(query: str,
 def load_datadotworld_dataset(dataset_id: str,
                              config_file: Optional[Union[str, Path]] = None,
                              **kwargs) -> 'pd.DataFrame':
-    """Convenience function to load a dataset as DataFrame."""
+    """Convenience function to load a dataset as DataFrame.
+
+    Args:
+        dataset_id: Dataset identifier (format: owner/dataset).
+        config_file: Path to configuration file (optional).
+        **kwargs: Forwarded to DataDotWorldConnector.load_dataset_as_dataframe().
+            See that method for accepted parameters.
+    """
     with get_datadotworld_connector(config_file) as conn:
         return conn.load_dataset_as_dataframe(dataset_id, **kwargs)
 
@@ -524,7 +538,15 @@ def query_datadotworld_dataset(dataset_id: str,
                               query: str,
                               config_file: Optional[Union[str, Path]] = None,
                               **kwargs) -> 'pd.DataFrame':
-    """Convenience function to query a dataset."""
+    """Convenience function to query a dataset.
+
+    Args:
+        dataset_id: Dataset identifier (format: owner/dataset).
+        query: Query string (SQL or SPARQL).
+        config_file: Path to configuration file (optional).
+        **kwargs: Forwarded to DataDotWorldConnector.query_dataset().
+            See that method for accepted parameters.
+    """
     with get_datadotworld_connector(config_file) as conn:
         return conn.query_dataset(dataset_id, query, **kwargs)
 

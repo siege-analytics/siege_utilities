@@ -728,19 +728,63 @@ class DuckDBConnector:
 
 # Convenience functions
 def convert_spatial_format(gdf: GeoDataFrame, output_format: str, **kwargs) -> None:
-    """Convert spatial data to different format."""
+    """Convert spatial data to different format.
+
+    Args:
+        gdf: Input GeoDataFrame.
+        output_format: Target format (``'shp'``, ``'geojson'``, ``'gpkg'``,
+            ``'kml'``, ``'gml'``, ``'wkt'``, ``'wkb'``, ``'postgis'``,
+            ``'duckdb'``).
+        **kwargs: Format-specific parameters:
+            output_path (str): Output file path (default varies by format).
+            db_path (str): DuckDB database path (``'duckdb'`` format only).
+            table_name (str): DuckDB table name (``'duckdb'`` format only,
+                default ``'spatial_data'``).
+
+    Raises:
+        ValueError: If *output_format* is unsupported.
+        ImportError: If a required dependency is not available.
+    """
     transformer = SpatialDataTransformer()
     transformer.convert_format(gdf, output_format, **kwargs)
 
 
 def upload_to_postgis(gdf: GeoDataFrame, table_name: str, connection_string: Optional[str] = None, **kwargs) -> None:
-    """Upload spatial data to PostGIS."""
+    """Upload spatial data to PostGIS.
+
+    Args:
+        gdf: GeoDataFrame to upload.
+        table_name: Target table name.
+        connection_string: PostgreSQL connection string (uses user config
+            when omitted).
+        **kwargs: Forwarded to
+            :meth:`PostGISConnector.upload_spatial_data`. Accepts
+            ``if_exists`` (``'fail'``, ``'replace'``, ``'append'``;
+            default ``'replace'``) and ``schema`` (default ``'public'``).
+
+    Raises:
+        RuntimeError: If no connection string is configured.
+        ImportError: If geoalchemy2 is not available.
+        SpatialQueryError: If the upload fails.
+    """
     with PostGISConnector(connection_string) as connector:
         connector.upload_spatial_data(gdf, table_name, **kwargs)
 
 
 def download_from_postgis(table_name: str, connection_string: Optional[str] = None, **kwargs) -> GeoDataFrame:
     """Download spatial data from PostGIS.
+
+    Args:
+        table_name: Source table name (may be schema-qualified, e.g.
+            ``'public.my_table'``).
+        connection_string: PostgreSQL connection string (uses user config
+            when omitted).
+        **kwargs: Forwarded to
+            :meth:`PostGISConnector.download_spatial_data`. Accepts
+            ``geom_col`` (default ``'geom'``) and ``crs`` (output CRS).
+
+    Returns:
+        GeoDataFrame with spatial data.
 
     Raises:
         SpatialQueryError: If the connection is unavailable or the
@@ -753,6 +797,18 @@ def download_from_postgis(table_name: str, connection_string: Optional[str] = No
 def execute_postgis_query(query: str, connection_string: Optional[str] = None, **kwargs) -> Union[GeoDataFrame, int]:
     """Execute a spatial SQL query on PostGIS.
 
+    Args:
+        query: SQL query string.
+        connection_string: PostgreSQL connection string (uses user config
+            when omitted).
+        **kwargs: Forwarded to
+            :meth:`PostGISConnector.execute_spatial_query`. Accepts
+            ``geom_col`` (default ``'geometry'``) and ``crs`` (output CRS,
+            applies to SELECT queries only).
+
+    Returns:
+        GeoDataFrame for SELECT queries, int rowcount for others.
+
     Raises:
         SpatialQueryError: If the connection is unavailable or the
             query fails.
@@ -763,6 +819,15 @@ def execute_postgis_query(query: str, connection_string: Optional[str] = None, *
 
 def upload_to_duckdb(gdf: GeoDataFrame, table_name: str, db_path: Optional[str] = None, **kwargs) -> None:
     """Upload spatial data to DuckDB (optional).
+
+    Args:
+        gdf: GeoDataFrame to upload.
+        table_name: Target table name.
+        db_path: Path to DuckDB database file (uses user config or
+            in-memory when omitted).
+        **kwargs: Forwarded to
+            :meth:`DuckDBConnector.upload_spatial_data`. Accepts
+            ``if_exists`` (``'replace'`` by default).
 
     Raises:
         ImportError: If DuckDB is not installed.
@@ -778,6 +843,18 @@ def upload_to_duckdb(gdf: GeoDataFrame, table_name: str, db_path: Optional[str] 
 def download_from_duckdb(table_name: str, db_path: Optional[str] = None, **kwargs) -> GeoDataFrame:
     """Download spatial data from DuckDB (optional).
 
+    Args:
+        table_name: Source table name.
+        db_path: Path to DuckDB database file (uses user config or
+            in-memory when omitted).
+        **kwargs: Forwarded to
+            :meth:`DuckDBConnector.download_spatial_data`. Accepts
+            ``where_clause`` (optional SQL WHERE fragment) and ``crs``
+            (output CRS).
+
+    Returns:
+        GeoDataFrame with spatial data.
+
     Raises:
         SpatialQueryError: If the connection is unavailable or the
             query fails.
@@ -792,6 +869,17 @@ def download_from_duckdb(table_name: str, db_path: Optional[str] = None, **kwarg
 
 def execute_duckdb_query(query: str, db_path: Optional[str] = None, **kwargs) -> Union[GeoDataFrame, int]:
     """Execute a spatial SQL query on DuckDB (optional).
+
+    Args:
+        query: SQL query string.
+        db_path: Path to DuckDB database file (uses user config or
+            in-memory when omitted).
+        **kwargs: Forwarded to
+            :meth:`DuckDBConnector.execute_spatial_query`. Accepts
+            ``crs`` (output CRS, applies to SELECT queries only).
+
+    Returns:
+        GeoDataFrame for SELECT queries, int rowcount for others.
 
     Raises:
         SpatialQueryError: If the connection is unavailable or the

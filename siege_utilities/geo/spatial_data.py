@@ -2350,6 +2350,8 @@ def __getattr__(name: str):
 
 
 __all__ = [
+    # Errors
+    'SpatialDataError',
     # Classes
     'SpatialDataSource',
     'CensusDataSource',
@@ -2363,19 +2365,36 @@ __all__ = [
     'get_year_directory_contents',
     'discover_boundary_types',
     'download_data',
+    'download_dataset',
     'get_geographic_boundaries',
+    'fetch_geographic_boundaries',
+    'load_census_inventory',
+    'update_census_inventory',
+    'refresh_discovery_cache',
+    'construct_download_url',
+    'validate_download_url',
+    'get_optimal_year',
+    'get_available_boundary_types',
     # State normalization
     'normalize_state_identifier',
+    'normalize_state_identifier_standalone',
     'normalize_state_input',
     'normalize_state_name',
     'normalize_state_abbreviation',
     'normalize_fips_code',
     'get_state_by_abbreviation',
     'get_state_by_name',
+    'get_state_name',
+    'get_state_abbreviation',
+    'get_state_abbreviations',
+    'get_available_state_fips',
+    'get_unified_fips_data',
+    'get_comprehensive_state_info',
+    'validate_state_fips',
     # OSM
     'download_osm_data',
     # Global instances
     'census_source',
     'government_source',
-    'osm_source'
+    'osm_source',
 ]

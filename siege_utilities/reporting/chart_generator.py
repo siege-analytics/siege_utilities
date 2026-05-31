@@ -366,8 +366,24 @@ def create_convergence_diagram(sources: List[Dict[str, Any]],
                                width: float = 10.0,
                                height: float = 6.0,
                                **kwargs) -> Optional['Image']:
-    """
-    Standalone function to create a convergence diagram.
+    """Standalone function to create a convergence diagram.
+
+    Args:
+        sources: Source node dicts with keys ``label`` (required),
+            ``color`` (optional), and an optional magnitude key.
+        hub_label: Center node label.
+        outputs: Optional output node dicts (same schema as *sources*).
+        title: Diagram title.
+        width: Figure width in inches.
+        height: Figure height in inches.
+        **kwargs: Forwarded to
+            :meth:`CompositeChartMixin.create_convergence_diagram`.
+            Accepts ``arrow_style`` (``'curved'``, ``'radial'``, or
+            ``'orthogonal'``), ``arrow_count``, ``arrow_color``,
+            ``show_magnitudes``, and ``magnitude_key``.
+
+    Returns:
+        ReportLab Image object or None if error.
     """
     generator = ChartGenerator()
     return generator.create_convergence_diagram(
