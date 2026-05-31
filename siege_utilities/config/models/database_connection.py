@@ -7,6 +7,8 @@ from urllib.parse import quote_plus
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 import re
 
+__all__ = ["DatabaseConnection"]
+
 
 class DatabaseConnection(BaseModel):
     """

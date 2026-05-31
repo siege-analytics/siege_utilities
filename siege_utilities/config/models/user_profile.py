@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Tuple
 import re
 
+__all__ = ["UserProfile"]
+
 
 class UserProfile(BaseModel):
     """

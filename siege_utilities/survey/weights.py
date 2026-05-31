@@ -14,6 +14,8 @@ from typing import Any, Dict
 
 import pandas as pd
 
+__all__ = ["WeightingConvergenceError", "apply_rim_weights"]
+
 
 class WeightingConvergenceError(RuntimeError):
     """Raised when weightipy fails to converge within max_iterations."""
