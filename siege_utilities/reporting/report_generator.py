@@ -31,7 +31,7 @@ except ImportError:
 
 from .templates.base_template import BaseReportTemplate
 from .chart_generator import ChartGenerator
-from .client_branding import ClientBrandingManager
+from .client_branding import ClientBrandingManager, ClientBrandingNotFoundError
 
 log = logging.getLogger(__name__)
 
@@ -68,11 +68,10 @@ class ReportGenerator:
         self.output_dir = output_dir or Path.cwd() / "reports"
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Initialize components
         self.branding_manager = ClientBrandingManager()
-        self.branding_config = self.branding_manager.get_client_branding(client_name)
-        
-        if not self.branding_config:
+        try:
+            self.branding_config = self.branding_manager.get_client_branding(client_name)
+        except ClientBrandingNotFoundError:
             log.warning(f"No branding configuration found for {client_name}, using defaults")
             self.branding_config = {}
         
@@ -429,53 +428,34 @@ class ReportGenerator:
         )
 
     def generate_pdf_report(self, report_content: Dict[str, Any],
-                           output_path: str, template_config: str = None) -> bool:
+                           output_path: str, template_config: str = None) -> None:
         """
         Generate a comprehensive PDF report with full document structure.
-        
+
         Args:
             report_content: Report content structure
             output_path: Output PDF file path
             template_config: Template configuration file path
-            
-        Returns:
-            True if successful, False otherwise
+
+        Raises:
+            OSError: If the output directory cannot be created or is not writable,
+                or if the final rename fails.
         """
+        final = Path(output_path)
+        parent = final.parent if str(final.parent) else Path(".")
+        parent.mkdir(parents=True, exist_ok=True)
+        if not os.access(parent, os.W_OK):
+            raise OSError(
+                f"generate_pdf_report: output directory {parent} is not writable"
+            )
+
+        tmp_path = parent / f".{final.name}.{uuid.uuid4().hex[:8]}.part"
+
         try:
-            # Pre-check writability: ReportLab buffers the entire PDF in
-            # memory and only attempts disk I/O at the very end. A
-            # missing parent dir or a read-only mount that was
-            # discoverable up-front would otherwise burn a full
-            # generation pass (slow on multi-hundred-page reports)
-            # before failing. Build to a sibling temp file and rename
-            # atomically so a partial PDF never appears at *output_path*.
-            final = Path(output_path)
-            parent = final.parent if str(final.parent) else Path(".")
-            try:
-                parent.mkdir(parents=True, exist_ok=True)
-            except OSError as exc:
-                log.error(
-                    "generate_pdf_report: cannot create output directory "
-                    "%s: %s", parent, exc,
-                )
-                return False
-            if not os.access(parent, os.W_OK):
-                log.error(
-                    "generate_pdf_report: output directory %s is not "
-                    "writable", parent,
-                )
-                return False
-
-            tmp_path = parent / f".{final.name}.{uuid.uuid4().hex[:8]}.part"
-
-            # Initialize template with the temp path; we rename to the
-            # final name only after a successful build.
             template = self._get_template(str(tmp_path), template_config)
 
-            # Build document content
             story = []
 
-            # Add title page if metadata present
             metadata = report_content.get('metadata', {})
             if metadata.get('title'):
                 title_flowables = template.add_title_page(
@@ -486,48 +466,37 @@ class ReportGenerator:
                 )
                 story.extend(title_flowables)
 
-            # Process each section
             for section in report_content.get('sections', []):
                 section_story = self._build_section_content(section, template)
                 story.extend(section_story)
 
-                # Add page breaks if requested
                 if section.get('page_break_after', False):
                     story.append(PageBreak())
 
-            # Build PDF using the template's build_document method
             template.build_document(story)
 
-            # Atomic rename. os.replace is atomic on POSIX and on Windows
-            # (per docs) when source and dest live on the same FS — which
-            # they do, since we created the temp alongside the target.
             try:
                 os.replace(tmp_path, final)
             except OSError as exc:
-                log.error(
-                    "generate_pdf_report: built %s but could not rename "
-                    "to %s: %s", tmp_path, final, exc,
-                )
                 try:
                     if tmp_path.exists():
                         tmp_path.unlink()
                 except OSError:
                     pass
-                return False
+                raise OSError(
+                    f"generate_pdf_report: built {tmp_path} but could not "
+                    f"rename to {final}: {exc}"
+                ) from exc
 
-            log.info(f"PDF report generated successfully: {output_path}")
-            return True
-
-        except (OSError, ValueError, TypeError, KeyError, AttributeError) as e:
-            log.error(f"Error generating PDF report: {e}")
-            # Best-effort cleanup of the partial file. The variable may
-            # not be bound yet if we failed before assigning it.
+        except BaseException:
             try:
-                if 'tmp_path' in locals() and tmp_path.exists():
+                if tmp_path.exists():
                     tmp_path.unlink()
             except OSError:
                 pass
-            return False
+            raise
+
+        log.info(f"PDF report generated successfully: {output_path}")
 
     def _process_chart_list(self, charts: List[Any], width: float = 6,
                              height: float = 4) -> List:

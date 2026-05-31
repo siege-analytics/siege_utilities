@@ -99,6 +99,8 @@ __all__ = [
     'get_report_output_directory', 'create_report_generator',
     'create_powerpoint_generator',
     'export_branding_config', 'import_branding_config', 'export_chart_type_config',
+    # Errors
+    'ReportingConfigError',
 ]
 
 
@@ -159,7 +161,7 @@ class ReportingConfigError(RuntimeError):
     """Raised when a reporting configuration export / import cannot complete."""
 
 
-def export_branding_config(client_name: str, export_path: str) -> bool:
+def export_branding_config(client_name: str, export_path: str) -> None:
     """Export client branding configuration to a file.
 
     Parameters
@@ -169,11 +171,6 @@ def export_branding_config(client_name: str, export_path: str) -> bool:
     export_path : str
         Destination path for the export.
 
-    Returns
-    -------
-    bool
-        True on success. (Never returns False — failures raise.)
-
     Raises
     ------
     ReportingConfigError
@@ -182,7 +179,7 @@ def export_branding_config(client_name: str, export_path: str) -> bool:
     try:
         from .client_branding import ClientBrandingManager as _CBM
         branding_manager = _CBM()
-        return branding_manager.export_branding_config(client_name, Path(export_path))
+        branding_manager.export_branding_config(client_name, Path(export_path))
     except (OSError, ValueError, KeyError) as e:
         log.error(
             "export_branding_config failed (client=%s, path=%s): %s",
@@ -193,7 +190,7 @@ def export_branding_config(client_name: str, export_path: str) -> bool:
         ) from e
 
 
-def import_branding_config(import_path: str, client_name: str = None) -> bool:
+def import_branding_config(import_path: str, client_name: str = None) -> None:
     """Import client branding configuration from a file.
 
     Parameters
@@ -204,11 +201,6 @@ def import_branding_config(import_path: str, client_name: str = None) -> bool:
         Client to associate with the imported branding. When omitted, the
         implementation picks a name from the file.
 
-    Returns
-    -------
-    bool
-        True on success.
-
     Raises
     ------
     ReportingConfigError
@@ -217,7 +209,7 @@ def import_branding_config(import_path: str, client_name: str = None) -> bool:
     try:
         from .client_branding import ClientBrandingManager as _CBM
         branding_manager = _CBM()
-        return branding_manager.import_branding_config(Path(import_path), client_name)
+        branding_manager.import_branding_config(Path(import_path), client_name)
     except (OSError, ValueError, KeyError) as e:
         log.error(
             "import_branding_config failed (path=%s, client=%s): %s",

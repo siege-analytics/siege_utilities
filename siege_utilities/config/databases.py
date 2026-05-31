@@ -6,7 +6,7 @@ Handles database connection settings for Spark and other uses.
 import json
 import pathlib
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +132,7 @@ def save_database_config(config: Dict[str, Any], config_directory: str = "config
     return str(config_file)
 
 
-def load_database_config(db_name: str, config_directory: str = "config") -> Optional[Dict[str, Any]]:
+def load_database_config(db_name: str, config_directory: str = "config") -> Dict[str, Any]:
     """
     Load database configuration from JSON file.
 
@@ -141,33 +141,31 @@ def load_database_config(db_name: str, config_directory: str = "config") -> Opti
         config_directory: Directory containing config files
 
     Returns:
-        Database configuration dictionary or None if not found
+        Database configuration dictionary.
+
+    Raises:
+        FileNotFoundError: If the database config file does not exist.
+        json.JSONDecodeError: If the file contains invalid JSON.
+        OSError: If the file cannot be read.
 
     Example:
         >>> db_config = siege_utilities.load_database_config("analytics_db")
-        >>> if db_config:
-        ...     print(f"Database: {db_config['database']}")
+        >>> print(f"Database: {db_config['database']}")
     """
 
     config_file = pathlib.Path(config_directory) / f"database_{db_name}.json"
 
     if not config_file.exists():
-        log_warning(f"Database config not found: {config_file}")
-        return None
+        raise FileNotFoundError(f"Database config not found: {config_file}")
 
-    try:
-        with open(config_file, 'r', encoding='utf-8') as f:
-            config = json.load(f)
+    with open(config_file, 'r', encoding='utf-8') as f:
+        config = json.load(f)
 
-        log_info(f"Loaded database config: {db_name}")
-        return config
-
-    except (OSError, json.JSONDecodeError) as e:
-        log_error(f"Error loading database config {config_file}: {e}")
-        return None
+    log_info(f"Loaded database config: {db_name}")
+    return config
 
 
-def get_spark_database_options(db_name: str, config_directory: str = "config") -> Optional[Dict[str, str]]:
+def get_spark_database_options(db_name: str, config_directory: str = "config") -> Dict[str, str]:
     """
     Get Spark-compatible options for database connection.
 
@@ -176,24 +174,25 @@ def get_spark_database_options(db_name: str, config_directory: str = "config") -
         config_directory: Directory containing config files
 
     Returns:
-        Dictionary of Spark options or None if config not found
+        Dictionary of Spark options.
+
+    Raises:
+        FileNotFoundError: If the database config does not exist.
+        KeyError: If the config is missing required keys.
 
     Example:
         >>> spark_options = siege_utilities.get_spark_database_options("analytics_db")
-        >>> if spark_options:
-        ...     df = spark.read.format("jdbc").options(**spark_options).option("dbtable", "users").load()
+        >>> df = spark.read.format("jdbc").options(**spark_options).option("dbtable", "users").load()
     """
 
     config = load_database_config(db_name, config_directory)
 
-    if config is None:
-        return None
-
     required_keys = ('jdbc_url', 'jdbc_driver', 'username', 'password')
     missing = [k for k in required_keys if k not in config]
     if missing:
-        log_error(f"Database config {db_name!r} missing required keys: {missing}")
-        return None
+        raise KeyError(
+            f"Database config {db_name!r} missing required keys: {missing}"
+        )
 
     spark_options = {
         'url': config['jdbc_url'],
@@ -202,7 +201,6 @@ def get_spark_database_options(db_name: str, config_directory: str = "config") -
         'password': config['password']
     }
 
-    # Add Spark-specific options
     spark_options.update(config.get('spark_options', {}))
 
     log_info(f"Retrieved Spark options for database: {db_name}")
@@ -227,13 +225,10 @@ def test_database_connection(db_name: str, config_directory: str = "config") -> 
 
     config = load_database_config(db_name, config_directory)
 
-    if config is None:
-        return False
-
     try:
         # Try basic connection test with SQLAlchemy if available
         try:
-            from sqlalchemy import create_engine
+            from sqlalchemy import create_engine, text
 
             connection_type = config['connection_type'].lower()
             host = config['host']
@@ -242,10 +237,12 @@ def test_database_connection(db_name: str, config_directory: str = "config") -> 
             username = config['username']
             password = config['password']
 
+            from urllib.parse import quote_plus
+
             if connection_type == 'postgres':
-                conn_string = f"postgresql://{username}:{password}@{host}:{port}/{database}"
+                conn_string = f"postgresql://{quote_plus(username)}:{quote_plus(password)}@{host}:{port}/{database}"
             elif connection_type == 'mysql':
-                conn_string = f"mysql+pymysql://{username}:{password}@{host}:{port}/{database}"
+                conn_string = f"mysql+pymysql://{quote_plus(username)}:{quote_plus(password)}@{host}:{port}/{database}"
             else:
                 log_warning(f"Connection test not implemented for {connection_type}")
                 return False
@@ -253,7 +250,7 @@ def test_database_connection(db_name: str, config_directory: str = "config") -> 
             engine = create_engine(conn_string)
             with engine.connect() as conn:
                 # Simple test query
-                result = conn.execute("SELECT 1")
+                result = conn.execute(text("SELECT 1"))
                 result.fetchone()
 
             log_info(f"Database connection test successful: {db_name}")
@@ -342,42 +339,41 @@ def create_spark_session_with_databases(app_name: str = "SiegeAnalytics",
 
     try:
         from pyspark.sql import SparkSession
-    except ImportError:
-        log_warning("PySpark not available. Install with: pip install pyspark")
-        return None
+    except ImportError as e:
+        raise ImportError(
+            "PySpark is required for create_spark_session_with_databases. "
+            "Install with: pip install pyspark"
+        ) from e
 
-    # Build Spark session
     builder = SparkSession.builder.appName(app_name)
 
-    # Add database drivers based on configured databases
     packages = []
     supported_connection_types = ('postgres', 'mysql', 'oracle')
 
     if database_names:
         for db_name in database_names:
             config = load_database_config(db_name, config_directory)
-            if config:
-                if 'connection_type' not in config:
-                    raise ValueError(
-                        f"Database config {db_name!r} missing 'connection_type' key"
-                    )
-                connection_type = config['connection_type'].lower()
+            if 'connection_type' not in config:
+                raise ValueError(
+                    f"Database config {db_name!r} missing 'connection_type' key"
+                )
+            connection_type = config['connection_type'].lower()
 
-                if connection_type == 'postgres':
-                    packages.append("org.postgresql:postgresql:42.3.1")
-                elif connection_type == 'mysql':
-                    packages.append("mysql:mysql-connector-java:8.0.28")
-                elif connection_type == 'oracle':
-                    packages.append("com.oracle.database.jdbc:ojdbc8:21.1.0.0")
-                else:
-                    raise ValueError(
-                        f"Unsupported connection_type {connection_type!r} for "
-                        f"database {db_name!r}. Supported types: "
-                        f"{', '.join(supported_connection_types)}. "
-                        f"Previously this case silently loaded the PostgreSQL "
-                        f"JDBC driver, which produced misleading connection "
-                        f"errors at runtime."
-                    )
+            if connection_type == 'postgres':
+                packages.append("org.postgresql:postgresql:42.3.1")
+            elif connection_type == 'mysql':
+                packages.append("mysql:mysql-connector-java:8.0.28")
+            elif connection_type == 'oracle':
+                packages.append("com.oracle.database.jdbc:ojdbc8:21.1.0.0")
+            else:
+                raise ValueError(
+                    f"Unsupported connection_type {connection_type!r} for "
+                    f"database {db_name!r}. Supported types: "
+                    f"{', '.join(supported_connection_types)}. "
+                    f"Previously this case silently loaded the PostgreSQL "
+                    f"JDBC driver, which produced misleading connection "
+                    f"errors at runtime."
+                )
 
     # Add common packages if none specified
     if not packages:

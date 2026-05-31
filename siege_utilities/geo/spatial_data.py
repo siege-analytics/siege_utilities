@@ -322,7 +322,11 @@ def update_census_inventory(
 
 
 def load_census_inventory(path: Optional[Path] = None) -> Optional[dict]:
-    """Load the saved Census inventory from disk.  Returns None if absent."""
+    """Load the saved Census inventory from disk.  Returns None if absent.
+
+    Raises:
+        SpatialDataError: If the file exists but cannot be parsed.
+    """
     import json
     p = Path(path or _DEFAULT_INVENTORY_PATH)
     if not p.exists():
@@ -331,8 +335,9 @@ def load_census_inventory(path: Optional[Path] = None) -> Optional[dict]:
         with open(p, encoding="utf-8") as fh:
             return json.load(fh)
     except (OSError, ValueError, UnicodeDecodeError) as exc:
-        log.warning("could not load census inventory from %s: %s", p, exc)
-        return None
+        raise SpatialDataError(
+            f"Census inventory file exists at {p} but cannot be parsed: {exc}"
+        ) from exc
 
 
 def _dirs_from_inventory(year: int, inventory: Optional[dict] = None) -> Optional[List[str]]:
@@ -1062,7 +1067,7 @@ class CensusDirectoryDiscovery:
                 raise BoundaryUrlValidationError(
                     f"URL returned HTTP {response.status_code} (SSL bypass): {url}",
                     context=ctx,
-                )
+                ) from ssl_err
             except BoundaryUrlValidationError:
                 raise
             except (requests.exceptions.RequestException, OSError) as e:
@@ -1430,13 +1435,16 @@ class CensusDataSource(SpatialDataSource):
         # Use centralized FIPS data
         return FIPS_TO_STATE.copy()
     
-    def normalize_state_identifier(self, state_input) -> Optional[str]:
-        """Convert any state identifier (FIPS, abbreviation, name) to FIPS code."""
-        # DEPRECATED: Use centralized normalize_state_identifier function instead
-        try:
-            return normalize_state_identifier(state_input)
-        except ValueError:
-            return None
+    def normalize_state_identifier(self, state_input) -> str:
+        """Convert any state identifier (FIPS, abbreviation, name) to FIPS code.
+
+        .. deprecated:: 3.16.0
+            Use the module-level :func:`normalize_state_identifier` directly.
+
+        Raises:
+            ValueError: If the input cannot be resolved to a valid state FIPS.
+        """
+        return normalize_state_identifier(state_input)
     
     def get_comprehensive_state_info(self) -> Dict[str, Dict[str, str]]:
         """Get comprehensive state information including FIPS, name, and abbreviation."""
@@ -1549,30 +1557,16 @@ class CensusDataSource(SpatialDataSource):
 
             # Generate local path using existing function
             zip_filename = generate_local_path_from_url(url, download_dir)
-            if not zip_filename:
-                raise BoundaryDownloadError(
-                    "Failed to generate local path for download",
-                    context={**ctx, "error_code": "LOCAL_PATH_FAILED"},
-                )
-
             ctx["local_path"] = str(zip_filename)
 
-            # Download file using existing function with SSL fallback
-            download_success = False
+            # Download file (download_file handles SSL retry internally)
             try:
-                download_success = download_file(url, zip_filename)
-            except (OSError, requests.exceptions.RequestException, ValueError) as ssl_error:
-                if "SSL" in str(ssl_error) or "certificate" in str(ssl_error).lower():
-                    log.warning(f"SSL verification failed, retrying without verification: {ssl_error}")
-                    download_success = download_file(url, zip_filename, verify_ssl=False)
-                    if download_success:
-                        log.info("Successfully downloaded without SSL verification")
-
-            if not download_success:
+                download_file(url, zip_filename)
+            except (OSError, ConnectionError) as dl_err:
                 raise BoundaryDownloadError(
                     f"Failed to download TIGER/Line data from {url}",
                     context={**ctx, "error_code": "DOWNLOAD_FAILED"},
-                )
+                ) from dl_err
 
             # Validate downloaded file is actually a zip (not an HTML challenge page)
             import zipfile
@@ -1585,8 +1579,11 @@ class CensusDataSource(SpatialDataSource):
                 )
                 zip_path.unlink(missing_ok=True)
                 # Retry once — the first attempt may have been an anti-bot challenge
-                download_success = download_file(url, zip_filename)
-                if not download_success or not zipfile.is_zipfile(zip_path):
+                try:
+                    download_file(url, zip_filename)
+                except (OSError, ConnectionError):
+                    pass
+                if not zipfile.is_zipfile(zip_path):
                     zip_path.unlink(missing_ok=True)
                     raise BoundaryDownloadError(
                         f"Downloaded file is not a valid zip after retry: {url}",
@@ -1600,11 +1597,6 @@ class CensusDataSource(SpatialDataSource):
 
             # Unzip using existing function
             unzip_dir = unzip_file_to_directory(Path(zip_filename))
-            if not unzip_dir:
-                raise BoundaryDownloadError(
-                    f"Failed to unzip TIGER/Line data from {zip_filename}",
-                    context={**ctx, "error_code": "UNZIP_FAILED"},
-                )
 
             # Find the shapefile
             shapefile_path = None
@@ -1709,16 +1701,19 @@ class GovernmentDataSource(SpatialDataSource):
             api_key=api_key
         )
     
-    def download_dataset(self, dataset_id: str, format_type: str = 'geojson') -> Optional[GeoDataFrame]:
+    def download_dataset(self, dataset_id: str, format_type: str = 'geojson') -> GeoDataFrame:
         """
         Download a dataset from the government data portal.
-        
+
         Args:
             dataset_id: Unique identifier for the dataset
             format_type: Preferred format (geojson, shapefile, kml)
-            
+
         Returns:
-            GeoDataFrame with spatial data or None if failed
+            GeoDataFrame with spatial data.
+
+        Raises:
+            SpatialDataError: On any download or processing failure.
         """
         try:
             # Construct download URL
@@ -1727,12 +1722,17 @@ class GovernmentDataSource(SpatialDataSource):
             # Get dataset metadata
             metadata = self._get_dataset_metadata(download_url)
             if not metadata:
-                return None
-            
+                raise SpatialDataError(
+                    f"Dataset {dataset_id} returned empty metadata"
+                )
+
             # Find best format
             resource_url = self._find_best_format(metadata, format_type)
             if not resource_url:
-                return None
+                raise SpatialDataError(
+                    f"No downloadable resource found for dataset {dataset_id} "
+                    f"(preferred format: {format_type})"
+                )
             
             # Download and process
             return self._download_and_process_dataset(resource_url, format_type)
@@ -1775,30 +1775,36 @@ class GovernmentDataSource(SpatialDataSource):
                 f"Error getting dataset metadata from {url}: {e}"
             ) from e
     
-    def _find_best_format(self, metadata: Dict[str, Any], preferred_format: str) -> Optional[str]:
-        """Find the best available format for download.
+    def _find_best_format(self, metadata: Dict[str, Any], preferred_format: str) -> str:
+        """Find the best available format URL for download.
 
-        Pure dict-manipulation; no I/O. The previous catch-all
-        ``except Exception: raise SpatialDataError(...)`` wrapper was
-        treating programming errors (a non-dict in ``resources``, a
-        ``metadata`` that wasn't a dict) as data errors. Let programming
-        errors propagate as themselves so the cause is visible.
+        Pure dict-manipulation; no I/O.
+
+        Raises:
+            SpatialDataError: If no downloadable resource URL is found.
         """
         resources = metadata.get('resources', [])
 
         # Look for preferred format first
         for resource in resources:
             if resource.get('format', '').lower() == preferred_format.lower():
-                return resource.get('url')
+                url = resource.get('url')
+                if url:
+                    return url
 
         # Fall back to any available format
         for resource in resources:
-            if resource.get('url'):
-                return resource.get('url')
+            url = resource.get('url')
+            if url:
+                return url
 
-        return None
+        raise SpatialDataError(
+            f"No downloadable resource URL in metadata "
+            f"(preferred format: {preferred_format}, "
+            f"resources checked: {len(resources)})"
+        )
     
-    def _download_and_process_dataset(self, url: str, format_type: str) -> Optional[GeoDataFrame]:
+    def _download_and_process_dataset(self, url: str, format_type: str) -> GeoDataFrame:
         """Download and process the dataset."""
         try:
             # Get user's download directory
@@ -1807,14 +1813,10 @@ class GovernmentDataSource(SpatialDataSource):
             
             # Generate local path
             local_filename = generate_local_path_from_url(url, download_dir)
-            if not local_filename:
-                return None
-            
+
             # Download file
-            download_success = download_file(url, local_filename)
-            if not download_success:
-                return None
-            
+            download_file(url, local_filename)
+
             # Process based on format
             if format_type.lower() == 'geojson':
                 gdf = gpd.read_file(local_filename)
@@ -1822,20 +1824,15 @@ class GovernmentDataSource(SpatialDataSource):
                 # Handle zip files
                 if str(local_filename).endswith('.zip'):
                     unzip_dir = unzip_file_to_directory(Path(local_filename))
-                    if unzip_dir:
-                        shp_files = list(unzip_dir.glob("*.shp"))
-                        if shp_files:
-                            gdf = gpd.read_file(shp_files[0])
-                        else:
-                            log.error("No shapefile found in zip")
-                            return None
+                    shp_files = list(unzip_dir.glob("*.shp"))
+                    if shp_files:
+                        gdf = gpd.read_file(shp_files[0])
                     else:
-                        return None
+                        raise ValueError(f"No shapefile found in zip: {local_filename}")
                 else:
                     gdf = gpd.read_file(local_filename)
             else:
-                log.error(f"Unsupported format: {format_type}")
-                return None
+                raise SpatialDataError(f"Unsupported format: {format_type}")
             
             # Best-effort cleanup of the downloaded file. Narrow to OSError
             # (the only family os.remove raises) and log at debug level so
@@ -1865,16 +1862,19 @@ class OpenStreetMapDataSource(SpatialDataSource):
             base_url="https://overpass-api.de/api/interpreter"
         )
     
-    def download_osm_data(self, query: str, bbox: Optional[List[float]] = None) -> Optional[GeoDataFrame]:
+    def download_osm_data(self, query: str, bbox: Optional[List[float]] = None) -> GeoDataFrame:
         """
         Download data from OpenStreetMap using Overpass QL.
-        
+
         Args:
             query: Overpass QL query string
             bbox: Bounding box [min_lat, min_lon, max_lat, max_lon]
-            
+
         Returns:
-            GeoDataFrame with OSM data or None if failed
+            GeoDataFrame with OSM data.
+
+        Raises:
+            SpatialDataError: On HTTP or processing failure.
         """
         try:
             # Construct Overpass query
@@ -1894,8 +1894,9 @@ class OpenStreetMapDataSource(SpatialDataSource):
             )
             
             if not response.ok:
-                log.error(f"Overpass API error: HTTP {response.status_code}")
-                return None
+                raise SpatialDataError(
+                    f"Overpass API error: HTTP {response.status_code}"
+                )
             
             # Parse response
             gdf = gpd.read_file(response.content, driver='GeoJSON')

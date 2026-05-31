@@ -116,38 +116,33 @@ class TestConfigurationMigratorErrors:
 # ===========================================================================
 
 class TestLegacyLoadErrors:
-    def test_load_user_profile_missing_file_returns_none(self, tmp_path):
-        result = load_user_profile("nonexistent", config_dir=tmp_path)
-        assert result is None
+    def test_load_user_profile_missing_file_raises(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            load_user_profile("nonexistent", config_dir=tmp_path)
 
-    def test_load_user_profile_non_mapping_returns_none(self, tmp_path):
+    def test_load_user_profile_non_mapping_raises(self, tmp_path):
         bad_file = tmp_path / "baduser.yaml"
         bad_file.write_text("- not a mapping\n")
-        result = load_user_profile("baduser", config_dir=tmp_path)
-        assert result is None
+        with pytest.raises(ValueError, match="not a YAML mapping"):
+            load_user_profile("baduser", config_dir=tmp_path)
 
-    def test_load_client_profile_missing_file_returns_none(self, tmp_path):
-        result = load_client_profile("NOPE", config_dir=tmp_path)
-        assert result is None
+    def test_load_client_profile_missing_file_raises(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            load_client_profile("NOPE", config_dir=tmp_path)
 
-    def test_load_client_profile_non_mapping_returns_none(self, tmp_path):
+    def test_load_client_profile_non_mapping_raises(self, tmp_path):
         bad_file = tmp_path / "BAD.yaml"
         bad_file.write_text("42\n")
-        result = load_client_profile("BAD", config_dir=tmp_path)
-        assert result is None
+        with pytest.raises(ValueError, match="not a YAML mapping"):
+            load_client_profile("BAD", config_dir=tmp_path)
 
-    def test_save_user_profile_invalid_dir_returns_false(self):
+    def test_save_user_profile_invalid_dir_raises(self):
         profile = UserProfile()
-        with patch("siege_utilities.config.enhanced_config.Path") as mock_path:
-            mock_path.home.return_value = Path("/nonexistent_root_9999")
-            # This will fail because the directory creation will fail
-            result = save_user_profile(
+        with pytest.raises(OSError):
+            save_user_profile(
                 profile, "user",
                 config_dir=Path("/proc/nonexistent_9999/profiles")
             )
-            # On most systems writing to /proc will fail
-            # If it doesn't fail, it still returns bool
-            assert isinstance(result, bool)
 
 
 # ===========================================================================
@@ -159,16 +154,16 @@ class TestUtilityErrors:
         result = list_client_profiles(config_dir=tmp_path / "nonexistent")
         assert result == []
 
-    def test_export_config_yaml_invalid_path_returns_false(self):
-        result = export_config_yaml(
-            {"key": "value"},
-            Path("/proc/nonexistent_9999/out.yaml"),
-        )
-        assert result is False
+    def test_export_config_yaml_invalid_path_raises(self):
+        with pytest.raises(OSError):
+            export_config_yaml(
+                {"key": "value"},
+                Path("/proc/nonexistent_9999/out.yaml"),
+            )
 
-    def test_import_config_yaml_missing_file_returns_none(self, tmp_path):
-        result = import_config_yaml(tmp_path / "nonexistent.yaml")
-        assert result is None
+    def test_import_config_yaml_missing_file_raises(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            import_config_yaml(tmp_path / "nonexistent.yaml")
 
     def test_import_config_yaml_valid_file_returns_data(self, tmp_path):
         f = tmp_path / "config.yaml"
@@ -187,21 +182,21 @@ class TestHydraManagerErrors:
         with pytest.raises(FileNotFoundError, match="not found"):
             HydraConfigManager(config_dir=tmp_path / "nonexistent")
 
-    def test_load_user_missing_file_returns_none(self, tmp_path):
+    def test_load_user_missing_file_raises(self, tmp_path):
         config_dir = tmp_path / "configs"
         config_dir.mkdir()
         from siege_utilities.config.hydra_manager import HydraConfigManager
         mgr = HydraConfigManager(config_dir=config_dir)
-        result = mgr.load_user("nonexistent", profiles_dir=tmp_path / "profiles")
-        assert result is None
+        with pytest.raises(FileNotFoundError):
+            mgr.load_user("nonexistent", profiles_dir=tmp_path / "profiles")
 
-    def test_load_client_missing_file_returns_none(self, tmp_path):
+    def test_load_client_missing_file_raises(self, tmp_path):
         config_dir = tmp_path / "configs"
         config_dir.mkdir()
         from siege_utilities.config.hydra_manager import HydraConfigManager
         mgr = HydraConfigManager(config_dir=config_dir)
-        result = mgr.load_client("NOPE", profiles_dir=tmp_path / "profiles")
-        assert result is None
+        with pytest.raises(FileNotFoundError):
+            mgr.load_client("NOPE", profiles_dir=tmp_path / "profiles")
 
 
 # ===========================================================================
@@ -209,12 +204,12 @@ class TestHydraManagerErrors:
 # ===========================================================================
 
 class TestSiegeConfigErrors:
-    def test_get_user_profile_missing_returns_none(self, tmp_path):
+    def test_get_user_profile_missing_raises(self, tmp_path):
         cfg = SiegeConfig(config_dir=tmp_path)
-        result = cfg.get_user_profile("nonexistent")
-        assert result is None
+        with pytest.raises(FileNotFoundError):
+            cfg.get_user_profile("nonexistent")
 
-    def test_get_client_profile_missing_returns_none(self, tmp_path):
+    def test_get_client_profile_missing_raises(self, tmp_path):
         cfg = SiegeConfig(config_dir=tmp_path)
-        result = cfg.get_client_profile("NONEXISTENT")
-        assert result is None
+        with pytest.raises(FileNotFoundError):
+            cfg.get_client_profile("NONEXISTENT")

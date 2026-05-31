@@ -189,11 +189,11 @@ def _get_geocoder(vintage: CensusVintage = CensusVintage.CURRENT):
     """Get a censusgeocode.CensusGeocode instance with the specified vintage."""
     try:
         import censusgeocode
-    except ImportError:
+    except ImportError as e:
         raise ImportError(
             "censusgeocode is required for Census geocoding. "
             "Install it with: pip install 'siege-utilities[geo]' or pip install censusgeocode"
-        )
+        ) from e
     return censusgeocode.CensusGeocode(
         benchmark=vintage.benchmark,
         vintage=vintage.vintage,

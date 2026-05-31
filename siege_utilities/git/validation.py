@@ -366,5 +366,6 @@ __all__ = [
     'validate_commit_hash',
     'validate_remote_name',
     'validate_repo_path',
+    'validate_git_ref_name',
     'has_dangerous_characters',
 ]

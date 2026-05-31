@@ -165,11 +165,11 @@ def normalize_geoid(
     # Zero-pad to expected length
     normalized = geoid_str.zfill(expected_length)
 
-    # Validate result
     if len(normalized) != expected_length:
-        log.warning(
+        raise ValueError(
             f"GEOID '{geoid}' is longer than expected for {geography_level} "
-            f"(expected {expected_length}, got {len(normalized)})"
+            f"(expected {expected_length} digits, got {len(geoid_str)}). "
+            f"Check that the geography_level is correct."
         )
 
     return normalized
@@ -395,13 +395,21 @@ def extract_parent_geoid(
     """
     Extract a parent GEOID from a child GEOID.
 
+    Supports extracting state, county, or tract as the parent level.
+    Other parent levels raise ValueError.
+
     Args:
         geoid: Child GEOID
         child_geography: Geography level of the input GEOID
-        parent_geography: Geography level to extract
+        parent_geography: Target parent level (``"state"``, ``"county"``,
+            or ``"tract"``)
 
     Returns:
         Parent GEOID
+
+    Raises:
+        ValueError: If *parent_geography* is not one of the supported
+            parent levels (state, county, tract).
 
     Example:
         >>> extract_parent_geoid("06037101100", "tract", "county")

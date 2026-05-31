@@ -99,7 +99,7 @@ class MapChartMixin:
             return self._create_placeholder_chart(width, height, "Folium not available")
 
         if geo_data is None:
-            return self._create_placeholder_chart(width, height, "geo_data is required for choropleth map")
+            raise ValueError("geo_data is required for choropleth map")
 
         try:
             # Convert data to DataFrame if needed
@@ -141,8 +141,15 @@ class MapChartMixin:
                                         "Choropleth Map", width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
-            log.error(f"Error creating choropleth map: {e}")
-            return self._create_placeholder_chart(width, height, f"Map Error: {str(e)}")
+
+
+            raise RuntimeError(
+
+
+                f"Map Error: {e}"
+
+
+            ) from e
 
     def _resolve_geo_data(self, geo_data) -> Union[str, Dict]:
         """Convert geo_data argument to a format Folium accepts (GeoJSON dict or path string)."""
@@ -232,8 +239,15 @@ class MapChartMixin:
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            log.error(f"Error creating bivariate choropleth with matplotlib: {e}")
-            return self._create_placeholder_chart(width, height, f"Bivariate Choropleth Error: {str(e)}")
+
+
+            raise RuntimeError(
+
+
+                f"Bivariate Choropleth Error: {e}"
+
+
+            ) from e
 
     def _create_bivariate_color_matrix(self, scheme: str = "default") -> 'np.ndarray':
         """
@@ -424,8 +438,15 @@ class MapChartMixin:
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            log.error(f"Error creating advanced choropleth: {e}")
-            return self._create_placeholder_chart(width, height, f"Advanced Choropleth Error: {str(e)}")
+
+
+            raise RuntimeError(
+
+
+                f"Advanced Choropleth Error: {e}"
+
+
+            ) from e
 
     def create_marker_map(self, data: Union[pd.DataFrame, Dict[str, Any]],
                           latitude_column: str, longitude_column: str,
@@ -524,8 +545,15 @@ class MapChartMixin:
                                         "Marker Map", width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
-            log.error(f"Error creating marker map: {e}")
-            return self._create_placeholder_chart(width, height, f"Marker Map Error: {str(e)}")
+
+
+            raise RuntimeError(
+
+
+                f"Marker Map Error: {e}"
+
+
+            ) from e
 
     def create_3d_map(self, data: Union[pd.DataFrame, Dict[str, Any]],
                       latitude_column: str, longitude_column: str, elevation_column: str,
@@ -597,8 +625,15 @@ class MapChartMixin:
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            log.error(f"Error creating 3D map: {e}")
-            return self._create_placeholder_chart(width, height, f"3D Map Error: {str(e)}")
+
+
+            raise RuntimeError(
+
+
+                f"3D Map Error: {e}"
+
+
+            ) from e
 
     def create_heatmap_map(self, data: Union[pd.DataFrame, Dict[str, Any]],
                            latitude_column: str, longitude_column: str, value_column: str,
@@ -670,8 +705,15 @@ class MapChartMixin:
                                         "Heatmap", width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
-            log.error(f"Error creating heatmap: {e}")
-            return self._create_placeholder_chart(width, height, f"Heatmap Error: {str(e)}")
+
+
+            raise RuntimeError(
+
+
+                f"Heatmap Error: {e}"
+
+
+            ) from e
 
     def create_cluster_map(self, data: Union[pd.DataFrame, Dict[str, Any]],
                            latitude_column: str, longitude_column: str,
@@ -766,8 +808,15 @@ class MapChartMixin:
                                         "Cluster Map", width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
-            log.error(f"Error creating cluster map: {e}")
-            return self._create_placeholder_chart(width, height, f"Cluster Map Error: {str(e)}")
+
+
+            raise RuntimeError(
+
+
+                f"Cluster Map Error: {e}"
+
+
+            ) from e
 
     def create_flow_map(self, data: Union[pd.DataFrame, Dict[str, Any]],
                         origin_lat_column: str, origin_lon_column: str,
@@ -869,8 +918,15 @@ class MapChartMixin:
                                         "Flow Map", width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
-            log.error(f"Error creating flow map: {e}")
-            return self._create_placeholder_chart(width, height, f"Flow Map Error: {str(e)}")
+
+
+            raise RuntimeError(
+
+
+                f"Flow Map Error: {e}"
+
+
+            ) from e
 
     def create_bivariate_choropleth(self, data: Union[pd.DataFrame, Dict[str, Any]],
                                   geo_data: Union['gpd.GeoDataFrame', str, Path, Dict, None] = None,
@@ -930,8 +986,9 @@ class MapChartMixin:
             elif hasattr(df, 'geometry'):
                 gdf = df
             else:
-                return self._create_placeholder_chart(width, height,
-                    "geo_data is required (GeoDataFrame, GeoJSON path, or dict)")
+                raise ValueError(
+                    "geo_data is required (GeoDataFrame, GeoJSON path, or dict)"
+                )
 
             # Apply bivariate classification using existing helpers
             color_matrix = self._create_bivariate_color_matrix(color_scheme)
@@ -972,5 +1029,12 @@ class MapChartMixin:
                                         "Bivariate Choropleth", width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
-            log.error(f"Error creating bivariate choropleth map: {e}")
-            return self._create_placeholder_chart(width, height, f"Bivariate Choropleth Error: {str(e)}")
+
+
+            raise RuntimeError(
+
+
+                f"Bivariate Choropleth Error: {e}"
+
+
+            ) from e

@@ -37,8 +37,8 @@ log = logging.getLogger(__name__)
 
 class SnowflakeConnector:
     """Snowflake data warehouse connector with advanced features."""
-    
-    def __init__(self, 
+
+    def __init__(self,
                  account: str,
                  user: str,
                  password: Optional[str] = None,
@@ -49,7 +49,7 @@ class SnowflakeConnector:
                  config_file: Optional[Union[str, Path]] = None):
         """
         Initialize Snowflake connector.
-        
+
         Args:
             account: Snowflake account identifier
             user: Snowflake username
@@ -62,7 +62,7 @@ class SnowflakeConnector:
         """
         if not SNOWFLAKE_AVAILABLE:
             raise ImportError("Snowflake connector not available. Install with: pip install snowflake-connector-python")
-        
+
         self.account = account
         self.user = user
         self.password = password
@@ -71,23 +71,23 @@ class SnowflakeConnector:
         self.schema = schema
         self.role = role
         self.config_file = config_file
-        
+
         # Load configuration if provided
         if config_file:
             self._load_config(config_file)
-        
+
         # Initialize connection
         self.connection = None
         self.cursor = None
-        
+
         log.info(f"Initialized Snowflake connector for account: {account}")
-    
+
     def _load_config(self, config_file: Union[str, Path]) -> None:
         """Load configuration from file."""
         config_path = Path(config_file)
         if not config_path.exists():
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
-        
+
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
@@ -99,11 +99,11 @@ class SnowflakeConnector:
             for key, value in config.items():
                 if key in _ALLOWED_CONFIG_KEYS and value is not None:
                     setattr(self, key, value)
-                    
+
         except Exception as e:
             log.error(f"Failed to load configuration: {e}")
             raise
-    
+
     def connect(self) -> None:
         """Establish connection to Snowflake.
 
@@ -141,57 +141,58 @@ class SnowflakeConnector:
             log.info("Disconnected from Snowflake")
         except (*_SF_CONN_ERRORS, AttributeError) as e:
             log.error(f"Error disconnecting from Snowflake: {e}")
-    
-    def execute_query(self, query: str, params: Optional[Dict[str, Any]] = None) -> Optional[List[tuple]]:
+
+    def execute_query(self, query: str, params: Optional[Dict[str, Any]] = None) -> List[tuple]:
         """
         Execute a SQL query.
-        
+
         Args:
             query: SQL query string
             params: Query parameters (optional)
-            
+
         Returns:
             Query results as list of tuples
+
+        Raises:
+            ConnectionError: If not connected and connection fails.
+            RuntimeError: If query execution fails.
         """
         if not self.connection:
             self.connect()
-        
+
         try:
             if params:
                 self.cursor.execute(query, params)
             else:
                 self.cursor.execute(query)
-            
+
             results = self.cursor.fetchall()
             log.info(f"Query executed successfully. Rows returned: {len(results)}")
             return results
-            
-        except (*_SF_QUERY_ERRORS, ValueError) as e:
-            log.error(f"Query execution failed: {e}")
-            return None
 
-    def execute_ddl(self, ddl_statement: str) -> bool:
+        except (*_SF_QUERY_ERRORS, ValueError) as e:
+            raise RuntimeError(f"Query execution failed: {e}") from e
+
+    def execute_ddl(self, ddl_statement: str) -> None:
         """
         Execute DDL statements (CREATE, ALTER, DROP, etc.).
-        
+
         Args:
             ddl_statement: DDL SQL statement
-            
-        Returns:
-            True if successful, False otherwise
+
+        Raises:
+            ConnectionError: If not connected and connection fails.
+            RuntimeError: If DDL execution fails.
         """
         if not self.connection:
             self.connect()
-        
+
         try:
             self.cursor.execute(ddl_statement)
             self.connection.commit()
             log.info("DDL statement executed successfully")
-            return True
-            
         except (*_SF_QUERY_ERRORS,) as e:
-            log.error(f"DDL execution failed: {e}")
-            return False
+            raise RuntimeError(f"DDL execution failed: {e}") from e
 
     def upload_dataframe(self,
                         df: 'pd.DataFrame',
@@ -199,10 +200,10 @@ class SnowflakeConnector:
                         database: Optional[str] = None,
                         schema: Optional[str] = None,
                         auto_create_table: bool = True,
-                        overwrite: bool = False) -> bool:
+                        overwrite: bool = False) -> None:
         """
         Upload pandas DataFrame to Snowflake table.
-        
+
         Args:
             df: Pandas DataFrame to upload
             table_name: Target table name
@@ -210,22 +211,21 @@ class SnowflakeConnector:
             schema: Target schema (uses default if not specified)
             auto_create_table: Whether to automatically create table if it doesn't exist
             overwrite: Whether to overwrite existing table
-            
-        Returns:
-            True if successful, False otherwise
+
+        Raises:
+            ImportError: If pandas is not available.
+            ConnectionError: If not connected and connection fails.
+            RuntimeError: If the upload fails.
         """
         if not PANDAS_AVAILABLE:
-            log.error("Pandas not available for DataFrame operations")
-            return False
-        
+            raise ImportError("Pandas not available for DataFrame operations. Install with: pip install pandas")
+
         if not self.connection:
             self.connect()
-        
+
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
         validate_identifier(table_name, label="table name")
         try:
-            # Set database and schema context. Snowflake doesn't permit
-            # parameter-bound identifiers for USE; validation must do it.
             if database:
                 validate_identifier(database, label="database name")
                 self.cursor.execute(f"USE DATABASE {database}")
@@ -233,11 +233,9 @@ class SnowflakeConnector:
                 validate_identifier(schema, label="schema name")
                 self.cursor.execute(f"USE SCHEMA {schema}")
 
-            # Create table if needed
             if auto_create_table:
                 self._create_table_from_dataframe(df, table_name, overwrite)
-            
-            # Upload data
+
             success, nchunks, nrows, _ = write_pandas(
                 self.connection,
                 df,
@@ -245,47 +243,47 @@ class SnowflakeConnector:
                 auto_create_table=False,
                 overwrite=overwrite
             )
-            
-            if success:
-                log.info(f"Successfully uploaded {nrows} rows to table {table_name}")
-                return True
-            else:
-                log.error(f"Failed to upload data to table {table_name}")
-                return False
-                
+
+            if not success:
+                raise RuntimeError(f"write_pandas reported failure for table {table_name}")
+
+            log.info(f"Successfully uploaded {nrows} rows to table {table_name}")
+
         except (*_SF_QUERY_ERRORS, ValueError) as e:
-            log.error(f"DataFrame upload failed: {e}")
-            return False
+            raise RuntimeError(f"DataFrame upload failed: {e}") from e
 
     def download_dataframe(self,
                           query: str,
-                          params: Optional[Dict[str, Any]] = None) -> Optional['pd.DataFrame']:
+                          params: Optional[Dict[str, Any]] = None) -> 'pd.DataFrame':
         """
         Download data from Snowflake as pandas DataFrame.
-        
+
         Args:
             query: SQL query to execute
             params: Query parameters (optional)
-            
+
         Returns:
             Pandas DataFrame with query results
+
+        Raises:
+            ImportError: If pandas is not available.
+            ConnectionError: If not connected and connection fails.
+            RuntimeError: If the query fails.
         """
         if not PANDAS_AVAILABLE:
-            log.error("Pandas not available for DataFrame operations")
-            return None
-        
+            raise ImportError("Pandas not available for DataFrame operations. Install with: pip install pandas")
+
         if not self.connection:
             self.connect()
-        
+
         try:
             df = read_pandas(self.connection, query, params)
             log.info(f"Successfully downloaded {len(df)} rows as DataFrame")
             return df
-            
+
         except (*_SF_QUERY_ERRORS, ValueError) as e:
-            log.error(f"DataFrame download failed: {e}")
-            return None
-    
+            raise RuntimeError(f"DataFrame download failed: {e}") from e
+
     def _create_table_from_dataframe(self, df: 'pd.DataFrame', table_name: str, overwrite: bool) -> None:
         """Create Snowflake table based on DataFrame structure."""
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
@@ -293,10 +291,8 @@ class SnowflakeConnector:
         if overwrite:
             self.cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
 
-        # Generate CREATE TABLE statement
         columns = []
         for col_name, dtype in df.dtypes.items():
-            # Validate every DataFrame column name before it lands in DDL.
             validate_identifier(str(col_name), label="column name", allow_dotted=False)
             snowflake_type = self._map_pandas_to_snowflake_type(dtype)
             columns.append(f"{col_name} {snowflake_type}")
@@ -304,11 +300,11 @@ class SnowflakeConnector:
         create_statement = f"CREATE TABLE IF NOT EXISTS {table_name} ({', '.join(columns)})"
         self.cursor.execute(create_statement)
         log.info(f"Created table {table_name} with {len(columns)} columns")
-    
+
     def _map_pandas_to_snowflake_type(self, pandas_dtype) -> str:
         """Map pandas data types to Snowflake data types."""
         dtype_str = str(pandas_dtype)
-        
+
         if 'int' in dtype_str:
             return 'NUMBER(38,0)'
         elif 'float' in dtype_str:
@@ -321,26 +317,29 @@ class SnowflakeConnector:
             return 'VARCHAR(16777216)'
         else:
             return 'VARCHAR(16777216)'
-    
-    def get_table_info(self, table_name: str, database: Optional[str] = None, schema: Optional[str] = None) -> Optional[Dict[str, Any]]:
+
+    def get_table_info(self, table_name: str, database: Optional[str] = None, schema: Optional[str] = None) -> Dict[str, Any]:
         """
         Get information about a Snowflake table.
-        
+
         Args:
             table_name: Name of the table
             database: Database name (uses default if not specified)
             schema: Schema name (uses default if not specified)
-            
+
         Returns:
             Dictionary with table information
+
+        Raises:
+            ConnectionError: If not connected and connection fails.
+            RuntimeError: If the query fails.
         """
         if not self.connection:
             self.connect()
-        
+
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
         validate_identifier(table_name, label="table name")
         try:
-            # Set context (identifiers cannot be parameter-bound).
             if database:
                 validate_identifier(database, label="database name")
                 self.cursor.execute(f"USE DATABASE {database}")
@@ -348,16 +347,12 @@ class SnowflakeConnector:
                 validate_identifier(schema, label="schema name")
                 self.cursor.execute(f"USE SCHEMA {schema}")
 
-            # Get table description
             self.cursor.execute(f"DESCRIBE TABLE {table_name}")
             columns = self.cursor.fetchall()
 
-            # Get row count
             self.cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
             row_count = self.cursor.fetchone()[0]
 
-            # Get table size — scope to the active database+schema so we
-            # don't return a different schema's table with the same name.
             self.cursor.execute(
                 """
                 SELECT BYTES, ROWS
@@ -369,7 +364,7 @@ class SnowflakeConnector:
                 (table_name,),
             )
             size_info = self.cursor.fetchone()
-            
+
             table_info = {
                 'name': table_name,
                 'columns': [{'name': col[0], 'type': col[1], 'nullable': col[2]} for col in columns],
@@ -377,30 +372,32 @@ class SnowflakeConnector:
                 'bytes': size_info[0] if size_info else None,
                 'rows': size_info[1] if size_info else None
             }
-            
+
             return table_info
-            
+
         except (*_SF_QUERY_ERRORS, ValueError, IndexError) as e:
-            log.error(f"Failed to get table info: {e}")
-            return None
-    
-    def list_tables(self, database: Optional[str] = None, schema: Optional[str] = None) -> Optional[List[str]]:
+            raise RuntimeError(f"Failed to get table info for {table_name}: {e}") from e
+
+    def list_tables(self, database: Optional[str] = None, schema: Optional[str] = None) -> List[str]:
         """
         List all tables in a database/schema.
-        
+
         Args:
             database: Database name (uses default if not specified)
             schema: Schema name (uses default if not specified)
-            
+
         Returns:
             List of table names
+
+        Raises:
+            ConnectionError: If not connected and connection fails.
+            RuntimeError: If the query fails.
         """
         if not self.connection:
             self.connect()
-        
+
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
         try:
-            # Set context (identifiers cannot be parameter-bound).
             if database:
                 validate_identifier(database, label="database name")
                 self.cursor.execute(f"USE DATABASE {database}")
@@ -408,21 +405,19 @@ class SnowflakeConnector:
                 validate_identifier(schema, label="schema name")
                 self.cursor.execute(f"USE SCHEMA {schema}")
 
-            # List tables
             self.cursor.execute("SHOW TABLES")
             tables = [row[1] for row in self.cursor.fetchall()]
-            
+
             return tables
-            
+
         except (*_SF_QUERY_ERRORS, ValueError, IndexError) as e:
-            log.error(f"Failed to list tables: {e}")
-            return None
-    
+            raise RuntimeError(f"Failed to list tables: {e}") from e
+
     def __enter__(self):
         """Context manager entry."""
         self.connect()
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
         self.disconnect()
@@ -434,29 +429,28 @@ def get_snowflake_connector(config_file: Optional[Union[str, Path]] = None) -> S
     if config_file:
         return SnowflakeConnector(config_file=config_file)
     else:
-        # Try to load from environment variables
         account = os.getenv('SNOWFLAKE_ACCOUNT')
         user = os.getenv('SNOWFLAKE_USER')
         password = os.getenv('SNOWFLAKE_PASSWORD')
-        
+
         if not all([account, user, password]):
             raise ValueError("Snowflake configuration not found. Set environment variables or provide config file.")
-        
+
         return SnowflakeConnector(account=account, user=user, password=password)
 
 
-def upload_to_snowflake(df: 'pd.DataFrame', 
+def upload_to_snowflake(df: 'pd.DataFrame',
                         table_name: str,
                         config_file: Optional[Union[str, Path]] = None,
-                        **kwargs) -> bool:
+                        **kwargs) -> None:
     """Convenience function to upload DataFrame to Snowflake."""
     with get_snowflake_connector(config_file) as snow:
-        return snow.upload_dataframe(df, table_name, **kwargs)
+        snow.upload_dataframe(df, table_name, **kwargs)
 
 
 def download_from_snowflake(query: str,
                            config_file: Optional[Union[str, Path]] = None,
-                           **kwargs) -> Optional['pd.DataFrame']:
+                           **kwargs) -> 'pd.DataFrame':
     """Convenience function to download DataFrame from Snowflake."""
     with get_snowflake_connector(config_file) as snow:
         return snow.download_dataframe(query, **kwargs)
@@ -464,7 +458,7 @@ def download_from_snowflake(query: str,
 
 def execute_snowflake_query(query: str,
                            config_file: Optional[Union[str, Path]] = None,
-                           **kwargs) -> Optional[List[tuple]]:
+                           **kwargs) -> List[tuple]:
     """Convenience function to execute Snowflake query."""
     with get_snowflake_connector(config_file) as snow:
         return snow.execute_query(query, **kwargs)

@@ -61,7 +61,7 @@ def create_directory_structure(base_path: str, structure: Dict[str, Any]) -> Dic
             base_path_obj = validate_directory_path(base_path, must_exist=False)
         except ImportError:
             base_path_obj = pathlib.Path(base_path)
-    except Exception as e:
+    except (OSError, ValueError, FileNotFoundError) as e:
         log_error(f"Failed to validate base path: {e}")
         raise
 

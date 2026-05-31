@@ -76,7 +76,7 @@ class CompositeChartMixin:
 
         try:
             if not sources:
-                return self._create_placeholder_chart(width, height, "No sources provided")
+                raise ValueError("No sources provided for convergence diagram")
 
             out_nodes = outputs or []
             src_nodes = sources[:arrow_count] if arrow_count else sources
@@ -190,8 +190,15 @@ class CompositeChartMixin:
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            log.error(f"Error creating convergence diagram: {e}")
-            return self._create_placeholder_chart(width, height, f"Convergence Diagram Error: {str(e)}")
+
+
+            raise RuntimeError(
+
+
+                f"Convergence Diagram Error: {e}"
+
+
+            ) from e
 
     def create_dashboard(self, charts: List[Dict[str, Any]],
                         layout: str = "2x2", width: float = 12.0, height: float = 8.0) -> Image:
@@ -257,8 +264,15 @@ class CompositeChartMixin:
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            log.error(f"Error creating dashboard: {e}")
-            return self._create_placeholder_chart(width, height, f"Dashboard Error: {str(e)}")
+
+
+            raise RuntimeError(
+
+
+                f"Dashboard Error: {e}"
+
+
+            ) from e
 
     def create_dataframe_summary_charts(self, df: 'pd.DataFrame',
                                      title: str = "", width: float = 8.0, height: float = 6.0) -> Image:
@@ -282,7 +296,7 @@ class CompositeChartMixin:
             numeric_cols = df.select_dtypes(include=[np.number]).columns
 
             if len(numeric_cols) == 0:
-                return self._create_placeholder_chart(width, height, "No numeric columns found")
+                raise ValueError("No numeric columns found for summary charts")
 
             # Create subplots
             fig, axes = plt.subplots(2, 2, figsize=(width, height), dpi=self.default_dpi)
@@ -309,8 +323,15 @@ class CompositeChartMixin:
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            log.error(f"Error creating DataFrame summary charts: {e}")
-            return self._create_placeholder_chart(width, height, f"Summary Charts Error: {str(e)}")
+
+
+            raise RuntimeError(
+
+
+                f"Summary Charts Error: {e}"
+
+
+            ) from e
 
     def _create_bar_subplot(self, ax, chart_config: Dict[str, Any], title: str):
         """Create a bar chart in a subplot."""

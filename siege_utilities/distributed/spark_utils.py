@@ -1,4 +1,4 @@
-from typing import Optional, Union, Tuple, Dict, TYPE_CHECKING
+from typing import Any, Optional, Union, Tuple, Dict, TYPE_CHECKING
 import os
 import pathlib
 from pathlib import Path
@@ -50,7 +50,7 @@ RESULTS_OUTPUT_FORMAT = 'csv'
 RESULTS_OUTPUT_DELIMITER = ','
 DEBUG_SUBDIRECTORY = Path('debug_output')
 
-def sanitise_dataframe_column_names(df: "DataFrame") ->Optional["DataFrame"]:
+def sanitise_dataframe_column_names(df: "DataFrame") -> "DataFrame":
     """
     Cleans dataframe column names by converting them to lowercase and replacing
     slashes/spaces with underscores.
@@ -59,28 +59,16 @@ def sanitise_dataframe_column_names(df: "DataFrame") ->Optional["DataFrame"]:
         df (DataFrame): Input Spark DataFrame.
 
     Returns:
-        Optional["DataFrame"]: Sanitised DataFrame or None if an error occurred.
+        DataFrame: Sanitised DataFrame.
     """
-    try:
-        message = f'Sanitising column names for dataframe {df}'
-        log_info(message)
-        df = df.toDF(*[c.lower().strip().replace('/', '_').replace(' ', '_'
-            ) for c in df.columns])
-        message = (
-            f'Successfully sanitised columns for dataframe {df}: {list(df.columns)}'
-            )
-        log_info(message)
-        return df
-    except (_SparkAnalysisException, _Py4JError, AttributeError, TypeError) as e:
-        message = (
-            f'There was a problem sanitising column names for dataframe {df}:\n{e}'
-            )
-        log_error(message)
-        return None
+    log_info(f'Sanitising column names for dataframe {df}')
+    df = df.toDF(*[c.lower().strip().replace('/', '_').replace(' ', '_')
+        for c in df.columns])
+    log_info(f'Successfully sanitised columns for dataframe {df}: {list(df.columns)}')
+    return df
 
 
-def tabulate_null_vs_not_null(df: "DataFrame", column_name: str) ->Optional[
-    DataFrame]:
+def tabulate_null_vs_not_null(df: "DataFrame", column_name: str) -> "DataFrame":
     """
     Returns a dataframe showing the count of null and non-null values for a given column.
 
@@ -89,25 +77,19 @@ def tabulate_null_vs_not_null(df: "DataFrame", column_name: str) ->Optional[
         column_name (str): Name of the column to analyze.
 
     Returns:
-        Optional["DataFrame"]: Resulting DataFrame with null vs non-null counts.
+        DataFrame: Resulting DataFrame with null vs non-null counts.
     """
-    try:
-        NULL_COLUMNS_NAME = f'{column_name}_null_count'
-        NOT_NULL_COLUMNS_NAME = f'{column_name}_not_null_count'
-        result_df = df.groupBy(column_name).agg(sum(when(col(column_name).
-            isNull(), 1).otherwise(0)).alias(NULL_COLUMNS_NAME), sum(when(
-            col(column_name).isNotNull(), 1).otherwise(0)).alias(
-            NOT_NULL_COLUMNS_NAME))
-        result_df.show(truncate=False)
-        return result_df
-    except (_SparkAnalysisException, _Py4JError, AttributeError, TypeError, ValueError) as e:
-        log_error(
-            f'Error in tabulate_null_vs_not_null for column {column_name}: {e}'
-            )
-        return None
+    NULL_COLUMNS_NAME = f'{column_name}_null_count'
+    NOT_NULL_COLUMNS_NAME = f'{column_name}_not_null_count'
+    result_df = df.groupBy(column_name).agg(sum(when(col(column_name).
+        isNull(), 1).otherwise(0)).alias(NULL_COLUMNS_NAME), sum(when(
+        col(column_name).isNotNull(), 1).otherwise(0)).alias(
+        NOT_NULL_COLUMNS_NAME))
+    result_df.show(truncate=False)
+    return result_df
 
 
-def get_row_count(df: "DataFrame") ->Optional[int]:
+def get_row_count(df: "DataFrame") -> int:
     """
     Returns the count of rows in the dataframe.
 
@@ -115,19 +97,14 @@ def get_row_count(df: "DataFrame") ->Optional[int]:
         df (DataFrame): Input Spark DataFrame.
 
     Returns:
-        Optional[int]: Row count or None if an error occurred.
+        int: Row count.
     """
-    try:
-        count = df.count()
-        log_info(f'Row count for dataframe: {count}')
-        return count
-    except (_SparkAnalysisException, _Py4JError, AttributeError) as e:
-        log_error(f'Error getting row count: {e}')
-        return None
+    count = df.count()
+    log_info(f'Row count for dataframe: {count}')
+    return count
 
 
-def repartition_and_cache(df: "DataFrame", partitions: int=100) ->Optional[
-    DataFrame]:
+def repartition_and_cache(df: "DataFrame", partitions: int=100) -> "DataFrame":
     """
     Repartitions and caches a dataframe.
 
@@ -136,40 +113,27 @@ def repartition_and_cache(df: "DataFrame", partitions: int=100) ->Optional[
         partitions (int, optional): Number of partitions. Default is 100.
 
     Returns:
-        Optional["DataFrame"]: Repartitioned and cached DataFrame or None if an error occurred.
+        DataFrame: Repartitioned and cached DataFrame.
     """
-    try:
-        df = df.repartition(partitions).cache()
-        log_info(
-            f'Dataframe repartitioned to {partitions} partitions and cached.')
-        return df
-    except (_SparkAnalysisException, _Py4JError, AttributeError, ValueError) as e:
-        log_error(f'Error repartitioning and caching dataframe: {e}')
-        return None
+    df = df.repartition(partitions).cache()
+    log_info(f'Dataframe repartitioned to {partitions} partitions and cached.')
+    return df
 
 
-def register_temp_table(df: "DataFrame", table_name: str) ->bool:
+def register_temp_table(df: "DataFrame", table_name: str) -> None:
     """
     Registers a temporary view from a dataframe.
 
     Args:
         df (DataFrame): Input Spark DataFrame.
         table_name (str): Name for the temporary view.
-
-    Returns:
-        bool: True if successful, False otherwise.
     """
-    try:
-        df.createOrReplaceTempView(table_name)
-        log_info(f"Temporary view '{table_name}' registered.")
-        return True
-    except (_SparkAnalysisException, _Py4JError, AttributeError, ValueError) as e:
-        log_error(f"Error registering temporary table '{table_name}': {e}")
-        return False
+    df.createOrReplaceTempView(table_name)
+    log_info(f"Temporary view '{table_name}' registered.")
 
 
 def move_column_to_front_of_dataframe(df: "DataFrame", column_name: str
-    ) ->Optional["DataFrame"]:
+    ) -> "DataFrame":
     """Reorder *df* so *column_name* is the leftmost column.
 
     The Spark schema order is what most CSV / parquet readers surface
@@ -177,24 +141,17 @@ def move_column_to_front_of_dataframe(df: "DataFrame", column_name: str
     left-to-right. Moving the join key / identifier to the front makes
     the rest of the pipeline more readable without changing semantics.
 
-    Returns the reordered DataFrame, or ``None`` on failure (logged).
     The original *df* is unchanged.
     """
-    try:
-        columns = list(df.columns)
-        column_to_move = column_name
-        new_column_order = [column_to_move] + [col for col in columns if
-            col != column_to_move]
-        df_reordered = df.select(*new_column_order)
-        df_reordered.printSchema()
-        return df_reordered
-    except (_SparkAnalysisException, _Py4JError, AttributeError, ValueError, KeyError) as e:
-        log_error(f'Error repartitioning and caching dataframe: {e}')
-        return None
+    columns = list(df.columns)
+    new_column_order = [column_name] + [c for c in columns if c != column_name]
+    df_reordered = df.select(*new_column_order)
+    df_reordered.printSchema()
+    return df_reordered
 
 
 def write_df_to_parquet(df: "DataFrame", path: str, mode: str='overwrite'
-    ) ->bool:
+    ) -> None:
     """
     Writes a DataFrame to a Parquet file.
 
@@ -202,20 +159,12 @@ def write_df_to_parquet(df: "DataFrame", path: str, mode: str='overwrite'
         df (DataFrame): Input Spark DataFrame.
         path (str): Output path.
         mode (str): Write mode. Defaults to "overwrite".
-
-    Returns:
-        bool: True if successful, False otherwise.
     """
-    try:
-        df.write.mode(mode).parquet(path)
-        log_info(f"Dataframe written to parquet at {path} with mode '{mode}'")
-        return True
-    except (_SparkAnalysisException, _Py4JError, OSError, AttributeError) as e:
-        log_error(f'Error writing dataframe to parquet at {path}: {e}')
-        return False
+    df.write.mode(mode).parquet(path)
+    log_info(f"Dataframe written to parquet at {path} with mode '{mode}'")
 
 
-def read_parquet_to_df(spark: "SparkSession", path: str) ->Optional["DataFrame"]:
+def read_parquet_to_df(spark: "SparkSession", path: str) -> "DataFrame":
     """
     Reads a Parquet file into a Spark DataFrame.
 
@@ -224,19 +173,15 @@ def read_parquet_to_df(spark: "SparkSession", path: str) ->Optional["DataFrame"]
         path (str): Path to the Parquet file.
 
     Returns:
-        Optional["DataFrame"]: Loaded DataFrame or None if an error occurred.
+        DataFrame: Loaded DataFrame.
     """
-    try:
-        df = spark.read.parquet(path)
-        log_info(f'Successfully read parquet from {path}')
-        return df
-    except (_SparkAnalysisException, _Py4JError, OSError, AttributeError) as e:
-        log_error(f'Error reading parquet from {path}: {e}')
-        return None
+    df = spark.read.parquet(path)
+    log_info(f'Successfully read parquet from {path}')
+    return df
 
 
 def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
-    prefix: str='json_column_', logger: Optional[any]=None, drop_original:
+    prefix: str='json_column_', logger: Optional[Any]=None, drop_original:
     bool=True, explode_arrays: bool=False, flatten_level: str='shallow',
     verbose: bool=False, sample_size: int=5, show_samples: bool=True
     ) ->DataFrame:
@@ -248,7 +193,7 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
         df (DataFrame): The input Spark DataFrame.
         json_column (str): The name of the column containing JSON strings.
         prefix (str, optional): Prefix to add to the flattened column names. Defaults to "json_column_".
-        logger (Optional[any], optional): Logger object for logging messages. Defaults to None.
+        logger (Optional[Any], optional): Logger object for logging messages. Defaults to None.
         drop_original (bool, optional): Whether to drop the original JSON column after flattening. Defaults to True.
         explode_arrays (bool, optional): Whether to explode array columns. Defaults to False.
         flatten_level (str, optional):  "shallow" or "deep" flattening. Defaults to "shallow".
@@ -285,10 +230,10 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
     sample_json = df.filter(col(json_column).isNotNull() & (length(trim(col
         (json_column))) > 2)).select(json_column).limit(sample_size).collect()
     if not sample_json or len(sample_json) == 0 or not sample_json[0][0]:
-        _log_info(
-            f'No valid JSON sample available in column {json_column}, skipping flattening'
-            )
-        return df.drop(json_column) if drop_original else df
+        raise ValueError(
+            f"No valid JSON data available in column {json_column!r}; "
+            f"cannot infer schema for flattening"
+        )
     try:
         _log_info(f'Inferring schema from sample JSON in column {json_column}')
         sample_rdd = df.sparkSession.sparkContext.parallelize([sample_json[
@@ -344,7 +289,10 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
                 df_with_json = df_with_json.withColumn('parsed_json', when(
                     col('parsed_json').isNull(), lit(None).cast(StringType(
                     ))).otherwise(col('parsed_json')))
-                return df.drop(json_column) if drop_original else df
+                raise ValueError(
+                    f"All JSON samples in column {json_column!r} are corrupt; "
+                    f"cannot infer schema for flattening"
+                )
         _log_info(f'Inferred schema: {inferred_schema}')
         df_with_json = df.withColumn('parsed_json', from_json(col(
             json_column), inferred_schema))
@@ -380,11 +328,11 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
             df_with_json = df_with_json.withColumn('parsed_json', when(col(
                 'parsed_json').isNull(), lit(None).cast(StringType())).
                 otherwise(col('parsed_json')))
-        except (_SparkAnalysisException, _Py4JError, ValueError, TypeError):
-            _log_error(
-                f'Failed even with string schema for {json_column}. Returning original dataframe.'
-                )
-            return df.drop(json_column) if drop_original else df
+        except (_SparkAnalysisException, _Py4JError, TypeError) as fallback_exc:
+            raise ValueError(
+                f"Failed to parse JSON in column {json_column!r} even with "
+                f"string schema fallback: {fallback_exc}"
+            ) from fallback_exc
     columns_to_extract = df_with_json.select('parsed_json.*').columns
     result_df = df_with_json
     if flatten_level == 'shallow':
@@ -424,8 +372,7 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
                     df = df.drop(struct_col)
                 return df
             except (_SparkAnalysisException, _Py4JError, AttributeError, KeyError) as e:
-                _log_error(f'Error in flatten_struct: {e}')
-                return df
+                raise RuntimeError(f'Error in flatten_struct: {e}') from e
         result_df = flatten_struct(df_with_json, 'parsed_json', prefix,
             flatten_level)
     if explode_arrays:
@@ -436,7 +383,7 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
                 result_df = result_df.withColumn(array_column,
                     explode_outer(col(array_column)))
         except (_SparkAnalysisException, _Py4JError, AttributeError, TypeError) as e:
-            _log_error(f'Error exploding arrays: {e}')
+            raise RuntimeError(f'Error exploding arrays: {e}') from e
     columns_to_drop = ['parsed_json']
     if drop_original:
         columns_to_drop.append(json_column)
@@ -694,16 +641,10 @@ def export_pyspark_df_to_excel(df, file_name='output.xlsx', sheet_name='Sheet1'
         spark_df (pyspark.sql.DataFrame): The PySpark DataFrame to export.
         file_name (str): The name of the output Excel file.
         sheet_name (str): The sheet name in the Excel file.
-
-    Returns:
-        None
     """
-    try:
-        pandas_df = df.toPandas()
-        pandas_df.to_excel(file_name, sheet_name=sheet_name, index=False)
-        log_info(f'DataFrame successfully exported to {file_name}')
-    except (_SparkAnalysisException, _Py4JError, OSError, ImportError, ValueError, AttributeError) as e:
-        log_error(f'Error exporting DataFrame: {e}')
+    pandas_df = df.toPandas()
+    pandas_df.to_excel(file_name, sheet_name=sheet_name, index=False)
+    log_info(f'DataFrame successfully exported to {file_name}')
 
 
 def pivot_summary_table_for_bools(df, columns, spark):
@@ -792,27 +733,21 @@ def pivot_summary_with_metrics(df, group_col, pivot_col, spark):
 
 
 def export_prepared_df_as_csv_to_path_using_delimiter(df: "DataFrame",
-    write_path: pathlib.Path, delimiter: str=',') ->bool:
+    write_path: pathlib.Path, delimiter: str=',') -> None:
     """
     Exports DataFrame **with necessary transformations** to ensure Spark compatibility.
 
     :param df: Target DataFrame
     :param write_path: Pathlib object for export destination
     :param delimiter: CSV delimiter (default is comma)
-    :return: bool indicating success/failure
 
     Applies `prepare_dataframe_for_export()` to prevent Spark export issues.
     """
-    try:
-        prepared_df = prepare_dataframe_for_export(df)
-        prepared_df.coalesce(1).write.format(RESULTS_OUTPUT_FORMAT).option(
-            'header', 'true').option('delimiter', delimiter).mode('overwrite'
-            ).save(str(write_path))
-        log_info(f'Data successfully exported for step: {write_path.stem}')
-        return True
-    except (_SparkAnalysisException, _Py4JError, OSError, ValueError, TypeError, AttributeError) as e:
-        log_error(f'Error exporting DataFrame for {write_path.stem}: {e}')
-        return False
+    prepared_df = prepare_dataframe_for_export(df)
+    prepared_df.coalesce(1).write.format(RESULTS_OUTPUT_FORMAT).option(
+        'header', 'true').option('delimiter', delimiter).mode('overwrite'
+        ).save(str(write_path))
+    log_info(f'Data successfully exported for step: {write_path.stem}')
 
 
 def print_debug_table(spark_df, title):
@@ -853,23 +788,15 @@ def compute_walkability(distance) -> Optional[Dict[str, str]]:
     if distance is None:
         return None
     if distance < walkability_config['Trivial']['max']:
-        return {'grade': 'Trivial', 'label': walkability_config['Trivial'][
-            'label']}
+        return {'grade': 'Trivial', 'label': walkability_config['Trivial']['label']}
     elif distance < walkability_config['Tolerable']['max']:
-        if distance >= walkability_config['Tolerable'].get('min', 0):
-            return {'grade': 'Tolerable', 'label': walkability_config[
-                'Tolerable']['label']}
+        return {'grade': 'Tolerable', 'label': walkability_config['Tolerable']['label']}
     elif distance < walkability_config['Moderate']['max']:
-        if distance >= walkability_config['Moderate'].get('min', 0):
-            return {'grade': 'Moderate', 'label': walkability_config[
-                'Moderate']['label']}
+        return {'grade': 'Moderate', 'label': walkability_config['Moderate']['label']}
     elif distance < walkability_config['Borderline']['max']:
-        if distance >= walkability_config['Borderline'].get('min', 0):
-            return {'grade': 'Borderline', 'label': walkability_config[
-                'Borderline']['label']}
+        return {'grade': 'Borderline', 'label': walkability_config['Borderline']['label']}
     else:
-        return {'grade': 'Outside', 'label': walkability_config['Outside'][
-            'label']}
+        return {'grade': 'Outside', 'label': walkability_config['Outside']['label']}
 
 
 # UDF creation moved to function level to avoid module-level PySpark dependency
@@ -914,7 +841,7 @@ def backup_full_dataframe(df, step_name: str) -> None:
 
 def atomic_write_with_staging(df: "DataFrame", final_destination: str,
     staging_directory: str, file_format: str='csv', delimiter: str=',',
-    header: bool=True, mode: str='overwrite') ->bool:
+    header: bool=True, mode: str='overwrite') -> None:
     """
     Performs atomic write operations using a staging directory to prevent partial/corrupted files.
     """
@@ -961,10 +888,6 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
         log_info(f'Successfully moved {files_moved} items to final destination'
             )
         log_info('Atomic write operation completed successfully')
-        return True
-    except (_SparkAnalysisException, _Py4JError, OSError, ValueError, AttributeError) as e:
-        log_error(f'Error in atomic write operation: {e}')
-        return False
     finally:
         try:
             if os.path.exists(staging_directory):

@@ -127,6 +127,16 @@ class CensusAPI:
 
         Delegates variable resolution to VariableRegistry and geography
         validation to DatasetSelector, then handles the HTTP round-trip.
+
+        Args:
+            variables: Variable name(s) to fetch (resolved via VariableRegistry).
+            year: Census data year.
+            dataset: Census dataset identifier (e.g., 'acs5', 'dec/sf1').
+            geography: Geographic level (e.g., 'county', 'tract', 'zcta').
+            state_fips: State FIPS filter (required for sub-state geographies).
+            county_fips: County FIPS filter.
+            include_moe: If True and dataset is ACS, append margin-of-error
+                variables. Silently ignored for non-ACS datasets.
         """
         # Resolve variables via registry
         var_list = self._registry.resolve_variables(variables)
@@ -154,7 +164,7 @@ class CensusAPI:
         df = self._make_request_with_retry(url)
 
         # Process response
-        df = self._process_response(df, geography, state_fips, county_fips)
+        df = self._process_response(df, geography)
 
         # Cache
         self._save_to_cache(cache_key, df)
@@ -252,8 +262,6 @@ class CensusAPI:
         self,
         df: pd.DataFrame,
         geography: str,
-        state_fips: Optional[str],
-        county_fips: Optional[str],
     ) -> pd.DataFrame:
         if df.empty:
             return df
@@ -290,7 +298,10 @@ class CensusAPI:
             if zcta_col:
                 df['GEOID'] = df[zcta_col]
             else:
-                df['GEOID'] = ''
+                raise ValueError(
+                    f"Cannot construct GEOID for zcta: no column matching "
+                    f"'zip' or 'zcta' found in response columns {list(df.columns)}"
+                )
 
         cols_to_drop = ['state', 'county', 'tract', 'block group', 'place']
         cols_to_drop = [c for c in cols_to_drop if c in df.columns]
@@ -395,8 +406,14 @@ class CensusAPI:
             log.warning(f"Django cache set failed: {e}")
 
     def clear_cache(self) -> None:
-        """Clear all cached API responses."""
+        """Clear cached API responses from the parquet file cache.
+
+        Only clears the local parquet cache. Has no effect when
+        ``cache_backend='django'`` (Django cache must be cleared via
+        ``django.core.cache.cache.clear()``).
+        """
         if self.cache_dir is None:
+            log.debug("clear_cache called but no parquet cache_dir configured (django backend?)")
             return
         try:
             for cache_file in self.cache_dir.glob('*.parquet'):

@@ -77,219 +77,140 @@ class SpatialDataTransformer:
         if DUCKDB_AVAILABLE:
             self.supported_formats['output'].append('duckdb')
     
-    def convert_format(self, gdf: GeoDataFrame, output_format: str, **kwargs) -> bool:
+    def convert_format(self, gdf: GeoDataFrame, output_format: str, **kwargs) -> None:
         """
         Convert GeoDataFrame to different format.
-        
+
         Args:
             gdf: Input GeoDataFrame
             output_format: Desired output format
             **kwargs: Additional format-specific parameters
-            
-        Returns:
-            True if successful, False otherwise
+
+        Raises:
+            ValueError: If output_format is unsupported
+            ImportError: If required dependency is not available
+            OSError: If file write fails
         """
-        try:
-            if output_format == 'shp':
-                return self._convert_to_shapefile(gdf, **kwargs)
-            elif output_format == 'geojson':
-                return self._convert_to_geojson(gdf, **kwargs)
-            elif output_format == 'gpkg':
-                return self._convert_to_geopackage(gdf, **kwargs)
-            elif output_format == 'kml':
-                return self._convert_to_kml(gdf, **kwargs)
-            elif output_format == 'gml':
-                return self._convert_to_gml(gdf, **kwargs)
-            elif output_format == 'wkt':
-                return self._convert_to_wkt(gdf, **kwargs)
-            elif output_format == 'wkb':
-                return self._convert_to_wkb(gdf, **kwargs)
-            elif output_format == 'postgis':
-                return self._convert_to_postgis(gdf, **kwargs)
-            elif output_format == 'duckdb':
-                if DUCKDB_AVAILABLE:
-                    return self._convert_to_duckdb(gdf, **kwargs)
-                else:
-                    log.error("DuckDB not available. Install with: pip install duckdb")
-                    return False
-            else:
-                log.error(f"Unsupported output format: {output_format}")
-                return False
-                
-        except (OSError, ValueError, TypeError, AttributeError, KeyError, ImportError) as e:
-            log.error(f"Format conversion failed: {e}")
-            return False
+        if output_format == 'shp':
+            self._convert_to_shapefile(gdf, **kwargs)
+        elif output_format == 'geojson':
+            self._convert_to_geojson(gdf, **kwargs)
+        elif output_format == 'gpkg':
+            self._convert_to_geopackage(gdf, **kwargs)
+        elif output_format == 'kml':
+            self._convert_to_kml(gdf, **kwargs)
+        elif output_format == 'gml':
+            self._convert_to_gml(gdf, **kwargs)
+        elif output_format == 'wkt':
+            self._convert_to_wkt(gdf, **kwargs)
+        elif output_format == 'wkb':
+            self._convert_to_wkb(gdf, **kwargs)
+        elif output_format == 'postgis':
+            self._convert_to_postgis(gdf, **kwargs)
+        elif output_format == 'duckdb':
+            if not DUCKDB_AVAILABLE:
+                raise ImportError("DuckDB not available. Install with: pip install duckdb")
+            self._convert_to_duckdb(gdf, **kwargs)
+        else:
+            raise ValueError(f"Unsupported output format: {output_format}")
     
-    def _convert_to_shapefile(self, gdf: GeoDataFrame, **kwargs) -> bool:
+    def _convert_to_shapefile(self, gdf: GeoDataFrame, **kwargs) -> None:
         """Convert to ESRI Shapefile format."""
-        try:
-            output_path = kwargs.get('output_path', 'output.shp')
-            gdf.to_file(output_path, driver='ESRI Shapefile')
-            log.info(f"Successfully converted to Shapefile: {output_path}")
-            return True
-        except (OSError, ValueError, TypeError, RuntimeError) as e:
-            log.error(f"Failed to convert to Shapefile: {e}")
-            return False
-    
-    def _convert_to_geojson(self, gdf: GeoDataFrame, **kwargs) -> bool:
+        output_path = kwargs.get('output_path', 'output.shp')
+        gdf.to_file(output_path, driver='ESRI Shapefile')
+        log.info(f"Successfully converted to Shapefile: {output_path}")
+
+    def _convert_to_geojson(self, gdf: GeoDataFrame, **kwargs) -> None:
         """Convert to GeoJSON format."""
-        try:
-            output_path = kwargs.get('output_path', 'output.geojson')
-            gdf.to_file(output_path, driver='GeoJSON')
-            log.info(f"Successfully converted to GeoJSON: {output_path}")
-            return True
-        except (OSError, ValueError, TypeError, RuntimeError) as e:
-            log.error(f"Failed to convert to GeoJSON: {e}")
-            return False
-    
-    def _convert_to_geopackage(self, gdf: GeoDataFrame, **kwargs) -> bool:
+        output_path = kwargs.get('output_path', 'output.geojson')
+        gdf.to_file(output_path, driver='GeoJSON')
+        log.info(f"Successfully converted to GeoJSON: {output_path}")
+
+    def _convert_to_geopackage(self, gdf: GeoDataFrame, **kwargs) -> None:
         """Convert to GeoPackage format."""
-        try:
-            output_path = kwargs.get('output_path', 'output.gpkg')
-            gdf.to_file(output_path, driver='GPKG')
-            log.info(f"Successfully converted to GeoPackage: {output_path}")
-            return True
-        except (OSError, ValueError, TypeError, RuntimeError) as e:
-            log.error(f"Failed to convert to GeoPackage: {e}")
-            return False
-    
-    def _convert_to_kml(self, gdf: GeoDataFrame, **kwargs) -> bool:
+        output_path = kwargs.get('output_path', 'output.gpkg')
+        gdf.to_file(output_path, driver='GPKG')
+        log.info(f"Successfully converted to GeoPackage: {output_path}")
+
+    def _convert_to_kml(self, gdf: GeoDataFrame, **kwargs) -> None:
         """Convert to KML format."""
-        try:
-            output_path = kwargs.get('output_path', 'output.kml')
-            gdf.to_file(output_path, driver='KML')
-            log.info(f"Successfully converted to KML: {output_path}")
-            return True
-        except (OSError, ValueError, TypeError, RuntimeError) as e:
-            log.error(f"Failed to convert to KML: {e}")
-            return False
-    
-    def _convert_to_gml(self, gdf: GeoDataFrame, **kwargs) -> bool:
+        output_path = kwargs.get('output_path', 'output.kml')
+        gdf.to_file(output_path, driver='KML')
+        log.info(f"Successfully converted to KML: {output_path}")
+
+    def _convert_to_gml(self, gdf: GeoDataFrame, **kwargs) -> None:
         """Convert to GML format."""
-        try:
-            output_path = kwargs.get('output_path', 'output.gml')
-            gdf.to_file(output_path, driver='GML')
-            log.info(f"Successfully converted to GML: {output_path}")
-            return True
-        except (OSError, ValueError, TypeError, RuntimeError) as e:
-            log.error(f"Failed to convert to GML: {e}")
-            return False
-    
-    def _convert_to_wkt(self, gdf: GeoDataFrame, **kwargs) -> bool:
+        output_path = kwargs.get('output_path', 'output.gml')
+        gdf.to_file(output_path, driver='GML')
+        log.info(f"Successfully converted to GML: {output_path}")
+
+    def _convert_to_wkt(self, gdf: GeoDataFrame, **kwargs) -> None:
         """Convert to WKT (Well-Known Text) format."""
-        try:
-            output_path = kwargs.get('output_path', 'output.wkt')
-            
-            # Convert geometries to WKT strings
-            wkt_data = gdf.copy()
-            wkt_data['geometry'] = wkt_data.geometry.astype(str)
-            
-            # Save as CSV with WKT geometries
-            wkt_data.to_csv(output_path, index=False)
-            log.info(f"Successfully converted to WKT: {output_path}")
-            return True
-        except (OSError, ValueError, TypeError, AttributeError) as e:
-            log.error(f"Failed to convert to WKT: {e}")
-            return False
-    
-    def _convert_to_wkb(self, gdf: GeoDataFrame, **kwargs) -> bool:
+        output_path = kwargs.get('output_path', 'output.wkt')
+        wkt_data = gdf.copy()
+        wkt_data['geometry'] = wkt_data.geometry.astype(str)
+        wkt_data.to_csv(output_path, index=False)
+        log.info(f"Successfully converted to WKT: {output_path}")
+
+    def _convert_to_wkb(self, gdf: GeoDataFrame, **kwargs) -> None:
         """Convert to WKB (Well-Known Binary) format."""
-        try:
-            output_path = kwargs.get('output_path', 'output.wkb')
-            
-            # Convert geometries to WKB bytes
-            wkb_data = gdf.copy()
-            wkb_data['geometry'] = wkb_data.geometry.apply(lambda geom: geom.wkb)
-            
-            # Save as pickle (WKB is binary data)
-            wkb_data.to_pickle(output_path)
-            log.info(f"Successfully converted to WKB: {output_path}")
-            return True
-        except (OSError, ValueError, TypeError, AttributeError) as e:
-            log.error(f"Failed to convert to WKB: {e}")
-            return False
+        output_path = kwargs.get('output_path', 'output.wkb')
+        wkb_data = gdf.copy()
+        wkb_data['geometry'] = wkb_data.geometry.apply(lambda geom: geom.wkb)
+        wkb_data.to_pickle(output_path)
+        log.info(f"Successfully converted to WKB: {output_path}")
     
-    def _convert_to_postgis(self, gdf: GeoDataFrame, **kwargs) -> bool:
-        """Convert to PostGIS format (upload to PostgreSQL database)."""
-        try:
-            # This would require psycopg2 and database connection
-            # For now, just save as SQL file that can be imported
-            output_path = kwargs.get('output_path', 'output.sql')
-            
-            # Generate SQL INSERT statements. WKT comes from shapely
-            # which can't normally produce single quotes, but the file
-            # is written for human inspection / re-import — escape
-            # defensively so a hand-edited row can't break out of the
-            # literal.
-            from siege_utilities.core.sql_safety import escape_sql_string_literal as escape_string_literal
-            # Vectorised: pull the geometry column into a Series of WKT
-            # strings in one pass and join with newlines. The previous
-            # row-at-a-time iterrows produced O(N) Python-level
-            # attribute lookups; on a 100K-row state file that was
-            # measurably slower than the IO it bookended.
-            wkt_series = gdf.geometry.apply(lambda g: escape_string_literal(g.wkt))
-            sql_lines = (
-                "INSERT INTO spatial_table (geom) VALUES (ST_GeomFromText('"
-                + wkt_series
-                + "'));"
-            )
+    def _convert_to_postgis(self, gdf: GeoDataFrame, **kwargs) -> None:
+        """Convert to PostGIS format (generate SQL file)."""
+        output_path = kwargs.get('output_path', 'output.sql')
 
-            with open(output_path, 'w', encoding='utf-8') as f:
-                f.write('\n'.join(sql_lines))
-            
-            log.info(f"Successfully generated PostGIS SQL: {output_path}")
-            return True
-        except (OSError, ValueError, TypeError, AttributeError, ImportError) as e:
-            log.error(f"Failed to convert to PostGIS: {e}")
-            return False
-    
-    def _convert_to_duckdb(self, gdf: GeoDataFrame, **kwargs) -> bool:
+        from siege_utilities.core.sql_safety import escape_sql_string_literal as escape_string_literal
+        wkt_series = gdf.geometry.apply(lambda g: escape_string_literal(g.wkt))
+        sql_lines = (
+            "INSERT INTO spatial_table (geom) VALUES (ST_GeomFromText('"
+            + wkt_series
+            + "'));"
+        )
+
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(sql_lines))
+
+        log.info(f"Successfully generated PostGIS SQL: {output_path}")
+
+    def _convert_to_duckdb(self, gdf: GeoDataFrame, **kwargs) -> None:
         """Convert to DuckDB format and save to database."""
-        if not DUCKDB_AVAILABLE:
-            log.error("DuckDB not available")
-            return False
-            
-        try:
-            # Get database parameters from user config or kwargs.
-            db_path = kwargs.get('db_path')
-            if db_path is None and self.user_config is not None:
-                try:
-                    db_path = self.user_config.get_database_connection('duckdb')
-                except (AttributeError, ValueError, KeyError, TypeError) as e:
-                    log.warning(f"user_config.get_database_connection('duckdb') failed: {e}")
-            db_path = db_path or ':memory:'
-            table_name = kwargs.get('table_name', 'spatial_data')
+        db_path = kwargs.get('db_path')
+        if db_path is None and self.user_config is not None:
+            try:
+                db_path = self.user_config.get_database_connection('duckdb')
+            except (AttributeError, ValueError, KeyError, TypeError) as e:
+                log.warning(f"user_config.get_database_connection('duckdb') failed: {e}")
+        db_path = db_path or ':memory:'
+        table_name = kwargs.get('table_name', 'spatial_data')
 
-            # DuckDB doesn't permit parameter-bound identifiers, so the
-            # table name has to be validated up front.
-            from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
-            validate_identifier(table_name, label="table name", allow_dotted=False)
+        from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
+        validate_identifier(table_name, label="table name", allow_dotted=False)
 
-            with duckdb.connect(db_path) as con:
-                df = gdf.copy()
-                df['geometry_wkt'] = df.geometry.apply(lambda geom: geom.wkt)
-                df = df.drop(columns=['geometry'])
-                con.register("siege_upload_df", df)
+        with duckdb.connect(db_path) as con:
+            df = gdf.copy()
+            df['geometry_wkt'] = df.geometry.apply(lambda geom: geom.wkt)
+            df = df.drop(columns=['geometry'])
+            con.register("siege_upload_df", df)
+            try:
+                con.execute(
+                    f"CREATE TABLE IF NOT EXISTS {table_name} "
+                    f"AS SELECT * FROM siege_upload_df"
+                )
+            finally:
                 try:
-                    con.execute(
-                        f"CREATE TABLE IF NOT EXISTS {table_name} "
-                        f"AS SELECT * FROM siege_upload_df"
+                    con.unregister("siege_upload_df")
+                except (_DuckDBError, RuntimeError) as cleanup_exc:
+                    log.warning(
+                        "Failed to unregister siege_upload_df: %s",
+                        cleanup_exc,
                     )
-                finally:
-                    try:
-                        con.unregister("siege_upload_df")
-                    except (_DuckDBError, RuntimeError) as cleanup_exc:
-                        log.warning(
-                            "Failed to unregister siege_upload_df: %s",
-                            cleanup_exc,
-                        )
 
-            log.info(f"Successfully uploaded to DuckDB table: {table_name}")
-            return True
-
-        except (_DuckDBError, OSError, ValueError, TypeError, AttributeError, KeyError) as e:
-            log.error(f"Failed to convert to DuckDB: {e}")
-            return False
+        log.info(f"Successfully uploaded to DuckDB table: {table_name}")
 
 
 class PostGISConnector:
@@ -350,7 +271,7 @@ class PostGISConnector:
     def __exit__(self, *exc_info):
         self.close()
 
-    def upload_spatial_data(self, gdf: GeoDataFrame, table_name: str, **kwargs) -> bool:
+    def upload_spatial_data(self, gdf: GeoDataFrame, table_name: str, **kwargs) -> None:
         """
         Upload spatial data to PostGIS with all columns preserved.
 
@@ -372,36 +293,28 @@ class PostGISConnector:
                     ``'replace'`` (default), or ``'append'``.
                 schema: PostgreSQL schema name (default ``'public'``).
 
-        Returns:
-            True if successful, False otherwise.
-
-        Note:
-            Requires ``geoalchemy2`` (declared in the ``geo`` optional
-            extra). If missing, the import error is logged and the
-            upload returns False with a clear remediation hint.
+        Raises:
+            RuntimeError: If no connection string is configured
+            ImportError: If geoalchemy2 is not available
+            SpatialQueryError: If the upload fails
         """
         if not self.connection_string:
-            log.error("No PostGIS connection_string available")
-            return False
+            raise RuntimeError("No PostGIS connection_string available")
 
         if_exists = kwargs.get('if_exists', 'replace')
         schema = kwargs.get('schema', 'public')
 
-        # Validate identifiers before they reach SQL. to_postgis itself
-        # uses parameterized SQL but defense-in-depth keeps the validation
-        # consistent with download_spatial_data + the prior implementation.
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
         validate_identifier(schema, label="schema name", allow_dotted=False)
         validate_identifier(table_name, label="table name", allow_dotted=False)
 
         try:
             import geoalchemy2  # noqa: F401  -- presence-check; to_postgis needs it
-        except ImportError:
-            log.error(
+        except ImportError as e:
+            raise ImportError(
                 "geoalchemy2 not available -- upload_spatial_data requires it "
                 "for full-column writes. Install with: pip install 'siege_utilities[geo]'"
-            )
-            return False
+            ) from e
 
         try:
             from sqlalchemy import create_engine
@@ -419,11 +332,9 @@ class PostGISConnector:
                 f"Successfully uploaded to PostGIS table: {schema}.{table_name} "
                 f"({len(gdf)} rows, {len(gdf.columns)} columns)"
             )
-            return True
 
         except (_Psycopg2Error, OSError, ValueError, TypeError, AttributeError, ImportError) as e:
-            log.error(f"Failed to upload to PostGIS: {e}")
-            return False
+            raise SpatialQueryError(f"Failed to upload to PostGIS: {e}") from e
     
     def download_spatial_data(self, table_name: str, *, crs: str | None = None, **kwargs) -> GeoDataFrame:
         """
@@ -619,15 +530,17 @@ class DuckDBConnector:
         self.db_path = db_path or ':memory:'
         self.connection = None
     
-    def connect(self):
-        """Establish database connection."""
+    def connect(self) -> None:
+        """Establish database connection.
+
+        Raises:
+            RuntimeError: If connection fails
+        """
         try:
             self.connection = duckdb.connect(self.db_path)
             log.info("Successfully connected to DuckDB")
-            return True
         except (_DuckDBError, OSError) as e:
-            log.error(f"Failed to connect to DuckDB: {e}")
-            return False
+            raise RuntimeError(f"Failed to connect to DuckDB: {e}") from e
 
     def close(self):
         """Close the database connection."""
@@ -644,22 +557,21 @@ class DuckDBConnector:
     def __exit__(self, *exc_info):
         self.close()
 
-    def upload_spatial_data(self, gdf: GeoDataFrame, table_name: str, **kwargs) -> bool:
+    def upload_spatial_data(self, gdf: GeoDataFrame, table_name: str, **kwargs) -> None:
         """
         Upload spatial data to DuckDB.
-        
+
         Args:
             gdf: GeoDataFrame to upload
             table_name: Target table name
             **kwargs: Additional parameters
-            
-        Returns:
-            True if successful, False otherwise
+
+        Raises:
+            RuntimeError: If connection or upload fails
         """
         if not self.connection:
-            if not self.connect():
-                return False
-        
+            self.connect()
+
         from siege_utilities.core.sql_safety import validate_sql_identifier
         validate_sql_identifier(table_name, "table name")
 
@@ -672,9 +584,6 @@ class DuckDBConnector:
             if if_exists == 'replace':
                 self.connection.execute(f"DROP TABLE IF EXISTS {table_name}")
 
-            # table_name validated above; pin the DataFrame under an
-            # explicit name rather than relying on duckdb's replacement
-            # scan picking it up from the caller frame.
             self.connection.register("siege_upload_df", df)
             try:
                 self.connection.execute(
@@ -690,11 +599,9 @@ class DuckDBConnector:
                     )
 
             log.info(f"Successfully uploaded to DuckDB: {table_name}")
-            return True
 
         except (_DuckDBError, OSError, ValueError, TypeError, AttributeError) as e:
-            log.error(f"Failed to upload to DuckDB: {e}")
-            return False
+            raise RuntimeError(f"Failed to upload to DuckDB: {e}") from e
     
     def download_spatial_data(self, table_name: str, *, crs: str | None = None, **kwargs) -> GeoDataFrame:
         """
@@ -716,8 +623,7 @@ class DuckDBConnector:
         from siege_utilities.geo.crs import reproject_if_needed
 
         if not self.connection:
-            if not self.connect():
-                raise SpatialQueryError("No DuckDB connection available")
+            self.connect()
 
         from siege_utilities.core.sql_safety import (
             validate_sql_identifier,
@@ -741,8 +647,17 @@ class DuckDBConnector:
                 df['geometry'] = df['geometry_wkt'].apply(wkt.loads)
                 df = df.drop(columns=['geometry_wkt'])
 
-            # Create GeoDataFrame — default to WGS84 since WKT lacks SRID
+            # WKT does not carry SRID metadata.  Assume WGS84 as the
+            # storage CRS, then reproject to the caller's target CRS if
+            # one was specified.  If the data was actually stored in a
+            # different CRS the coordinates will be wrong — there is no
+            # way to recover the SRID from bare WKT.
             gdf = gpd.GeoDataFrame(df, geometry='geometry', crs="EPSG:4326")
+            if crs is None:
+                log.warning(
+                    "DuckDB WKT geometries lack SRID metadata; assuming "
+                    "EPSG:4326.  Pass crs= to reproject to a target CRS."
+                )
 
             log.info(f"Successfully downloaded from DuckDB: {table_name}")
             return reproject_if_needed(gdf, crs)
@@ -776,8 +691,7 @@ class DuckDBConnector:
         from siege_utilities.geo.crs import reproject_if_needed
 
         if not self.connection:
-            if not self.connect():
-                raise SpatialQueryError("No DuckDB connection available")
+            self.connect()
 
         try:
             if query.strip().upper().startswith('SELECT'):
@@ -788,8 +702,12 @@ class DuckDBConnector:
                     df['geometry'] = df['geometry_wkt'].apply(wkt.loads)
                     df = df.drop(columns=['geometry_wkt'])
 
-                # Default to WGS84 since WKT lacks SRID metadata
                 gdf = gpd.GeoDataFrame(df, geometry='geometry', crs="EPSG:4326")
+                if crs is None:
+                    log.warning(
+                        "DuckDB WKT geometries lack SRID metadata; assuming "
+                        "EPSG:4326.  Pass crs= to reproject to a target CRS."
+                    )
 
                 log.info("Successfully executed DuckDB query")
                 return reproject_if_needed(gdf, crs)
@@ -809,16 +727,16 @@ class DuckDBConnector:
 
 
 # Convenience functions
-def convert_spatial_format(gdf: GeoDataFrame, output_format: str, **kwargs) -> bool:
+def convert_spatial_format(gdf: GeoDataFrame, output_format: str, **kwargs) -> None:
     """Convert spatial data to different format."""
     transformer = SpatialDataTransformer()
-    return transformer.convert_format(gdf, output_format, **kwargs)
+    transformer.convert_format(gdf, output_format, **kwargs)
 
 
-def upload_to_postgis(gdf: GeoDataFrame, table_name: str, connection_string: Optional[str] = None, **kwargs) -> bool:
+def upload_to_postgis(gdf: GeoDataFrame, table_name: str, connection_string: Optional[str] = None, **kwargs) -> None:
     """Upload spatial data to PostGIS."""
     with PostGISConnector(connection_string) as connector:
-        return connector.upload_spatial_data(gdf, table_name, **kwargs)
+        connector.upload_spatial_data(gdf, table_name, **kwargs)
 
 
 def download_from_postgis(table_name: str, connection_string: Optional[str] = None, **kwargs) -> GeoDataFrame:
@@ -843,17 +761,18 @@ def execute_postgis_query(query: str, connection_string: Optional[str] = None, *
         return connector.execute_spatial_query(query, **kwargs)
 
 
-def upload_to_duckdb(gdf: GeoDataFrame, table_name: str, db_path: Optional[str] = None, **kwargs) -> bool:
+def upload_to_duckdb(gdf: GeoDataFrame, table_name: str, db_path: Optional[str] = None, **kwargs) -> None:
     """Upload spatial data to DuckDB (optional).
 
     Raises:
         ImportError: If DuckDB is not installed.
+        RuntimeError: If upload fails.
     """
     if not DUCKDB_AVAILABLE:
         raise ImportError("DuckDB not available. Install with: pip install duckdb")
 
     with DuckDBConnector(db_path) as connector:
-        return connector.upload_spatial_data(gdf, table_name, **kwargs)
+        connector.upload_spatial_data(gdf, table_name, **kwargs)
 
 
 def download_from_duckdb(table_name: str, db_path: Optional[str] = None, **kwargs) -> GeoDataFrame:

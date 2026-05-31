@@ -100,6 +100,13 @@ class DemographicRollupService:
         Returns:
             List of RollupResult (one per variable)
         """
+        _VALID_OPERATIONS = {'sum', 'avg', 'weighted_avg'}
+        if operation not in _VALID_OPERATIONS:
+            raise ValueError(
+                f"Unknown aggregation operation {operation!r}; "
+                f"expected one of {sorted(_VALID_OPERATIONS)}"
+            )
+
         from django.contrib.contenttypes.models import ContentType
 
         from ..models.demographics import DemographicSnapshot
@@ -271,9 +278,6 @@ class DemographicRollupService:
                             agg_value = sum(values) / len(values)
                     else:
                         agg_value = sum(values) / len(values)
-                else:
-                    result.errors.append(f"Unknown operation: {operation}")
-                    break
 
                 # Check if target snapshot already exists
                 existing = DemographicSnapshot.objects.filter(

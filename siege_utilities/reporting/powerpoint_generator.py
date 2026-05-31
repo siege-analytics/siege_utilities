@@ -526,7 +526,7 @@ class PowerPointGenerator:
             # Process each section
             for section in presentation_content.get('sections', []):
                 slide = self._create_slide_from_section(section, prs)
-                if slide and section.get('notes'):
+                if section.get('notes'):
                     notes_slide = slide.notes_slide
                     notes_slide.notes_text_frame.text = section['notes']
 
@@ -1193,8 +1193,9 @@ class PowerPointGenerator:
                 return self._create_text_slide(section, prs)
                 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            log.error(f"Error creating slide for section {section_type}: {e}")
-            return None
+            raise RuntimeError(
+                f"Failed to create slide for section {section_type!r}: {e}"
+            ) from e
 
     def _create_title_slide(self, section: Dict[str, Any], prs: Presentation) -> Any:
         """Create a title slide."""

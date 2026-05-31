@@ -8,6 +8,14 @@ External-service functions (Census boundaries/data) are not tested here.
 import pytest
 import pandas as pd
 
+try:
+    import faker as _faker  # noqa: F401
+    _FAKER_AVAILABLE = True
+except ImportError:
+    _FAKER_AVAILABLE = False
+
+_needs_faker = pytest.mark.skipif(not _FAKER_AVAILABLE, reason="Faker not installed")
+
 from siege_utilities.reference.sample_data import (
     HOUSING_LOCALE_PRESETS,
     SAMPLE_DATASETS,
@@ -143,16 +151,19 @@ class TestLoadSampleData:
         with pytest.raises(ValueError, match="Unknown dataset"):
             load_sample_data("totally_fake_dataset")
 
+    @_needs_faker
     def test_synthetic_population_routing(self):
         df = load_sample_data("synthetic_population", size=20)
         assert isinstance(df, pd.DataFrame)
         assert len(df) > 0
 
+    @_needs_faker
     def test_synthetic_businesses_routing(self):
         df = load_sample_data("synthetic_businesses", business_count=15)
         assert isinstance(df, pd.DataFrame)
         assert len(df) > 0
 
+    @_needs_faker
     def test_synthetic_housing_routing(self):
         df = load_sample_data("synthetic_housing", housing_count=10)
         assert isinstance(df, pd.DataFrame)
@@ -164,6 +175,7 @@ class TestLoadSampleData:
 # ---------------------------------------------------------------------------
 
 
+@_needs_faker
 class TestGenerateSyntheticPopulation:
     def test_returns_dataframe(self, small_population):
         assert isinstance(small_population, pd.DataFrame)
@@ -230,6 +242,7 @@ class TestGenerateSyntheticPopulation:
 # ---------------------------------------------------------------------------
 
 
+@_needs_faker
 class TestGenerateSyntheticBusinesses:
     def test_returns_dataframe(self, small_businesses):
         assert isinstance(small_businesses, pd.DataFrame)
@@ -263,6 +276,7 @@ class TestGenerateSyntheticBusinesses:
 # ---------------------------------------------------------------------------
 
 
+@_needs_faker
 class TestGenerateSyntheticHousing:
     def test_returns_dataframe(self, small_housing):
         assert isinstance(small_housing, pd.DataFrame)
@@ -357,6 +371,7 @@ class TestGenerateSyntheticHousing:
 # ---------------------------------------------------------------------------
 
 
+@_needs_faker
 class TestGenerateSyntheticPerson:
     def test_hispanic_person_gets_spanish_name(self):
         person = _generate_synthetic_person("Hispanic or Latino")
@@ -411,6 +426,7 @@ class TestGenerateSyntheticPerson:
 # ---------------------------------------------------------------------------
 
 
+@_needs_faker
 class TestGenerateSyntheticBusiness:
     def test_basic_fields(self):
         biz = _generate_synthetic_business("retail")
@@ -437,6 +453,7 @@ class TestGenerateSyntheticBusiness:
 # ---------------------------------------------------------------------------
 
 
+@_needs_faker
 class TestGenerateSyntheticHousingUnit:
     def test_default_us_config(self):
         unit = _generate_synthetic_housing_unit("single_family")
@@ -517,19 +534,19 @@ class TestJoinBoundariesAndData:
 
     def test_missing_boundary_id_col(self):
         boundaries, data = _make_boundaries_and_data()
-        result = join_boundaries_and_data(boundaries, data, boundary_id_col="missing_col")
-        assert result is None
+        with pytest.raises(KeyError, match="missing_col"):
+            join_boundaries_and_data(boundaries, data, boundary_id_col="missing_col")
 
     def test_missing_data_id_col(self):
         boundaries, data = _make_boundaries_and_data()
-        result = join_boundaries_and_data(boundaries, data, data_id_col="missing_col")
-        assert result is None
+        with pytest.raises(KeyError, match="missing_col"):
+            join_boundaries_and_data(boundaries, data, data_id_col="missing_col")
 
     def test_no_matching_ids(self):
         boundaries, _ = _make_boundaries_and_data()
         data = pd.DataFrame({"geoid": ["99", "98"], "pop": [100, 200]})
-        result = join_boundaries_and_data(boundaries, data)
-        assert result is None
+        with pytest.raises(ValueError, match="produced 0 records"):
+            join_boundaries_and_data(boundaries, data)
 
     def test_custom_id_columns(self):
         boundaries = pd.DataFrame(
@@ -572,10 +589,12 @@ class TestCreateTractGeoDataFrame:
         assert "tract_geometry" in result.columns
 
     def test_no_lat_lon_returns_dataframe(self):
-        from siege_utilities.reference.sample_data import _create_tract_geodataframe
+        from siege_utilities.reference.sample_data import _create_tract_geodataframe, GEOPANDAS_AVAILABLE
 
         pop_df = pd.DataFrame({"name": ["A", "B"]})
-        result = _create_tract_geodataframe(pop_df, {})
-        # Should return the input DataFrame unchanged
-        assert isinstance(result, pd.DataFrame)
-        assert "tract_geometry" not in result.columns
+        if not GEOPANDAS_AVAILABLE:
+            with pytest.raises(ImportError, match="geopandas"):
+                _create_tract_geodataframe(pop_df, {})
+        else:
+            with pytest.raises(ValueError, match="latitude"):
+                _create_tract_geodataframe(pop_df, {})

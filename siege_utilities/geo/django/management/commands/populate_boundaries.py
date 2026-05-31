@@ -93,11 +93,11 @@ class Command(BaseCommand):
 
         try:
             return normalize_state_identifier(state_input)
-        except (ValueError, KeyError):
+        except (ValueError, KeyError) as e:
             raise CommandError(
                 f"Invalid state identifier: {state_input}. "
                 "Use FIPS code (e.g., 06) or abbreviation (e.g., CA)"
-            )
+            ) from e
 
     def handle(self, *args, **options):
         year = options["year"]

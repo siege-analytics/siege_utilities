@@ -5,6 +5,8 @@ Creates structured content pages with headers, footers, and proper layout
 Adapted from working GA project implementation
 """
 
+from __future__ import annotations
+
 try:
     from reportlab.pdfgen import canvas
     from reportlab.lib.pagesizes import letter

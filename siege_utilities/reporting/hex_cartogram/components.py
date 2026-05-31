@@ -29,6 +29,8 @@ log = logging.getLogger(__name__)
 
 __all__ = [
     "find_components",
+    "offset_layout",
+    "stitch_components",
 ]
 
 

@@ -50,6 +50,8 @@ __all__ = [
     "EtterGeometryResult",
     "PointPredicate",
     "EtterToGeometryError",
+    "EtterReferenceNotFoundError",
+    "EtterUnknownRelationError",
     "etter_to_geometry",
 ]
 
