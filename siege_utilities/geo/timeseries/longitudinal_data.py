@@ -491,7 +491,10 @@ def get_available_years(
     elif dataset == 'dec':
         return DECENNIAL_YEARS.copy()
     else:
-        return []
+        raise ValueError(
+            f"Unknown dataset {dataset!r}. "
+            f"Supported: 'acs5', 'acs1', 'dec'"
+        )
 
 
 def validate_longitudinal_years(

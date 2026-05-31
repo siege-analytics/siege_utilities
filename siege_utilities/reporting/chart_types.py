@@ -383,7 +383,7 @@ class ChartTypeRegistry:
 
         try:
             return chart_type.create_function(**kwargs)
-        except Exception as e:
+        except (OSError, ValueError, TypeError, KeyError, RuntimeError) as e:
             log.error("Create function for %s raised: %s", chart_type_name, e)
             raise ChartCreationError(
                 f"create function for chart type {chart_type_name!r} failed"

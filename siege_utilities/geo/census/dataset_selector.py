@@ -72,11 +72,11 @@ class DatasetSelector:
 
         try:
             canonical = resolve_geographic_level(geography)
-        except ValueError:
+        except ValueError as e:
             raise ValueError(
                 f"Invalid geography '{geography}'. "
                 f"Valid options: {sorted(cls.API_SUPPORTED_GEOGRAPHIES)}"
-            )
+            ) from e
 
         if canonical not in cls.API_SUPPORTED_GEOGRAPHIES:
             raise ValueError(
@@ -127,11 +127,15 @@ class DatasetSelector:
             return "for=county:*"
 
         elif geography == 'tract':
+            if not state_fips:
+                raise ValueError("state_fips is required for tract-level data")
             if county_fips:
                 return f"for=tract:*&in=state:{state_fips}%20county:{county_fips}"
             return f"for=tract:*&in=state:{state_fips}"
 
         elif geography == 'block_group':
+            if not state_fips:
+                raise ValueError("state_fips is required for block_group-level data")
             if county_fips:
                 return f"for=block%20group:*&in=state:{state_fips}%20county:{county_fips}"
             return f"for=block%20group:*&in=state:{state_fips}"

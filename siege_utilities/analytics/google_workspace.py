@@ -29,6 +29,7 @@ Usage:
 from __future__ import annotations
 
 import logging
+import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TYPE_CHECKING, Union
 
@@ -164,11 +165,6 @@ class GoogleWorkspaceClient:
         client_config = get_google_oauth_document_from_1password(
             item_title=item_title, vault=vault, account=account,
         )
-        if client_config is None:
-            raise ValueError(
-                f"Could not retrieve credentials from 1Password "
-                f"item '{item_title}'"
-            )
 
         # Auto-detect: service account vs OAuth client secret
         if client_config.get("type") == "service_account":
@@ -228,13 +224,14 @@ class GoogleWorkspaceClient:
             from siege_utilities.config.credential_manager import (
                 get_google_service_account_from_1password,
             )
-            data = get_google_service_account_from_1password()
-            if data is None:
+            try:
+                data = get_google_service_account_from_1password()
+            except (subprocess.CalledProcessError, OSError) as e:
                 raise ValueError(
                     "No service account credentials found. Provide "
                     "service_account_data, service_account_file, or "
                     "configure 1Password with a Google service account item."
-                )
+                ) from e
             creds = service_account.Credentials.from_service_account_info(
                 data, scopes=scopes,
             )
@@ -278,13 +275,15 @@ class GoogleWorkspaceClient:
                 from siege_utilities.config.credential_manager import (
                     get_google_service_account_from_1password,
                 )
-                data = get_google_service_account_from_1password(item_title=ref)
-                if data:
-                    return cls.from_service_account(
-                        service_account_data=data, scopes=scopes
-                    )
-                raise ValueError(
-                    f"Could not resolve service account credentials for ref '{ref}'"
+                try:
+                    data = get_google_service_account_from_1password(item_title=ref)
+                except (subprocess.CalledProcessError, OSError) as e:
+                    raise ValueError(
+                        f"Could not resolve service_account_ref '{ref}' — "
+                        f"not a file path and 1Password lookup failed."
+                    ) from e
+                return cls.from_service_account(
+                    service_account_data=data, scopes=scopes
                 )
             # Fall back to 1Password
             return cls.from_service_account(scopes=scopes)

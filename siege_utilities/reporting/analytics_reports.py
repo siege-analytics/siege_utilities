@@ -776,6 +776,7 @@ class AnalyticsReportGenerator:
             
             # Create tables
             tables = []
+            summary_data = []
             if not df.empty:
                 # Sample data table
                 sample_data = df.head(20).values.tolist()
@@ -821,7 +822,7 @@ class AnalyticsReportGenerator:
                         'type': 'table',
                         'title': 'Summary Statistics',
                         'headers': ['Column', 'Mean', 'Std', 'Min', 'Max'],
-                        'data': summary_data if 'summary_data' in locals() else []
+                        'data': summary_data
                     }
                 ]
             }

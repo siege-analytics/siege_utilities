@@ -6,7 +6,7 @@ Handles default locations, custom locations, and profile migration.
 import logging
 import shutil
 from pathlib import Path
-from typing import Optional, Dict, List, Tuple
+from typing import Any, Optional, Dict, List, Tuple
 from ..config.enhanced_config import (
     UserProfile, ClientProfile,
     save_user_profile,
@@ -277,7 +277,7 @@ def migrate_profiles(
         log.error(f"Migration failed: {e}")
         raise
 
-def get_profile_summary(profile_location: Optional[Path] = None) -> Dict[str, any]:
+def get_profile_summary(profile_location: Optional[Path] = None) -> Dict[str, Any]:
     """
     Get a summary of profiles in a location.
     

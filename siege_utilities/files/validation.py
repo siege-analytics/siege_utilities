@@ -229,10 +229,10 @@ def validate_safe_path(path: FilePath,
             try:
                 # This raises ValueError if resolved_path is not relative to base_path
                 resolved_path.relative_to(base_path)
-            except ValueError:
+            except ValueError as e:
                 raise PathSecurityError(
                     f"Path {resolved_path} is outside base directory {base_path}"
-                )
+                ) from e
 
         log.debug(f"Path validation passed: {path_str} -> {resolved_path}")
         return resolved_path

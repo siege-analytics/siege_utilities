@@ -78,7 +78,7 @@ class StatsChartMixin:
                 if len(numeric_cols) > 1:
                     pivot_data = df[numeric_cols].corr()
                 else:
-                    return self._create_placeholder_chart(width, height, "Need numeric data for heatmap")
+                    raise ValueError("Need at least 2 numeric columns for heatmap")
 
             # Create figure
             fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
@@ -95,8 +95,15 @@ class StatsChartMixin:
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            log.error(f"Error creating heatmap: {e}")
-            return self._create_placeholder_chart(width, height, f"Heatmap Error: {str(e)}")
+
+
+            raise RuntimeError(
+
+
+                f"Heatmap Error: {e}"
+
+
+            ) from e
 
     def create_scatter_plot(self, data: Union[pd.DataFrame, Dict[str, Any]],
                            x_column: str, y_column: str, color_column: str = None,
@@ -149,8 +156,15 @@ class StatsChartMixin:
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            log.error(f"Error creating scatter plot: {e}")
-            return self._create_placeholder_chart(width, height, f"Scatter Plot Error: {str(e)}")
+
+
+            raise RuntimeError(
+
+
+                f"Scatter Plot Error: {e}"
+
+
+            ) from e
 
     def create_heatmap_text_chart(self,
                                 data: 'pd.DataFrame',

@@ -161,16 +161,17 @@ class TestFindPythonFiles:
 
 
 class TestProcessPythonFile:
-    def test_syntax_error_returns_false(self, tmp_path, monkeypatch):
+    def test_syntax_error_propagates(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         bad = tmp_path / "bad.py"
         bad.write_text("def :\n    pass\n")
-        assert process_python_file(bad) is False
+        with pytest.raises(SyntaxError):
+            process_python_file(bad)
 
-    def test_no_changes_needed_returns_true(self, tmp_path, monkeypatch):
+    def test_no_changes_needed(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         f = tmp_path / "ok.py"
         f.write_text('def greet():\n    """already."""\n    return 1\n')
-        assert process_python_file(f) is True
+        process_python_file(f)
         # Should not have been rewritten
         assert "already" in f.read_text()

@@ -123,11 +123,12 @@ class NCESDownloader:
         zip_path = str(self.cache_dir / f"{data_type}_{year}.zip")
         log.info(f"Downloading {data_type} data for {year} from {url}")
 
-        result = download_file(url, zip_path, timeout=self.timeout)
-        if not result:
+        try:
+            download_file(url, zip_path, timeout=self.timeout)
+        except (OSError, ConnectionError) as e:
             raise NCESDownloadError(
                 f"Failed to download {data_type} for year {year} from {url}"
-            )
+            ) from e
 
         # Extract
         extract_dir.mkdir(parents=True, exist_ok=True)
@@ -284,7 +285,7 @@ class NCESDownloader:
         try:
             shp_path = self._find_shapefile(extract_dir)
             gdf = gpd.read_file(shp_path)
-        except NCESDownloadError:
+        except NCESDownloadError as shp_err:
             # Try CSV with lat/lon columns
             csv_path = self._find_csv(extract_dir)
             df = pd.read_csv(csv_path, dtype=str, low_memory=False)
@@ -299,7 +300,7 @@ class NCESDownloader:
                 raise NCESDownloadError(
                     f"Cannot find lat/lon columns in {csv_path}. "
                     f"Available: {list(df.columns)}"
-                )
+                ) from shp_err
 
             df[lat_col] = pd.to_numeric(df[lat_col], errors="coerce")
             df[lon_col] = pd.to_numeric(df[lon_col], errors="coerce")

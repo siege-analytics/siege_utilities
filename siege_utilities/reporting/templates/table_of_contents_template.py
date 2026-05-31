@@ -5,6 +5,8 @@ Creates clean, organized TOCs with proper typography and page numbering
 Adapted from working GA project implementation
 """
 
+from __future__ import annotations
+
 try:
     from reportlab.pdfgen import canvas
     from reportlab.lib.pagesizes import letter

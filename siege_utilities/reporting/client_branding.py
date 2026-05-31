@@ -270,70 +270,69 @@ class ClientBrandingManager:
 
             log.info(f"Created branding configuration for {client_name}: {config_file}")
             return config_file
-            
-        except Exception as e:
+
+        except (OSError, ValueError, KeyError, TypeError) as e:
             log.error(f"Error creating branding configuration for {client_name}: {e}")
             raise
 
-    def get_client_branding(self, client_name: str) -> Optional[Dict[str, Any]]:
+    def get_client_branding(self, client_name: str) -> Dict[str, Any]:
         """
         Get branding configuration for a specific client.
-        
+
         Args:
             client_name: Name of the client
-            
+
         Returns:
-            Branding configuration dictionary or None if not found
+            Branding configuration dictionary.
+
+        Raises:
+            ClientBrandingNotFoundError: If no branding configuration exists.
+            ClientBrandingError: If loading fails for another reason.
         """
         try:
-            # First check predefined templates
             if client_name.lower() in self.branding_templates:
                 return self.branding_templates[client_name.lower()]
-            
-            # Check for custom client configurations
+
             client_dir = self.config_dir / _slugify_client_name(client_name)
             if client_dir.exists():
-                # Look for branding config files
                 for config_file in client_dir.glob("*_branding.yaml"):
                     with open(config_file, 'r', encoding='utf-8') as f:
                         config = yaml.safe_load(f)
                         log.info(f"Loaded branding configuration from {config_file}")
                         return config
-            
-            log.warning(f"No branding configuration found for client: {client_name}")
-            return None
 
-        except Exception as e:
+            raise ClientBrandingNotFoundError(
+                f"No branding configuration found for client: {client_name}"
+            )
+
+        except (ClientBrandingNotFoundError, ClientBrandingError):
+            raise
+        except (OSError, ValueError, KeyError, TypeError) as e:
             raise ClientBrandingError(
                 f"Error loading branding configuration for {client_name}: {e}"
             ) from e
 
-    def update_client_branding(self, client_name: str, updates: Dict[str, Any]) -> bool:
+    def update_client_branding(self, client_name: str, updates: Dict[str, Any]) -> None:
         """
         Update an existing client branding configuration.
-        
+
         Args:
             client_name: Name of the client
             updates: Dictionary of updates to apply
-            
-        Returns:
-            True if successful, False otherwise
+
+        Raises:
+            ClientBrandingNotFoundError: If no existing branding exists.
+            ClientBrandingError: If the update fails.
         """
         current_config = self.get_client_branding(client_name)
-        if not current_config:
-            raise ClientBrandingNotFoundError(
-                f"No existing branding configuration found for {client_name}"
-            )
 
         try:
-            # Apply updates
             for key, value in updates.items():
                 if isinstance(value, dict) and key in current_config:
                     current_config[key].update(value)
                 else:
                     current_config[key] = value
 
-            # Save updated configuration
             client_dir = self.config_dir / _slugify_client_name(client_name)
             config_file = client_dir / f"{_slugify_client_name(client_name)}_branding.yaml"
 
@@ -341,9 +340,10 @@ class ClientBrandingManager:
                 yaml.dump(current_config, f, default_flow_style=False, indent=2)
 
             log.info(f"Updated branding configuration for {client_name}")
-            return True
 
-        except Exception as e:
+        except (ClientBrandingNotFoundError, ClientBrandingError):
+            raise
+        except (OSError, ValueError, KeyError, TypeError) as e:
             raise ClientBrandingError(
                 f"Error updating branding configuration for {client_name}: {e}"
             ) from e
@@ -367,32 +367,35 @@ class ClientBrandingManager:
         
         return sorted(clients)
 
-    def delete_client_branding(self, client_name: str) -> bool:
+    def delete_client_branding(self, client_name: str) -> None:
         """
         Delete a client branding configuration.
-        
+
         Args:
             client_name: Name of the client to delete
-            
-        Returns:
-            True if successful, False otherwise
+
+        Raises:
+            ClientBrandingError: If attempting to delete a predefined template.
+            ClientBrandingNotFoundError: If no configuration exists for the client.
         """
         try:
-            # Cannot delete predefined templates
             if client_name.lower() in self.branding_templates:
-                log.warning(f"Cannot delete predefined template: {client_name}")
-                return False
-            
+                raise ClientBrandingError(
+                    f"Cannot delete predefined template: {client_name}"
+                )
+
             client_dir = self.config_dir / _slugify_client_name(client_name)
-            if client_dir.exists():
-                shutil.rmtree(client_dir)
-                log.info(f"Deleted branding configuration for {client_name}")
-                return True
-            else:
-                log.warning(f"No branding configuration found for {client_name}")
-                return False
-                
-        except Exception as e:
+            if not client_dir.exists():
+                raise ClientBrandingNotFoundError(
+                    f"No branding configuration found for {client_name}"
+                )
+
+            shutil.rmtree(client_dir)
+            log.info(f"Deleted branding configuration for {client_name}")
+
+        except (ClientBrandingNotFoundError, ClientBrandingError):
+            raise
+        except OSError as e:
             raise ClientBrandingError(
                 f"Error deleting branding configuration for {client_name}: {e}"
             ) from e
@@ -428,7 +431,7 @@ class ClientBrandingManager:
             
             return self.create_client_branding(client_name, branding_config)
             
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError) as e:
             log.error(f"Error creating branding from template: {e}")
             raise
 
@@ -472,59 +475,54 @@ class ClientBrandingManager:
         
         return errors
 
-    def export_branding_config(self, client_name: str, export_path: Path) -> bool:
+    def export_branding_config(self, client_name: str, export_path: Path) -> None:
         """
         Export a client branding configuration to a file.
-        
+
         Args:
             client_name: Name of the client
             export_path: Path where to export the configuration
-            
-        Returns:
-            True if successful, False otherwise
+
+        Raises:
+            ClientBrandingNotFoundError: If no branding configuration exists.
+            ClientBrandingError: If the export fails.
         """
         branding_config = self.get_client_branding(client_name)
-        if not branding_config:
-            raise ClientBrandingNotFoundError(
-                f"No branding configuration found for {client_name}"
-            )
 
         try:
-            # Export as YAML
             if export_path.suffix.lower() in ['.yaml', '.yml']:
                 with open(export_path, 'w', encoding='utf-8') as f:
                     yaml.dump(branding_config, f, default_flow_style=False, indent=2)
-            # Export as JSON
             elif export_path.suffix.lower() == '.json':
                 with open(export_path, 'w', encoding='utf-8') as f:
                     json.dump(branding_config, f, indent=2)
             else:
-                # Default to YAML
                 export_path = export_path.with_suffix('.yaml')
                 with open(export_path, 'w', encoding='utf-8') as f:
                     yaml.dump(branding_config, f, default_flow_style=False, indent=2)
 
             log.info(f"Exported branding configuration for {client_name} to {export_path}")
-            return True
 
-        except Exception as e:
+        except (ClientBrandingNotFoundError, ClientBrandingError):
+            raise
+        except (OSError, ValueError, TypeError) as e:
             raise ClientBrandingError(
                 f"Error exporting branding configuration for {client_name}: {e}"
             ) from e
 
-    def import_branding_config(self, import_path: Path, client_name: Optional[str] = None) -> bool:
+    def import_branding_config(self, import_path: Path, client_name: Optional[str] = None) -> None:
         """
         Import a branding configuration from a file.
-        
+
         Args:
             import_path: Path to the configuration file
             client_name: Name for the client (if not specified in config)
-            
-        Returns:
-            True if successful, False otherwise
+
+        Raises:
+            ValueError: If the file format is unsupported or validation fails.
+            ClientBrandingError: If the import fails.
         """
         try:
-            # Load configuration
             if import_path.suffix.lower() in ['.yaml', '.yml']:
                 with open(import_path, 'r', encoding='utf-8') as f:
                     branding_config = yaml.safe_load(f)
@@ -532,28 +530,22 @@ class ClientBrandingManager:
                 with open(import_path, 'r', encoding='utf-8') as f:
                     branding_config = json.load(f)
             else:
-                log.error(f"Unsupported file format: {import_path.suffix}")
-                return False
-            
-            # Validate configuration
+                raise ValueError(f"Unsupported file format: {import_path.suffix}")
+
             errors = self.validate_branding_config(branding_config)
             if errors:
-                log.error(f"Invalid branding configuration: {errors}")
-                return False
-            
-            # Use specified client name or name from config
+                raise ValueError(f"Invalid branding configuration: {errors}")
+
             if client_name:
                 branding_config['name'] = client_name
             elif 'name' not in branding_config:
                 branding_config['name'] = import_path.stem
-            
-            # Create client branding
-            self.create_client_branding(branding_config['name'], branding_config)
-            return True
 
-        except ClientBrandingError:
+            self.create_client_branding(branding_config['name'], branding_config)
+
+        except (ClientBrandingError, ValueError):
             raise
-        except Exception as e:
+        except (OSError, KeyError, TypeError) as e:
             raise ClientBrandingError(
                 f"Error importing branding configuration: {e}"
             ) from e
@@ -570,10 +562,8 @@ class ClientBrandingManager:
         """
         try:
             branding_config = self.get_client_branding(client_name)
-            if not branding_config:
-                return {}
-            
-            summary = {
+
+            return {
                 'client_name': branding_config.get('name', client_name),
                 'colors': list(branding_config.get('colors', {}).keys()),
                 'fonts': list(branding_config.get('fonts', {}).keys()),
@@ -583,10 +573,10 @@ class ClientBrandingManager:
                 'header_text': branding_config.get('header', {}).get('left_text', ''),
                 'footer_text': branding_config.get('footer', {}).get('left_text', '')
             }
-            
-            return summary
-            
-        except Exception as e:
+
+        except (ClientBrandingNotFoundError, ClientBrandingError):
+            raise
+        except (OSError, ValueError, KeyError, TypeError) as e:
             raise ClientBrandingError(
                 f"Error getting branding summary for {client_name}: {e}"
             ) from e

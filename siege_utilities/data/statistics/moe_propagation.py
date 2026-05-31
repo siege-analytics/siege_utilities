@@ -131,9 +131,16 @@ def moe_proportion(
     -------
     Estimate
         Proportion with propagated MOE, bounded to [0, 1].
+
+    Raises
+    ------
+    ZeroDivisionError
+        If the denominator estimate is zero.
     """
     if denominator.value == 0:
-        return Estimate(value=0.0, moe=0.0)
+        raise ZeroDivisionError(
+            "Cannot compute proportion: denominator estimate is zero"
+        )
 
     p = numerator.value / denominator.value
 
@@ -171,9 +178,16 @@ def moe_ratio(
     Returns
     -------
     Estimate
+
+    Raises
+    ------
+    ZeroDivisionError
+        If the denominator estimate is zero.
     """
     if denominator.value == 0:
-        return Estimate(value=0.0, moe=0.0)
+        raise ZeroDivisionError(
+            "Cannot compute ratio: denominator estimate is zero"
+        )
 
     r = numerator.value / denominator.value
     se_num = numerator.se

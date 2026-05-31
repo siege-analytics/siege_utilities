@@ -290,55 +290,54 @@ class PageTemplateManager:
         """
         template = self.templates.get(template_name)
         if not template:
-            log.warning(f"Template not found: {template_name}")
-            return
-        
+            raise KeyError(f"Template not found: {template_name!r}")
+
         for key, value in kwargs.items():
             if hasattr(template, key):
                 setattr(template, key, value)
             else:
                 log.warning(f"Unknown template field: {key}")
-        
+
         # Save if it's a custom template
         if template_name.startswith('custom_'):
             self._save_custom_template(template)
-    
+
     def delete_template(self, template_name: str):
         """
         Delete a custom template.
-        
+
         Args:
             template_name: Name of the template to delete
         """
         if template_name in self.templates:
             del self.templates[template_name]
-            
+
             # Remove file if it's a custom template
             custom_templates_dir = self.templates_dir / "custom"
             template_file = custom_templates_dir / f"{template_name}.yaml"
             if template_file.exists():
                 template_file.unlink()
                 log.info(f"Deleted custom template: {template_name}")
-    
+
     def export_template(self, template_name: str, output_path: str):
         """
         Export a template to a file.
-        
+
         Args:
             template_name: Name of the template to export
             output_path: Path to export the template
+
+        Raises:
+            KeyError: If template_name does not exist.
+            OSError: If the file cannot be written.
         """
         template = self.templates.get(template_name)
         if not template:
-            log.warning(f"Template not found: {template_name}")
-            return
-        
-        try:
-            with open(output_path, 'w', encoding='utf-8') as f:
-                yaml.dump(template.__dict__, f, default_flow_style=False)
-            log.info(f"Exported template to: {output_path}")
-        except (OSError, yaml.YAMLError) as e:
-            log.error(f"Failed to export template: {e}")
+            raise KeyError(f"Template not found: {template_name!r}")
+
+        with open(output_path, 'w', encoding='utf-8') as f:
+            yaml.dump(template.__dict__, f, default_flow_style=False)
+        log.info(f"Exported template to: {output_path}")
     
     def import_template(self, input_path: str, template_name: Optional[str] = None):
         """

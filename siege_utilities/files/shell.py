@@ -164,13 +164,13 @@ def run_subprocess(command_list: Union[str, List[str]],
 
         try:
             stdout, stderr = p.communicate(timeout=timeout)
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as e:
             p.kill()
             stdout, stderr = p.communicate()
             raise subprocess.TimeoutExpired(
                 validated_command, timeout,
                 output=stdout, stderr=stderr
-            )
+            ) from e
 
         returncode = p.returncode
 

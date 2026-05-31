@@ -132,6 +132,21 @@ class TestRateTable:
         with pytest.raises(ValueError, match="normalize"):
             rate_table(ct, normalize="invalid")
 
+    def test_zero_grand_total(self):
+        ct = pd.DataFrame({"A": [0, 0], "B": [0, 0]}, index=["X", "Y"])
+        with pytest.raises(ZeroDivisionError, match="grand total"):
+            rate_table(ct, normalize="all")
+
+    def test_zero_row_sum(self):
+        ct = pd.DataFrame({"A": [10, 0], "B": [20, 0]}, index=["X", "Y"])
+        with pytest.raises(ZeroDivisionError, match="rows sum to zero"):
+            rate_table(ct, normalize="index")
+
+    def test_zero_col_sum(self):
+        ct = pd.DataFrame({"A": [10, 20], "B": [0, 0]}, index=["X", "Y"])
+        with pytest.raises(ZeroDivisionError, match="columns sum to zero"):
+            rate_table(ct, normalize="columns")
+
 
 # ---------------------------------------------------------------------------
 # chi_square_test

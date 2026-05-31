@@ -5,6 +5,8 @@ Creates beautiful, branded title pages with proper typography and layout
 Adapted from working GA project implementation
 """
 
+from __future__ import annotations
+
 try:
     from reportlab.pdfgen import canvas
     from reportlab.lib.pagesizes import letter, A4

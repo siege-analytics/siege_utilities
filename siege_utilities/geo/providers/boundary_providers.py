@@ -234,10 +234,10 @@ class GADMProvider(BoundaryProvider):
 
         try:
             import geopandas as gpd
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
                 'GADMProvider requires geopandas. Install with: pip install siege_utilities[geo]'
-            )
+            ) from e
 
         logger.info('Downloading GADM boundaries: %s', url)
         return gpd.read_file(url)

@@ -525,12 +525,21 @@ class TestGetFromKeychain:
         result = manager._get_from_keychain('my-service', 'my-user')
         assert result is None
 
-    def test_returns_none_on_exception(self, mock_op_available):
+    def test_raises_on_transport_error(self, mock_op_available):
         manager = CredentialManager()
         mock_op_available.side_effect = OSError("keychain error")
 
-        result = manager._get_from_keychain('my-service', 'my-user')
-        assert result is None
+        with pytest.raises(OSError, match="keychain error"):
+            manager._get_from_keychain('my-service', 'my-user')
+
+    def test_raises_on_unexpected_exit_code(self, mock_op_available):
+        manager = CredentialManager()
+        mock_op_available.return_value = Mock(
+            returncode=2, stdout='', stderr='permission denied',
+        )
+
+        with pytest.raises(RuntimeError, match="exit code 2"):
+            manager._get_from_keychain('my-service', 'my-user')
 
 
 # =============================================================================
@@ -1150,17 +1159,17 @@ class TestGetGoogleSAFrom1Password:
                     assert not any(f.startswith('--vault=') for f in cmd)
                     assert not any(f.startswith('--account=') for f in cmd)
 
-    def test_returns_none_on_called_process_error(self):
+    def test_raises_on_called_process_error(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
             mock_run.side_effect = subprocess.CalledProcessError(1, 'op')
-            result = get_google_service_account_from_1password()
-            assert result is None
+            with pytest.raises(subprocess.CalledProcessError):
+                get_google_service_account_from_1password()
 
-    def test_returns_none_on_general_exception(self):
+    def test_raises_on_general_exception(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
             mock_run.side_effect = ValueError("unexpected")
-            result = get_google_service_account_from_1password()
-            assert result is None
+            with pytest.raises(ValueError):
+                get_google_service_account_from_1password()
 
     def test_private_key_cleanup(self):
         """Private key should have quotes stripped and escaped newlines fixed."""
@@ -1219,25 +1228,25 @@ class TestGetGoogleOAuthFrom1Password:
             assert result['client_secret'] == 'test-secret-xyz'
             assert result['redirect_uri'] == 'http://localhost:8080'
 
-    def test_returns_none_when_client_id_missing(self):
+    def test_raises_when_client_id_missing(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
             mock_run.side_effect = _make_op_side_effect({
                 'client_id': None,
                 'client_secret': 'test-secret',
             })
 
-            result = get_google_oauth_from_1password()
-            assert result is None
+            with pytest.raises(ValueError, match="client_id"):
+                get_google_oauth_from_1password()
 
-    def test_returns_none_when_client_secret_missing(self):
+    def test_raises_when_client_secret_missing(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
             mock_run.side_effect = _make_op_side_effect({
                 'client_id': 'test-client-id-1234567890',
                 'client_secret': None,
             })
 
-            result = get_google_oauth_from_1password()
-            assert result is None
+            with pytest.raises(ValueError, match="client_secret"):
+                get_google_oauth_from_1password()
 
     def test_includes_vault_and_account_flags(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
@@ -1311,11 +1320,11 @@ class TestGetGoogleOAuthFrom1Password:
             assert result is not None
             assert 'project_id' not in result
 
-    def test_handles_subprocess_error(self):
+    def test_raises_on_subprocess_error(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
             mock_run.side_effect = subprocess.CalledProcessError(1, 'op')
-            result = get_google_oauth_from_1password()
-            assert result is None
+            with pytest.raises(subprocess.CalledProcessError):
+                get_google_oauth_from_1password()
 
 
 # =============================================================================
@@ -1358,27 +1367,27 @@ class TestGetGoogleOAuthDocumentFrom1Password:
             assert not any(f.startswith('--vault=') for f in cmd)
             assert not any(f.startswith('--account=') for f in cmd)
 
-    def test_returns_none_on_called_process_error(self):
+    def test_raises_on_called_process_error(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
             mock_run.side_effect = subprocess.CalledProcessError(
                 1, 'op', stderr='not found'
             )
-            result = get_google_oauth_document_from_1password()
-            assert result is None
+            with pytest.raises(subprocess.CalledProcessError):
+                get_google_oauth_document_from_1password()
 
-    def test_returns_none_on_invalid_json(self):
+    def test_raises_on_invalid_json(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
             mock_run.return_value = Mock(
                 returncode=0, stdout='not json at all', stderr=''
             )
-            result = get_google_oauth_document_from_1password()
-            assert result is None
+            with pytest.raises(json.JSONDecodeError):
+                get_google_oauth_document_from_1password()
 
-    def test_returns_none_on_general_exception(self):
+    def test_raises_on_os_error(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
             mock_run.side_effect = OSError("unexpected")
-            result = get_google_oauth_document_from_1password()
-            assert result is None
+            with pytest.raises(OSError):
+                get_google_oauth_document_from_1password()
 
 
 # =============================================================================
@@ -1407,11 +1416,11 @@ class TestCreateTemporaryServiceAccountFile:
         assert result.endswith('.json')
         os.unlink(result)
 
-    def test_returns_none_on_error(self):
+    def test_raises_on_error(self):
         with patch('siege_utilities.config.credential_manager.tempfile.NamedTemporaryFile',
                    side_effect=OSError("no space")):
-            result = create_temporary_service_account_file({"type": "sa"})
-            assert result is None
+            with pytest.raises(OSError):
+                create_temporary_service_account_file({"type": "sa"})
 
 
 # =============================================================================

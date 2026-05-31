@@ -293,7 +293,11 @@ class VistaSocialConnector:
         empty-on-error).
         """
         resp = self._request("GET", "/v1/accounts")
-        items = resp.data.get("data") if isinstance(resp.data, Mapping) else None
+        if not isinstance(resp.data, Mapping):
+            raise TypeError(
+                f"Expected mapping response from /v1/accounts, got {type(resp.data).__name__}"
+            )
+        items = resp.data.get("data")
         return list(items) if items else []
 
     def list_profiles(self, account_id: str) -> List[Mapping[str, Any]]:
@@ -304,7 +308,11 @@ class VistaSocialConnector:
         if not account_id:
             raise ValueError("list_profiles requires a non-empty account_id")
         resp = self._request("GET", f"/v1/accounts/{account_id}/profiles")
-        items = resp.data.get("data") if isinstance(resp.data, Mapping) else None
+        if not isinstance(resp.data, Mapping):
+            raise TypeError(
+                f"Expected mapping response from profiles endpoint, got {type(resp.data).__name__}"
+            )
+        items = resp.data.get("data")
         return list(items) if items else []
 
     def get_account_analytics(
@@ -341,7 +349,11 @@ class VistaSocialConnector:
         resp = self._request(
             "GET", f"/v1/accounts/{account_id}/analytics", params=params,
         )
-        return dict(resp.data) if isinstance(resp.data, Mapping) else {}
+        if not isinstance(resp.data, Mapping):
+            raise TypeError(
+                f"Expected mapping response from analytics endpoint, got {type(resp.data).__name__}"
+            )
+        return dict(resp.data)
 
     def list_posts(
         self,
@@ -368,5 +380,9 @@ class VistaSocialConnector:
         resp = self._request(
             "GET", f"/v1/accounts/{account_id}/posts", params=params,
         )
-        items = resp.data.get("data") if isinstance(resp.data, Mapping) else None
+        if not isinstance(resp.data, Mapping):
+            raise TypeError(
+                f"Expected mapping response from posts endpoint, got {type(resp.data).__name__}"
+            )
+        items = resp.data.get("data")
         return list(items) if items else []
