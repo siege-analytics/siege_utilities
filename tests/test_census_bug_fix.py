@@ -145,7 +145,7 @@ class TestCensusBugFix:
             else:
                 # Some other NameError, re-raise it
                 raise
-        except Exception:
+        except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError):
             # Other exceptions are okay for this specific test
             # We're only testing that the NameError is fixed
             pass
@@ -174,7 +174,7 @@ if __name__ == "__main__":
             print("❌ FAILED: NameError for 'state' still exists")
         else:
             print(f"❌ FAILED: Different NameError: {e}")
-    except Exception as e:
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError) as e:
         print(f"⚠️  Other error (may be expected): {e}")
         
     print("Smoke test complete.")

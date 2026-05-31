@@ -175,7 +175,7 @@ def get_longitudinal_data(
             else:
                 log.warning(f"  No data returned for {year}")
 
-        except Exception as e:
+        except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError) as e:
             if strict_years:
                 raise ValueError(
                     f"Failed to fetch data for year {year}: {e}. "
@@ -271,7 +271,7 @@ def _normalize_boundaries_multi_year(
                 geoid_column='GEOID'
             )
             normalized[year] = normalized_df
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             log.warning(
                 f"  Could not normalize {year} data: {e}. Using original boundaries."
             )
@@ -363,7 +363,7 @@ def _add_geometry(
     state_fips: Optional[str],
     year: int,
     county_fips: Optional[str] = None,
-) -> 'gpd.GeoDataFrame':
+) -> "Union['gpd.GeoDataFrame', pd.DataFrame]":
     """
     Add geometry to the DataFrame.
 
@@ -376,7 +376,8 @@ def _add_geometry(
             demographics scope (prevents state-wide geometry with county-filtered data)
 
     Returns:
-        GeoDataFrame with geometry, preserving canonical GEOID from demographics
+        GeoDataFrame with geometry if boundaries are available, otherwise the
+        original DataFrame unchanged.
     """
     import geopandas as gpd
     from ..spatial_data import get_census_boundaries
@@ -490,7 +491,10 @@ def get_available_years(
     elif dataset == 'dec':
         return DECENNIAL_YEARS.copy()
     else:
-        return []
+        raise ValueError(
+            f"Unknown dataset {dataset!r}. "
+            f"Supported: 'acs5', 'acs1', 'dec'"
+        )
 
 
 def validate_longitudinal_years(
@@ -707,7 +711,7 @@ class LongitudinalAligner:
                 current_df = self._apply_crosswalk_step(
                     current_df, src, tgt, geo, sfips, geoid_column,
                 )
-            except Exception as exc:
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
                 log.warning(
                     "Crosswalk %d→%d failed (%s), trying areal interpolation",
                     src, tgt, exc,
@@ -720,7 +724,7 @@ class LongitudinalAligner:
                     warnings.append(
                         f"Used areal interpolation for {src}→{tgt} (crosswalk unavailable)"
                     )
-                except Exception as areal_exc:
+                except (ValueError, TypeError, KeyError, AttributeError, OSError) as areal_exc:
                     msg = (
                         f"Both crosswalk and areal interpolation failed for "
                         f"{src}→{tgt}: {areal_exc}"

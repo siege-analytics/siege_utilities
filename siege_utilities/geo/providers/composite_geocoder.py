@@ -71,7 +71,6 @@ class CompositeBatchGeocoder(BatchGeocoder):
     def geocode(
         self,
         addresses: Union[list[dict], list[str], list[AddressInput]],
-        **kwargs,
     ) -> BatchGeocodingResult:
         """Geocode addresses through chained backends.
 
@@ -100,8 +99,8 @@ class CompositeBatchGeocoder(BatchGeocoder):
             pending_indices = sorted(pending)
 
             try:
-                batch_result = backend.geocode(pending_addrs, **kwargs)
-            except Exception as exc:
+                batch_result = backend.geocode(pending_addrs)
+            except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError) as exc:
                 log.warning(
                     "Backend %s failed: %s", backend.backend_name, exc
                 )

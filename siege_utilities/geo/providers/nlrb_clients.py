@@ -23,6 +23,13 @@ from typing import Optional
 
 log = logging.getLogger(__name__)
 
+try:
+    import requests
+    _RequestException = requests.exceptions.RequestException
+except ImportError:  # pragma: no cover
+    requests = None  # type: ignore[assignment]
+    _RequestException = OSError  # type: ignore[assignment, misc]
+
 
 def _requests():
     import requests
@@ -230,7 +237,7 @@ class NLRBDatagovClient:
                 timeout=self._timeout,
             )
             resp.raise_for_status()
-        except Exception as exc:
+        except (_RequestException, OSError) as exc:
             result.errors.append(f"HTTP error fetching data.gov: {exc}")
             return result
 
@@ -318,29 +325,34 @@ class NLRBLabordataClient:
         Downloads cases, elections, and ULP charges CSVs.
         """
         result = NLRBFetchResult(source="labordata")
+        _RequestException = _requests().exceptions.RequestException
 
-        cases_csv = self._download_csv("cases")
-        if cases_csv is not None:
+        try:
+            cases_csv = self._download_csv("cases")
             for row in cases_csv:
                 record = self._parse_case_row(row)
                 if record:
                     result.cases.append(record)
+        except (_RequestException, OSError) as exc:
+            result.errors.append(f"cases: {exc}")
 
-        elections_csv = self._download_csv("elections")
-        if elections_csv is not None:
+        try:
+            elections_csv = self._download_csv("elections")
             for row in elections_csv:
                 record = self._parse_election_row(row)
                 if record:
                     result.elections.append(record)
+        except (_RequestException, OSError) as exc:
+            result.errors.append(f"elections: {exc}")
 
-        charges_csv = self._download_csv("ulp_charges")
-        if charges_csv is not None:
+        try:
+            charges_csv = self._download_csv("ulp_charges")
             for row in charges_csv:
                 record = self._parse_ulp_row(row)
                 if record:
                     result.ulp_charges.append(record)
-        elif cases_csv is None:
-            result.errors.append("Failed to download any data from labordata")
+        except (_RequestException, OSError) as exc:
+            result.errors.append(f"ulp_charges: {exc}")
 
         log.info(
             "labordata: %d cases, %d elections, %d charges",
@@ -350,17 +362,13 @@ class NLRBLabordataClient:
         )
         return result
 
-    def _download_csv(self, dataset: str) -> Optional[list[dict]]:
+    def _download_csv(self, dataset: str) -> list[dict]:
         path = LABORDATA_FILES.get(dataset)
         if not path:
-            return None
+            raise ValueError(f"Unknown labordata dataset: {dataset!r}")
         url = self._base_url + path
-        try:
-            resp = self._get_session().get(url, timeout=self._timeout)
-            resp.raise_for_status()
-        except Exception as exc:
-            log.warning("labordata: failed to download %s: %s", dataset, exc)
-            return None
+        resp = self._get_session().get(url, timeout=self._timeout)
+        resp.raise_for_status()
 
         reader = csv.DictReader(io.StringIO(resp.text))
         return list(reader)
@@ -469,7 +477,7 @@ class NLRBNxGenClient:
         try:
             resp = self._get_session().get(url, timeout=self._timeout)
             resp.raise_for_status()
-        except Exception as exc:
+        except (_RequestException, OSError) as exc:
             result.errors.append(f"NxGen HTTP error: {exc}")
             return result
 
@@ -539,7 +547,7 @@ class NLRBNxGenClient:
                         region=_extract_region(case_num),
                         source="nxgen",
                     ))
-        except Exception as exc:
+        except (ValueError, TypeError, KeyError, AttributeError) as exc:
             log.warning("NxGen parse failed (expected — page structure may have changed): %s", exc)
 
         return records

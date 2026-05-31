@@ -107,7 +107,7 @@ class TimezonePopulationService:
                     return result
                 data = json.loads(zf.read(geojson_names[0]))
         else:
-            with open(geojson_path) as f:
+            with open(geojson_path, encoding='utf-8') as f:
                 data = json.load(f)
 
         features = data.get("features", [])
@@ -136,7 +136,7 @@ class TimezonePopulationService:
                     geom = GEOSGeometry(json.dumps(feature["geometry"]))
                     if not isinstance(geom, MultiPolygon):
                         geom = MultiPolygon(geom)
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError) as e:
                     result.errors.append(f"Geometry error for {tz_id}: {e}")
                     continue
 
@@ -206,6 +206,6 @@ class TimezonePopulationService:
             observes_dst = abs(std_offset - dst_offset) > 0.1
 
             return std_offset, dst_offset, observes_dst
-        except Exception as exc:
+        except (ValueError, TypeError, KeyError, AttributeError) as exc:
             log.warning("Could not resolve UTC offset for timezone %s: %s", tz_id, exc)
             return None, None, None

@@ -88,7 +88,7 @@ def test_connect_passes_only_non_none_params(_patch_snowflake):
     from siege_utilities.analytics.snowflake_connector import SnowflakeConnector
 
     c = SnowflakeConnector(account="acc", user="u", password="p", warehouse=None)
-    assert c.connect() is True
+    c.connect()
 
     _patch_snowflake.connector.connect.assert_called_once()
     kwargs = _patch_snowflake.connector.connect.call_args.kwargs
@@ -97,18 +97,18 @@ def test_connect_passes_only_non_none_params(_patch_snowflake):
     assert kwargs["password"] == "p"
 
 
-def test_execute_query_returns_none_on_driver_error(_patch_snowflake):
-    """Driver-side failures must be translated to ``None``, not propagate
-    a raw snowflake.connector exception -- callers expect Optional[list]."""
+def test_execute_query_raises_on_driver_error(_patch_snowflake):
+    """Driver-side failures must raise RuntimeError, not return None."""
     from siege_utilities.analytics.snowflake_connector import SnowflakeConnector
 
     c = SnowflakeConnector(account="acc", user="u", password="p")
     cursor = MagicMock()
-    cursor.execute.side_effect = RuntimeError("boom")
+    cursor.execute.side_effect = ValueError("boom")
     c.connection = MagicMock()
     c.cursor = cursor
 
-    assert c.execute_query("SELECT 1") is None
+    with pytest.raises(RuntimeError, match="boom"):
+        c.execute_query("SELECT 1")
 
 
 def test_upload_dataframe_validates_table_identifier(_patch_snowflake):

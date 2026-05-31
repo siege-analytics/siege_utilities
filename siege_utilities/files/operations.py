@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 # Type aliases
 FilePath = Union[str, Path]
 
-def remove_tree(path: FilePath) -> bool:
+def remove_tree(path: FilePath) -> None:
     """
     Remove a file or directory tree safely.
 
@@ -25,41 +25,29 @@ def remove_tree(path: FilePath) -> bool:
     Args:
         path: Path to file or directory to remove
 
-    Returns:
-        True if successful, False otherwise
-
     Raises:
+        FileNotFoundError: If path does not exist
         PathSecurityError: If path fails security validation
+        OSError: If removal fails
 
     Example:
         >>> remove_tree("temp_directory")
         >>> remove_tree(Path("old_files"))
     """
     try:
-        # Validate path
-        try:
-            from siege_utilities.files.validation import validate_safe_path, PathSecurityError
-            path_obj = validate_safe_path(path, allow_absolute=True)
-        except ImportError:
-            path_obj = Path(path)
+        from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+        path_obj = validate_safe_path(path, allow_absolute=True)
+    except ImportError:
+        path_obj = Path(path)
 
-        if path_obj.is_file():
-            path_obj.unlink()
-            log.info(f"Removed file: {path_obj}")
-        elif path_obj.is_dir():
-            shutil.rmtree(path_obj)
-            log.info(f"Removed directory tree: {path_obj}")
-        else:
-            log.warning(f"Path does not exist: {path_obj}")
-            return False
-
-        return True
-
-    except PathSecurityError:
-        raise
-    except Exception as e:
-        log.error(f"Failed to remove {path}: {e}")
-        return False
+    if path_obj.is_file():
+        path_obj.unlink()
+        log.info(f"Removed file: {path_obj}")
+    elif path_obj.is_dir():
+        shutil.rmtree(path_obj)
+        log.info(f"Removed directory tree: {path_obj}")
+    else:
+        raise FileNotFoundError(f"Path does not exist: {path_obj}")
 
 def file_exists(path: FilePath) -> bool:
     """
@@ -111,11 +99,11 @@ def file_exists(path: FilePath) -> bool:
     except PathSecurityError:
         # Re-raise security errors
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f"Error checking file existence for {path}: {e}")
         return False
 
-def touch_file(path: FilePath, create_parents: bool = True) -> bool:
+def touch_file(path: FilePath, create_parents: bool = True) -> None:
     """
     Create an empty file, creating parent directories if needed.
 
@@ -125,38 +113,27 @@ def touch_file(path: FilePath, create_parents: bool = True) -> bool:
         path: Path to the file to create
         create_parents: Whether to create parent directories
 
-    Returns:
-        True if successful, False otherwise
-
     Raises:
         PathSecurityError: If path fails security validation
+        OSError: If file creation fails
 
     Example:
         >>> touch_file("logs/app.log")
         >>> touch_file(Path("data/output.txt"))
     """
     try:
-        # Validate path
-        try:
-            from siege_utilities.files.validation import validate_safe_path, PathSecurityError
-            path_obj = validate_safe_path(path, allow_absolute=True)
-        except ImportError:
-            path_obj = Path(path)
+        from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+        path_obj = validate_safe_path(path, allow_absolute=True)
+    except ImportError:
+        path_obj = Path(path)
 
-        if create_parents:
-            path_obj.parent.mkdir(parents=True, exist_ok=True)
+    if create_parents:
+        path_obj.parent.mkdir(parents=True, exist_ok=True)
 
-        path_obj.touch(exist_ok=True)
-        log.info(f"Created/updated file: {path_obj}")
-        return True
+    path_obj.touch(exist_ok=True)
+    log.info(f"Created/updated file: {path_obj}")
 
-    except PathSecurityError:
-        raise
-    except Exception as e:
-        log.error(f"Failed to create file {path}: {e}")
-        return False
-
-def count_lines(file_path: FilePath, encoding: str = 'utf-8') -> Optional[int]:
+def count_lines(file_path: FilePath, encoding: str = 'utf-8') -> int:
     """
     Count the total number of lines in a text file.
 
@@ -168,61 +145,37 @@ def count_lines(file_path: FilePath, encoding: str = 'utf-8') -> Optional[int]:
         encoding: File encoding to use
 
     Returns:
-        Number of lines, or None if failed
+        Number of lines
 
     Raises:
-        PathSecurityError: If path fails security validation (from validation module)
+        FileNotFoundError: If file does not exist or is not a file
+        PathSecurityError: If path fails security validation
+        OSError: If file cannot be read
+        UnicodeDecodeError: If file cannot be decoded with given encoding
 
     Example:
         >>> line_count = count_lines("data.csv")
         >>> print(f"File has {line_count} lines")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> count_lines("../../../etc/passwd")  # Path traversal blocked
-
-    Security Changes:
-        - Now validates paths to block path traversal
-        - Blocks access to sensitive system files
-        - Resolves symlinks and validates final destination
     """
     try:
-        # Import validation function
-        try:
-            from siege_utilities.files.validation import validate_file_path, PathSecurityError
-        except ImportError:
-            # Fallback: use basic Path validation without security checks
-            log.warning("Path validation module not available - using basic validation")
-            path_obj = Path(file_path)
-        else:
-            # Validate path with security checks
-            try:
-                path_obj = validate_file_path(file_path, must_exist=True)
-            except PathSecurityError as e:
-                log.error(f"Path security validation failed: {e}")
-                raise  # Re-raise to caller
+        from siege_utilities.files.validation import validate_file_path, PathSecurityError
+        path_obj = validate_file_path(file_path, must_exist=True)
+    except ImportError:
+        path_obj = Path(file_path)
 
-        if not path_obj.exists():
-            log.warning(f"File does not exist: {path_obj}")
-            return None
+    if not path_obj.exists():
+        raise FileNotFoundError(f"File does not exist: {path_obj}")
 
-        if not path_obj.is_file():
-            log.warning(f"Path is not a file: {path_obj}")
-            return None
+    if not path_obj.is_file():
+        raise FileNotFoundError(f"Path is not a file: {path_obj}")
 
-        with open(path_obj, 'r', encoding=encoding) as f:
-            line_count = sum(1 for _ in f)
+    with open(path_obj, 'r', encoding=encoding) as f:
+        line_count = sum(1 for _ in f)
 
-        log.info(f"Counted {line_count} lines in {path_obj}")
-        return line_count
+    log.info(f"Counted {line_count} lines in {path_obj}")
+    return line_count
 
-    except PathSecurityError:
-        # Re-raise security errors
-        raise
-    except Exception as e:
-        log.error(f"Failed to count lines in {file_path}: {e}")
-        return None
-
-def copy_file(source: FilePath, destination: FilePath, overwrite: bool = False) -> bool:
+def copy_file(source: FilePath, destination: FilePath, overwrite: bool = False) -> None:
     """
     Copy a file from source to destination.
 
@@ -233,53 +186,39 @@ def copy_file(source: FilePath, destination: FilePath, overwrite: bool = False) 
         destination: Destination file path
         overwrite: Whether to overwrite existing files
 
-    Returns:
-        True if successful, False otherwise
-
     Raises:
+        FileNotFoundError: If source does not exist or is not a file
+        FileExistsError: If destination exists and overwrite=False
         PathSecurityError: If paths fail security validation
+        OSError: If copy fails
 
     Example:
         >>> copy_file("source.txt", "backup/source.txt")
         >>> copy_file(Path("config.yaml"), Path("config.yaml.bak"))
     """
     try:
-        # Validate paths
-        try:
-            from siege_utilities.files.validation import validate_file_path, validate_safe_path, PathSecurityError
-            source_obj = validate_file_path(source, must_exist=True)
-            dest_obj = validate_safe_path(destination, allow_absolute=True)
-        except ImportError:
-            source_obj = Path(source)
-            dest_obj = Path(destination)
+        from siege_utilities.files.validation import validate_file_path, validate_safe_path, PathSecurityError
+        source_obj = validate_file_path(source, must_exist=True)
+        dest_obj = validate_safe_path(destination, allow_absolute=True)
+    except ImportError:
+        source_obj = Path(source)
+        dest_obj = Path(destination)
 
-        if not source_obj.exists():
-            log.error(f"Source file does not exist: {source_obj}")
-            return False
+    if not source_obj.exists():
+        raise FileNotFoundError(f"Source file does not exist: {source_obj}")
 
-        if not source_obj.is_file():
-            log.error(f"Source is not a file: {source_obj}")
-            return False
+    if not source_obj.is_file():
+        raise FileNotFoundError(f"Source is not a file: {source_obj}")
 
-        # Create destination directory if needed
-        dest_obj.parent.mkdir(parents=True, exist_ok=True)
+    dest_obj.parent.mkdir(parents=True, exist_ok=True)
 
-        # Check if destination exists
-        if dest_obj.exists() and not overwrite:
-            log.warning(f"Destination file exists and overwrite=False: {dest_obj}")
-            return False
+    if dest_obj.exists() and not overwrite:
+        raise FileExistsError(f"Destination file exists and overwrite=False: {dest_obj}")
 
-        shutil.copy2(source_obj, dest_obj)
-        log.info(f"Copied {source_obj} to {dest_obj}")
-        return True
+    shutil.copy2(source_obj, dest_obj)
+    log.info(f"Copied {source_obj} to {dest_obj}")
 
-    except PathSecurityError:
-        raise
-    except Exception as e:
-        log.error(f"Failed to copy {source} to {destination}: {e}")
-        return False
-
-def move_file(source: FilePath, destination: FilePath, overwrite: bool = False) -> bool:
+def move_file(source: FilePath, destination: FilePath, overwrite: bool = False) -> None:
     """
     Move a file from source to destination.
 
@@ -290,53 +229,39 @@ def move_file(source: FilePath, destination: FilePath, overwrite: bool = False) 
         destination: Destination file path
         overwrite: Whether to overwrite existing files
 
-    Returns:
-        True if successful, False otherwise
-
     Raises:
+        FileNotFoundError: If source does not exist or is not a file
+        FileExistsError: If destination exists and overwrite=False
         PathSecurityError: If paths fail security validation
+        OSError: If move fails
 
     Example:
         >>> move_file("temp.txt", "archive/temp.txt")
         >>> move_file(Path("old.log"), Path("logs/old.log"))
     """
     try:
-        # Validate paths
-        try:
-            from siege_utilities.files.validation import validate_file_path, validate_safe_path, PathSecurityError
-            source_obj = validate_file_path(source, must_exist=True)
-            dest_obj = validate_safe_path(destination, allow_absolute=True)
-        except ImportError:
-            source_obj = Path(source)
-            dest_obj = Path(destination)
+        from siege_utilities.files.validation import validate_file_path, validate_safe_path, PathSecurityError
+        source_obj = validate_file_path(source, must_exist=True)
+        dest_obj = validate_safe_path(destination, allow_absolute=True)
+    except ImportError:
+        source_obj = Path(source)
+        dest_obj = Path(destination)
 
-        if not source_obj.exists():
-            log.error(f"Source file does not exist: {source_obj}")
-            return False
+    if not source_obj.exists():
+        raise FileNotFoundError(f"Source file does not exist: {source_obj}")
 
-        if not source_obj.is_file():
-            log.error(f"Source is not a file: {source_obj}")
-            return False
+    if not source_obj.is_file():
+        raise FileNotFoundError(f"Source is not a file: {source_obj}")
 
-        # Create destination directory if needed
-        dest_obj.parent.mkdir(parents=True, exist_ok=True)
+    dest_obj.parent.mkdir(parents=True, exist_ok=True)
 
-        # Check if destination exists
-        if dest_obj.exists() and not overwrite:
-            log.warning(f"Destination file exists and overwrite=False: {dest_obj}")
-            return False
+    if dest_obj.exists() and not overwrite:
+        raise FileExistsError(f"Destination file exists and overwrite=False: {dest_obj}")
 
-        shutil.move(str(source_obj), str(dest_obj))
-        log.info(f"Moved {source_obj} to {dest_obj}")
-        return True
+    shutil.move(str(source_obj), str(dest_obj))
+    log.info(f"Moved {source_obj} to {dest_obj}")
 
-    except PathSecurityError:
-        raise
-    except Exception as e:
-        log.error(f"Failed to move {source} to {destination}: {e}")
-        return False
-
-def get_file_size(file_path: FilePath) -> Optional[int]:
+def get_file_size(file_path: FilePath) -> int:
     """
     Get the size of a file in bytes.
 
@@ -347,61 +272,37 @@ def get_file_size(file_path: FilePath) -> Optional[int]:
         file_path: Path to the file
 
     Returns:
-        File size in bytes, or None if failed
+        File size in bytes
 
     Raises:
+        FileNotFoundError: If file does not exist or is not a file
         PathSecurityError: If path fails security validation
+        OSError: If file size cannot be determined
 
     Example:
         >>> size = get_file_size("large_file.zip")
         >>> print(f"File size: {size} bytes")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> get_file_size("/etc/shadow")  # Sensitive file blocked
-
-    Security Changes:
-        - Now validates paths to block path traversal
-        - Blocks access to sensitive system files
     """
     try:
-        # Import validation function
-        try:
-            from siege_utilities.files.validation import validate_file_path, PathSecurityError
-        except ImportError:
-            # Fallback: use basic Path validation without security checks
-            log.warning("Path validation module not available - using basic validation")
-            path_obj = Path(file_path)
-        else:
-            # Validate path with security checks
-            try:
-                path_obj = validate_file_path(file_path, must_exist=True)
-            except PathSecurityError as e:
-                log.error(f"Path security validation failed: {e}")
-                raise  # Re-raise to caller
+        from siege_utilities.files.validation import validate_file_path, PathSecurityError
+        path_obj = validate_file_path(file_path, must_exist=True)
+    except ImportError:
+        path_obj = Path(file_path)
 
-        if not path_obj.exists():
-            log.warning(f"File does not exist: {path_obj}")
-            return None
+    if not path_obj.exists():
+        raise FileNotFoundError(f"File does not exist: {path_obj}")
 
-        if not path_obj.is_file():
-            log.warning(f"Path is not a file: {path_obj}")
-            return None
+    if not path_obj.is_file():
+        raise FileNotFoundError(f"Path is not a file: {path_obj}")
 
-        size = path_obj.stat().st_size
-        log.debug(f"File size for {path_obj}: {size} bytes")
-        return size
-
-    except PathSecurityError:
-        # Re-raise security errors
-        raise
-    except Exception as e:
-        log.error(f"Failed to get file size for {file_path}: {e}")
-        return None
+    size = path_obj.stat().st_size
+    log.debug(f"File size for {path_obj}: {size} bytes")
+    return size
 
 def list_directory(path: FilePath,
                   pattern: str = "*",
                   include_dirs: bool = True,
-                  include_files: bool = True) -> Optional[List[Path]]:
+                  include_files: bool = True) -> List[Path]:
     """
     List contents of a directory with optional filtering.
 
@@ -414,47 +315,39 @@ def list_directory(path: FilePath,
         include_files: Whether to include files
 
     Returns:
-        List of Path objects, or None if failed
+        List of Path objects
 
     Raises:
+        FileNotFoundError: If directory does not exist or is not a directory
         PathSecurityError: If path fails security validation
+        OSError: If directory cannot be read
 
     Example:
         >>> files = list_directory("data", "*.csv")
         >>> dirs = list_directory("logs", include_files=False)
     """
     try:
-        # Validate path
-        try:
-            from siege_utilities.files.validation import validate_directory_path, PathSecurityError
-            path_obj = validate_directory_path(path, must_exist=True)
-        except ImportError:
-            path_obj = Path(path)
+        from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+        path_obj = validate_directory_path(path, must_exist=True)
+    except ImportError:
+        path_obj = Path(path)
 
-        if not path_obj.exists():
-            log.warning(f"Directory does not exist: {path_obj}")
-            return None
+    if not path_obj.exists():
+        raise FileNotFoundError(f"Directory does not exist: {path_obj}")
 
-        if not path_obj.is_dir():
-            log.warning(f"Path is not a directory: {path_obj}")
-            return None
+    if not path_obj.is_dir():
+        raise FileNotFoundError(f"Path is not a directory: {path_obj}")
 
-        items = []
+    items = []
 
-        for item in path_obj.glob(pattern):
-            if item.is_dir() and include_dirs:
-                items.append(item)
-            elif item.is_file() and include_files:
-                items.append(item)
+    for item in path_obj.glob(pattern):
+        if item.is_dir() and include_dirs:
+            items.append(item)
+        elif item.is_file() and include_files:
+            items.append(item)
 
-        log.debug(f"Listed {len(items)} items in {path_obj}")
-        return sorted(items)
-
-    except PathSecurityError:
-        raise
-    except Exception as e:
-        log.error(f"Failed to list directory {path}: {e}")
-        return None
+    log.debug(f"Listed {len(items)} items in {path_obj}")
+    return sorted(items)
 
 def run_command(command: Union[str, List[str]],
                 cwd: Optional[FilePath] = None,
@@ -481,10 +374,12 @@ def run_command(command: Union[str, List[str]],
             not when you need shell features.
 
     Returns:
-        CompletedProcess object, or None if failed
+        CompletedProcess object on success or non-zero exit.
+        None on timeout or unexpected error (when unsafe=True).
 
     Raises:
-        SecurityError: If command fails security validation (when unsafe=False)
+        SecurityError: If command fails security validation (when unsafe=False).
+        Exception: Re-raised on unexpected errors when unsafe=False.
 
     Example:
         >>> # Safe command (works by default)
@@ -511,14 +406,14 @@ def run_command(command: Union[str, List[str]],
         # Import validation function
         try:
             from siege_utilities.files.shell import validate_command_safety, SecurityError
-        except ImportError:
+        except ImportError as imp_err:
             # Fallback: define minimal SecurityError
             class SecurityError(Exception):
                 pass
             # If we can't import validation, we must be in unsafe mode or fail
             if not unsafe:
                 log.error("Cannot validate command: security module not available")
-                raise SecurityError("Security validation unavailable")
+                raise SecurityError("Security validation unavailable") from imp_err
 
         # Parse command. In unsafe mode we additionally reject string
         # commands that contain shell metacharacters — callers that
@@ -584,22 +479,45 @@ def run_command(command: Union[str, List[str]],
 
         return result
 
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as e:
         log.error(f"Command timed out: {command}")
+        if not unsafe:
+            raise
         return None
-    except Exception as e:
+    except (OSError, ValueError) as e:
         log.error(f"Failed to run command {command}: {e}")
         if not unsafe:
-            raise  # Re-raise security exceptions
+            raise
         return None
 
 # Backward compatibility aliases
 rmtree = remove_tree
-check_if_file_exists_at_path = file_exists
 
-def delete_existing_file_and_replace_it_with_an_empty_file(file_path: FilePath, create_parents: bool = True) -> bool:
+
+def check_if_file_exists_at_path(path: FilePath) -> bool:
+    """Check if a file exists at the specified path.
+
+    .. deprecated:: 3.19.0
+        Use :func:`file_exists` instead. Will be removed in v4.0.0.
     """
-    Backward compatibility function that deletes existing file and replaces it with empty file.
+    import warnings
+    warnings.warn(
+        "check_if_file_exists_at_path is deprecated and will be removed in v4.0.0. "
+        "Use file_exists instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return file_exists(path)
+
+
+def delete_existing_file_and_replace_it_with_an_empty_file(file_path: FilePath, create_parents: bool = True) -> None:
+    """Backward compatibility function that deletes existing file and replaces it with empty file.
+
+    .. deprecated:: 3.19.0
+        Use :func:`touch_file` for creating empty files. Note that ``touch_file``
+        does not delete the existing file first; if you need delete-then-create
+        semantics, call ``Path.unlink()`` before ``touch_file()``.
+        Will be removed in v4.0.0.
 
     SECURITY: Validates paths to prevent path traversal attacks.
 
@@ -613,6 +531,14 @@ def delete_existing_file_and_replace_it_with_an_empty_file(file_path: FilePath, 
     Raises:
         PathSecurityError: If path fails security validation
     """
+    import warnings
+    warnings.warn(
+        "delete_existing_file_and_replace_it_with_an_empty_file is deprecated and "
+        "will be removed in v4.0.0. Use touch_file instead (note: touch_file does "
+        "not delete the existing file first).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     try:
         # Validate path
         try:
@@ -629,15 +555,12 @@ def delete_existing_file_and_replace_it_with_an_empty_file(file_path: FilePath, 
         if path_obj.exists():
             path_obj.unlink()
 
-        # Create empty file
         path_obj.touch()
         log.info(f"Created/updated empty file: {path_obj}")
-        return True
     except PathSecurityError:
         raise
-    except Exception as e:
-        log.error(f"Failed to create empty file {file_path}: {e}")
-        return False
+    except OSError as e:
+        raise OSError(f"Failed to create empty file {file_path}") from e
 
 count_total_rows_in_file_pythonically = count_lines
 
@@ -682,7 +605,7 @@ def safe_file_write(
         with open(file_path, "w", encoding=encoding) as f:
             f.write(content)
         return True
-    except Exception as e:
+    except (OSError, TypeError) as e:
         log.error(f"Error writing to {file_path}: {e}")
         return False
 
@@ -709,7 +632,7 @@ def safe_file_read(
             return default
         with open(file_path, "r", encoding=encoding) as f:
             return f.read()
-    except Exception as e:
+    except (OSError, UnicodeDecodeError) as e:
         log.error(f"Error reading {file_path}: {e}")
         return default
 
@@ -739,7 +662,7 @@ def safe_json_write(
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=indent, ensure_ascii=False)
         return True
-    except Exception as e:
+    except (OSError, TypeError, ValueError) as e:
         log.error(f"Error writing JSON to {file_path}: {e}")
         return False
 
@@ -764,7 +687,7 @@ def safe_json_read(
             return default
         with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception as e:
+    except (OSError, ValueError, UnicodeDecodeError) as e:
         log.error(f"Error reading JSON from {file_path}: {e}")
         return default
 
@@ -777,17 +700,17 @@ def get_file_size_mb(file_path: Union[str, Path]) -> float:
         file_path: Path to file
 
     Returns:
-        File size in MB (0.0 if file doesn't exist)
+        File size in MB.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+        OSError: If the file size cannot be determined.
     """
-    try:
-        file_path = Path(file_path)
-        if not file_path.exists():
-            return 0.0
-        size_bytes = file_path.stat().st_size
-        return round(size_bytes / (1024 * 1024), 2)
-    except OSError as e:
-        log.error(f"Error getting file size for {file_path}: {e}")
-        return 0.0
+    file_path = Path(file_path)
+    if not file_path.exists():
+        raise FileNotFoundError(f"File does not exist: {file_path}")
+    size_bytes = file_path.stat().st_size
+    return round(size_bytes / (1024 * 1024), 2)
 
 
 def list_files_recursive(
@@ -805,18 +728,18 @@ def list_files_recursive(
 
     Returns:
         List of Path objects
+
+    Raises:
+        FileNotFoundError: If the directory does not exist.
+        OSError: If the directory cannot be read.
     """
-    try:
-        directory = Path(directory)
-        if not directory.exists():
-            return []
-        if exclude_dirs:
-            return [p for p in directory.rglob(pattern) if p.is_file()]
-        else:
-            return list(directory.rglob(pattern))
-    except OSError as e:
-        log.error(f"Error listing files in {directory}: {e}")
-        return []
+    directory = Path(directory)
+    if not directory.exists():
+        raise FileNotFoundError(f"Directory does not exist: {directory}")
+    if exclude_dirs:
+        return [p for p in directory.rglob(pattern) if p.is_file()]
+    else:
+        return list(directory.rglob(pattern))
 
 
 __all__ = [

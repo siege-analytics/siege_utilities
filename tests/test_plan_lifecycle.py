@@ -287,3 +287,118 @@ class TestResolvePlanAt:
         assert resolve_plan_at(prov, "AL", PlanType.CONGRESSIONAL, date(2022, 6, 1)).plan_id == "AL-CD-2021"
         assert resolve_plan_at(prov, "AL", PlanType.CONGRESSIONAL, date(2024, 1, 1)).plan_id == "AL-CD-2023-COURT"
         assert resolve_plan_at(prov, "AL", PlanType.CONGRESSIONAL, date(2023, 8, 1)) is None
+
+
+# ── Error-path tests ──────────────────────────────────────────────────
+
+
+class TestBuildLineageEmpty:
+    """build_lineage() with empty plans list returns an empty lineage."""
+
+    def test_empty_plans_returns_empty_lineage(self):
+        lin = build_lineage([])
+        assert lin.plans == []
+        assert lin.state == ""
+        assert lin.plan_type == PlanType.CONGRESSIONAL
+        assert lin.current_plan is None
+
+
+class TestBuildLineageMissingEnactedDate:
+    """build_lineage() with plans that have no enacted_date."""
+
+    def test_no_enacted_date_sorts_to_beginning(self):
+        # Plans without enacted_date get date.min as sort key
+        p1 = _plan(plan_id="P1", enacted_date=None)
+        p2 = _plan(plan_id="P2", enacted_date="2022-01-01")
+        lin = build_lineage([p2, p1])
+        # None enacted_date maps to date.min, so P1 sorts first
+        assert lin.plans[0].plan_id == "P1"
+        assert lin.plans[1].plan_id == "P2"
+
+    def test_all_none_enacted_dates(self):
+        p1 = _plan(plan_id="A", enacted_date=None)
+        p2 = _plan(plan_id="B", enacted_date=None)
+        lin = build_lineage([p1, p2])
+        assert len(lin.plans) == 2
+        # Both have date.min as key, so order is stable
+        assert lin.state == "TX"
+
+
+class TestResolvePlanAtBeforeAnyPlan:
+    """resolve_plan_at() with a date before any plan existed returns None."""
+
+    def test_date_before_all_plans_returns_none(self):
+        prov = DictPlanLifecycleProvider()
+        p = _plan(
+            plan_id="P1",
+            state="TX",
+            enacted_date="2022-01-01",
+            events=[_event(PlanLifecycleStatus.ENACTED, "2022-01-01")],
+        )
+        prov.add(p)
+        result = resolve_plan_at(prov, "TX", PlanType.CONGRESSIONAL, date(2000, 1, 1))
+        assert result is None
+
+
+class TestResolvePlanAtAfterAllExpired:
+    """resolve_plan_at() with a date after all plans expired returns None."""
+
+    def test_date_after_all_expired_returns_none(self):
+        prov = DictPlanLifecycleProvider()
+        p = _plan(
+            plan_id="P1",
+            state="TX",
+            enacted_date="2012-01-01",
+            events=[
+                _event(PlanLifecycleStatus.ENACTED, "2012-01-01"),
+                _event(PlanLifecycleStatus.EXPIRED, "2022-01-01"),
+            ],
+        )
+        prov.add(p)
+        result = resolve_plan_at(prov, "TX", PlanType.CONGRESSIONAL, date(2025, 1, 1))
+        assert result is None
+
+
+class TestPlanLineageDuplicateIds:
+    """PlanLineage with duplicate plan IDs in the list."""
+
+    def test_duplicate_plan_ids_in_lineage(self):
+        # build_lineage uses a dict keyed by plan_id, so duplicates
+        # overwrite earlier entries in by_id (though sorted_plans keeps all)
+        p1 = _plan(
+            plan_id="DUP",
+            state="TX",
+            enacted_date="2012-01-01",
+            events=[_event(PlanLifecycleStatus.ENACTED, "2012-01-01")],
+        )
+        p2 = _plan(
+            plan_id="DUP",
+            state="TX",
+            enacted_date="2022-01-01",
+            events=[_event(PlanLifecycleStatus.ENACTED, "2022-01-01")],
+        )
+        lin = build_lineage([p1, p2])
+        # Both plans appear in the lineage (sorted by enacted_date)
+        assert len(lin.plans) == 2
+        assert lin.plans[0].enacted_date == date(2012, 1, 1)
+        assert lin.plans[1].enacted_date == date(2022, 1, 1)
+
+    def test_duplicate_ids_current_plan_is_latest_active(self):
+        p1 = _plan(
+            plan_id="DUP",
+            state="TX",
+            enacted_date="2012-01-01",
+            events=[
+                _event(PlanLifecycleStatus.ENACTED, "2012-01-01"),
+                _event(PlanLifecycleStatus.SUPERSEDED, "2022-01-01"),
+            ],
+        )
+        p2 = _plan(
+            plan_id="DUP",
+            state="TX",
+            enacted_date="2022-01-01",
+            events=[_event(PlanLifecycleStatus.ENACTED, "2022-01-01")],
+        )
+        lin = build_lineage([p1, p2])
+        assert lin.current_plan is not None
+        assert lin.current_plan.enacted_date == date(2022, 1, 1)

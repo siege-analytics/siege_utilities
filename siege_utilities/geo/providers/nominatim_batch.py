@@ -70,7 +70,6 @@ class NominatimBatchGeocoder(BatchGeocoder):
     def geocode(
         self,
         addresses: Union[list[dict], list[str], list[AddressInput]],
-        **kwargs,
     ) -> BatchGeocodingResult:
         """Geocode addresses via Nominatim (one at a time with rate limiting).
 
@@ -124,7 +123,7 @@ class NominatimBatchGeocoder(BatchGeocoder):
                     match_quality=MatchQuality.APPROXIMATE.value,
                     backend=self.backend_name,
                 )
-        except Exception as exc:
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
             log.warning("Nominatim geocode failed for %s: %s", addr.input_id, exc)
 
         return GeocodingResult(
@@ -160,7 +159,7 @@ class NominatimBatchGeocoder(BatchGeocoder):
                         lon = float(data[0]["lon"])
                         return (lat, lon)
                     return None
-            except Exception:
+            except (OSError, ValueError, TypeError):
                 if attempt == self._max_retries:
                     raise
                 time.sleep(self._rate_limit)

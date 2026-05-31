@@ -20,19 +20,19 @@ from siege_utilities.geo.providers.census_geocoder import (
 
 class TestCensusVintage:
     def test_enum_values(self):
-        assert CensusVintage.CENSUS_2010.value == "Census2010_Census2010"
-        assert CensusVintage.CENSUS_2020.value == "Census2020_Census2020"
-        assert CensusVintage.CURRENT.value == "Public_Current"
+        assert CensusVintage.CENSUS_2010.value == "Public_AR_Census2020|Census2010_Census2020"
+        assert CensusVintage.CENSUS_2020.value == "Public_AR_Census2020|Census2020_Census2020"
+        assert CensusVintage.CURRENT.value == "Public_AR_Current|Current_Current"
 
     def test_benchmark_property(self):
-        assert CensusVintage.CENSUS_2010.benchmark == "Census2010"
-        assert CensusVintage.CENSUS_2020.benchmark == "Census2020"
-        assert CensusVintage.CURRENT.benchmark == "Public"
+        assert CensusVintage.CENSUS_2010.benchmark == "Public_AR_Census2020"
+        assert CensusVintage.CENSUS_2020.benchmark == "Public_AR_Census2020"
+        assert CensusVintage.CURRENT.benchmark == "Public_AR_Current"
 
     def test_vintage_property(self):
-        assert CensusVintage.CENSUS_2010.vintage == "Census2010"
-        assert CensusVintage.CENSUS_2020.vintage == "Census2020"
-        assert CensusVintage.CURRENT.vintage == "Current"
+        assert CensusVintage.CENSUS_2010.vintage == "Census2010_Census2020"
+        assert CensusVintage.CENSUS_2020.vintage == "Census2020_Census2020"
+        assert CensusVintage.CURRENT.vintage == "Current_Current"
 
     def test_is_string_enum(self):
         assert isinstance(CensusVintage.CURRENT, str)
@@ -107,24 +107,26 @@ class TestCensusGeocodeResult:
 class TestGeocodeSingle:
     @patch("siege_utilities.geo.providers.census_geocoder._get_geocoder")
     def test_successful_match(self, mock_get_geocoder):
+        """Mock data mirrors censusgeocode v0.5+ return: ``onelineaddress``
+        returns a list-like ``AddressResult`` of match dicts, not a nested
+        ``{"result": {"addressMatches": [...]}}`` structure."""
         mock_cg = MagicMock()
-        mock_cg.onelineaddress.return_value = {
-            "result": {
-                "addressMatches": [{
-                    "matchedAddress": "1600 PENNSYLVANIA AVE NW, WASHINGTON, DC, 20500",
-                    "coordinates": {"x": -77.0365, "y": 38.8977},
-                    "geographies": {
-                        "Census Blocks": [{
-                            "STATE": "11",
-                            "COUNTY": "001",
-                            "TRACT": "006202",
-                            "BLOCK": "1031",
-                        }]
-                    },
-                    "addressComponents": {"side": "L", "tigerLineId": "12345"},
-                }]
+        # censusgeocode returns an AddressResult (list-like) of match dicts
+        mock_cg.onelineaddress.return_value = [
+            {
+                "matchedAddress": "1600 PENNSYLVANIA AVE NW, WASHINGTON, DC, 20500",
+                "coordinates": {"x": -77.0365, "y": 38.8977},
+                "geographies": {
+                    "2020 Census Blocks": [{
+                        "STATE": "11",
+                        "COUNTY": "001",
+                        "TRACT": "006202",
+                        "BLOCK": "1031",
+                    }]
+                },
+                "tigerLine": {"side": "L", "tigerLineId": "12345"},
             }
-        }
+        ]
         mock_get_geocoder.return_value = mock_cg
 
         result = geocode_single(
@@ -145,9 +147,8 @@ class TestGeocodeSingle:
     @patch("siege_utilities.geo.providers.census_geocoder._get_geocoder")
     def test_no_match(self, mock_get_geocoder):
         mock_cg = MagicMock()
-        mock_cg.onelineaddress.return_value = {
-            "result": {"addressMatches": []}
-        }
+        # censusgeocode returns an empty list-like result for no match
+        mock_cg.onelineaddress.return_value = []
         mock_get_geocoder.return_value = mock_cg
 
         result = geocode_single("123 Fake St", "Nowhere", "XX", "00000")
@@ -179,16 +180,19 @@ class TestGeocodeBatch:
 
     @patch("siege_utilities.geo.providers.census_geocoder._get_geocoder")
     def test_batch_results(self, mock_get_geocoder):
+        """Mock data mirrors censusgeocode v0.5+ return format: ``match``
+        is a boolean, the matched address is ``parsed``, and lat/lon are
+        already floats after the library's own parsing step."""
         mock_cg = MagicMock()
         mock_cg.addressbatch.return_value = [
             {
                 "id": "1",
-                "is_match": "Match",
-                "match_type": "Exact",
+                "match": True,
+                "matchtype": "Exact",
                 "address": "1600 Pennsylvania Ave, Washington, DC 20500",
-                "match_address": "1600 PENNSYLVANIA AVE NW, WASHINGTON, DC, 20500",
-                "lat": "38.8977",
-                "lon": "-77.0365",
+                "parsed": "1600 PENNSYLVANIA AVE NW, WASHINGTON, DC, 20500",
+                "lat": 38.8977,
+                "lon": -77.0365,
                 "statefp": "11",
                 "countyfp": "001",
                 "tract": "006202",
@@ -198,8 +202,18 @@ class TestGeocodeBatch:
             },
             {
                 "id": "2",
-                "is_match": "No_Match",
+                "match": False,
+                "matchtype": None,
                 "address": "123 Fake St, Nowhere, XX 00000",
+                "parsed": None,
+                "tigerlineid": None,
+                "side": None,
+                "statefp": None,
+                "countyfp": None,
+                "tract": None,
+                "block": None,
+                "lat": None,
+                "lon": None,
             },
         ]
         mock_get_geocoder.return_value = mock_cg
@@ -213,6 +227,7 @@ class TestGeocodeBatch:
         assert len(results) == 2
         assert results[0].matched
         assert results[0].state_fips == "11"
+        assert results[0].matched_address == "1600 PENNSYLVANIA AVE NW, WASHINGTON, DC, 20500"
         assert results[0].lat == pytest.approx(38.8977)
         assert not results[1].matched
 

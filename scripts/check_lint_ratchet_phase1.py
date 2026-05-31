@@ -29,7 +29,7 @@ def _resolve_base_head(base_sha: str | None, head_sha: str | None, base_ref: str
         subprocess.run(["git", "fetch", remote, ref, "--depth", "1"], check=False, timeout=60)
         merge_base = subprocess.check_output(["git", "merge-base", base_ref, "HEAD"], text=True, timeout=60).strip()
         return merge_base, head
-    except Exception:
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
         parent = subprocess.check_output(["git", "rev-parse", "HEAD~1"], text=True, timeout=60).strip()
         return parent, head
 

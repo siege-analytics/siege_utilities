@@ -8,3 +8,13 @@ Future:
 - `bea`: BEA Regional Economic Accounts.
 - `irs.soi`: IRS Statistics of Income by ZIP/ZCTA.
 """
+
+__all__ = ["QCEWFiles"]
+
+
+def __getattr__(name: str):
+    if name == "QCEWFiles":
+        from .bls.qcew import QCEWFiles
+
+        return QCEWFiles
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

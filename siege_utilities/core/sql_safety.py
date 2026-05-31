@@ -22,6 +22,7 @@ __all__ = [
     "validate_sql_identifier",
     "validate_sql_identifier_in",
     "escape_sql_string_literal",
+    "validate_sql_fragment",
 ]
 
 
@@ -107,6 +108,73 @@ def validate_sql_identifier_in(
             f"SQL {label} {name!r} not in allowed set ({sample}{more})"
         )
     return name
+
+
+_DANGEROUS_SQL_RE = re.compile(
+    r"""
+    ;                          # statement separator
+    | --                       # line comment
+    | /\*                      # block comment open
+    | \bUNION\b                # UNION injection
+    | \bDROP\b                 # DDL
+    | \bDELETE\b               # DML mutation
+    | \bINSERT\b               # DML mutation
+    | \bUPDATE\b               # DML mutation
+    | \bALTER\b                # DDL
+    | \bCREATE\b               # DDL
+    | \bTRUNCATE\b             # DDL
+    | \bEXEC\b                 # stored procedure execution
+    | \bINTO\s+OUTFILE\b       # file exfiltration (MySQL)
+    | \bINTO\s+DUMPFILE\b      # file exfiltration (MySQL)
+    | \bCOPY\b                 # file exfiltration (Postgres/DuckDB)
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+
+
+def validate_sql_fragment(fragment: str, label: str = "SQL fragment") -> str:
+    """Reject SQL fragments containing dangerous structural keywords.
+
+    This is defense-in-depth for cases where a free-form SQL expression
+    (e.g. a WHERE clause) must be interpolated into a query string.
+    Parameter binding is always preferred; use this only when binding
+    is not possible.
+
+    The blocklist catches statement-level injection (semicolons, DDL/DML
+    keywords, comments). It does NOT make arbitrary input safe — callers
+    should still avoid passing untrusted user input.
+
+    Args:
+        fragment: The SQL fragment to validate.
+        label: Human-readable label for error messages.
+
+    Returns:
+        The validated fragment (unchanged).
+
+    Raises:
+        TypeError: *fragment* is not a string.
+        ValueError: *fragment* contains a blocked pattern.
+
+    Examples:
+        >>> validate_sql_fragment("state_fips = '06'")
+        "state_fips = '06'"
+        >>> validate_sql_fragment("1=1; DROP TABLE users--")
+        Traceback (most recent call last):
+            ...
+        ValueError: Dangerous pattern in SQL fragment: ...
+    """
+    if not isinstance(fragment, str):
+        raise TypeError(
+            f"validate_sql_fragment: expected str, got {type(fragment).__name__}"
+        )
+    match = _DANGEROUS_SQL_RE.search(fragment)
+    if match:
+        raise ValueError(
+            f"Dangerous pattern in {label}: {match.group()!r} — "
+            f"raw SQL fragments must not contain DDL/DML keywords, "
+            f"semicolons, or comments"
+        )
+    return fragment
 
 
 def escape_sql_string_literal(value: str, *, dialect: str = "standard") -> str:

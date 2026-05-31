@@ -55,13 +55,13 @@ def ensure_path_exists(desired_path: FilePath) -> Path:
         log.info(f"Ensured path exists: {path_obj}")
         return path_obj
 
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to create path {desired_path}: {e}")
         raise
 
 def unzip_file_to_directory(zip_file_path: FilePath,
                            extract_to: Optional[FilePath] = None,
-                           create_subdirectory: bool = True) -> Optional[Path]:
+                           create_subdirectory: bool = True) -> Path:
     """
     Extract a zip file to a directory.
 
@@ -73,83 +73,61 @@ def unzip_file_to_directory(zip_file_path: FilePath,
         create_subdirectory: Whether to create a subdirectory for extracted files
 
     Returns:
-        Path to the extraction directory, or None if failed
+        Path to the extraction directory
 
     Raises:
+        FileNotFoundError: If zip file does not exist or is not a file
+        zipfile.BadZipFile: If file is not a valid zip
         PathSecurityError: If paths fail security validation
+        OSError: If extraction fails
 
     Example:
         >>> extract_dir = unzip_file_to_directory("data.zip")
         >>> print(f"Files extracted to: {extract_dir}")
     """
     try:
-        # Validate paths
-        try:
-            from siege_utilities.files.validation import validate_file_path, validate_directory_path, PathSecurityError  # noqa: F401, F811
-            zip_path = validate_file_path(zip_file_path, must_exist=True)
-        except ImportError:
-            zip_path = Path(zip_file_path)
+        from siege_utilities.files.validation import validate_file_path, validate_directory_path, PathSecurityError  # noqa: F401, F811
+        zip_path = validate_file_path(zip_file_path, must_exist=True)
+    except ImportError:
+        zip_path = Path(zip_file_path)
 
-        if not zip_path.exists():
-            log.error(f"Zip file does not exist: {zip_path}")
-            return None
+    if not zip_path.exists():
+        raise FileNotFoundError(f"Zip file does not exist: {zip_path}")
 
-        if not zip_path.is_file():
-            log.error(f"Path is not a file: {zip_path}")
-            return None
+    if not zip_path.is_file():
+        raise FileNotFoundError(f"Path is not a file: {zip_path}")
 
-        # Determine extraction directory
-        if extract_to is None:
-            extract_to = zip_path.parent
+    if extract_to is None:
+        extract_to = zip_path.parent
 
-        try:
-            from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
-            extract_dir = validate_directory_path(extract_to, must_exist=False)
-        except ImportError:
-            extract_dir = Path(extract_to)
+    try:
+        from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
+        extract_dir = validate_directory_path(extract_to, must_exist=False)
+    except ImportError:
+        extract_dir = Path(extract_to)
 
-        if create_subdirectory:
-            # Create subdirectory based on zip file name
-            subdir_name = zip_path.stem
-            target_dir = extract_dir / subdir_name
-        else:
-            target_dir = extract_dir
+    if create_subdirectory:
+        subdir_name = zip_path.stem
+        target_dir = extract_dir / subdir_name
+    else:
+        target_dir = extract_dir
 
-        # Create target directory
-        target_dir.mkdir(parents=True, exist_ok=True)
+    target_dir.mkdir(parents=True, exist_ok=True)
 
-        # Extract files (with zip slip protection). Validate AND extract
-        # per-member — extractall() would ignore the validation loop
-        # below and re-process every entry without the guard.
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            target_resolved = target_dir.resolve()
-            for member in zip_ref.namelist():
-                # Reject absolute paths and any traversal that escapes
-                # target_dir. Path.resolve() collapses '..' segments;
-                # if the result isn't a child of target_dir, it's
-                # malicious.
-                try:
-                    (target_dir / member).resolve().relative_to(target_resolved)
-                except ValueError:
-                    # Detected-and-skipped → recoverable anomaly, not a
-                    # user-visible failure. Use warning + lazy format.
-                    log.warning(
-                        "Zip slip attempt detected, skipping member: %r", member,
-                    )
-                    continue
-                zip_ref.extract(member, target_dir)
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        target_resolved = target_dir.resolve()
+        for member in zip_ref.namelist():
+            try:
+                (target_dir / member).resolve().relative_to(target_resolved)
+            except ValueError:
+                log.warning(
+                    "Zip slip attempt detected, skipping member: %r", member,
+                )
+                continue
+            zip_ref.extract(member, target_dir)
 
-        log.info(f"Extracted {zip_path} to {target_dir}")
-        return target_dir
-
-    except zipfile.BadZipFile:
-        log.error(f"Invalid zip file: {zip_file_path}")
-        return None
-    except PathSecurityError:
-        raise
-    except Exception as e:
-        log.error(f"Failed to extract {zip_file_path}: {e}")
-        return None
+    log.info(f"Extracted {zip_path} to {target_dir}")
+    return target_dir
 
 def get_file_extension(file_path: FilePath) -> str:
     """
@@ -184,7 +162,7 @@ def get_file_extension(file_path: FilePath) -> str:
         return path_obj.suffix
     except PathSecurityError:
         raise
-    except Exception as e:
+    except (OSError, TypeError) as e:
         log.error(f"Failed to get extension for {file_path}: {e}")
         raise
 
@@ -221,7 +199,7 @@ def get_file_name_without_extension(file_path: FilePath) -> str:
         return path_obj.stem
     except PathSecurityError:
         raise
-    except Exception as e:
+    except (OSError, TypeError) as e:
         log.error(f"Failed to get filename for {file_path}: {e}")
         raise
 
@@ -258,11 +236,11 @@ def is_hidden_file(file_path: FilePath) -> bool:
         return path_obj.name.startswith('.')
     except PathSecurityError:
         raise
-    except Exception as e:
+    except (OSError, TypeError) as e:
         log.error(f"Failed to check if hidden: {file_path}: {e}")
         raise
 
-def get_relative_path(base_path: FilePath, target_path: FilePath) -> Optional[Path]:
+def get_relative_path(base_path: FilePath, target_path: FilePath) -> Path:
     """
     Get the relative path from base_path to target_path.
 
@@ -273,39 +251,28 @@ def get_relative_path(base_path: FilePath, target_path: FilePath) -> Optional[Pa
         target_path: Target file/directory path
 
     Returns:
-        Relative path from base to target, or None if failed
+        Relative path from base to target
 
     Raises:
+        ValueError: If target is not relative to base
         PathSecurityError: If paths fail security validation
 
     Example:
         >>> rel_path = get_relative_path("/home/user", "/home/user/documents/file.txt")
         >>> print(f"Relative path: {rel_path}")  # documents/file.txt
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> get_relative_path("/etc", "/etc/passwd")  # Sensitive path blocked
     """
     try:
-        # Validate paths
-        try:
-            from siege_utilities.files.validation import validate_safe_path, PathSecurityError  # noqa: F401, F811
-            base = validate_safe_path(base_path, allow_absolute=True)
-            target = validate_safe_path(target_path, allow_absolute=True)
-        except ImportError:
-            base = Path(base_path).resolve()
-            target = Path(target_path).resolve()
+        from siege_utilities.files.validation import validate_safe_path, PathSecurityError  # noqa: F401, F811
+        base = validate_safe_path(base_path, allow_absolute=True)
+        target = validate_safe_path(target_path, allow_absolute=True)
+    except ImportError:
+        base = Path(base_path).resolve()
+        target = Path(target_path).resolve()
 
-        try:
-            relative = target.relative_to(base)
-            return relative
-        except ValueError:
-            log.warning(f"Target {target} is not relative to base {base}")
-            return None
-    except PathSecurityError:
-        raise
-    except Exception as e:
-        log.error(f"Failed to get relative path: {e}")
-        return None
+    try:
+        return target.relative_to(base)
+    except ValueError as e:
+        raise ValueError(f"Target {target} is not relative to base {base}") from e
 
 def find_files_by_pattern(directory: FilePath,
                          pattern: str = "*",
@@ -325,6 +292,7 @@ def find_files_by_pattern(directory: FilePath,
 
     Raises:
         PathSecurityError: If path fails security validation
+        OSError: If the directory cannot be read
 
     Example:
         >>> files = find_files_by_pattern("data", "*.csv", recursive=True)
@@ -341,9 +309,10 @@ def find_files_by_pattern(directory: FilePath,
         except ImportError:
             dir_path = Path(directory)
 
-        if not dir_path.exists() or not dir_path.is_dir():
-            log.warning(f"Directory does not exist or is not a directory: {dir_path}")
-            return []
+        if not dir_path.exists():
+            raise FileNotFoundError(f"Directory does not exist: {dir_path}")
+        if not dir_path.is_dir():
+            raise FileNotFoundError(f"Path is not a directory: {dir_path}")
 
         if recursive:
             files = list(dir_path.rglob(pattern))
@@ -355,11 +324,10 @@ def find_files_by_pattern(directory: FilePath,
 
         log.debug(f"Found {len(files)} files matching '{pattern}' in {dir_path}")
         return sorted(files)
-    except PathSecurityError:
+    except (PathSecurityError, FileNotFoundError):
         raise
-    except Exception as e:
-        log.error(f"Failed to find files in {directory}: {e}")
-        return []
+    except OSError as e:
+        raise OSError(f"Failed to find files in {directory}: {e}") from e
 
 def create_backup_path(original_path: FilePath,
                       backup_suffix: str = ".backup",
@@ -415,7 +383,7 @@ def create_backup_path(original_path: FilePath,
         return backup_path
     except PathSecurityError:
         raise
-    except Exception as e:
+    except OSError as e:
         log.error(f"Failed to create backup path for {original_path}: {e}")
         raise
 
@@ -444,7 +412,7 @@ def normalize_path(path: FilePath) -> Path:
         path_obj = Path(path).expanduser().resolve()
         log.debug(f"Normalized {path} to {path_obj}")
         return path_obj
-    except Exception as e:
+    except (OSError, RuntimeError, TypeError) as e:
         log.error(f"Failed to normalize path {path}: {e}")
         raise
 

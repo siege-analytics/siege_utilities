@@ -88,7 +88,7 @@ class BarChartMixin:
                     y_column = numeric_cols[0]
                     y_values = df[y_column].tolist()
                 else:
-                    return self._create_placeholder_chart(width, height, "No numeric data found")
+                    raise ValueError("No numeric columns found in data for bar chart")
 
             # Create figure with very conservative sizing to prevent ReportLab crashes
             fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
@@ -130,9 +130,16 @@ class BarChartMixin:
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
-        except Exception as e:
-            log.error(f"Error creating bar chart: {e}")
-            return self._create_placeholder_chart(width, height, f"Chart Error: {str(e)}")
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+
+
+            raise RuntimeError(
+
+
+                f"Chart Error: {e}"
+
+
+            ) from e
 
     def create_line_chart(self, data: Union[pd.DataFrame, Dict[str, Any]],
                          x_column: str = None, y_columns: List[str] = None,
@@ -215,9 +222,16 @@ class BarChartMixin:
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
-        except Exception as e:
-            log.error(f"Error creating line chart: {e}")
-            return self._create_placeholder_chart(width, height, f"Chart Error: {str(e)}")
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+
+
+            raise RuntimeError(
+
+
+                f"Chart Error: {e}"
+
+
+            ) from e
 
     def create_pie_chart(self, data: Union[pd.DataFrame, Dict[str, Any]],
                         labels_column: str = None, values_column: str = None,
@@ -258,7 +272,7 @@ class BarChartMixin:
                     labels = df[cols[0]].tolist()
                     values = df[cols[1]].tolist()
                 else:
-                    return self._create_placeholder_chart(width, height, "Need at least 2 columns for pie chart")
+                    raise ValueError("Need at least 2 columns for pie chart")
 
             # Create figure with larger size for dominant appearance
             fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
@@ -324,9 +338,16 @@ class BarChartMixin:
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
-        except Exception as e:
-            log.error(f"Error creating pie chart: {e}")
-            return self._create_placeholder_chart(width, height, f"Chart Error: {str(e)}")
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+
+
+            raise RuntimeError(
+
+
+                f"Chart Error: {e}"
+
+
+            ) from e
 
     def create_proportional_text_bar_chart(self,
                                          data: 'pd.DataFrame',
@@ -388,6 +409,6 @@ class BarChartMixin:
 
             return "<br/>".join(chart_lines)
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
             log.error(f"Error creating proportional text bar chart: {e}")
             return f"<i>Error creating text bar chart: {str(e)}</i>"

@@ -111,14 +111,14 @@ class IsochroneComputeService:
                 base_url=base_url,
                 **provider_kwargs,
             )
-        except Exception as exc:
+        except (OSError, ValueError, TypeError, RuntimeError) as exc:
             result.errors.append(f"Provider error: {exc}")
             return result
 
         # Convert GeoJSON to GEOS geometry
         try:
             geometry = self._geojson_to_multipolygon(geojson)
-        except Exception as exc:
+        except (ValueError, TypeError, AttributeError) as exc:
             result.errors.append(f"Geometry conversion error: {exc}")
             return result
 
@@ -138,7 +138,7 @@ class IsochroneComputeService:
                     },
                 )
                 result.records_created = 1
-        except Exception as exc:
+        except (ValueError, TypeError, AttributeError, OSError) as exc:
             result.errors.append(f"Database error: {exc}")
 
         return result

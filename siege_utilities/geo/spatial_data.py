@@ -6,6 +6,7 @@ Provides clean, type-safe access to Census, Government, and OpenStreetMap data.
 import logging
 import os
 import re
+import threading
 import time
 import warnings
 import warnings as _warnings_mod
@@ -272,7 +273,7 @@ def update_census_inventory(
             if r.status_code == 200:
                 return r.content
             log.debug("census inventory crawl: %s → %s", url, r.status_code)
-        except Exception as exc:
+        except (requests.exceptions.RequestException, OSError) as exc:
             log.debug("census inventory crawl: %s → %s", url, exc)
         return None
 
@@ -314,24 +315,29 @@ def update_census_inventory(
 
     save_path = Path(save_path or _DEFAULT_INVENTORY_PATH)
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(save_path, "w") as fh:
+    with open(save_path, "w", encoding="utf-8") as fh:
         json.dump(inventory, fh, indent=2)
     log.info("census inventory saved to %s", save_path)
     return inventory
 
 
 def load_census_inventory(path: Optional[Path] = None) -> Optional[dict]:
-    """Load the saved Census inventory from disk.  Returns None if absent."""
+    """Load the saved Census inventory from disk.  Returns None if absent.
+
+    Raises:
+        SpatialDataError: If the file exists but cannot be parsed.
+    """
     import json
     p = Path(path or _DEFAULT_INVENTORY_PATH)
     if not p.exists():
         return None
     try:
-        with open(p) as fh:
+        with open(p, encoding="utf-8") as fh:
             return json.load(fh)
-    except Exception as exc:
-        log.warning("could not load census inventory from %s: %s", p, exc)
-        return None
+    except (OSError, ValueError, UnicodeDecodeError) as exc:
+        raise SpatialDataError(
+            f"Census inventory file exists at {p} but cannot be parsed: {exc}"
+        ) from exc
 
 
 def _dirs_from_inventory(year: int, inventory: Optional[dict] = None) -> Optional[List[str]]:
@@ -485,7 +491,7 @@ class CensusDirectoryDiscovery:
                         years = self._parse_year_links(response.content)
                         self.cache[cache_key] = (time.time(), years)
                         return years
-                    except Exception as e2:
+                    except (requests.exceptions.RequestException, OSError) as e2:
                         last_exception = e2
                 else:
                     log.error(
@@ -589,13 +595,13 @@ class CensusDirectoryDiscovery:
                 self.cache[cache_key] = (time.time(), directories)
                 return directories
 
-            except Exception as e:
+            except (requests.exceptions.RequestException, OSError) as e:
                 return handle_error(
                     SiegeGeoError(f"Failed to get contents for year {year} (SSL bypass): {e}"),
                     on_error=on_error, fallback=[], context=f"TIGER directory listing for {year}",
                 )
 
-        except Exception as e:
+        except (requests.exceptions.RequestException, OSError) as e:
             # On rate-limit (429), substitute the static known-directory list
             # instead of returning [] (which silently skips every boundary type).
             # Only override "skip" callers — "raise"/"warn" callers still see
@@ -882,7 +888,7 @@ class CensusDirectoryDiscovery:
 
         except (BoundaryInputError, BoundaryDiscoveryError, BoundaryConfigurationError):
             raise
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, requests.exceptions.RequestException, OSError) as e:
             raise BoundaryDiscoveryError(
                 f"Failed to construct URL for {boundary_type} in year {year}: {e}",
                 context={**ctx, "original_error": str(e)},
@@ -1061,10 +1067,10 @@ class CensusDirectoryDiscovery:
                 raise BoundaryUrlValidationError(
                     f"URL returned HTTP {response.status_code} (SSL bypass): {url}",
                     context=ctx,
-                )
+                ) from ssl_err
             except BoundaryUrlValidationError:
                 raise
-            except Exception as e:
+            except (requests.exceptions.RequestException, OSError) as e:
                 ctx["fallback_error"] = str(e)
                 raise BoundaryUrlValidationError(
                     f"URL validation failed for {url} (with SSL bypass): {e}",
@@ -1076,7 +1082,7 @@ class CensusDirectoryDiscovery:
                 f"URL validation timed out after {self.timeout}s: {url}",
                 context=ctx,
             ) from e
-        except Exception as e:
+        except (requests.exceptions.RequestException, OSError) as e:
             ctx["error_type"] = type(e).__name__
             raise BoundaryUrlValidationError(
                 f"URL validation failed for {url}: {e}",
@@ -1119,7 +1125,7 @@ class SpatialDataSource:
         # Get user configuration for API keys and preferences
         try:
             self.user_config = get_user_config()
-        except Exception as e:
+        except (ImportError, OSError, ValueError, KeyError, AttributeError) as e:
             log.warning(f"Failed to load user config: {e}")
             self.user_config = {}
     
@@ -1399,7 +1405,7 @@ class CensusDataSource(SpatialDataSource):
                 message=str(e),
                 context={**base_ctx, **e.context},
             )
-        except Exception as e:
+        except (OSError, ValueError, TypeError, KeyError, AttributeError, requests.exceptions.RequestException, ImportError) as e:
             return BoundaryFetchResult.fail(
                 error_code="UNEXPECTED_ERROR",
                 error_stage="unknown",
@@ -1429,13 +1435,16 @@ class CensusDataSource(SpatialDataSource):
         # Use centralized FIPS data
         return FIPS_TO_STATE.copy()
     
-    def normalize_state_identifier(self, state_input) -> Optional[str]:
-        """Convert any state identifier (FIPS, abbreviation, name) to FIPS code."""
-        # DEPRECATED: Use centralized normalize_state_identifier function instead
-        try:
-            return normalize_state_identifier(state_input)
-        except ValueError:
-            return None
+    def normalize_state_identifier(self, state_input) -> str:
+        """Convert any state identifier (FIPS, abbreviation, name) to FIPS code.
+
+        .. deprecated:: 3.16.0
+            Use the module-level :func:`normalize_state_identifier` directly.
+
+        Raises:
+            ValueError: If the input cannot be resolved to a valid state FIPS.
+        """
+        return normalize_state_identifier(state_input)
     
     def get_comprehensive_state_info(self) -> Dict[str, Dict[str, str]]:
         """Get comprehensive state information including FIPS, name, and abbreviation."""
@@ -1548,30 +1557,16 @@ class CensusDataSource(SpatialDataSource):
 
             # Generate local path using existing function
             zip_filename = generate_local_path_from_url(url, download_dir)
-            if not zip_filename:
-                raise BoundaryDownloadError(
-                    "Failed to generate local path for download",
-                    context={**ctx, "error_code": "LOCAL_PATH_FAILED"},
-                )
-
             ctx["local_path"] = str(zip_filename)
 
-            # Download file using existing function with SSL fallback
-            download_success = False
+            # Download file (download_file handles SSL retry internally)
             try:
-                download_success = download_file(url, zip_filename)
-            except Exception as ssl_error:
-                if "SSL" in str(ssl_error) or "certificate" in str(ssl_error).lower():
-                    log.warning(f"SSL verification failed, retrying without verification: {ssl_error}")
-                    download_success = download_file(url, zip_filename, verify_ssl=False)
-                    if download_success:
-                        log.info("Successfully downloaded without SSL verification")
-
-            if not download_success:
+                download_file(url, zip_filename)
+            except (OSError, ConnectionError) as dl_err:
                 raise BoundaryDownloadError(
                     f"Failed to download TIGER/Line data from {url}",
                     context={**ctx, "error_code": "DOWNLOAD_FAILED"},
-                )
+                ) from dl_err
 
             # Validate downloaded file is actually a zip (not an HTML challenge page)
             import zipfile
@@ -1584,8 +1579,11 @@ class CensusDataSource(SpatialDataSource):
                 )
                 zip_path.unlink(missing_ok=True)
                 # Retry once — the first attempt may have been an anti-bot challenge
-                download_success = download_file(url, zip_filename)
-                if not download_success or not zipfile.is_zipfile(zip_path):
+                try:
+                    download_file(url, zip_filename)
+                except (OSError, ConnectionError):
+                    pass
+                if not zipfile.is_zipfile(zip_path):
                     zip_path.unlink(missing_ok=True)
                     raise BoundaryDownloadError(
                         f"Downloaded file is not a valid zip after retry: {url}",
@@ -1599,11 +1597,6 @@ class CensusDataSource(SpatialDataSource):
 
             # Unzip using existing function
             unzip_dir = unzip_file_to_directory(Path(zip_filename))
-            if not unzip_dir:
-                raise BoundaryDownloadError(
-                    f"Failed to unzip TIGER/Line data from {zip_filename}",
-                    context={**ctx, "error_code": "UNZIP_FAILED"},
-                )
 
             # Find the shapefile
             shapefile_path = None
@@ -1624,7 +1617,7 @@ class CensusDataSource(SpatialDataSource):
             # Read with GeoPandas
             try:
                 gdf = gpd.read_file(shapefile_path)
-            except Exception as read_err:
+            except (OSError, ValueError, RuntimeError, TypeError, KeyError) as read_err:
                 raise BoundaryParseError(
                     f"GeoPandas failed to read shapefile {shapefile_path}: {read_err}",
                     context={
@@ -1649,15 +1642,15 @@ class CensusDataSource(SpatialDataSource):
             if zip_filename and unzip_dir:
                 try:
                     self._cleanup_temp_files(zip_filename, unzip_dir)
-                except Exception:
+                except OSError:
                     pass
             raise
-        except Exception as e:
+        except (OSError, requests.exceptions.RequestException, ValueError, TypeError, AttributeError, KeyError, RuntimeError) as e:
             # Cleanup on unexpected failure
             if zip_filename and unzip_dir:
                 try:
                     self._cleanup_temp_files(zip_filename, unzip_dir)
-                except Exception:
+                except OSError:
                     pass
             raise BoundaryDownloadError(
                 f"Unexpected error downloading/processing TIGER data: {e}",
@@ -1687,7 +1680,7 @@ class CensusDataSource(SpatialDataSource):
             if unzip_dir.exists():
                 import shutil
                 shutil.rmtree(unzip_dir)
-        except Exception as e:
+        except OSError as e:
             log.warning(f"Failed to cleanup temporary files: {e}")
 
 
@@ -1708,16 +1701,19 @@ class GovernmentDataSource(SpatialDataSource):
             api_key=api_key
         )
     
-    def download_dataset(self, dataset_id: str, format_type: str = 'geojson') -> Optional[GeoDataFrame]:
+    def download_dataset(self, dataset_id: str, format_type: str = 'geojson') -> GeoDataFrame:
         """
         Download a dataset from the government data portal.
-        
+
         Args:
             dataset_id: Unique identifier for the dataset
             format_type: Preferred format (geojson, shapefile, kml)
-            
+
         Returns:
-            GeoDataFrame with spatial data or None if failed
+            GeoDataFrame with spatial data.
+
+        Raises:
+            SpatialDataError: On any download or processing failure.
         """
         try:
             # Construct download URL
@@ -1726,19 +1722,24 @@ class GovernmentDataSource(SpatialDataSource):
             # Get dataset metadata
             metadata = self._get_dataset_metadata(download_url)
             if not metadata:
-                return None
-            
+                raise SpatialDataError(
+                    f"Dataset {dataset_id} returned empty metadata"
+                )
+
             # Find best format
             resource_url = self._find_best_format(metadata, format_type)
             if not resource_url:
-                return None
+                raise SpatialDataError(
+                    f"No downloadable resource found for dataset {dataset_id} "
+                    f"(preferred format: {format_type})"
+                )
             
             # Download and process
             return self._download_and_process_dataset(resource_url, format_type)
             
         except SpatialDataError:
             raise
-        except Exception as e:
+        except (requests.exceptions.RequestException, OSError, ValueError, TypeError, AttributeError, KeyError) as e:
             raise SpatialDataError(
                 f"Failed to download dataset {dataset_id}: {e}"
             ) from e
@@ -1769,35 +1770,41 @@ class GovernmentDataSource(SpatialDataSource):
             return data.get('result', {})
         except SpatialDataError:
             raise
-        except Exception as e:
+        except (requests.exceptions.RequestException, OSError, ValueError) as e:
             raise SpatialDataError(
                 f"Error getting dataset metadata from {url}: {e}"
             ) from e
     
-    def _find_best_format(self, metadata: Dict[str, Any], preferred_format: str) -> Optional[str]:
-        """Find the best available format for download.
+    def _find_best_format(self, metadata: Dict[str, Any], preferred_format: str) -> str:
+        """Find the best available format URL for download.
 
-        Pure dict-manipulation; no I/O. The previous catch-all
-        ``except Exception: raise SpatialDataError(...)`` wrapper was
-        treating programming errors (a non-dict in ``resources``, a
-        ``metadata`` that wasn't a dict) as data errors. Let programming
-        errors propagate as themselves so the cause is visible.
+        Pure dict-manipulation; no I/O.
+
+        Raises:
+            SpatialDataError: If no downloadable resource URL is found.
         """
         resources = metadata.get('resources', [])
 
         # Look for preferred format first
         for resource in resources:
             if resource.get('format', '').lower() == preferred_format.lower():
-                return resource.get('url')
+                url = resource.get('url')
+                if url:
+                    return url
 
         # Fall back to any available format
         for resource in resources:
-            if resource.get('url'):
-                return resource.get('url')
+            url = resource.get('url')
+            if url:
+                return url
 
-        return None
+        raise SpatialDataError(
+            f"No downloadable resource URL in metadata "
+            f"(preferred format: {preferred_format}, "
+            f"resources checked: {len(resources)})"
+        )
     
-    def _download_and_process_dataset(self, url: str, format_type: str) -> Optional[GeoDataFrame]:
+    def _download_and_process_dataset(self, url: str, format_type: str) -> GeoDataFrame:
         """Download and process the dataset."""
         try:
             # Get user's download directory
@@ -1806,14 +1813,10 @@ class GovernmentDataSource(SpatialDataSource):
             
             # Generate local path
             local_filename = generate_local_path_from_url(url, download_dir)
-            if not local_filename:
-                return None
-            
+
             # Download file
-            download_success = download_file(url, local_filename)
-            if not download_success:
-                return None
-            
+            download_file(url, local_filename)
+
             # Process based on format
             if format_type.lower() == 'geojson':
                 gdf = gpd.read_file(local_filename)
@@ -1821,20 +1824,15 @@ class GovernmentDataSource(SpatialDataSource):
                 # Handle zip files
                 if str(local_filename).endswith('.zip'):
                     unzip_dir = unzip_file_to_directory(Path(local_filename))
-                    if unzip_dir:
-                        shp_files = list(unzip_dir.glob("*.shp"))
-                        if shp_files:
-                            gdf = gpd.read_file(shp_files[0])
-                        else:
-                            log.error("No shapefile found in zip")
-                            return None
+                    shp_files = list(unzip_dir.glob("*.shp"))
+                    if shp_files:
+                        gdf = gpd.read_file(shp_files[0])
                     else:
-                        return None
+                        raise ValueError(f"No shapefile found in zip: {local_filename}")
                 else:
                     gdf = gpd.read_file(local_filename)
             else:
-                log.error(f"Unsupported format: {format_type}")
-                return None
+                raise SpatialDataError(f"Unsupported format: {format_type}")
             
             # Best-effort cleanup of the downloaded file. Narrow to OSError
             # (the only family os.remove raises) and log at debug level so
@@ -1849,7 +1847,7 @@ class GovernmentDataSource(SpatialDataSource):
             
             return gdf
             
-        except Exception as e:
+        except (OSError, ValueError, TypeError, AttributeError, RuntimeError, requests.exceptions.RequestException) as e:
             raise SpatialDataError(
                 f"Failed to process dataset from {url}: {e}"
             ) from e
@@ -1864,16 +1862,19 @@ class OpenStreetMapDataSource(SpatialDataSource):
             base_url="https://overpass-api.de/api/interpreter"
         )
     
-    def download_osm_data(self, query: str, bbox: Optional[List[float]] = None) -> Optional[GeoDataFrame]:
+    def download_osm_data(self, query: str, bbox: Optional[List[float]] = None) -> GeoDataFrame:
         """
         Download data from OpenStreetMap using Overpass QL.
-        
+
         Args:
             query: Overpass QL query string
             bbox: Bounding box [min_lat, min_lon, max_lat, max_lon]
-            
+
         Returns:
-            GeoDataFrame with OSM data or None if failed
+            GeoDataFrame with OSM data.
+
+        Raises:
+            SpatialDataError: On HTTP or processing failure.
         """
         try:
             # Construct Overpass query
@@ -1893,8 +1894,9 @@ class OpenStreetMapDataSource(SpatialDataSource):
             )
             
             if not response.ok:
-                log.error(f"Overpass API error: HTTP {response.status_code}")
-                return None
+                raise SpatialDataError(
+                    f"Overpass API error: HTTP {response.status_code}"
+                )
             
             # Parse response
             gdf = gpd.read_file(response.content, driver='GeoJSON')
@@ -1902,7 +1904,7 @@ class OpenStreetMapDataSource(SpatialDataSource):
             log.info(f"Downloaded {len(gdf)} features from OpenStreetMap")
             return gdf
             
-        except Exception as e:
+        except (requests.exceptions.RequestException, OSError, ValueError, TypeError, AttributeError) as e:
             raise SpatialDataError(
                 f"Failed to download OSM data: {e}"
             ) from e
@@ -2009,11 +2011,11 @@ def download_osm_data(
 # Standalone convenience functions
 def get_available_years(force_refresh: bool = False) -> List[int]:
     """Get available Census years."""
-    return census_source.get_available_years(force_refresh)
+    return _get_census_source().get_available_years(force_refresh)
 
 def get_year_directory_contents(year: int) -> List[str]:
     """Get directory contents for a specific year."""
-    return census_source.get_year_directory_contents(year)
+    return _get_census_source().get_year_directory_contents(year)
 
 def discover_boundary_types(year: int) -> Dict[str, str]:
     """Discover available boundary types for a year.
@@ -2022,15 +2024,15 @@ def discover_boundary_types(year: int) -> Dict[str, str]:
     :meth:`CensusDataSource.discover_boundary_types`. The historical
     ``List[str]`` annotation never matched runtime behavior.
     """
-    return census_source.discover_boundary_types(year)
+    return _get_census_source().discover_boundary_types(year)
 
 def construct_download_url(year: int, geographic_level: str, state_fips: Optional[str] = None) -> str:
     """Construct download URL for Census data."""
-    return census_source.construct_download_url(year, geographic_level, state_fips)
+    return _get_census_source().construct_download_url(year, geographic_level, state_fips)
 
 def validate_download_url(url: str) -> bool:
     """Validate a download URL."""
-    return census_source.validate_download_url(url)
+    return _get_census_source().validate_download_url(url)
 
 def get_optimal_year(geographic_level: str, preferred_year: Optional[int] = None) -> int:
     """Get optimal year for geographic level.
@@ -2044,7 +2046,7 @@ def get_optimal_year(geographic_level: str, preferred_year: Optional[int] = None
     """
     from datetime import datetime
     year = preferred_year if preferred_year is not None else datetime.now().year
-    return census_source.get_optimal_year(year, geographic_level)
+    return _get_census_source().get_optimal_year(year, geographic_level)
 
 def download_data(
     year: int,
@@ -2066,7 +2068,7 @@ def download_data(
     Returns:
         GeoDataFrame with boundaries in *crs*, or None if failed.
     """
-    gdf = census_source.get_geographic_boundaries(year, geographic_level, state_fips)
+    gdf = _get_census_source().get_geographic_boundaries(year, geographic_level, state_fips)
     return reproject_if_needed(gdf, crs)
 
 def get_geographic_boundaries(
@@ -2093,7 +2095,7 @@ def get_geographic_boundaries(
         DeprecationWarning,
         stacklevel=2,
     )
-    gdf = census_source.get_geographic_boundaries(year, geographic_level, state_fips, state_identifier)
+    gdf = _get_census_source().get_geographic_boundaries(year, geographic_level, state_fips, state_identifier)
     return reproject_if_needed(gdf, crs)
 
 
@@ -2119,7 +2121,7 @@ def fetch_geographic_boundaries(
     Returns:
         BoundaryFetchResult with .success, .geodataframe in *crs*, .error_stage, etc.
     """
-    result = census_source.fetch_geographic_boundaries(
+    result = _get_census_source().fetch_geographic_boundaries(
         year=year,
         geographic_level=geographic_level,
         state_fips=state_fips,
@@ -2138,19 +2140,38 @@ def get_available_boundary_types(year: int) -> Dict[str, str]:
     historical ``List[str]`` annotation never matched runtime
     behavior.
     """
-    return census_source.get_available_boundary_types(year)
+    return _get_census_source().get_available_boundary_types(year)
 
 def refresh_discovery_cache() -> None:
     """Refresh the discovery cache."""
-    return census_source.refresh_discovery_cache()
+    return _get_census_source().refresh_discovery_cache()
 
 def get_unified_fips_data() -> Dict[str, Dict[str, Any]]:
     """Get unified FIPS data with state names and abbreviations."""
-    return census_source.get_comprehensive_state_info()
+    return _get_census_source().get_comprehensive_state_info()
 
 def normalize_state_identifier_standalone(identifier: str) -> str:
-    """Normalize state identifier - standalone function."""
-    return census_source.normalize_state_identifier(identifier)
+    """Normalize a state identifier to its 2-digit FIPS code.
+
+    Delegates to :func:`siege_utilities.config.census_registry.normalize_state_identifier`,
+    the canonical implementation.
+
+    Parameters
+    ----------
+    identifier : str
+        Any of: 2-digit FIPS code, 2-letter abbreviation, or full state name.
+
+    Returns
+    -------
+    str
+        Zero-padded 2-digit FIPS code.
+
+    Raises
+    ------
+    ValueError
+        If *identifier* doesn't match any known state, territory, or DC.
+    """
+    return normalize_state_identifier(identifier)
 
 def normalize_state_input(raw_input: str) -> str:
     """
@@ -2228,7 +2249,7 @@ def get_available_state_fips() -> Dict[str, str]:
     Same shape as :meth:`CensusDataSource.get_available_state_fips`.
     Historical ``List[str]`` annotation never matched runtime behavior.
     """
-    return census_source.get_available_state_fips()
+    return _get_census_source().get_available_state_fips()
 
 def get_state_abbreviations() -> Dict[str, str]:
     """Get a ``{fips_code: state_abbreviation}`` mapping.
@@ -2236,31 +2257,31 @@ def get_state_abbreviations() -> Dict[str, str]:
     Same shape as :meth:`CensusDataSource.get_state_abbreviations`.
     Historical ``List[str]`` annotation never matched runtime behavior.
     """
-    return census_source.get_state_abbreviations()
+    return _get_census_source().get_state_abbreviations()
 
 def get_comprehensive_state_info() -> Dict[str, Dict[str, Any]]:
     """Get comprehensive state information."""
-    return census_source.get_comprehensive_state_info()
+    return _get_census_source().get_comprehensive_state_info()
 
 def get_state_by_abbreviation(abbreviation: str) -> Optional[Dict[str, Any]]:
     """Get state info by abbreviation."""
-    return census_source.get_state_by_abbreviation(abbreviation)
+    return _get_census_source().get_state_by_abbreviation(abbreviation)
 
 def get_state_by_name(name: str) -> Optional[Dict[str, Any]]:
     """Get state info by name."""
-    return census_source.get_state_by_name(name)
+    return _get_census_source().get_state_by_name(name)
 
 def validate_state_fips(fips: str) -> bool:
     """Validate state FIPS code."""
-    return census_source.validate_state_fips(fips)
+    return _get_census_source().validate_state_fips(fips)
 
 def get_state_name(fips: str) -> Optional[str]:
     """Get state name from FIPS code."""
-    return census_source.get_state_name(fips)
+    return _get_census_source().get_state_name(fips)
 
 def get_state_abbreviation(fips: str) -> Optional[str]:
     """Get state abbreviation from FIPS code."""
-    return census_source.get_state_abbreviation(fips)
+    return _get_census_source().get_state_abbreviation(fips)
 
 def download_dataset(
     year: int,
@@ -2277,13 +2298,56 @@ def download_dataset(
         state_fips: State FIPS code.
         crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.
     """
-    gdf = census_source.download_dataset(year, geographic_level, state_fips)
+    gdf = _get_census_source().download_dataset(year, geographic_level, state_fips)
     return reproject_if_needed(gdf, crs)
 
-# Global instances for easy access
-census_source = CensusDataSource()  # Uses centralized Census timeout settings
-government_source = GovernmentDataSource("https://data.gov")
-osm_source = OpenStreetMapDataSource()
+# Lazy singletons — avoid network I/O on module import.
+_census_source = None
+_government_source = None
+_osm_source = None
+_source_lock = threading.Lock()
+
+
+def _get_census_source() -> "CensusDataSource":
+    global _census_source
+    if _census_source is None:
+        with _source_lock:
+            if _census_source is None:
+                _census_source = CensusDataSource()
+    return _census_source
+
+
+def _get_government_source() -> "GovernmentDataSource":
+    global _government_source
+    if _government_source is None:
+        with _source_lock:
+            if _government_source is None:
+                _government_source = GovernmentDataSource("https://data.gov")
+    return _government_source
+
+
+def _get_osm_source() -> "OpenStreetMapDataSource":
+    global _osm_source
+    if _osm_source is None:
+        with _source_lock:
+            if _osm_source is None:
+                _osm_source = OpenStreetMapDataSource()
+    return _osm_source
+
+
+_LAZY_SINGLETONS = {
+    "census_source": _get_census_source,
+    "government_source": _get_government_source,
+    "osm_source": _get_osm_source,
+}
+
+
+def __getattr__(name: str):
+    factory = _LAZY_SINGLETONS.get(name)
+    if factory is not None:
+        return factory()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     # Classes

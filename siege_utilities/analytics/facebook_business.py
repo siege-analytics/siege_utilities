@@ -24,9 +24,12 @@ try:
     from facebook_business.adobjects.adaccount import AdAccount
     from facebook_business.adobjects.page import Page
     from facebook_business.adobjects.business import Business
+    from facebook_business.exceptions import FacebookRequestError
     FACEBOOK_BUSINESS_AVAILABLE = True
+    _FB_API_ERRORS = (FacebookRequestError, KeyError, ValueError)
 except ImportError:
     FACEBOOK_BUSINESS_AVAILABLE = False
+    _FB_API_ERRORS = (KeyError, ValueError)
 
 try:
     from pyspark.sql import DataFrame as SparkDataFrame
@@ -103,9 +106,9 @@ class FacebookBusinessConnector:
             log_info(f"Retrieved {len(accounts)} Facebook ad accounts")
             return accounts
 
-        except Exception as e:
+        except (*_FB_API_ERRORS, AttributeError) as e:
             logger.error("Failed to retrieve ad accounts: %s", e, exc_info=True)
-            return []
+            raise
 
     def get_ad_insights(self, ad_account_id: str, start_date: str, end_date: str,
                         fields: List[str] = None, breakdowns: List[str] = None) -> pd.DataFrame:
@@ -268,7 +271,7 @@ class FacebookBusinessConnector:
             raise
 
     def save_as_pandas(self, df: pd.DataFrame, output_path: str,
-                       format: str = 'parquet') -> bool:
+                       format: str = 'parquet') -> None:
         """
         Save DataFrame as Pandas format.
 
@@ -277,31 +280,26 @@ class FacebookBusinessConnector:
             output_path: Output file path
             format: Output format (parquet, csv, excel, etc.)
 
-        Returns:
-            True if save successful
+        Raises:
+            ValueError: If the format is unsupported.
+            OSError: If the file cannot be written.
         """
-        try:
-            output_path = pathlib.Path(output_path)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = pathlib.Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
-            if format.lower() == 'parquet':
-                df.to_parquet(output_path, index=False)
-            elif format.lower() == 'csv':
-                df.to_csv(output_path, index=False)
-            elif format.lower() == 'excel':
-                df.to_excel(output_path, index=False)
-            else:
-                raise ValueError(f"Unsupported format: {format}")
+        if format.lower() == 'parquet':
+            df.to_parquet(output_path, index=False)
+        elif format.lower() == 'csv':
+            df.to_csv(output_path, index=False)
+        elif format.lower() == 'excel':
+            df.to_excel(output_path, index=False)
+        else:
+            raise ValueError(f"Unsupported format: {format}")
 
-            log_info(f"Saved DataFrame to {output_path} ({format} format)")
-            return True
-
-        except Exception as e:
-            logger.error("Failed to save DataFrame: %s", e, exc_info=True)
-            return False
+        log_info(f"Saved DataFrame to {output_path} ({format} format)")
 
     def save_as_spark(self, df: pd.DataFrame, output_path: str,
-                      spark_session: Optional[SparkSession] = None) -> bool:
+                      spark_session: Optional[SparkSession] = None) -> None:
         """
         Save DataFrame as Spark DataFrame and optionally to storage.
 
@@ -310,31 +308,22 @@ class FacebookBusinessConnector:
             output_path: Output path for Spark DataFrame
             spark_session: Optional SparkSession (will create if not provided)
 
-        Returns:
-            True if save successful
+        Raises:
+            ImportError: If PySpark is not available.
+            OSError: If the output path cannot be written.
         """
-        try:
-            if not SPARK_AVAILABLE:
-                raise ImportError("PySpark not available. Install: pip install pyspark")
+        if not SPARK_AVAILABLE:
+            raise ImportError("PySpark not available. Install: pip install pyspark")
 
-            # Create Spark session if not provided
-            if not spark_session:
-                spark_session = SparkSession.builder \
-                    .appName("FacebookBusinessData") \
-                    .getOrCreate()
+        if not spark_session:
+            spark_session = SparkSession.builder \
+                .appName("FacebookBusinessData") \
+                .getOrCreate()
 
-            # Convert to Spark DataFrame
-            spark_df = spark_session.createDataFrame(df)
+        spark_df = spark_session.createDataFrame(df)
+        spark_df.write.mode('overwrite').parquet(output_path)
 
-            # Save to storage
-            spark_df.write.mode('overwrite').parquet(output_path)
-
-            log_info(f"Saved DataFrame as Spark DataFrame to {output_path}")
-            return True
-
-        except Exception as e:
-            logger.error("Failed to save as Spark DataFrame: %s", e, exc_info=True)
-            return False
+        log_info(f"Saved DataFrame as Spark DataFrame to {output_path}")
 
 
 def create_facebook_account_profile(client_id: str, fb_account_id: str,
@@ -390,7 +379,7 @@ def save_facebook_account_profile(profile: Dict[str, Any],
     account_id = profile['fb_account_id']
     config_file = config_dir / f"fb_account_{account_id}.json"
 
-    with open(config_file, 'w') as f:
+    with open(config_file, 'w', encoding='utf-8') as f:
         json.dump(profile, f, indent=2)
 
     log_info(f"Saved Facebook account profile to: {config_file}")
@@ -416,15 +405,16 @@ def load_facebook_account_profile(account_id: str,
         return None
 
     try:
-        with open(config_file, 'r') as f:
+        with open(config_file, 'r', encoding='utf-8') as f:
             profile = json.load(f)
 
         log_info(f"Loaded Facebook account profile: {account_id}")
         return profile
 
-    except Exception as e:
-        logger.error("Failed to load Facebook account profile %s: %s", account_id, e, exc_info=True)
-        return None
+    except (OSError, json.JSONDecodeError) as e:
+        raise RuntimeError(
+            f"Failed to load Facebook account profile {account_id}: {e}"
+        ) from e
 
 
 def list_facebook_accounts_for_client(client_id: str,
@@ -447,13 +437,13 @@ def list_facebook_accounts_for_client(client_id: str,
     accounts = []
     for config_file in config_dir.glob("fb_account_*.json"):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 profile = json.load(f)
 
             if profile.get('client_id') == client_id:
                 accounts.append(profile)
 
-        except Exception as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.error("Error reading Facebook account file %s: %s", config_file, e, exc_info=True)
 
     log_info(f"Found {len(accounts)} Facebook accounts for client: {client_id}")
@@ -565,7 +555,7 @@ def batch_retrieve_facebook_data(client_id: str, start_date: str, end_date: str,
 
                     log_info(f"Processed Facebook account: {account['fb_account_id']} - {len(df)} rows")
 
-            except Exception as e:
+            except (*_FB_API_ERRORS, OSError, TypeError) as e:
                 error_msg = f"Error processing account {account['fb_account_id']}: {e}"
                 results['errors'].append(error_msg)
                 logger.error("Error processing account %s", account['fb_account_id'], exc_info=True)
@@ -573,11 +563,7 @@ def batch_retrieve_facebook_data(client_id: str, start_date: str, end_date: str,
         log_info(f"Batch Facebook data retrieval completed: {results['accounts_processed']} accounts, {results['total_rows']} rows")
         return results
 
-    except Exception as e:
-        logger.error("Batch Facebook data retrieval failed: %s", e, exc_info=True)
-        return {
-            'success': False,
-            'error': str(e),
-            'accounts_processed': 0,
-            'total_rows': 0
-        }
+    except (OSError, KeyError, AttributeError) as e:
+        raise RuntimeError(
+            f"Batch Facebook data retrieval failed: {e}"
+        ) from e

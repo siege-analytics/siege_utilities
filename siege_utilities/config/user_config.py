@@ -5,6 +5,7 @@ Enhanced with Pydantic validation while maintaining backward compatibility.
 """
 
 import logging
+import threading
 import warnings
 import yaml
 from pathlib import Path
@@ -117,14 +118,14 @@ class UserConfigManager:
         """Load user profile from configuration file."""
         if self.user_config_file.exists():
             try:
-                with open(self.user_config_file, 'r') as f:
+                with open(self.user_config_file, 'r', encoding='utf-8') as f:
                     config_data = yaml.safe_load(f)
                     if config_data:
                         # Convert lists back to tuples for specific fields
                         if 'default_figure_size' in config_data and isinstance(config_data['default_figure_size'], list):
                             config_data['default_figure_size'] = tuple(config_data['default_figure_size'])
                         return UserProfile(**config_data)
-            except Exception as e:
+            except (OSError, yaml.YAMLError, ValueError, KeyError) as e:
                 log.warning(f"Failed to load user config: {e}")
 
         # Return default profile
@@ -136,9 +137,9 @@ class UserConfigManager:
             config_dict = asdict(self.user_profile)
             # Convert tuples to lists for YAML compatibility
             config_dict = self._convert_to_yaml_safe(config_dict)
-            with open(self.user_config_file, 'w') as f:
+            with open(self.user_config_file, 'w', encoding='utf-8') as f:
                 yaml.dump(config_dict, f, default_flow_style=False)
-        except Exception as e:
+        except (OSError, yaml.YAMLError, TypeError) as e:
             log.error(f"Failed to save user config: {e}")
 
     def _convert_to_yaml_safe(self, obj):
@@ -316,11 +317,11 @@ class UserConfigManager:
             config_data.pop('facebook_business_key', None)
             config_data.pop('census_api_key', None)
             
-            with open(output_path, 'w') as f:
+            with open(output_path, 'w', encoding='utf-8') as f:
                 yaml.dump(config_data, f, default_flow_style=False)
-            
+
             log.info(f"Configuration exported to: {output_path}")
-        except Exception as e:
+        except (OSError, yaml.YAMLError) as e:
             log.error(f"Failed to export configuration: {e}")
     
     def import_config(self, input_path: str):
@@ -331,9 +332,9 @@ class UserConfigManager:
             input_path: Path to import configuration from
         """
         try:
-            with open(input_path, 'r') as f:
+            with open(input_path, 'r', encoding='utf-8') as f:
                 config_data = yaml.safe_load(f)
-            
+
             # Update profile with imported data
             for key, value in config_data.items():
                 if hasattr(self.user_profile, key):
@@ -341,15 +342,21 @@ class UserConfigManager:
             
             self._save_user_profile()
             log.info(f"Configuration imported from: {input_path}")
-        except Exception as e:
+        except (OSError, yaml.YAMLError, AttributeError) as e:
             log.error(f"Failed to import configuration: {e}")
 
-# Global instance
-user_config = UserConfigManager()
+_user_config = None
+_user_config_lock = threading.Lock()
+
 
 def get_user_config() -> UserConfigManager:
-    """Get the global user configuration manager."""
-    return user_config
+    """Get or create the global user configuration manager."""
+    global _user_config
+    if _user_config is None:
+        with _user_config_lock:
+            if _user_config is None:
+                _user_config = UserConfigManager()
+    return _user_config
 
 def get_download_directory(specific_path: Optional[str] = None, client_code: Optional[str] = None, config_dir: Optional[Path] = None) -> Path:
     """
@@ -391,13 +398,13 @@ def get_download_directory(specific_path: Optional[str] = None, client_code: Opt
             if client_profile:
                 # Client profiles don't have download_directory anymore,
                 # use a client-specific subdirectory instead
-                download_dir = user_config.get_download_directory() / "clients" / client_code.lower()
-        except Exception as e:
+                download_dir = get_user_config().get_download_directory() / "clients" / client_code.lower()
+        except (ImportError, OSError, yaml.YAMLError, ValueError) as e:
             log.debug(f"Could not load client profile for {client_code}: {e}")
 
     # Priority 3 & 4: User's preferred directory or default
     if download_dir is None:
-        download_dir = user_config.get_download_directory()
+        download_dir = get_user_config().get_download_directory()
 
     # Ensure the directory exists and is writable
     try:

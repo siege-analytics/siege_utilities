@@ -505,7 +505,7 @@ class TestSimpleIDMLPath:
     def test_save_with_simpleidml_applies_replacements(self, tmp_dir):
         mock_package = mock.MagicMock()
         mock_package.stories = []
-        mock_package.set_tag.side_effect = Exception("not supported")
+        mock_package.set_tag.side_effect = ValueError("not supported")
         mock_package.read.return_value = b"<Content>{{NAME}}</Content>"
 
         ex = IDMLExporter()
@@ -527,7 +527,7 @@ class TestSimpleIDMLPath:
 
         with mock.patch("siege_utilities.reporting.idml_export.SIMPLEIDML_AVAILABLE", True):
             with mock.patch("siege_utilities.reporting.idml_export.simpleidml") as mock_sidml:
-                mock_sidml.IDMLPackage.side_effect = Exception("corrupt")
+                mock_sidml.IDMLPackage.side_effect = ValueError("corrupt")
                 ex = IDMLExporter(template_path=str(template))
                 assert ex._idml_package is None  # fell back
 

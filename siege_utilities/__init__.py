@@ -8,6 +8,7 @@ All other modules are loaded on first access via PEP 562 __getattr__.
 import importlib
 import logging
 import sys
+import threading
 from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ from .core.string_utils import remove_wrapping_quotes_and_trim  # noqa: F401
 try:
     from importlib.metadata import version as _meta_version
     __version__ = _meta_version("siege-utilities")
-except Exception:
+except (ImportError, ValueError, ModuleNotFoundError):
     __version__ = "3.18.1-dev"  # fallback for editable installs without metadata
 __author__ = "Siege Analytics"
 __description__ = "Comprehensive utilities for data engineering, analytics, and distributed computing"
@@ -194,6 +195,7 @@ _register_lazy([
 _register_lazy([
     'concatenate_addresses', 'use_nominatim_geocoder',
     'get_country_name', 'get_country_code', 'list_countries', 'get_coordinates',
+    'GeocodingError',
 ], '.geo.geocoding', deps=['geopandas'])
 
 _register_lazy([
@@ -226,11 +228,11 @@ _register_lazy([
     'normalize_fips_code',
 ], '.geo.spatial_data', deps=['geopandas'])
 
-# normalize_state_identifier is an alias for normalize_state_identifier_standalone
+# normalize_state_identifier delegates to the canonical config version;
+# no geopandas dependency needed for pure FIPS lookup.
 _register_lazy(
     ['normalize_state_identifier'],
-    '.geo.spatial_data', deps=['geopandas'],
-    renames={'normalize_state_identifier': 'normalize_state_identifier_standalone'},
+    '.config.census_registry',
 )
 
 # ── Databricks helpers (requires databricks-sdk, pyspark) ────────────
@@ -352,8 +354,8 @@ _register_lazy([
 
 # ── PEP 562 __getattr__ (lazy loading) ───────────────────────────────
 
-# Track which distributed module names we've already cached (avoid repeated lookups)
-_distributed_module = None  # cached module or False (import failed)
+_distributed_module = None
+_distributed_module_lock = threading.Lock()
 
 
 def __getattr__(name):
@@ -375,12 +377,13 @@ def __getattr__(name):
             raise
 
     # 2. Fallback: try the distributed module for PySpark re-exports
-    #    (col, lit, when, sum, etc. — ~524 functions from pyspark.sql.functions)
     if _distributed_module is None:
-        try:
-            _distributed_module = importlib.import_module('.distributed', __package__)
-        except ImportError:
-            _distributed_module = False  # Don't retry import on failure
+        with _distributed_module_lock:
+            if _distributed_module is None:
+                try:
+                    _distributed_module = importlib.import_module('.distributed', __package__)
+                except ImportError:
+                    _distributed_module = False
 
     if _distributed_module and hasattr(_distributed_module, name):
         val = getattr(_distributed_module, name)
@@ -501,7 +504,7 @@ def get_package_info() -> Dict[str, Any]:
         'get_state_by_abbreviation': 'geo', 'get_state_by_name': 'geo',
         'validate_state_fips': 'geo', 'get_state_name': 'geo',
         'get_state_abbreviation': 'geo', 'download_dataset': 'geo',
-        'get_unified_fips_data': 'geo', 'normalize_state_identifier': 'geo',
+        'get_unified_fips_data': 'geo', 'normalize_state_identifier': 'config',
         'generate_docstring_template': 'hygiene',
         'analyze_function_signature': 'hygiene',
         'generate_architecture_diagram': 'development',

@@ -370,7 +370,10 @@ class PollingAnalyzer:
                         f"frame for {data_type!r} has no non-metric column to label; "
                         f"pass name_column= explicitly"
                     )
-                top_item = df.nlargest(1, metric).iloc[0]
+                top_df = df.nlargest(1, metric)
+                if top_df.empty:
+                    continue
+                top_item = top_df.iloc[0]
                 value = float(top_item[metric])
                 top_performers[data_type] = {
                     "name": top_item[label_col],

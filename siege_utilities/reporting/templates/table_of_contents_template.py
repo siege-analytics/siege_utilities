@@ -5,6 +5,8 @@ Creates clean, organized TOCs with proper typography and page numbering
 Adapted from working GA project implementation
 """
 
+from __future__ import annotations
+
 try:
     from reportlab.pdfgen import canvas
     from reportlab.lib.pagesizes import letter
@@ -53,7 +55,7 @@ class TableOfContentsTemplate:
         try:
             from .client_branding import ClientBrandingManager  # noqa: F401
             return self._default_brand_config()
-        except Exception as e:
+        except ImportError as e:
             log_warning(f"Could not load brand config: {e}")
             return self._default_brand_config()
     

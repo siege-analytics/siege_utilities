@@ -28,6 +28,7 @@ import pytest
 
 from siege_utilities.config.credential_manager import (
     CredentialManager,
+    CredentialNotFoundError,
     get_credential,
     store_credential,
     get_google_service_account_from_1password,
@@ -524,12 +525,21 @@ class TestGetFromKeychain:
         result = manager._get_from_keychain('my-service', 'my-user')
         assert result is None
 
-    def test_returns_none_on_exception(self, mock_op_available):
+    def test_raises_on_transport_error(self, mock_op_available):
         manager = CredentialManager()
-        mock_op_available.side_effect = Exception("keychain error")
+        mock_op_available.side_effect = OSError("keychain error")
 
-        result = manager._get_from_keychain('my-service', 'my-user')
-        assert result is None
+        with pytest.raises(OSError, match="keychain error"):
+            manager._get_from_keychain('my-service', 'my-user')
+
+    def test_raises_on_unexpected_exit_code(self, mock_op_available):
+        manager = CredentialManager()
+        mock_op_available.return_value = Mock(
+            returncode=2, stdout='', stderr='permission denied',
+        )
+
+        with pytest.raises(RuntimeError, match="exit code 2"):
+            manager._get_from_keychain('my-service', 'my-user')
 
 
 # =============================================================================
@@ -603,11 +613,47 @@ class TestGetCredentialInstance:
             result = manager.get_credential('myservice', 'user', 'password')
             assert result == 'env_secret'
 
-    def test_returns_none_when_all_fail(self, mock_op_available):
+    def test_raises_when_all_backends_fail(self, mock_op_available):
+        """Aggregate get_credential raises CredentialNotFoundError when
+        every available backend was consulted and none had the credential
+        (#801). Returning None from the aggregate was an SU-1 violation:
+        the caller could not distinguish "not configured" from "backend
+        silently said no." Per-backend helpers still return None for the
+        per-backend fall-through; only the aggregate raises."""
         manager = CredentialManager(backend_priority=['env'])
         with patch.dict(os.environ, {}, clear=True):
-            result = manager.get_credential('nonexistent', 'user', 'password')
-            assert result is None
+            with pytest.raises(CredentialNotFoundError) as excinfo:
+                manager.get_credential('nonexistent', 'user', 'password')
+            err = excinfo.value
+            assert err.service == 'nonexistent'
+            assert err.field == 'password'
+            # The single configured backend ('env') must be in the attempt log
+            backends_tried = [name for name, _ in err.attempts]
+            assert 'env' in backends_tried
+
+    def test_raise_lists_skipped_backends_explicitly(self, mock_op_available):
+        """When a backend is unavailable (1password not installed,
+        keychain on Linux, etc.) the attempt log must record it as
+        'skipped' rather than omit it -- so the caller can see WHY
+        1Password wasn't consulted."""
+        manager = CredentialManager(backend_priority=['1password', 'env'])
+        manager.available_backends['1password'] = False
+        with patch.dict(os.environ, {}, clear=True):
+            with pytest.raises(CredentialNotFoundError) as excinfo:
+                manager.get_credential('svc', 'user', 'password')
+            attempts = dict(excinfo.value.attempts)
+            assert 'skipped' in attempts['1password']
+            assert attempts['env'] == 'no credential found'
+
+    def test_raise_records_unknown_backend(self, mock_op_available):
+        """Unknown backend names in priority list are recorded in the
+        attempt log so the caller can debug a typoed config entry."""
+        manager = CredentialManager(backend_priority=['unknown_backend'])
+        with pytest.raises(CredentialNotFoundError) as excinfo:
+            manager.get_credential('svc', 'user', 'password')
+        attempts = dict(excinfo.value.attempts)
+        # available_backends.get('unknown_backend') returns False -> "skipped"
+        assert 'skipped' in attempts['unknown_backend']
 
     def test_unknown_backend_skipped(self, mock_op_available):
         manager = CredentialManager(backend_priority=['unknown_backend', 'env'])
@@ -735,7 +781,7 @@ class TestStoreIn1Password:
         manager, mock_run = manager_with_account
 
         mock_run.reset_mock()
-        mock_run.side_effect = Exception("network error")
+        mock_run.side_effect = subprocess.SubprocessError("network error")
 
         result = manager._store_in_1password('test-svc', 'user', 'pass', 'password')
         assert result is False
@@ -764,7 +810,7 @@ class TestStoreInKeychain:
 
     def test_returns_false_on_exception(self, mock_op_available):
         manager = CredentialManager()
-        mock_op_available.side_effect = Exception("keychain write error")
+        mock_op_available.side_effect = OSError("keychain write error")
 
         result = manager._store_in_keychain('svc', 'user', 'secret')
         assert result is False
@@ -843,30 +889,55 @@ class TestStoreGoogleAnalyticsCredentials:
 # =============================================================================
 
 class TestGetGoogleAnalyticsCredentials:
-    """Tests for get_google_analytics_credentials."""
+    """Tests for get_google_analytics_credentials.
 
-    def test_returns_tuple_from_1password(self, mock_op_available):
+    Mocks at CredentialManager.get_credential level (contract boundary)
+    rather than subprocess.  Mirrors the #836 test-relayering precedent.
+    """
+
+    def test_returns_tuple_when_get_credential_succeeds(self, mock_op_available):
         manager = CredentialManager()
-        mock_op_available.return_value = Mock(returncode=0, stdout='found_value\n', stderr='')
+        # 1Password item lookup returns nothing; fall through to get_credential
+        mock_op_available.return_value = Mock(returncode=1, stdout='', stderr='')
+
+        with patch.object(
+            CredentialManager, 'get_credential', side_effect=['cid', 'csec']
+        ):
+            result = manager.get_google_analytics_credentials()
+
+        assert result == ('cid', 'csec')
+
+    def test_returns_tuple_from_1password_item(self, mock_op_available):
+        """When _get_from_1password yields both fields, get_credential is not called."""
+        manager = CredentialManager()
+        mock_op_available.return_value = Mock(returncode=0, stdout='op_value\n', stderr='')
 
         result = manager.get_google_analytics_credentials()
-        assert result is not None
         assert isinstance(result, tuple)
         assert len(result) == 2
 
-    def test_returns_none_when_not_found(self, mock_op_available):
+    def test_raises_credential_not_found_on_total_miss(self, mock_op_available):
         manager = CredentialManager()
-        mock_op_available.return_value = Mock(returncode=1, stdout='', stderr='not found')
+        # 1Password item lookup returns nothing
+        mock_op_available.return_value = Mock(returncode=1, stdout='', stderr='')
 
-        result = manager.get_google_analytics_credentials()
-        assert result is None
+        with patch.object(
+            CredentialManager, 'get_credential',
+            side_effect=CredentialNotFoundError('google-analytics', 'client_id', [('env', 'not set')]),
+        ):
+            with pytest.raises(CredentialNotFoundError) as exc_info:
+                manager.get_google_analytics_credentials()
 
-    def test_returns_none_on_exception(self, mock_op_available):
+            assert exc_info.value.service == 'google-analytics'
+            assert exc_info.value.field == 'client_id'
+
+    def test_propagates_transport_errors(self, mock_op_available):
+        """Non-CredentialNotFoundError exceptions propagate to the caller."""
         manager = CredentialManager()
-        mock_op_available.side_effect = Exception("unexpected error")
+        mock_op_available.side_effect = OSError("unexpected error")
 
-        result = manager.get_google_analytics_credentials()
-        assert result is None
+        with pytest.raises(OSError, match="unexpected error"):
+            manager.get_google_analytics_credentials()
 
 
 # =============================================================================
@@ -913,7 +984,7 @@ class TestListStoredCredentials:
 
     def test_handles_1password_exception(self, mock_op_available):
         manager = CredentialManager()
-        mock_op_available.side_effect = Exception("op error")
+        mock_op_available.side_effect = subprocess.SubprocessError("op error")
 
         # Should not raise
         results = manager.list_stored_credentials()
@@ -990,7 +1061,7 @@ class TestBackendStatus:
 
     def test_1password_status_on_exception(self, mock_op_available):
         manager = CredentialManager()
-        mock_op_available.side_effect = Exception("error")
+        mock_op_available.side_effect = subprocess.SubprocessError("error")
         status = manager.backend_status()
         assert status['1password']['available'] is False
 
@@ -1035,11 +1106,21 @@ class TestConvenienceFunctions:
         assert isinstance(result, dict)
         assert 'env' in result
 
-    def test_get_ga_credentials_convenience(self, mock_op_available):
+    def test_get_ga_credentials_convenience_success(self, mock_op_available):
         mock_op_available.return_value = Mock(returncode=0, stdout='value\n', stderr='')
         result = get_ga_credentials()
-        # Either tuple or None
-        assert result is None or isinstance(result, tuple)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+
+    def test_get_ga_credentials_convenience_raises(self, mock_op_available):
+        """Module-level get_ga_credentials propagates CredentialNotFoundError."""
+        mock_op_available.return_value = Mock(returncode=1, stdout='', stderr='')
+        with patch.object(
+            CredentialManager, 'get_credential',
+            side_effect=CredentialNotFoundError('google-analytics', 'client_id', []),
+        ):
+            with pytest.raises(CredentialNotFoundError):
+                get_ga_credentials()
 
 
 # =============================================================================
@@ -1078,17 +1159,17 @@ class TestGetGoogleSAFrom1Password:
                     assert not any(f.startswith('--vault=') for f in cmd)
                     assert not any(f.startswith('--account=') for f in cmd)
 
-    def test_returns_none_on_called_process_error(self):
+    def test_raises_on_called_process_error(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
             mock_run.side_effect = subprocess.CalledProcessError(1, 'op')
-            result = get_google_service_account_from_1password()
-            assert result is None
+            with pytest.raises(subprocess.CalledProcessError):
+                get_google_service_account_from_1password()
 
-    def test_returns_none_on_general_exception(self):
+    def test_raises_on_general_exception(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
-            mock_run.side_effect = RuntimeError("unexpected")
-            result = get_google_service_account_from_1password()
-            assert result is None
+            mock_run.side_effect = ValueError("unexpected")
+            with pytest.raises(ValueError):
+                get_google_service_account_from_1password()
 
     def test_private_key_cleanup(self):
         """Private key should have quotes stripped and escaped newlines fixed."""
@@ -1147,25 +1228,25 @@ class TestGetGoogleOAuthFrom1Password:
             assert result['client_secret'] == 'test-secret-xyz'
             assert result['redirect_uri'] == 'http://localhost:8080'
 
-    def test_returns_none_when_client_id_missing(self):
+    def test_raises_when_client_id_missing(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
             mock_run.side_effect = _make_op_side_effect({
                 'client_id': None,
                 'client_secret': 'test-secret',
             })
 
-            result = get_google_oauth_from_1password()
-            assert result is None
+            with pytest.raises(ValueError, match="client_id"):
+                get_google_oauth_from_1password()
 
-    def test_returns_none_when_client_secret_missing(self):
+    def test_raises_when_client_secret_missing(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
             mock_run.side_effect = _make_op_side_effect({
                 'client_id': 'test-client-id-1234567890',
                 'client_secret': None,
             })
 
-            result = get_google_oauth_from_1password()
-            assert result is None
+            with pytest.raises(ValueError, match="client_secret"):
+                get_google_oauth_from_1password()
 
     def test_includes_vault_and_account_flags(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
@@ -1239,11 +1320,11 @@ class TestGetGoogleOAuthFrom1Password:
             assert result is not None
             assert 'project_id' not in result
 
-    def test_handles_subprocess_error(self):
+    def test_raises_on_subprocess_error(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
             mock_run.side_effect = subprocess.CalledProcessError(1, 'op')
-            result = get_google_oauth_from_1password()
-            assert result is None
+            with pytest.raises(subprocess.CalledProcessError):
+                get_google_oauth_from_1password()
 
 
 # =============================================================================
@@ -1286,27 +1367,27 @@ class TestGetGoogleOAuthDocumentFrom1Password:
             assert not any(f.startswith('--vault=') for f in cmd)
             assert not any(f.startswith('--account=') for f in cmd)
 
-    def test_returns_none_on_called_process_error(self):
+    def test_raises_on_called_process_error(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
             mock_run.side_effect = subprocess.CalledProcessError(
                 1, 'op', stderr='not found'
             )
-            result = get_google_oauth_document_from_1password()
-            assert result is None
+            with pytest.raises(subprocess.CalledProcessError):
+                get_google_oauth_document_from_1password()
 
-    def test_returns_none_on_invalid_json(self):
+    def test_raises_on_invalid_json(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
             mock_run.return_value = Mock(
                 returncode=0, stdout='not json at all', stderr=''
             )
-            result = get_google_oauth_document_from_1password()
-            assert result is None
+            with pytest.raises(json.JSONDecodeError):
+                get_google_oauth_document_from_1password()
 
-    def test_returns_none_on_general_exception(self):
+    def test_raises_on_os_error(self):
         with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
-            mock_run.side_effect = RuntimeError("unexpected")
-            result = get_google_oauth_document_from_1password()
-            assert result is None
+            mock_run.side_effect = OSError("unexpected")
+            with pytest.raises(OSError):
+                get_google_oauth_document_from_1password()
 
 
 # =============================================================================
@@ -1335,11 +1416,11 @@ class TestCreateTemporaryServiceAccountFile:
         assert result.endswith('.json')
         os.unlink(result)
 
-    def test_returns_none_on_error(self):
+    def test_raises_on_error(self):
         with patch('siege_utilities.config.credential_manager.tempfile.NamedTemporaryFile',
                    side_effect=OSError("no space")):
-            result = create_temporary_service_account_file({"type": "sa"})
-            assert result is None
+            with pytest.raises(OSError):
+                create_temporary_service_account_file({"type": "sa"})
 
 
 # =============================================================================
@@ -1473,36 +1554,51 @@ class TestStoreGAServiceAccountFromFile:
 # =============================================================================
 
 class TestGetGAServiceAccountCredentials:
-    """Tests for get_ga_service_account_credentials."""
+    """Tests for get_ga_service_account_credentials.
 
-    def test_returns_none_when_no_email(self, mock_op_available):
-        mock_op_available.return_value = Mock(returncode=1, stdout='', stderr='not found')
+    These patch ``CredentialManager.get_credential`` directly rather than
+    mocking the ``op`` subprocess. The previous subprocess-level mocks
+    only worked when 1Password happened to be the active backend in the
+    test env -- a fragility the old ``None or isinstance(result, dict)``
+    assertion was a tell for. Patching at the contract layer makes the
+    assertions deterministic regardless of which backends are configured.
+    """
+
+    @patch('siege_utilities.config.credential_manager.CredentialManager.get_credential')
+    def test_raises_when_first_field_missing(self, mock_get):
+        mock_get.side_effect = CredentialNotFoundError(
+            'google-analytics-sa', 'client_email', [('1password', 'no credential found')]
+        )
+        with pytest.raises(CredentialNotFoundError) as excinfo:
+            get_ga_service_account_credentials()
+        assert excinfo.value.field == 'client_email'
+        assert excinfo.value.service == 'google-analytics-sa'
+
+    @patch('siege_utilities.config.credential_manager.CredentialManager.get_credential')
+    def test_raises_when_partial_field_missing(self, mock_get):
+        def side_effect(service, username, field, *args, **kwargs):
+            if field == 'private_key':
+                raise CredentialNotFoundError(
+                    service, field, [('1password', 'no credential found')]
+                )
+            return f'value-for-{field}'
+
+        mock_get.side_effect = side_effect
+        with pytest.raises(CredentialNotFoundError) as excinfo:
+            get_ga_service_account_credentials()
+        assert excinfo.value.field == 'private_key'
+
+    @patch('siege_utilities.config.credential_manager.CredentialManager.get_credential')
+    def test_returns_dict_when_all_fields_found(self, mock_get):
+        mock_get.side_effect = lambda service, username, field, *a, **kw: f'value-for-{field}'
         result = get_ga_service_account_credentials()
-        assert result is None
-
-    def test_returns_dict_when_all_fields_found(self, mock_op_available):
-        mock_op_available.return_value = Mock(returncode=0, stdout='found_value\n', stderr='')
-        result = get_ga_service_account_credentials()
-        if result is not None:
-            assert 'type' in result
-            assert result['type'] == 'service_account'
-
-    def test_returns_none_when_partial_fields(self, mock_op_available):
-        """If some fields are found but not all, returns None."""
-        call_count = [0]
-
-        def side_effect(cmd, **kwargs):
-            call_count[0] += 1
-            # First call finds client_email, subsequent calls fail
-            if call_count[0] <= 5:  # enough for the initial get_credential call
-                return Mock(returncode=0, stdout='email@test.com\n', stderr='')
-            return Mock(returncode=1, stdout='', stderr='not found')
-
-        mock_op_available.side_effect = side_effect
-        # This test is complex because of the multi-backend fallthrough;
-        # just verify it doesn't crash
-        result = get_ga_service_account_credentials()
-        assert result is None or isinstance(result, dict)
+        assert result == {
+            'client_email': 'value-for-client_email',
+            'project_id': 'value-for-project_id',
+            'private_key': 'value-for-private_key',
+            'private_key_id': 'value-for-private_key_id',
+            'type': 'service_account',
+        }
 
 
 # =============================================================================

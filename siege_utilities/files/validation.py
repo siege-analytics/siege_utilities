@@ -145,7 +145,7 @@ def is_sensitive_path(path: FilePath) -> bool:
 
         return False
 
-    except Exception:
+    except (OSError, RuntimeError, TypeError):
         # If we can't resolve, assume it's potentially dangerous
         return True
 
@@ -229,10 +229,10 @@ def validate_safe_path(path: FilePath,
             try:
                 # This raises ValueError if resolved_path is not relative to base_path
                 resolved_path.relative_to(base_path)
-            except ValueError:
+            except ValueError as e:
                 raise PathSecurityError(
                     f"Path {resolved_path} is outside base directory {base_path}"
-                )
+                ) from e
 
         log.debug(f"Path validation passed: {path_str} -> {resolved_path}")
         return resolved_path
@@ -240,7 +240,7 @@ def validate_safe_path(path: FilePath,
     except PathSecurityError:
         # Re-raise our security errors
         raise
-    except Exception as e:
+    except (OSError, RuntimeError, TypeError) as e:
         # Other errors during validation
         raise ValueError(f"Invalid path: {path_str} - {e}") from e
 

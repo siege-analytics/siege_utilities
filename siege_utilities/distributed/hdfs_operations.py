@@ -6,33 +6,24 @@ import hashlib
 import logging
 import pathlib
 import subprocess
-import time
 from typing import Optional, Tuple, Dict, List
 
 log = logging.getLogger(__name__)
 
 
-def _default_hash_function(file_path: str) ->str:
-    """Default hash function using built-in hashlib"""
-    try:
-        sha256_hash = hashlib.sha256()
-        with open(file_path, 'rb') as f:
-            for chunk in iter(lambda : f.read(65536), b''):
-                sha256_hash.update(chunk)
-        return sha256_hash.hexdigest()
-    except Exception as exc:
-        log.warning("Could not hash file %s, returning error signature: %s", file_path, exc)
-        return f'error_{int(time.time())}'
+def _default_hash_function(file_path: str) -> str:
+    """Default hash function using built-in hashlib."""
+    sha256_hash = hashlib.sha256()
+    with open(file_path, 'rb') as f:
+        for chunk in iter(lambda: f.read(65536), b''):
+            sha256_hash.update(chunk)
+    return sha256_hash.hexdigest()
 
 
-def _default_quick_signature(file_path: str) ->str:
-    """Default quick signature using file stats"""
-    try:
-        stat = pathlib.Path(file_path).stat()
-        return f'{stat.st_size}_{stat.st_mtime}'
-    except Exception as exc:
-        log.warning("Could not stat file %s for quick signature: %s", file_path, exc)
-        return 'error'
+def _default_quick_signature(file_path: str) -> str:
+    """Default quick signature using file stats."""
+    stat = pathlib.Path(file_path).stat()
+    return f'{stat.st_size}_{stat.st_mtime}'
 
 
 def _ensure_directory_exists(path: str):
@@ -77,7 +68,7 @@ class AbstractHDFSOperations:
             self.config.log_error(
                 'HDFS command not found - check Hadoop installation')
             return False
-        except Exception as e:
+        except (OSError, ValueError) as e:
             self.config.log_error(f'HDFS check failed: {e}')
             return False
 
@@ -89,6 +80,11 @@ class AbstractHDFSOperations:
         """
         try:
             from pyspark.sql import SparkSession
+            from pyspark.sql.utils import AnalysisException as _SparkAnalysisException
+            try:
+                from py4j.protocol import Py4JJavaError as _Py4JError
+            except ImportError:
+                _Py4JError = _SparkAnalysisException
             self.config.log_info(
                 f'Creating Spark session: {self.config.app_name}')
             self.config.log_info(
@@ -156,101 +152,97 @@ class AbstractHDFSOperations:
                         f'Broadcast threshold: {self.config.sedona_join_broadcast_threshold // (1024*1024)}MB')
                 except ImportError:
                     self.config.log_info('⚠️  Sedona not available')
-                except Exception as e:
+                except (_Py4JError, RuntimeError, ValueError, AttributeError) as e:
                     self.config.log_info(f'⚠️  Sedona registration failed: {e}'
                         )
 
             self.config.log_info('✓ Spark session created successfully')
             return spark
-        except ImportError:
-            self.config.log_error(
-                'PySpark not available - install with: pip install pyspark')
-            return None
-        except Exception as e:
-            self.config.log_error(f'Failed to create Spark session: {e}')
-            return None
+        except ImportError as e:
+            raise ImportError(
+                'PySpark not available - install with: pip install pyspark'
+            ) from e
 
     def sync_directory_to_hdfs(self, local_path: Optional[str]=None,
-        hdfs_subdir: str='inputs') ->Tuple[Optional[str], Optional[Dict]]:
-        """Sync local directory/file to HDFS with proper verification"""
-        try:
-            if local_path is None:
-                local_path = self.config.data_path
-            if local_path is None:
-                self.config.log_error('No data path provided')
-                return None, None
-            local_path = pathlib.Path(local_path)
-            if not local_path.exists():
-                self.config.log_error(f'Local path not found: {local_path}')
-                return None, None
-            if not self.check_hdfs_status():
-                self.config.log_error('HDFS not accessible')
-                return None, None
-            if local_path.is_file():
-                hdfs_directory = (self.config.hdfs_base_directory +
-                    f'{hdfs_subdir}/')
-                hdfs_full_path = hdfs_directory + local_path.name
-            else:
-                hdfs_directory = (self.config.hdfs_base_directory +
-                    f'{hdfs_subdir}/{local_path.name}/')
-                hdfs_full_path = hdfs_directory
-            self.config.log_info(f'Syncing: {local_path} -> {hdfs_full_path}')
-            subprocess.run(['hdfs', 'dfs', '-mkdir', '-p', hdfs_directory],
-                check=True, timeout=60)
-            subprocess.run(['hdfs', 'dfs', '-put', '-f', str(local_path),
-                hdfs_full_path], check=True, timeout=self.config.
-                hdfs_copy_timeout)
-            result = subprocess.run(['hdfs', 'dfs', '-test', '-e',
-                hdfs_full_path], capture_output=True, timeout=60)
-            if result.returncode == 0:
-                self.config.log_info(f'✅ Sync complete: {hdfs_full_path}')
-                return hdfs_full_path, {local_path.name: {'path': str(
-                    local_path)}}
-            else:
-                self.config.log_error('❌ Sync verification failed')
-                return None, None
-        except Exception as e:
-            self.config.log_error(f'Error syncing to HDFS: {e}')
-            return None, None
+        hdfs_subdir: str='inputs') -> Tuple[str, Dict]:
+        """Sync local directory/file to HDFS with proper verification.
+
+        Raises:
+            ValueError: If no data path is provided.
+            FileNotFoundError: If the local path does not exist.
+            RuntimeError: If HDFS is not accessible or sync verification fails.
+            subprocess.CalledProcessError: If an HDFS command fails.
+            subprocess.TimeoutExpired: If an HDFS command times out.
+        """
+        if local_path is None:
+            local_path = self.config.data_path
+        if local_path is None:
+            raise ValueError('No data path provided')
+        local_path = pathlib.Path(local_path)
+        if not local_path.exists():
+            raise FileNotFoundError(f'Local path not found: {local_path}')
+        if not self.check_hdfs_status():
+            raise RuntimeError('HDFS not accessible')
+        if local_path.is_file():
+            hdfs_directory = (self.config.hdfs_base_directory +
+                f'{hdfs_subdir}/')
+            hdfs_full_path = hdfs_directory + local_path.name
+        else:
+            hdfs_directory = (self.config.hdfs_base_directory +
+                f'{hdfs_subdir}/{local_path.name}/')
+            hdfs_full_path = hdfs_directory
+        self.config.log_info(f'Syncing: {local_path} -> {hdfs_full_path}')
+        subprocess.run(['hdfs', 'dfs', '-mkdir', '-p', hdfs_directory],
+            check=True, timeout=60)
+        subprocess.run(['hdfs', 'dfs', '-put', '-f', str(local_path),
+            hdfs_full_path], check=True, timeout=self.config.
+            hdfs_copy_timeout)
+        result = subprocess.run(['hdfs', 'dfs', '-test', '-e',
+            hdfs_full_path], capture_output=True, timeout=60)
+        if result.returncode != 0:
+            raise RuntimeError('Sync verification failed: file not found on HDFS after put')
+        self.config.log_info(f'✅ Sync complete: {hdfs_full_path}')
+        return hdfs_full_path, {local_path.name: {'path': str(local_path)}}
 
     def setup_distributed_environment(self, data_path: Optional[str]=None,
         dependency_paths: Optional[List[str]]=None):
-        """Main setup function with proper verification"""
-        try:
-            self.config.log_info('🚀 Setting up distributed environment...')
-            if data_path is None:
-                data_path = self.config.data_path
-            if data_path is None:
-                self.config.log_error('No data path provided')
-                return None, None, None
-            local_path = pathlib.Path(data_path)
-            if not local_path.exists():
-                self.config.log_error(f'Data path not found: {data_path}')
-                return None, None, None
-            if self.check_hdfs_status():
-                self.config.log_info('📁 HDFS available - attempting sync...')
+        """Main setup function with proper verification.
+
+        Returns:
+            Tuple of (spark_session, data_url, None).
+
+        Raises:
+            ValueError: If no data path is provided.
+            FileNotFoundError: If the data path does not exist.
+            ImportError: If PySpark is not available.
+            RuntimeError: If HDFS sync or Spark session creation fails.
+        """
+        self.config.log_info('🚀 Setting up distributed environment...')
+        if data_path is None:
+            data_path = self.config.data_path
+        if data_path is None:
+            raise ValueError('No data path provided')
+        local_path = pathlib.Path(data_path)
+        if not local_path.exists():
+            raise FileNotFoundError(f'Data path not found: {data_path}')
+        if self.check_hdfs_status():
+            self.config.log_info('📁 HDFS available - attempting sync...')
+            try:
                 hdfs_path, files_info = self.sync_directory_to_hdfs(data_path)
-                if hdfs_path:
-                    spark = self.create_spark_session()
-                    if spark:
-                        self.config.log_info(
-                            '✅ Using HDFS for distributed processing')
-                        return spark, hdfs_path, None
-                    else:
-                        self.config.log_error('Spark session creation failed')
-            self.config.log_info('💻 Using local filesystem...')
-            file_url = f'file://{local_path.absolute()}'
-            spark = self.create_spark_session()
-            if spark:
+                spark = self.create_spark_session()
                 self.config.log_info(
-                    '✅ Distributed environment setup complete!')
-                return spark, file_url, None
-            else:
-                self.config.log_error('Failed to create Spark session')
-                return None, None, None
-        except Exception as e:
-            self.config.log_error(f'Error setting up environment: {e}')
-            return None, None, None
+                    '✅ Using HDFS for distributed processing')
+                return spark, hdfs_path, None
+            except (RuntimeError, subprocess.CalledProcessError,
+                    subprocess.TimeoutExpired) as e:
+                self.config.log_info(
+                    f'⚠️  HDFS sync failed, falling back to local: {e}')
+        self.config.log_info('💻 Using local filesystem...')
+        file_url = f'file://{local_path.absolute()}'
+        spark = self.create_spark_session()
+        self.config.log_info(
+            '✅ Distributed environment setup complete!')
+        return spark, file_url, None
 
 
 def setup_distributed_environment(config, data_path: Optional[str]=None,

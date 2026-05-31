@@ -10,7 +10,6 @@ from __future__ import annotations
 import pandas as pd
 import numpy as np
 from typing import Dict, Optional, Union, Any, Tuple, TYPE_CHECKING
-import warnings
 
 # Type checking imports for optional dependencies
 if TYPE_CHECKING:
@@ -32,7 +31,6 @@ try:
     FAKER_AVAILABLE = True
 except ImportError:
     FAKER_AVAILABLE = False
-    warnings.warn("Faker not available. Install with: pip install Faker")
 
 try:
     import geopandas as gpd
@@ -41,7 +39,6 @@ try:
 except ImportError:
     GEOPANDAS_AVAILABLE = False
     gpd = None  # type: ignore[assignment]
-    warnings.warn("GeoPandas not available. Install with: pip install geopandas")
 
 # Import existing Census utilities (kept as availability probe even though
 # the imported names are accessed lazily elsewhere)
@@ -51,7 +48,6 @@ try:
     CENSUS_AVAILABLE = True
 except ImportError:
     CENSUS_AVAILABLE = False
-    warnings.warn("Census utilities not available")
 
 # Initialize Faker instances for different locales
 if FAKER_AVAILABLE:
@@ -207,7 +203,7 @@ def get_dataset_info(dataset_name: str) -> Optional[Dict[str, Any]]:
     """
     return SAMPLE_DATASETS.get(dataset_name)
 
-def load_sample_data(dataset_name: str, **kwargs) -> Union[pd.DataFrame, "gpd.GeoDataFrame", None]:
+def load_sample_data(dataset_name: str, **kwargs) -> Union[pd.DataFrame, "gpd.GeoDataFrame"]:
     """
     Load a sample dataset by name.
 
@@ -254,7 +250,7 @@ def load_sample_data(dataset_name: str, **kwargs) -> Union[pd.DataFrame, "gpd.Ge
 def get_census_boundaries(year: int = 2020,
                          geographic_level: str = 'tract',
                          state_fips: Optional[str] = None,
-                         county_fips: Optional[str] = None) -> Optional[gpd.GeoDataFrame]:
+                         county_fips: Optional[str] = None) -> gpd.GeoDataFrame:
     """
     Download Census geographic boundaries.
 
@@ -265,45 +261,44 @@ def get_census_boundaries(year: int = 2020,
         county_fips: County FIPS code for filtering (if applicable)
 
     Returns:
-        GeoDataFrame with boundaries or None if failed
+        GeoDataFrame with boundaries.
+
+    Raises:
+        ImportError: If geo extras are not installed.
+        RuntimeError: If no boundaries are returned from Census source.
     """
     if not CENSUS_AVAILABLE:
         raise ImportError("Census utilities required. Install with: pip install siege-utilities[geo]")
 
-    try:
-        from siege_utilities.geo.spatial_data import census_source
+    from siege_utilities.geo.spatial_data import census_source
 
-        log_info(f"Downloading {geographic_level} boundaries for year {year}")
+    log_info(f"Downloading {geographic_level} boundaries for year {year}")
 
-        # Download boundaries
-        boundaries = census_source.get_geographic_boundaries(
-            year=year,
-            geographic_level=geographic_level,
-            state_fips=state_fips
+    boundaries = census_source.get_geographic_boundaries(
+        year=year,
+        geographic_level=geographic_level,
+        state_fips=state_fips
+    )
+
+    if boundaries is None or len(boundaries) == 0:
+        raise RuntimeError(
+            f"No {geographic_level} boundaries returned from Census source "
+            f"for year={year}, state_fips={state_fips!r}"
         )
 
-        if boundaries is None or len(boundaries) == 0:
-            log_error("No boundaries returned from Census source")
-            return None
+    log_info(f"Downloaded {len(boundaries)} {geographic_level} boundaries")
+    log_debug(f"Available columns: {list(boundaries.columns)}")
 
-        log_info(f"Downloaded {len(boundaries)} {geographic_level} boundaries")
-        log_debug(f"Available columns: {list(boundaries.columns)}")
+    if county_fips and geographic_level in ['tract', 'block_group']:
+        county_cols = boundaries.columns[boundaries.columns.str.lower() == 'countyfp']
+        if len(county_cols) > 0:
+            county_col = county_cols[0]
+            boundaries = boundaries[boundaries[county_col] == county_fips]
+            log_info(f"Filtered to {len(boundaries)} boundaries in county {county_fips}")
+        else:
+            log_warning("No county column found, skipping county filter")
 
-        # Filter by county if specified
-        if county_fips and geographic_level in ['tract', 'block_group']:
-            county_cols = boundaries.columns[boundaries.columns.str.lower() == 'countyfp']
-            if len(county_cols) > 0:
-                county_col = county_cols[0]
-                boundaries = boundaries[boundaries[county_col] == county_fips]
-                log_info(f"Filtered to {len(boundaries)} boundaries in county {county_fips}")
-            else:
-                log_warning("No county column found, skipping county filter")
-
-        return boundaries
-
-    except Exception as e:
-        log_error(f"Error downloading boundaries: {e}")
-        return None
+    return boundaries
 
 
 def get_census_data(year: int = 2020,
@@ -336,7 +331,7 @@ def get_census_data(year: int = 2020,
 def join_boundaries_and_data(boundaries: gpd.GeoDataFrame,
                            data: pd.DataFrame,
                            boundary_id_col: str = 'geoid',
-                           data_id_col: str = 'geoid') -> Optional[gpd.GeoDataFrame]:
+                           data_id_col: str = 'geoid') -> gpd.GeoDataFrame:
     """
     Join geographic boundaries with attribute data.
 
@@ -347,49 +342,48 @@ def join_boundaries_and_data(boundaries: gpd.GeoDataFrame,
         data_id_col: Column name for data identifiers
 
     Returns:
-        GeoDataFrame with joined data or None if failed
+        GeoDataFrame with joined data.
+
+    Raises:
+        KeyError: If the specified ID columns do not exist.
+        ValueError: If the join produces zero records.
     """
-    try:
-        log_info(f"Joining boundaries ({len(boundaries)} records) with data ({len(data)} records)")
-        log_debug(f"Boundary ID column: {boundary_id_col}")
-        log_debug(f"Data ID column: {data_id_col}")
+    log_info(f"Joining boundaries ({len(boundaries)} records) with data ({len(data)} records)")
 
-        # Check if ID columns exist
-        if boundary_id_col not in boundaries.columns:
-            log_error(f"Boundary ID column '{boundary_id_col}' not found")
-            log_debug(f"Available columns: {list(boundaries.columns)}")
-            return None
-
-        if data_id_col not in data.columns:
-            log_error(f"Data ID column '{data_id_col}' not found")
-            log_debug(f"Available columns: {list(data.columns)}")
-            return None
-
-        # Perform the join
-        result = boundaries.merge(
-            data,
-            left_on=boundary_id_col,
-            right_on=data_id_col,
-            how='inner'
+    if boundary_id_col not in boundaries.columns:
+        raise KeyError(
+            f"Boundary ID column '{boundary_id_col}' not found. "
+            f"Available columns: {list(boundaries.columns)}"
         )
 
-        if len(result) == 0:
-            log_error("Join resulted in 0 records")
-            return None
+    if data_id_col not in data.columns:
+        raise KeyError(
+            f"Data ID column '{data_id_col}' not found. "
+            f"Available columns: {list(data.columns)}"
+        )
 
-        log_info(f"Successfully joined data: {len(result)} records")
-        return result
+    result = boundaries.merge(
+        data,
+        left_on=boundary_id_col,
+        right_on=data_id_col,
+        how='inner'
+    )
 
-    except Exception as e:
-        log_error(f"Error joining boundaries and data: {e}")
-        return None
+    if len(result) == 0:
+        raise ValueError(
+            f"Join on {boundary_id_col!r}={data_id_col!r} produced 0 records. "
+            f"Check that ID formats match between boundaries and data."
+        )
+
+    log_info(f"Successfully joined data: {len(result)} records")
+    return result
 
 
 def create_sample_dataset(year: int = 2020,
                          geographic_level: str = 'tract',
                          state_fips: str = '06',
                          county_fips: str = '037',
-                         include_geometry: bool = True) -> Optional[Union[pd.DataFrame, gpd.GeoDataFrame]]:
+                         include_geometry: bool = True) -> Union[pd.DataFrame, gpd.GeoDataFrame]:
     """
     Create a real-world sample dataset by combining boundaries and data.
 
@@ -401,26 +395,22 @@ def create_sample_dataset(year: int = 2020,
         include_geometry: Whether to include geographic boundaries
 
     Returns:
-        Combined dataset or None if failed
+        Combined dataset.
+
+    Raises:
+        RuntimeError: If boundaries cannot be retrieved.
+        NotImplementedError: If Census data retrieval is not yet implemented.
     """
     log_info(f"Creating sample dataset: {geographic_level} level, year {year}, state {state_fips}")
 
-    # Step 1: Get boundaries
+    # Step 1: Get boundaries (raises RuntimeError on failure)
     boundaries = get_census_boundaries(year, geographic_level, state_fips, county_fips)
-    if boundaries is None:
-        return None
 
-    # Step 2: Get data (when implemented)
+    # Step 2: Get data (raises NotImplementedError until Census data API is wired up)
     data = get_census_data(year, 'demographics', geographic_level, state_fips, county_fips)
-    if data is None:
-        log_warning("No Census data available, returning boundaries only")
-        return boundaries if include_geometry else boundaries.drop(columns=['geometry'])
 
-    # Step 3: Join boundaries and data
+    # Step 3: Join boundaries and data (raises ValueError/KeyError on failure)
     result = join_boundaries_and_data(boundaries, data)
-    if result is None:
-        log_warning("Join failed, returning boundaries only")
-        return boundaries if include_geometry else boundaries.drop(columns=['geometry'])
 
     return result
 
@@ -462,8 +452,9 @@ def get_census_county_sample(state_fips: str = "06",
             all_tracts.append(tract_data)
 
     if not all_tracts:
-        log_error("No tract data generated")
-        return None
+        raise ValueError(
+            f"No tract data generated for state={state_fips}, county={county_fips}"
+        )
 
     # Combine all tracts
     county_data = pd.concat(all_tracts, ignore_index=True)
@@ -809,6 +800,8 @@ def _generate_synthetic_housing_unit(property_type: str,
             lat_range, lon_range, area_unit, area_range, value_range, year_range
     """
     if faker_inst is None:
+        if not FAKER_AVAILABLE:
+            raise ImportError("Faker required. Install with: pip install Faker")
         faker_inst = faker_en
     if geo_config is None:
         geo_config = HOUSING_LOCALE_PRESETS["us"]
@@ -856,29 +849,38 @@ def _generate_synthetic_tract_info(state_fips: str, county_fips: str, tract_fips
 # Synthetic data generation removed from library - will be implemented separately if needed
 
 def _create_tract_geodataframe(population_data: pd.DataFrame, tract_info: Dict) -> gpd.GeoDataFrame:
-    """Create a GeoDataFrame with tract boundaries."""
+    """Create a GeoDataFrame with tract boundaries.
+
+    Raises:
+        ImportError: If geopandas is not installed.
+        ValueError: If latitude/longitude columns are missing from the data.
+    """
     if not GEOPANDAS_AVAILABLE:
-        return population_data
+        raise ImportError(
+            "geopandas is required to create tract GeoDataFrames. "
+            "Install with: pip install geopandas"
+        )
 
-    # Create simple tract boundary (rectangle around population points)
-    if 'latitude' in population_data.columns and 'longitude' in population_data.columns:
-        min_lat, max_lat = population_data['latitude'].min(), population_data['latitude'].max()
-        min_lon, max_lon = population_data['longitude'].min(), population_data['longitude'].max()
+    if 'latitude' not in population_data.columns or 'longitude' not in population_data.columns:
+        raise ValueError(
+            "population_data must contain 'latitude' and 'longitude' columns; "
+            f"got: {list(population_data.columns)}"
+        )
 
-        # Expand boundaries slightly
-        lat_buffer = (max_lat - min_lat) * 0.1
-        lon_buffer = (max_lon - min_lon) * 0.1
+    min_lat, max_lat = population_data['latitude'].min(), population_data['latitude'].max()
+    min_lon, max_lon = population_data['longitude'].min(), population_data['longitude'].max()
 
-        tract_boundary = Polygon([
-            (min_lon - lon_buffer, min_lat - lat_buffer),
-            (max_lon + lon_buffer, min_lat - lat_buffer),
-            (max_lon + lon_buffer, max_lat + lat_buffer),
-            (min_lon - lon_buffer, max_lat + lat_buffer)
-        ])
+    # Expand boundaries slightly
+    lat_buffer = (max_lat - min_lat) * 0.1
+    lon_buffer = (max_lon - min_lon) * 0.1
 
-        # Add tract boundary to population data
-        population_data['tract_geometry'] = tract_boundary
+    tract_boundary = Polygon([
+        (min_lon - lon_buffer, min_lat - lat_buffer),
+        (max_lon + lon_buffer, min_lat - lat_buffer),
+        (max_lon + lon_buffer, max_lat + lat_buffer),
+        (min_lon - lon_buffer, max_lat + lat_buffer)
+    ])
 
-        return gpd.GeoDataFrame(population_data, geometry='tract_geometry')
-    else:
-        return population_data
+    population_data['tract_geometry'] = tract_boundary
+
+    return gpd.GeoDataFrame(population_data, geometry='tract_geometry')

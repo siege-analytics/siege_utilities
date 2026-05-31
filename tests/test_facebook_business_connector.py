@@ -50,10 +50,9 @@ def test_init_falls_back_to_token_only(_patch_fb):
     _patch_fb["api"].init.assert_called_once_with(access_token="tok")
 
 
-def test_get_ad_accounts_translates_errors_to_empty_list(_patch_fb):
-    """Errors during ``me.get_ad_accounts()`` must translate to ``[]``
-    not propagate raw facebook_business exceptions to callers -- the
-    rest of the codebase assumes List[Dict] from this method."""
+def test_get_ad_accounts_propagates_errors(_patch_fb):
+    """Errors during ``me.get_ad_accounts()`` must propagate — SU-1
+    forbids returning valid-shaped empty results on failure."""
     from siege_utilities.analytics.facebook_business import FacebookBusinessConnector
 
     user_inst = MagicMock()
@@ -61,7 +60,8 @@ def test_get_ad_accounts_translates_errors_to_empty_list(_patch_fb):
     _patch_fb["pkg"].adobjects.user.User.return_value = user_inst
 
     c = FacebookBusinessConnector(access_token="tok")
-    assert c.get_ad_accounts() == []
+    with pytest.raises(RuntimeError, match="rate limited"):
+        c.get_ad_accounts()
 
 
 def test_get_ad_accounts_maps_sdk_records_to_dicts(_patch_fb):

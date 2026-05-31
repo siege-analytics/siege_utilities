@@ -62,21 +62,45 @@ _register([
 _register(['ContentPageTemplate', 'create_content_page'], '.templates.content_page_template')
 
 __all__ = [
-    'BaseReportTemplate', 'ReportGenerator', 'ChartGenerator',
-    'create_bar_chart', 'create_line_chart', 'create_scatter_plot',
-    'create_pie_chart', 'create_heatmap',
-    'create_convergence_diagram',
-    'ClientBrandingManager', 'AnalyticsReportGenerator', 'PowerPointGenerator',
-    'get_report_output_directory', 'create_report_generator', 'create_powerpoint_generator',
-    'export_branding_config', 'import_branding_config', 'export_chart_type_config',
-    'decode_rl_image', 'show_rl_image', 'save_rl_image',
+    # Templates
+    'BaseReportTemplate',
     'TitlePageTemplate', 'create_title_page',
     'TableOfContentsTemplate', 'create_table_of_contents',
     'generate_sections_from_report_structure',
     'ContentPageTemplate', 'create_content_page',
+    # Generators
+    'ReportGenerator', 'PowerPointGenerator', 'AnalyticsReportGenerator',
+    'ChartGenerator', 'ChartTypeRegistry',
+    # Chart creation functions
+    'create_bar_chart', 'create_line_chart', 'create_scatter_plot',
+    'create_pie_chart', 'create_heatmap',
+    'create_choropleth_map', 'create_bivariate_choropleth',
+    'create_marker_map', 'create_flow_map',
+    'create_convergence_diagram',
+    'create_dashboard', 'create_dataframe_summary_charts',
+    'generate_chart_from_dataframe',
+    # Branding
+    'ClientBrandingManager',
+    # Image utilities
+    'decode_rl_image', 'show_rl_image', 'save_rl_image',
+    # Analytics
+    'PollingAnalyzer',
+    # Page models
+    'Argument', 'TableType',
+    # Hex cartograms
+    'Algorithm', 'Sizing',
+    'BUILTIN_LAYOUTS', 'hex_tile_layout', 'hex_tile_map', 'register_layout',
+    # IDML export
+    'IDMLExporter', 'export_report_idml', 'SIMPLEIDML_AVAILABLE',
+    # 3D maps
     'ThreeDMapRenderer', 'PYDECK_AVAILABLE',
     'create_3d_hexbin', 'create_3d_columns',
-    'IDMLExporter', 'export_report_idml', 'SIMPLEIDML_AVAILABLE',
+    # Module-level convenience functions
+    'get_report_output_directory', 'create_report_generator',
+    'create_powerpoint_generator',
+    'export_branding_config', 'import_branding_config', 'export_chart_type_config',
+    # Errors
+    'ReportingConfigError',
 ]
 
 
@@ -137,7 +161,7 @@ class ReportingConfigError(RuntimeError):
     """Raised when a reporting configuration export / import cannot complete."""
 
 
-def export_branding_config(client_name: str, export_path: str) -> bool:
+def export_branding_config(client_name: str, export_path: str) -> None:
     """Export client branding configuration to a file.
 
     Parameters
@@ -147,11 +171,6 @@ def export_branding_config(client_name: str, export_path: str) -> bool:
     export_path : str
         Destination path for the export.
 
-    Returns
-    -------
-    bool
-        True on success. (Never returns False — failures raise.)
-
     Raises
     ------
     ReportingConfigError
@@ -160,7 +179,7 @@ def export_branding_config(client_name: str, export_path: str) -> bool:
     try:
         from .client_branding import ClientBrandingManager as _CBM
         branding_manager = _CBM()
-        return branding_manager.export_branding_config(client_name, Path(export_path))
+        branding_manager.export_branding_config(client_name, Path(export_path))
     except (OSError, ValueError, KeyError) as e:
         log.error(
             "export_branding_config failed (client=%s, path=%s): %s",
@@ -171,7 +190,7 @@ def export_branding_config(client_name: str, export_path: str) -> bool:
         ) from e
 
 
-def import_branding_config(import_path: str, client_name: str = None) -> bool:
+def import_branding_config(import_path: str, client_name: str = None) -> None:
     """Import client branding configuration from a file.
 
     Parameters
@@ -182,11 +201,6 @@ def import_branding_config(import_path: str, client_name: str = None) -> bool:
         Client to associate with the imported branding. When omitted, the
         implementation picks a name from the file.
 
-    Returns
-    -------
-    bool
-        True on success.
-
     Raises
     ------
     ReportingConfigError
@@ -195,7 +209,7 @@ def import_branding_config(import_path: str, client_name: str = None) -> bool:
     try:
         from .client_branding import ClientBrandingManager as _CBM
         branding_manager = _CBM()
-        return branding_manager.import_branding_config(Path(import_path), client_name)
+        branding_manager.import_branding_config(Path(import_path), client_name)
     except (OSError, ValueError, KeyError) as e:
         log.error(
             "import_branding_config failed (path=%s, client=%s): %s",

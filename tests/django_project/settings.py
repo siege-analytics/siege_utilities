@@ -23,7 +23,7 @@ _HAS_GDAL = False
 try:
     from django.contrib.gis.gdal import libgdal  # noqa: F401
     _HAS_GDAL = True
-except Exception:
+except (ImportError, RuntimeError):
     pass
 
 INSTALLED_APPS = [

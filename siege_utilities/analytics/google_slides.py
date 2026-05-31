@@ -348,8 +348,10 @@ def upload_figure_to_drive(
         log.info("Uploaded figure %r → Drive %s", filename, file_id)
         return url
     finally:
-        if os.path.exists(tmp_path):
+        try:
             os.unlink(tmp_path)
+        except FileNotFoundError:
+            pass
 
 
 def create_argument_slide(
@@ -403,7 +405,7 @@ def create_argument_slide(
             img_url = upload_figure_to_drive(client, fig, fig_name)
             insert_image(client, presentation_id, slide_id, img_url,
                          left=fl, top=ft, width=fw, height=fh)
-        except Exception as exc:
+        except (OSError, ValueError, RuntimeError, KeyError) as exc:
             log.warning("Could not upload figure for slide %s: %s", slide_id, exc)
 
     return slide_id
@@ -439,7 +441,7 @@ def create_report_from_arguments(
     for i, argument in enumerate(arguments):
         try:
             create_argument_slide(client, pres_id, argument, slide_index=i)
-        except Exception as exc:
+        except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError) as exc:
             log.error("Failed to create slide %d for argument %r: %s",
                       i, argument.headline, exc)
 

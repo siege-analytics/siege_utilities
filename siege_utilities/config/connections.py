@@ -137,50 +137,48 @@ def save_connection_profile(
     # Update last_used timestamp
     profile['metadata']['last_used'] = datetime.now().isoformat()
     
-    with open(config_file, 'w') as f:
+    with open(config_file, 'w', encoding='utf-8') as f:
         json.dump(profile, f, indent=2)
-    
+
     log_info(f"Saved connection profile to: {config_file}")
     return str(config_file)
 
 
 def load_connection_profile(
-    connection_id: str, 
+    connection_id: str,
     config_directory: str = "config"
-) -> Optional[Dict[str, Any]]:
+) -> Dict[str, Any]:
     """
     Load connection profile from JSON file.
-    
+
     Args:
         connection_id: Connection ID to load
         config_directory: Directory containing config files
-        
+
     Returns:
-        Connection profile dictionary or None if not found
-        
+        Connection profile dictionary.
+
+    Raises:
+        FileNotFoundError: If the connection profile does not exist.
+        json.JSONDecodeError: If the file contains invalid JSON.
+        OSError: If the file cannot be read.
+
     Example:
         >>> profile = siege_utilities.load_connection_profile("uuid-here")
-        >>> if profile:
-        ...     print(f"Loaded: {profile['name']}")
+        >>> print(f"Loaded: {profile['name']}")
     """
-    
+
     connections_dir = pathlib.Path(config_directory) / "connections"
     config_file = connections_dir / f"connection_{connection_id}.json"
-    
+
     if not config_file.exists():
-        log_warning(f"Connection profile not found: {config_file}")
-        return None
-    
-    try:
-        with open(config_file, 'r') as f:
-            profile = json.load(f)
-        
-        log_info(f"Loaded connection profile: {connection_id}")
-        return profile
-        
-    except Exception as e:
-        log_error(f"Error loading connection profile {config_file}: {e}")
-        return None
+        raise FileNotFoundError(f"Connection profile not found: {config_file}")
+
+    with open(config_file, 'r', encoding='utf-8') as f:
+        profile = json.load(f)
+
+    log_info(f"Loaded connection profile: {connection_id}")
+    return profile
 
 
 def find_connection_by_name(
@@ -210,13 +208,13 @@ def find_connection_by_name(
     
     for config_file in connections_dir.glob("connection_*.json"):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 profile = json.load(f)
-            
+
             if profile['name'] == name:
                 return profile
                 
-        except Exception:
+        except (OSError, json.JSONDecodeError, KeyError):
             logger.warning("Skipping unreadable connection config: %s", config_file, exc_info=True)
             continue
 
@@ -253,9 +251,9 @@ def list_connection_profiles(
     
     for config_file in connections_dir.glob("connection_*.json"):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 profile = json.load(f)
-            
+
             # Filter by type if specified
             if connection_type and profile['connection_type'] != connection_type:
                 continue
@@ -270,7 +268,7 @@ def list_connection_profiles(
                 'config_file': str(config_file)
             })
             
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, KeyError) as e:
             log_error(f"Error reading connection profile {config_file}: {e}")
     
     log_info(f"Found {len(connections)} connection profiles")
@@ -281,50 +279,39 @@ def update_connection_profile(
     connection_id: str,
     updates: Dict[str, Any],
     config_directory: str = "config"
-) -> bool:
+) -> None:
     """
     Update an existing connection profile.
-    
+
     Args:
         connection_id: Connection ID to update
         updates: Dictionary of updates to apply
         config_directory: Directory containing config files
-        
-    Returns:
-        True if successful, False otherwise
-        
+
+    Raises:
+        FileNotFoundError: If the connection profile does not exist.
+        OSError: If the profile cannot be read or written.
+
     Example:
-        >>> success = siege_utilities.update_connection_profile(
+        >>> siege_utilities.update_connection_profile(
         ...     "uuid-here",
         ...     {"metadata": {"status": "inactive"}}
         ... )
     """
-    
+
     profile = load_connection_profile(connection_id, config_directory)
-    
-    if profile is None:
-        log_error(f"Cannot update - connection profile not found: {connection_id}")
-        return False
-    
-    try:
-        # Apply updates recursively
-        def update_nested_dict(target: Dict, updates: Dict):
-            for key, value in updates.items():
-                if key in target and isinstance(target[key], dict) and isinstance(value, dict):
-                    update_nested_dict(target[key], value)
-                else:
-                    target[key] = value
-        
-        update_nested_dict(profile, updates)
-        
-        # Save updated profile
-        save_connection_profile(profile, config_directory)
-        log_info(f"Updated connection profile: {connection_id}")
-        return True
-        
-    except Exception as e:
-        log_error(f"Error updating connection profile {connection_id}: {e}")
-        return False
+
+    def update_nested_dict(target: Dict, source: Dict):
+        for key, value in source.items():
+            if key in target and isinstance(target[key], dict) and isinstance(value, dict):
+                update_nested_dict(target[key], value)
+            else:
+                target[key] = value
+
+    update_nested_dict(profile, updates)
+
+    save_connection_profile(profile, config_directory)
+    log_info(f"Updated connection profile: {connection_id}")
 
 
 def verify_connection_profile(
@@ -348,14 +335,7 @@ def verify_connection_profile(
     """
     
     profile = load_connection_profile(connection_id, config_directory)
-    
-    if not profile:
-        return {
-            'success': False,
-            'error': 'Connection profile not found',
-            'timestamp': datetime.now().isoformat()
-        }
-    
+
     connection_type = profile['connection_type']
     test_result = {
         'success': False,
@@ -393,9 +373,9 @@ def verify_connection_profile(
                 spark.stop()
             except ImportError:
                 test_result['error'] = 'PySpark not available'
-            except Exception as e:
+            except (RuntimeError, ValueError, OSError) as e:
                 test_result['error'] = str(e)
-                
+
         elif connection_type == 'database':
             # Test database connection
             try:
@@ -412,9 +392,9 @@ def verify_connection_profile(
                     test_result['error'] = 'No connection string provided'
             except ImportError:
                 test_result['error'] = 'SQLAlchemy not available'
-            except Exception as e:
+            except (RuntimeError, ValueError, OSError) as e:
                 test_result['error'] = str(e)
-        
+
         else:
             test_result['error'] = f'Connection testing not implemented for {connection_type}'
         
@@ -430,7 +410,7 @@ def verify_connection_profile(
         
         log_info(f"Connection test for {connection_id}: {'SUCCESS' if test_result['success'] else 'FAILED'}")
         
-    except Exception as e:
+    except (OSError, KeyError, ValueError, json.JSONDecodeError) as e:
         test_result['error'] = str(e)
         log_error(f"Error testing connection {connection_id}: {e}")
     
@@ -457,20 +437,15 @@ def get_connection_status(
     """
     
     profile = load_connection_profile(connection_id, config_directory)
-    
-    if not profile:
-        return {
-            'status': 'not_found',
-            'error': 'Connection profile not found'
-        }
-    
+
     metadata = profile['metadata']
     last_connected = metadata.get('last_connected')
     
     # Determine connection health
     if last_connected:
         last_connected_dt = datetime.fromisoformat(last_connected)
-        time_since_connection = datetime.now() - last_connected_dt
+        now = datetime.now(last_connected_dt.tzinfo)
+        time_since_connection = now - last_connected_dt
         
         if time_since_connection < timedelta(hours=1):
             health = 'excellent'
@@ -523,19 +498,19 @@ def cleanup_old_connections(
     if not connections_dir.exists():
         return 0
     
-    cutoff_date = datetime.now() - timedelta(days=days_old)
     removed_count = 0
-    
+
     for config_file in connections_dir.glob("connection_*.json"):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 profile = json.load(f)
-            
+
             created_date = datetime.fromisoformat(profile['metadata']['created_date'])
             last_used = datetime.fromisoformat(profile['metadata']['last_used'])
-            
+            cutoff_date = datetime.now(created_date.tzinfo) - timedelta(days=days_old)
+
             # Remove if old and unused
-            if (created_date < cutoff_date and 
+            if (created_date < cutoff_date and
                 last_used < cutoff_date and 
                 profile['metadata']['connection_count'] == 0):
                 
@@ -543,7 +518,7 @@ def cleanup_old_connections(
                 removed_count += 1
                 log_info(f"Removed old connection: {profile['name']}")
                 
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, KeyError, ValueError) as e:
             log_error(f"Error processing connection file {config_file}: {e}")
     
     log_info(f"Cleaned up {removed_count} old connections")

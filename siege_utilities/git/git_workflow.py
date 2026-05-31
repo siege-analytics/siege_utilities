@@ -212,7 +212,7 @@ def start_feature_workflow(
             "workflow": "feature_started"
         }
 
-    except Exception as e:
+    except (GitError, RuntimeError) as e:
         return {
             "status": "failed",
             "error": str(e),
@@ -268,7 +268,7 @@ def complete_feature_workflow(
             try:
                 run_git_command("push", "origin", "--delete", feature_branch, repo_path=repo_path)
                 log_info(f"Deleted remote branch: origin/{feature_branch}")
-            except Exception as exc:
+            except (GitError, RuntimeError) as exc:
                 log_warning(f"Could not delete remote branch: origin/{feature_branch}: {exc}")
 
         return {
@@ -280,7 +280,7 @@ def complete_feature_workflow(
             "workflow": "feature_completed"
         }
 
-    except Exception as e:
+    except (GitError, RuntimeError) as e:
         return {
             "status": "failed",
             "error": str(e),
@@ -331,7 +331,7 @@ def hotfix_workflow(
             "workflow": "hotfix_started"
         }
 
-    except Exception as e:
+    except (GitError, RuntimeError) as e:
         return {
             "status": "failed",
             "error": str(e),
@@ -390,7 +390,7 @@ def release_workflow(
             "workflow": "release_started"
         }
 
-    except Exception as e:
+    except (GitError, RuntimeError) as e:
         return {
             "status": "failed",
             "error": str(e),
@@ -430,7 +430,7 @@ def _update_version_files(version: str, repo_path: str) -> None:
                     file_path.write_text(content)
 
                 log_info(f"Updated version in {filename}")
-            except Exception as e:
+            except (OSError, ValueError) as e:
                 log_warning(f"Could not update {filename}: {e}")
 
 def get_workflow_status(repo_path: str = ".") -> Dict[str, Union[str, List[str], Dict[str, str]]]:
@@ -474,7 +474,7 @@ def get_workflow_status(repo_path: str = ".") -> Dict[str, Union[str, List[str],
                     "commits_behind": int(behind),
                     "ready_for_merge": int(ahead) > 0 and int(behind) == 0
                 })
-            except Exception as exc:
+            except (GitError, RuntimeError, ValueError) as exc:
                 log_warning(f"Could not determine ahead/behind counts: {exc}")
                 workflow_info.update({
                     "commits_ahead": None,
@@ -484,7 +484,7 @@ def get_workflow_status(repo_path: str = ".") -> Dict[str, Union[str, List[str],
 
         return workflow_info
 
-    except Exception as e:
+    except (GitError, RuntimeError) as e:
         return {
             "status": "error",
             "error": str(e),

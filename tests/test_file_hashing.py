@@ -37,9 +37,9 @@ class TestGenerateSha256:
         expected = hashlib.sha256(sample_file.read_bytes()).hexdigest()
         assert generate_sha256_hash_for_file(str(sample_file)) == expected
 
-    def test_nonexistent_returns_none(self):
-        result = generate_sha256_hash_for_file("/tmp/nonexistent_file_abc123.txt")
-        assert result is None
+    def test_nonexistent_raises(self):
+        with pytest.raises(FileNotFoundError):
+            generate_sha256_hash_for_file("/tmp/nonexistent_file_abc123.txt")
 
     def test_path_object(self, sample_file):
         result = generate_sha256_hash_for_file(sample_file)
@@ -67,8 +67,9 @@ class TestGetFileHash:
         expected = hashlib.sha256(sample_file.read_bytes()).hexdigest()
         assert result == expected
 
-    def test_nonexistent_returns_none(self):
-        assert get_file_hash("/tmp/no_such_file_xyz.txt") is None
+    def test_nonexistent_raises(self):
+        with pytest.raises(FileNotFoundError):
+            get_file_hash("/tmp/no_such_file_xyz.txt")
 
 
 class TestCalculateFileHash:
@@ -110,8 +111,9 @@ class TestVerifyFileIntegrity:
         h = get_file_hash(str(sample_file), "sha256")
         assert verify_file_integrity(str(sample_file), h.upper()) is True
 
-    def test_nonexistent_file(self):
-        assert verify_file_integrity("/tmp/no_file.txt", "abc") is False
+    def test_nonexistent_file_raises(self):
+        with pytest.raises(FileNotFoundError):
+            verify_file_integrity("/tmp/no_file.txt", "abc")
 
     def test_md5(self, sample_file):
         h = get_file_hash(str(sample_file), "md5")

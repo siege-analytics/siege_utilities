@@ -20,6 +20,7 @@ def _register(names, module):
 _register([
     'GoogleAnalyticsConnector', 'create_ga_account_profile', 'save_ga_account_profile',
     'load_ga_account_profile', 'list_ga_accounts_for_client', 'batch_retrieve_ga_data',
+    'create_ga_connector_with_service_account',
 ], '.google_analytics')
 
 _register([

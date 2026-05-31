@@ -445,9 +445,9 @@ class AnalyticsReportGenerator:
         if 'total_users' in ga_data and 'total_sessions' in ga_data:
             users = ga_data['total_users']
             sessions = ga_data['total_sessions']
-            if sessions > users:
+            if users > 0 and sessions > users:
                 insights.append(f"High engagement: {sessions/users:.1f} sessions per user on average")
-            elif sessions < users:
+            elif users > 0 and sessions < users:
                 insights.append(f"Low engagement: Only {sessions/users:.1f} sessions per user on average")
         
         # Bounce rate insights
@@ -776,6 +776,7 @@ class AnalyticsReportGenerator:
             
             # Create tables
             tables = []
+            summary_data = []
             if not df.empty:
                 # Sample data table
                 sample_data = df.head(20).values.tolist()
@@ -821,7 +822,7 @@ class AnalyticsReportGenerator:
                         'type': 'table',
                         'title': 'Summary Statistics',
                         'headers': ['Column', 'Mean', 'Std', 'Min', 'Max'],
-                        'data': summary_data if 'summary_data' in locals() else []
+                        'data': summary_data
                     }
                 ]
             }

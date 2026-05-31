@@ -132,11 +132,10 @@ class TestRedistrictingOverlay:
         ov = RedistrictingOverlay()
         assert ov.name == "redistricting"
 
-    def test_no_provider(self):
+    def test_no_provider_raises(self):
         ov = RedistrictingOverlay()
-        result = ov.fetch("48453", 2020, 2024)
-        assert result.geoid == "48453"
-        assert result.assignments == []
+        with pytest.raises(RuntimeError, match="requires a provider"):
+            ov.fetch("48453", 2020, 2024)
 
     def test_is_available(self):
         assert not RedistrictingOverlay().is_available()
@@ -264,11 +263,10 @@ class TestElectionResultsOverlay:
         ov = ElectionResultsOverlay()
         assert ov.name == "election_results"
 
-    def test_no_provider(self):
+    def test_no_provider_raises(self):
         ov = ElectionResultsOverlay()
-        result = ov.fetch("48453", 2020, 2024)
-        assert result.geoid == "48453"
-        assert result.returns == []
+        with pytest.raises(RuntimeError, match="requires a provider"):
+            ov.fetch("48453", 2020, 2024)
 
     def test_is_available(self):
         assert not ElectionResultsOverlay().is_available()
@@ -300,3 +298,9 @@ class TestElectionResultsOverlay:
         result = ov.fetch("48453", 2020, 2024)
         years = [r.election_year for r in result.returns]
         assert years == sorted(years)
+
+    def test_none_provider_raises_error(self):
+        """ElectionResultsOverlay(provider=None).fetch() must raise RuntimeError."""
+        ov = ElectionResultsOverlay(provider=None)
+        with pytest.raises(RuntimeError, match="requires a provider"):
+            ov.fetch("48453", 2020, 2024)

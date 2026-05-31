@@ -50,6 +50,8 @@ __all__ = [
     "EtterGeometryResult",
     "PointPredicate",
     "EtterToGeometryError",
+    "EtterReferenceNotFoundError",
+    "EtterUnknownRelationError",
     "etter_to_geometry",
 ]
 
@@ -190,7 +192,7 @@ def etter_to_geometry(
             country_hint=country_hint,
             admin_hint=admin_hint,
         )
-    except Exception as exc:
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError) as exc:
         # We catch broadly here because gazetteer backends can raise
         # their own typed exceptions; we want to surface a single
         # well-named one to the caller. The original is preserved via

@@ -186,6 +186,3 @@ class EventsOverlay(PlaceHistoryOverlay):
         except ImportError:
             log.debug("Django events provider not available (Django not installed or not configured)")
             return None
-        except Exception as exc:
-            log.warning("Failed to initialise Django events provider: %s", exc)
-            return None

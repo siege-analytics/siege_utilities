@@ -8,12 +8,14 @@ from siege_utilities.geo.precinct_vtd import (
     ConfidenceLevel,
     DictNameMatchProvider,
     DictSpatialOverlapProvider,
+    NameMatchProvider,
     OfficialCrosswalkEntry,
     PrecinctVTDMapping,
     PrecinctVTDReconciler,
     ReconciliationMethod,
     ReconciliationResult,
     SpatialOverlap,
+    SpatialOverlapProvider,
     _confidence_level,
     _name_similarity,
     _normalize_name,
@@ -311,3 +313,95 @@ class TestPrecinctVTDReconciler:
         result = rec.reconcile(["P1"])
         assert result.matched_precincts == 0
         assert result.unmatched_precincts == ["P1"]
+
+
+# ── Error-path tests ──────────────────────────────────────────────────
+
+
+class TestReconcileEmptyPrecinctIds:
+    """reconcile() with empty precinct_ids returns an empty result."""
+
+    def test_empty_list_returns_empty_result(self):
+        rec = PrecinctVTDReconciler()
+        result = rec.reconcile([])
+        assert result.total_precincts == 0
+        assert result.matched_precincts == 0
+        assert result.mappings == []
+        assert result.unmatched_precincts == []
+        assert result.errors == []
+
+
+class TestReconcileSpatialProviderError:
+    """reconcile() records error when spatial_provider raises."""
+
+    def test_spatial_provider_error_captured(self):
+
+        class BrokenSpatialProvider(SpatialOverlapProvider):
+            def compute_overlaps(self, precinct_ids):
+                raise RuntimeError("spatial backend unavailable")
+
+        rec = PrecinctVTDReconciler(spatial_provider=BrokenSpatialProvider())
+        result = rec.reconcile(["P1"])
+        assert result.total_precincts == 1
+        assert result.matched_precincts == 0
+        assert len(result.errors) == 1
+        assert "Spatial reconciliation error" in result.errors[0]
+        assert "spatial backend unavailable" in result.errors[0]
+
+
+class TestReconcileNameProviderError:
+    """reconcile() records error when name_provider raises."""
+
+    def test_name_provider_error_captured(self):
+
+        class BrokenNameProvider(NameMatchProvider):
+            def get_precinct_names(self, precinct_ids):
+                raise ValueError("name DB connection lost")
+
+            def get_vtd_names(self):
+                return {}
+
+        rec = PrecinctVTDReconciler(name_provider=BrokenNameProvider())
+        result = rec.reconcile(["P1"])
+        assert result.total_precincts == 1
+        assert result.matched_precincts == 0
+        assert len(result.errors) == 1
+        assert "Name matching error" in result.errors[0]
+        assert "name DB connection lost" in result.errors[0]
+
+
+class TestReconcileSpatialZeroOverlap:
+    """reconcile_spatial() with all overlaps below threshold returns empty."""
+
+    def test_zero_overlap_returns_empty(self):
+        overlaps = [
+            SpatialOverlap(precinct_id="P1", vtd_geoid="V1", overlap_pct=0.0),
+            SpatialOverlap(precinct_id="P1", vtd_geoid="V2", overlap_pct=0.005),
+        ]
+        mappings = reconcile_spatial(overlaps)
+        assert mappings == []
+
+
+class TestNameSimilarityEmptyStrings:
+    """_name_similarity() with empty or whitespace-only strings returns 0."""
+
+    def test_both_empty(self):
+        assert _name_similarity("", "") == 0.0
+
+    def test_first_empty(self):
+        assert _name_similarity("", "Precinct 1") == 0.0
+
+    def test_second_empty(self):
+        assert _name_similarity("Ward 5", "") == 0.0
+
+    def test_whitespace_only(self):
+        # after normalization, whitespace-only strings become empty
+        assert _name_similarity("   ", "Precinct 1") == 0.0
+
+
+class TestNormalizeNameInvalidInput:
+    """_normalize_name() raises on None input (no guard for non-str)."""
+
+    def test_none_raises(self):
+        with pytest.raises(AttributeError):
+            _normalize_name(None)

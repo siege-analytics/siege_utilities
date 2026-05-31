@@ -44,7 +44,7 @@ def build_contract(package_name: str) -> Dict[str, Any]:
     for name in sorted(n for n in dir(pkg) if not n.startswith("_")):
         try:
             obj = getattr(pkg, name)
-        except Exception as exc:  # pragma: no cover - defensive
+        except (ImportError, AttributeError, RuntimeError, OSError, TypeError, ValueError) as exc:  # pragma: no cover - defensive
             symbols[name] = {
                 "kind": "unresolved",
                 "signature": None,

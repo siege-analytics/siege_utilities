@@ -14,7 +14,7 @@ try:
     from django.core.cache import cache
 
     _DJANGO_AVAILABLE = True
-except Exception:
+except (ImportError, RuntimeError):
     _DJANGO_AVAILABLE = False
 
 

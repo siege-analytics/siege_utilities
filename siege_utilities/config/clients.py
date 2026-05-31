@@ -9,7 +9,7 @@ import pathlib
 import re
 import logging
 import tempfile
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
 from datetime import datetime
 import uuid
 
@@ -150,7 +150,7 @@ def save_client_profile(
         dir=str(config_dir),
     )
     try:
-        with os.fdopen(fd, 'w') as f:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
             json.dump(profile, f, indent=2)
             f.flush()
             os.fsync(f.fileno())
@@ -168,62 +168,62 @@ def save_client_profile(
 
 
 def load_client_profile(
-    client_code: str, 
+    client_code: str,
     config_directory: str = "config"
-) -> Optional[Dict[str, Any]]:
+) -> Dict[str, Any]:
     """
     Load client profile from JSON file.
-    
+
     Args:
         client_code: Client code to load
         config_directory: Directory containing config files
-        
+
     Returns:
-        Client profile dictionary or None if not found
-        
+        Client profile dictionary.
+
+    Raises:
+        FileNotFoundError: If the profile file does not exist.
+        json.JSONDecodeError: If the file contains invalid JSON.
+        OSError: If the file cannot be read.
+
     Example:
         >>> profile = siege_utilities.load_client_profile("ACME001")
-        >>> if profile:
-        ...     print(f"Loaded: {profile['client_name']}")
+        >>> print(f"Loaded: {profile['client_name']}")
     """
-    
+
     client_code = _validate_client_code(client_code)
     config_file = pathlib.Path(config_directory) / f"client_{client_code}.json"
 
     if not config_file.exists():
-        log_warning(f"Client profile not found: {config_file}")
-        return None
-    
-    try:
-        with open(config_file, 'r') as f:
-            profile = json.load(f)
-        
-        log_info(f"Loaded client profile: {client_code}")
-        return profile
-        
-    except Exception as e:
-        log_error(f"Error loading client profile {config_file}: {e}")
-        return None
+        raise FileNotFoundError(f"Client profile not found: {config_file}")
+
+    with open(config_file, 'r', encoding='utf-8') as f:
+        profile = json.load(f)
+
+    log_info(f"Loaded client profile: {client_code}")
+    return profile
 
 
 def update_client_profile(
     client_code: str,
     updates: Dict[str, Any],
     config_directory: str = "config"
-) -> bool:
+) -> None:
     """
     Update an existing client profile.
-    
+
     Args:
         client_code: Client code to update
         updates: Dictionary of updates to apply
         config_directory: Directory containing config files
-        
-    Returns:
-        True if successful, False otherwise
-        
+
+    Raises:
+        FileNotFoundError: If the client profile does not exist.
+        OSError: If the profile cannot be read or written.
+        json.JSONDecodeError: If the existing profile is corrupt.
+
     Example:
-        >>> success = siege_utilities.update_client_profile(
+        >>> siege_utilities.update_client_profile(
         ...     "ACME001",
         ...     {
         ...         "contact_info": {"phone": "+1-555-9999"},
@@ -231,32 +231,20 @@ def update_client_profile(
         ...     }
         ... )
     """
-    
+
     profile = load_client_profile(client_code, config_directory)
-    
-    if profile is None:
-        log_error(f"Cannot update - client profile not found: {client_code}")
-        return False
-    
-    try:
-        # Apply updates recursively
-        def update_nested_dict(target: Dict, updates: Dict):
-            for key, value in updates.items():
-                if key in target and isinstance(target[key], dict) and isinstance(value, dict):
-                    update_nested_dict(target[key], value)
-                else:
-                    target[key] = value
-        
-        update_nested_dict(profile, updates)
-        
-        # Save updated profile
-        save_client_profile(profile, config_directory)
-        log_info(f"Updated client profile: {client_code}")
-        return True
-        
-    except Exception as e:
-        log_error(f"Error updating client profile {client_code}: {e}")
-        return False
+
+    def update_nested_dict(target: Dict, source: Dict):
+        for key, value in source.items():
+            if key in target and isinstance(target[key], dict) and isinstance(value, dict):
+                update_nested_dict(target[key], value)
+            else:
+                target[key] = value
+
+    update_nested_dict(profile, updates)
+
+    save_client_profile(profile, config_directory)
+    log_info(f"Updated client profile: {client_code}")
 
 
 def list_client_profiles(
@@ -287,7 +275,7 @@ def list_client_profiles(
     
     for config_file in config_dir.glob("client_*.json"):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 profile = json.load(f)
             
             clients.append({
@@ -299,7 +287,7 @@ def list_client_profiles(
                 'config_file': str(config_file)
             })
             
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, KeyError) as e:
             log_error(f"Error reading client profile {config_file}: {e}")
     
     log_info(f"Found {len(clients)} client profiles")
@@ -338,10 +326,10 @@ def search_client_profiles(
     # Load all profiles
     for config_file in pathlib.Path(config_directory).glob("client_*.json"):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 profile = json.load(f)
             all_profiles.append(profile)
-        except Exception:
+        except (OSError, json.JSONDecodeError):
             logger.warning("Skipping unreadable client config: %s", config_file, exc_info=True)
             continue
     
@@ -370,59 +358,38 @@ def associate_client_with_project(
     client_code: str,
     project_code: str,
     config_directory: str = "config"
-) -> bool:
+) -> None:
     """
     Associate a client with a project.
-    
+
     Args:
         client_code: Client code to associate
         project_code: Project code to associate with
         config_directory: Directory containing config files
-        
-    Returns:
-        True if successful, False otherwise
-        
+
+    Raises:
+        FileNotFoundError: If the client or project profile does not exist.
+        OSError: If profiles cannot be read or written.
+
     Example:
-        >>> success = siege_utilities.associate_client_with_project("ACME001", "PROJ001")
+        >>> siege_utilities.associate_client_with_project("ACME001", "PROJ001")
     """
-    
-    # Load client profile
+
     client_profile = load_client_profile(client_code, config_directory)
-    if not client_profile:
-        log_error(f"Client profile not found: {client_code}")
-        return False
-    
-    # Load project config
-    try:
-        from .projects import load_project_config
-        project_config = load_project_config(project_code, config_directory)
-        if not project_config:
-            log_error(f"Project config not found: {project_code}")
-            return False
-    except ImportError:
-        log_error("Projects module not available")
-        return False
-    
-    try:
-        # Add project association to client profile
-        if 'project_associations' not in client_profile:
-            client_profile['project_associations'] = []
-        
-        if project_code not in client_profile['project_associations']:
-            client_profile['project_associations'].append(project_code)
-            client_profile['metadata']['project_count'] = len(client_profile['project_associations'])
-            
-            # Save updated profile
-            save_client_profile(client_profile, config_directory)
-            log_info(f"Associated client {client_code} with project {project_code}")
-            return True
-        else:
-            log_info(f"Client {client_code} already associated with project {project_code}")
-            return True
-            
-    except Exception as e:
-        log_error(f"Error associating client with project: {e}")
-        return False
+
+    from .projects import load_project_config
+    load_project_config(project_code, config_directory)
+
+    if 'project_associations' not in client_profile:
+        client_profile['project_associations'] = []
+
+    if project_code not in client_profile['project_associations']:
+        client_profile['project_associations'].append(project_code)
+        client_profile['metadata']['project_count'] = len(client_profile['project_associations'])
+        save_client_profile(client_profile, config_directory)
+        log_info(f"Associated client {client_code} with project {project_code}")
+    else:
+        log_info(f"Client {client_code} already associated with project {project_code}")
 
 
 def get_client_project_associations(
@@ -431,24 +398,23 @@ def get_client_project_associations(
 ) -> List[str]:
     """
     Get all projects associated with a client.
-    
+
     Args:
         client_code: Client code to check
         config_directory: Directory containing config files
-        
+
     Returns:
-        List of associated project codes
-        
+        List of associated project codes.
+
+    Raises:
+        FileNotFoundError: If the client profile does not exist.
+
     Example:
         >>> projects = siege_utilities.get_client_project_associations("ACME001")
         >>> print(f"Client has {len(projects)} projects")
     """
-    
+
     profile = load_client_profile(client_code, config_directory)
-    
-    if not profile:
-        return []
-    
     return profile.get('project_associations', [])
 
 

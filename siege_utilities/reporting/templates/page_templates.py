@@ -4,6 +4,7 @@ Provides base templates and customization capabilities for different page types.
 """
 
 import logging
+import threading
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union, Callable
 from dataclasses import dataclass, field
@@ -222,12 +223,12 @@ class PageTemplateManager:
         
         for template_file in custom_templates_dir.glob("*.yaml"):
             try:
-                with open(template_file, 'r') as f:
+                with open(template_file, 'r', encoding='utf-8') as f:
                     template_data = yaml.safe_load(f)
                     template = PageTemplate(**template_data)
                     self.templates[template.name] = template
                     log.info(f"Loaded custom template: {template.name}")
-            except Exception as e:
+            except (OSError, yaml.YAMLError, ValueError, TypeError, KeyError) as e:
                 log.warning(f"Failed to load custom template {template_file}: {e}")
     
     def get_template(self, template_name: str) -> Optional[PageTemplate]:
@@ -274,9 +275,9 @@ class PageTemplateManager:
         
         template_file = custom_templates_dir / f"{template.name}.yaml"
         try:
-            with open(template_file, 'w') as f:
+            with open(template_file, 'w', encoding='utf-8') as f:
                 yaml.dump(template.__dict__, f, default_flow_style=False)
-        except Exception as e:
+        except (OSError, yaml.YAMLError) as e:
             log.error(f"Failed to save custom template: {e}")
     
     def modify_template(self, template_name: str, **kwargs):
@@ -289,55 +290,54 @@ class PageTemplateManager:
         """
         template = self.templates.get(template_name)
         if not template:
-            log.warning(f"Template not found: {template_name}")
-            return
-        
+            raise KeyError(f"Template not found: {template_name!r}")
+
         for key, value in kwargs.items():
             if hasattr(template, key):
                 setattr(template, key, value)
             else:
                 log.warning(f"Unknown template field: {key}")
-        
+
         # Save if it's a custom template
         if template_name.startswith('custom_'):
             self._save_custom_template(template)
-    
+
     def delete_template(self, template_name: str):
         """
         Delete a custom template.
-        
+
         Args:
             template_name: Name of the template to delete
         """
         if template_name in self.templates:
             del self.templates[template_name]
-            
+
             # Remove file if it's a custom template
             custom_templates_dir = self.templates_dir / "custom"
             template_file = custom_templates_dir / f"{template_name}.yaml"
             if template_file.exists():
                 template_file.unlink()
                 log.info(f"Deleted custom template: {template_name}")
-    
+
     def export_template(self, template_name: str, output_path: str):
         """
         Export a template to a file.
-        
+
         Args:
             template_name: Name of the template to export
             output_path: Path to export the template
+
+        Raises:
+            KeyError: If template_name does not exist.
+            OSError: If the file cannot be written.
         """
         template = self.templates.get(template_name)
         if not template:
-            log.warning(f"Template not found: {template_name}")
-            return
-        
-        try:
-            with open(output_path, 'w') as f:
-                yaml.dump(template.__dict__, f, default_flow_style=False)
-            log.info(f"Exported template to: {output_path}")
-        except Exception as e:
-            log.error(f"Failed to export template: {e}")
+            raise KeyError(f"Template not found: {template_name!r}")
+
+        with open(output_path, 'w', encoding='utf-8') as f:
+            yaml.dump(template.__dict__, f, default_flow_style=False)
+        log.info(f"Exported template to: {output_path}")
     
     def import_template(self, input_path: str, template_name: Optional[str] = None):
         """
@@ -348,7 +348,7 @@ class PageTemplateManager:
             template_name: Custom name for the imported template
         """
         try:
-            with open(input_path, 'r') as f:
+            with open(input_path, 'r', encoding='utf-8') as f:
                 template_data = yaml.safe_load(f)
             
             if template_name:
@@ -357,7 +357,7 @@ class PageTemplateManager:
             template = PageTemplate(**template_data)
             self.create_custom_template(template)
             log.info(f"Imported template: {template.name}")
-        except Exception as e:
+        except (OSError, yaml.YAMLError, ValueError, TypeError, KeyError) as e:
             log.error(f"Failed to import template: {e}")
     
     def get_template_preview(self, template_name: str) -> Dict[str, Any]:
@@ -383,13 +383,19 @@ class PageTemplateManager:
             'custom_elements': template.custom_elements
         }
 
-# Global instance
-template_manager = PageTemplateManager()
+_template_manager = None
+_template_manager_lock = threading.Lock()
+
 
 def get_template_manager() -> PageTemplateManager:
-    """Get the global template manager."""
-    return template_manager
+    """Get or create the global template manager."""
+    global _template_manager
+    if _template_manager is None:
+        with _template_manager_lock:
+            if _template_manager is None:
+                _template_manager = PageTemplateManager()
+    return _template_manager
 
 def get_template(template_name: str) -> Optional[PageTemplate]:
     """Get a template by name."""
-    return template_manager.get_template(template_name)
+    return get_template_manager().get_template(template_name)

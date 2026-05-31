@@ -149,6 +149,14 @@ def rate_table(
     Returns
     -------
     DataFrame of proportions summing to 1.0 along the requested axis.
+
+    Raises
+    ------
+    ZeroDivisionError
+        When the grand total, any row sum, or any column sum is zero
+        (normalization is mathematically undefined).
+    ValueError
+        When *normalize* is not one of the accepted values.
     """
     # Strip margins if present before normalizing
     has_total_row = "Total" in ct.index
@@ -162,13 +170,27 @@ def rate_table(
 
     if normalize == "all":
         total = inner.values.sum()
-        result = inner / total if total != 0 else inner * 0
+        if total == 0:
+            raise ZeroDivisionError(
+                "Cannot normalize: grand total is zero"
+            )
+        result = inner / total
     elif normalize == "index":
         row_sums = inner.sum(axis=1)
-        result = inner.div(row_sums, axis=0).fillna(0)
+        zero_rows = row_sums[row_sums == 0].index.tolist()
+        if zero_rows:
+            raise ZeroDivisionError(
+                f"Cannot normalize by index: rows sum to zero: {zero_rows}"
+            )
+        result = inner.div(row_sums, axis=0)
     elif normalize == "columns":
         col_sums = inner.sum(axis=0)
-        result = inner.div(col_sums, axis=1).fillna(0)
+        zero_cols = col_sums[col_sums == 0].index.tolist()
+        if zero_cols:
+            raise ZeroDivisionError(
+                f"Cannot normalize by columns: columns sum to zero: {zero_cols}"
+            )
+        result = inner.div(col_sums, axis=1)
     else:
         raise ValueError(f"normalize must be 'all', 'index', or 'columns', got '{normalize}'")
 

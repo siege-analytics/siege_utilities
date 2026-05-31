@@ -134,9 +134,8 @@ class TestMoeProportion:
     def test_zero_denominator(self):
         num = Estimate(value=50, moe=10)
         den = Estimate(value=0, moe=0)
-        result = moe_proportion(num, den)
-        assert result.value == 0.0
-        assert result.moe == 0.0
+        with pytest.raises(ZeroDivisionError, match="denominator"):
+            moe_proportion(num, den)
 
 
 # ---------------------------------------------------------------------------
@@ -155,8 +154,8 @@ class TestMoeRatio:
     def test_zero_denominator(self):
         a = Estimate(value=200, moe=20)
         b = Estimate(value=0, moe=10)
-        result = moe_ratio(a, b)
-        assert result.value == 0.0
+        with pytest.raises(ZeroDivisionError, match="denominator"):
+            moe_ratio(a, b)
 
 
 # ---------------------------------------------------------------------------

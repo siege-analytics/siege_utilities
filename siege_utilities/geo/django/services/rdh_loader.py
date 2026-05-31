@@ -334,7 +334,10 @@ class RDHLoaderService:
         updated = 0
         for district in plan.districts.all():
             if district.geoid in cvap_lookup:
-                district.cvap = int(cvap_lookup[district.geoid])
+                raw = cvap_lookup[district.geoid]
+                if raw is None or (isinstance(raw, float) and raw != raw):
+                    continue
+                district.cvap = int(raw)
                 district.save(update_fields=["cvap"])
                 updated += 1
 
@@ -423,7 +426,7 @@ class RDHLoaderService:
             profile_df = demographic_profile(
                 plan_gdf, census_gdf, district_id_col=district_id_col,
             )
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             result.errors.append(f"Spatial join failed: {e}")
             return result
 
