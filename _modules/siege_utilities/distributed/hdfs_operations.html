@@ -544,7 +544,6 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span>
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -552,30 +551,22 @@
 
 <div class="viewcode-block" id="_default_hash_function">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/hdfs_operations/index.html#siege_utilities._default_hash_function">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">_default_hash_function</span><span class="p">(</span><span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span><span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Default hash function using built-in hashlib&quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">sha256_hash</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">()</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="k">lambda</span> <span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">65536</span><span class="p">),</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
-                <span class="n">sha256_hash</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">sha256_hash</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Could not hash file </span><span class="si">%s</span><span class="s2">, returning error signature: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file_path</span><span class="p">,</span> <span class="n">exc</span><span class="p">)</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;error_</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span><span class="si">}</span><span class="s1">&#39;</span></div>
+<span class="k">def</span><span class="w"> </span><span class="nf">_default_hash_function</span><span class="p">(</span><span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Default hash function using built-in hashlib.&quot;&quot;&quot;</span>
+    <span class="n">sha256_hash</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">()</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">65536</span><span class="p">),</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+            <span class="n">sha256_hash</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">sha256_hash</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span></div>
 
 
 
 <div class="viewcode-block" id="_default_quick_signature">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/hdfs_operations/index.html#siege_utilities._default_quick_signature">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">_default_quick_signature</span><span class="p">(</span><span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span><span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Default quick signature using file stats&quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">stat</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_mtime</span><span class="si">}</span><span class="s1">&#39;</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Could not stat file </span><span class="si">%s</span><span class="s2"> for quick signature: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file_path</span><span class="p">,</span> <span class="n">exc</span><span class="p">)</span>
-        <span class="k">return</span> <span class="s1">&#39;error&#39;</span></div>
+<span class="k">def</span><span class="w"> </span><span class="nf">_default_quick_signature</span><span class="p">(</span><span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Default quick signature using file stats.&quot;&quot;&quot;</span>
+    <span class="n">stat</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_mtime</span><span class="si">}</span><span class="s1">&#39;</span></div>
 
 
 
@@ -628,7 +619,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_error</span><span class="p">(</span>
                 <span class="s1">&#39;HDFS command not found - check Hadoop installation&#39;</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">False</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;HDFS check failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">False</span></div>
 
@@ -643,6 +634,11 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">SparkSession</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnalysisException</span> <span class="k">as</span> <span class="n">_SparkAnalysisException</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="kn">from</span><span class="w"> </span><span class="nn">py4j.protocol</span><span class="w"> </span><span class="kn">import</span> <span class="n">Py4JJavaError</span> <span class="k">as</span> <span class="n">_Py4JError</span>
+            <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+                <span class="n">_Py4JError</span> <span class="o">=</span> <span class="n">_SparkAnalysisException</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s1">&#39;Creating Spark session: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">app_name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span>
@@ -710,107 +706,103 @@
                         <span class="sa">f</span><span class="s1">&#39;Broadcast threshold: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sedona_join_broadcast_threshold</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="p">(</span><span class="mi">1024</span><span class="o">*</span><span class="mi">1024</span><span class="p">)</span><span class="si">}</span><span class="s1">MB&#39;</span><span class="p">)</span>
                 <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;⚠️  Sedona not available&#39;</span><span class="p">)</span>
-                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">except</span> <span class="p">(</span><span class="n">_Py4JError</span><span class="p">,</span> <span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;⚠️  Sedona registration failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span>
                         <span class="p">)</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;✓ Spark session created successfully&#39;</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">spark</span>
-        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_error</span><span class="p">(</span>
-                <span class="s1">&#39;PySpark not available - install with: pip install pyspark&#39;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="kc">None</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Failed to create Spark session: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="kc">None</span></div>
+        <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+                <span class="s1">&#39;PySpark not available - install with: pip install pyspark&#39;</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span></div>
 
 
 <div class="viewcode-block" id="AbstractHDFSOperations.sync_directory_to_hdfs">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/hdfs_operations/index.html#siege_utilities.AbstractHDFSOperations.sync_directory_to_hdfs">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">sync_directory_to_hdfs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">hdfs_subdir</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;inputs&#39;</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sync local directory/file to HDFS with proper verification&quot;&quot;&quot;</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">local_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">local_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">data_path</span>
-            <span class="k">if</span> <span class="n">local_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_error</span><span class="p">(</span><span class="s1">&#39;No data path provided&#39;</span><span class="p">)</span>
-                <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
-            <span class="n">local_path</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">local_path</span><span class="p">)</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">local_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Local path not found: </span><span class="si">{</span><span class="n">local_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-                <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_hdfs_status</span><span class="p">():</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_error</span><span class="p">(</span><span class="s1">&#39;HDFS not accessible&#39;</span><span class="p">)</span>
-                <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
-            <span class="k">if</span> <span class="n">local_path</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
-                <span class="n">hdfs_directory</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">hdfs_base_directory</span> <span class="o">+</span>
-                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">hdfs_subdir</span><span class="si">}</span><span class="s1">/&#39;</span><span class="p">)</span>
-                <span class="n">hdfs_full_path</span> <span class="o">=</span> <span class="n">hdfs_directory</span> <span class="o">+</span> <span class="n">local_path</span><span class="o">.</span><span class="n">name</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">hdfs_directory</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">hdfs_base_directory</span> <span class="o">+</span>
-                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">hdfs_subdir</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">local_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">/&#39;</span><span class="p">)</span>
-                <span class="n">hdfs_full_path</span> <span class="o">=</span> <span class="n">hdfs_directory</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Syncing: </span><span class="si">{</span><span class="n">local_path</span><span class="si">}</span><span class="s1"> -&gt; </span><span class="si">{</span><span class="n">hdfs_full_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-            <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="s1">&#39;hdfs&#39;</span><span class="p">,</span> <span class="s1">&#39;dfs&#39;</span><span class="p">,</span> <span class="s1">&#39;-mkdir&#39;</span><span class="p">,</span> <span class="s1">&#39;-p&#39;</span><span class="p">,</span> <span class="n">hdfs_directory</span><span class="p">],</span>
-                <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
-            <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="s1">&#39;hdfs&#39;</span><span class="p">,</span> <span class="s1">&#39;dfs&#39;</span><span class="p">,</span> <span class="s1">&#39;-put&#39;</span><span class="p">,</span> <span class="s1">&#39;-f&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">local_path</span><span class="p">),</span>
-                <span class="n">hdfs_full_path</span><span class="p">],</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span>
-                <span class="n">hdfs_copy_timeout</span><span class="p">)</span>
-            <span class="n">result</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="s1">&#39;hdfs&#39;</span><span class="p">,</span> <span class="s1">&#39;dfs&#39;</span><span class="p">,</span> <span class="s1">&#39;-test&#39;</span><span class="p">,</span> <span class="s1">&#39;-e&#39;</span><span class="p">,</span>
-                <span class="n">hdfs_full_path</span><span class="p">],</span> <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">returncode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;✅ Sync complete: </span><span class="si">{</span><span class="n">hdfs_full_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-                <span class="k">return</span> <span class="n">hdfs_full_path</span><span class="p">,</span> <span class="p">{</span><span class="n">local_path</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;path&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span>
-                    <span class="n">local_path</span><span class="p">)}}</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_error</span><span class="p">(</span><span class="s1">&#39;❌ Sync verification failed&#39;</span><span class="p">)</span>
-                <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error syncing to HDFS: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span></div>
+        <span class="n">hdfs_subdir</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;inputs&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sync local directory/file to HDFS with proper verification.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If no data path is provided.</span>
+<span class="sd">            FileNotFoundError: If the local path does not exist.</span>
+<span class="sd">            RuntimeError: If HDFS is not accessible or sync verification fails.</span>
+<span class="sd">            subprocess.CalledProcessError: If an HDFS command fails.</span>
+<span class="sd">            subprocess.TimeoutExpired: If an HDFS command times out.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">local_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">local_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">data_path</span>
+        <span class="k">if</span> <span class="n">local_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;No data path provided&#39;</span><span class="p">)</span>
+        <span class="n">local_path</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">local_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">local_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Local path not found: </span><span class="si">{</span><span class="n">local_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_hdfs_status</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;HDFS not accessible&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">local_path</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+            <span class="n">hdfs_directory</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">hdfs_base_directory</span> <span class="o">+</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">hdfs_subdir</span><span class="si">}</span><span class="s1">/&#39;</span><span class="p">)</span>
+            <span class="n">hdfs_full_path</span> <span class="o">=</span> <span class="n">hdfs_directory</span> <span class="o">+</span> <span class="n">local_path</span><span class="o">.</span><span class="n">name</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">hdfs_directory</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">hdfs_base_directory</span> <span class="o">+</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">hdfs_subdir</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">local_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">/&#39;</span><span class="p">)</span>
+            <span class="n">hdfs_full_path</span> <span class="o">=</span> <span class="n">hdfs_directory</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Syncing: </span><span class="si">{</span><span class="n">local_path</span><span class="si">}</span><span class="s1"> -&gt; </span><span class="si">{</span><span class="n">hdfs_full_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="s1">&#39;hdfs&#39;</span><span class="p">,</span> <span class="s1">&#39;dfs&#39;</span><span class="p">,</span> <span class="s1">&#39;-mkdir&#39;</span><span class="p">,</span> <span class="s1">&#39;-p&#39;</span><span class="p">,</span> <span class="n">hdfs_directory</span><span class="p">],</span>
+            <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="s1">&#39;hdfs&#39;</span><span class="p">,</span> <span class="s1">&#39;dfs&#39;</span><span class="p">,</span> <span class="s1">&#39;-put&#39;</span><span class="p">,</span> <span class="s1">&#39;-f&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">local_path</span><span class="p">),</span>
+            <span class="n">hdfs_full_path</span><span class="p">],</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span>
+            <span class="n">hdfs_copy_timeout</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="s1">&#39;hdfs&#39;</span><span class="p">,</span> <span class="s1">&#39;dfs&#39;</span><span class="p">,</span> <span class="s1">&#39;-test&#39;</span><span class="p">,</span> <span class="s1">&#39;-e&#39;</span><span class="p">,</span>
+            <span class="n">hdfs_full_path</span><span class="p">],</span> <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Sync verification failed: file not found on HDFS after put&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;✅ Sync complete: </span><span class="si">{</span><span class="n">hdfs_full_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">hdfs_full_path</span><span class="p">,</span> <span class="p">{</span><span class="n">local_path</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;path&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">local_path</span><span class="p">)}}</span></div>
 
 
 <div class="viewcode-block" id="AbstractHDFSOperations.setup_distributed_environment">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/hdfs_operations/index.html#siege_utilities.AbstractHDFSOperations.setup_distributed_environment">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">setup_distributed_environment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">dependency_paths</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Main setup function with proper verification&quot;&quot;&quot;</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;🚀 Setting up distributed environment...&#39;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">data_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">data_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">data_path</span>
-            <span class="k">if</span> <span class="n">data_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_error</span><span class="p">(</span><span class="s1">&#39;No data path provided&#39;</span><span class="p">)</span>
-                <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
-            <span class="n">local_path</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">data_path</span><span class="p">)</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">local_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Data path not found: </span><span class="si">{</span><span class="n">data_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-                <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_hdfs_status</span><span class="p">():</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;📁 HDFS available - attempting sync...&#39;</span><span class="p">)</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Main setup function with proper verification.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Tuple of (spark_session, data_url, None).</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If no data path is provided.</span>
+<span class="sd">            FileNotFoundError: If the data path does not exist.</span>
+<span class="sd">            ImportError: If PySpark is not available.</span>
+<span class="sd">            RuntimeError: If HDFS sync or Spark session creation fails.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;🚀 Setting up distributed environment...&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">data_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">data_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">data_path</span>
+        <span class="k">if</span> <span class="n">data_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;No data path provided&#39;</span><span class="p">)</span>
+        <span class="n">local_path</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">data_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">local_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Data path not found: </span><span class="si">{</span><span class="n">data_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_hdfs_status</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;📁 HDFS available - attempting sync...&#39;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
                 <span class="n">hdfs_path</span><span class="p">,</span> <span class="n">files_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_directory_to_hdfs</span><span class="p">(</span><span class="n">data_path</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">hdfs_path</span><span class="p">:</span>
-                    <span class="n">spark</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_spark_session</span><span class="p">()</span>
-                    <span class="k">if</span> <span class="n">spark</span><span class="p">:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span>
-                            <span class="s1">&#39;✅ Using HDFS for distributed processing&#39;</span><span class="p">)</span>
-                        <span class="k">return</span> <span class="n">spark</span><span class="p">,</span> <span class="n">hdfs_path</span><span class="p">,</span> <span class="kc">None</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_error</span><span class="p">(</span><span class="s1">&#39;Spark session creation failed&#39;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;💻 Using local filesystem...&#39;</span><span class="p">)</span>
-            <span class="n">file_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;file://</span><span class="si">{</span><span class="n">local_path</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span><span class="si">}</span><span class="s1">&#39;</span>
-            <span class="n">spark</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_spark_session</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">spark</span><span class="p">:</span>
+                <span class="n">spark</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_spark_session</span><span class="p">()</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span>
-                    <span class="s1">&#39;✅ Distributed environment setup complete!&#39;</span><span class="p">)</span>
-                <span class="k">return</span> <span class="n">spark</span><span class="p">,</span> <span class="n">file_url</span><span class="p">,</span> <span class="kc">None</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_error</span><span class="p">(</span><span class="s1">&#39;Failed to create Spark session&#39;</span><span class="p">)</span>
-                <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error setting up environment: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span></div>
+                    <span class="s1">&#39;✅ Using HDFS for distributed processing&#39;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">spark</span><span class="p">,</span> <span class="n">hdfs_path</span><span class="p">,</span> <span class="kc">None</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">RuntimeError</span><span class="p">,</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CalledProcessError</span><span class="p">,</span>
+                    <span class="n">subprocess</span><span class="o">.</span><span class="n">TimeoutExpired</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;⚠️  HDFS sync failed, falling back to local: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;💻 Using local filesystem...&#39;</span><span class="p">)</span>
+        <span class="n">file_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;file://</span><span class="si">{</span><span class="n">local_path</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="n">spark</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_spark_session</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_info</span><span class="p">(</span>
+            <span class="s1">&#39;✅ Distributed environment setup complete!&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">spark</span><span class="p">,</span> <span class="n">file_url</span><span class="p">,</span> <span class="kc">None</span></div>
 </div>
 
 

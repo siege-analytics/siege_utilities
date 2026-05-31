@@ -595,14 +595,14 @@
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ensured path exists: </span><span class="si">{</span><span class="n">path_obj</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">path_obj</span>
 
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to create path </span><span class="si">{</span><span class="n">desired_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">raise</span></div>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">unzip_file_to_directory</span><span class="p">(</span><span class="n">zip_file_path</span><span class="p">:</span> <span class="n">FilePath</span><span class="p">,</span>
                            <span class="n">extract_to</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">FilePath</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                           <span class="n">create_subdirectory</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]:</span>
+                           <span class="n">create_subdirectory</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Extract a zip file to a directory.</span>
 
@@ -614,83 +614,61 @@
 <span class="sd">        create_subdirectory: Whether to create a subdirectory for extracted files</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        Path to the extraction directory, or None if failed</span>
+<span class="sd">        Path to the extraction directory</span>
 
 <span class="sd">    Raises:</span>
+<span class="sd">        FileNotFoundError: If zip file does not exist or is not a file</span>
+<span class="sd">        zipfile.BadZipFile: If file is not a valid zip</span>
 <span class="sd">        PathSecurityError: If paths fail security validation</span>
+<span class="sd">        OSError: If extraction fails</span>
 
 <span class="sd">    Example:</span>
 <span class="sd">        &gt;&gt;&gt; extract_dir = unzip_file_to_directory(&quot;data.zip&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; print(f&quot;Files extracted to: {extract_dir}&quot;)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="c1"># Validate paths</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span><span class="p">,</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
-            <span class="n">zip_path</span> <span class="o">=</span> <span class="n">validate_file_path</span><span class="p">(</span><span class="n">zip_file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-            <span class="n">zip_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">zip_file_path</span><span class="p">)</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span><span class="p">,</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
+        <span class="n">zip_path</span> <span class="o">=</span> <span class="n">validate_file_path</span><span class="p">(</span><span class="n">zip_file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="n">zip_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">zip_file_path</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">zip_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Zip file does not exist: </span><span class="si">{</span><span class="n">zip_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">zip_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Zip file does not exist: </span><span class="si">{</span><span class="n">zip_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">zip_path</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Path is not a file: </span><span class="si">{</span><span class="n">zip_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">zip_path</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Path is not a file: </span><span class="si">{</span><span class="n">zip_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-        <span class="c1"># Determine extraction directory</span>
-        <span class="k">if</span> <span class="n">extract_to</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">extract_to</span> <span class="o">=</span> <span class="n">zip_path</span><span class="o">.</span><span class="n">parent</span>
+    <span class="k">if</span> <span class="n">extract_to</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">extract_to</span> <span class="o">=</span> <span class="n">zip_path</span><span class="o">.</span><span class="n">parent</span>
 
-        <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
-            <span class="n">extract_dir</span> <span class="o">=</span> <span class="n">validate_directory_path</span><span class="p">(</span><span class="n">extract_to</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-            <span class="n">extract_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">extract_to</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
+        <span class="n">extract_dir</span> <span class="o">=</span> <span class="n">validate_directory_path</span><span class="p">(</span><span class="n">extract_to</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="n">extract_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">extract_to</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">create_subdirectory</span><span class="p">:</span>
-            <span class="c1"># Create subdirectory based on zip file name</span>
-            <span class="n">subdir_name</span> <span class="o">=</span> <span class="n">zip_path</span><span class="o">.</span><span class="n">stem</span>
-            <span class="n">target_dir</span> <span class="o">=</span> <span class="n">extract_dir</span> <span class="o">/</span> <span class="n">subdir_name</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">target_dir</span> <span class="o">=</span> <span class="n">extract_dir</span>
+    <span class="k">if</span> <span class="n">create_subdirectory</span><span class="p">:</span>
+        <span class="n">subdir_name</span> <span class="o">=</span> <span class="n">zip_path</span><span class="o">.</span><span class="n">stem</span>
+        <span class="n">target_dir</span> <span class="o">=</span> <span class="n">extract_dir</span> <span class="o">/</span> <span class="n">subdir_name</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">target_dir</span> <span class="o">=</span> <span class="n">extract_dir</span>
 
-        <span class="c1"># Create target directory</span>
-        <span class="n">target_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">target_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-        <span class="c1"># Extract files (with zip slip protection). Validate AND extract</span>
-        <span class="c1"># per-member — extractall() would ignore the validation loop</span>
-        <span class="c1"># below and re-process every entry without the guard.</span>
-        <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">zip_path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">zip_ref</span><span class="p">:</span>
-            <span class="n">target_resolved</span> <span class="o">=</span> <span class="n">target_dir</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
-            <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">zip_ref</span><span class="o">.</span><span class="n">namelist</span><span class="p">():</span>
-                <span class="c1"># Reject absolute paths and any traversal that escapes</span>
-                <span class="c1"># target_dir. Path.resolve() collapses &#39;..&#39; segments;</span>
-                <span class="c1"># if the result isn&#39;t a child of target_dir, it&#39;s</span>
-                <span class="c1"># malicious.</span>
-                <span class="k">try</span><span class="p">:</span>
-                    <span class="p">(</span><span class="n">target_dir</span> <span class="o">/</span> <span class="n">member</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">target_resolved</span><span class="p">)</span>
-                <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                    <span class="c1"># Detected-and-skipped → recoverable anomaly, not a</span>
-                    <span class="c1"># user-visible failure. Use warning + lazy format.</span>
-                    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                        <span class="s2">&quot;Zip slip attempt detected, skipping member: </span><span class="si">%r</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">member</span><span class="p">,</span>
-                    <span class="p">)</span>
-                    <span class="k">continue</span>
-                <span class="n">zip_ref</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="n">target_dir</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">zip_path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">zip_ref</span><span class="p">:</span>
+        <span class="n">target_resolved</span> <span class="o">=</span> <span class="n">target_dir</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">zip_ref</span><span class="o">.</span><span class="n">namelist</span><span class="p">():</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="p">(</span><span class="n">target_dir</span> <span class="o">/</span> <span class="n">member</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">target_resolved</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">&quot;Zip slip attempt detected, skipping member: </span><span class="si">%r</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">member</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">zip_ref</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="n">target_dir</span><span class="p">)</span>
 
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Extracted </span><span class="si">{</span><span class="n">zip_path</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">target_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">target_dir</span>
-
-    <span class="k">except</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">BadZipFile</span><span class="p">:</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid zip file: </span><span class="si">{</span><span class="n">zip_file_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">None</span>
-    <span class="k">except</span> <span class="n">PathSecurityError</span><span class="p">:</span>
-        <span class="k">raise</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to extract </span><span class="si">{</span><span class="n">zip_file_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Extracted </span><span class="si">{</span><span class="n">zip_path</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">target_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">target_dir</span>
 
 <div class="viewcode-block" id="get_file_extension">
 <a class="viewcode-back" href="../../../paths.html#siege_utilities.get_file_extension">[docs]</a>
@@ -727,7 +705,7 @@
         <span class="k">return</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">suffix</span>
     <span class="k">except</span> <span class="n">PathSecurityError</span><span class="p">:</span>
         <span class="k">raise</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to get extension for </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">raise</span></div>
 
@@ -765,7 +743,7 @@
         <span class="k">return</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">stem</span>
     <span class="k">except</span> <span class="n">PathSecurityError</span><span class="p">:</span>
         <span class="k">raise</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to get filename for </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">raise</span>
 
@@ -802,11 +780,11 @@
         <span class="k">return</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
     <span class="k">except</span> <span class="n">PathSecurityError</span><span class="p">:</span>
         <span class="k">raise</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to check if hidden: </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">raise</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">get_relative_path</span><span class="p">(</span><span class="n">base_path</span><span class="p">:</span> <span class="n">FilePath</span><span class="p">,</span> <span class="n">target_path</span><span class="p">:</span> <span class="n">FilePath</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_relative_path</span><span class="p">(</span><span class="n">base_path</span><span class="p">:</span> <span class="n">FilePath</span><span class="p">,</span> <span class="n">target_path</span><span class="p">:</span> <span class="n">FilePath</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get the relative path from base_path to target_path.</span>
 
@@ -817,39 +795,28 @@
 <span class="sd">        target_path: Target file/directory path</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        Relative path from base to target, or None if failed</span>
+<span class="sd">        Relative path from base to target</span>
 
 <span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If target is not relative to base</span>
 <span class="sd">        PathSecurityError: If paths fail security validation</span>
 
 <span class="sd">    Example:</span>
 <span class="sd">        &gt;&gt;&gt; rel_path = get_relative_path(&quot;/home/user&quot;, &quot;/home/user/documents/file.txt&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; print(f&quot;Relative path: {rel_path}&quot;)  # documents/file.txt</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; # This will raise PathSecurityError</span>
-<span class="sd">        &gt;&gt;&gt; get_relative_path(&quot;/etc&quot;, &quot;/etc/passwd&quot;)  # Sensitive path blocked</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="c1"># Validate paths</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
-            <span class="n">base</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span><span class="n">base_path</span><span class="p">,</span> <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="n">target</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span><span class="n">target_path</span><span class="p">,</span> <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-            <span class="n">base</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">base_path</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
-            <span class="n">target</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">target_path</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span><span class="n">base_path</span><span class="p">,</span> <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span><span class="n">target_path</span><span class="p">,</span> <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">base_path</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">target_path</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
 
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">relative</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">base</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">relative</span>
-        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Target </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2"> is not relative to base </span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="kc">None</span>
-    <span class="k">except</span> <span class="n">PathSecurityError</span><span class="p">:</span>
-        <span class="k">raise</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to get relative path: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">target</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">base</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Target </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2"> is not relative to base </span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
 
 <span class="k">def</span><span class="w"> </span><span class="nf">find_files_by_pattern</span><span class="p">(</span><span class="n">directory</span><span class="p">:</span> <span class="n">FilePath</span><span class="p">,</span>
                          <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;*&quot;</span><span class="p">,</span>
@@ -869,6 +836,7 @@
 
 <span class="sd">    Raises:</span>
 <span class="sd">        PathSecurityError: If path fails security validation</span>
+<span class="sd">        OSError: If the directory cannot be read</span>
 
 <span class="sd">    Example:</span>
 <span class="sd">        &gt;&gt;&gt; files = find_files_by_pattern(&quot;data&quot;, &quot;*.csv&quot;, recursive=True)</span>
@@ -885,9 +853,10 @@
         <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
             <span class="n">dir_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">directory</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">dir_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">dir_path</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Directory does not exist or is not a directory: </span><span class="si">{</span><span class="n">dir_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dir_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Directory does not exist: </span><span class="si">{</span><span class="n">dir_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dir_path</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Path is not a directory: </span><span class="si">{</span><span class="n">dir_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">recursive</span><span class="p">:</span>
             <span class="n">files</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">dir_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="n">pattern</span><span class="p">))</span>
@@ -899,11 +868,10 @@
 
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">)</span><span class="si">}</span><span class="s2"> files matching &#39;</span><span class="si">{</span><span class="n">pattern</span><span class="si">}</span><span class="s2">&#39; in </span><span class="si">{</span><span class="n">dir_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">files</span><span class="p">)</span>
-    <span class="k">except</span> <span class="n">PathSecurityError</span><span class="p">:</span>
+    <span class="k">except</span> <span class="p">(</span><span class="n">PathSecurityError</span><span class="p">,</span> <span class="ne">FileNotFoundError</span><span class="p">):</span>
         <span class="k">raise</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to find files in </span><span class="si">{</span><span class="n">directory</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="p">[]</span>
+    <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to find files in </span><span class="si">{</span><span class="n">directory</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
 
 <span class="k">def</span><span class="w"> </span><span class="nf">create_backup_path</span><span class="p">(</span><span class="n">original_path</span><span class="p">:</span> <span class="n">FilePath</span><span class="p">,</span>
                       <span class="n">backup_suffix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;.backup&quot;</span><span class="p">,</span>
@@ -959,7 +927,7 @@
         <span class="k">return</span> <span class="n">backup_path</span>
     <span class="k">except</span> <span class="n">PathSecurityError</span><span class="p">:</span>
         <span class="k">raise</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to create backup path for </span><span class="si">{</span><span class="n">original_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">raise</span>
 
@@ -990,7 +958,7 @@
         <span class="n">path_obj</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Normalized </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">path_obj</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">path_obj</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to normalize path </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">raise</span></div>
 

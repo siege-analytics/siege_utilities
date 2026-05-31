@@ -581,9 +581,9 @@
                 <span class="n">sig</span><span class="o">.</span><span class="n">return_annotation</span><span class="p">))</span>
         <span class="n">return_desc</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">return_type</span><span class="si">}</span><span class="s1">: Description needed&#39;</span>
         <span class="k">return</span> <span class="n">params</span><span class="p">,</span> <span class="n">return_desc</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log_warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Could not analyze signature: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="p">[],</span> <span class="s1">&#39;Any: Description needed&#39;</span></div>
+        <span class="k">raise</span></div>
 
 
 
@@ -712,51 +712,42 @@
 <div class="viewcode-block" id="process_python_file">
 <a class="viewcode-back" href="../../../api/siege_utilities/hygiene/generate_docstrings/index.html#siege_utilities.hygiene.generate_docstrings.process_python_file">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">process_python_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Process a single Python file to add missing docstrings.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Process a single Python file to add missing docstrings.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        SyntaxError: If the file has invalid Python syntax.</span>
+<span class="sd">        ImportError: If astor is not installed.</span>
+<span class="sd">        OSError: If the file cannot be read or written.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">relative_path</span> <span class="o">=</span> <span class="n">file_path</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">())</span>
     <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Processing </span><span class="si">{</span><span class="n">relative_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">content</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">tree</span> <span class="o">=</span> <span class="n">ast</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">SyntaxError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Syntax error in </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="kc">False</span>
-        <span class="n">module_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">relative_path</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.py&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="s1">&#39;.&#39;</span><span class="p">)</span>
-        <span class="n">transformer</span> <span class="o">=</span> <span class="n">DocstringAdder</span><span class="p">(</span><span class="n">module_name</span><span class="p">)</span>
-        <span class="n">new_tree</span> <span class="o">=</span> <span class="n">transformer</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">tree</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">transformer</span><span class="o">.</span><span class="n">functions_processed</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="kn">import</span><span class="w"> </span><span class="nn">astor</span>
-                <span class="n">new_content</span> <span class="o">=</span> <span class="n">astor</span><span class="o">.</span><span class="n">to_source</span><span class="p">(</span><span class="n">new_tree</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-                <span class="n">log_error</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s1">&#39;astor not available, install with: pip install astor&#39;</span>
-                    <span class="p">)</span>
-                <span class="k">return</span> <span class="kc">False</span>
-            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error converting AST back to source: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-                <span class="k">return</span> <span class="kc">False</span>
-            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">new_content</span><span class="p">)</span>
-            <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Updated </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-            <span class="n">log_info</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;Processed: </span><span class="si">{</span><span class="n">transformer</span><span class="o">.</span><span class="n">functions_processed</span><span class="si">}</span><span class="s1">, Skipped: </span><span class="si">{</span><span class="n">transformer</span><span class="o">.</span><span class="n">functions_skipped</span><span class="si">}</span><span class="s1">&#39;</span>
-                <span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No changes needed&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">True</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error processing </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">False</span></div>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">content</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+    <span class="n">tree</span> <span class="o">=</span> <span class="n">ast</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+    <span class="n">module_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">relative_path</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.py&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="s1">&#39;.&#39;</span><span class="p">)</span>
+    <span class="n">transformer</span> <span class="o">=</span> <span class="n">DocstringAdder</span><span class="p">(</span><span class="n">module_name</span><span class="p">)</span>
+    <span class="n">new_tree</span> <span class="o">=</span> <span class="n">transformer</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">tree</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">transformer</span><span class="o">.</span><span class="n">functions_processed</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">astor</span>
+        <span class="n">new_content</span> <span class="o">=</span> <span class="n">astor</span><span class="o">.</span><span class="n">to_source</span><span class="p">(</span><span class="n">new_tree</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">new_content</span><span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Updated </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;Processed: </span><span class="si">{</span><span class="n">transformer</span><span class="o">.</span><span class="n">functions_processed</span><span class="si">}</span><span class="s1">, Skipped: </span><span class="si">{</span><span class="n">transformer</span><span class="o">.</span><span class="n">functions_skipped</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No changes needed&#39;</span><span class="p">)</span></div>
 
 
 
 <div class="viewcode-block" id="find_python_files">
 <a class="viewcode-back" href="../../../api/siege_utilities/hygiene/generate_docstrings/index.html#siege_utilities.hygiene.generate_docstrings.find_python_files">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">find_python_files</span><span class="p">(</span><span class="n">base_path</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Find all Python files to process.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Find Python files to process (excludes __init__.py and build artifacts).&quot;&quot;&quot;</span>
     <span class="n">base_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">base_path</span><span class="p">)</span>
     <span class="n">python_files</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">base_path</span> <span class="o">/</span> <span class="s1">&#39;siege_utilities&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
@@ -775,43 +766,50 @@
 <div class="viewcode-block" id="main">
 <a class="viewcode-back" href="../../../api/siege_utilities/hygiene/generate_docstrings/index.html#siege_utilities.hygiene.generate_docstrings.main">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Main function to process all Python files in siege_utilities.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Process all Python files in siege_utilities to add missing docstrings.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ImportError: If astor is not installed.</span>
+<span class="sd">        FileNotFoundError: If no Python files are found in the working directory.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;Auto-generating docstrings for siege_utilities&#39;</span><span class="p">)</span>
     <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;=&#39;</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="kn">import</span><span class="w"> </span><span class="nn">astor</span>
-    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="s1">&#39;Missing dependency: astor&#39;</span><span class="p">)</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;Install with: pip install astor&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">False</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">astor</span>  <span class="c1"># noqa: F401</span>
+    <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+            <span class="s1">&#39;Missing dependency: astor. Install with: pip install astor&#39;</span>
+        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
     <span class="n">base_path</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span>
     <span class="n">python_files</span> <span class="o">=</span> <span class="n">find_python_files</span><span class="p">(</span><span class="n">base_path</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">python_files</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="s1">&#39;No Python files found. Are you in the right directory?&#39;</span><span class="p">)</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Current directory: </span><span class="si">{</span><span class="n">base_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;Expected: directory containing siege_utilities package&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;No Python files found in </span><span class="si">{</span><span class="n">base_path</span><span class="si">}</span><span class="s1">. &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;Expected: directory containing siege_utilities package&#39;</span>
+        <span class="p">)</span>
     <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">python_files</span><span class="p">)</span><span class="si">}</span><span class="s1"> Python files to process&#39;</span><span class="p">)</span>
     <span class="n">successful</span> <span class="o">=</span> <span class="mi">0</span>
-    <span class="n">failed</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">errors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">file_path</span> <span class="ow">in</span> <span class="n">python_files</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">process_python_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">process_python_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
             <span class="n">successful</span> <span class="o">+=</span> <span class="mi">1</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">failed</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">SyntaxError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">,</span> <span class="ne">ImportError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error processing </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">file_path</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
     <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="s1">&#39;=&#39;</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span>
     <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Docstring generation complete!&#39;</span><span class="p">)</span>
     <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Summary:&#39;</span><span class="p">)</span>
     <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Successfully processed: </span><span class="si">{</span><span class="n">successful</span><span class="si">}</span><span class="s1"> files&#39;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">failed</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Failed: </span><span class="si">{</span><span class="n">failed</span><span class="si">}</span><span class="s1"> files&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">errors</span><span class="p">:</span>
+        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Failed: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">errors</span><span class="p">)</span><span class="si">}</span><span class="s1"> files&#39;</span><span class="p">)</span>
     <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Next steps:&#39;</span><span class="p">)</span>
     <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;1. Review generated docstrings&#39;</span><span class="p">)</span>
     <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;2. Rebuild docs: cd docs &amp;&amp; make html&#39;</span><span class="p">)</span>
     <span class="n">log_info</span><span class="p">(</span>
         <span class="sa">f</span><span class="s2">&quot;3. Commit changes: git add -A &amp;&amp; git commit -m &#39;Add auto-generated docstrings&#39;&quot;</span>
         <span class="p">)</span>
-    <span class="k">return</span> <span class="n">failed</span> <span class="o">==</span> <span class="mi">0</span></div>
+    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">errors</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span></div>
 
 
 

@@ -542,7 +542,6 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.core.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">log_info</span><span class="p">,</span> <span class="n">log_error</span>
 
@@ -597,9 +596,12 @@
 
 <div class="viewcode-block" id="generate_sha256_hash_for_file">
 <a class="viewcode-back" href="../../../api/siege_utilities/files/hashing/index.html#siege_utilities.generate_sha256_hash_for_file">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">generate_sha256_hash_for_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Generate SHA256 hash for a file - chunked reading for large files</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">generate_sha256_hash_for_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate SHA256 hash for a file - chunked reading for large files.</span>
+
+<span class="sd">    .. deprecated:: 3.19.0</span>
+<span class="sd">        Use :func:`calculate_file_hash` or :func:`get_file_hash` instead.</span>
+<span class="sd">        Will be removed in v4.0.0.</span>
 
 <span class="sd">    SECURITY: This function validates paths to prevent path traversal attacks</span>
 <span class="sd">    and access to sensitive system files.</span>
@@ -608,40 +610,32 @@
 <span class="sd">        file_path: Path to the file (str or Path object)</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        SHA256 hash as hexadecimal string, or None if error</span>
+<span class="sd">        SHA256 hash as hexadecimal string</span>
 
 <span class="sd">    Raises:</span>
+<span class="sd">        FileNotFoundError: If file does not exist or is not a file</span>
 <span class="sd">        PathSecurityError: If path fails security validation</span>
+<span class="sd">        OSError: If file cannot be read</span>
 
 <span class="sd">    Example:</span>
 <span class="sd">        &gt;&gt;&gt; hash_val = generate_sha256_hash_for_file(&quot;data.txt&quot;)</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; # This will raise PathSecurityError</span>
-<span class="sd">        &gt;&gt;&gt; generate_sha256_hash_for_file(&quot;/etc/shadow&quot;)  # Sensitive file blocked</span>
-
-<span class="sd">    Security Changes:</span>
-<span class="sd">        - Now validates paths to block path traversal</span>
-<span class="sd">        - Blocks access to sensitive system files</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">path_obj</span> <span class="o">=</span> <span class="n">_validated_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
-            <span class="k">return</span> <span class="kc">None</span>
-        <span class="n">sha256_hash</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">()</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path_obj</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">_update_from_file</span><span class="p">(</span><span class="n">sha256_hash</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">sha256_hash</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error generating SHA256 hash for </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">None</span></div>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+        <span class="s2">&quot;generate_sha256_hash_for_file is deprecated and will be removed in v4.0.0. &quot;</span>
+        <span class="s2">&quot;Use calculate_file_hash or get_file_hash instead.&quot;</span><span class="p">,</span>
+        <span class="ne">DeprecationWarning</span><span class="p">,</span>
+        <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">get_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;sha256&#39;</span><span class="p">)</span></div>
 
 
 
 <div class="viewcode-block" id="get_file_hash">
 <a class="viewcode-back" href="../../../api/siege_utilities/files/hashing/index.html#siege_utilities.get_file_hash">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">get_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="s1">&#39;sha256&#39;</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="s1">&#39;sha256&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Generate hash for a file using specified algorithm</span>
+<span class="sd">    Generate hash for a file using specified algorithm.</span>
 
 <span class="sd">    SECURITY: This function validates paths to prevent path traversal attacks</span>
 <span class="sd">    and access to sensitive system files.</span>
@@ -651,47 +645,43 @@
 <span class="sd">        algorithm: Hash algorithm to use (&#39;sha256&#39;, &#39;md5&#39;, &#39;sha1&#39;, etc.)</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        Hash as hexadecimal string, or None if error</span>
+<span class="sd">        Hash as hexadecimal string</span>
 
 <span class="sd">    Raises:</span>
+<span class="sd">        FileNotFoundError: If file does not exist or is not a file</span>
 <span class="sd">        PathSecurityError: If path fails security validation</span>
+<span class="sd">        OSError: If file cannot be read</span>
+<span class="sd">        ValueError: If algorithm is not supported</span>
 
 <span class="sd">    Example:</span>
 <span class="sd">        &gt;&gt;&gt; hash_val = get_file_hash(&quot;data.txt&quot;, &quot;sha256&quot;)</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; # This will raise PathSecurityError</span>
-<span class="sd">        &gt;&gt;&gt; get_file_hash(&quot;../../../etc/passwd&quot;)  # Path traversal blocked</span>
-
-<span class="sd">    Security Changes:</span>
-<span class="sd">        - Now validates paths to block path traversal</span>
-<span class="sd">        - Blocks access to sensitive system files</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">path_obj</span> <span class="o">=</span> <span class="n">_validated_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
-            <span class="k">return</span> <span class="kc">None</span>
-        <span class="k">if</span> <span class="n">algorithm</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;sha256&#39;</span><span class="p">:</span>
-            <span class="n">hash_func</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">()</span>
-        <span class="k">elif</span> <span class="n">algorithm</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;md5&#39;</span><span class="p">:</span>
-            <span class="n">hash_func</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">()</span>
-        <span class="k">elif</span> <span class="n">algorithm</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;sha1&#39;</span><span class="p">:</span>
-            <span class="n">hash_func</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha1</span><span class="p">()</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">hash_func</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">algorithm</span><span class="p">)</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path_obj</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">_update_from_file</span><span class="p">(</span><span class="n">hash_func</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">hash_func</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error generating </span><span class="si">{</span><span class="n">algorithm</span><span class="si">}</span><span class="s1"> hash for </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">None</span></div>
+    <span class="n">path_obj</span> <span class="o">=</span> <span class="n">_validated_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File does not exist: </span><span class="si">{</span><span class="n">path_obj</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Path is not a file: </span><span class="si">{</span><span class="n">path_obj</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">algorithm</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;sha256&#39;</span><span class="p">:</span>
+        <span class="n">hash_func</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">algorithm</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;md5&#39;</span><span class="p">:</span>
+        <span class="n">hash_func</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">algorithm</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;sha1&#39;</span><span class="p">:</span>
+        <span class="n">hash_func</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha1</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">hash_func</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">algorithm</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path_obj</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">_update_from_file</span><span class="p">(</span><span class="n">hash_func</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">hash_func</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span></div>
 
 
 
 <div class="viewcode-block" id="calculate_file_hash">
 <a class="viewcode-back" href="../../../file_hashing.html#siege_utilities.calculate_file_hash">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">calculate_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">calculate_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Alias for get_file_hash with SHA256 - for backward compatibility</span>
+<span class="sd">    Alias for get_file_hash with SHA256 - for backward compatibility.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">get_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;sha256&#39;</span><span class="p">)</span></div>
 
@@ -711,10 +701,12 @@
 <span class="sd">        file_path: Path to the file</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        Quick signature string (&#39;missing&#39;, &#39;error&#39;, or hash)</span>
+<span class="sd">        Quick signature string (&#39;missing&#39;, fallback stat string, or hash)</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        PathSecurityError: If path fails security validation</span>
+<span class="sd">        Exception: If both primary and fallback signature generation fail</span>
+<span class="sd">            (logged before re-raise)</span>
 
 <span class="sd">    Example:</span>
 <span class="sd">        &gt;&gt;&gt; sig = get_quick_file_signature(&quot;data.txt&quot;)</span>
@@ -733,7 +725,7 @@
             <span class="k">return</span> <span class="s1">&#39;missing&#39;</span>
         <span class="n">stat</span> <span class="o">=</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">stat</span><span class="o">.</span><span class="n">st_size</span> <span class="o">&lt;=</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">get_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span> <span class="ow">or</span> <span class="sa">f</span><span class="s1">&#39;stat_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_mtime</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="k">return</span> <span class="n">get_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
         <span class="c1"># Past 1 MiB we always read both ends — the previous inner guard</span>
         <span class="c1"># `stat.st_size &gt; 2 * _HASH_CHUNK_SIZE` was always true here</span>
         <span class="c1"># (2 * 64 KiB = 128 KiB &lt; 1 MiB), so it was dead code.</span>
@@ -749,22 +741,22 @@
         <span class="k">return</span> <span class="n">hash_obj</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
     <span class="k">except</span> <span class="n">PathSecurityError</span><span class="p">:</span>
         <span class="k">raise</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error generating quick signature for </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">stat</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span>
             <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;fallback_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">stat</span><span class="o">.</span><span class="n">st_mtime</span><span class="si">}</span><span class="s1">&#39;</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">fallback_exc</span><span class="p">:</span>
+        <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">fallback_exc</span><span class="p">:</span>
             <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Fallback signature also failed for </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">fallback_exc</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="s1">&#39;error&#39;</span></div>
+            <span class="k">raise</span></div>
 
 
 
 <div class="viewcode-block" id="verify_file_integrity">
 <a class="viewcode-back" href="../../../file_hashing.html#siege_utilities.verify_file_integrity">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">verify_file_integrity</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">expected_hash</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="s1">&#39;sha256&#39;</span><span class="p">)</span> <span class="o">-&gt;</span><span class="nb">bool</span><span class="p">:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">verify_file_integrity</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">expected_hash</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="s1">&#39;sha256&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Verify file integrity by comparing with expected hash</span>
+<span class="sd">    Verify file integrity by comparing with expected hash.</span>
 
 <span class="sd">    SECURITY: This function validates paths to prevent path traversal attacks</span>
 <span class="sd">    and access to sensitive system files (through get_file_hash).</span>
@@ -775,30 +767,20 @@
 <span class="sd">        algorithm: Hash algorithm used</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        True if file matches expected hash, False otherwise</span>
+<span class="sd">        True if file matches expected hash, False if hash does not match</span>
 
 <span class="sd">    Raises:</span>
+<span class="sd">        FileNotFoundError: If file does not exist</span>
 <span class="sd">        PathSecurityError: If path fails security validation</span>
+<span class="sd">        OSError: If file cannot be read</span>
 
 <span class="sd">    Example:</span>
 <span class="sd">        &gt;&gt;&gt; expected = &quot;abc123...&quot;</span>
 <span class="sd">        &gt;&gt;&gt; if verify_file_integrity(&quot;data.txt&quot;, expected):</span>
 <span class="sd">        ...     print(&quot;File integrity verified&quot;)</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; # This will raise PathSecurityError</span>
-<span class="sd">        &gt;&gt;&gt; verify_file_integrity(&quot;/etc/shadow&quot;, expected)  # Sensitive file blocked</span>
-
-<span class="sd">    Security Changes:</span>
-<span class="sd">        - Now validates paths via get_file_hash() to block path traversal</span>
-<span class="sd">        - Blocks access to sensitive system files</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">current_hash</span> <span class="o">=</span> <span class="n">get_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">algorithm</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">current_hash</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">current_hash</span><span class="o">.</span><span class="n">lower</span><span class="p">(</span>
-            <span class="p">)</span> <span class="o">==</span> <span class="n">expected_hash</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to verify hash for </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">False</span></div>
+    <span class="n">current_hash</span> <span class="o">=</span> <span class="n">get_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">algorithm</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">current_hash</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">expected_hash</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span></div>
 
 
 
@@ -820,9 +802,8 @@
         <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;MD5: </span><span class="si">{</span><span class="n">md5_hash</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">quick_sig</span> <span class="o">=</span> <span class="n">get_quick_file_signature</span><span class="p">(</span><span class="n">test_file</span><span class="p">)</span>
         <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Quick signature: </span><span class="si">{</span><span class="n">quick_sig</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">sha256_hash</span><span class="p">:</span>
-            <span class="n">verification</span> <span class="o">=</span> <span class="n">verify_file_integrity</span><span class="p">(</span><span class="n">test_file</span><span class="p">,</span> <span class="n">sha256_hash</span><span class="p">)</span>
-            <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Verification: </span><span class="si">{</span><span class="n">verification</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">verification</span> <span class="o">=</span> <span class="n">verify_file_integrity</span><span class="p">(</span><span class="n">test_file</span><span class="p">,</span> <span class="n">sha256_hash</span><span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Verification: </span><span class="si">{</span><span class="n">verification</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;All hash functions working!&#39;</span><span class="p">)</span>
     <span class="k">finally</span><span class="p">:</span>
         <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">test_file</span><span class="p">)</span></div>

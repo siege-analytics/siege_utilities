@@ -550,13 +550,13 @@ Provides standardized hash functions that actually exist and work properly</p>
 <dl class="py function">
 <dt class="sig sig-object py">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.files.hashing.</span></span><span class="sig-name descname"><span class="pre">calculate_file_hash</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/files/hashing.html#calculate_file_hash"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
-<dd><p>Alias for get_file_hash with SHA256 - for backward compatibility</p>
+<dd><p>Alias for get_file_hash with SHA256 - for backward compatibility.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.files.hashing.</span></span><span class="sig-name descname"><span class="pre">verify_file_integrity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expected_hash</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">algorithm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sha256'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/files/hashing.html#verify_file_integrity"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
-<dd><p>Verify file integrity by comparing with expected hash</p>
+<dd><p>Verify file integrity by comparing with expected hash.</p>
 <p>SECURITY: This function validates paths to prevent path traversal attacks
 and access to sensitive system files (through get_file_hash).</p>
 <dl class="field-list simple">
@@ -568,28 +568,22 @@ and access to sensitive system files (through get_file_hash).</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>True if file matches expected hash, False otherwise</p>
+<dd class="field-even"><p>True if file matches expected hash, False if hash does not match</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>PathSecurityError</strong> – If path fails security validation</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>FileNotFoundError</strong> – If file does not exist</p></li>
+<li><p><strong>PathSecurityError</strong> – If path fails security validation</p></li>
+<li><p><strong>OSError</strong> – If file cannot be read</p></li>
+</ul>
 </dd>
 </dl>
 <p class="rubric">Example</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">expected</span> <span class="o">=</span> <span class="s2">&quot;abc123...&quot;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="k">if</span> <span class="n">verify_file_integrity</span><span class="p">(</span><span class="s2">&quot;data.txt&quot;</span><span class="p">,</span> <span class="n">expected</span><span class="p">):</span>
 <span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;File integrity verified&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># This will raise PathSecurityError</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">verify_file_integrity</span><span class="p">(</span><span class="s2">&quot;/etc/shadow&quot;</span><span class="p">,</span> <span class="n">expected</span><span class="p">)</span>  <span class="c1"># Sensitive file blocked</span>
 </pre></div>
 </div>
-<dl class="simple">
-<dt>Security Changes:</dt><dd><ul class="simple">
-<li><p>Now validates paths via get_file_hash() to block path traversal</p></li>
-<li><p>Blocks access to sensitive system files</p></li>
-</ul>
-</dd>
-</dl>
 </dd></dl>
 
 </section>

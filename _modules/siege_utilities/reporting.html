@@ -600,21 +600,45 @@
 <span class="n">_register</span><span class="p">([</span><span class="s1">&#39;ContentPageTemplate&#39;</span><span class="p">,</span> <span class="s1">&#39;create_content_page&#39;</span><span class="p">],</span> <span class="s1">&#39;.templates.content_page_template&#39;</span><span class="p">)</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s1">&#39;BaseReportTemplate&#39;</span><span class="p">,</span> <span class="s1">&#39;ReportGenerator&#39;</span><span class="p">,</span> <span class="s1">&#39;ChartGenerator&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;create_bar_chart&#39;</span><span class="p">,</span> <span class="s1">&#39;create_line_chart&#39;</span><span class="p">,</span> <span class="s1">&#39;create_scatter_plot&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;create_pie_chart&#39;</span><span class="p">,</span> <span class="s1">&#39;create_heatmap&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;create_convergence_diagram&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;ClientBrandingManager&#39;</span><span class="p">,</span> <span class="s1">&#39;AnalyticsReportGenerator&#39;</span><span class="p">,</span> <span class="s1">&#39;PowerPointGenerator&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;get_report_output_directory&#39;</span><span class="p">,</span> <span class="s1">&#39;create_report_generator&#39;</span><span class="p">,</span> <span class="s1">&#39;create_powerpoint_generator&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;export_branding_config&#39;</span><span class="p">,</span> <span class="s1">&#39;import_branding_config&#39;</span><span class="p">,</span> <span class="s1">&#39;export_chart_type_config&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;decode_rl_image&#39;</span><span class="p">,</span> <span class="s1">&#39;show_rl_image&#39;</span><span class="p">,</span> <span class="s1">&#39;save_rl_image&#39;</span><span class="p">,</span>
+    <span class="c1"># Templates</span>
+    <span class="s1">&#39;BaseReportTemplate&#39;</span><span class="p">,</span>
     <span class="s1">&#39;TitlePageTemplate&#39;</span><span class="p">,</span> <span class="s1">&#39;create_title_page&#39;</span><span class="p">,</span>
     <span class="s1">&#39;TableOfContentsTemplate&#39;</span><span class="p">,</span> <span class="s1">&#39;create_table_of_contents&#39;</span><span class="p">,</span>
     <span class="s1">&#39;generate_sections_from_report_structure&#39;</span><span class="p">,</span>
     <span class="s1">&#39;ContentPageTemplate&#39;</span><span class="p">,</span> <span class="s1">&#39;create_content_page&#39;</span><span class="p">,</span>
+    <span class="c1"># Generators</span>
+    <span class="s1">&#39;ReportGenerator&#39;</span><span class="p">,</span> <span class="s1">&#39;PowerPointGenerator&#39;</span><span class="p">,</span> <span class="s1">&#39;AnalyticsReportGenerator&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;ChartGenerator&#39;</span><span class="p">,</span> <span class="s1">&#39;ChartTypeRegistry&#39;</span><span class="p">,</span>
+    <span class="c1"># Chart creation functions</span>
+    <span class="s1">&#39;create_bar_chart&#39;</span><span class="p">,</span> <span class="s1">&#39;create_line_chart&#39;</span><span class="p">,</span> <span class="s1">&#39;create_scatter_plot&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;create_pie_chart&#39;</span><span class="p">,</span> <span class="s1">&#39;create_heatmap&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;create_choropleth_map&#39;</span><span class="p">,</span> <span class="s1">&#39;create_bivariate_choropleth&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;create_marker_map&#39;</span><span class="p">,</span> <span class="s1">&#39;create_flow_map&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;create_convergence_diagram&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;create_dashboard&#39;</span><span class="p">,</span> <span class="s1">&#39;create_dataframe_summary_charts&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;generate_chart_from_dataframe&#39;</span><span class="p">,</span>
+    <span class="c1"># Branding</span>
+    <span class="s1">&#39;ClientBrandingManager&#39;</span><span class="p">,</span>
+    <span class="c1"># Image utilities</span>
+    <span class="s1">&#39;decode_rl_image&#39;</span><span class="p">,</span> <span class="s1">&#39;show_rl_image&#39;</span><span class="p">,</span> <span class="s1">&#39;save_rl_image&#39;</span><span class="p">,</span>
+    <span class="c1"># Analytics</span>
+    <span class="s1">&#39;PollingAnalyzer&#39;</span><span class="p">,</span>
+    <span class="c1"># Page models</span>
+    <span class="s1">&#39;Argument&#39;</span><span class="p">,</span> <span class="s1">&#39;TableType&#39;</span><span class="p">,</span>
+    <span class="c1"># Hex cartograms</span>
+    <span class="s1">&#39;Algorithm&#39;</span><span class="p">,</span> <span class="s1">&#39;Sizing&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;BUILTIN_LAYOUTS&#39;</span><span class="p">,</span> <span class="s1">&#39;hex_tile_layout&#39;</span><span class="p">,</span> <span class="s1">&#39;hex_tile_map&#39;</span><span class="p">,</span> <span class="s1">&#39;register_layout&#39;</span><span class="p">,</span>
+    <span class="c1"># IDML export</span>
+    <span class="s1">&#39;IDMLExporter&#39;</span><span class="p">,</span> <span class="s1">&#39;export_report_idml&#39;</span><span class="p">,</span> <span class="s1">&#39;SIMPLEIDML_AVAILABLE&#39;</span><span class="p">,</span>
+    <span class="c1"># 3D maps</span>
     <span class="s1">&#39;ThreeDMapRenderer&#39;</span><span class="p">,</span> <span class="s1">&#39;PYDECK_AVAILABLE&#39;</span><span class="p">,</span>
     <span class="s1">&#39;create_3d_hexbin&#39;</span><span class="p">,</span> <span class="s1">&#39;create_3d_columns&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;IDMLExporter&#39;</span><span class="p">,</span> <span class="s1">&#39;export_report_idml&#39;</span><span class="p">,</span> <span class="s1">&#39;SIMPLEIDML_AVAILABLE&#39;</span><span class="p">,</span>
+    <span class="c1"># Module-level convenience functions</span>
+    <span class="s1">&#39;get_report_output_directory&#39;</span><span class="p">,</span> <span class="s1">&#39;create_report_generator&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;create_powerpoint_generator&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;export_branding_config&#39;</span><span class="p">,</span> <span class="s1">&#39;import_branding_config&#39;</span><span class="p">,</span> <span class="s1">&#39;export_chart_type_config&#39;</span><span class="p">,</span>
+    <span class="c1"># Errors</span>
+    <span class="s1">&#39;ReportingConfigError&#39;</span><span class="p">,</span>
 <span class="p">]</span>
 
 
@@ -678,7 +702,7 @@
 
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">export_branding_config</span><span class="p">(</span><span class="n">client_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">export_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">export_branding_config</span><span class="p">(</span><span class="n">client_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">export_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Export client branding configuration to a file.</span>
 
 <span class="sd">    Parameters</span>
@@ -688,11 +712,6 @@
 <span class="sd">    export_path : str</span>
 <span class="sd">        Destination path for the export.</span>
 
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    bool</span>
-<span class="sd">        True on success. (Never returns False — failures raise.)</span>
-
 <span class="sd">    Raises</span>
 <span class="sd">    ------</span>
 <span class="sd">    ReportingConfigError</span>
@@ -701,7 +720,7 @@
     <span class="k">try</span><span class="p">:</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">.client_branding</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClientBrandingManager</span> <span class="k">as</span> <span class="n">_CBM</span>
         <span class="n">branding_manager</span> <span class="o">=</span> <span class="n">_CBM</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">branding_manager</span><span class="o">.</span><span class="n">export_branding_config</span><span class="p">(</span><span class="n">client_name</span><span class="p">,</span> <span class="n">Path</span><span class="p">(</span><span class="n">export_path</span><span class="p">))</span>
+        <span class="n">branding_manager</span><span class="o">.</span><span class="n">export_branding_config</span><span class="p">(</span><span class="n">client_name</span><span class="p">,</span> <span class="n">Path</span><span class="p">(</span><span class="n">export_path</span><span class="p">))</span>
     <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
             <span class="s2">&quot;export_branding_config failed (client=</span><span class="si">%s</span><span class="s2">, path=</span><span class="si">%s</span><span class="s2">): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
@@ -712,7 +731,7 @@
         <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">import_branding_config</span><span class="p">(</span><span class="n">import_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">client_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">import_branding_config</span><span class="p">(</span><span class="n">import_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">client_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Import client branding configuration from a file.</span>
 
 <span class="sd">    Parameters</span>
@@ -723,11 +742,6 @@
 <span class="sd">        Client to associate with the imported branding. When omitted, the</span>
 <span class="sd">        implementation picks a name from the file.</span>
 
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    bool</span>
-<span class="sd">        True on success.</span>
-
 <span class="sd">    Raises</span>
 <span class="sd">    ------</span>
 <span class="sd">    ReportingConfigError</span>
@@ -736,7 +750,7 @@
     <span class="k">try</span><span class="p">:</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">.client_branding</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClientBrandingManager</span> <span class="k">as</span> <span class="n">_CBM</span>
         <span class="n">branding_manager</span> <span class="o">=</span> <span class="n">_CBM</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">branding_manager</span><span class="o">.</span><span class="n">import_branding_config</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">import_path</span><span class="p">),</span> <span class="n">client_name</span><span class="p">)</span>
+        <span class="n">branding_manager</span><span class="o">.</span><span class="n">import_branding_config</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">import_path</span><span class="p">),</span> <span class="n">client_name</span><span class="p">)</span>
     <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
             <span class="s2">&quot;import_branding_config failed (path=</span><span class="si">%s</span><span class="s2">, client=</span><span class="si">%s</span><span class="s2">): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>

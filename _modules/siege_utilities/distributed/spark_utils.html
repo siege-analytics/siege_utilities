@@ -536,7 +536,7 @@
            <div itemprop="articleBody">
              
   <h1>Source code for siege_utilities.distributed.spark_utils</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
@@ -563,12 +563,19 @@
     <span class="c1"># than fighting the upstream convention.</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql.types</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>  <span class="c1"># noqa: F401, F403</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql.functions</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>  <span class="c1"># noqa: F401, F403</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnalysisException</span> <span class="k">as</span> <span class="n">_SparkAnalysisException</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">py4j.protocol</span><span class="w"> </span><span class="kn">import</span> <span class="n">Py4JJavaError</span> <span class="k">as</span> <span class="n">_Py4JError</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="n">_Py4JError</span> <span class="o">=</span> <span class="n">_SparkAnalysisException</span>
     <span class="n">PYSPARK_AVAILABLE</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
     <span class="n">PYSPARK_AVAILABLE</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="n">DataFrame</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">SparkSession</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">Column</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">_SparkAnalysisException</span> <span class="o">=</span> <span class="ne">Exception</span>
+    <span class="n">_Py4JError</span> <span class="o">=</span> <span class="ne">Exception</span>
 
 <span class="k">try</span><span class="p">:</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">tabulate</span><span class="w"> </span><span class="kn">import</span> <span class="n">tabulate</span>
@@ -583,7 +590,7 @@
 
 <div class="viewcode-block" id="sanitise_dataframe_column_names">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/spark_utils/index.html#siege_utilities.sanitise_dataframe_column_names">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">sanitise_dataframe_column_names</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;DataFrame&quot;</span><span class="p">]:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">sanitise_dataframe_column_names</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Cleans dataframe column names by converting them to lowercase and replacing</span>
 <span class="sd">    slashes/spaces with underscores.</span>
@@ -592,31 +599,19 @@
 <span class="sd">        df (DataFrame): Input Spark DataFrame.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        Optional[&quot;DataFrame&quot;]: Sanitised DataFrame or None if an error occurred.</span>
+<span class="sd">        DataFrame: Sanitised DataFrame.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">message</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Sanitising column names for dataframe </span><span class="si">{</span><span class="n">df</span><span class="si">}</span><span class="s1">&#39;</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">toDF</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span>
-            <span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">])</span>
-        <span class="n">message</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;Successfully sanitised columns for dataframe </span><span class="si">{</span><span class="n">df</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
-            <span class="p">)</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">df</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">message</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;There was a problem sanitising column names for dataframe </span><span class="si">{</span><span class="n">df</span><span class="si">}</span><span class="s1">:</span><span class="se">\n</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span>
-            <span class="p">)</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">None</span></div>
+    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Sanitising column names for dataframe </span><span class="si">{</span><span class="n">df</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">toDF</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">])</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Successfully sanitised columns for dataframe </span><span class="si">{</span><span class="n">df</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">df</span></div>
 
 
 
 <div class="viewcode-block" id="tabulate_null_vs_not_null">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/spark_utils/index.html#siege_utilities.tabulate_null_vs_not_null">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">tabulate_null_vs_not_null</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">,</span> <span class="n">column_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span>
-    <span class="n">DataFrame</span><span class="p">]:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">tabulate_null_vs_not_null</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">,</span> <span class="n">column_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Returns a dataframe showing the count of null and non-null values for a given column.</span>
 
@@ -625,28 +620,22 @@
 <span class="sd">        column_name (str): Name of the column to analyze.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        Optional[&quot;DataFrame&quot;]: Resulting DataFrame with null vs non-null counts.</span>
+<span class="sd">        DataFrame: Resulting DataFrame with null vs non-null counts.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">NULL_COLUMNS_NAME</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">column_name</span><span class="si">}</span><span class="s1">_null_count&#39;</span>
-        <span class="n">NOT_NULL_COLUMNS_NAME</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">column_name</span><span class="si">}</span><span class="s1">_not_null_count&#39;</span>
-        <span class="n">result_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">groupBy</span><span class="p">(</span><span class="n">column_name</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">when</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">column_name</span><span class="p">)</span><span class="o">.</span>
-            <span class="n">isNull</span><span class="p">(),</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">NULL_COLUMNS_NAME</span><span class="p">),</span> <span class="nb">sum</span><span class="p">(</span><span class="n">when</span><span class="p">(</span>
-            <span class="n">col</span><span class="p">(</span><span class="n">column_name</span><span class="p">)</span><span class="o">.</span><span class="n">isNotNull</span><span class="p">(),</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span>
-            <span class="n">NOT_NULL_COLUMNS_NAME</span><span class="p">))</span>
-        <span class="n">result_df</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">truncate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">result_df</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;Error in tabulate_null_vs_not_null for column </span><span class="si">{</span><span class="n">column_name</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span>
-            <span class="p">)</span>
-        <span class="k">return</span> <span class="kc">None</span></div>
+    <span class="n">NULL_COLUMNS_NAME</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">column_name</span><span class="si">}</span><span class="s1">_null_count&#39;</span>
+    <span class="n">NOT_NULL_COLUMNS_NAME</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">column_name</span><span class="si">}</span><span class="s1">_not_null_count&#39;</span>
+    <span class="n">result_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">groupBy</span><span class="p">(</span><span class="n">column_name</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">when</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">column_name</span><span class="p">)</span><span class="o">.</span>
+        <span class="n">isNull</span><span class="p">(),</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">NULL_COLUMNS_NAME</span><span class="p">),</span> <span class="nb">sum</span><span class="p">(</span><span class="n">when</span><span class="p">(</span>
+        <span class="n">col</span><span class="p">(</span><span class="n">column_name</span><span class="p">)</span><span class="o">.</span><span class="n">isNotNull</span><span class="p">(),</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span>
+        <span class="n">NOT_NULL_COLUMNS_NAME</span><span class="p">))</span>
+    <span class="n">result_df</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">truncate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result_df</span></div>
 
 
 
 <div class="viewcode-block" id="get_row_count">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/spark_utils/index.html#siege_utilities.get_row_count">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">get_row_count</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_row_count</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Returns the count of rows in the dataframe.</span>
 
@@ -654,22 +643,17 @@
 <span class="sd">        df (DataFrame): Input Spark DataFrame.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        Optional[int]: Row count or None if an error occurred.</span>
+<span class="sd">        int: Row count.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">count</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Row count for dataframe: </span><span class="si">{</span><span class="n">count</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">count</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error getting row count: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">None</span></div>
+    <span class="n">count</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Row count for dataframe: </span><span class="si">{</span><span class="n">count</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">count</span></div>
 
 
 
 <div class="viewcode-block" id="repartition_and_cache">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/spark_utils/index.html#siege_utilities.repartition_and_cache">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">repartition_and_cache</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">,</span> <span class="n">partitions</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span>
-    <span class="n">DataFrame</span><span class="p">]:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">repartition_and_cache</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">,</span> <span class="n">partitions</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Repartitions and caches a dataframe.</span>
 
@@ -678,46 +662,33 @@
 <span class="sd">        partitions (int, optional): Number of partitions. Default is 100.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        Optional[&quot;DataFrame&quot;]: Repartitioned and cached DataFrame or None if an error occurred.</span>
+<span class="sd">        DataFrame: Repartitioned and cached DataFrame.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">repartition</span><span class="p">(</span><span class="n">partitions</span><span class="p">)</span><span class="o">.</span><span class="n">cache</span><span class="p">()</span>
-        <span class="n">log_info</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;Dataframe repartitioned to </span><span class="si">{</span><span class="n">partitions</span><span class="si">}</span><span class="s1"> partitions and cached.&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">df</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error repartitioning and caching dataframe: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">None</span></div>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">repartition</span><span class="p">(</span><span class="n">partitions</span><span class="p">)</span><span class="o">.</span><span class="n">cache</span><span class="p">()</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Dataframe repartitioned to </span><span class="si">{</span><span class="n">partitions</span><span class="si">}</span><span class="s1"> partitions and cached.&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">df</span></div>
 
 
 
 <div class="viewcode-block" id="register_temp_table">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/spark_utils/index.html#siege_utilities.register_temp_table">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">register_temp_table</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">,</span> <span class="n">table_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span><span class="nb">bool</span><span class="p">:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">register_temp_table</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">,</span> <span class="n">table_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Registers a temporary view from a dataframe.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        df (DataFrame): Input Spark DataFrame.</span>
 <span class="sd">        table_name (str): Name for the temporary view.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        bool: True if successful, False otherwise.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">df</span><span class="o">.</span><span class="n">createOrReplaceTempView</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Temporary view &#39;</span><span class="si">{</span><span class="n">table_name</span><span class="si">}</span><span class="s2">&#39; registered.&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">True</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error registering temporary table &#39;</span><span class="si">{</span><span class="n">table_name</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">False</span></div>
+    <span class="n">df</span><span class="o">.</span><span class="n">createOrReplaceTempView</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Temporary view &#39;</span><span class="si">{</span><span class="n">table_name</span><span class="si">}</span><span class="s2">&#39; registered.&quot;</span><span class="p">)</span></div>
 
 
 
 <div class="viewcode-block" id="move_column_to_front_of_dataframe">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/spark_utils/index.html#siege_utilities.move_column_to_front_of_dataframe">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">move_column_to_front_of_dataframe</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">,</span> <span class="n">column_name</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;DataFrame&quot;</span><span class="p">]:</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Reorder *df* so *column_name* is the leftmost column.</span>
 
 <span class="sd">    The Spark schema order is what most CSV / parquet readers surface</span>
@@ -725,27 +696,20 @@
 <span class="sd">    left-to-right. Moving the join key / identifier to the front makes</span>
 <span class="sd">    the rest of the pipeline more readable without changing semantics.</span>
 
-<span class="sd">    Returns the reordered DataFrame, or ``None`` on failure (logged).</span>
 <span class="sd">    The original *df* is unchanged.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">columns</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
-        <span class="n">column_to_move</span> <span class="o">=</span> <span class="n">column_name</span>
-        <span class="n">new_column_order</span> <span class="o">=</span> <span class="p">[</span><span class="n">column_to_move</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">col</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">columns</span> <span class="k">if</span>
-            <span class="n">col</span> <span class="o">!=</span> <span class="n">column_to_move</span><span class="p">]</span>
-        <span class="n">df_reordered</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="o">*</span><span class="n">new_column_order</span><span class="p">)</span>
-        <span class="n">df_reordered</span><span class="o">.</span><span class="n">printSchema</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">df_reordered</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error repartitioning and caching dataframe: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">None</span></div>
+    <span class="n">columns</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+    <span class="n">new_column_order</span> <span class="o">=</span> <span class="p">[</span><span class="n">column_name</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">columns</span> <span class="k">if</span> <span class="n">c</span> <span class="o">!=</span> <span class="n">column_name</span><span class="p">]</span>
+    <span class="n">df_reordered</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="o">*</span><span class="n">new_column_order</span><span class="p">)</span>
+    <span class="n">df_reordered</span><span class="o">.</span><span class="n">printSchema</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">df_reordered</span></div>
 
 
 
 <div class="viewcode-block" id="write_df_to_parquet">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/spark_utils/index.html#siege_utilities.write_df_to_parquet">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">write_df_to_parquet</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;overwrite&#39;</span>
-    <span class="p">)</span> <span class="o">-&gt;</span><span class="nb">bool</span><span class="p">:</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Writes a DataFrame to a Parquet file.</span>
 
@@ -753,23 +717,15 @@
 <span class="sd">        df (DataFrame): Input Spark DataFrame.</span>
 <span class="sd">        path (str): Output path.</span>
 <span class="sd">        mode (str): Write mode. Defaults to &quot;overwrite&quot;.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        bool: True if successful, False otherwise.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">df</span><span class="o">.</span><span class="n">write</span><span class="o">.</span><span class="n">mode</span><span class="p">(</span><span class="n">mode</span><span class="p">)</span><span class="o">.</span><span class="n">parquet</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Dataframe written to parquet at </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2"> with mode &#39;</span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">True</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error writing dataframe to parquet at </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">False</span></div>
+    <span class="n">df</span><span class="o">.</span><span class="n">write</span><span class="o">.</span><span class="n">mode</span><span class="p">(</span><span class="n">mode</span><span class="p">)</span><span class="o">.</span><span class="n">parquet</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Dataframe written to parquet at </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2"> with mode &#39;</span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span></div>
 
 
 
 <div class="viewcode-block" id="read_parquet_to_df">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/spark_utils/index.html#siege_utilities.read_parquet_to_df">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">read_parquet_to_df</span><span class="p">(</span><span class="n">spark</span><span class="p">:</span> <span class="s2">&quot;SparkSession&quot;</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;DataFrame&quot;</span><span class="p">]:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">read_parquet_to_df</span><span class="p">(</span><span class="n">spark</span><span class="p">:</span> <span class="s2">&quot;SparkSession&quot;</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Reads a Parquet file into a Spark DataFrame.</span>
 
@@ -778,22 +734,18 @@
 <span class="sd">        path (str): Path to the Parquet file.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        Optional[&quot;DataFrame&quot;]: Loaded DataFrame or None if an error occurred.</span>
+<span class="sd">        DataFrame: Loaded DataFrame.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">parquet</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Successfully read parquet from </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">df</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error reading parquet from </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">None</span></div>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">parquet</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Successfully read parquet from </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">df</span></div>
 
 
 
 <div class="viewcode-block" id="flatten_json_column_and_join_back_to_df">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/spark_utils/index.html#siege_utilities.flatten_json_column_and_join_back_to_df">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">flatten_json_column_and_join_back_to_df</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">,</span> <span class="n">json_column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;json_column_&#39;</span><span class="p">,</span> <span class="n">logger</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">any</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">drop_original</span><span class="p">:</span>
+    <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;json_column_&#39;</span><span class="p">,</span> <span class="n">logger</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">drop_original</span><span class="p">:</span>
     <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">explode_arrays</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">flatten_level</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;shallow&#39;</span><span class="p">,</span>
     <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sample_size</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">show_samples</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span>
     <span class="p">)</span> <span class="o">-&gt;</span><span class="n">DataFrame</span><span class="p">:</span>
@@ -805,7 +757,7 @@
 <span class="sd">        df (DataFrame): The input Spark DataFrame.</span>
 <span class="sd">        json_column (str): The name of the column containing JSON strings.</span>
 <span class="sd">        prefix (str, optional): Prefix to add to the flattened column names. Defaults to &quot;json_column_&quot;.</span>
-<span class="sd">        logger (Optional[any], optional): Logger object for logging messages. Defaults to None.</span>
+<span class="sd">        logger (Optional[Any], optional): Logger object for logging messages. Defaults to None.</span>
 <span class="sd">        drop_original (bool, optional): Whether to drop the original JSON column after flattening. Defaults to True.</span>
 <span class="sd">        explode_arrays (bool, optional): Whether to explode array columns. Defaults to False.</span>
 <span class="sd">        flatten_level (str, optional):  &quot;shallow&quot; or &quot;deep&quot; flattening. Defaults to &quot;shallow&quot;.</span>
@@ -842,10 +794,10 @@
     <span class="n">sample_json</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">json_column</span><span class="p">)</span><span class="o">.</span><span class="n">isNotNull</span><span class="p">()</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">length</span><span class="p">(</span><span class="n">trim</span><span class="p">(</span><span class="n">col</span>
         <span class="p">(</span><span class="n">json_column</span><span class="p">)))</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">))</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">json_column</span><span class="p">)</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="n">sample_size</span><span class="p">)</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">sample_json</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">sample_json</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">sample_json</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]:</span>
-        <span class="n">_log_info</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;No valid JSON sample available in column </span><span class="si">{</span><span class="n">json_column</span><span class="si">}</span><span class="s1">, skipping flattening&#39;</span>
-            <span class="p">)</span>
-        <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">json_column</span><span class="p">)</span> <span class="k">if</span> <span class="n">drop_original</span> <span class="k">else</span> <span class="n">df</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;No valid JSON data available in column </span><span class="si">{</span><span class="n">json_column</span><span class="si">!r}</span><span class="s2">; &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;cannot infer schema for flattening&quot;</span>
+        <span class="p">)</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">_log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Inferring schema from sample JSON in column </span><span class="si">{</span><span class="n">json_column</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">sample_rdd</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">sparkSession</span><span class="o">.</span><span class="n">sparkContext</span><span class="o">.</span><span class="n">parallelize</span><span class="p">([</span><span class="n">sample_json</span><span class="p">[</span>
@@ -901,11 +853,14 @@
                 <span class="n">df_with_json</span> <span class="o">=</span> <span class="n">df_with_json</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">,</span> <span class="n">when</span><span class="p">(</span>
                     <span class="n">col</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="n">lit</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">StringType</span><span class="p">(</span>
                     <span class="p">)))</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">)))</span>
-                <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">json_column</span><span class="p">)</span> <span class="k">if</span> <span class="n">drop_original</span> <span class="k">else</span> <span class="n">df</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;All JSON samples in column </span><span class="si">{</span><span class="n">json_column</span><span class="si">!r}</span><span class="s2"> are corrupt; &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;cannot infer schema for flattening&quot;</span>
+                <span class="p">)</span>
         <span class="n">_log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Inferred schema: </span><span class="si">{</span><span class="n">inferred_schema</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">df_with_json</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">,</span> <span class="n">from_json</span><span class="p">(</span><span class="n">col</span><span class="p">(</span>
             <span class="n">json_column</span><span class="p">),</span> <span class="n">inferred_schema</span><span class="p">))</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="k">except</span> <span class="p">(</span><span class="n">_SparkAnalysisException</span><span class="p">,</span> <span class="n">_Py4JError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">_log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error inferring schema for </span><span class="si">{</span><span class="n">json_column</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">_log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Falling back to string schema for </span><span class="si">{</span><span class="n">json_column</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
@@ -937,11 +892,11 @@
             <span class="n">df_with_json</span> <span class="o">=</span> <span class="n">df_with_json</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">,</span> <span class="n">when</span><span class="p">(</span><span class="n">col</span><span class="p">(</span>
                 <span class="s1">&#39;parsed_json&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="n">lit</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">StringType</span><span class="p">()))</span><span class="o">.</span>
                 <span class="n">otherwise</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">)))</span>
-        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-            <span class="n">_log_error</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;Failed even with string schema for </span><span class="si">{</span><span class="n">json_column</span><span class="si">}</span><span class="s1">. Returning original dataframe.&#39;</span>
-                <span class="p">)</span>
-            <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">json_column</span><span class="p">)</span> <span class="k">if</span> <span class="n">drop_original</span> <span class="k">else</span> <span class="n">df</span>
+        <span class="k">except</span> <span class="p">(</span><span class="n">_SparkAnalysisException</span><span class="p">,</span> <span class="n">_Py4JError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">fallback_exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Failed to parse JSON in column </span><span class="si">{</span><span class="n">json_column</span><span class="si">!r}</span><span class="s2"> even with &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;string schema fallback: </span><span class="si">{</span><span class="n">fallback_exc</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">fallback_exc</span>
     <span class="n">columns_to_extract</span> <span class="o">=</span> <span class="n">df_with_json</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s1">&#39;parsed_json.*&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">columns</span>
     <span class="n">result_df</span> <span class="o">=</span> <span class="n">df_with_json</span>
     <span class="k">if</span> <span class="n">flatten_level</span> <span class="o">==</span> <span class="s1">&#39;shallow&#39;</span><span class="p">:</span>
@@ -980,9 +935,8 @@
                             <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">new_col_name</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="n">full_field</span><span class="p">))</span>
                     <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">struct_col</span><span class="p">)</span>
                 <span class="k">return</span> <span class="n">df</span>
-            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                <span class="n">_log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error in flatten_struct: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-                <span class="k">return</span> <span class="n">df</span>
+            <span class="k">except</span> <span class="p">(</span><span class="n">_SparkAnalysisException</span><span class="p">,</span> <span class="n">_Py4JError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error in flatten_struct: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
         <span class="n">result_df</span> <span class="o">=</span> <span class="n">flatten_struct</span><span class="p">(</span><span class="n">df_with_json</span><span class="p">,</span> <span class="s1">&#39;parsed_json&#39;</span><span class="p">,</span> <span class="n">prefix</span><span class="p">,</span>
             <span class="n">flatten_level</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">explode_arrays</span><span class="p">:</span>
@@ -992,8 +946,8 @@
             <span class="k">for</span> <span class="n">array_column</span> <span class="ow">in</span> <span class="n">array_columns</span><span class="p">:</span>
                 <span class="n">result_df</span> <span class="o">=</span> <span class="n">result_df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">array_column</span><span class="p">,</span>
                     <span class="n">explode_outer</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">array_column</span><span class="p">)))</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">_log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error exploding arrays: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="n">_SparkAnalysisException</span><span class="p">,</span> <span class="n">_Py4JError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error exploding arrays: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
     <span class="n">columns_to_drop</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">]</span>
     <span class="k">if</span> <span class="n">drop_original</span><span class="p">:</span>
         <span class="n">columns_to_drop</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">json_column</span><span class="p">)</span>
@@ -1217,7 +1171,7 @@
         <span class="n">_log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;   DataFrame prepared: </span><span class="si">{</span><span class="n">original_columns</span><span class="si">}</span><span class="s1"> -&gt; </span><span class="si">{</span><span class="n">final_columns</span><span class="si">}</span><span class="s1"> columns&#39;</span>
             <span class="p">)</span>
         <span class="k">return</span> <span class="n">df</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="k">except</span> <span class="p">(</span><span class="n">_SparkAnalysisException</span><span class="p">,</span> <span class="n">_Py4JError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error preparing DataFrame for export: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">raise</span></div>
 
@@ -1225,7 +1179,7 @@
 
 <div class="viewcode-block" id="prepare_summary_dataframe">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/spark_utils/index.html#siege_utilities.prepare_summary_dataframe">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">prepare_summary_dataframe</span><span class="p">(</span><span class="n">data_tuples</span><span class="p">,</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;metric&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">],</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">prepare_summary_dataframe</span><span class="p">(</span><span class="n">data_tuples</span><span class="p">,</span> <span class="n">column_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">logger_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Helper function to create summary DataFrames with consistent string types.</span>
@@ -1239,6 +1193,8 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        Spark DataFrame with all string columns</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">column_names</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">column_names</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;metric&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">]</span>
     <span class="n">_log</span> <span class="o">=</span> <span class="n">logger_func</span> <span class="k">if</span> <span class="n">logger_func</span> <span class="k">else</span> <span class="n">log_info</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">string_data</span> <span class="o">=</span> <span class="p">[]</span>
@@ -1252,11 +1208,11 @@
         <span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">SparkSession</span>
         <span class="n">spark</span> <span class="o">=</span> <span class="n">SparkSession</span><span class="o">.</span><span class="n">getActiveSession</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">spark</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;No active Spark session found&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;No active Spark session found&#39;</span><span class="p">)</span>
         <span class="n">df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">(</span><span class="n">string_data</span><span class="p">,</span> <span class="n">schema</span><span class="p">)</span>
         <span class="n">_log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Created summary DataFrame with </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">data_tuples</span><span class="p">)</span><span class="si">}</span><span class="s1"> rows&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">df</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="k">except</span> <span class="p">(</span><span class="n">_SparkAnalysisException</span><span class="p">,</span> <span class="n">_Py4JError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error creating summary DataFrame: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">raise</span></div>
 
@@ -1273,16 +1229,10 @@
 <span class="sd">        spark_df (pyspark.sql.DataFrame): The PySpark DataFrame to export.</span>
 <span class="sd">        file_name (str): The name of the output Excel file.</span>
 <span class="sd">        sheet_name (str): The sheet name in the Excel file.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        None</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">pandas_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">toPandas</span><span class="p">()</span>
-        <span class="n">pandas_df</span><span class="o">.</span><span class="n">to_excel</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">sheet_name</span><span class="o">=</span><span class="n">sheet_name</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;DataFrame successfully exported to </span><span class="si">{</span><span class="n">file_name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error exporting DataFrame: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
+    <span class="n">pandas_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">toPandas</span><span class="p">()</span>
+    <span class="n">pandas_df</span><span class="o">.</span><span class="n">to_excel</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">sheet_name</span><span class="o">=</span><span class="n">sheet_name</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;DataFrame successfully exported to </span><span class="si">{</span><span class="n">file_name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
 
 
 
@@ -1380,27 +1330,21 @@
 <div class="viewcode-block" id="export_prepared_df_as_csv_to_path_using_delimiter">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/spark_utils/index.html#siege_utilities.export_prepared_df_as_csv_to_path_using_delimiter">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">export_prepared_df_as_csv_to_path_using_delimiter</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">,</span>
-    <span class="n">write_path</span><span class="p">:</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span> <span class="n">delimiter</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">)</span> <span class="o">-&gt;</span><span class="nb">bool</span><span class="p">:</span>
+    <span class="n">write_path</span><span class="p">:</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span> <span class="n">delimiter</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Exports DataFrame **with necessary transformations** to ensure Spark compatibility.</span>
 
 <span class="sd">    :param df: Target DataFrame</span>
 <span class="sd">    :param write_path: Pathlib object for export destination</span>
 <span class="sd">    :param delimiter: CSV delimiter (default is comma)</span>
-<span class="sd">    :return: bool indicating success/failure</span>
 
 <span class="sd">    Applies `prepare_dataframe_for_export()` to prevent Spark export issues.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">prepared_df</span> <span class="o">=</span> <span class="n">prepare_dataframe_for_export</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
-        <span class="n">prepared_df</span><span class="o">.</span><span class="n">coalesce</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">RESULTS_OUTPUT_FORMAT</span><span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span>
-            <span class="s1">&#39;header&#39;</span><span class="p">,</span> <span class="s1">&#39;true&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s1">&#39;delimiter&#39;</span><span class="p">,</span> <span class="n">delimiter</span><span class="p">)</span><span class="o">.</span><span class="n">mode</span><span class="p">(</span><span class="s1">&#39;overwrite&#39;</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">write_path</span><span class="p">))</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Data successfully exported for step: </span><span class="si">{</span><span class="n">write_path</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">True</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error exporting DataFrame for </span><span class="si">{</span><span class="n">write_path</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">False</span></div>
+    <span class="n">prepared_df</span> <span class="o">=</span> <span class="n">prepare_dataframe_for_export</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+    <span class="n">prepared_df</span><span class="o">.</span><span class="n">coalesce</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">RESULTS_OUTPUT_FORMAT</span><span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span>
+        <span class="s1">&#39;header&#39;</span><span class="p">,</span> <span class="s1">&#39;true&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s1">&#39;delimiter&#39;</span><span class="p">,</span> <span class="n">delimiter</span><span class="p">)</span><span class="o">.</span><span class="n">mode</span><span class="p">(</span><span class="s1">&#39;overwrite&#39;</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">write_path</span><span class="p">))</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Data successfully exported for step: </span><span class="si">{</span><span class="n">write_path</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
 
 
 
@@ -1447,23 +1391,15 @@
     <span class="k">if</span> <span class="n">distance</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span> <span class="kc">None</span>
     <span class="k">if</span> <span class="n">distance</span> <span class="o">&lt;</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Trivial&#39;</span><span class="p">][</span><span class="s1">&#39;max&#39;</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;grade&#39;</span><span class="p">:</span> <span class="s1">&#39;Trivial&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Trivial&#39;</span><span class="p">][</span>
-            <span class="s1">&#39;label&#39;</span><span class="p">]}</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;grade&#39;</span><span class="p">:</span> <span class="s1">&#39;Trivial&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Trivial&#39;</span><span class="p">][</span><span class="s1">&#39;label&#39;</span><span class="p">]}</span>
     <span class="k">elif</span> <span class="n">distance</span> <span class="o">&lt;</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Tolerable&#39;</span><span class="p">][</span><span class="s1">&#39;max&#39;</span><span class="p">]:</span>
-        <span class="k">if</span> <span class="n">distance</span> <span class="o">&gt;=</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Tolerable&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
-            <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;grade&#39;</span><span class="p">:</span> <span class="s1">&#39;Tolerable&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">walkability_config</span><span class="p">[</span>
-                <span class="s1">&#39;Tolerable&#39;</span><span class="p">][</span><span class="s1">&#39;label&#39;</span><span class="p">]}</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;grade&#39;</span><span class="p">:</span> <span class="s1">&#39;Tolerable&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Tolerable&#39;</span><span class="p">][</span><span class="s1">&#39;label&#39;</span><span class="p">]}</span>
     <span class="k">elif</span> <span class="n">distance</span> <span class="o">&lt;</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Moderate&#39;</span><span class="p">][</span><span class="s1">&#39;max&#39;</span><span class="p">]:</span>
-        <span class="k">if</span> <span class="n">distance</span> <span class="o">&gt;=</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Moderate&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
-            <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;grade&#39;</span><span class="p">:</span> <span class="s1">&#39;Moderate&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">walkability_config</span><span class="p">[</span>
-                <span class="s1">&#39;Moderate&#39;</span><span class="p">][</span><span class="s1">&#39;label&#39;</span><span class="p">]}</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;grade&#39;</span><span class="p">:</span> <span class="s1">&#39;Moderate&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Moderate&#39;</span><span class="p">][</span><span class="s1">&#39;label&#39;</span><span class="p">]}</span>
     <span class="k">elif</span> <span class="n">distance</span> <span class="o">&lt;</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Borderline&#39;</span><span class="p">][</span><span class="s1">&#39;max&#39;</span><span class="p">]:</span>
-        <span class="k">if</span> <span class="n">distance</span> <span class="o">&gt;=</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Borderline&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
-            <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;grade&#39;</span><span class="p">:</span> <span class="s1">&#39;Borderline&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">walkability_config</span><span class="p">[</span>
-                <span class="s1">&#39;Borderline&#39;</span><span class="p">][</span><span class="s1">&#39;label&#39;</span><span class="p">]}</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;grade&#39;</span><span class="p">:</span> <span class="s1">&#39;Borderline&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Borderline&#39;</span><span class="p">][</span><span class="s1">&#39;label&#39;</span><span class="p">]}</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;grade&#39;</span><span class="p">:</span> <span class="s1">&#39;Outside&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Outside&#39;</span><span class="p">][</span>
-            <span class="s1">&#39;label&#39;</span><span class="p">]}</span></div>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;grade&#39;</span><span class="p">:</span> <span class="s1">&#39;Outside&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">walkability_config</span><span class="p">[</span><span class="s1">&#39;Outside&#39;</span><span class="p">][</span><span class="s1">&#39;label&#39;</span><span class="p">]}</span></div>
 
 
 
@@ -1517,7 +1453,7 @@
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/spark_utils/index.html#siege_utilities.atomic_write_with_staging">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">atomic_write_with_staging</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="s2">&quot;DataFrame&quot;</span><span class="p">,</span> <span class="n">final_destination</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">staging_directory</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">file_format</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;csv&#39;</span><span class="p">,</span> <span class="n">delimiter</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">,</span>
-    <span class="n">header</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;overwrite&#39;</span><span class="p">)</span> <span class="o">-&gt;</span><span class="nb">bool</span><span class="p">:</span>
+    <span class="n">header</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;overwrite&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Performs atomic write operations using a staging directory to prevent partial/corrupted files.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -1564,16 +1500,12 @@
         <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Successfully moved </span><span class="si">{</span><span class="n">files_moved</span><span class="si">}</span><span class="s1"> items to final destination&#39;</span>
             <span class="p">)</span>
         <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;Atomic write operation completed successfully&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">True</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error in atomic write operation: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">False</span>
     <span class="k">finally</span><span class="p">:</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">staging_directory</span><span class="p">):</span>
                 <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">staging_directory</span><span class="p">)</span>
                 <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;Cleaned up staging directory&#39;</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">cleanup_error</span><span class="p">:</span>
+        <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">cleanup_error</span><span class="p">:</span>
             <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Error cleaning up staging directory: </span><span class="si">{</span><span class="n">cleanup_error</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
 
 

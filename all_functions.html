@@ -743,9 +743,6 @@ unless the value is already a Column.</p>
 <li><p><strong>delimiter</strong> – CSV delimiter (default is comma)</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>bool indicating success/failure</p>
-</dd>
 </dl>
 <p>Applies <cite>prepare_dataframe_for_export()</cite> to prevent Spark export issues.</p>
 </dd></dl>
@@ -762,9 +759,6 @@ unless the value is already a Column.</p>
 <li><p><strong>sheet_name</strong> (<em>str</em>) – The sheet name in the Excel file.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>None</p>
-</dd>
 </dl>
 </dd></dl>
 
@@ -779,7 +773,7 @@ Has fallback mechanisms for corrupt JSON data.</p>
 <li><p><strong>df</strong> (<em>DataFrame</em>) – The input Spark DataFrame.</p></li>
 <li><p><strong>json_column</strong> (<em>str</em>) – The name of the column containing JSON strings.</p></li>
 <li><p><strong>prefix</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix to add to the flattened column names. Defaults to “<a href="#id1"><span class="problematic" id="id2">json_column_</span></a>”.</p></li>
-<li><p><strong>logger</strong> (<em>Optional</em><em>[</em><em>any</em><em>]</em><em>, </em><em>optional</em>) – Logger object for logging messages. Defaults to None.</p></li>
+<li><p><strong>logger</strong> (<em>Optional</em><em>[</em><em>Any</em><em>]</em><em>, </em><em>optional</em>) – Logger object for logging messages. Defaults to None.</p></li>
 <li><p><strong>drop_original</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to drop the original JSON column after flattening. Defaults to True.</p></li>
 <li><p><strong>explode_arrays</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to explode array columns. Defaults to False.</p></li>
 <li><p><strong>flatten_level</strong> (<em>str</em><em>, </em><em>optional</em>) – “shallow” or “deep” flattening. Defaults to “shallow”.</p></li>
@@ -806,10 +800,10 @@ Has fallback mechanisms for corrupt JSON data.</p>
 <dd class="field-odd"><p><strong>df</strong> (<em>DataFrame</em>) – Input Spark DataFrame.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Row count or None if an error occurred.</p>
+<dd class="field-even"><p>Row count.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Optional[int]</p>
+<dd class="field-odd"><p>int</p>
 </dd>
 </dl>
 </dd></dl>
@@ -851,8 +845,7 @@ Defaults to “is_valid”.</p></li>
 first, and downstream consumers (notebook displays, exports) read
 left-to-right. Moving the join key / identifier to the front makes
 the rest of the pipeline more readable without changing semantics.</p>
-<p>Returns the reordered DataFrame, or <code class="docutils literal notranslate"><span class="pre">None</span></code> on failure (logged).
-The original <em>df</em> is unchanged.</p>
+<p>The original <em>df</em> is unchanged.</p>
 </dd></dl>
 
 <dl class="py function">
@@ -942,7 +935,7 @@ The non-grouping columns represent each distinct pivot column value.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.prepare_summary_dataframe">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">prepare_summary_dataframe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_tuples</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">column_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['metric',</span> <span class="pre">'value']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/spark_utils.html#prepare_summary_dataframe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.prepare_summary_dataframe" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">prepare_summary_dataframe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_tuples</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">column_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/spark_utils.html#prepare_summary_dataframe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.prepare_summary_dataframe" title="Link to this definition"></a></dt>
 <dd><p>Helper function to create summary DataFrames with consistent string types.
 Prevents type merging errors by ensuring all values are strings.</p>
 <dl class="field-list simple">
@@ -978,10 +971,10 @@ format it using tabulate, and print the result with a title.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Loaded DataFrame or None if an error occurred.</p>
+<dd class="field-even"><p>Loaded DataFrame.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Optional[“DataFrame”]</p>
+<dd class="field-odd"><p>DataFrame</p>
 </dd>
 </dl>
 </dd></dl>
@@ -996,12 +989,6 @@ format it using tabulate, and print the result with a title.</p>
 <li><p><strong>df</strong> (<em>DataFrame</em>) – Input Spark DataFrame.</p></li>
 <li><p><strong>table_name</strong> (<em>str</em>) – Name for the temporary view.</p></li>
 </ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>True if successful, False otherwise.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>bool</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1018,10 +1005,10 @@ format it using tabulate, and print the result with a title.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Repartitioned and cached DataFrame or None if an error occurred.</p>
+<dd class="field-even"><p>Repartitioned and cached DataFrame.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Optional[“DataFrame”]</p>
+<dd class="field-odd"><p>DataFrame</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1060,10 +1047,10 @@ slashes/spaces with underscores.</p>
 <dd class="field-odd"><p><strong>df</strong> (<em>DataFrame</em>) – Input Spark DataFrame.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Sanitised DataFrame or None if an error occurred.</p>
+<dd class="field-even"><p>Sanitised DataFrame.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Optional[“DataFrame”]</p>
+<dd class="field-odd"><p>DataFrame</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1083,7 +1070,7 @@ slashes/spaces with underscores.</p>
 <dd class="field-even"><p>Resulting DataFrame with null vs non-null counts.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Optional[“DataFrame”]</p>
+<dd class="field-odd"><p>DataFrame</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1116,12 +1103,6 @@ slashes/spaces with underscores.</p>
 <li><p><strong>mode</strong> (<em>str</em>) – Write mode. Defaults to “overwrite”.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>True if successful, False otherwise.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>bool</p>
-</dd>
 </dl>
 </dd></dl>
 
@@ -1131,13 +1112,17 @@ slashes/spaces with underscores.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.calculate_file_hash">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">calculate_file_hash</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/files/hashing.html#calculate_file_hash"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.calculate_file_hash" title="Link to this definition"></a></dt>
-<dd><p>Alias for get_file_hash with SHA256 - for backward compatibility</p>
+<dd><p>Alias for get_file_hash with SHA256 - for backward compatibility.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.generate_sha256_hash_for_file">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">generate_sha256_hash_for_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/files/hashing.html#generate_sha256_hash_for_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.generate_sha256_hash_for_file" title="Link to this definition"></a></dt>
-<dd><p>Generate SHA256 hash for a file - chunked reading for large files</p>
+<dd><p>Generate SHA256 hash for a file - chunked reading for large files.</p>
+<div class="deprecated">
+<p><span class="versionmodified deprecated">Deprecated since version 3.19.0: </span>Use <a class="reference internal" href="#siege_utilities.calculate_file_hash" title="siege_utilities.calculate_file_hash"><code class="xref py py-func docutils literal notranslate"><span class="pre">calculate_file_hash()</span></code></a> or <a class="reference internal" href="#siege_utilities.get_file_hash" title="siege_utilities.get_file_hash"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_file_hash()</span></code></a> instead.
+Will be removed in v4.0.0.</p>
+</div>
 <p>SECURITY: This function validates paths to prevent path traversal attacks
 and access to sensitive system files.</p>
 <dl class="field-list simple">
@@ -1145,32 +1130,26 @@ and access to sensitive system files.</p>
 <dd class="field-odd"><p><strong>file_path</strong> – Path to the file (str or Path object)</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>SHA256 hash as hexadecimal string, or None if error</p>
+<dd class="field-even"><p>SHA256 hash as hexadecimal string</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>PathSecurityError</strong> – If path fails security validation</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>FileNotFoundError</strong> – If file does not exist or is not a file</p></li>
+<li><p><strong>PathSecurityError</strong> – If path fails security validation</p></li>
+<li><p><strong>OSError</strong> – If file cannot be read</p></li>
+</ul>
 </dd>
 </dl>
 <p class="rubric">Example</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">hash_val</span> <span class="o">=</span> <span class="n">generate_sha256_hash_for_file</span><span class="p">(</span><span class="s2">&quot;data.txt&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># This will raise PathSecurityError</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">generate_sha256_hash_for_file</span><span class="p">(</span><span class="s2">&quot;/etc/shadow&quot;</span><span class="p">)</span>  <span class="c1"># Sensitive file blocked</span>
 </pre></div>
 </div>
-<dl class="simple">
-<dt>Security Changes:</dt><dd><ul class="simple">
-<li><p>Now validates paths to block path traversal</p></li>
-<li><p>Blocks access to sensitive system files</p></li>
-</ul>
-</dd>
-</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.get_file_hash">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">get_file_hash</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">algorithm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sha256'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/files/hashing.html#get_file_hash"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.get_file_hash" title="Link to this definition"></a></dt>
-<dd><p>Generate hash for a file using specified algorithm</p>
+<dd><p>Generate hash for a file using specified algorithm.</p>
 <p>SECURITY: This function validates paths to prevent path traversal attacks
 and access to sensitive system files.</p>
 <dl class="field-list simple">
@@ -1181,32 +1160,27 @@ and access to sensitive system files.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Hash as hexadecimal string, or None if error</p>
+<dd class="field-even"><p>Hash as hexadecimal string</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>PathSecurityError</strong> – If path fails security validation</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>FileNotFoundError</strong> – If file does not exist or is not a file</p></li>
+<li><p><strong>PathSecurityError</strong> – If path fails security validation</p></li>
+<li><p><strong>OSError</strong> – If file cannot be read</p></li>
+<li><p><strong>ValueError</strong> – If algorithm is not supported</p></li>
+</ul>
 </dd>
 </dl>
 <p class="rubric">Example</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">hash_val</span> <span class="o">=</span> <span class="n">get_file_hash</span><span class="p">(</span><span class="s2">&quot;data.txt&quot;</span><span class="p">,</span> <span class="s2">&quot;sha256&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># This will raise PathSecurityError</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">get_file_hash</span><span class="p">(</span><span class="s2">&quot;../../../etc/passwd&quot;</span><span class="p">)</span>  <span class="c1"># Path traversal blocked</span>
 </pre></div>
 </div>
-<dl class="simple">
-<dt>Security Changes:</dt><dd><ul class="simple">
-<li><p>Now validates paths to block path traversal</p></li>
-<li><p>Blocks access to sensitive system files</p></li>
-</ul>
-</dd>
-</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.verify_file_integrity">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">verify_file_integrity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expected_hash</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">algorithm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sha256'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/files/hashing.html#verify_file_integrity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.verify_file_integrity" title="Link to this definition"></a></dt>
-<dd><p>Verify file integrity by comparing with expected hash</p>
+<dd><p>Verify file integrity by comparing with expected hash.</p>
 <p>SECURITY: This function validates paths to prevent path traversal attacks
 and access to sensitive system files (through get_file_hash).</p>
 <dl class="field-list simple">
@@ -1218,28 +1192,22 @@ and access to sensitive system files (through get_file_hash).</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>True if file matches expected hash, False otherwise</p>
+<dd class="field-even"><p>True if file matches expected hash, False if hash does not match</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>PathSecurityError</strong> – If path fails security validation</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>FileNotFoundError</strong> – If file does not exist</p></li>
+<li><p><strong>PathSecurityError</strong> – If path fails security validation</p></li>
+<li><p><strong>OSError</strong> – If file cannot be read</p></li>
+</ul>
 </dd>
 </dl>
 <p class="rubric">Example</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">expected</span> <span class="o">=</span> <span class="s2">&quot;abc123...&quot;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="k">if</span> <span class="n">verify_file_integrity</span><span class="p">(</span><span class="s2">&quot;data.txt&quot;</span><span class="p">,</span> <span class="n">expected</span><span class="p">):</span>
 <span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;File integrity verified&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># This will raise PathSecurityError</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">verify_file_integrity</span><span class="p">(</span><span class="s2">&quot;/etc/shadow&quot;</span><span class="p">,</span> <span class="n">expected</span><span class="p">)</span>  <span class="c1"># Sensitive file blocked</span>
 </pre></div>
 </div>
-<dl class="simple">
-<dt>Security Changes:</dt><dd><ul class="simple">
-<li><p>Now validates paths via get_file_hash() to block path traversal</p></li>
-<li><p>Blocks access to sensitive system files</p></li>
-</ul>
-</dd>
-</dl>
 </dd></dl>
 
 </section>
@@ -1247,42 +1215,23 @@ and access to sensitive system files (through get_file_hash).</p>
 <h2>siege_utilities.files.operations<a class="headerlink" href="#siege-utilities-files-operations" title="Link to this heading"></a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.check_if_file_exists_at_path">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">check_if_file_exists_at_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.check_if_file_exists_at_path" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">check_if_file_exists_at_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/files/operations.html#check_if_file_exists_at_path"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.check_if_file_exists_at_path" title="Link to this definition"></a></dt>
 <dd><p>Check if a file exists at the specified path.</p>
-<p>SECURITY: This function validates paths to prevent path traversal attacks
-and access to sensitive system files.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>path</strong> – Path to check</p>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>True if file exists, False otherwise</p>
-</dd>
-<dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>PathSecurityError</strong> – If path fails security validation</p>
-</dd>
-</dl>
-<p class="rubric">Example</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">if</span> <span class="n">file_exists</span><span class="p">(</span><span class="s2">&quot;config.yaml&quot;</span><span class="p">):</span>
-<span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Config file found&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># This will raise PathSecurityError</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">file_exists</span><span class="p">(</span><span class="s2">&quot;../../../etc/passwd&quot;</span><span class="p">)</span>  <span class="c1"># Path traversal blocked</span>
-</pre></div>
+<div class="deprecated">
+<p><span class="versionmodified deprecated">Deprecated since version 3.19.0: </span>Use <code class="xref py py-func docutils literal notranslate"><span class="pre">file_exists()</span></code> instead. Will be removed in v4.0.0.</p>
 </div>
-<dl class="simple">
-<dt>Security Changes:</dt><dd><ul class="simple">
-<li><p>Now validates paths to block path traversal</p></li>
-<li><p>Blocks access to sensitive system files</p></li>
-</ul>
-</dd>
-</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.delete_existing_file_and_replace_it_with_an_empty_file">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">delete_existing_file_and_replace_it_with_an_empty_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">create_parents</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/files/operations.html#delete_existing_file_and_replace_it_with_an_empty_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.delete_existing_file_and_replace_it_with_an_empty_file" title="Link to this definition"></a></dt>
 <dd><p>Backward compatibility function that deletes existing file and replaces it with empty file.</p>
+<div class="deprecated">
+<p><span class="versionmodified deprecated">Deprecated since version 3.19.0: </span>Use <code class="xref py py-func docutils literal notranslate"><span class="pre">touch_file()</span></code> for creating empty files. Note that <code class="docutils literal notranslate"><span class="pre">touch_file</span></code>
+does not delete the existing file first; if you need delete-then-create
+semantics, call <code class="docutils literal notranslate"><span class="pre">Path.unlink()</span></code> before <code class="docutils literal notranslate"><span class="pre">touch_file()</span></code>.
+Will be removed in v4.0.0.</p>
+</div>
 <p>SECURITY: Validates paths to prevent path traversal attacks.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -1348,28 +1297,23 @@ and access to sensitive system files.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>The local filename if successful, False otherwise</p>
+<dd class="field-even"><p>The local filename as a string</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>PathSecurityError</strong> – If local path fails security validation</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>PathSecurityError</strong> – If local path fails security validation</p></li>
+<li><p><strong>ConnectionError</strong> – If HTTP request fails (non-2xx status)</p></li>
+<li><p><strong>requests.exceptions.Timeout</strong> – If request times out</p></li>
+<li><p><strong>requests.exceptions.RequestException</strong> – If request fails</p></li>
+<li><p><strong>OSError</strong> – If file write fails</p></li>
+</ul>
 </dd>
 </dl>
 <p class="rubric">Example</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">download_file</span><span class="p">(</span><span class="s2">&quot;https://example.com/file.zip&quot;</span><span class="p">,</span> <span class="s2">&quot;downloads/file.zip&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">if</span> <span class="n">result</span><span class="p">:</span>
-<span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Downloaded to </span><span class="si">{</span><span class="n">result</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># This will raise PathSecurityError</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">download_file</span><span class="p">(</span><span class="s2">&quot;https://example.com/file.zip&quot;</span><span class="p">,</span> <span class="s2">&quot;../../../etc/passwd&quot;</span><span class="p">)</span>  <span class="c1"># Path traversal blocked</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Downloaded to </span><span class="si">{</span><span class="n">result</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-<dl class="simple">
-<dt>Security Changes:</dt><dd><ul class="simple">
-<li><p>Now validates local file paths to block path traversal</p></li>
-<li><p>Blocks writing to sensitive system locations</p></li>
-</ul>
-</dd>
-</dl>
 </dd></dl>
 
 <dl class="py function">
@@ -1386,27 +1330,21 @@ and access to sensitive system files.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Path object, string, or False if failed</p>
+<dd class="field-even"><p>Path object or string</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>PathSecurityError</strong> – If directory path fails security validation</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ValueError</strong> – If filename cannot be extracted from URL</p></li>
+<li><p><strong>PathSecurityError</strong> – If directory path fails security validation</p></li>
+<li><p><strong>OSError</strong> – If directory creation fails</p></li>
+</ul>
 </dd>
 </dl>
 <p class="rubric">Example</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">path</span> <span class="o">=</span> <span class="n">generate_local_path_from_url</span><span class="p">(</span><span class="s2">&quot;https://example.com/file.zip&quot;</span><span class="p">,</span> <span class="s2">&quot;downloads&quot;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Local path: </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># This will raise PathSecurityError</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">generate_local_path_from_url</span><span class="p">(</span><span class="s2">&quot;https://example.com/file.zip&quot;</span><span class="p">,</span> <span class="s2">&quot;../../../etc&quot;</span><span class="p">)</span>  <span class="c1"># Path traversal blocked</span>
 </pre></div>
 </div>
-<dl class="simple">
-<dt>Security Changes:</dt><dd><ul class="simple">
-<li><p>Now validates directory paths to block path traversal</p></li>
-<li><p>Blocks writing to sensitive system locations</p></li>
-</ul>
-</dd>
-</dl>
 </dd></dl>
 
 </section>
@@ -1487,7 +1425,17 @@ don’t require it).</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>JSON string of geocoding result or None if failed</p>
+<dd class="field-even"><p>JSON string of the geocoding result, or <code class="docutils literal notranslate"><span class="pre">None</span></code> when Nominatim
+returned no match for the address (a legitimate non-error outcome).</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ValueError</strong> – If <code class="docutils literal notranslate"><span class="pre">query_address</span></code> is empty or None.</p></li>
+<li><p><strong>GeocodingError</strong> – If geocoding failed due to a network, service, or
+    parse error after retries (i.e., the geocoder could not even
+    attempt to match). Wraps the underlying geopy exception via
+    <code class="docutils literal notranslate"><span class="pre">__cause__</span></code>.</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>

@@ -572,6 +572,21 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">log_error</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
 
+
+<span class="k">class</span><span class="w"> </span><span class="nc">GeocodingError</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when Nominatim geocoding fails for reasons other than &#39;no match&#39;.</span>
+
+<span class="sd">    Covers network timeouts (after retries exhausted), service errors,</span>
+<span class="sd">    parse errors, and other unexpected failures from the geocoder.</span>
+<span class="sd">    Distinct from a legitimate &quot;no result found&quot; outcome, which still</span>
+<span class="sd">    returns ``None``. Use ``__cause__`` to inspect the underlying</span>
+<span class="sd">    exception.</span>
+
+<span class="sd">    Mirrors</span>
+<span class="sd">    :class:`siege_utilities.geo.providers.census_geocoder.CensusGeocodeError`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+
 <span class="c1"># Country code mapping for Nominatim geocoding</span>
 <span class="n">COUNTRY_CODES</span> <span class="o">=</span> <span class="p">{</span>
     <span class="c1"># North America</span>
@@ -900,7 +915,6 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">get_coordinates</span><span class="p">(</span><span class="n">query_address</span><span class="p">,</span> <span class="n">country_codes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">server_url</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get coordinates (latitude, longitude) for an address using Nominatim.</span>
-<span class="sd">    Returns a tuple of (latitude, longitude) or None if geocoding fails.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        query_address: The address to geocode</span>
@@ -911,23 +925,34 @@
 <span class="sd">            Defaults to None (public OSM Nominatim).</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        tuple: (latitude, longitude) or None if geocoding fails</span>
+<span class="sd">        tuple: (latitude, longitude), or ``None`` when Nominatim returned</span>
+<span class="sd">        no match for the address (a legitimate non-error outcome).</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If ``query_address`` is empty or None.</span>
+<span class="sd">        GeocodingError: If geocoding failed due to a network, service, or</span>
+<span class="sd">            parse error — i.e., the geocoder could not even attempt to</span>
+<span class="sd">            match. Wraps the underlying exception via ``__cause__``.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">result_json</span> <span class="o">=</span> <span class="n">use_nominatim_geocoder</span><span class="p">(</span>
+        <span class="n">query_address</span><span class="p">,</span> <span class="n">country_codes</span><span class="o">=</span><span class="n">country_codes</span><span class="p">,</span>
+        <span class="n">max_retries</span><span class="o">=</span><span class="n">max_retries</span><span class="p">,</span> <span class="n">server_url</span><span class="o">=</span><span class="n">server_url</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">result_json</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">result_json</span> <span class="o">=</span> <span class="n">use_nominatim_geocoder</span><span class="p">(</span>
-            <span class="n">query_address</span><span class="p">,</span> <span class="n">country_codes</span><span class="o">=</span><span class="n">country_codes</span><span class="p">,</span>
-            <span class="n">max_retries</span><span class="o">=</span><span class="n">max_retries</span><span class="p">,</span> <span class="n">server_url</span><span class="o">=</span><span class="n">server_url</span><span class="p">,</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">result_json</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">GeocodingError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Could not parse Nominatim response for </span><span class="si">{</span><span class="n">query_address</span><span class="si">!r}</span><span class="s2">&quot;</span>
+        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+    <span class="n">lat</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nominatim_lat&#39;</span><span class="p">)</span>
+    <span class="n">lng</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nominatim_lng&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">lat</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">lng</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">GeocodingError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Nominatim response for </span><span class="si">{</span><span class="n">query_address</span><span class="si">!r}</span><span class="s2"> missing lat/lng fields&quot;</span>
         <span class="p">)</span>
-        <span class="k">if</span> <span class="n">result_json</span><span class="p">:</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">result_json</span><span class="p">)</span>
-            <span class="n">lat</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nominatim_lat&#39;</span><span class="p">)</span>
-            <span class="n">lng</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nominatim_lng&#39;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">lat</span> <span class="ow">and</span> <span class="n">lng</span><span class="p">:</span>
-                <span class="k">return</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">lat</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">lng</span><span class="p">))</span>
-        <span class="k">return</span> <span class="kc">None</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Geocoding failed for </span><span class="si">{</span><span class="n">query_address</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">lat</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">lng</span><span class="p">))</span>
 
 
 <div class="viewcode-block" id="use_nominatim_geocoder">
@@ -950,18 +975,20 @@
 <span class="sd">            don&#39;t require it).</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        JSON string of geocoding result or None if failed</span>
+<span class="sd">        JSON string of the geocoding result, or ``None`` when Nominatim</span>
+<span class="sd">        returned no match for the address (a legitimate non-error outcome).</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If ``query_address`` is empty or None.</span>
+<span class="sd">        GeocodingError: If geocoding failed due to a network, service, or</span>
+<span class="sd">            parse error after retries (i.e., the geocoder could not even</span>
+<span class="sd">            attempt to match). Wraps the underlying geopy exception via</span>
+<span class="sd">            ``__cause__``.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">log_debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Geocoding address: </span><span class="si">{</span><span class="n">query_address</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">query_address</span><span class="p">:</span>
-        <span class="n">message</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="s1">&#39;query_address cannot be None, Empty address provided for geocoding&#39;</span>
-            <span class="p">)</span>
-        <span class="n">log_warning</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">None</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">message</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Geocoding </span><span class="si">{</span><span class="n">query_address</span><span class="si">}</span><span class="s1">&#39;</span>
-        <span class="n">log_info</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;query_address must be a non-empty string&#39;</span><span class="p">)</span>
+    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Geocoding </span><span class="si">{</span><span class="n">query_address</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">country_codes</span><span class="p">:</span>
         <span class="n">country_codes</span> <span class="o">=</span> <span class="n">GEOCODER_CONFIG</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;country_codes&#39;</span><span class="p">)</span>
     <span class="c1"># Build geocoder — use custom server domain if provided</span>
@@ -1003,13 +1030,22 @@
             <span class="k">if</span> <span class="n">attempt</span> <span class="o">==</span> <span class="n">max_retries</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">message</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;All geocoding attempts failed for: </span><span class="si">{</span><span class="n">query_address</span><span class="si">}</span><span class="s1">&#39;</span>
                 <span class="n">log_error</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
-                <span class="k">return</span> <span class="kc">None</span>
+                <span class="k">raise</span> <span class="n">GeocodingError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;Nominatim geocoding failed for </span><span class="si">{</span><span class="n">query_address</span><span class="si">!r}</span><span class="s1"> &#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;after </span><span class="si">{</span><span class="n">max_retries</span><span class="si">}</span><span class="s1"> attempts&#39;</span>
+                <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
             <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="n">attempt</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">message</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Unexpected error during geocoding: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
-            <span class="n">log_error</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
-            <span class="k">return</span> <span class="kc">None</span>
-    <span class="k">return</span> <span class="kc">None</span></div>
+            <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Unexpected error during geocoding: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">GeocodingError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;Unexpected error geocoding </span><span class="si">{</span><span class="n">query_address</span><span class="si">!r}</span><span class="s1">&#39;</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+    <span class="c1"># Defensive: the loop only exits via return (success / no match) or</span>
+    <span class="c1"># raise (retries exhausted). Reaching here implies max_retries &lt; 1.</span>
+    <span class="k">raise</span> <span class="n">GeocodingError</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s1">&#39;Nominatim geocoder loop exited without result for &#39;</span>
+        <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">query_address</span><span class="si">!r}</span><span class="s1"> (max_retries=</span><span class="si">{</span><span class="n">max_retries</span><span class="si">}</span><span class="s1">)&#39;</span>
+    <span class="p">)</span></div>
 
 
 
@@ -1143,7 +1179,7 @@
         <span class="n">aou</span> <span class="o">=</span> <span class="n">crs</span><span class="o">.</span><span class="n">area_of_use</span>
         <span class="k">if</span> <span class="n">aou</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">aou</span><span class="o">.</span><span class="n">south</span><span class="p">,</span> <span class="n">aou</span><span class="o">.</span><span class="n">north</span><span class="p">,</span> <span class="n">aou</span><span class="o">.</span><span class="n">west</span><span class="p">,</span> <span class="n">aou</span><span class="o">.</span><span class="n">east</span><span class="p">)</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
             <span class="s2">&quot;Could not derive bounds from CRS </span><span class="si">%r</span><span class="s2">, falling back to world bounds: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
             <span class="n">crs</span><span class="p">,</span> <span class="n">exc</span><span class="p">,</span>
@@ -1262,7 +1298,7 @@
             <span class="k">try</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_conn</span><span class="o">.</span><span class="n">enable_load_extension</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_conn</span><span class="o">.</span><span class="n">load_extension</span><span class="p">(</span><span class="s2">&quot;mod_spatialite&quot;</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">except</span> <span class="p">(</span><span class="n">sqlite3</span><span class="o">.</span><span class="n">OperationalError</span><span class="p">,</span> <span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
                     <span class="s2">&quot;SpatiaLite extension not available, falling back to plain SQLite &quot;</span>
                     <span class="s2">&quot;(spatial index disabled): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exc</span><span class="p">,</span>
@@ -1272,70 +1308,72 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">_init_db</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">conn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_conn</span><span class="p">()</span>
         <span class="n">cur</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
-
-        <span class="c1"># Check if SpatiaLite is available</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT spatialite_version()&quot;</span><span class="p">)</span>
-            <span class="n">version</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;SpatiaLite version: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">version</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">version</span> <span class="k">else</span> <span class="s2">&quot;unknown&quot;</span><span class="p">)</span>
-        <span class="k">except</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">OperationalError</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;SpatiaLite not loaded; spatial features unavailable for geocode cache&quot;</span><span class="p">)</span>
+            <span class="c1"># Check if SpatiaLite is available</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT spatialite_version()&quot;</span><span class="p">)</span>
+                <span class="n">version</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;SpatiaLite version: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">version</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">version</span> <span class="k">else</span> <span class="s2">&quot;unknown&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">OperationalError</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;SpatiaLite not loaded; spatial features unavailable for geocode cache&quot;</span><span class="p">)</span>
 
-        <span class="c1"># Geocode results table</span>
-        <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
-<span class="s2">            CREATE TABLE IF NOT EXISTS geocode_cache (</span>
-<span class="s2">                address_hash TEXT PRIMARY KEY,</span>
-<span class="s2">                address_raw TEXT NOT NULL,</span>
-<span class="s2">                latitude REAL NOT NULL,</span>
-<span class="s2">                longitude REAL NOT NULL,</span>
-<span class="s2">                point_wkt TEXT NOT NULL,</span>
-<span class="s2">                source TEXT NOT NULL DEFAULT &#39;nominatim&#39;,</span>
-<span class="s2">                raw_response TEXT,</span>
-<span class="s2">                created_at TEXT NOT NULL DEFAULT (datetime(&#39;now&#39;)),</span>
-<span class="s2">                updated_at TEXT NOT NULL DEFAULT (datetime(&#39;now&#39;))</span>
-<span class="s2">            )</span>
-<span class="s2">        &quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="c1"># Geocode results table</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                CREATE TABLE IF NOT EXISTS geocode_cache (</span>
+<span class="s2">                    address_hash TEXT PRIMARY KEY,</span>
+<span class="s2">                    address_raw TEXT NOT NULL,</span>
+<span class="s2">                    latitude REAL NOT NULL,</span>
+<span class="s2">                    longitude REAL NOT NULL,</span>
+<span class="s2">                    point_wkt TEXT NOT NULL,</span>
+<span class="s2">                    source TEXT NOT NULL DEFAULT &#39;nominatim&#39;,</span>
+<span class="s2">                    raw_response TEXT,</span>
+<span class="s2">                    created_at TEXT NOT NULL DEFAULT (datetime(&#39;now&#39;)),</span>
+<span class="s2">                    updated_at TEXT NOT NULL DEFAULT (datetime(&#39;now&#39;))</span>
+<span class="s2">                )</span>
+<span class="s2">            &quot;&quot;&quot;</span><span class="p">)</span>
 
-        <span class="c1"># Boundary lookup table</span>
-        <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
-<span class="s2">            CREATE TABLE IF NOT EXISTS boundary_cache (</span>
-<span class="s2">                geoid TEXT NOT NULL,</span>
-<span class="s2">                vintage_year INTEGER NOT NULL,</span>
-<span class="s2">                point_wkt TEXT,</span>
-<span class="s2">                boundary_wkt TEXT,</span>
-<span class="s2">                source TEXT NOT NULL DEFAULT &#39;tiger&#39;,</span>
-<span class="s2">                created_at TEXT NOT NULL DEFAULT (datetime(&#39;now&#39;)),</span>
-<span class="s2">                PRIMARY KEY (geoid, vintage_year)</span>
-<span class="s2">            )</span>
-<span class="s2">        &quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="c1"># Boundary lookup table</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                CREATE TABLE IF NOT EXISTS boundary_cache (</span>
+<span class="s2">                    geoid TEXT NOT NULL,</span>
+<span class="s2">                    vintage_year INTEGER NOT NULL,</span>
+<span class="s2">                    point_wkt TEXT,</span>
+<span class="s2">                    boundary_wkt TEXT,</span>
+<span class="s2">                    source TEXT NOT NULL DEFAULT &#39;tiger&#39;,</span>
+<span class="s2">                    created_at TEXT NOT NULL DEFAULT (datetime(&#39;now&#39;)),</span>
+<span class="s2">                    PRIMARY KEY (geoid, vintage_year)</span>
+<span class="s2">                )</span>
+<span class="s2">            &quot;&quot;&quot;</span><span class="p">)</span>
 
-        <span class="c1"># Crosswalk mapping table</span>
-        <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
-<span class="s2">            CREATE TABLE IF NOT EXISTS crosswalk_cache (</span>
-<span class="s2">                source_geoid TEXT NOT NULL,</span>
-<span class="s2">                target_geoid TEXT NOT NULL,</span>
-<span class="s2">                weight REAL NOT NULL DEFAULT 1.0,</span>
-<span class="s2">                source TEXT NOT NULL DEFAULT &#39;census&#39;,</span>
-<span class="s2">                created_at TEXT NOT NULL DEFAULT (datetime(&#39;now&#39;)),</span>
-<span class="s2">                PRIMARY KEY (source_geoid, target_geoid)</span>
-<span class="s2">            )</span>
-<span class="s2">        &quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="c1"># Crosswalk mapping table</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                CREATE TABLE IF NOT EXISTS crosswalk_cache (</span>
+<span class="s2">                    source_geoid TEXT NOT NULL,</span>
+<span class="s2">                    target_geoid TEXT NOT NULL,</span>
+<span class="s2">                    weight REAL NOT NULL DEFAULT 1.0,</span>
+<span class="s2">                    source TEXT NOT NULL DEFAULT &#39;census&#39;,</span>
+<span class="s2">                    created_at TEXT NOT NULL DEFAULT (datetime(&#39;now&#39;)),</span>
+<span class="s2">                    PRIMARY KEY (source_geoid, target_geoid)</span>
+<span class="s2">                )</span>
+<span class="s2">            &quot;&quot;&quot;</span><span class="p">)</span>
 
-        <span class="c1"># Indexes</span>
-        <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
-<span class="s2">            CREATE INDEX IF NOT EXISTS idx_geocode_source</span>
-<span class="s2">            ON geocode_cache(source)</span>
-<span class="s2">        &quot;&quot;&quot;</span><span class="p">)</span>
-        <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
-<span class="s2">            CREATE INDEX IF NOT EXISTS idx_geocode_lat_lon</span>
-<span class="s2">            ON geocode_cache(latitude, longitude)</span>
-<span class="s2">        &quot;&quot;&quot;</span><span class="p">)</span>
-        <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
-<span class="s2">            CREATE INDEX IF NOT EXISTS idx_boundary_vintage</span>
-<span class="s2">            ON boundary_cache(vintage_year)</span>
-<span class="s2">        &quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="c1"># Indexes</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                CREATE INDEX IF NOT EXISTS idx_geocode_source</span>
+<span class="s2">                ON geocode_cache(source)</span>
+<span class="s2">            &quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                CREATE INDEX IF NOT EXISTS idx_geocode_lat_lon</span>
+<span class="s2">                ON geocode_cache(latitude, longitude)</span>
+<span class="s2">            &quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                CREATE INDEX IF NOT EXISTS idx_boundary_vintage</span>
+<span class="s2">                ON boundary_cache(vintage_year)</span>
+<span class="s2">            &quot;&quot;&quot;</span><span class="p">)</span>
 
-        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
     <span class="c1"># ------------------------------------------------------------------</span>
     <span class="c1"># Geocode cache operations</span>
@@ -1401,7 +1439,14 @@
         <span class="n">country_codes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">server_url</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Look up cache, falling back to Nominatim if not cached.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Look up cache, falling back to Nominatim if not cached.</span>
+
+<span class="sd">        Returns ``None`` when the cache misses AND Nominatim has no match</span>
+<span class="sd">        for the address. Raises :class:`GeocodingError` when Nominatim</span>
+<span class="sd">        fails (network/service/parse) — callers that want fail-open</span>
+<span class="sd">        behavior must catch it explicitly. Raises :class:`ValueError`</span>
+<span class="sd">        for an empty/None ``address``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">cached</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_geocode</span><span class="p">(</span><span class="n">address</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">cached</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">cached</span>
@@ -1412,11 +1457,18 @@
         <span class="k">if</span> <span class="n">result_json</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
 
-        <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">result_json</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">result_json</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">GeocodingError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Could not parse Nominatim response for </span><span class="si">{</span><span class="n">address</span><span class="si">!r}</span><span class="s2">&quot;</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
         <span class="n">lat</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;nominatim_lat&quot;</span><span class="p">)</span>
         <span class="n">lon</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;nominatim_lng&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">lat</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">lon</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">raise</span> <span class="n">GeocodingError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Nominatim response for </span><span class="si">{</span><span class="n">address</span><span class="si">!r}</span><span class="s2"> missing lat/lng fields&quot;</span>
+            <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">put_geocode</span><span class="p">(</span>
             <span class="n">address</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">lat</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">lon</span><span class="p">),</span>

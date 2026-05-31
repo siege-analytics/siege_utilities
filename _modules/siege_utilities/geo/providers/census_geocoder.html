@@ -562,6 +562,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">csv</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
@@ -602,25 +603,30 @@
 <span class="k">class</span><span class="w"> </span><span class="nc">CensusVintage</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Census geocoder benchmark/vintage pairs.</span>
 
-<span class="sd">    Each value is the benchmark string accepted by the Census Geocoder API.</span>
-<span class="sd">    The vintage determines which geographic boundaries are used for matching.</span>
+<span class="sd">    Each member&#39;s value encodes ``&lt;benchmark&gt;|&lt;vintage&gt;`` where both halves</span>
+<span class="sd">    are the exact strings the Census Geocoder API expects.  Use the</span>
+<span class="sd">    ``.benchmark`` and ``.vintage`` properties to extract them.</span>
+
+<span class="sd">    The benchmark names follow the ``Public_AR_&lt;label&gt;`` pattern used by</span>
+<span class="sd">    ``https://geocoding.geo.census.gov/geocoder/benchmarks``.  The vintage</span>
+<span class="sd">    names follow the ``&lt;label&gt;_&lt;benchmark-label&gt;`` pattern returned by</span>
+<span class="sd">    ``https://geocoding.geo.census.gov/geocoder/vintages?benchmark=…``.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">CENSUS_2010</span> <span class="o">=</span> <span class="s2">&quot;Census2010_Census2010&quot;</span>
-    <span class="n">CENSUS_2020</span> <span class="o">=</span> <span class="s2">&quot;Census2020_Census2020&quot;</span>
-    <span class="n">CURRENT</span> <span class="o">=</span> <span class="s2">&quot;Public_Current&quot;</span>
-    <span class="n">ACS_2022</span> <span class="o">=</span> <span class="s2">&quot;Public_ACS2022&quot;</span>
-    <span class="n">ACS_2023</span> <span class="o">=</span> <span class="s2">&quot;Public_ACS2023&quot;</span>
+    <span class="n">CENSUS_2010</span> <span class="o">=</span> <span class="s2">&quot;Public_AR_Census2020|Census2010_Census2020&quot;</span>
+    <span class="n">CENSUS_2020</span> <span class="o">=</span> <span class="s2">&quot;Public_AR_Census2020|Census2020_Census2020&quot;</span>
+    <span class="n">CURRENT</span> <span class="o">=</span> <span class="s2">&quot;Public_AR_Current|Current_Current&quot;</span>
+    <span class="n">ACS_2022</span> <span class="o">=</span> <span class="s2">&quot;Public_AR_Current|ACS2022_Current&quot;</span>
+    <span class="n">ACS_2023</span> <span class="o">=</span> <span class="s2">&quot;Public_AR_Current|ACS2023_Current&quot;</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">benchmark</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract the benchmark portion (before underscore).&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The benchmark string accepted by the Census Geocoder API.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;|&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">vintage</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract the vintage portion (after underscore).&quot;&quot;&quot;</span>
-        <span class="n">parts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The vintage string accepted by the Census Geocoder API.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;|&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
 
 
 <span class="c1"># Year boundaries for vintage selection</span>
@@ -642,11 +648,11 @@
 
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; select_vintage_for_cycle(2024)</span>
-<span class="sd">        &lt;CensusVintage.CURRENT: &#39;Public_Current&#39;&gt;</span>
+<span class="sd">        &lt;CensusVintage.CURRENT: &#39;Public_AR_Current|Current_Current&#39;&gt;</span>
 <span class="sd">        &gt;&gt;&gt; select_vintage_for_cycle(2016)</span>
-<span class="sd">        &lt;CensusVintage.CENSUS_2020: &#39;Census2020_Census2020&#39;&gt;</span>
+<span class="sd">        &lt;CensusVintage.CENSUS_2020: &#39;Public_AR_Census2020|Census2020_Census2020&#39;&gt;</span>
 <span class="sd">        &gt;&gt;&gt; select_vintage_for_cycle(2008)</span>
-<span class="sd">        &lt;CensusVintage.CENSUS_2010: &#39;Census2010_Census2010&#39;&gt;</span>
+<span class="sd">        &lt;CensusVintage.CENSUS_2010: &#39;Public_AR_Census2020|Census2010_Census2020&#39;&gt;</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">for</span> <span class="n">threshold</span><span class="p">,</span> <span class="n">vintage</span> <span class="ow">in</span> <span class="n">_VINTAGE_THRESHOLDS</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">year</span> <span class="o">&gt;=</span> <span class="n">threshold</span><span class="p">:</span>
@@ -724,11 +730,11 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Get a censusgeocode.CensusGeocode instance with the specified vintage.&quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="kn">import</span><span class="w"> </span><span class="nn">censusgeocode</span>
-    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
             <span class="s2">&quot;censusgeocode is required for Census geocoding. &quot;</span>
             <span class="s2">&quot;Install it with: pip install &#39;siege-utilities[geo]&#39; or pip install censusgeocode&quot;</span>
-        <span class="p">)</span>
+        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
     <span class="k">return</span> <span class="n">censusgeocode</span><span class="o">.</span><span class="n">CensusGeocode</span><span class="p">(</span>
         <span class="n">benchmark</span><span class="o">=</span><span class="n">vintage</span><span class="o">.</span><span class="n">benchmark</span><span class="p">,</span>
         <span class="n">vintage</span><span class="o">=</span><span class="n">vintage</span><span class="o">.</span><span class="n">vintage</span><span class="p">,</span>
@@ -743,7 +749,7 @@
     <span class="n">matched_address</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;matchedAddress&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
     <span class="n">coords</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;coordinates&quot;</span><span class="p">,</span> <span class="p">{})</span>
     <span class="n">geographies</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;geographies&quot;</span><span class="p">,</span> <span class="p">{})</span>
-    <span class="n">tiger</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;addressComponents&quot;</span><span class="p">,</span> <span class="p">{})</span>
+    <span class="n">tiger</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tigerLine&quot;</span><span class="p">,</span> <span class="p">{})</span>
 
     <span class="c1"># Census Blocks is the most detailed geography; extract FIPS from there</span>
     <span class="n">blocks</span> <span class="o">=</span> <span class="n">geographies</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Census Blocks&quot;</span><span class="p">,</span> <span class="n">geographies</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;2020 Census Blocks&quot;</span><span class="p">,</span> <span class="p">[]))</span>
@@ -794,13 +800,15 @@
     <span class="n">input_addr</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">street</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">city</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">zipcode</span><span class="si">}</span><span class="s2">&quot;</span>
 
     <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># censusgeocode v0.5+ returns an AddressResult (list-like) of</span>
+        <span class="c1"># match dicts, not a nested {&quot;result&quot;: {&quot;addressMatches&quot;: [...]}}</span>
+        <span class="c1"># structure.</span>
         <span class="n">result</span> <span class="o">=</span> <span class="n">cg</span><span class="o">.</span><span class="n">onelineaddress</span><span class="p">(</span><span class="n">input_addr</span><span class="p">,</span> <span class="n">returntype</span><span class="o">=</span><span class="s2">&quot;geographies&quot;</span><span class="p">)</span>
-        <span class="n">matches</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;result&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;addressMatches&quot;</span><span class="p">,</span> <span class="p">[])</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">matches</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No match for: </span><span class="si">{</span><span class="n">input_addr</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">CensusGeocodeResult</span><span class="p">(</span><span class="n">input_address</span><span class="o">=</span><span class="n">input_addr</span><span class="p">)</span>
 
-        <span class="n">parsed</span> <span class="o">=</span> <span class="n">_parse_single_result</span><span class="p">(</span><span class="n">matches</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">parsed</span> <span class="o">=</span> <span class="n">_parse_single_result</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
         <span class="n">parsed</span><span class="o">.</span><span class="n">input_address</span> <span class="o">=</span> <span class="n">input_addr</span>
         <span class="n">log_debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Matched: </span><span class="si">{</span><span class="n">input_addr</span><span class="si">}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="n">parsed</span><span class="o">.</span><span class="n">matched_address</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">parsed</span>
@@ -864,28 +872,36 @@
         <span class="k">raise</span> <span class="n">CensusGeocodeError</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">&quot;Census batch geocode failed for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">addresses</span><span class="p">)</span><span class="si">}</span><span class="s2"> addresses: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">csv_path</span><span class="p">)</span>
 
-    <span class="c1"># Parse batch results</span>
+    <span class="c1"># Parse batch results.</span>
+    <span class="c1">#</span>
+    <span class="c1"># censusgeocode v0.5+ returns dicts with these keys (after its own</span>
+    <span class="c1"># internal parsing):</span>
+    <span class="c1">#   id, address, match (bool), matchtype, parsed (matched address),</span>
+    <span class="c1">#   tigerlineid, side, statefp, countyfp, tract, block, lat (float),</span>
+    <span class="c1">#   lon (float)</span>
     <span class="n">results_by_id</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
         <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
             <span class="n">row_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">))</span>
-            <span class="n">matched</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;is_match&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;match&quot;</span>
+            <span class="n">matched</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;match&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
             <span class="k">if</span> <span class="n">matched</span><span class="p">:</span>
                 <span class="n">parsed</span> <span class="o">=</span> <span class="n">CensusGeocodeResult</span><span class="p">(</span>
                     <span class="n">matched</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                     <span class="n">input_id</span><span class="o">=</span><span class="n">row_id</span><span class="p">,</span>
                     <span class="n">input_address</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;address&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
-                    <span class="n">matched_address</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;match_address&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                    <span class="n">matched_address</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;parsed&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
                     <span class="n">lat</span><span class="o">=</span><span class="n">_safe_float</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;lat&quot;</span><span class="p">)),</span>
                     <span class="n">lon</span><span class="o">=</span><span class="n">_safe_float</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;lon&quot;</span><span class="p">)),</span>
-                    <span class="n">state_fips</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;statefp&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
-                    <span class="n">county_fips</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;countyfp&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
-                    <span class="n">tract</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tract&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
-                    <span class="n">block</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;block&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
-                    <span class="n">match_type</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;match_type&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
-                    <span class="n">tiger_line_id</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tigerlineid&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
-                    <span class="n">side</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;side&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                    <span class="n">state_fips</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;statefp&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+                    <span class="n">county_fips</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;countyfp&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+                    <span class="n">tract</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tract&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+                    <span class="n">block</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;block&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+                    <span class="n">match_type</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;matchtype&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+                    <span class="n">tiger_line_id</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tigerlineid&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+                    <span class="n">side</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;side&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
                 <span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">parsed</span> <span class="o">=</span> <span class="n">CensusGeocodeResult</span><span class="p">(</span>
@@ -950,6 +966,97 @@
         <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
     <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
         <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">geocode_results_to_dataframe</span><span class="p">(</span>
+    <span class="n">results</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">CensusGeocodeResult</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;pd.DataFrame&quot;</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert a list of CensusGeocodeResult to a pandas DataFrame.</span>
+
+<span class="sd">    Extracts all dataclass fields and computed GEOID properties into a</span>
+<span class="sd">    flat DataFrame with standard column names. This eliminates the</span>
+<span class="sd">    per-field list-comprehension boilerplate that every caller of</span>
+<span class="sd">    :func:`geocode_batch` otherwise has to write.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        results: List of :class:`CensusGeocodeResult` objects, typically</span>
+<span class="sd">            returned by :func:`geocode_batch` or :func:`geocode_batch_chunked`.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        DataFrame with columns: ``input_id``, ``input_address``, ``matched``,</span>
+<span class="sd">        ``match_type``, ``matched_address``, ``latitude``, ``longitude``,</span>
+<span class="sd">        ``state_geoid``, ``county_geoid``, ``tract_geoid``, ``block_geoid``,</span>
+<span class="sd">        ``block_group_geoid``, ``state_fips``, ``county_fips``, ``tract``,</span>
+<span class="sd">        ``block``, ``side``, ``tiger_line_id``.</span>
+<span class="sd">        For unmatched rows, latitude/longitude are ``None`` and GEOID</span>
+<span class="sd">        columns are empty strings.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        TypeError: If *results* is not a list.</span>
+
+<span class="sd">    Example::</span>
+
+<span class="sd">        results = geocode_batch(addresses)</span>
+<span class="sd">        df = geocode_results_to_dataframe(results)</span>
+<span class="sd">        # df now has tract_geoid, block_geoid, lat/lon, etc.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;results must be a list of CensusGeocodeResult, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">results</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">_COLUMNS</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;input_id&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;input_address&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;matched&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;match_type&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;matched_address&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;latitude&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;longitude&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;state_geoid&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;county_geoid&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;tract_geoid&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;block_geoid&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;block_group_geoid&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;state_fips&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;county_fips&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;tract&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;block&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;side&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;tiger_line_id&quot;</span><span class="p">,</span>
+    <span class="p">]</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">results</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">_COLUMNS</span><span class="p">)</span>
+
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">&quot;input_id&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">input_id</span><span class="p">,</span>
+                <span class="s2">&quot;input_address&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">input_address</span><span class="p">,</span>
+                <span class="s2">&quot;matched&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">matched</span><span class="p">,</span>
+                <span class="s2">&quot;match_type&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">match_type</span><span class="p">,</span>
+                <span class="s2">&quot;matched_address&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">matched_address</span><span class="p">,</span>
+                <span class="s2">&quot;latitude&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">lat</span><span class="p">,</span>
+                <span class="s2">&quot;longitude&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">lon</span><span class="p">,</span>
+                <span class="s2">&quot;state_geoid&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">state_geoid</span><span class="p">,</span>
+                <span class="s2">&quot;county_geoid&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">county_geoid</span><span class="p">,</span>
+                <span class="s2">&quot;tract_geoid&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">tract_geoid</span><span class="p">,</span>
+                <span class="s2">&quot;block_geoid&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">block_geoid</span><span class="p">,</span>
+                <span class="s2">&quot;block_group_geoid&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">block_group_geoid</span><span class="p">,</span>
+                <span class="s2">&quot;state_fips&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">state_fips</span><span class="p">,</span>
+                <span class="s2">&quot;county_fips&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">county_fips</span><span class="p">,</span>
+                <span class="s2">&quot;tract&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">tract</span><span class="p">,</span>
+                <span class="s2">&quot;block&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">block</span><span class="p">,</span>
+                <span class="s2">&quot;side&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">side</span><span class="p">,</span>
+                <span class="s2">&quot;tiger_line_id&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">tiger_line_id</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">_COLUMNS</span><span class="p">)</span>
 </pre></div>
 
            </div>
