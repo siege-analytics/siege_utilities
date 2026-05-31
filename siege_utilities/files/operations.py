@@ -525,11 +525,9 @@ def delete_existing_file_and_replace_it_with_an_empty_file(file_path: FilePath, 
         file_path: Path to the file
         create_parents: Whether to create parent directories
 
-    Returns:
-        True if successful, False otherwise
-
     Raises:
         PathSecurityError: If path fails security validation
+        OSError: If file creation fails
     """
     import warnings
     warnings.warn(

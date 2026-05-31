@@ -50,7 +50,7 @@ class BoundaryProvider(ABC):
         """Human-readable name for this provider."""
 
     @abstractmethod
-    def get_boundary(self, level: str, identifier: Optional[str] = None, **kwargs: Any):
+    def get_boundary(self, level: str, identifier: Optional[str] = None, **kwargs: Any) -> Any:
         """
         Fetch boundary geometry for a given geographic level.
 
