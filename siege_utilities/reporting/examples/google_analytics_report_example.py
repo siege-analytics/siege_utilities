@@ -1580,10 +1580,16 @@ def create_footnote_paragraph(terms: List[str], styles_obj=None) -> Optional[Par
     if not definitions:
         return None
 
-    footnote_style = ParagraphStyle(
-        'Footnote', fontSize=7, leading=9, spaceBefore=6, spaceAfter=10,
-        textColor=colors.HexColor('#666666'), leftIndent=10,
-    )
+    if styles_obj and hasattr(styles_obj, 'get'):
+        footnote_style = styles_obj.get('Footnote', ParagraphStyle(
+            'Footnote', fontSize=7, leading=9, spaceBefore=6, spaceAfter=10,
+            textColor=colors.HexColor('#666666'), leftIndent=10,
+        ))
+    else:
+        footnote_style = ParagraphStyle(
+            'Footnote', fontSize=7, leading=9, spaceBefore=6, spaceAfter=10,
+            textColor=colors.HexColor('#666666'), leftIndent=10,
+        )
     text = " | ".join(definitions)
     return Paragraph(text, footnote_style)
 

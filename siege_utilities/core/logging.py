@@ -315,12 +315,20 @@ def init_logger(name: LoggerName,
     Returns:
         Configured logger instance
     """
+    if log_to_file and not shared_log_file:
+        import warnings
+        warnings.warn(
+            "init_logger(log_to_file=True) without shared_log_file has no "
+            "effect. Use configure_shared_logging() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
     # For backward compatibility, configure shared logging if specified
     if shared_log_file:
         _logger_manager.configure_shared_logging(
             shared_log_file, level, max_bytes, backup_count
         )
-    
+
     return _logger_manager.get_logger(name)
 
 def cleanup_logger(name: LoggerName) -> bool:

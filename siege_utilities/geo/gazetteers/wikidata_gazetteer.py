@@ -198,15 +198,23 @@ class WikidataGazetteer:
         if not name or not name.strip():
             raise ValueError("WikidataGazetteer.lookup: empty name")
         rows = self._cached_lookup(name.strip(), (country_hint or "").strip().upper() or None, 10)
+        if admin_hint:
+            admin_lower = admin_hint.strip().lower()
+            rows = tuple(
+                r for r in rows
+                if admin_lower in (r.get("name") or "").lower()
+                or admin_lower in (r.get("country") or "").lower()
+            )
         if not rows:
             raise GazetteerNotFoundError(
                 f"Wikidata: no match for {name!r}"
                 + (f" (country={country_hint!r})" if country_hint else "")
+                + (f" (admin={admin_hint!r})" if admin_hint else "")
             )
         if len(rows) > 1:
             raise GazetteerAmbiguousError(
                 f"Wikidata: {len(rows)} matches for {name!r}; "
-                "pass country_hint or use search() and pick a candidate.",
+                "pass country_hint/admin_hint or use search() and pick a candidate.",
                 candidates=[self._row_to_candidate(r) for r in rows],
             )
         return self._row_to_result(rows[0])

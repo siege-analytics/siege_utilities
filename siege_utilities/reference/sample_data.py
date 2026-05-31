@@ -441,8 +441,7 @@ def create_sample_dataset(year: int = 2020,
 
 def get_census_county_sample(state_fips: str = "06",
                             county_fips: str = "037",
-                            tract_count: int = 5,
-                            population_per_tract: int = 500) -> Union[pd.DataFrame, gpd.GeoDataFrame]:
+                            tract_count: int = 5) -> Union[pd.DataFrame, gpd.GeoDataFrame]:
     """
     Generate a sample county dataset with multiple tracts and synthetic data.
 
@@ -450,7 +449,6 @@ def get_census_county_sample(state_fips: str = "06",
         state_fips: State FIPS code (default: CA)
         county_fips: County FIPS code (default: Los Angeles)
         tract_count: Number of tracts to include
-        population_per_tract: Population per tract
 
     Returns:
         DataFrame or GeoDataFrame with county data
