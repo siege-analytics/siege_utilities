@@ -31,8 +31,8 @@ def remove_tree(path: FilePath) -> None:
         OSError: If removal fails
 
     Example:
-        >>> remove_tree("temp_directory")
-        >>> remove_tree(Path("old_files"))
+        >>> remove_tree("temp_directory")  # doctest: +SKIP
+        >>> remove_tree(Path("old_files"))  # doctest: +SKIP
     """
     try:
         from siege_utilities.files.validation import validate_safe_path, PathSecurityError
@@ -66,11 +66,9 @@ def file_exists(path: FilePath) -> bool:
         PathSecurityError: If path fails security validation
 
     Example:
-        >>> if file_exists("config.yaml"):
+        >>> if file_exists("config.yaml"):  # doctest: +SKIP
         ...     print("Config file found")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> file_exists("../../../etc/passwd")  # Path traversal blocked
+        >>> file_exists("../../../etc/passwd")  # doctest: +SKIP
 
     Security Changes:
         - Now validates paths to block path traversal
@@ -118,8 +116,8 @@ def touch_file(path: FilePath, create_parents: bool = True) -> None:
         OSError: If file creation fails
 
     Example:
-        >>> touch_file("logs/app.log")
-        >>> touch_file(Path("data/output.txt"))
+        >>> touch_file("logs/app.log")  # doctest: +SKIP
+        >>> touch_file(Path("data/output.txt"))  # doctest: +SKIP
     """
     try:
         from siege_utilities.files.validation import validate_safe_path, PathSecurityError
@@ -154,8 +152,8 @@ def count_lines(file_path: FilePath, encoding: str = 'utf-8') -> int:
         UnicodeDecodeError: If file cannot be decoded with given encoding
 
     Example:
-        >>> line_count = count_lines("data.csv")
-        >>> print(f"File has {line_count} lines")
+        >>> line_count = count_lines("data.csv")  # doctest: +SKIP
+        >>> print(f"File has {line_count} lines")  # doctest: +SKIP
     """
     try:
         from siege_utilities.files.validation import validate_file_path, PathSecurityError
@@ -193,8 +191,8 @@ def copy_file(source: FilePath, destination: FilePath, overwrite: bool = False) 
         OSError: If copy fails
 
     Example:
-        >>> copy_file("source.txt", "backup/source.txt")
-        >>> copy_file(Path("config.yaml"), Path("config.yaml.bak"))
+        >>> copy_file("source.txt", "backup/source.txt")  # doctest: +SKIP
+        >>> copy_file(Path("config.yaml"), Path("config.yaml.bak"))  # doctest: +SKIP
     """
     try:
         from siege_utilities.files.validation import validate_file_path, validate_safe_path, PathSecurityError
@@ -236,8 +234,8 @@ def move_file(source: FilePath, destination: FilePath, overwrite: bool = False) 
         OSError: If move fails
 
     Example:
-        >>> move_file("temp.txt", "archive/temp.txt")
-        >>> move_file(Path("old.log"), Path("logs/old.log"))
+        >>> move_file("temp.txt", "archive/temp.txt")  # doctest: +SKIP
+        >>> move_file(Path("old.log"), Path("logs/old.log"))  # doctest: +SKIP
     """
     try:
         from siege_utilities.files.validation import validate_file_path, validate_safe_path, PathSecurityError
@@ -280,8 +278,8 @@ def get_file_size(file_path: FilePath) -> int:
         OSError: If file size cannot be determined
 
     Example:
-        >>> size = get_file_size("large_file.zip")
-        >>> print(f"File size: {size} bytes")
+        >>> size = get_file_size("large_file.zip")  # doctest: +SKIP
+        >>> print(f"File size: {size} bytes")  # doctest: +SKIP
     """
     try:
         from siege_utilities.files.validation import validate_file_path, PathSecurityError
@@ -323,8 +321,8 @@ def list_directory(path: FilePath,
         OSError: If directory cannot be read
 
     Example:
-        >>> files = list_directory("data", "*.csv")
-        >>> dirs = list_directory("logs", include_files=False)
+        >>> files = list_directory("data", "*.csv")  # doctest: +SKIP
+        >>> dirs = list_directory("logs", include_files=False)  # doctest: +SKIP
     """
     try:
         from siege_utilities.files.validation import validate_directory_path, PathSecurityError
@@ -382,19 +380,12 @@ def run_command(command: Union[str, List[str]],
         Exception: Re-raised on unexpected errors when unsafe=False.
 
     Example:
-        >>> # Safe command (works by default)
-        >>> result = run_command("ls -la")
-        >>> if result and result.returncode == 0:
+        >>> result = run_command("ls -la")  # doctest: +SKIP
+        >>> if result and result.returncode == 0:  # doctest: +SKIP
         ...     print("Command succeeded")
-        >>>
-        >>> # Dangerous command (blocked by default)
-        >>> result = run_command("rm -rf /")  # Raises SecurityError
-        >>>
-        >>> # Custom whitelist
-        >>> result = run_command("git status", allow_list={'git', 'ls'})
-        >>>
-        >>> # Bypass security (DANGEROUS - use only with trusted input)
-        >>> result = run_command("custom_cmd", unsafe=True)
+        >>> result = run_command("rm -rf /")  # doctest: +SKIP
+        >>> result = run_command("git status", allow_list={'git', 'ls'})  # doctest: +SKIP
+        >>> result = run_command("custom_cmd", unsafe=True)  # doctest: +SKIP
 
     Security Changes:
         - Previously used shell=True with no validation (CRITICAL VULNERABILITY)

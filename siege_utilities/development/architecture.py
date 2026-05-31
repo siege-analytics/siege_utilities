@@ -405,15 +405,8 @@ def generate_requirements_txt(setup_py_path: str = "setup.py", output_path: str 
         SyntaxError: If the setup.py file contains invalid Python syntax.
 
     Examples:
-        >>> # Generate requirements.txt from setup.py
-        >>> success = generate_requirements_txt("setup.py", "requirements.txt")
-        >>> print(f"Generated: {success}")
-        Generated: True
-
-        >>> # Use custom paths
-        >>> success = generate_requirements_txt("my_setup.py", "my_requirements.txt")
-        >>> print(f"Generated: {success}")
-        Generated: True
+        >>> success = generate_requirements_txt("setup.py", "requirements.txt")  # doctest: +SKIP
+        >>> success = generate_requirements_txt("my_setup.py", "my_requirements.txt")  # doctest: +SKIP
 
     Note:
         This function only extracts the 'install_requires' list from setup.py.
@@ -480,15 +473,8 @@ def generate_pyproject_toml(setup_py_path: str = "setup.py", output_path: str = 
         SyntaxError: If the setup.py file contains invalid Python syntax.
 
     Examples:
-        >>> # Generate pyproject.toml from setup.py
-        >>> success = generate_pyproject_toml("setup.py", "pyproject.toml")
-        >>> print(f"Generated: {success}")
-        Generated: True
-
-        >>> # Generate for UV project
-        >>> success = generate_pyproject_toml("my_setup.py", "pyproject.toml")
-        >>> print(f"Generated: {success}")
-        Generated: True
+        >>> success = generate_pyproject_toml("setup.py", "pyproject.toml")  # doctest: +SKIP
+        >>> success = generate_pyproject_toml("my_setup.py", "pyproject.toml")  # doctest: +SKIP
 
     Note:
         The generated pyproject.toml uses setuptools as the build backend by default.
@@ -607,15 +593,8 @@ def generate_poetry_toml(setup_py_path: str = "setup.py", output_path: str = "py
         SyntaxError: If the setup.py file contains invalid Python syntax.
 
     Examples:
-        >>> # Generate Poetry pyproject.toml from setup.py
-        >>> success = generate_poetry_toml("setup.py", "pyproject.toml")
-        >>> print(f"Generated: {success}")
-        Generated: True
-
-        >>> # Generate for existing Poetry project
-        >>> success = generate_poetry_toml("my_setup.py", "pyproject.toml")
-        >>> print(f"Generated: {success}")
-        Generated: True
+        >>> success = generate_poetry_toml("setup.py", "pyproject.toml")  # doctest: +SKIP
+        >>> success = generate_poetry_toml("my_setup.py", "pyproject.toml")  # doctest: +SKIP
 
     Note:
         The generated file uses Poetry's specific format with [tool.poetry] sections.
@@ -727,15 +706,8 @@ def generate_uv_toml(setup_py_path: str = "setup.py", output_path: str = "pyproj
         SyntaxError: If the setup.py file contains invalid Python syntax.
 
     Examples:
-        >>> # Generate UV pyproject.toml from setup.py
-        >>> success = generate_uv_toml("setup.py", "pyproject.toml")
-        >>> print(f"Generated: {success}")
-        Generated: True
-
-        >>> # Generate for UV project
-        >>> success = generate_uv_toml("my_setup.py", "pyproject.toml")
-        >>> print(f"Generated: {success}")
-        Generated: True
+        >>> success = generate_uv_toml("setup.py", "pyproject.toml")  # doctest: +SKIP
+        >>> success = generate_uv_toml("my_setup.py", "pyproject.toml")  # doctest: +SKIP
 
     Note:
         UV uses the standard PEP 621 format for pyproject.toml, which is the same

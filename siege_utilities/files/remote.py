@@ -123,8 +123,8 @@ def download_file(url: str, local_filename: FilePath,
         OSError: If file write fails
 
     Example:
-        >>> result = download_file("https://example.com/file.zip", "downloads/file.zip")
-        >>> print(f"Downloaded to {result}")
+        >>> result = download_file("https://example.com/file.zip", "downloads/file.zip")  # doctest: +SKIP
+        >>> print(f"Downloaded to {result}")  # doctest: +SKIP
     """
     _check_requests_dependency()
 
@@ -228,8 +228,8 @@ def generate_local_path_from_url(url: str, directory_path: FilePath,
         OSError: If directory creation fails
 
     Example:
-        >>> path = generate_local_path_from_url("https://example.com/file.zip", "downloads")
-        >>> print(f"Local path: {path}")
+        >>> path = generate_local_path_from_url("https://example.com/file.zip", "downloads")  # doctest: +SKIP
+        >>> print(f"Local path: {path}")  # doctest: +SKIP
     """
     parsed_url = urlparse(url)
     remote_filename = parsed_url.path.split('/')[-1]
@@ -275,8 +275,8 @@ def download_file_with_retry(url: str, local_filename: FilePath,
         requests.exceptions.RequestException: If all retry attempts fail
 
     Example:
-        >>> result = download_file_with_retry("https://example.com/file.zip", "file.zip")
-        >>> print(f"Downloaded to {result}")
+        >>> result = download_file_with_retry("https://example.com/file.zip", "file.zip")  # doctest: +SKIP
+        >>> print(f"Downloaded to {result}")  # doctest: +SKIP
     """
     import time
 
@@ -314,8 +314,8 @@ def get_file_info(url: str, timeout: int = 10) -> dict:
         ImportError: If requests library is not available
 
     Example:
-        >>> info = get_file_info("https://example.com/file.zip")
-        >>> print(f"File size: {info['size']} bytes")
+        >>> info = get_file_info("https://example.com/file.zip")  # doctest: +SKIP
+        >>> print(f"File size: {info['size']} bytes")  # doctest: +SKIP
     """
     _check_requests_dependency()
 
@@ -351,7 +351,7 @@ def is_downloadable(url: str, timeout: int = 10) -> bool:
         True if the URL points to a downloadable file, False otherwise
 
     Example:
-        >>> if is_downloadable("https://example.com/file.zip"):
+        >>> if is_downloadable("https://example.com/file.zip"):  # doctest: +SKIP
         ...     print("URL is downloadable")
     """
     _check_requests_dependency()

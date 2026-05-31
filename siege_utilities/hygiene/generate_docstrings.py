@@ -141,9 +141,9 @@ Returns:
     Any: Description needed
 
 Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.visit_FunctionDef()
-    >>> # Process result as needed
+    >>> import siege_utilities  # doctest: +SKIP
+    >>> result = siege_utilities.visit_FunctionDef()  # doctest: +SKIP
+    >>> pass  # Process result as needed  # doctest: +SKIP
 
 Note:
     This function is auto-discovered and available without imports

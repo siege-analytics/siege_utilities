@@ -162,11 +162,11 @@ def normalize_geoid(
 
     Example:
         >>> normalize_geoid("6037", "county")
-        "06037"
+        '06037'
         >>> normalize_geoid(6, "state")
-        "06"
+        '06'
         >>> normalize_geoid("6037101100", "tract")
-        "06037101100"
+        '06037101100'
     """
     # Convert to string
     geoid_str = str(geoid).strip()
@@ -255,9 +255,9 @@ def construct_geoid(
 
     Example:
         >>> construct_geoid("county", state="06", county="037")
-        "06037"
+        '06037'
         >>> construct_geoid("tract", state="06", county="037", tract="101100")
-        "06037101100"
+        '06037101100'
     """
     geography_lower = resolve_geographic_level(geography)
 
@@ -432,9 +432,9 @@ def extract_parent_geoid(
 
     Example:
         >>> extract_parent_geoid("06037101100", "tract", "county")
-        "06037"
+        '06037'
         >>> extract_parent_geoid("060371011001", "block_group", "state")
-        "06"
+        '06'
     """
     components = parse_geoid(geoid, child_geography)
 
@@ -480,9 +480,9 @@ def validate_geoid(
         >>> validate_geoid("06037", "county")
         True
         >>> validate_geoid("6037", "county")  # Missing leading zero
-        False  # Not a valid GEOID (use can_normalize_geoid to check normalizability)
+        False
         >>> validate_geoid("6037", "county", strict=False)
-        True  # Non-strict allows shorter values
+        True
     """
     if not geoid or not isinstance(geoid, str):
         return False
@@ -531,13 +531,13 @@ def can_normalize_geoid(
 
     Example:
         >>> can_normalize_geoid("6037", "county")
-        True  # Can be zero-padded to "06037"
+        True
         >>> can_normalize_geoid("06037", "county")
-        True  # Already valid
+        True
         >>> can_normalize_geoid("CA037", "county")
-        False  # Contains non-numeric characters
+        False
         >>> can_normalize_geoid("123456", "county")
-        False  # Too long (county GEOID is 5 digits)
+        False
     """
     geoid_str = str(geoid).strip()
 
@@ -662,11 +662,11 @@ def geoid_to_slug(geoid: str, geography_level: str) -> str:
 
     Example:
         >>> geoid_to_slug("06037101100", "tract")
-        "ca-037-tract-101100"
+        'ca-037-tract-101100'
         >>> geoid_to_slug("06", "state")
-        "ca"
+        'ca'
         >>> geoid_to_slug("0614", "cd")
-        "ca-cd-14"
+        'ca-cd-14'
     """
     from siege_utilities.config.census_constants import FIPS_TO_STATE
 
@@ -732,9 +732,9 @@ def slug_to_geoid(slug: str) -> str:
 
     Example:
         >>> slug_to_geoid("ca-037-tract-101100")
-        "06037101100"
+        '06037101100'
         >>> slug_to_geoid("ca")
-        "06"
+        '06'
     """
     from siege_utilities.config.census_constants import STATE_FIPS_CODES
 

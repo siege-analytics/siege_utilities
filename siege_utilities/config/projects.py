@@ -51,16 +51,14 @@ def create_project_config(project_name: str, project_code: str,
         PathSecurityError: If base_directory fails security validation
 
     Example:
-        >>> import siege_utilities
-        >>> config = siege_utilities.create_project_config(
+        >>> import siege_utilities  # doctest: +SKIP
+        >>> config = siege_utilities.create_project_config(  # doctest: +SKIP
         ...     "Customer Analytics",
         ...     "CA001",
         ...     description="Analytics for customer behavior"
         ... )
-        >>> print(config['directories']['output'])
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> create_project_config("Bad", "BAD", base_directory="../../../etc")  # Path traversal blocked
+        >>> print(config['directories']['output'])  # doctest: +SKIP
+        >>> create_project_config("Bad", "BAD", base_directory="../../../etc")  # doctest: +SKIP
 
     Security Changes:
         - Now validates base_directory to block path traversal
@@ -126,12 +124,10 @@ def save_project_config(config: Dict[str, Any], config_directory: str = "config"
         PathSecurityError: If config_directory fails security validation
 
     Example:
-        >>> config = create_project_config("My Project", "MP001")
-        >>> file_path = siege_utilities.save_project_config(config)
-        >>> print(f"Config saved to: {file_path}")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> save_project_config(config, "../../../etc")  # Path traversal blocked
+        >>> config = create_project_config("My Project", "MP001")  # doctest: +SKIP
+        >>> file_path = siege_utilities.save_project_config(config)  # doctest: +SKIP
+        >>> print(f"Config saved to: {file_path}")  # doctest: +SKIP
+        >>> save_project_config(config, "../../../etc")  # doctest: +SKIP
 
     Security Changes:
         - Now validates config_directory to block path traversal
@@ -180,8 +176,8 @@ def load_project_config(project_code: str, config_directory: str = "config") -> 
         PathSecurityError: If config_directory fails security validation.
 
     Example:
-        >>> config = siege_utilities.load_project_config("MP001")
-        >>> print(f"Loaded: {config['project_name']}")
+        >>> config = siege_utilities.load_project_config("MP001")  # doctest: +SKIP
+        >>> print(f"Loaded: {config['project_name']}")  # doctest: +SKIP
     """
     try:
         from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
@@ -215,8 +211,8 @@ def setup_project_directories(config: Dict[str, Any]) -> None:
         PathSecurityError: If any directory path fails security validation.
 
     Example:
-        >>> config = create_project_config("My Project", "MP001")
-        >>> siege_utilities.setup_project_directories(config)
+        >>> config = create_project_config("My Project", "MP001")  # doctest: +SKIP
+        >>> siege_utilities.setup_project_directories(config)  # doctest: +SKIP
     """
     try:
         from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
@@ -254,9 +250,9 @@ def get_project_path(config: Dict[str, Any], path_type: str) -> Optional[str]:
         Path string or None if not found
 
     Example:
-        >>> config = load_project_config("MP001")
-        >>> output_dir = siege_utilities.get_project_path(config, "output")
-        >>> print(f"Output directory: {output_dir}")
+        >>> config = load_project_config("MP001")  # doctest: +SKIP
+        >>> output_dir = siege_utilities.get_project_path(config, "output")  # doctest: +SKIP
+        >>> print(f"Output directory: {output_dir}")  # doctest: +SKIP
     """
 
     directories = config.get('directories', {})
@@ -286,12 +282,10 @@ def list_projects(config_directory: str = "config") -> list:
         PathSecurityError: If config_directory fails security validation
 
     Example:
-        >>> projects = siege_utilities.list_projects()
-        >>> for project in projects:
+        >>> projects = siege_utilities.list_projects()  # doctest: +SKIP
+        >>> for project in projects:  # doctest: +SKIP
         ...     print(f"{project['code']}: {project['name']}")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> list_projects("../../../etc")  # Path traversal blocked
+        >>> list_projects("../../../etc")  # doctest: +SKIP
 
     Security Changes:
         - Now validates config_directory to block path traversal
@@ -348,7 +342,7 @@ def update_project_config(project_code: str, updates: Dict[str, Any],
         OSError: If the config cannot be read or written.
 
     Example:
-        >>> siege_utilities.update_project_config(
+        >>> siege_utilities.update_project_config(  # doctest: +SKIP
         ...     "MP001",
         ...     {"description": "Updated description", "settings": {"log_level": "DEBUG"}}
         ... )

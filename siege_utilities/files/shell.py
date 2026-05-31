@@ -138,11 +138,8 @@ def run_subprocess(command_list: Union[str, List[str]],
         subprocess.TimeoutExpired: If command times out
 
     Example:
-        >>> # This works (safe command)
-        >>> output = run_subprocess("ls -la")
-        >>>
-        >>> # This fails (dangerous command)
-        >>> output = run_subprocess("rm -rf /")  # Raises SecurityError
+        >>> output = run_subprocess("ls -la")  # doctest: +SKIP
+        >>> output = run_subprocess("rm -rf /")  # doctest: +SKIP
 
     Security Changes:
         - Previously used shell=True with no validation (CRITICAL VULNERABILITY)
@@ -221,8 +218,7 @@ def _run_subprocess_unrestricted(command_list: Union[str, List[str]],
         subprocess.TimeoutExpired: If command times out
 
     Example:
-        >>> # This function allows dangerous commands (use with extreme caution)
-        >>> output = run_subprocess_unrestricted("custom_command --arg")
+        >>> output = _run_subprocess_unrestricted("custom_command --arg")  # doctest: +SKIP
 
     Security Warning:
         This function replicates the old vulnerable behavior for backward
