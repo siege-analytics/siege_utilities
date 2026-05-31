@@ -160,7 +160,8 @@ class CensusTIGERProvider(BoundaryProvider):
 
         try:
             vintages = self.list_available_vintages(timeout=timeout)
-        except requests.RequestException:
+        except requests.RequestException as exc:
+            logger.warning("Failed to fetch latest TIGER vintage: %s", exc)
             return None
         return max(vintages) if vintages else None
 

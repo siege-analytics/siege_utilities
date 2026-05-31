@@ -206,7 +206,8 @@ class TemporalTimeseriesBuilder:
             return None
         try:
             return (end_value / start_value) ** (1 / periods) - 1
-        except (ZeroDivisionError, ValueError):
+        except (ZeroDivisionError, ValueError) as exc:
+            log.warning("CAGR computation failed: %s", exc)
             return None
 
     @staticmethod

@@ -44,6 +44,10 @@ class NLRBRegion(TemporalBoundary):
         ]
 
     def save(self, *args, **kwargs):
+        """Persist the model, auto-populating feature_id and source.
+
+        *args/**kwargs: Forwarded to ``super().save()``.
+        """
         if self.region_number and not self.feature_id:
             self.feature_id = f"NLRB-{self.region_number:02d}"
             self.boundary_id = self.feature_id
@@ -98,6 +102,10 @@ class FederalJudicialDistrict(TemporalBoundary):
         ]
 
     def save(self, *args, **kwargs):
+        """Persist the model, auto-populating feature_id and source.
+
+        *args/**kwargs: Forwarded to ``super().save()``.
+        """
         if self.district_code and not self.feature_id:
             self.feature_id = self.district_code
             self.boundary_id = self.district_code

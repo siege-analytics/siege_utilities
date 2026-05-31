@@ -382,6 +382,8 @@ def temporary_logging_config(config: LoggingConfig) -> Generator[None, None, Non
         _logger_manager._shared_config = original_config
 
 __all__ = [
+    'LogLevel',
+    'LoggerName',
     'LoggerManager',
     'LoggingConfig',
     'configure_shared_logging',

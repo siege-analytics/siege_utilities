@@ -232,7 +232,8 @@ class TimeseriesService:
             return None
         try:
             return apps.get_model("siege_geo", model_name)
-        except LookupError:
+        except LookupError as exc:
+            log.warning("Could not resolve model: %s", exc)
             return None
 
     @staticmethod
@@ -250,7 +251,8 @@ class TimeseriesService:
             return None
         try:
             return (end_value / start_value) ** (1 / periods) - 1
-        except (ZeroDivisionError, ValueError):
+        except (ZeroDivisionError, ValueError) as exc:
+            log.warning("CAGR computation failed: %s", exc)
             return None
 
     @staticmethod

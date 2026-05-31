@@ -18,6 +18,16 @@ from typing import Any, Dict, List, Optional, Tuple
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "SpatialRuntimePlan",
+    "resolve_spatial_runtime_plan",
+    "GeometryPayload",
+    "encode_geometry",
+    "decode_geometry",
+    "payload_to_spark_row",
+    "spark_row_to_payload",
+]
+
 try:
     import shapely.geometry.base  # noqa: F401
     import shapely.wkt as _swkt
