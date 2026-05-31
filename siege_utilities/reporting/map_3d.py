@@ -169,6 +169,9 @@ class ThreeDMapRenderer:
             auto_highlight=auto_highlight,
             pickable=True,
         )
+        if value_col is not None:
+            hex_layer_kwargs["get_elevation_weight"] = value_col
+            hex_layer_kwargs["get_color_weight"] = value_col
         if color_range is not None:
             hex_layer_kwargs["color_range"] = color_range
 
