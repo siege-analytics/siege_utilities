@@ -325,15 +325,15 @@ def get_country_name(country_code):
     return COUNTRY_CODES.get(country_code.lower(), country_code)
 
 
-def get_country_code(country_name):
+def get_country_code(country_name) -> Optional[str]:
     """
     Get the country code from a country name.
-    
+
     Args:
         country_name: Full country name (e.g., 'United States', 'Canada')
-        
+
     Returns:
-        str: Two-letter country code or None if not found
+        Two-letter country code, or None if not found.
     """
     for code, name in COUNTRY_CODES.items():
         if name.lower() == country_name.lower():

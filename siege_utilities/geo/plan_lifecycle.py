@@ -245,7 +245,7 @@ def build_lineage(
 ) -> PlanLineage:
     """Build a supersession lineage from a list of related plans.
 
-    Plans are ordered by enacted_date, with supersession links verified.
+    Plans are ordered by enacted_date.
 
     Args:
         plans: Plans that form a lineage (same state + type).
@@ -253,7 +253,6 @@ def build_lineage(
     if not plans:
         return PlanLineage()
 
-    by_id = {p.plan_id: p for p in plans}
     sorted_plans = sorted(
         plans,
         key=lambda p: p.enacted_date or date.min,
