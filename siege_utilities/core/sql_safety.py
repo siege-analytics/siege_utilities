@@ -60,7 +60,7 @@ def validate_sql_identifier(
     Examples:
         >>> validate_sql_identifier("electronic_silver", "database")
         'electronic_silver'
-        >>> validate_sql_identifier("silver; DROP TABLE --", "database")
+        >>> validate_sql_identifier("silver; DROP TABLE --", "database")  # doctest: +ELLIPSIS
         Traceback (most recent call last):
             ...
         ValueError: Invalid SQL database: ...
@@ -158,7 +158,7 @@ def validate_sql_fragment(fragment: str, label: str = "SQL fragment") -> str:
     Examples:
         >>> validate_sql_fragment("state_fips = '06'")
         "state_fips = '06'"
-        >>> validate_sql_fragment("1=1; DROP TABLE users--")
+        >>> validate_sql_fragment("1=1; DROP TABLE users--")  # doctest: +ELLIPSIS
         Traceback (most recent call last):
             ...
         ValueError: Dangerous pattern in SQL fragment: ...
