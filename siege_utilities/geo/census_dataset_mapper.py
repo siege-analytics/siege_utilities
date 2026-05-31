@@ -19,6 +19,26 @@ from siege_utilities.config.census_registry import (  # noqa: F401
     DataReliability,
 )
 
+__all__ = [
+    'SurveyType',
+    'GeographyLevel',
+    'DataReliability',
+    'CensusDataset',
+    'DatasetRelationship',
+    'CensusDatasetMapper',
+    'get_census_dataset_mapper',
+    'get_best_dataset_for_analysis',
+    'get_dataset_info',
+    'list_datasets_by_type',
+    'list_datasets_by_geography',
+    'get_dataset_relationships',
+    'get_best_dataset_for_use_case',
+    'export_dataset_catalog',
+    'get_data_selection_guide',
+    'compare_datasets',
+    'compare_census_datasets',
+]
+
 @dataclass
 class CensusDataset:
     """Represents a Census dataset with metadata."""

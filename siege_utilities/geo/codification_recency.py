@@ -12,6 +12,15 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Optional
 
+__all__ = [
+    'TIGER_VINTAGES',
+    'AddressVintage',
+    'RecencyAnalysis',
+    'AddressVintageProvider',
+    'DictAddressVintageProvider',
+    'compute_recency',
+]
+
 log = logging.getLogger(__name__)
 
 TIGER_VINTAGES = [2010, 2012, 2014, 2016, 2018, 2020, 2022, 2024]

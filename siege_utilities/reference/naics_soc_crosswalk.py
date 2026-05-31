@@ -18,6 +18,29 @@ from dataclasses import dataclass
 from typing import Optional
 
 
+__all__ = [
+    'NAICSCode',
+    'NAICS_SECTORS',
+    'parse_naics',
+    'naics_ancestors',
+    'naics_to_sector',
+    'crosswalk_naics',
+    'SOCCode',
+    'SOC_MAJOR_GROUPS',
+    'parse_soc',
+    'soc_to_major_group',
+    'fuzzy_match_naics',
+    'NAICS_SUBSECTORS',
+    'SOC_MINOR_GROUPS',
+    'get_naics_lookup',
+    'get_soc_lookup',
+    'naics_title',
+    'soc_title',
+    'filter_by_naics',
+    'filter_by_naics_sector',
+    'group_by_naics_sector',
+]
+
 # ---------------------------------------------------------------------------
 # NAICS hierarchy
 # ---------------------------------------------------------------------------

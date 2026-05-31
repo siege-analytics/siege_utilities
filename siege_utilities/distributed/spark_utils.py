@@ -46,6 +46,40 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    'RESULTS_OUTPUT_FORMAT',
+    'RESULTS_OUTPUT_DELIMITER',
+    'DEBUG_SUBDIRECTORY',
+    'PYSPARK_AVAILABLE',
+    'sanitise_dataframe_column_names',
+    'tabulate_null_vs_not_null',
+    'get_row_count',
+    'repartition_and_cache',
+    'register_temp_table',
+    'move_column_to_front_of_dataframe',
+    'write_df_to_parquet',
+    'read_parquet_to_df',
+    'flatten_json_column_and_join_back_to_df',
+    'validate_geocode_data',
+    'mark_valid_geocode_data',
+    'clean_and_reorder_bbox',
+    'ensure_literal',
+    'reproject_geom_columns',
+    'prepare_dataframe_for_export',
+    'prepare_summary_dataframe',
+    'export_pyspark_df_to_excel',
+    'pivot_summary_table_for_bools',
+    'pivot_summary_with_metrics',
+    'export_prepared_df_as_csv_to_path_using_delimiter',
+    'print_debug_table',
+    'walkability_config',
+    'compute_walkability',
+    'validate_geometry',
+    'backup_full_dataframe',
+    'atomic_write_with_staging',
+    'create_unique_staging_directory',
+]
+
 RESULTS_OUTPUT_FORMAT = 'csv'
 RESULTS_OUTPUT_DELIMITER = ','
 DEBUG_SUBDIRECTORY = Path('debug_output')

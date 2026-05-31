@@ -12,6 +12,8 @@ from django.core.management.base import BaseCommand, CommandError
 
 from siege_utilities.geo.django.services import CrosswalkPopulationService
 
+__all__ = ['Command']
+
 
 class Command(BaseCommand):
     """Populate Census boundary crosswalk data."""

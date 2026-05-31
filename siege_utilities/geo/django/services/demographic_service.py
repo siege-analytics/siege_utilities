@@ -19,6 +19,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    'DemographicPopulationResult',
+    'DemographicPopulationService',
+]
+
 
 @dataclass
 class DemographicPopulationResult:

@@ -21,6 +21,11 @@ from .nlrb_clients import (
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'NLRBCache',
+    'NLRBLoader',
+]
+
 _DEFAULT_CACHE_DIR = Path.home() / ".siege_utilities" / "cache" / "nlrb"
 _DEFAULT_TTL_DAYS = 30
 

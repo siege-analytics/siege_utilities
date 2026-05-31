@@ -31,6 +31,15 @@ from siege_utilities.geo import (
 from siege_utilities.reporting.chart_types import get_chart_registry
 from siege_utilities.reporting.templates.page_templates import get_template_manager
 
+__all__ = [
+    'demo_user_configuration',
+    'demo_page_templates',
+    'demo_chart_types',
+    'demo_spatial_data_sources',
+    'demo_spatial_transformations',
+    'main',
+]
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 

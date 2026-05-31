@@ -34,6 +34,15 @@ from .relationship_types import (
 )
 from .crosswalk_client import get_crosswalk
 
+__all__ = [
+    'CrosswalkProcessor',
+    'apply_crosswalk',
+    'normalize_to_year',
+    'identify_boundary_changes',
+    'get_split_tracts',
+    'get_merged_tracts',
+]
+
 log = logging.getLogger(__name__)
 
 

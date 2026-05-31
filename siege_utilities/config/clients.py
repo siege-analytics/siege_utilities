@@ -13,6 +13,18 @@ from typing import Dict, Any, List
 from datetime import datetime
 import uuid
 
+__all__ = [
+    'create_client_profile',
+    'save_client_profile',
+    'load_client_profile',
+    'update_client_profile',
+    'list_client_profiles',
+    'search_client_profiles',
+    'associate_client_with_project',
+    'get_client_project_associations',
+    'validate_client_profile',
+]
+
 logger = logging.getLogger(__name__)
 
 # Client code becomes part of a filename — restrict to a safe

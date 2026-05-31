@@ -11,6 +11,12 @@ BoundaryCrosswalk is kept as a deprecated alias for backwards compatibility.
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
+__all__ = [
+    'TemporalCrosswalk',
+    'BoundaryCrosswalk',
+    'CrosswalkDataset',
+]
+
 
 class TemporalCrosswalk(models.Model):
     """

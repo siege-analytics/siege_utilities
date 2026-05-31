@@ -17,6 +17,11 @@ from django.utils import timezone
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'IsochroneComputeResult',
+    'IsochroneComputeService',
+]
+
 
 @dataclass
 class IsochroneComputeResult:

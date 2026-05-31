@@ -6,6 +6,13 @@ but don't carry their own geometry.
 
 from django.db import models
 
+__all__ = [
+    'NLRBCase',
+    'ElectionResult',
+    'ULPCharge',
+    'BargainingUnit',
+]
+
 
 class NLRBCase(models.Model):
     """An NLRB case (representation petition, ULP charge, etc.)."""

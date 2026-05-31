@@ -21,6 +21,10 @@ from .batch_geocoder import (
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'CensusBatchGeocoder',
+]
+
 _MATCH_TYPE_MAP = {
     "Exact": MatchQuality.EXACT.value,
     "Non_Exact": MatchQuality.INTERPOLATED.value,

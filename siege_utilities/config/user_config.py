@@ -15,6 +15,13 @@ from dataclasses import dataclass, asdict
 
 # Import enhanced config for validation
 
+__all__ = [
+    'UserProfile',
+    'UserConfigManager',
+    'get_user_config',
+    'get_download_directory',
+]
+
 log = logging.getLogger(__name__)
 
 

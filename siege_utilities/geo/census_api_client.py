@@ -52,6 +52,25 @@ from .census.variable_registry import VARIABLE_GROUPS, VARIABLE_DESCRIPTIONS  # 
 from .census.dataset_selector import DatasetSelector
 from .census.api import CensusAPI, CENSUS_API_CACHE_TIMEOUT
 
+__all__ = [
+    'CensusAPIError',
+    'CensusAPIKeyError',
+    'CensusRateLimitError',
+    'CensusVariableError',
+    'CensusGeographyError',
+    'CensusAPIClient',
+    'get_demographics',
+    'get_population',
+    'get_income_data',
+    'get_education_data',
+    'get_housing_data',
+    'get_census_api_client',
+    'get_census_data_with_geometry',
+    'join_demographics_to_shapes',
+    'VARIABLE_GROUPS',
+    'VARIABLE_DESCRIPTIONS',
+]
+
 log = logging.getLogger(__name__)
 
 

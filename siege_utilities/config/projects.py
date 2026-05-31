@@ -8,6 +8,16 @@ import pathlib
 import logging
 from typing import Dict, Any, Optional
 
+__all__ = [
+    'create_project_config',
+    'save_project_config',
+    'load_project_config',
+    'setup_project_directories',
+    'get_project_path',
+    'list_projects',
+    'update_project_config',
+]
+
 logger = logging.getLogger(__name__)
 
 # Import logging functions from core logging module

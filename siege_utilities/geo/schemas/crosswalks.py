@@ -5,6 +5,10 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
+__all__ = [
+    'TemporalCrosswalkSchema',
+]
+
 
 class TemporalCrosswalkSchema(BaseModel):
     source_boundary_id: str = Field(max_length=60)

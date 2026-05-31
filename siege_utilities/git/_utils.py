@@ -4,6 +4,10 @@ import subprocess
 
 from siege_utilities.exceptions import GitError
 
+__all__ = [
+    'run_git_command',
+]
+
 
 def run_git_command(*args, repo_path: str = ".", check: bool = True) -> str:
     """Run a git command and return stdout.

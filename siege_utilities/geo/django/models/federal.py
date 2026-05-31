@@ -9,6 +9,11 @@ from django.db import models
 
 from .base import TemporalBoundary
 
+__all__ = [
+    'NLRBRegion',
+    'FederalJudicialDistrict',
+]
+
 
 class NLRBRegion(TemporalBoundary):
     """

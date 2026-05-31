@@ -26,6 +26,11 @@ import urllib.request
 from pathlib import Path
 from typing import Optional
 
+__all__ = [
+    'SampleDatasetError',
+    'ensure_sample_dataset',
+]
+
 log = logging.getLogger(__name__)
 
 # 5 GiB default cap. Notebooks pull state-level shapefiles (~50-150 MiB

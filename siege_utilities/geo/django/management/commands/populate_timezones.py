@@ -9,6 +9,8 @@ Usage:
 
 from django.core.management.base import BaseCommand
 
+__all__ = ['Command']
+
 
 class Command(BaseCommand):
     """Populate timezone boundary data from timezone-boundary-builder GeoJSON."""

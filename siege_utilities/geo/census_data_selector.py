@@ -14,6 +14,17 @@ from .census_dataset_mapper import (
 
 from siege_utilities.core.logging import log_info
 
+__all__ = [
+    'CensusDataSelector',
+    'get_census_data_selector',
+    'select_census_datasets',
+    'select_datasets_for_analysis',
+    'get_dataset_compatibility_matrix',
+    'get_analysis_approach',
+    'suggest_analysis_approach',
+]
+
+
 class CensusDataSelector:
     """
     Intelligent selector for Census data based on analysis requirements.

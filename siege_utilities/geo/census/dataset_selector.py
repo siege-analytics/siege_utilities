@@ -6,6 +6,10 @@ Pure logic — no I/O, no network calls. Fully unit-testable without mocks.
 
 from typing import Optional
 
+__all__ = [
+    'DatasetSelector',
+]
+
 
 class DatasetSelector:
     """

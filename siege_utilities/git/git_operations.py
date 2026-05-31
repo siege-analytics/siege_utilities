@@ -21,6 +21,21 @@ from siege_utilities.git.validation import (
 )
 from ._utils import run_git_command
 
+__all__ = [
+    'create_feature_branch',
+    'switch_branch',
+    'merge_branch',
+    'rebase_branch',
+    'stash_changes',
+    'apply_stash',
+    'clean_working_directory',
+    'reset_to_commit',
+    'cherry_pick_commit',
+    'create_tag',
+    'push_branch',
+    'pull_branch',
+]
+
 def create_feature_branch(
     branch_name: str,
     base_branch: str = "main",

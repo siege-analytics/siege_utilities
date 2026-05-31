@@ -58,6 +58,33 @@ except ImportError:
 from siege_utilities.reporting.chart_generator import ChartGenerator
 from siege_utilities.reporting.report_generator import ReportGenerator
 
+__all__ = [
+    'KPICard',
+    'SparklineChart',
+    'create_heatmapped_table_style',
+    'generate_sample_ga_data',
+    'fetch_real_ga4_data',
+    'create_kpi_dashboard',
+    'create_traffic_trend_chart',
+    'create_traffic_sources_chart',
+    'create_device_breakdown_chart',
+    'create_top_pages_table',
+    'create_traffic_sources_table',
+    'create_geo_table',
+    'create_geo_country_chart',
+    'create_geo_region_chart',
+    'create_geo_city_scatter',
+    'create_continent_donut_chart',
+    'create_geo_summary_table',
+    'create_period_comparison_chart',
+    'create_footnote_paragraph',
+    'generate_insights',
+    'generate_recommendations',
+    'generate_ga_report_pdf',
+    'export_design_kit',
+    'main',
+]
+
 log = logging.getLogger(__name__)
 
 

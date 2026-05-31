@@ -29,6 +29,17 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional
 
+__all__ = [
+    'RelationshipType',
+    'WeightMethod',
+    'CrosswalkRelationship',
+    'CrosswalkMetadata',
+    'GeographyChange',
+    'SUPPORTED_CROSSWALK_YEARS',
+    'CROSSWALK_BASE_URL',
+    'CROSSWALK_FILE_PATTERNS',
+]
+
 
 class RelationshipType(Enum):
     """

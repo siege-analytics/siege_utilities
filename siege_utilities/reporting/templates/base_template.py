@@ -40,6 +40,10 @@ except ImportError:
     PIL_AVAILABLE = False
     PILImage = None
 
+__all__ = [
+    'BaseReportTemplate',
+]
+
 log = logging.getLogger(__name__)
 
 class BaseReportTemplate:

@@ -18,6 +18,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    'CrosswalkPopulationResult',
+    'CrosswalkPopulationService',
+]
+
 
 @dataclass
 class CrosswalkPopulationResult:

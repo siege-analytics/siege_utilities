@@ -57,6 +57,25 @@ if FAKER_AVAILABLE:
     faker_hi = Faker(['hi_IN'])  # Indian names
     faker_ar = Faker(['ar_SA'])  # Arabic names
 
+__all__ = [
+    'HOUSING_LOCALE_PRESETS',
+    'SAMPLE_DATASETS',
+    'CENSUS_SAMPLES',
+    'SYNTHETIC_SAMPLES',
+    'list_available_datasets',
+    'get_dataset_info',
+    'load_sample_data',
+    'get_census_boundaries',
+    'get_census_data',
+    'join_boundaries_and_data',
+    'create_sample_dataset',
+    'get_census_county_sample',
+    'get_metropolitan_sample',
+    'generate_synthetic_population',
+    'generate_synthetic_businesses',
+    'generate_synthetic_housing',
+]
+
 # ---------------------------------------------------------------------------
 # Housing locale presets — geographic parameters for generate_synthetic_housing
 # ---------------------------------------------------------------------------

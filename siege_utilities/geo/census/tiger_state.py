@@ -21,6 +21,11 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+__all__ = [
+    'get_last_fetched_vintage',
+    'set_last_fetched_vintage',
+    'check_for_updates',
+]
 
 logger = logging.getLogger(__name__)
 

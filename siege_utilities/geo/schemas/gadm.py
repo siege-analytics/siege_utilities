@@ -5,6 +5,16 @@ from pydantic import Field
 
 from .base import TemporalBoundarySchema
 
+__all__ = [
+    'GADMAdmin1Schema',
+    'GADMAdmin2Schema',
+    'GADMAdmin3Schema',
+    'GADMAdmin4Schema',
+    'GADMAdmin5Schema',
+    'GADMBoundarySchema',
+    'GADMCountrySchema',
+]
+
 
 class GADMBoundarySchema(TemporalBoundarySchema):
     gid: str = Field(max_length=50)

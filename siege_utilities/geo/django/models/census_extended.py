@@ -11,6 +11,14 @@ from django.db import models
 from .base import CensusTIGERBoundary
 from .boundaries import County, State
 
+__all__ = [
+    'CBSA',
+    'UrbanArea',
+    'PUMA',
+    'TribalArea',
+    'CountySubdivision',
+]
+
 
 class CBSA(CensusTIGERBoundary):
     """

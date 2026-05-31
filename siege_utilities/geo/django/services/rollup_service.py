@@ -13,6 +13,11 @@ from typing import Dict, List, Optional
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'RollupResult',
+    'DemographicRollupService',
+]
+
 
 @dataclass
 class RollupResult:

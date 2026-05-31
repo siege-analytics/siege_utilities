@@ -6,6 +6,15 @@ from pydantic import Field
 
 from .base import CensusTIGERSchema, TemporalBoundarySchema, TemporalGeographicFeatureSchema
 
+__all__ = [
+    'NCESLocaleBoundarySchema',
+    'SchoolDistrictBaseSchema',
+    'SchoolDistrictElementarySchema',
+    'SchoolDistrictSecondarySchema',
+    'SchoolDistrictUnifiedSchema',
+    'SchoolLocationSchema',
+]
+
 
 class SchoolDistrictBaseSchema(CensusTIGERSchema):
     lea_id: str = Field(max_length=7)
