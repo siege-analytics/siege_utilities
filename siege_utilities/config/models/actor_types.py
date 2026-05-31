@@ -687,9 +687,12 @@ class Organization(BaseModel):
 
     # YAML Serialization Methods
     def to_dict(self, exclude_sensitive: bool = False) -> dict:
-        """Convert to dictionary."""
+        """Convert to dictionary, optionally stripping sensitive fields."""
         data = self.model_dump()
-        return _convert_to_yaml_safe(data)
+        data = _convert_to_yaml_safe(data)
+        if exclude_sensitive:
+            data = _strip_sensitive_fields(data)
+        return data
 
     def to_yaml(self, path: Optional[Path] = None, exclude_sensitive: bool = False) -> str:
         """Serialize to YAML string, optionally writing to a file."""
@@ -849,9 +852,12 @@ class Collaboration(BaseModel):
 
     # YAML Serialization Methods
     def to_dict(self, exclude_sensitive: bool = False) -> dict:
-        """Convert to dictionary."""
+        """Convert to dictionary, optionally stripping sensitive fields."""
         data = self.model_dump()
-        return _convert_to_yaml_safe(data)
+        data = _convert_to_yaml_safe(data)
+        if exclude_sensitive:
+            data = _strip_sensitive_fields(data)
+        return data
 
     def to_yaml(self, path: Optional[Path] = None, exclude_sensitive: bool = False) -> str:
         """Serialize to YAML string, optionally writing to a file."""
