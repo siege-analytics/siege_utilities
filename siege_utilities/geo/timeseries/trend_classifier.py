@@ -346,7 +346,7 @@ def get_trend_summary(
     percentages = df[trend_column].value_counts(normalize=True) * 100
 
     summary = {
-        'total_geographies': len(df),
+        'total_geographies': int(df[geoid_column].nunique()) if geoid_column in df.columns else len(df),
         'categories': {},
     }
 
