@@ -164,13 +164,13 @@ def run_subprocess(command_list: Union[str, List[str]],
 
         try:
             stdout, stderr = p.communicate(timeout=timeout)
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as e:
             p.kill()
             stdout, stderr = p.communicate()
             raise subprocess.TimeoutExpired(
                 validated_command, timeout,
                 output=stdout, stderr=stderr
-            )
+            ) from e
 
         returncode = p.returncode
 
@@ -194,7 +194,7 @@ def run_subprocess(command_list: Union[str, List[str]],
     except (SecurityError, ValueError) as e:
         log_error(f"Security validation failed: {e}")
         raise
-    except Exception as e:
+    except OSError as e:
         log_error(f"Command execution failed: {e}")
         raise
 
@@ -234,8 +234,9 @@ def _run_subprocess_unrestricted(command_list: Union[str, List[str]],
         "This is dangerous and will be removed in future versions."
     )
 
+    cmd = shlex.join(command_list) if isinstance(command_list, list) else command_list
     p = subprocess.Popen(
-        command_list,
+        cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         shell=True  # DANGER: No validation

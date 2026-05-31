@@ -151,7 +151,8 @@ class ElectionResultsOverlay(PlaceHistoryOverlay):
         state_fips: Optional[str] = None,
     ) -> ElectionResultsOverlayResult:
         if self._provider is None:
-            return ElectionResultsOverlayResult(geoid=geoid)
+            log.warning("ElectionResultsOverlay: no provider configured")
+            raise RuntimeError("ElectionResultsOverlay requires a provider")
 
         returns = self._provider.get_election_returns(
             geoid, from_year, to_year, state_fips,

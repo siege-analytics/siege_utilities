@@ -4,7 +4,6 @@ Provides standardized hash functions that actually exist and work properly
 """
 import hashlib
 import pathlib
-from typing import Optional
 
 from siege_utilities.core.logging import log_info, log_error
 
@@ -57,9 +56,12 @@ def _update_from_file(hash_obj, fp) -> None:
         hash_obj.update(chunk)
 
 
-def generate_sha256_hash_for_file(file_path) ->Optional[str]:
-    """
-    Generate SHA256 hash for a file - chunked reading for large files
+def generate_sha256_hash_for_file(file_path) -> str:
+    """Generate SHA256 hash for a file - chunked reading for large files.
+
+    .. deprecated:: 3.19.0
+        Use :func:`calculate_file_hash` or :func:`get_file_hash` instead.
+        Will be removed in v4.0.0.
 
     SECURITY: This function validates paths to prevent path traversal attacks
     and access to sensitive system files.
@@ -68,37 +70,29 @@ def generate_sha256_hash_for_file(file_path) ->Optional[str]:
         file_path: Path to the file (str or Path object)
 
     Returns:
-        SHA256 hash as hexadecimal string, or None if error
+        SHA256 hash as hexadecimal string
 
     Raises:
+        FileNotFoundError: If file does not exist or is not a file
         PathSecurityError: If path fails security validation
+        OSError: If file cannot be read
 
     Example:
         >>> hash_val = generate_sha256_hash_for_file("data.txt")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> generate_sha256_hash_for_file("/etc/shadow")  # Sensitive file blocked
-
-    Security Changes:
-        - Now validates paths to block path traversal
-        - Blocks access to sensitive system files
     """
-    try:
-        path_obj = _validated_path(file_path, must_exist=True)
-        if not path_obj.exists() or not path_obj.is_file():
-            return None
-        sha256_hash = hashlib.sha256()
-        with open(path_obj, 'rb') as f:
-            _update_from_file(sha256_hash, f)
-        return sha256_hash.hexdigest()
-    except Exception as e:
-        log_error(f'Error generating SHA256 hash for {file_path}: {e}')
-        return None
+    import warnings
+    warnings.warn(
+        "generate_sha256_hash_for_file is deprecated and will be removed in v4.0.0. "
+        "Use calculate_file_hash or get_file_hash instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return get_file_hash(file_path, 'sha256')
 
 
-def get_file_hash(file_path, algorithm='sha256') ->Optional[str]:
+def get_file_hash(file_path, algorithm='sha256') -> str:
     """
-    Generate hash for a file using specified algorithm
+    Generate hash for a file using specified algorithm.
 
     SECURITY: This function validates paths to prevent path traversal attacks
     and access to sensitive system files.
@@ -108,44 +102,40 @@ def get_file_hash(file_path, algorithm='sha256') ->Optional[str]:
         algorithm: Hash algorithm to use ('sha256', 'md5', 'sha1', etc.)
 
     Returns:
-        Hash as hexadecimal string, or None if error
+        Hash as hexadecimal string
 
     Raises:
+        FileNotFoundError: If file does not exist or is not a file
         PathSecurityError: If path fails security validation
+        OSError: If file cannot be read
+        ValueError: If algorithm is not supported
 
     Example:
         >>> hash_val = get_file_hash("data.txt", "sha256")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> get_file_hash("../../../etc/passwd")  # Path traversal blocked
-
-    Security Changes:
-        - Now validates paths to block path traversal
-        - Blocks access to sensitive system files
     """
-    try:
-        path_obj = _validated_path(file_path, must_exist=True)
-        if not path_obj.exists() or not path_obj.is_file():
-            return None
-        if algorithm.lower() == 'sha256':
-            hash_func = hashlib.sha256()
-        elif algorithm.lower() == 'md5':
-            hash_func = hashlib.md5()
-        elif algorithm.lower() == 'sha1':
-            hash_func = hashlib.sha1()
-        else:
-            hash_func = hashlib.new(algorithm)
-        with open(path_obj, 'rb') as f:
-            _update_from_file(hash_func, f)
-        return hash_func.hexdigest()
-    except Exception as e:
-        log_error(f'Error generating {algorithm} hash for {file_path}: {e}')
-        return None
+    path_obj = _validated_path(file_path, must_exist=True)
+    if not path_obj.exists():
+        raise FileNotFoundError(f"File does not exist: {path_obj}")
+    if not path_obj.is_file():
+        raise FileNotFoundError(f"Path is not a file: {path_obj}")
+
+    if algorithm.lower() == 'sha256':
+        hash_func = hashlib.sha256()
+    elif algorithm.lower() == 'md5':
+        hash_func = hashlib.md5()
+    elif algorithm.lower() == 'sha1':
+        hash_func = hashlib.sha1()
+    else:
+        hash_func = hashlib.new(algorithm)
+
+    with open(path_obj, 'rb') as f:
+        _update_from_file(hash_func, f)
+    return hash_func.hexdigest()
 
 
-def calculate_file_hash(file_path) ->Optional[str]:
+def calculate_file_hash(file_path) -> str:
     """
-    Alias for get_file_hash with SHA256 - for backward compatibility
+    Alias for get_file_hash with SHA256 - for backward compatibility.
     """
     return get_file_hash(file_path, 'sha256')
 
@@ -162,10 +152,12 @@ def get_quick_file_signature(file_path) ->str:
         file_path: Path to the file
 
     Returns:
-        Quick signature string ('missing', 'error', or hash)
+        Quick signature string ('missing', fallback stat string, or hash)
 
     Raises:
         PathSecurityError: If path fails security validation
+        Exception: If both primary and fallback signature generation fail
+            (logged before re-raise)
 
     Example:
         >>> sig = get_quick_file_signature("data.txt")
@@ -184,7 +176,7 @@ def get_quick_file_signature(file_path) ->str:
             return 'missing'
         stat = path_obj.stat()
         if stat.st_size <= 1024 * 1024:
-            return get_file_hash(file_path) or f'stat_{stat.st_size}_{stat.st_mtime}'
+            return get_file_hash(file_path)
         # Past 1 MiB we always read both ends — the previous inner guard
         # `stat.st_size > 2 * _HASH_CHUNK_SIZE` was always true here
         # (2 * 64 KiB = 128 KiB < 1 MiB), so it was dead code.
@@ -200,19 +192,19 @@ def get_quick_file_signature(file_path) ->str:
         return hash_obj.hexdigest()
     except PathSecurityError:
         raise
-    except Exception as e:
+    except (OSError, ValueError) as e:
         log_error(f'Error generating quick signature for {file_path}: {e}')
         try:
             stat = pathlib.Path(file_path).stat()
             return f'fallback_{stat.st_size}_{stat.st_mtime}'
-        except Exception as fallback_exc:
+        except OSError as fallback_exc:
             log_error(f'Fallback signature also failed for {file_path}: {fallback_exc}')
-            return 'error'
+            raise
 
 
-def verify_file_integrity(file_path, expected_hash, algorithm='sha256') ->bool:
+def verify_file_integrity(file_path, expected_hash, algorithm='sha256') -> bool:
     """
-    Verify file integrity by comparing with expected hash
+    Verify file integrity by comparing with expected hash.
 
     SECURITY: This function validates paths to prevent path traversal attacks
     and access to sensitive system files (through get_file_hash).
@@ -223,30 +215,20 @@ def verify_file_integrity(file_path, expected_hash, algorithm='sha256') ->bool:
         algorithm: Hash algorithm used
 
     Returns:
-        True if file matches expected hash, False otherwise
+        True if file matches expected hash, False if hash does not match
 
     Raises:
+        FileNotFoundError: If file does not exist
         PathSecurityError: If path fails security validation
+        OSError: If file cannot be read
 
     Example:
         >>> expected = "abc123..."
         >>> if verify_file_integrity("data.txt", expected):
         ...     print("File integrity verified")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> verify_file_integrity("/etc/shadow", expected)  # Sensitive file blocked
-
-    Security Changes:
-        - Now validates paths via get_file_hash() to block path traversal
-        - Blocks access to sensitive system files
     """
-    try:
-        current_hash = get_file_hash(file_path, algorithm)
-        return current_hash is not None and current_hash.lower(
-            ) == expected_hash.lower()
-    except Exception as exc:
-        log_error(f"Failed to verify hash for {file_path}: {exc}")
-        return False
+    current_hash = get_file_hash(file_path, algorithm)
+    return current_hash.lower() == expected_hash.lower()
 
 
 def test_hash_functions():
@@ -265,9 +247,8 @@ def test_hash_functions():
         log_info(f'MD5: {md5_hash}')
         quick_sig = get_quick_file_signature(test_file)
         log_info(f'Quick signature: {quick_sig}')
-        if sha256_hash:
-            verification = verify_file_integrity(test_file, sha256_hash)
-            log_info(f'Verification: {verification}')
+        verification = verify_file_integrity(test_file, sha256_hash)
+        log_info(f'Verification: {verification}')
         log_info('All hash functions working!')
     finally:
         os.unlink(test_file)

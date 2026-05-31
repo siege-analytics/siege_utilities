@@ -116,3 +116,89 @@ class TestComputeDemographicSignature:
         }
         sig = compute_demographic_signature(counts, demos)
         assert sig.total_block_population == 3000
+
+
+# ── Error path tests ──
+
+
+class TestComputeDemographicSignatureErrorPaths:
+    """Error and edge-case paths for compute_demographic_signature."""
+
+    def test_empty_block_address_counts_returns_empty_signature(self):
+        sig = compute_demographic_signature({}, {"B1": _bd(block="B1")})
+        assert sig.weighted_blocks == 0
+        assert sig.pct_white == 0.0
+        assert sig.total_block_population == 0
+
+    def test_blocks_missing_from_demographics_dict(self):
+        """block_address_counts reference blocks not in demographics."""
+        counts = {"B1": 10, "B2": 5, "B3": 3}
+        demos = {"B1": _bd(block="B1", pop=1000, white=600)}
+        sig = compute_demographic_signature(counts, demos)
+        # Only B1 should be weighted; B2 and B3 are missing from demos
+        assert sig.weighted_blocks == 1
+        assert sig.pct_white == pytest.approx(0.6)
+
+    def test_zero_total_addresses_all_zero_pop(self):
+        """All blocks have zero population — total_addresses stays 0."""
+        counts = {"B1": 10, "B2": 5}
+        demos = {
+            "B1": _bd(block="B1", pop=0),
+            "B2": _bd(block="B2", pop=0),
+        }
+        sig = compute_demographic_signature(counts, demos)
+        assert sig.weighted_blocks == 0
+        assert sig.pct_white == 0.0
+
+    def test_zero_housing_total_skips_housing_pcts(self):
+        """Blocks with housing_total=0 should not contribute housing pcts."""
+        counts = {"B1": 10}
+        demos = {"B1": _bd(block="B1", pop=1000, housing_total=0,
+                           housing_occupied=0, housing_vacant=0)}
+        sig = compute_demographic_signature(counts, demos)
+        assert sig.weighted_blocks == 1
+        assert sig.pct_housing_occupied == 0.0
+        assert sig.pct_housing_vacant == 0.0
+
+
+class TestDictBlockDemographicsProviderMissing:
+    """DictBlockDemographicsProvider for nonexistent blocks."""
+
+    def test_get_demographics_missing_returns_empty(self):
+        provider = DictBlockDemographicsProvider()
+        result = provider.get_demographics(["NONEXISTENT_BLOCK"])
+        assert result == {}
+
+    def test_get_demographics_empty_input_returns_empty(self):
+        provider = DictBlockDemographicsProvider()
+        provider.add(_bd(block="B1"))
+        result = provider.get_demographics([])
+        assert result == {}
+
+
+class TestBlockDemographicsNegativeValues:
+    """BlockDemographics does not validate — negative values are stored as-is."""
+
+    def test_negative_population_accepted(self):
+        d = BlockDemographics(
+            block_geoid="B1",
+            total_population=-100,
+            white=-50,
+            black=-30,
+        )
+        assert d.total_population == -100
+        assert d.white == -50
+
+    def test_negative_percentages_flow_through_signature(self):
+        """Negative demographics produce negative percentages (no validation)."""
+        counts = {"B1": 10}
+        demos = {"B1": BlockDemographics(
+            block_geoid="B1",
+            total_population=100,
+            white=-50,
+            black=0, hispanic=0, asian=0, other_race=0,
+            voting_age_population=50,
+            housing_total=100, housing_occupied=50, housing_vacant=50,
+        )}
+        sig = compute_demographic_signature(counts, demos)
+        assert sig.pct_white == pytest.approx(-0.5)

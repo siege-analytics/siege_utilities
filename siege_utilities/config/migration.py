@@ -56,9 +56,9 @@ class ConfigurationMigrator:
             return self._create_default_user_profile()
         
         try:
-            with open(legacy_file, 'r') as f:
+            with open(legacy_file, 'r', encoding='utf-8') as f:
                 legacy_data = yaml.safe_load(f)
-            
+
             logger.info(f"Loading legacy user profile from: {legacy_file}")
             
             # Map legacy fields to new UserProfile fields
@@ -70,7 +70,7 @@ class ConfigurationMigrator:
             logger.info("Successfully migrated user profile")
             return profile
             
-        except Exception as e:
+        except (OSError, yaml.YAMLError, ValueError) as e:
             logger.error(f"Failed to migrate user profile: {e}")
             return self._create_default_user_profile()
     
@@ -90,7 +90,7 @@ class ConfigurationMigrator:
             return self._create_default_client_profile(client_code)
         
         try:
-            with open(legacy_file, 'r') as f:
+            with open(legacy_file, 'r', encoding='utf-8') as f:
                 legacy_data = yaml.safe_load(f) if legacy_file.suffix in ['.yaml', '.yml'] else json.load(f)
             
             logger.info(f"Loading legacy client profile from: {legacy_file}")
@@ -104,7 +104,7 @@ class ConfigurationMigrator:
             logger.info(f"Successfully migrated client profile for: {client_code}")
             return profile
             
-        except Exception as e:
+        except (OSError, yaml.YAMLError, json.JSONDecodeError, ValueError) as e:
             logger.error(f"Failed to migrate client profile for {client_code}: {e}")
             return self._create_default_client_profile(client_code)
     
@@ -147,7 +147,7 @@ class ConfigurationMigrator:
                             self.migrate_client_profile(client_file, client_code)
                             results["client_profiles"]["migrated"].append(client_code)
                             logger.info(f"Client profile migrated: {client_code}")
-                        except Exception as e:
+                        except (OSError, yaml.YAMLError, json.JSONDecodeError, ValueError) as e:
                             results["client_profiles"]["errors"].append(f"{client_code}: {e}")
                             logger.error(f"Failed to migrate client {client_code}: {e}")
                     else:
@@ -162,7 +162,7 @@ class ConfigurationMigrator:
             
             return results
             
-        except Exception as e:
+        except (OSError, yaml.YAMLError, json.JSONDecodeError, ValueError) as e:
             logger.error(f"Migration failed: {e}")
             results["error"] = str(e)
             return results

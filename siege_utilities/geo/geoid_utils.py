@@ -106,6 +106,9 @@ class GEOIDValidator:
             and self.geography_level == other.geography_level
         )
 
+    def __hash__(self):
+        return hash(self.geography_level)
+
     def __repr__(self):
         return f"GEOIDValidator('{self.geography_level}')"
 
@@ -162,11 +165,11 @@ def normalize_geoid(
     # Zero-pad to expected length
     normalized = geoid_str.zfill(expected_length)
 
-    # Validate result
     if len(normalized) != expected_length:
-        log.warning(
+        raise ValueError(
             f"GEOID '{geoid}' is longer than expected for {geography_level} "
-            f"(expected {expected_length}, got {len(normalized)})"
+            f"(expected {expected_length} digits, got {len(geoid_str)}). "
+            f"Check that the geography_level is correct."
         )
 
     return normalized
@@ -392,13 +395,21 @@ def extract_parent_geoid(
     """
     Extract a parent GEOID from a child GEOID.
 
+    Supports extracting state, county, or tract as the parent level.
+    Other parent levels raise ValueError.
+
     Args:
         geoid: Child GEOID
         child_geography: Geography level of the input GEOID
-        parent_geography: Geography level to extract
+        parent_geography: Target parent level (``"state"``, ``"county"``,
+            or ``"tract"``)
 
     Returns:
         Parent GEOID
+
+    Raises:
+        ValueError: If *parent_geography* is not one of the supported
+            parent levels (state, county, tract).
 
     Example:
         >>> extract_parent_geoid("06037101100", "tract", "county")
@@ -741,43 +752,42 @@ def slug_to_geoid(slug: str) -> str:
 
     geography_lower = _SLUG_LABEL_TO_LEVEL[level_label]
 
-    if geography_lower == 'county':
-        # "ca-county-037"
-        county = parts[level_idx + 1]
-        return state_fips + county
-    elif geography_lower == 'tract':
-        # "ca-037-tract-101100"
-        county = parts[level_idx - 1]
-        tract = parts[level_idx + 1]
-        return state_fips + county + tract
-    elif geography_lower == 'block_group':
-        # "ca-037-101100-bg-1"
-        county = parts[1]
-        tract = parts[2]
-        bg = parts[level_idx + 1]
-        return state_fips + county + tract + bg
-    elif geography_lower == 'block':
-        # "ca-037-101100-block-1001"
-        county = parts[1]
-        tract = parts[2]
-        block = parts[level_idx + 1]
-        return state_fips + county + tract + block
-    elif geography_lower == 'place':
-        # "ca-place-44000"
-        place = parts[level_idx + 1]
-        return state_fips + place
-    elif geography_lower in ('cd', 'sldu', 'sldl'):
-        # "ca-cd-14"
-        district = parts[level_idx + 1]
-        return state_fips + district
-    elif geography_lower == 'vtd':
-        # "ca-037-vtd-001"
-        county = parts[level_idx - 1]
-        vtd = parts[level_idx + 1]
-        return state_fips + county + vtd
-    else:
-        remainder = "".join(parts[level_idx + 1:])
-        return state_fips + remainder
+    try:
+        if geography_lower == 'county':
+            county = parts[level_idx + 1]
+            return state_fips + county
+        elif geography_lower == 'tract':
+            county = parts[level_idx - 1]
+            tract = parts[level_idx + 1]
+            return state_fips + county + tract
+        elif geography_lower == 'block_group':
+            county = parts[1]
+            tract = parts[2]
+            bg = parts[level_idx + 1]
+            return state_fips + county + tract + bg
+        elif geography_lower == 'block':
+            county = parts[1]
+            tract = parts[2]
+            block = parts[level_idx + 1]
+            return state_fips + county + tract + block
+        elif geography_lower == 'place':
+            place = parts[level_idx + 1]
+            return state_fips + place
+        elif geography_lower in ('cd', 'sldu', 'sldl'):
+            district = parts[level_idx + 1]
+            return state_fips + district
+        elif geography_lower == 'vtd':
+            county = parts[level_idx - 1]
+            vtd = parts[level_idx + 1]
+            return state_fips + county + vtd
+        else:
+            remainder = "".join(parts[level_idx + 1:])
+            return state_fips + remainder
+    except IndexError:
+        raise ValueError(
+            f"Malformed slug '{slug}': not enough components for "
+            f"{geography_lower}-level GEOID"
+        ) from None
 
 
 def find_geoid_column(df: pd.DataFrame) -> Optional[str]:

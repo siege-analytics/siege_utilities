@@ -63,7 +63,7 @@ if _django_available:
     try:
         import django.contrib.gis.db.models  # noqa: F401
         _gis_available = True
-    except Exception:
+    except (ImportError, RuntimeError):
         # ImportError: django.contrib.gis not installed
         # ImproperlyConfigured: GDAL C library not found on system
         _gis_available = False

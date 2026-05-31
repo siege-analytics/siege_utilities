@@ -71,7 +71,7 @@ def analyze_package_structure(package_name: str = "siege_utilities") -> Dict[str
 
     except ImportError as e:
         return {"error": f"Could not import package {package_name}: {e}"}
-    except Exception as e:
+    except (AttributeError, TypeError, ValueError) as e:
         return {"error": f"Error analyzing package: {e}"}
 
 def analyze_module(module, module_name: str) -> Dict[str, Any]:
@@ -116,7 +116,7 @@ def analyze_module(module, module_name: str) -> Dict[str, Any]:
                         submodule_info = analyze_module(item, item_name)
                         module_info["submodules"][item_name] = submodule_info
 
-    except Exception as e:
+    except (AttributeError, TypeError, ValueError, ImportError) as e:
         module_info["error"] = f"Error analyzing module {module_name}: {e}"
 
     return module_info
@@ -143,7 +143,7 @@ def analyze_function(func, func_name: str) -> Dict[str, Any]:
             "module": func.__module__,
             "filename": inspect.getfile(func) if hasattr(func, '__file__') else 'Unknown'
         }
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError, OSError) as e:
         return {
             "name": func_name,
             "error": f"Error analyzing function: {e}"
@@ -178,7 +178,7 @@ def analyze_class(cls, class_name: str) -> Dict[str, Any]:
             "module": cls.__module__,
             "filename": inspect.getfile(cls) if hasattr(cls, '__file__') else 'Unknown'
         }
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError, OSError) as e:
         return {
             "name": class_name,
             "error": f"Error analyzing class: {e}"
@@ -222,7 +222,7 @@ def generate_architecture_diagram(output_format: str = "text",
             with open(output_file, 'w', encoding='utf-8') as f:
                 f.write(diagram)
             log_info(f"Architecture diagram saved to: {output_file}")
-        except Exception as e:
+        except OSError as e:
             log_warning(f"Could not save to {output_file}: {e}")
 
     return diagram
@@ -412,7 +412,7 @@ def generate_requirements_txt(setup_py_path: str = "setup.py", output_path: str 
             return False
 
         # Read and parse setup.py
-        with open(setup_path, 'r') as f:
+        with open(setup_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
         # Parse AST to extract dependencies
@@ -428,14 +428,14 @@ def generate_requirements_txt(setup_py_path: str = "setup.py", output_path: str 
                                 dependencies.append(elt.value)
 
         # Write requirements.txt
-        with open(output_path, 'w') as f:
+        with open(output_path, 'w', encoding='utf-8') as f:
             for dep in dependencies:
                 f.write(f"{dep}\n")
 
         log_info(f"Generated {output_path} with {len(dependencies)} dependencies")
         return True
 
-    except Exception as e:
+    except (OSError, SyntaxError, ValueError, AttributeError) as e:
         log_error(f"Error generating requirements.txt: {e}")
         return False
 
@@ -488,7 +488,7 @@ def generate_pyproject_toml(setup_py_path: str = "setup.py", output_path: str = 
             return False
 
         # Read and parse setup.py
-        with open(setup_path, 'r') as f:
+        with open(setup_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
         # Parse AST to extract package info
@@ -557,13 +557,13 @@ dependencies = [
         toml_content += '\n[tool.setuptools.packages.find]\nwhere = ["."]\ninclude = ["*"]\n'
 
         # Write pyproject.toml
-        with open(output_path, 'w') as f:
+        with open(output_path, 'w', encoding='utf-8') as f:
             f.write(toml_content)
 
         log_info(f"Generated {output_path} from {setup_py_path}")
         return True
 
-    except Exception as e:
+    except (OSError, SyntaxError, ValueError, AttributeError) as e:
         log_error(f"Error generating pyproject.toml: {e}")
         return False
 
@@ -616,7 +616,7 @@ def generate_poetry_toml(setup_py_path: str = "setup.py", output_path: str = "py
             return False
 
         # Read and parse setup.py
-        with open(setup_path, 'r') as f:
+        with open(setup_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
         # Parse AST to extract package info
@@ -677,13 +677,13 @@ python = "{package_info.get('python_requires', '>=3.8')}"
         toml_content += '\n[build-system]\nrequires = ["poetry-core"]\nbuild-backend = "poetry.core.masonry.api"\n'
 
         # Write pyproject.toml
-        with open(output_path, 'w') as f:
+        with open(output_path, 'w', encoding='utf-8') as f:
             f.write(toml_content)
 
         log_info(f"Generated Poetry-compatible {output_path} from {setup_py_path}")
         return True
 
-    except Exception as e:
+    except (OSError, SyntaxError, ValueError, AttributeError) as e:
         log_error(f"Error generating Poetry pyproject.toml: {e}")
         return False
 

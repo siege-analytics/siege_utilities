@@ -61,7 +61,7 @@ def create_directory_structure(base_path: str, structure: Dict[str, Any]) -> Dic
             base_path_obj = validate_directory_path(base_path, must_exist=False)
         except ImportError:
             base_path_obj = pathlib.Path(base_path)
-    except Exception as e:
+    except (OSError, ValueError, FileNotFoundError) as e:
         log_error(f"Failed to validate base path: {e}")
         raise
 
@@ -214,7 +214,7 @@ def save_directory_config(paths: Dict[str, str], config_name: str,
         'created_date': str(pathlib.Path().stat().st_mtime)
     }
 
-    with open(config_file, 'w') as f:
+    with open(config_file, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=2)
 
     log_info(f"Saved directory config to: {config_file}")
@@ -263,13 +263,13 @@ def load_directory_config(config_name: str, config_directory: str = "config") ->
         return None
 
     try:
-        with open(config_file, 'r') as f:
+        with open(config_file, 'r', encoding='utf-8') as f:
             config = json.load(f)
 
         log_info(f"Loaded directory config: {config_name}")
         return config
 
-    except Exception as e:
+    except (OSError, json.JSONDecodeError) as e:
         log_error(f"Error loading directory config {config_file}: {e}")
         return None
 
@@ -321,7 +321,7 @@ def ensure_directories_exist(paths: Dict[str, str]) -> bool:
         log_info(f"Verified/created {len(paths)} directories")
         return True
 
-    except Exception as e:
+    except OSError as e:
         log_error(f"Error ensuring directories exist: {e}")
         return False
 
@@ -385,7 +385,7 @@ def get_directory_info(directory_path: str) -> Dict[str, Any]:
         log_info(f"Directory info for {directory_path}: {file_count} files, {total_size_mb} MB")
         return info
 
-    except Exception as e:
+    except OSError as e:
         log_error(f"Error getting directory info for {directory_path}: {e}")
         return {'path': str(dir_path), 'exists': False, 'error': str(e)}
 
@@ -466,9 +466,9 @@ def clean_empty_directories(base_path: str, keep_gitkeep: bool = True) -> int:
         log_info(f"Cleaned {removed_count} empty directories from {base_path}")
         return removed_count
 
-    except Exception as e:
+    except OSError as e:
         log_error(f"Error cleaning directories: {e}")
-        return 0
+        raise
 
 
 def list_directory_configs(config_directory: str = "config") -> List[Dict[str, Any]]:
@@ -513,7 +513,7 @@ def list_directory_configs(config_directory: str = "config") -> List[Dict[str, A
 
     for config_file in config_dir.glob("directories_*.json"):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 config = json.load(f)
 
             configs.append({
@@ -523,7 +523,7 @@ def list_directory_configs(config_directory: str = "config") -> List[Dict[str, A
                 'paths': list(config.get('paths', {}).keys())
             })
 
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, KeyError) as e:
             log_error(f"Error reading directory config {config_file}: {e}")
 
     log_info(f"Found {len(configs)} directory configurations")

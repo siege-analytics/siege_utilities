@@ -60,7 +60,12 @@ def set_default_crs(crs: str) -> None:
     Args:
         crs: Any CRS string accepted by ``pyproj`` (e.g. ``"EPSG:4326"``,
             ``"EPSG:3857"``, ``"ESRI:102003"``).
+
+    Raises:
+        pyproj.exceptions.CRSError: If *crs* is not recognized by pyproj.
     """
+    from pyproj import CRS as _CRS
+    _CRS.from_user_input(crs)
     global _DEFAULT_CRS  # noqa: PLW0603
     _DEFAULT_CRS = crs
 
@@ -70,14 +75,29 @@ def reproject_if_needed(gdf, crs: str | None = None):
 
     If *crs* is ``None``, uses :func:`get_default_crs`.
     Returns the GeoDataFrame unchanged if it is already in *crs* or is empty.
+
+    When the GeoDataFrame has no CRS (``gdf.crs is None``) and a target is
+    specified, the target CRS is **set** (not reprojected) on the assumption
+    that the data is already in the target CRS. A warning is logged because
+    this assumption may be wrong.
     """
     if gdf is None:
         return None
     target = crs or get_default_crs()
     if not target or len(gdf) == 0:
         return gdf
-    if gdf.crs and str(gdf.crs).upper() != target.upper():
-        return gdf.to_crs(target)
+    if gdf.crs is None:
+        log.warning(
+            "GeoDataFrame has no CRS; setting to %s without reprojection. "
+            "If the data is in a different CRS, results will be incorrect.",
+            target,
+        )
+        gdf = gdf.set_crs(target)
+        return gdf
+    from pyproj import CRS as _CRS
+    target_crs = _CRS.from_user_input(target)
+    if gdf.crs != target_crs:
+        return gdf.to_crs(target_crs)
     return gdf
 
 
@@ -147,7 +167,7 @@ def _normalize_crs(value: Any) -> str:
 
     try:
         crs = CRS.from_user_input(value)
-    except Exception as exc:
+    except (ValueError, TypeError, RuntimeError) as exc:
         log.debug("Could not parse CRS from %r, falling back to str(): %s", value, exc)
         return str(value)
     epsg = crs.to_epsg()
@@ -159,7 +179,7 @@ def _normalize_crs(value: Any) -> str:
 def reproject_geom(
     geom,
     src_crs: Any,
-    dst_epsg: int = 4326,
+    dst_crs: Any = 4326,
     axis_order: str = AXIS_ORDER_TRAD_GIS,
 ):
     """Reproject a shapely geometry with explicit axis-order control.
@@ -170,7 +190,8 @@ def reproject_geom(
         src_crs: The geometry's source CRS, in any form
             :class:`pyproj.CRS.from_user_input` accepts (``"EPSG:4326"``,
             an integer EPSG code, a WKT string, a ``pyproj.CRS`` object).
-        dst_epsg: Target EPSG code. Defaults to ``4326``.
+        dst_crs: Target CRS, in any form :class:`pyproj.CRS.from_user_input`
+            accepts. Defaults to ``4326`` (WGS 84).
         axis_order: One of:
 
             * ``"trad_gis"`` (default) — ``pyproj`` ``always_xy=True``.
@@ -226,7 +247,7 @@ def reproject_geom(
         ) from exc
 
     src = CRS.from_user_input(src_crs)
-    dst = CRS.from_epsg(dst_epsg)
+    dst = CRS.from_user_input(dst_crs)
 
     # No-op if source equals target.
     if src == dst:

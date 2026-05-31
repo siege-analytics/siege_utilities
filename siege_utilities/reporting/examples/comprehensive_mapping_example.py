@@ -21,14 +21,10 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from datetime import datetime, timedelta
-import geopandas as gpd
-from shapely.geometry import Point
-
 # Import siege_utilities components
 from siege_utilities.reporting.chart_generator import ChartGenerator
 from siege_utilities.reporting.report_generator import ReportGenerator
 from siege_utilities.reporting.powerpoint_generator import PowerPointGenerator
-from siege_utilities.reporting.client_branding import ClientBrandingManager
 
 def create_sample_geographic_data():
     """Create sample geographic data for demonstration."""
@@ -354,14 +350,10 @@ def create_comprehensive_pdf_report(maps_dict):
     
     # Generate PDF report
     output_path = "comprehensive_geographic_report.pdf"
-    success = report_gen.generate_pdf_report(report_content, output_path)
-    
-    if success:
-        print(f"✅ PDF report generated successfully: {output_path}")
-    else:
-        print("❌ Error generating PDF report")
-    
-    return success
+    report_gen.generate_pdf_report(report_content, output_path)
+    print(f"PDF report generated successfully: {output_path}")
+
+    return output_path
 
 def create_comprehensive_powerpoint(maps_dict):
     """Create a comprehensive PowerPoint presentation."""
@@ -473,8 +465,8 @@ def create_comprehensive_powerpoint(maps_dict):
     except Exception as exc:
         print(f"Error generating PowerPoint presentation: {exc}")
         raise
-    
-    return success
+
+    return saved_to
 
 def main():
     """Main demonstration function."""
@@ -518,7 +510,7 @@ def main():
         print("   4. Apply client branding and customization")
         print("   5. Deploy in production reporting workflows")
         
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
         print(f"\n❌ Error during demonstration: {e}")
         import traceback
         traceback.print_exc()

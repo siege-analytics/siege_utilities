@@ -217,7 +217,7 @@ class BaseChartEngine:
         return self._create_placeholder_chart(width, height, f"{label} — saved to {map_path}")
 
     def save_figure_as_vector(self, fig, output_path: Union[str, Path],
-                              fmt: str = 'svg') -> Optional[Path]:
+                              fmt: str = 'svg') -> Path:
         """Save a matplotlib figure as a vector file (SVG, EPS, or PDF).
 
         Args:
@@ -226,23 +226,24 @@ class BaseChartEngine:
             fmt: Vector format — ``'svg'``, ``'eps'``, or ``'pdf'``.
 
         Returns:
-            Path to the saved file, or ``None`` on error.
+            Path to the saved file.
+
+        Raises:
+            ValueError: If *fmt* is not a supported vector format.
+            OSError: If the file cannot be written.
         """
         allowed = {'svg', 'eps', 'pdf'}
         if fmt not in allowed:
-            log.error(f"Unsupported vector format '{fmt}'; expected one of {allowed}")
-            return None
+            raise ValueError(
+                f"Unsupported vector format {fmt!r}; expected one of {sorted(allowed)}"
+            )
 
-        try:
-            out = Path(output_path).with_suffix(f'.{fmt}')
-            out.parent.mkdir(parents=True, exist_ok=True)
-            fig.savefig(str(out), format=fmt, bbox_inches='tight',
-                        facecolor='white', edgecolor='none', pad_inches=0.1)
-            log.info(f"Saved vector chart: {out}")
-            return out
-        except Exception as e:
-            log.error(f"Error saving vector chart to {output_path}: {e}")
-            return None
+        out = Path(output_path).with_suffix(f'.{fmt}')
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(str(out), format=fmt, bbox_inches='tight',
+                    facecolor='white', edgecolor='none', pad_inches=0.1)
+        log.info(f"Saved vector chart: {out}")
+        return out
 
     def _matplotlib_to_reportlab_image(self, fig, width: float, height: float,
                                        max_width: Optional[float] = None,
@@ -314,9 +315,10 @@ class BaseChartEngine:
 
             return rl_image
 
-        except Exception as e:
-            log.error(f"Error converting matplotlib figure to ReportLab Image: {e}")
-            return self._create_placeholder_chart(width, height, "Image Conversion Error")
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
+            raise RuntimeError(
+                f"Image Conversion Error: {e}"
+            ) from e
 
     def _create_placeholder_chart(self, width: float, height: float,
                                 text: str = "Chart Placeholder") -> Image:
@@ -348,7 +350,7 @@ class BaseChartEngine:
                 sw, sh = self._scale_dimensions(width, height)
                 return Image("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
                            width=sw*inch, height=sh*inch)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, OSError) as e:
             log.error(f"Error creating placeholder chart: {e}")
             # Return a minimal image — still honour auto-scaling
             sw, sh = self._scale_dimensions(width, height)
@@ -442,13 +444,14 @@ class BaseChartEngine:
                 if y_columns and len(y_columns) >= 2:
                     return self.create_bivariate_choropleth(df, x_column, y_columns[0], y_columns[1], title, width, height)
                 else:
-                    return self._create_placeholder_chart(width, height, "Bivariate choropleth requires at least 2 value columns")
+                    raise ValueError("Bivariate choropleth requires at least 2 value columns")
             else:
                 return self.create_bar_chart(df, x_column, y_columns[0] if y_columns else None, title, width, height)
 
-        except Exception as e:
-            log.error(f"Error generating chart from DataFrame: {e}")
-            return self._create_placeholder_chart(width, height, "DataFrame Chart Error")
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+            raise RuntimeError(
+                f"DataFrame Chart Error: {e}"
+            ) from e
 
     def create_custom_chart(self, chart_config: Dict[str, Any],
                            width: float = 6.0, height: float = 4.0) -> Image:
@@ -496,10 +499,11 @@ class BaseChartEngine:
                         height=height
                     )
                 else:
-                    return self._create_placeholder_chart(width, height, "Bivariate choropleth requires location_column and value_columns configuration")
+                    raise ValueError("Bivariate choropleth requires location_column and value_columns configuration")
             else:
                 return self.create_bar_chart(chart_config['data'], title=chart_config.get('title', ''), width=width, height=height)
 
-        except Exception as e:
-            log.error(f"Error creating custom chart: {e}")
-            return self._create_placeholder_chart(width, height, "Custom Chart Error")
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+            raise RuntimeError(
+                f"Custom Chart Error: {e}"
+            ) from e

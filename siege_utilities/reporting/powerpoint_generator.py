@@ -526,7 +526,7 @@ class PowerPointGenerator:
             # Process each section
             for section in presentation_content.get('sections', []):
                 slide = self._create_slide_from_section(section, prs)
-                if slide and section.get('notes'):
+                if section.get('notes'):
                     notes_slide = slide.notes_slide
                     notes_slide.notes_text_frame.text = section['notes']
 
@@ -986,7 +986,7 @@ class PowerPointGenerator:
                 paragraph.font.size = Pt(24)
                 paragraph.alignment = PP_ALIGN.CENTER
                 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
             log.warning(f"Could not apply formatting to title slide: {e}")
 
     def _format_content_slide(self, slide):
@@ -1002,7 +1002,7 @@ class PowerPointGenerator:
             for paragraph in content_shape.text_frame.paragraphs:
                 paragraph.font.size = Pt(18)
                 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
             log.warning(f"Could not apply formatting to content slide: {e}")
 
     def create_presentation_from_dataframe(self, df: pd.DataFrame,
@@ -1192,9 +1192,10 @@ class PowerPointGenerator:
                 # Default to text slide
                 return self._create_text_slide(section, prs)
                 
-        except Exception as e:
-            log.error(f"Error creating slide for section {section_type}: {e}")
-            return None
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+            raise RuntimeError(
+                f"Failed to create slide for section {section_type!r}: {e}"
+            ) from e
 
     def _create_title_slide(self, section: Dict[str, Any], prs: Presentation) -> Any:
         """Create a title slide."""

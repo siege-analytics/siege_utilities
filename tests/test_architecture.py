@@ -464,9 +464,8 @@ class TestAnalyzePackageStructure:
     @patch("siege_utilities.development.architecture.importlib.import_module")
     def test_generic_exception(self, mock_import):
         mock_import.side_effect = RuntimeError("kaboom")
-        result = analyze_package_structure("boom_pkg")
-        assert "error" in result
-        assert "kaboom" in result["error"]
+        with pytest.raises(RuntimeError, match="kaboom"):
+            analyze_package_structure("boom_pkg")
 
     @patch("siege_utilities.development.architecture.importlib.import_module")
     def test_synthetic_package(self, mock_import):

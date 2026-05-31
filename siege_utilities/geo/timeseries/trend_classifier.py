@@ -402,6 +402,10 @@ def identify_outliers(
     elif method == 'zscore':
         mean = values.mean()
         std = values.std()
+        if std == 0 or pd.isna(std):
+            df['is_outlier'] = False
+            df['outlier_type'] = 'normal'
+            return df
         zscores = (values - mean) / std
 
         df['is_outlier'] = abs(zscores) > threshold

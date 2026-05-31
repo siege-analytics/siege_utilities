@@ -24,6 +24,7 @@ Usage:
 import csv
 import io
 import logging
+import os
 import tempfile
 from dataclasses import dataclass
 from enum import Enum
@@ -61,25 +62,30 @@ class CensusGeocodeError(RuntimeError):
 class CensusVintage(str, Enum):
     """Census geocoder benchmark/vintage pairs.
 
-    Each value is the benchmark string accepted by the Census Geocoder API.
-    The vintage determines which geographic boundaries are used for matching.
+    Each member's value encodes ``<benchmark>|<vintage>`` where both halves
+    are the exact strings the Census Geocoder API expects.  Use the
+    ``.benchmark`` and ``.vintage`` properties to extract them.
+
+    The benchmark names follow the ``Public_AR_<label>`` pattern used by
+    ``https://geocoding.geo.census.gov/geocoder/benchmarks``.  The vintage
+    names follow the ``<label>_<benchmark-label>`` pattern returned by
+    ``https://geocoding.geo.census.gov/geocoder/vintages?benchmark=…``.
     """
-    CENSUS_2010 = "Census2010_Census2010"
-    CENSUS_2020 = "Census2020_Census2020"
-    CURRENT = "Public_Current"
-    ACS_2022 = "Public_ACS2022"
-    ACS_2023 = "Public_ACS2023"
+    CENSUS_2010 = "Public_AR_Census2020|Census2010_Census2020"
+    CENSUS_2020 = "Public_AR_Census2020|Census2020_Census2020"
+    CURRENT = "Public_AR_Current|Current_Current"
+    ACS_2022 = "Public_AR_Current|ACS2022_Current"
+    ACS_2023 = "Public_AR_Current|ACS2023_Current"
 
     @property
     def benchmark(self) -> str:
-        """Extract the benchmark portion (before underscore)."""
-        return self.value.split("_")[0]
+        """The benchmark string accepted by the Census Geocoder API."""
+        return self.value.split("|")[0]
 
     @property
     def vintage(self) -> str:
-        """Extract the vintage portion (after underscore)."""
-        parts = self.value.split("_", 1)
-        return parts[1] if len(parts) > 1 else parts[0]
+        """The vintage string accepted by the Census Geocoder API."""
+        return self.value.split("|")[1]
 
 
 # Year boundaries for vintage selection
@@ -101,11 +107,11 @@ def select_vintage_for_cycle(year: int) -> CensusVintage:
 
     Examples:
         >>> select_vintage_for_cycle(2024)
-        <CensusVintage.CURRENT: 'Public_Current'>
+        <CensusVintage.CURRENT: 'Public_AR_Current|Current_Current'>
         >>> select_vintage_for_cycle(2016)
-        <CensusVintage.CENSUS_2020: 'Census2020_Census2020'>
+        <CensusVintage.CENSUS_2020: 'Public_AR_Census2020|Census2020_Census2020'>
         >>> select_vintage_for_cycle(2008)
-        <CensusVintage.CENSUS_2010: 'Census2010_Census2010'>
+        <CensusVintage.CENSUS_2010: 'Public_AR_Census2020|Census2010_Census2020'>
     """
     for threshold, vintage in _VINTAGE_THRESHOLDS:
         if year >= threshold:
@@ -183,11 +189,11 @@ def _get_geocoder(vintage: CensusVintage = CensusVintage.CURRENT):
     """Get a censusgeocode.CensusGeocode instance with the specified vintage."""
     try:
         import censusgeocode
-    except ImportError:
+    except ImportError as e:
         raise ImportError(
             "censusgeocode is required for Census geocoding. "
             "Install it with: pip install 'siege-utilities[geo]' or pip install censusgeocode"
-        )
+        ) from e
     return censusgeocode.CensusGeocode(
         benchmark=vintage.benchmark,
         vintage=vintage.vintage,
@@ -202,7 +208,7 @@ def _parse_single_result(result: dict) -> CensusGeocodeResult:
     matched_address = result.get("matchedAddress", "")
     coords = result.get("coordinates", {})
     geographies = result.get("geographies", {})
-    tiger = result.get("addressComponents", {})
+    tiger = result.get("tigerLine", {})
 
     # Census Blocks is the most detailed geography; extract FIPS from there
     blocks = geographies.get("Census Blocks", geographies.get("2020 Census Blocks", []))
@@ -253,13 +259,15 @@ def geocode_single(
     input_addr = f"{street}, {city}, {state} {zipcode}"
 
     try:
+        # censusgeocode v0.5+ returns an AddressResult (list-like) of
+        # match dicts, not a nested {"result": {"addressMatches": [...]}}
+        # structure.
         result = cg.onelineaddress(input_addr, returntype="geographies")
-        matches = result.get("result", {}).get("addressMatches", [])
-        if not matches:
+        if not result or len(result) == 0:
             log_info(f"No match for: {input_addr}")
             return CensusGeocodeResult(input_address=input_addr)
 
-        parsed = _parse_single_result(matches[0])
+        parsed = _parse_single_result(result[0])
         parsed.input_address = input_addr
         log_debug(f"Matched: {input_addr} -> {parsed.matched_address}")
         return parsed
@@ -323,28 +331,36 @@ def geocode_batch(
         raise CensusGeocodeError(
             f"Census batch geocode failed for {len(addresses)} addresses: {e}"
         ) from e
+    finally:
+        os.unlink(csv_path)
 
-    # Parse batch results
+    # Parse batch results.
+    #
+    # censusgeocode v0.5+ returns dicts with these keys (after its own
+    # internal parsing):
+    #   id, address, match (bool), matchtype, parsed (matched address),
+    #   tigerlineid, side, statefp, countyfp, tract, block, lat (float),
+    #   lon (float)
     results_by_id = {}
     if isinstance(result, list):
         for row in result:
             row_id = str(row.get("id", ""))
-            matched = row.get("is_match", "").strip().lower() == "match"
+            matched = bool(row.get("match", False))
             if matched:
                 parsed = CensusGeocodeResult(
                     matched=True,
                     input_id=row_id,
                     input_address=row.get("address", ""),
-                    matched_address=row.get("match_address", ""),
+                    matched_address=row.get("parsed", ""),
                     lat=_safe_float(row.get("lat")),
                     lon=_safe_float(row.get("lon")),
-                    state_fips=row.get("statefp", ""),
-                    county_fips=row.get("countyfp", ""),
-                    tract=row.get("tract", ""),
-                    block=row.get("block", ""),
-                    match_type=row.get("match_type", ""),
-                    tiger_line_id=row.get("tigerlineid", ""),
-                    side=row.get("side", ""),
+                    state_fips=row.get("statefp", "") or "",
+                    county_fips=row.get("countyfp", "") or "",
+                    tract=row.get("tract", "") or "",
+                    block=row.get("block", "") or "",
+                    match_type=row.get("matchtype", "") or "",
+                    tiger_line_id=row.get("tigerlineid", "") or "",
+                    side=row.get("side", "") or "",
                 )
             else:
                 parsed = CensusGeocodeResult(
@@ -409,3 +425,94 @@ def _safe_float(val) -> Optional[float]:
         return float(val)
     except (ValueError, TypeError):
         return None
+
+
+def geocode_results_to_dataframe(
+    results: list[CensusGeocodeResult],
+) -> "pd.DataFrame":
+    """Convert a list of CensusGeocodeResult to a pandas DataFrame.
+
+    Extracts all dataclass fields and computed GEOID properties into a
+    flat DataFrame with standard column names. This eliminates the
+    per-field list-comprehension boilerplate that every caller of
+    :func:`geocode_batch` otherwise has to write.
+
+    Args:
+        results: List of :class:`CensusGeocodeResult` objects, typically
+            returned by :func:`geocode_batch` or :func:`geocode_batch_chunked`.
+
+    Returns:
+        DataFrame with columns: ``input_id``, ``input_address``, ``matched``,
+        ``match_type``, ``matched_address``, ``latitude``, ``longitude``,
+        ``state_geoid``, ``county_geoid``, ``tract_geoid``, ``block_geoid``,
+        ``block_group_geoid``, ``state_fips``, ``county_fips``, ``tract``,
+        ``block``, ``side``, ``tiger_line_id``.
+        For unmatched rows, latitude/longitude are ``None`` and GEOID
+        columns are empty strings.
+
+    Raises:
+        TypeError: If *results* is not a list.
+
+    Example::
+
+        results = geocode_batch(addresses)
+        df = geocode_results_to_dataframe(results)
+        # df now has tract_geoid, block_geoid, lat/lon, etc.
+    """
+    import pandas as pd
+
+    if not isinstance(results, list):
+        raise TypeError(
+            f"results must be a list of CensusGeocodeResult, got {type(results).__name__}"
+        )
+
+    _COLUMNS = [
+        "input_id",
+        "input_address",
+        "matched",
+        "match_type",
+        "matched_address",
+        "latitude",
+        "longitude",
+        "state_geoid",
+        "county_geoid",
+        "tract_geoid",
+        "block_geoid",
+        "block_group_geoid",
+        "state_fips",
+        "county_fips",
+        "tract",
+        "block",
+        "side",
+        "tiger_line_id",
+    ]
+
+    if not results:
+        return pd.DataFrame(columns=_COLUMNS)
+
+    rows = []
+    for r in results:
+        rows.append(
+            {
+                "input_id": r.input_id,
+                "input_address": r.input_address,
+                "matched": r.matched,
+                "match_type": r.match_type,
+                "matched_address": r.matched_address,
+                "latitude": r.lat,
+                "longitude": r.lon,
+                "state_geoid": r.state_geoid,
+                "county_geoid": r.county_geoid,
+                "tract_geoid": r.tract_geoid,
+                "block_geoid": r.block_geoid,
+                "block_group_geoid": r.block_group_geoid,
+                "state_fips": r.state_fips,
+                "county_fips": r.county_fips,
+                "tract": r.tract,
+                "block": r.block,
+                "side": r.side,
+                "tiger_line_id": r.tiger_line_id,
+            }
+        )
+
+    return pd.DataFrame(rows, columns=_COLUMNS)

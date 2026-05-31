@@ -16,7 +16,13 @@ from ._utils import run_git_command
 log = logging.getLogger(__name__)
 
 def analyze_branch_status(repo_path: str = ".") -> Dict[str, str]:
-    """Analyze the current branch status."""
+    """Analyze the current branch status.
+
+    Raises
+    ------
+    GitError
+        If the ahead/behind comparison against main fails.
+    """
     repo_path = Path(repo_path).resolve()
 
     if not (repo_path / ".git").exists():
@@ -31,7 +37,7 @@ def analyze_branch_status(repo_path: str = ".") -> Dict[str, str]:
             behind, ahead = status_output.split()
         else:
             behind, ahead = "0", "0"
-    except Exception as exc:
+    except (GitError, RuntimeError) as exc:
         log.warning("Could not determine ahead/behind vs main for %s: %s", repo_path, exc)
         behind, ahead = "0", "0"
 
@@ -107,9 +113,15 @@ def categorize_commits(commits: List[Dict[str, str]]) -> Dict[str, List[Dict[str
     return categories
 
 def get_file_changes(repo_path: str = ".") -> Dict[str, List[str]]:
-    """Get files that differ from main branch."""
+    """Get files that differ from main branch.
+
+    Raises
+    ------
+    GitError
+        If the diff comparison against main fails.
+    """
+    # Get list of changed files
     try:
-        # Get list of changed files
         changed_files = run_git_command("diff", "--name-status", "main...HEAD", repo_path=repo_path)
 
         added = []
@@ -131,7 +143,7 @@ def get_file_changes(repo_path: str = ".") -> Dict[str, List[str]]:
             "modified": modified,
             "deleted": deleted
         }
-    except Exception as exc:
+    except (GitError, RuntimeError, ValueError) as exc:
         log.warning("Could not determine file changes vs main: %s", exc)
         return {"added": [], "modified": [], "deleted": []}
 

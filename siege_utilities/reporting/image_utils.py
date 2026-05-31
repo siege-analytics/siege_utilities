@@ -24,7 +24,8 @@ def decode_rl_image(rl_img) -> Optional[bytes]:
     """
     if (hasattr(rl_img, 'filename')
             and isinstance(rl_img.filename, str)
-            and rl_img.filename.startswith('data:image')):
+            and rl_img.filename.startswith('data:image')
+            and ',' in rl_img.filename):
         b64_data = rl_img.filename.split(',', 1)[1]
         return base64.b64decode(b64_data)
     return None

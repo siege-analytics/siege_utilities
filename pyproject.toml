@@ -40,6 +40,7 @@ data = [
     "openpyxl>=3.1.0",
     "pyarrow>=14.0.0",
     "faker>=35.2.2",
+    "scipy>=1.11.0",
 ]
 # Geospatial (geopandas, shapely, pyproj, etc.)
 geo = [
@@ -59,6 +60,8 @@ geo = [
     # Required by PostGISConnector.upload_spatial_data for full-column
     # writes via gpd.GeoDataFrame.to_postgis (closes #516).
     "geoalchemy2>=0.14.0",
+    # Required by geo/spatial_data.py (BeautifulSoup HTML/XML parsing).
+    "beautifulsoup4>=4.12.0",
 ]
 # H3 hexagonal spatial index (lightweight spatial joins)
 h3 = [
@@ -89,6 +92,10 @@ reporting = [
     "pypdf2>=3.0.1",
     "pillow>=10.0.0",
     "fonttools>=4.40.0",
+    "python-pptx>=1.0.0",
+    "geopandas>=0.13.2",
+    "pandas>=2.0.0",
+    "scipy>=1.11.0",
 ]
 # Analytics connectors (GA, Facebook, Snowflake, data.world)
 analytics = [
@@ -98,8 +105,7 @@ analytics = [
     "google-api-python-client>=2.181.0",
     "google-analytics-data>=0.18.19",
     "google-analytics-admin>=0.25.0",
-    "scipy>=1.11.0",
-    "scikit-learn>=1.3.0",
+    "pandas>=2.0.0",
     "facebook-business>=20.0.0",
     "datadotworld>=1.7.0",
     "snowflake-connector-python>=3.0.0",
@@ -182,6 +188,7 @@ notebooks = [
 # Databricks SDK integration
 databricks = [
     "databricks-sdk>=0.20.0",
+    "pyspark>=3.3.0",
 ]
 # Development and testing
 dev = [
@@ -200,6 +207,7 @@ dev = [
     "nbformat>=5.7.0",
     "black>=21.0.0",
     "flake8>=3.8.0",
+    "bandit>=1.7.0",
     "astor>=0.8.1",
     "django>=4.2.0",
     "djangorestframework>=3.14.0",
@@ -209,6 +217,8 @@ dev = [
 # Survey/polling report engine (RIM weighting)
 survey = [
     "weightipy>=0.4.0",
+    "pandas>=2.0.0",
+    "scipy>=1.11.0",
 ]
 # Everything — convenience meta-extra for full installs
 all = [
@@ -251,6 +261,7 @@ all = [
     "pypdf2>=3.0.1",
     "pillow>=10.0.0",
     "fonttools>=4.40.0",
+    "python-pptx>=1.0.0",
     # analytics
     "google-auth>=2.40.3",
     "google-auth-oauthlib>=1.2.2",
@@ -258,8 +269,6 @@ all = [
     "google-api-python-client>=2.181.0",
     "google-analytics-data>=0.18.19",
     "google-analytics-admin>=0.25.0",
-    "scipy>=1.11.0",
-    "scikit-learn>=1.3.0",
     "facebook-business>=20.0.0",
     "datadotworld>=1.7.0",
     "snowflake-connector-python>=3.0.0",
@@ -325,6 +334,17 @@ markers = [
     "databricks: tests requiring Databricks runtime or SDK",
     "requires_api_key: connector smoke tests that hit a live external API; require ~/.siege-test-credentials.yaml. Skipped by default; opt in with `pytest -m requires_api_key`.",
 ]
+
+[tool.bandit]
+exclude_dirs = ["tests", "scripts/archive"]
+skips = [
+    "B101",  # assert used — acceptable in tests and invariant checks
+    "B404",  # import subprocess — used by CI scripts and shell utilities
+    "B603",  # subprocess without shell=True — already the safe pattern
+]
+
+[tool.bandit.assert_used]
+skips = ["*_test.py", "test_*.py"]
 
 [tool.coverage.report]
 fail_under = 20

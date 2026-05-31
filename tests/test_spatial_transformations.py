@@ -15,6 +15,8 @@ import geopandas as gpd
 import pytest
 from shapely.geometry import Point, Polygon
 
+from siege_utilities.geo.spatial_transformations import SpatialQueryError
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -86,66 +88,61 @@ class TestSpatialDataTransformerInit:
 
 class TestConvertFormat:
 
-    def test_unsupported_format_returns_false(self, transformer, sample_gdf):
-        assert transformer.convert_format(sample_gdf, "xyz123") is False
+    def test_unsupported_format_raises(self, transformer, sample_gdf):
+        with pytest.raises(ValueError, match="Unsupported output format"):
+            transformer.convert_format(sample_gdf, "xyz123")
 
     def test_routes_to_shapefile(self, transformer, sample_gdf):
-        with patch.object(transformer, "_convert_to_shapefile", return_value=True) as mock:
-            result = transformer.convert_format(sample_gdf, "shp", output_path="/tmp/t.shp")
-            assert result is True
+        with patch.object(transformer, "_convert_to_shapefile") as mock:
+            transformer.convert_format(sample_gdf, "shp", output_path="/tmp/t.shp")
             mock.assert_called_once()
 
     def test_routes_to_geojson(self, transformer, sample_gdf):
-        with patch.object(transformer, "_convert_to_geojson", return_value=True) as mock:
-            result = transformer.convert_format(sample_gdf, "geojson")
-            assert result is True
+        with patch.object(transformer, "_convert_to_geojson") as mock:
+            transformer.convert_format(sample_gdf, "geojson")
             mock.assert_called_once()
 
     def test_routes_to_gpkg(self, transformer, sample_gdf):
-        with patch.object(transformer, "_convert_to_geopackage", return_value=True) as mock:
-            result = transformer.convert_format(sample_gdf, "gpkg")
-            assert result is True
+        with patch.object(transformer, "_convert_to_geopackage") as mock:
+            transformer.convert_format(sample_gdf, "gpkg")
             mock.assert_called_once()
 
     def test_routes_to_kml(self, transformer, sample_gdf):
-        with patch.object(transformer, "_convert_to_kml", return_value=True) as mock:
-            result = transformer.convert_format(sample_gdf, "kml")
-            assert result is True
+        with patch.object(transformer, "_convert_to_kml") as mock:
+            transformer.convert_format(sample_gdf, "kml")
             mock.assert_called_once()
 
     def test_routes_to_gml(self, transformer, sample_gdf):
-        with patch.object(transformer, "_convert_to_gml", return_value=True) as mock:
-            result = transformer.convert_format(sample_gdf, "gml")
-            assert result is True
+        with patch.object(transformer, "_convert_to_gml") as mock:
+            transformer.convert_format(sample_gdf, "gml")
             mock.assert_called_once()
 
     def test_routes_to_wkt(self, transformer, sample_gdf):
-        with patch.object(transformer, "_convert_to_wkt", return_value=True) as mock:
-            result = transformer.convert_format(sample_gdf, "wkt")
-            assert result is True
+        with patch.object(transformer, "_convert_to_wkt") as mock:
+            transformer.convert_format(sample_gdf, "wkt")
             mock.assert_called_once()
 
     def test_routes_to_wkb(self, transformer, sample_gdf):
-        with patch.object(transformer, "_convert_to_wkb", return_value=True) as mock:
-            result = transformer.convert_format(sample_gdf, "wkb")
-            assert result is True
+        with patch.object(transformer, "_convert_to_wkb") as mock:
+            transformer.convert_format(sample_gdf, "wkb")
             mock.assert_called_once()
 
     def test_routes_to_postgis(self, transformer, sample_gdf):
-        with patch.object(transformer, "_convert_to_postgis", return_value=True) as mock:
-            result = transformer.convert_format(sample_gdf, "postgis")
-            assert result is True
+        with patch.object(transformer, "_convert_to_postgis") as mock:
+            transformer.convert_format(sample_gdf, "postgis")
             mock.assert_called_once()
 
-    def test_duckdb_unavailable_returns_false(self, transformer, sample_gdf):
+    def test_duckdb_unavailable_raises(self, transformer, sample_gdf):
         with patch("siege_utilities.geo.spatial_transformations.DUCKDB_AVAILABLE", False):
-            assert transformer.convert_format(sample_gdf, "duckdb") is False
+            with pytest.raises(ImportError):
+                transformer.convert_format(sample_gdf, "duckdb")
 
-    def test_exception_in_converter_returns_false(self, transformer, sample_gdf):
+    def test_exception_in_converter_propagates(self, transformer, sample_gdf):
         with patch.object(
             transformer, "_convert_to_shapefile", side_effect=RuntimeError("boom")
         ):
-            assert transformer.convert_format(sample_gdf, "shp") is False
+            with pytest.raises(RuntimeError, match="boom"):
+                transformer.convert_format(sample_gdf, "shp")
 
 
 # ---------------------------------------------------------------------------
@@ -156,8 +153,7 @@ class TestShapefileConversion:
 
     def test_convert_to_shapefile(self, transformer, sample_gdf, tmp_path):
         out = str(tmp_path / "out.shp")
-        result = transformer._convert_to_shapefile(sample_gdf, output_path=out)
-        assert result is True
+        transformer._convert_to_shapefile(sample_gdf, output_path=out)
         assert Path(out).exists()
 
     def test_convert_to_shapefile_roundtrip(self, transformer, sample_gdf, tmp_path):
@@ -171,8 +167,7 @@ class TestGeoJSONConversion:
 
     def test_convert_to_geojson(self, transformer, sample_gdf, tmp_path):
         out = str(tmp_path / "out.geojson")
-        result = transformer._convert_to_geojson(sample_gdf, output_path=out)
-        assert result is True
+        transformer._convert_to_geojson(sample_gdf, output_path=out)
         assert Path(out).exists()
 
     def test_geojson_roundtrip(self, transformer, sample_gdf, tmp_path):
@@ -187,8 +182,7 @@ class TestGeoPackageConversion:
 
     def test_convert_to_geopackage(self, transformer, sample_gdf, tmp_path):
         out = str(tmp_path / "out.gpkg")
-        result = transformer._convert_to_geopackage(sample_gdf, output_path=out)
-        assert result is True
+        transformer._convert_to_geopackage(sample_gdf, output_path=out)
         assert Path(out).exists()
 
     def test_geopackage_roundtrip(self, transformer, sample_gdf, tmp_path):
@@ -202,8 +196,7 @@ class TestWKTConversion:
 
     def test_convert_to_wkt(self, transformer, sample_gdf, tmp_path):
         out = str(tmp_path / "out.wkt")
-        result = transformer._convert_to_wkt(sample_gdf, output_path=out)
-        assert result is True
+        transformer._convert_to_wkt(sample_gdf, output_path=out)
         assert Path(out).exists()
 
     def test_wkt_csv_content(self, transformer, sample_gdf, tmp_path):
@@ -221,8 +214,7 @@ class TestWKBConversion:
 
     def test_convert_to_wkb(self, transformer, sample_gdf, tmp_path):
         out = str(tmp_path / "out.wkb")
-        result = transformer._convert_to_wkb(sample_gdf, output_path=out)
-        assert result is True
+        transformer._convert_to_wkb(sample_gdf, output_path=out)
         assert Path(out).exists()
 
     def test_wkb_pickle_roundtrip(self, transformer, sample_gdf, tmp_path):
@@ -240,8 +232,7 @@ class TestPostGISConversion:
 
     def test_convert_to_postgis_sql(self, transformer, sample_gdf, tmp_path):
         out = str(tmp_path / "out.sql")
-        result = transformer._convert_to_postgis(sample_gdf, output_path=out)
-        assert result is True
+        transformer._convert_to_postgis(sample_gdf, output_path=out)
         assert Path(out).exists()
 
     def test_postgis_sql_content(self, transformer, sample_gdf, tmp_path):
@@ -258,21 +249,20 @@ class TestPostGISConversion:
 
 class TestKMLConversion:
 
-    def test_convert_to_kml_failure_returns_false(self, transformer, sample_gdf, tmp_path):
-        """KML driver may not be available in all GDAL builds; test graceful failure."""
+    def test_convert_to_kml_may_raise_if_driver_missing(self, transformer, sample_gdf, tmp_path):
+        """KML driver may not be available in all GDAL builds."""
         out = str(tmp_path / "out.kml")
-        # Regardless of outcome (True if KML driver exists, False if not), no exception
-        result = transformer._convert_to_kml(sample_gdf, output_path=out)
-        assert isinstance(result, bool)
+        try:
+            transformer._convert_to_kml(sample_gdf, output_path=out)
+        except (OSError, RuntimeError):
+            pass  # driver not available — expected
 
 
 class TestGMLConversion:
 
     def test_convert_to_gml(self, transformer, sample_gdf, tmp_path):
         out = str(tmp_path / "out.gml")
-        result = transformer._convert_to_gml(sample_gdf, output_path=out)
-        # GML driver should be universally available
-        assert result is True
+        transformer._convert_to_gml(sample_gdf, output_path=out)
         assert Path(out).exists()
 
 
@@ -306,13 +296,11 @@ class TestPostGISConnector:
                 connector.connection = mock_conn
                 return connector
 
-    def test_upload_no_connection_string_returns_false(self, sample_gdf):
-        # Post-#516: upload_spatial_data requires self.connection_string
-        # (used to build the SQLAlchemy engine for to_postgis), not the
-        # raw psycopg2 connection.
+    def test_upload_no_connection_string_raises(self, sample_gdf):
         connector = self._make_connector()
         connector.connection_string = None
-        assert connector.upload_spatial_data(sample_gdf, "test_table") is False
+        with pytest.raises(RuntimeError, match="No PostGIS connection_string"):
+            connector.upload_spatial_data(sample_gdf, "test_table")
 
     def _mock_geoalchemy2_available(self):
         """Patch sys.modules so the upload's `import geoalchemy2` succeeds
@@ -322,9 +310,7 @@ class TestPostGISConnector:
     def test_upload_calls_to_postgis_with_all_columns(self, sample_gdf):
         """Post-#516 regression: upload_spatial_data must delegate to
         gpd.GeoDataFrame.to_postgis, which writes ALL columns from the
-        input GeoDataFrame -- not just geom. Pre-#516 the implementation
-        manually built an INSERT for just geom and silently dropped every
-        attribute column."""
+        input GeoDataFrame -- not just geom."""
         connector = self._make_connector()
         with self._mock_geoalchemy2_available(), \
              patch("sqlalchemy.create_engine") as mock_engine_factory, \
@@ -332,26 +318,20 @@ class TestPostGISConnector:
             mock_engine = MagicMock()
             mock_engine_factory.return_value = mock_engine
 
-            result = connector.upload_spatial_data(sample_gdf, "test_table")
+            connector.upload_spatial_data(sample_gdf, "test_table")
 
-            assert result is True
-            # to_postgis must be called exactly once with the engine + schema + if_exists.
             mock_to_postgis.assert_called_once()
             kwargs = mock_to_postgis.call_args.kwargs
             assert kwargs["name"] == "test_table"
             assert kwargs["con"] is mock_engine
             assert kwargs["schema"] == "public"
             assert kwargs["if_exists"] == "replace"
-            # Engine must be disposed even on success.
             mock_engine.dispose.assert_called_once()
 
-    def test_upload_geoalchemy2_missing_returns_false(self, sample_gdf):
-        """If geoalchemy2 is not installed, upload returns False with a
-        clear log error rather than failing inside to_postgis."""
+    def test_upload_geoalchemy2_missing_raises(self, sample_gdf):
+        """If geoalchemy2 is not installed, upload raises ImportError."""
         connector = self._make_connector()
         with patch.dict("sys.modules", {"geoalchemy2": None}):
-            # Force the import attempt to fail by removing it from sys.modules
-            # and patching the import. Simpler: use builtins.__import__.
             import builtins
             real_import = builtins.__import__
 
@@ -361,18 +341,20 @@ class TestPostGISConnector:
                 return real_import(name, *args, **kw)
 
             with patch("builtins.__import__", side_effect=fake_import):
-                result = connector.upload_spatial_data(sample_gdf, "test_table")
-        assert result is False
+                with pytest.raises(ImportError, match="geoalchemy2"):
+                    connector.upload_spatial_data(sample_gdf, "test_table")
 
-    def test_download_no_connection_returns_none(self):
+    def test_download_no_connection_raises(self):
         connector = self._make_connector()
         connector.connection = None
-        assert connector.download_spatial_data("test_table") is None
+        with pytest.raises(SpatialQueryError, match="No PostGIS connection"):
+            connector.download_spatial_data("test_table")
 
-    def test_execute_spatial_query_no_connection_returns_none(self):
+    def test_execute_spatial_query_no_connection_raises(self):
         connector = self._make_connector()
         connector.connection = None
-        assert connector.execute_spatial_query("SELECT 1") is None
+        with pytest.raises(SpatialQueryError, match="No PostGIS connection"):
+            connector.execute_spatial_query("SELECT 1")
 
     def test_create_spatial_table_single_geom_type(self, sample_gdf):
         mock_conn = MagicMock()
@@ -484,8 +466,8 @@ class TestPostGISConnector:
                           side_effect=RuntimeError("simulated db error")):
             mock_engine = MagicMock()
             mock_engine_factory.return_value = mock_engine
-            result = connector.upload_spatial_data(sample_gdf, "test_table")
-        assert result is False
+            with pytest.raises(SpatialQueryError):
+                connector.upload_spatial_data(sample_gdf, "test_table")
         mock_engine.dispose.assert_called_once()
 
 
@@ -528,8 +510,7 @@ class TestDuckDBConnector:
         import siege_utilities.geo.spatial_transformations as st_mod
         st_mod.duckdb = mock_duckdb
         try:
-            result = connector.connect()
-            assert result is True
+            connector.connect()
             assert connector.connection is not None
         finally:
             if not hasattr(st_mod, '_orig_duckdb'):
@@ -542,8 +523,8 @@ class TestDuckDBConnector:
         import siege_utilities.geo.spatial_transformations as st_mod
         st_mod.duckdb = mock_duckdb
         try:
-            result = connector.connect()
-            assert result is False
+            with pytest.raises(RuntimeError, match="Failed to connect"):
+                connector.connect()
         finally:
             del st_mod.duckdb
 
@@ -556,8 +537,8 @@ class TestDuckDBConnector:
         import siege_utilities.geo.spatial_transformations as st_mod
         st_mod.duckdb = mock_duckdb
         try:
-            result = connector.upload_spatial_data(sample_gdf, "test_table")
-            assert result is True
+            connector.upload_spatial_data(sample_gdf, "test_table")
+            assert connector.connection is not None
         finally:
             del st_mod.duckdb
 
@@ -585,8 +566,8 @@ class TestDuckDBConnector:
         import siege_utilities.geo.spatial_transformations as st_mod
         st_mod.duckdb = mock_duckdb
         try:
-            result = connector.download_spatial_data("tbl")
-            assert result is None
+            with pytest.raises(RuntimeError, match="Failed to connect"):
+                connector.download_spatial_data("tbl")
         finally:
             del st_mod.duckdb
 
@@ -598,8 +579,8 @@ class TestDuckDBConnector:
         import siege_utilities.geo.spatial_transformations as st_mod
         st_mod.duckdb = mock_duckdb
         try:
-            result = connector.execute_spatial_query("SELECT 1")
-            assert result is None
+            with pytest.raises(RuntimeError, match="Failed to connect"):
+                connector.execute_spatial_query("SELECT 1")
         finally:
             del st_mod.duckdb
 

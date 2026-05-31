@@ -102,7 +102,7 @@ def detect_format(file_path: str) -> str:
             return _peek_sqlite(file_path)
         if ext == ".zip":
             return _peek_zip(file_path)
-    except Exception as exc:  # pragma: no cover - corrupt file fallback
+    except (OSError, ValueError, UnicodeDecodeError, RuntimeError) as exc:  # pragma: no cover - corrupt file fallback
         log.warning("detect_format peek failed for %s: %s", file_path, exc)
 
     return "unknown"

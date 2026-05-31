@@ -173,7 +173,7 @@ class DemographicPopulationService:
                 geography=geography_type,
                 state_fips=state_fips,
             )
-        except Exception as e:
+        except (OSError, ValueError, TypeError, ImportError, RuntimeError) as e:
             logger.error(f"Error fetching demographics: {e}")
             return DemographicPopulationResult(
                 geography_type=geography_type,
@@ -279,7 +279,7 @@ class DemographicPopulationService:
                         created += len(objects_to_create)
                         objects_to_create = []
 
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 logger.error(f"Error processing GEOID {row.get('GEOID', 'unknown')}: {e}")
                 errors.append(f"GEOID {row.get('GEOID', 'unknown')}: {e}")
 

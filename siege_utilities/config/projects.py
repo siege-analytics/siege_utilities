@@ -143,14 +143,14 @@ def save_project_config(config: Dict[str, Any], config_directory: str = "config"
     project_code = config['project_code']
     config_file = config_dir / f"project_{project_code}.json"
 
-    with open(config_file, 'w') as f:
+    with open(config_file, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=2)
 
     log_info(f"Saved project config to: {config_file}")
     return str(config_file)
 
 
-def load_project_config(project_code: str, config_directory: str = "config") -> Optional[Dict[str, Any]]:
+def load_project_config(project_code: str, config_directory: str = "config") -> Dict[str, Any]:
     """
     Load project configuration from JSON file.
 
@@ -161,53 +161,37 @@ def load_project_config(project_code: str, config_directory: str = "config") -> 
         config_directory: Directory containing config files
 
     Returns:
-        Project configuration dictionary or None if not found
+        Project configuration dictionary.
 
     Raises:
-        PathSecurityError: If config_directory fails security validation
+        FileNotFoundError: If the project config file does not exist.
+        json.JSONDecodeError: If the file contains invalid JSON.
+        OSError: If the file cannot be read.
+        PathSecurityError: If config_directory fails security validation.
 
     Example:
         >>> config = siege_utilities.load_project_config("MP001")
-        >>> if config:
-        ...     print(f"Loaded: {config['project_name']}")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> load_project_config("MP001", "../../../etc")  # Path traversal blocked
-
-    Security Changes:
-        - Now validates config_directory to block path traversal
-        - Blocks loading config files from sensitive system locations
+        >>> print(f"Loaded: {config['project_name']}")
     """
     try:
-        # Validate config directory path
-        try:
-            from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
-            config_dir = validate_directory_path(config_directory, must_exist=False)
-        except ImportError:
-            config_dir = pathlib.Path(config_directory)
+        from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
+        config_dir = validate_directory_path(config_directory, must_exist=False)
+    except ImportError:
+        config_dir = pathlib.Path(config_directory)
 
-        config_file = config_dir / f"project_{project_code}.json"
-    except Exception as e:
-        log_error(f"Failed to access config directory: {e}")
-        raise
+    config_file = config_dir / f"project_{project_code}.json"
 
     if not config_file.exists():
-        log_warning(f"Project config not found: {config_file}")
-        return None
+        raise FileNotFoundError(f"Project config not found: {config_file}")
 
-    try:
-        with open(config_file, 'r') as f:
-            config = json.load(f)
+    with open(config_file, 'r', encoding='utf-8') as f:
+        config = json.load(f)
 
-        log_info(f"Loaded project config: {project_code}")
-        return config
-
-    except Exception as e:
-        log_error(f"Error loading project config {config_file}: {e}")
-        return None
+    log_info(f"Loaded project config: {project_code}")
+    return config
 
 
-def setup_project_directories(config: Dict[str, Any]) -> bool:
+def setup_project_directories(config: Dict[str, Any]) -> None:
     """
     Create the directory structure for a project.
 
@@ -216,53 +200,36 @@ def setup_project_directories(config: Dict[str, Any]) -> bool:
     Args:
         config: Project configuration dictionary
 
-    Returns:
-        True if successful, False otherwise
-
     Raises:
-        PathSecurityError: If any directory path fails security validation
+        OSError: If directories cannot be created.
+        PathSecurityError: If any directory path fails security validation.
 
     Example:
         >>> config = create_project_config("My Project", "MP001")
-        >>> success = siege_utilities.setup_project_directories(config)
-        >>> if success:
-        ...     print("Project directories created")
-
-    Security Changes:
-        - Now validates all directory paths to block path traversal
-        - Blocks creating directories in sensitive system locations
+        >>> siege_utilities.setup_project_directories(config)
     """
     try:
-        # Import validation function
-        try:
-            from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
-            use_validation = True
-        except ImportError:
-            use_validation = False
+        from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
+        use_validation = True
+    except ImportError:
+        use_validation = False
 
-        directories = config.get('directories', {})
+    directories = config.get('directories', {})
 
-        for dir_name, dir_path in directories.items():
-            # Validate each directory path
-            if use_validation:
-                path = validate_directory_path(dir_path, must_exist=False)
-            else:
-                path = pathlib.Path(dir_path)
+    for dir_name, dir_path in directories.items():
+        if use_validation:
+            path = validate_directory_path(dir_path, must_exist=False)
+        else:
+            path = pathlib.Path(dir_path)
 
-            path.mkdir(parents=True, exist_ok=True)
+        path.mkdir(parents=True, exist_ok=True)
 
-            # Create .gitkeep file to ensure directory is tracked
-            gitkeep = path / ".gitkeep"
-            gitkeep.touch(exist_ok=True)
+        gitkeep = path / ".gitkeep"
+        gitkeep.touch(exist_ok=True)
 
-            log_debug(f"Created directory: {dir_path}")
+        log_debug(f"Created directory: {dir_path}")
 
-        log_info(f"Project directories setup complete for {config['project_code']}")
-        return True
-
-    except Exception as e:
-        log_error(f"Error setting up project directories: {e}")
-        return False
+    log_info(f"Project directories setup complete for {config['project_code']}")
 
 
 def get_project_path(config: Dict[str, Any], path_type: str) -> Optional[str]:
@@ -327,7 +294,7 @@ def list_projects(config_directory: str = "config") -> list:
             config_dir = validate_directory_path(config_directory, must_exist=False)
         except ImportError:
             config_dir = pathlib.Path(config_directory)
-    except Exception as e:
+    except (OSError, ValueError) as e:
         log_error(f"Failed to access config directory: {e}")
         raise
 
@@ -339,7 +306,7 @@ def list_projects(config_directory: str = "config") -> list:
 
     for config_file in config_dir.glob("project_*.json"):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 config = json.load(f)
 
             projects.append({
@@ -349,7 +316,7 @@ def list_projects(config_directory: str = "config") -> list:
                 'config_file': str(config_file)
             })
 
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, KeyError) as e:
             log_error(f"Error reading project config {config_file}: {e}")
 
     log_info(f"Found {len(projects)} project configurations")
@@ -357,7 +324,7 @@ def list_projects(config_directory: str = "config") -> list:
 
 
 def update_project_config(project_code: str, updates: Dict[str, Any],
-                          config_directory: str = "config") -> bool:
+                          config_directory: str = "config") -> None:
     """
     Update an existing project configuration.
 
@@ -366,11 +333,12 @@ def update_project_config(project_code: str, updates: Dict[str, Any],
         updates: Dictionary of updates to apply
         config_directory: Directory containing config files
 
-    Returns:
-        True if successful, False otherwise
+    Raises:
+        FileNotFoundError: If the project config does not exist.
+        OSError: If the config cannot be read or written.
 
     Example:
-        >>> success = siege_utilities.update_project_config(
+        >>> siege_utilities.update_project_config(
         ...     "MP001",
         ...     {"description": "Updated description", "settings": {"log_level": "DEBUG"}}
         ... )
@@ -378,25 +346,11 @@ def update_project_config(project_code: str, updates: Dict[str, Any],
 
     config = load_project_config(project_code, config_directory)
 
-    if config is None:
-        log_error(f"Cannot update - project config not found: {project_code}")
-        return False
+    for key, value in updates.items():
+        if key in config and isinstance(config[key], dict) and isinstance(value, dict):
+            config[key].update(value)
+        else:
+            config[key] = value
 
-    try:
-        # Apply updates
-        for key, value in updates.items():
-            if key in config and isinstance(config[key], dict) and isinstance(value, dict):
-                # Merge dictionaries
-                config[key].update(value)
-            else:
-                # Direct assignment
-                config[key] = value
-
-        # Save updated config
-        save_project_config(config, config_directory)
-        log_info(f"Updated project config: {project_code}")
-        return True
-
-    except Exception as e:
-        log_error(f"Error updating project config {project_code}: {e}")
-        return False
+    save_project_config(config, config_directory)
+    log_info(f"Updated project config: {project_code}")

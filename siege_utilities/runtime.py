@@ -132,11 +132,11 @@ def diagnose_environment() -> Dict:
     # siege_utilities
     try:
         diag["siege_utilities_version"] = importlib.metadata.version("siege-utilities")
-    except Exception:
+    except (ImportError, ValueError, ModuleNotFoundError):
         try:
             from siege_utilities import __version__
             diag["siege_utilities_version"] = __version__
-        except Exception:
+        except (ImportError, AttributeError):
             diag["siege_utilities_version"] = "NOT INSTALLED"
 
     # Stale pydantic modules in sys.modules

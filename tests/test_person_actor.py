@@ -442,35 +442,33 @@ class TestHydraConfigManagerModern:
     def test_save_and_load_user(self, manager, tmp_path):
         profiles = tmp_path / "profiles" / "users"
         u = make_user()
-        assert manager.save_user(u, profiles_dir=profiles) is True
+        manager.save_user(u, profiles_dir=profiles)
         u2 = manager.load_user("dheeraj", profiles_dir=profiles)
-        assert u2 is not None
         assert u2.person_id == "dheeraj"
 
     def test_save_and_load_client(self, manager, tmp_path):
         profiles = tmp_path / "profiles" / "clients"
         c = make_client()
-        assert manager.save_client(c, profiles_dir=profiles) is True
+        manager.save_client(c, profiles_dir=profiles)
         c2 = manager.load_client("HILL", profiles_dir=profiles)
-        assert c2 is not None
         assert c2.client_code == "HILL"
 
     def test_load_user_not_found(self, manager, tmp_path):
         profiles = tmp_path / "profiles" / "users"
         profiles.mkdir(parents=True)
-        result = manager.load_user("nonexistent", profiles_dir=profiles)
-        assert result is None
+        with pytest.raises(FileNotFoundError):
+            manager.load_user("nonexistent", profiles_dir=profiles)
 
     def test_load_client_not_found(self, manager, tmp_path):
         profiles = tmp_path / "profiles" / "clients"
         profiles.mkdir(parents=True)
-        result = manager.load_client("NOPE", profiles_dir=profiles)
-        assert result is None
+        with pytest.raises(FileNotFoundError):
+            manager.load_client("NOPE", profiles_dir=profiles)
 
     def test_save_user_creates_directory(self, manager, tmp_path):
         profiles = tmp_path / "new" / "path" / "users"
         u = make_user()
-        assert manager.save_user(u, profiles_dir=profiles) is True
+        manager.save_user(u, profiles_dir=profiles)
         assert profiles.exists()
 
 
@@ -485,7 +483,8 @@ class TestDeprecationWarnings:
         from siege_utilities.config.enhanced_config import load_user_profile
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            load_user_profile("nonexistent")
+            with pytest.raises(FileNotFoundError):
+                load_user_profile("nonexistent")
             assert len(w) >= 1
             assert any(issubclass(x.category, DeprecationWarning) for x in w)
 
@@ -493,7 +492,8 @@ class TestDeprecationWarnings:
         from siege_utilities.config.enhanced_config import load_client_profile
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            load_client_profile("NONEXISTENT")
+            with pytest.raises(FileNotFoundError):
+                load_client_profile("NONEXISTENT")
             assert len(w) >= 1
             assert any(issubclass(x.category, DeprecationWarning) for x in w)
 

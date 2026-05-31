@@ -12,6 +12,7 @@ GeoPackage is available as an alternative via format="gpkg" (boundaries only).
 from __future__ import annotations
 
 import logging
+import threading
 from datetime import date
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
@@ -24,6 +25,7 @@ log = logging.getLogger(__name__)
 
 _DEFAULT_ROOT = Path.home() / ".siege_utilities" / "store" / "temporal"
 _SINGLETON: Optional["TemporalDataStore"] = None
+_SINGLETON_LOCK = threading.Lock()
 
 
 class TemporalDataStore:
@@ -158,10 +160,10 @@ class TemporalDataStore:
     ) -> Path:
         """Persist demographic snapshot data as Parquet."""
         if year is None:
-            if "year" in snapshots.columns:
+            if "year" in snapshots.columns and not snapshots.empty:
                 year = int(snapshots["year"].iloc[0])
             else:
-                raise ValueError("year must be provided or present in DataFrame")
+                raise ValueError("year must be provided or present in a non-empty DataFrame")
 
         dest = self._demographics_path(geography_type, dataset, year)
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -216,11 +218,11 @@ class TemporalDataStore:
     ) -> Path:
         """Persist pre-computed time-series data as Parquet."""
         if variable_code is None:
-            if "variable_code" in series.columns:
+            if "variable_code" in series.columns and not series.empty:
                 variable_code = str(series["variable_code"].iloc[0])
             else:
                 raise ValueError(
-                    "variable_code must be provided or present in DataFrame"
+                    "variable_code must be provided or present in a non-empty DataFrame"
                 )
 
         dest = self._timeseries_path(geography_type, variable_code, dataset)
@@ -281,7 +283,9 @@ def get_temporal_store(
     """Get or create the singleton TemporalDataStore."""
     global _SINGLETON
     if _SINGLETON is None or (root_dir is not None):
-        _SINGLETON = TemporalDataStore(root_dir=root_dir, format=format)
+        with _SINGLETON_LOCK:
+            if _SINGLETON is None or (root_dir is not None):
+                _SINGLETON = TemporalDataStore(root_dir=root_dir, format=format)
     return _SINGLETON
 
 

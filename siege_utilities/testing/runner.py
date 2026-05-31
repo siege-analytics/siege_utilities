@@ -43,7 +43,7 @@ def run_command(cmd: List[str], description: str, log_file: Optional[str] = None
     log_info("-" * 60)
 
     if log_file:
-        with open(log_file, "w") as f:
+        with open(log_file, "w", encoding="utf-8") as f:
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -114,7 +114,7 @@ def quick_smoke_test() -> bool:
         log_info("\nBasic smoke test PASSED!")
         return True
 
-    except Exception as e:
+    except (ImportError, AttributeError, AssertionError, ValueError) as e:
         log_error(f"\nBasic smoke test FAILED: {e}")
         return False
 
@@ -255,7 +255,7 @@ def run_test_suite(
             import siege_utilities
             if not siege_utilities.setup_spark_environment():
                 log_warning("Environment setup had issues, continuing anyway...")
-        except Exception as e:
+        except (ImportError, AttributeError) as e:
             log_error(f"Environment setup failed: {e}")
             return False
 
@@ -345,7 +345,7 @@ def get_test_report() -> Dict[str, Any]:
         if missing_deps:
             report['suggestions'].append(f"Install missing dependencies: {missing_deps}")
 
-    except Exception as e:
+    except (ImportError, AttributeError, ValueError) as e:
         report['error'] = str(e)
         report['suggestions'].append("Check siege_utilities package installation")
 
@@ -376,7 +376,7 @@ def run_comprehensive_test() -> bool:
         if not env_healthy:
             log_warning("Environment issues detected, but continuing...")
             all_passed = False
-    except Exception as e:
+    except (ImportError, AttributeError) as e:
         log_error(f"Environment diagnostics failed: {e}")
         all_passed = False
 
@@ -398,7 +398,7 @@ def run_comprehensive_test() -> bool:
 
         if not deps.get('pyspark', False):
             log_warning("PySpark not available - some tests may be skipped")
-    except Exception as e:
+    except (ImportError, AttributeError) as e:
         log_error(f"Dependency check failed: {e}")
         all_passed = False
 

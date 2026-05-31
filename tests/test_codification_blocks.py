@@ -153,3 +153,106 @@ class TestComputeSpread:
         m = compute_spread(assignments)
         assert m.max_block_pct == pytest.approx(0.9)
         assert m.concentration == pytest.approx(0.82)
+
+
+# ── Error-path tests ──────────────────────────────────────────────────
+
+
+class TestAssignBlocksEmptyAndInvalid:
+    """assign_blocks() with empty input and unmatched results."""
+
+    def test_empty_list_returns_empty(self):
+        result = assign_blocks([])
+        assert result == []
+        assert isinstance(result, list)
+
+    def test_all_unmatched_returns_empty(self):
+        """All geocoding results have no match -- no assignments."""
+        results = [
+            _gr(matched=False, input_id="1"),
+            _gr(matched=False, input_id="2"),
+            _gr(matched=False, input_id="3"),
+        ]
+        assignments = assign_blocks(results)
+        assert assignments == []
+
+    def test_mixed_matched_and_no_geocoding_results(self):
+        """Only matched results with coordinates become assignments."""
+        results = [
+            _gr(matched=True, block="B1", input_id="ok"),
+            _gr(matched=False, input_id="fail1"),
+            _gr(matched=False, input_id="fail2"),
+        ]
+        assignments = assign_blocks(results)
+        assert len(assignments) == 1
+        assert assignments[0].input_id == "ok"
+
+
+class TestComputeSpreadEmpty:
+    """compute_spread() with empty assignments."""
+
+    def test_empty_returns_zero_metrics(self):
+        m = compute_spread([])
+        assert m.block_count == 0
+        assert m.tract_count == 0
+        assert m.county_count == 0
+        assert m.state_count == 0
+        assert m.concentration == 0.0
+        assert m.max_block_pct == 0.0
+        assert m.bbox_lat_range == 0.0
+        assert m.bbox_lon_range == 0.0
+
+
+class TestComputeSpreadSingleBlock:
+    """compute_spread() with all assignments to the same block (no spread)."""
+
+    def test_all_same_block_max_concentration(self):
+        assignments = [
+            _ba(block="B1", tract="T1", county="C1", state="S1", lat=41.0, lon=-87.0),
+            _ba(block="B1", tract="T1", county="C1", state="S1", lat=41.0, lon=-87.0),
+            _ba(block="B1", tract="T1", county="C1", state="S1", lat=41.0, lon=-87.0),
+        ]
+        m = compute_spread(assignments)
+        assert m.block_count == 1
+        assert m.tract_count == 1
+        assert m.county_count == 1
+        assert m.state_count == 1
+        assert m.concentration == pytest.approx(1.0)
+        assert m.max_block_pct == pytest.approx(1.0)
+        # All at same location, so range is 0
+        assert m.bbox_lat_range == pytest.approx(0.0)
+        assert m.bbox_lon_range == pytest.approx(0.0)
+
+
+class TestGroupByBlockDuplicateIds:
+    """group_by_block() with multiple assignments sharing the same block GEOID."""
+
+    def test_duplicate_block_ids_aggregated(self):
+        assignments = [
+            _ba(block="B1", lat=40.0, lon=-86.0, input_id="a1"),
+            _ba(block="B1", lat=42.0, lon=-88.0, input_id="a2"),
+            _ba(block="B1", lat=41.0, lon=-87.0, input_id="a3"),
+        ]
+        groups = group_by_block(assignments)
+        assert len(groups) == 1
+        assert groups[0].block_geoid == "B1"
+        assert groups[0].address_count == 3
+        assert groups[0].centroid_lat == pytest.approx(41.0)
+        assert groups[0].centroid_lon == pytest.approx(-87.0)
+
+    def test_duplicate_ids_across_different_blocks(self):
+        """Two blocks that each have duplicate assignments."""
+        assignments = [
+            _ba(block="X", lat=40.0, lon=-86.0),
+            _ba(block="X", lat=40.0, lon=-86.0),
+            _ba(block="Y", lat=42.0, lon=-88.0),
+            _ba(block="Y", lat=42.0, lon=-88.0),
+            _ba(block="Y", lat=42.0, lon=-88.0),
+        ]
+        groups = group_by_block(assignments)
+        assert len(groups) == 2
+        # Sorted by count descending, Y has 3, X has 2
+        assert groups[0].block_geoid == "Y"
+        assert groups[0].address_count == 3
+        assert groups[1].block_geoid == "X"
+        assert groups[1].address_count == 2

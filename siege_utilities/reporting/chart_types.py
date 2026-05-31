@@ -5,6 +5,7 @@ Provides base chart types and easy extension capabilities.
 from __future__ import annotations
 
 import logging
+import threading
 from typing import TYPE_CHECKING, Dict, Any, Optional, List, Callable
 from dataclasses import dataclass, field
 import yaml
@@ -382,7 +383,7 @@ class ChartTypeRegistry:
 
         try:
             return chart_type.create_function(**kwargs)
-        except Exception as e:
+        except (OSError, ValueError, TypeError, KeyError, RuntimeError) as e:
             log.error("Create function for %s raised: %s", chart_type_name, e)
             raise ChartCreationError(
                 f"create function for chart type {chart_type_name!r} failed"
@@ -506,24 +507,30 @@ class ChartTypeRegistry:
                 'custom_options': chart_type.custom_options
             }
             
-            with open(output_path, 'w') as f:
+            with open(output_path, 'w', encoding='utf-8') as f:
                 yaml.dump(config_data, f, default_flow_style=False)
             
             log.info(f"Exported chart type configuration to: {output_path}")
-        except Exception as e:
+        except (OSError, yaml.YAMLError, AttributeError) as e:
             log.error(f"Failed to export chart type configuration: {e}")
 
-# Global instance
-chart_registry = ChartTypeRegistry()
+_chart_registry = None
+_chart_registry_lock = threading.Lock()
+
 
 def get_chart_registry() -> ChartTypeRegistry:
-    """Get the global chart type registry."""
-    return chart_registry
+    """Get or create the global chart type registry."""
+    global _chart_registry
+    if _chart_registry is None:
+        with _chart_registry_lock:
+            if _chart_registry is None:
+                _chart_registry = ChartTypeRegistry()
+    return _chart_registry
 
 def register_chart_type(chart_type: ChartType):
     """Register a new chart type."""
-    chart_registry.register_chart_type(chart_type)
+    get_chart_registry().register_chart_type(chart_type)
 
 def create_chart(chart_type_name: str, **kwargs) -> Optional[Figure]:
     """Create a chart using the specified chart type."""
-    return chart_registry.create_chart(chart_type_name, **kwargs)
+    return get_chart_registry().create_chart(chart_type_name, **kwargs)

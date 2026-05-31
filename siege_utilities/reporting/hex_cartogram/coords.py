@@ -24,6 +24,7 @@ __all__ = [
     "axial_distance",
     "axial_neighbors",
     "axial_to_cartesian",
+    "bounding_grid",
     "hexagon_polygon",
 ]
 

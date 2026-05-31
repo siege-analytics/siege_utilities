@@ -3,6 +3,8 @@ Legend management utilities for siege_utilities reporting system.
 Provides comprehensive legend generation and management for charts, tables, and visualizations.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Dict, List, Any, Optional, Union, Tuple
 from enum import Enum
@@ -15,6 +17,7 @@ try:
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
     plt = None
+    mpatches = None
 
 # ReportLab for PDF generation
 try:

@@ -115,7 +115,7 @@ class CrosswalkPopulationService:
         Returns:
             Relationship type string
         """
-        weight = float(row.get("weight", row.get("WEIGHT", 1.0)))
+        weight = float(row.get("weight") or row.get("WEIGHT") or 1.0)
 
         if weight >= 0.9999:
             # Check if target GEOID equals source GEOID
@@ -164,7 +164,7 @@ class CrosswalkPopulationService:
             df = self._load_crosswalk_data(
                 geography_type, source_year, target_year, state_fips
             )
-        except Exception as e:
+        except (OSError, ValueError, TypeError, ImportError, RuntimeError) as e:
             logger.error(f"Error loading crosswalk data: {e}")
             return CrosswalkPopulationResult(
                 geography_type=geography_type,
@@ -243,7 +243,7 @@ class CrosswalkPopulationService:
                 relationship = self._determine_relationship(row, all_rows_for_source)
 
                 # Get weight
-                weight = float(row.get("weight", 1.0))
+                weight = float(row.get("weight") or 1.0)
                 if weight > 1.0:
                     weight = 1.0
                 if weight < 0.0:
@@ -281,7 +281,7 @@ class CrosswalkPopulationService:
                         created += len(objects_to_create)
                         objects_to_create = []
 
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 source = row.get("source_geoid", "unknown")
                 target = row.get("target_geoid", "unknown")
                 logger.error(f"Error processing {source} -> {target}: {e}")

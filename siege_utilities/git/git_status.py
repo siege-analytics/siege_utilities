@@ -14,61 +14,67 @@ from ._utils import run_git_command
 log = logging.getLogger(__name__)
 
 def get_repository_status(repo_path: str = ".") -> Dict[str, Union[str, int, bool]]:
-    """Get comprehensive repository status information."""
-    
+    """Get comprehensive repository status information.
+
+    Raises
+    ------
+    ValueError
+        If *repo_path* is not a git repository.
+    GitError
+        If any git command fails while gathering status.
+    """
+
     repo_path = Path(repo_path).resolve()
-    
+
     if not (repo_path / ".git").exists():
         raise ValueError(f"Not a git repository: {repo_path}")
-    
+
     # Basic repository info
     current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
     is_detached = "HEAD" in current_branch
-    
+
     # Working directory status
     status_output = run_git_command("status", "--porcelain", repo_path=repo_path)
     status_lines = [line for line in status_output.split('\n') if line.strip()]
-    
+
     # Count different types of changes
     staged_files = len([line for line in status_lines if line[0] in 'AMDR'])
     unstaged_files = len([line for line in status_lines if line[1] in 'AMDR'])
     untracked_files = len([line for line in status_lines if line.startswith('??')])
-    
+
     # Get commit info
     try:
         last_commit_hash = run_git_command("rev-parse", "HEAD", repo_path=repo_path)[:7]
         last_commit_date = run_git_command("log", "-1", "--format=%cd", "--date=short", repo_path=repo_path)
         last_commit_author = run_git_command("log", "-1", "--format=%an", repo_path=repo_path)
         last_commit_message = run_git_command("log", "-1", "--format=%s", repo_path=repo_path)
-    except Exception as exc:
-        log.warning("Could not retrieve last commit info for %s: %s", repo_path, exc)
-        last_commit_hash = "unknown"
-        last_commit_date = "unknown"
-        last_commit_author = "unknown"
-        last_commit_message = "unknown"
-    
+    except (GitError, RuntimeError) as exc:
+        raise GitError(
+            f"Could not retrieve last commit info for {repo_path}: {exc}"
+        ) from exc
+
     # Get remote info
     try:
         remote_url = run_git_command("config", "--get", "remote.origin.url", repo_path=repo_path)
         upstream_branch = run_git_command("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}", repo_path=repo_path, check=False)
         if upstream_branch == "":
             upstream_branch = None
-    except Exception as exc:
-        log.warning("Could not retrieve remote info for %s: %s", repo_path, exc)
-        remote_url = "unknown"
-        upstream_branch = None
+    except (GitError, RuntimeError) as exc:
+        raise GitError(
+            f"Could not retrieve remote info for {repo_path}: {exc}"
+        ) from exc
     
     # Get ahead/behind info
     ahead_behind = "0 0"
     if upstream_branch:
         try:
             ahead_behind = run_git_command("rev-list", "--count", "--left-right", f"{upstream_branch}...HEAD", repo_path=repo_path)
-        except Exception as exc:
+        except (GitError, RuntimeError) as exc:
             log.warning("Could not determine ahead/behind for %s: %s", upstream_branch, exc)
             ahead_behind = "0 0"
     
     behind, ahead = ahead_behind.split()
-    
+
     return {
         "repository_path": str(repo_path),
         "current_branch": current_branch,
@@ -94,11 +100,17 @@ def get_repository_status(repo_path: str = ".") -> Dict[str, Union[str, int, boo
     }
 
 def get_branch_info(repo_path: str = ".") -> Dict[str, Union[str, List[str], int]]:
-    """Get detailed information about all branches."""
-    
+    """Get detailed information about all branches.
+
+    Raises
+    ------
+    GitError
+        If any git command fails while gathering branch info.
+    """
+
     # Local branches
     local_branches = run_git_command("branch", "--list", "--format=%(refname:short)|%(upstream:short)|%(upstream:track)", repo_path=repo_path)
-    
+
     branches = []
     for line in local_branches.split('\n'):
         if line.strip():
@@ -106,39 +118,35 @@ def get_branch_info(repo_path: str = ".") -> Dict[str, Union[str, List[str], int
             branch_name = parts[0]
             upstream = parts[1] if len(parts) > 1 and parts[1] else None
             tracking = parts[2] if len(parts) > 2 and parts[2] else None
-            
+
             # Get branch details
             try:
                 last_commit = run_git_command("log", "-1", "--format=%H|%cd|%an|%s", "--date=short", branch_name, repo_path=repo_path)
-                if last_commit:
-                    hash_part, date, author, message = last_commit.split('|', 3)
-                    branches.append({
-                        "name": branch_name,
-                        "upstream": upstream,
-                        "tracking": tracking,
-                        "last_commit": {
-                            "hash": hash_part[:7],
-                            "date": date,
-                            "author": author,
-                            "message": message
-                        }
-                    })
-            except Exception as exc:
-                log.warning("Could not retrieve commit info for branch %s: %s", branch_name, exc)
+            except (GitError, RuntimeError) as exc:
+                raise GitError(
+                    f"Could not retrieve commit info for branch {branch_name}: {exc}"
+                ) from exc
+            if last_commit:
+                hash_part, date, author, message = last_commit.split('|', 3)
                 branches.append({
                     "name": branch_name,
                     "upstream": upstream,
                     "tracking": tracking,
-                    "last_commit": None
+                    "last_commit": {
+                        "hash": hash_part[:7],
+                        "date": date,
+                        "author": author,
+                        "message": message
+                    }
                 })
     
     # Remote branches
     remote_branches = run_git_command("branch", "-r", "--format=%(refname:short)", repo_path=repo_path)
     remote_branch_list = [branch.strip() for branch in remote_branches.split('\n') if branch.strip()]
-    
+
     # Current branch
     current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
-    
+
     return {
         "current_branch": current_branch,
         "local_branches": branches,
@@ -148,35 +156,37 @@ def get_branch_info(repo_path: str = ".") -> Dict[str, Union[str, List[str], int
     }
 
 def get_remote_info(repo_path: str = ".") -> Dict[str, Union[str, List[Dict[str, str]]]]:
-    """Get information about remote repositories."""
-    
+    """Get information about remote repositories.
+
+    Raises
+    ------
+    GitError
+        If any git command fails while gathering remote info.
+    """
+
     # Get remote names
     remotes = run_git_command("remote", repo_path=repo_path)
     remote_list = [remote.strip() for remote in remotes.split('\n') if remote.strip()]
-    
+
     remote_info = []
     for remote_name in remote_list:
         try:
             url = run_git_command("config", "--get", f"remote.{remote_name}.url", repo_path=repo_path)
-            
-            # Get fetch and push URLs if different
-            fetch_url = run_git_command("config", "--get", f"remote.{remote_name}.fetch", repo_path=repo_path, check=False)
-            push_url = run_git_command("config", "--get", f"remote.{remote_name}.push", repo_path=repo_path, check=False)
-            
-            remote_info.append({
-                "name": remote_name,
-                "url": url,
-                "fetch_url": fetch_url if fetch_url else url,
-                "push_url": push_url if push_url else url
-            })
-        except Exception as exc:
-            log.warning("Could not retrieve URL for remote %s: %s", remote_name, exc)
-            remote_info.append({
-                "name": remote_name,
-                "url": "unknown",
-                "fetch_url": "unknown",
-                "push_url": "unknown"
-            })
+        except (GitError, RuntimeError) as exc:
+            raise GitError(
+                f"Could not retrieve URL for remote {remote_name}: {exc}"
+            ) from exc
+
+        # Get fetch and push URLs if different
+        fetch_url = run_git_command("config", "--get", f"remote.{remote_name}.fetch", repo_path=repo_path, check=False)
+        push_url = run_git_command("config", "--get", f"remote.{remote_name}.push", repo_path=repo_path, check=False)
+
+        remote_info.append({
+            "name": remote_name,
+            "url": url,
+            "fetch_url": fetch_url if fetch_url else url,
+            "push_url": push_url if push_url else url
+        })
     
     return {
         "remotes": remote_info,
@@ -185,8 +195,13 @@ def get_remote_info(repo_path: str = ".") -> Dict[str, Union[str, List[Dict[str,
     }
 
 def get_stash_list(repo_path: str = ".") -> List[Dict[str, str]]:
-    """Get list of stashed changes."""
-    
+    """Get list of stashed changes.
+
+    Raises
+    ------
+    GitError
+        If the git stash list command fails.
+    """
     try:
         stash_output = run_git_command("stash", "list", "--format=%gd|%cd|%s", "--date=short", repo_path=repo_path)
         
@@ -203,13 +218,17 @@ def get_stash_list(repo_path: str = ".") -> List[Dict[str, str]]:
                     })
         
         return stashes
-    except Exception as exc:
-        log.warning("Could not retrieve stash list: %s", exc)
-        return []
+    except (GitError, RuntimeError) as exc:
+        raise GitError(f"Could not retrieve stash list: {exc}") from exc
 
 def get_tag_list(repo_path: str = ".") -> List[Dict[str, str]]:
-    """Get list of tags with details."""
-    
+    """Get list of tags with details.
+
+    Raises
+    ------
+    GitError
+        If the git tag list command fails.
+    """
     try:
         tag_output = run_git_command("tag", "--format=%(refname:short)|%(creatordate:short)|%(creator)", repo_path=repo_path)
         
@@ -226,9 +245,8 @@ def get_tag_list(repo_path: str = ".") -> List[Dict[str, str]]:
                     })
         
         return tags
-    except Exception as exc:
-        log.warning("Could not retrieve tag list: %s", exc)
-        return []
+    except (GitError, RuntimeError) as exc:
+        raise GitError(f"Could not retrieve tag list: {exc}") from exc
 
 def get_log_summary(
     since: Optional[str] = None,
@@ -237,118 +255,118 @@ def get_log_summary(
     repo_path: str = ".",
     max_count: int = 100
 ) -> Dict[str, Union[int, List[Dict[str, str]]]]:
-    """Get a summary of commit logs with filtering options."""
-    
+    """Get a summary of commit logs with filtering options.
+
+    Raises
+    ------
+    GitError
+        If the git log command fails.
+    """
+
     log_args = ["log", f"--max-count={max_count}", "--format=%H|%cd|%an|%s", "--date=short"]
-    
+
     if since:
         log_args.extend(["--since", since])
     if until:
         log_args.extend(["--until", until])
     if author:
         log_args.extend(["--author", author])
-    
+
     try:
         log_output = run_git_command(*log_args, repo_path=repo_path)
-        
-        commits = []
-        for line in log_output.split('\n'):
-            if line.strip():
-                parts = line.split('|', 3)
-                if len(parts) == 4:
-                    hash_full, date, author_name, message = parts
-                    commits.append({
-                        "hash": hash_full[:7],
-                        "hash_full": hash_full,
-                        "date": date,
-                        "author": author_name,
-                        "message": message
-                    })
-        
-        return {
-            "total_commits": len(commits),
-            "commits": commits,
-            "filters": {
-                "since": since,
-                "until": until,
-                "author": author,
-                "max_count": max_count
-            }
+    except (GitError, RuntimeError) as exc:
+        raise GitError(f"Could not retrieve commit log: {exc}") from exc
+
+    commits = []
+    for line in log_output.split('\n'):
+        if line.strip():
+            parts = line.split('|', 3)
+            if len(parts) == 4:
+                hash_full, date, author_name, message = parts
+                commits.append({
+                    "hash": hash_full[:7],
+                    "hash_full": hash_full,
+                    "date": date,
+                    "author": author_name,
+                    "message": message
+                })
+
+    return {
+        "total_commits": len(commits),
+        "commits": commits,
+        "filters": {
+            "since": since,
+            "until": until,
+            "author": author,
+            "max_count": max_count
         }
-    except Exception as exc:
-        log.warning("Could not retrieve commit log: %s", exc)
-        return {
-            "total_commits": 0,
-            "commits": [],
-            "filters": {
-                "since": since,
-                "until": until,
-                "author": author,
-                "max_count": max_count
-            }
-        }
+    }
 
 def get_file_status(repo_path: str = ".") -> Dict[str, List[str]]:
-    """Get detailed status of all files in the repository."""
-    
+    """Get detailed status of all files in the repository.
+
+    Raises
+    ------
+    GitError
+        If the git status command fails.
+    """
     try:
         status_output = run_git_command("status", "--porcelain", repo_path=repo_path)
-        
-        files = {
-            "staged": [],
-            "unstaged": [],
-            "untracked": [],
-            "renamed": [],
-            "deleted": []
-        }
-        
-        for line in status_output.split('\n'):
-            if line.strip():
-                status = line[:2]
-                filepath = line[3:]
-                
-                if status[0] == 'A':  # Added
-                    files["staged"].append(filepath)
-                elif status[0] == 'M':  # Modified
-                    files["staged"].append(filepath)
-                elif status[0] == 'D':  # Deleted
-                    files["staged"].append(filepath)
-                elif status[0] == 'R':  # Renamed
-                    files["renamed"].append(filepath)
-                elif status[1] == 'M':  # Modified (unstaged)
-                    files["unstaged"].append(filepath)
-                elif status[1] == 'D':  # Deleted (unstaged)
-                    files["unstaged"].append(filepath)
-                elif status == '??':  # Untracked
-                    files["untracked"].append(filepath)
-        
-        return files
-    except Exception as exc:
-        log.warning("Could not retrieve file status: %s", exc)
-        return {
-            "staged": [],
-            "unstaged": [],
-            "untracked": [],
-            "renamed": [],
-            "deleted": []
-        }
+    except (GitError, RuntimeError) as exc:
+        raise GitError(f"Could not retrieve file status: {exc}") from exc
+
+    files = {
+        "staged": [],
+        "unstaged": [],
+        "untracked": [],
+        "renamed": [],
+        "deleted": []
+    }
+
+    for line in status_output.split('\n'):
+        if line.strip():
+            status = line[:2]
+            filepath = line[3:]
+
+            if status[0] == 'A':  # Added
+                files["staged"].append(filepath)
+            elif status[0] == 'M':  # Modified
+                files["staged"].append(filepath)
+            elif status[0] == 'D':  # Deleted
+                files["staged"].append(filepath)
+            elif status[0] == 'R':  # Renamed
+                files["renamed"].append(filepath)
+            elif status[1] == 'M':  # Modified (unstaged)
+                files["unstaged"].append(filepath)
+            elif status[1] == 'D':  # Deleted (unstaged)
+                files["unstaged"].append(filepath)
+            elif status == '??':  # Untracked
+                files["untracked"].append(filepath)
+
+    return files
 
 def get_repository_size(repo_path: str = ".") -> Dict[str, Union[int, str]]:
-    """Get repository size information."""
-    
+    """Get repository size information.
+
+    Raises
+    ------
+    GitError
+        If repository size cannot be calculated.
+    """
+
     repo_path = Path(repo_path).resolve()
-    
+
     try:
         # Get .git directory size
         git_dir = repo_path / ".git"
         git_size = sum(f.stat().st_size for f in git_dir.rglob('*') if f.is_file())
-        
+
         # Get working directory size (excluding .git)
         working_size = 0
         for f in repo_path.rglob('*'):
             if f.is_file() and '.git' not in f.parts:
                 working_size += f.stat().st_size
-        
+
         return {
             "git_directory_size_bytes": git_size,
             "git_directory_size_mb": round(git_size / (1024 * 1024), 2),
@@ -357,13 +375,7 @@ def get_repository_size(repo_path: str = ".") -> Dict[str, Union[int, str]]:
             "total_size_bytes": git_size + working_size,
             "total_size_mb": round((git_size + working_size) / (1024 * 1024), 2)
         }
-    except Exception as exc:
-        log.warning("Could not calculate repository size for %s: %s", repo_path, exc)
-        return {
-            "git_directory_size_bytes": 0,
-            "git_directory_size_mb": 0,
-            "working_directory_size_bytes": 0,
-            "working_directory_size_mb": 0,
-            "total_size_bytes": 0,
-            "total_size_mb": 0
-        }
+    except OSError as exc:
+        raise GitError(
+            f"Could not calculate repository size for {repo_path}: {exc}"
+        ) from exc

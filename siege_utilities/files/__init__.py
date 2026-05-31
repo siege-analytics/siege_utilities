@@ -10,6 +10,7 @@ This module provides comprehensive file operations including:
 All functions are available at the top level for mutual availability across modules.
 """
 
+import warnings
 from pathlib import Path
 
 # Import all functions from submodules for mutual availability
@@ -71,31 +72,33 @@ from .hashing import (
 
 # Convenience function for getting download directory
 def get_download_directory() -> Path:
-    """
-    Get the default download directory for siege_utilities.
-    Uses the enhanced config system with profile-based directory resolution.
-    
+    """Get the default download directory for siege_utilities.
+
+    .. deprecated:: 3.19.0
+        Use :func:`siege_utilities.config.user_config.get_download_directory`
+        instead, or ``from siege_utilities import get_download_directory``.
+        Will be removed in v4.0.0.
+
     Returns:
         Path to the download directory
     """
-    from pathlib import Path
     import os
-    
-    # Try to get from environment variable first
-    download_dir = os.environ.get('SIEGE_DOWNLOAD_DIR', None)
+
+    warnings.warn(
+        "siege_utilities.files.get_download_directory is deprecated and will be "
+        "removed in v4.0.0. Use siege_utilities.config.user_config.get_download_directory "
+        "or import get_download_directory from siege_utilities directly.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
+    # Preserve SIEGE_DOWNLOAD_DIR env-var override during the deprecation window
+    download_dir = os.environ.get('SIEGE_DOWNLOAD_DIR')
     if download_dir:
         return Path(download_dir)
-    
-    # Use enhanced config system for profile-based directory resolution
-    try:
-        from ..config.enhanced_config import get_download_directory as enhanced_get_download_directory
-        username = os.environ.get('SIEGE_USERNAME', os.environ.get('USER', 'default'))
-        return enhanced_get_download_directory(username)
-    except (ImportError, TypeError):
-        # Fallback to default if enhanced config not available
-        downloads_dir = Path.home() / "Downloads" / "siege_utilities"
-        ensure_path_exists(downloads_dir)
-        return downloads_dir
+
+    from ..config.user_config import get_download_directory as _canonical
+    return _canonical()
 
 # Export all functions for mutual availability
 __all__ = [

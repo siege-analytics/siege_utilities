@@ -144,6 +144,20 @@ jobs:
         python scripts/check_unbounded_io.py . --exclude-tests
         python scripts/check_unbounded_io.py tests
 
+  error-path-coverage:
+    runs-on: ubuntu-latest
+    name: "error-path test coverage (SU-4b)"
+    continue-on-error: true
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    - name: Check error-path test coverage
+      run: |
+        python scripts/check_error_path_coverage.py --report
+
   test:
     runs-on: ubuntu-latest
     # Allow 3.13 to fail without blocking PRs while we stabilize

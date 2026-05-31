@@ -41,9 +41,9 @@ def analyze_function_signature(func):
                 sig.return_annotation))
         return_desc = f'{return_type}: Description needed'
         return params, return_desc
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         log_warning(f'Could not analyze signature: {e}')
-        return [], 'Any: Description needed'
+        raise
 
 
 def categorize_function(func_name):
@@ -157,48 +157,39 @@ Note:
 
 
 def process_python_file(file_path):
-    """Process a single Python file to add missing docstrings."""
+    """Process a single Python file to add missing docstrings.
+
+    Raises:
+        SyntaxError: If the file has invalid Python syntax.
+        ImportError: If astor is not installed.
+        OSError: If the file cannot be read or written.
+    """
     relative_path = file_path.relative_to(Path.cwd())
     log_info(f'\nProcessing {relative_path}')
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        try:
-            tree = ast.parse(content)
-        except SyntaxError as e:
-            log_error(f'Syntax error in {file_path}: {e}')
-            return False
-        module_name = str(relative_path).replace('.py', '').replace('/', '.')
-        transformer = DocstringAdder(module_name)
-        new_tree = transformer.visit(tree)
-        if transformer.functions_processed > 0:
-            try:
-                import astor
-                new_content = astor.to_source(new_tree)
-            except ImportError:
-                log_error(
-                    f'astor not available, install with: pip install astor'
-                    )
-                return False
-            except Exception as e:
-                log_error(f'Error converting AST back to source: {e}')
-                return False
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(new_content)
-            log_info(f'Updated {file_path}')
-            log_info(
-                f'Processed: {transformer.functions_processed}, Skipped: {transformer.functions_skipped}'
-                )
-        else:
-            log_info(f'No changes needed')
-        return True
-    except Exception as e:
-        log_error(f'Error processing {file_path}: {e}')
-        return False
+
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    tree = ast.parse(content)
+    module_name = str(relative_path).replace('.py', '').replace('/', '.')
+    transformer = DocstringAdder(module_name)
+    new_tree = transformer.visit(tree)
+
+    if transformer.functions_processed > 0:
+        import astor
+        new_content = astor.to_source(new_tree)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        log_info(f'Updated {file_path}')
+        log_info(
+            f'Processed: {transformer.functions_processed}, Skipped: {transformer.functions_skipped}'
+        )
+    else:
+        log_info(f'No changes needed')
 
 
 def find_python_files(base_path):
-    """Find all Python files to process."""
+    """Find Python files to process (excludes __init__.py and build artifacts)."""
     base_path = Path(base_path)
     python_files = []
     if (base_path / 'siege_utilities').exists():
@@ -214,43 +205,50 @@ def find_python_files(base_path):
 
 
 def main():
-    """Main function to process all Python files in siege_utilities."""
+    """Process all Python files in siege_utilities to add missing docstrings.
+
+    Raises:
+        ImportError: If astor is not installed.
+        FileNotFoundError: If no Python files are found in the working directory.
+    """
     log_info('Auto-generating docstrings for siege_utilities')
     log_info('=' * 60)
     try:
-        import astor
-    except ImportError:
-        log_error('Missing dependency: astor')
-        log_info('Install with: pip install astor')
-        return False
+        import astor  # noqa: F401
+    except ImportError as e:
+        raise ImportError(
+            'Missing dependency: astor. Install with: pip install astor'
+        ) from e
     base_path = Path.cwd()
     python_files = find_python_files(base_path)
     if not python_files:
-        log_error('No Python files found. Are you in the right directory?')
-        log_info(f'Current directory: {base_path}')
-        log_info('Expected: directory containing siege_utilities package')
-        return False
+        raise FileNotFoundError(
+            f'No Python files found in {base_path}. '
+            f'Expected: directory containing siege_utilities package'
+        )
     log_info(f'Found {len(python_files)} Python files to process')
     successful = 0
-    failed = 0
+    errors: list[tuple[Path, Exception]] = []
     for file_path in python_files:
-        if process_python_file(file_path):
+        try:
+            process_python_file(file_path)
             successful += 1
-        else:
-            failed += 1
+        except (SyntaxError, OSError, ImportError, ValueError, TypeError) as e:
+            log_error(f'Error processing {file_path}: {e}')
+            errors.append((file_path, e))
     log_info(f'\n' + '=' * 60)
     log_info(f'Docstring generation complete!')
     log_info(f'Summary:')
     log_info(f'Successfully processed: {successful} files')
-    if failed > 0:
-        log_error(f'Failed: {failed} files')
+    if errors:
+        log_error(f'Failed: {len(errors)} files')
     log_info(f'Next steps:')
     log_info(f'1. Review generated docstrings')
     log_info(f'2. Rebuild docs: cd docs && make html')
     log_info(
         f"3. Commit changes: git add -A && git commit -m 'Add auto-generated docstrings'"
         )
-    return failed == 0
+    return len(errors) == 0
 
 
 def cli():

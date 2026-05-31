@@ -76,7 +76,7 @@ class CompositeChartMixin:
 
         try:
             if not sources:
-                return self._create_placeholder_chart(width, height, "No sources provided")
+                raise ValueError("No sources provided for convergence diagram")
 
             out_nodes = outputs or []
             src_nodes = sources[:arrow_count] if arrow_count else sources
@@ -132,7 +132,7 @@ class CompositeChartMixin:
                 if show_magnitudes and mag is not None:
                     try:
                         lw = max(1.4, min(4.2, 1.2 + float(mag)))
-                    except Exception:
+                    except (ValueError, TypeError):
                         lw = 2.0
 
                 ax.annotate(
@@ -189,9 +189,16 @@ class CompositeChartMixin:
             ax.set_title(title, fontsize=13, fontweight='bold')
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
-        except Exception as e:
-            log.error(f"Error creating convergence diagram: {e}")
-            return self._create_placeholder_chart(width, height, f"Convergence Diagram Error: {str(e)}")
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+
+
+            raise RuntimeError(
+
+
+                f"Convergence Diagram Error: {e}"
+
+
+            ) from e
 
     def create_dashboard(self, charts: List[Dict[str, Any]],
                         layout: str = "2x2", width: float = 12.0, height: float = 8.0) -> Image:
@@ -256,9 +263,16 @@ class CompositeChartMixin:
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
-        except Exception as e:
-            log.error(f"Error creating dashboard: {e}")
-            return self._create_placeholder_chart(width, height, f"Dashboard Error: {str(e)}")
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+
+
+            raise RuntimeError(
+
+
+                f"Dashboard Error: {e}"
+
+
+            ) from e
 
     def create_dataframe_summary_charts(self, df: 'pd.DataFrame',
                                      title: str = "", width: float = 8.0, height: float = 6.0) -> Image:
@@ -282,7 +296,7 @@ class CompositeChartMixin:
             numeric_cols = df.select_dtypes(include=[np.number]).columns
 
             if len(numeric_cols) == 0:
-                return self._create_placeholder_chart(width, height, "No numeric columns found")
+                raise ValueError("No numeric columns found for summary charts")
 
             # Create subplots
             fig, axes = plt.subplots(2, 2, figsize=(width, height), dpi=self.default_dpi)
@@ -308,9 +322,16 @@ class CompositeChartMixin:
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
-        except Exception as e:
-            log.error(f"Error creating DataFrame summary charts: {e}")
-            return self._create_placeholder_chart(width, height, f"Summary Charts Error: {str(e)}")
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+
+
+            raise RuntimeError(
+
+
+                f"Summary Charts Error: {e}"
+
+
+            ) from e
 
     def _create_bar_subplot(self, ax, chart_config: Dict[str, Any], title: str):
         """Create a bar chart in a subplot."""
@@ -324,7 +345,7 @@ class CompositeChartMixin:
                 ax.bar(labels, values, color=self.default_colors['primary'])
                 ax.set_title(title)
                 ax.grid(True, alpha=0.3)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
             log.error(f"Error creating bar subplot: {e}")
 
     def _create_line_subplot(self, ax, chart_config: Dict[str, Any], title: str):
@@ -341,7 +362,7 @@ class CompositeChartMixin:
 
             ax.set_title(title)
             ax.grid(True, alpha=0.3)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
             log.error(f"Error creating line subplot: {e}")
 
     def _create_pie_subplot(self, ax, chart_config: Dict[str, Any], title: str):
@@ -353,7 +374,7 @@ class CompositeChartMixin:
 
             ax.pie(values, labels=labels, autopct='%1.1f%%', colors=self.color_palette[:len(values)])
             ax.set_title(title)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
             log.error(f"Error creating pie subplot: {e}")
 
     def _create_scatter_subplot(self, ax, chart_config: Dict[str, Any], title: str):
@@ -366,5 +387,5 @@ class CompositeChartMixin:
             ax.scatter(x_values, y_values, alpha=0.6, color=self.default_colors['primary'])
             ax.set_title(title)
             ax.grid(True, alpha=0.3)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
             log.error(f"Error creating scatter subplot: {e}")

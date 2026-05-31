@@ -91,7 +91,7 @@ class IDMLExporter:
             try:
                 self._idml_package = simpleidml.IDMLPackage(str(self.template_path))
                 log.info("Loaded IDML template via simpleidml: %s", self.template_path)
-            except Exception as exc:
+            except (OSError, ValueError, KeyError, AttributeError) as exc:
                 log.warning(
                     "Could not load template with simpleidml (%s); "
                     "falling back to manual ZIP builder.",
@@ -230,7 +230,7 @@ class IDMLExporter:
         for placeholder, content in self._replacements.items():
             try:
                 pkg.set_tag(placeholder, content)
-            except Exception:
+            except (ValueError, KeyError, AttributeError, TypeError) as exc:
                 log.debug(
                     "simpleidml.set_tag failed for %r; doing raw XML substitution.",
                     placeholder,

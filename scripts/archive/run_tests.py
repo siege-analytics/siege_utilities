@@ -382,7 +382,7 @@ def main():
         except KeyboardInterrupt:
             print("\n\n  Interrupted. Goodbye!")
             break
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, TypeError, subprocess.CalledProcessError) as e:
             print(f"\n  Unexpected error: {e}")
 
 

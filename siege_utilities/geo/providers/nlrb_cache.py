@@ -178,7 +178,7 @@ class NLRBCache:
         if fetched_at:
             try:
                 cached_time = datetime.fromisoformat(fetched_at)
-                if datetime.now() - cached_time > self._ttl:
+                if datetime.now(cached_time.tzinfo) - cached_time > self._ttl:
                     log.info("Cache expired for %s", key)
                     return None
             except (ValueError, TypeError):

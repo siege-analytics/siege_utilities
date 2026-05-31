@@ -26,6 +26,7 @@ Example usage:
 """
 
 import logging
+import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Union
@@ -303,7 +304,7 @@ class CrosswalkClient:
             try:
                 cache_file.unlink()
                 deleted += 1
-            except Exception as e:
+            except OSError as e:
                 log.warning(f"Failed to delete {cache_file}: {e}")
 
         log.info(f"Cleared {deleted} cached crosswalk files")
@@ -430,7 +431,7 @@ class CrosswalkClient:
         try:
             df.to_parquet(cache_file, index=False)
             log.debug(f"Cached crosswalk to: {cache_file}")
-        except Exception as e:
+        except (OSError, ValueError, TypeError) as e:
             log.warning(f"Failed to cache crosswalk: {e}")
 
 
@@ -440,13 +441,16 @@ class CrosswalkClient:
 
 # Module-level client instance
 _default_client: Optional[CrosswalkClient] = None
+_default_client_lock = threading.Lock()
 
 
 def get_crosswalk_client() -> CrosswalkClient:
     """Get or create the default crosswalk client."""
     global _default_client
     if _default_client is None:
-        _default_client = CrosswalkClient()
+        with _default_client_lock:
+            if _default_client is None:
+                _default_client = CrosswalkClient()
     return _default_client
 
 

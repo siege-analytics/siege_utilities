@@ -381,9 +381,6 @@ def temporary_logging_config(config: LoggingConfig) -> Generator[None, None, Non
     finally:
         _logger_manager._shared_config = original_config
 
-# Initialize default logger
-get_logger()  # Creates default logger
-
 __all__ = [
     'LoggerManager',
     'LoggingConfig',

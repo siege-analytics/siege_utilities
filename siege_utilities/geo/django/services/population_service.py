@@ -256,7 +256,7 @@ class BoundaryPopulationService:
         try:
             gdf = self._download_boundaries(geography_type, year, state_fips)
             gdf = self._normalize_geodataframe(gdf, geography_type)
-        except Exception as e:
+        except (OSError, ValueError, TypeError, ImportError, RuntimeError) as e:
             logger.error(f"Error downloading boundaries: {e}")
             return PopulationResult(
                 geography_type=geography_type,
@@ -337,7 +337,7 @@ class BoundaryPopulationService:
                         created += len(objects_to_create)
                         objects_to_create = []
 
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 logger.error(f"Error processing record {idx}: {e}")
                 errors.append(f"Record {idx}: {e}")
 

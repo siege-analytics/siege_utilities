@@ -59,11 +59,14 @@ class Settings:
 
         # 3. Django settings
         try:
+            from django.core.exceptions import ImproperlyConfigured
             from django.conf import settings as django_settings
 
             if hasattr(django_settings, name):
                 return getattr(django_settings, name)
-        except (ImportError, Exception):
+        except ImportError:
+            pass
+        except ImproperlyConfigured:
             pass
 
         # 4. YAML file
@@ -83,9 +86,15 @@ class Settings:
         if isinstance(default, bool):
             return val.lower() in ("true", "1", "yes")
         if isinstance(default, int):
-            return int(val)
+            try:
+                return int(val)
+            except (ValueError, TypeError):
+                return default
         if isinstance(default, float):
-            return float(val)
+            try:
+                return float(val)
+            except (ValueError, TypeError):
+                return default
         return val
 
     def _load_yaml(self) -> dict | None:
@@ -99,7 +108,7 @@ class Settings:
                 try:
                     import yaml
 
-                    with open(candidate) as f:
+                    with open(candidate, encoding="utf-8") as f:
                         self._yaml_cache = yaml.safe_load(f) or {}
                         self._yaml_path = candidate
                 except ImportError:
@@ -120,7 +129,7 @@ class Settings:
                 try:
                     import yaml
 
-                    with open(candidate) as f:
+                    with open(candidate, encoding="utf-8") as f:
                         self._yaml_cache = yaml.safe_load(f) or {}
                         self._yaml_path = candidate
                 except ImportError:

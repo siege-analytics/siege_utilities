@@ -5,6 +5,8 @@ Creates structured content pages with headers, footers, and proper layout
 Adapted from working GA project implementation
 """
 
+from __future__ import annotations
+
 try:
     from reportlab.pdfgen import canvas
     from reportlab.lib.pagesizes import letter
@@ -64,7 +66,7 @@ class ContentPageTemplate:
         try:
             from .client_branding import ClientBrandingManager  # noqa: F401
             return self._default_brand_config()
-        except Exception as e:
+        except ImportError as e:
             log_warning(f"Could not load brand config: {e}")
             return self._default_brand_config()
     

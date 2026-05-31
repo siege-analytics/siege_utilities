@@ -17,7 +17,7 @@ try:
     from django.contrib.gis.geos import MultiPolygon, Polygon
 
     HAS_GDAL = True
-except Exception:
+except (ImportError, RuntimeError):
     HAS_GDAL = False
 
 pytestmark = [

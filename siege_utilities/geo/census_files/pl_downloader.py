@@ -21,6 +21,7 @@ Example usage:
 """
 
 import logging
+import threading
 import zipfile
 from datetime import datetime, timedelta
 from io import StringIO
@@ -583,13 +584,16 @@ class PLFileDownloader:
 # =============================================================================
 
 _default_downloader: Optional[PLFileDownloader] = None
+_default_downloader_lock = threading.Lock()
 
 
 def _get_downloader() -> PLFileDownloader:
     """Get or create default downloader."""
     global _default_downloader
     if _default_downloader is None:
-        _default_downloader = PLFileDownloader()
+        with _default_downloader_lock:
+            if _default_downloader is None:
+                _default_downloader = PLFileDownloader()
     return _default_downloader
 
 
