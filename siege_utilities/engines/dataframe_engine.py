@@ -605,10 +605,20 @@ class DataFrameEngine(ABC):
     ) -> Any:
         """Find the k nearest targets for each point.
 
-        Default: brute-force via GeoPandas sjoin_nearest.
+        Default: brute-force via GeoPandas sjoin_nearest (supports k=1 only).
         Engines should override for native spatial indexing (Sedona KNN,
-        PostGIS ST_DWithin + ORDER BY distance, DuckDB spatial).
+        PostGIS ST_DWithin + ORDER BY distance, DuckDB spatial) and k>1.
+
+        Raises
+        ------
+        NotImplementedError
+            If k > 1 (base implementation only supports single-nearest).
         """
+        if k > 1:
+            raise NotImplementedError(
+                f"Base GeoPandas engine only supports k=1 (got k={k}). "
+                "Use a spatial-database engine (PostGIS, Sedona, DuckDB) for k-nearest."
+            )
         import geopandas as gpd
 
         pts = self.to_geodataframe(points, point_geom)
@@ -1274,6 +1284,11 @@ class SparkEngine(DataFrameEngine):
 
     def buffer(self, df, distance, geometry_col="geometry", *, crs=None):
         self._ensure_sedona()
+        if crs is not None:
+            raise NotImplementedError(
+                "CRS reprojection before buffer is not yet supported in the "
+                "Sedona engine. Reproject your data beforehand, or omit crs."
+            )
         from siege_utilities.core.sql_safety import validate_sql_identifier_in as validate_identifier_in
         validate_identifier_in(geometry_col, df.columns, label="geometry column")
         # `distance` is interpolated as a float -- coerce so a malicious

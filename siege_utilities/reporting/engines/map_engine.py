@@ -142,7 +142,7 @@ class MapChartMixin:
             folium.LayerControl().add_to(m)
 
             return self._save_folium_map(m, "temp_choropleth_map.html",
-                                        "Choropleth Map", width, height)
+                                        title or "Choropleth Map", width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
 
@@ -689,7 +689,7 @@ class MapChartMixin:
             # Add heatmap layer
             plugins.HeatMap(
                 heat_data,
-                radius=20,
+                radius=grid_size,
                 blur=blur_radius,
                 max_zoom=13,
                 gradient={0.2: 'blue', 0.4: 'lime', 0.6: 'orange', 1: 'red'}
