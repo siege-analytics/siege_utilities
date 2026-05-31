@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "siege-utilities"
-version = "3.18.1-dev"
+version = "3.20.1-dev"
 description = "A comprehensive Python utilities package with enhanced auto-discovery"
 readme = "README.md"
 requires-python = ">=3.11"
