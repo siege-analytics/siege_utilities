@@ -696,10 +696,18 @@ class PandasEngine(DataFrameEngine):
     # -- I/O ----------------------------------------------------------------
 
     def read_csv(self, path: str, **kwargs: Any) -> Any:
+        """Read a CSV file.
+
+        **kwargs: Forwarded to :func:`pandas.read_csv`.
+        """
         import pandas as pd
         return pd.read_csv(path, **kwargs)
 
     def read_parquet(self, path: str, **kwargs: Any) -> Any:
+        """Read a Parquet file.
+
+        **kwargs: Forwarded to :func:`pandas.read_parquet`.
+        """
         import pandas as pd
         return pd.read_parquet(path, **kwargs)
 
@@ -755,6 +763,10 @@ class PandasEngine(DataFrameEngine):
     # -- Spatial -----------------------------------------------------------
 
     def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
+        """Read a spatial file.
+
+        **kwargs: Forwarded to :func:`geopandas.read_file`.
+        """
         import geopandas as gpd
         from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
         gdf = gpd.read_file(path, **kwargs)
@@ -944,6 +956,11 @@ class DuckDBEngine(DataFrameEngine):
             self._spatial_loaded = True
 
     def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
+        """Read a spatial file via DuckDB's ``ST_Read``.
+
+        **kwargs: Forwarded to :func:`geopandas.read_file` (unused in the
+        current DuckDB path but accepted for interface compatibility).
+        """
         import geopandas as gpd
         from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
         self._ensure_spatial()
@@ -1066,6 +1083,10 @@ class SparkEngine(DataFrameEngine):
     # -- I/O ----------------------------------------------------------------
 
     def read_csv(self, path: str, **kwargs: Any) -> Any:
+        """Read a CSV file via Spark.
+
+        **kwargs: Forwarded to Spark's ``DataFrameReader.csv()``.
+        """
         header = kwargs.pop("header", True)
         infer_schema = kwargs.pop("inferSchema", True)
         return (
@@ -1076,6 +1097,10 @@ class SparkEngine(DataFrameEngine):
         )
 
     def read_parquet(self, path: str, **kwargs: Any) -> Any:
+        """Read a Parquet file via Spark.
+
+        **kwargs: Forwarded to Spark's ``DataFrameReader.parquet()``.
+        """
         return self._session.read.parquet(path, **kwargs)
 
     # -- SQL ----------------------------------------------------------------
@@ -1195,6 +1220,10 @@ class SparkEngine(DataFrameEngine):
         _log.debug("Sedona UDFs registered")
 
     def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
+        """Read a spatial file via GeoPandas and convert to a Spark DataFrame.
+
+        **kwargs: Forwarded to :func:`geopandas.read_file`.
+        """
         # Fallback: read via GeoPandas, convert to Spark DataFrame
         import geopandas as gpd
         from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
@@ -1467,6 +1496,10 @@ class PostGISEngine(DataFrameEngine):
     # -- I/O ----------------------------------------------------------------
 
     def read_csv(self, path: str, **kwargs: Any) -> Any:
+        """Read a CSV file.
+
+        **kwargs: Forwarded to :func:`pandas.read_csv`.
+        """
         import geopandas as gpd
         import pandas as pd
         df = pd.read_csv(path, **kwargs)
@@ -1559,6 +1592,10 @@ class PostGISEngine(DataFrameEngine):
     # -- Spatial -----------------------------------------------------------
 
     def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
+        """Read a spatial file or execute a spatial SQL query.
+
+        **kwargs: Forwarded to :func:`geopandas.read_file`.
+        """
         import geopandas as gpd
         from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
         if path.upper().startswith("SELECT"):

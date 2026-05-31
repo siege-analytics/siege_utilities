@@ -16,8 +16,11 @@ Chart type selection by TableType:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+logger = logging.getLogger(__name__)
 
 import pandas as pd
 
@@ -160,6 +163,7 @@ def _build_map(chain: "Chain", map_generator: Optional[Any] = None) -> Optional[
             from ..reporting.chart_generator import ChartGenerator
             map_generator = ChartGenerator()
         except ImportError:
+            logger.warning("ChartGenerator unavailable — map rendering skipped")
             return None
 
     df = chain.to_dataframe()

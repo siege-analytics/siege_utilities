@@ -170,6 +170,10 @@ class NCESLocaleBoundary(TemporalBoundary):
         return f"{self.locale_category} ({self.locale_code}) [{self.nces_year}]"
 
     def save(self, *args, **kwargs):
+        """Persist the model, auto-populating feature_id and source.
+
+        *args/**kwargs: Forwarded to ``super().save()``.
+        """
         # Sync feature_id from locale code + year
         if not self.feature_id:
             self.feature_id = f"nces_locale_{self.locale_code}_{self.nces_year}"
@@ -240,6 +244,10 @@ class SchoolLocation(TemporalPointFeature):
         return f"{self.school_name} ({self.ncessch})"
 
     def save(self, *args, **kwargs):
+        """Persist the model, auto-populating feature_id and source.
+
+        *args/**kwargs: Forwarded to ``super().save()``.
+        """
         if not self.feature_id:
             self.feature_id = self.ncessch
         if not self.source:

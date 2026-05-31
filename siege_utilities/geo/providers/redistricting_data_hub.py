@@ -1070,6 +1070,7 @@ __all__ = [
     "RDHDataFormat",
     "RDHDatasetType",
     # Constants
+    "RDH_MAX_RESULTS",
     "RDH_BASE_URL",
     "RDH_SITE_URL",
     "US_STATES",

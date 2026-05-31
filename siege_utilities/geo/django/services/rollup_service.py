@@ -372,5 +372,6 @@ class DemographicRollupService:
             return None
         try:
             return apps.get_model("siege_geo", model_name)
-        except LookupError:
+        except LookupError as exc:
+            log.warning("Could not resolve model: %s", exc)
             return None

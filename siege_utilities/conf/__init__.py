@@ -146,7 +146,11 @@ class Settings:
 
     @contextmanager
     def override(self, **kwargs):
-        """Temporarily override settings (thread-local, safe for concurrent use)."""
+        """Temporarily override settings (thread-local, safe for concurrent use).
+
+        **kwargs: Setting names and their override values, stored in
+            thread-local context.
+        """
         overrides = getattr(self._local, "overrides", {})
         previous = {k: overrides.get(k, _SENTINEL) for k in kwargs}
         overrides = {**overrides, **kwargs}

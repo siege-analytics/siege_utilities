@@ -59,6 +59,10 @@ class TimezoneGeometry(TemporalBoundary):
         ]
 
     def save(self, *args, **kwargs):
+        """Persist the model, auto-populating feature_id and source.
+
+        *args/**kwargs: Forwarded to ``super().save()``.
+        """
         if self.timezone_id and not self.feature_id:
             self.feature_id = self.timezone_id
             self.boundary_id = self.timezone_id

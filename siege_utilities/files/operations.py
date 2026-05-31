@@ -743,6 +743,7 @@ def list_files_recursive(
 
 
 __all__ = [
+    'FilePath',
     'remove_tree',
     'file_exists',
     'touch_file',
