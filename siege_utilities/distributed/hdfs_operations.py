@@ -224,6 +224,11 @@ class AbstractHDFSOperations:
             RuntimeError: If HDFS sync or Spark session creation fails.
         """
         self.config.log_info('🚀 Setting up distributed environment...')
+        if dependency_paths:
+            self.config.log_info(
+                f'⚠️  dependency_paths ({len(dependency_paths)} items) not yet '
+                'supported — dependencies must be pre-installed on workers'
+            )
         if data_path is None:
             data_path = self.config.data_path
         if data_path is None:

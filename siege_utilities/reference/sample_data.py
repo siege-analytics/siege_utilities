@@ -422,11 +422,14 @@ def create_sample_dataset(year: int = 2020,
     """
     log_info(f"Creating sample dataset: {geographic_level} level, year {year}, state {state_fips}")
 
-    # Step 1: Get boundaries (raises RuntimeError on failure)
-    boundaries = get_census_boundaries(year, geographic_level, state_fips, county_fips)
-
-    # Step 2: Get data (raises NotImplementedError until Census data API is wired up)
+    # Step 1: Get data (raises NotImplementedError until Census data API is wired up)
     data = get_census_data(year, 'demographics', geographic_level, state_fips, county_fips)
+
+    if not include_geometry:
+        return data
+
+    # Step 2: Get boundaries (raises RuntimeError on failure)
+    boundaries = get_census_boundaries(year, geographic_level, state_fips, county_fips)
 
     # Step 3: Join boundaries and data (raises ValueError/KeyError on failure)
     result = join_boundaries_and_data(boundaries, data)
