@@ -17,3 +17,12 @@ _warnings.warn(
 )
 
 from .providers.boundary_providers import *  # noqa: F401, F403, E402
+
+__all__ = [
+    "BoundaryFetchError",
+    "BoundaryProvider",
+    "CensusTIGERProvider",
+    "GADMProvider",
+    "RDHProvider",
+    "resolve_boundary_provider",
+]

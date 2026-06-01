@@ -2,6 +2,7 @@
 Architecture analysis and diagram generation for siege_utilities package.
 """
 
+import logging
 import os
 import sys
 import inspect
@@ -36,6 +37,8 @@ __all__ = [
     'generate_poetry_toml',
     'generate_uv_toml',
 ]
+
+log = logging.getLogger(__name__)
 
 
 def analyze_package_structure(package_name: str = "siege_utilities") -> Dict[str, Any]:

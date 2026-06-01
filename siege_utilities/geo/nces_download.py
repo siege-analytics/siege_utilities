@@ -16,3 +16,11 @@ _warnings.warn(
 )
 
 from .providers.nces_download import *  # noqa: F401, F403, E402
+
+__all__ = [
+    "LOCALE_BOUNDARY_COLUMNS",
+    "SCHOOL_LOCATION_COLUMNS",
+    "DISTRICT_DATA_COLUMNS",
+    "NCESDownloadError",
+    "NCESDownloader",
+]

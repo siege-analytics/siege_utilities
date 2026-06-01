@@ -3,9 +3,12 @@ Hash Management Functions - Fixed Version
 Provides standardized hash functions that actually exist and work properly
 """
 import hashlib
+import logging
 import pathlib
 
 from siege_utilities.core.logging import log_info, log_error
+
+log = logging.getLogger(__name__)
 
 # Module-level validation import. Falling open to raw pathlib.Path
 # inside each function when the validation module is missing would
