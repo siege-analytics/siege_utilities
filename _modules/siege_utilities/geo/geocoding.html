@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.geo.geocoding &mdash; Siege Utilities 3.17.2 documentation</title>
+  <title>siege_utilities.geo.geocoding &mdash; Siege Utilities 3.21.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=e3f4f00d"></script>
+      <script src="../../../_static/documentation_options.js?v=981e9f52"></script>
       <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -550,6 +550,24 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">geopy.geocoders</span><span class="w"> </span><span class="kn">import</span> <span class="n">Nominatim</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">geopy.exc</span><span class="w"> </span><span class="kn">import</span> <span class="n">GeocoderTimedOut</span><span class="p">,</span> <span class="n">GeocoderServiceError</span>
 
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;GeocodingError&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;COUNTRY_CODES&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;DEFAULT_COUNTRY_CODE&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;NOMINATIM_INTERNAL_URL&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;GEOCODER_CONFIG&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;get_country_name&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;get_country_code&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;list_countries&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;concatenate_addresses&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;get_coordinates&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;use_nominatim_geocoder&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;NominatimGeoClassifier&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;validate_geocode_data_pandas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;mark_valid_geocode_data_pandas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;SpatiaLiteCache&#39;</span><span class="p">,</span>
+<span class="p">]</span>
+
 <span class="c1"># Logging — bind the module logger directly. The previous fallback to</span>
 <span class="c1"># print() if the package-level helpers couldn&#39;t be imported routed</span>
 <span class="c1"># diagnostics around the user&#39;s logging configuration and bypassed log</span>
@@ -863,15 +881,15 @@
     <span class="k">return</span> <span class="n">COUNTRY_CODES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">country_code</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="n">country_code</span><span class="p">)</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">get_country_code</span><span class="p">(</span><span class="n">country_name</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_country_code</span><span class="p">(</span><span class="n">country_name</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get the country code from a country name.</span>
-<span class="sd">    </span>
+
 <span class="sd">    Args:</span>
 <span class="sd">        country_name: Full country name (e.g., &#39;United States&#39;, &#39;Canada&#39;)</span>
-<span class="sd">        </span>
+
 <span class="sd">    Returns:</span>
-<span class="sd">        str: Two-letter country code or None if not found</span>
+<span class="sd">        Two-letter country code, or None if not found.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">for</span> <span class="n">code</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">COUNTRY_CODES</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
         <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">country_name</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
@@ -1140,6 +1158,9 @@
 
     <span class="k">def</span><span class="w"> </span><span class="nf">from_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">json_string</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Replace the classifier&#39;s lookup tables from a JSON string.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            json_string: JSON produced by :meth:`to_json`.</span>
 
 <span class="sd">        Inverse of :meth:`to_json` — overwrites ``place_rank_dict`` and</span>
 <span class="sd">        ``importance_dict`` in place. Unknown top-level keys are</span>

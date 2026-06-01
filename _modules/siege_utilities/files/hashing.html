@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.files.hashing &mdash; Siege Utilities 3.17.2 documentation</title>
+  <title>siege_utilities.files.hashing &mdash; Siege Utilities 3.21.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=e3f4f00d"></script>
+      <script src="../../../_static/documentation_options.js?v=981e9f52"></script>
       <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -541,9 +541,12 @@
 <span class="sd">Provides standardized hash functions that actually exist and work properly</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.core.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">log_info</span><span class="p">,</span> <span class="n">log_error</span>
+
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 <span class="c1"># Module-level validation import. Falling open to raw pathlib.Path</span>
 <span class="c1"># inside each function when the validation module is missing would</span>
@@ -568,6 +571,14 @@
         <span class="s2">&quot;hashing.py will operate WITHOUT path security guards. &quot;</span>
         <span class="s2">&quot;This is almost certainly a packaging bug — investigate.&quot;</span>
     <span class="p">)</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;calculate_file_hash&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;generate_sha256_hash_for_file&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;get_file_hash&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;get_quick_file_signature&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;verify_file_integrity&quot;</span><span class="p">,</span>
+<span class="p">]</span>
 
 <span class="c1"># 64 KiB — matches stdlib hashlib&#39;s recommended buffered-read size and</span>
 <span class="c1"># what the reference filehash recipe uses. Centralised so we don&#39;t</span>
@@ -618,7 +629,7 @@
 <span class="sd">        OSError: If file cannot be read</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; hash_val = generate_sha256_hash_for_file(&quot;data.txt&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; hash_val = generate_sha256_hash_for_file(&quot;data.txt&quot;)  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
     <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
@@ -654,7 +665,7 @@
 <span class="sd">        ValueError: If algorithm is not supported</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; hash_val = get_file_hash(&quot;data.txt&quot;, &quot;sha256&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; hash_val = get_file_hash(&quot;data.txt&quot;, &quot;sha256&quot;)  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">path_obj</span> <span class="o">=</span> <span class="n">_validated_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
@@ -709,10 +720,8 @@
 <span class="sd">            (logged before re-raise)</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; sig = get_quick_file_signature(&quot;data.txt&quot;)</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; # This will raise PathSecurityError</span>
-<span class="sd">        &gt;&gt;&gt; get_quick_file_signature(&quot;/etc/passwd&quot;)  # Sensitive file blocked</span>
+<span class="sd">        &gt;&gt;&gt; sig = get_quick_file_signature(&quot;data.txt&quot;)  # doctest: +SKIP</span>
+<span class="sd">        &gt;&gt;&gt; get_quick_file_signature(&quot;/etc/passwd&quot;)  # doctest: +SKIP</span>
 
 <span class="sd">    Security Changes:</span>
 <span class="sd">        - Now validates paths to block path traversal</span>
@@ -776,7 +785,7 @@
 
 <span class="sd">    Example:</span>
 <span class="sd">        &gt;&gt;&gt; expected = &quot;abc123...&quot;</span>
-<span class="sd">        &gt;&gt;&gt; if verify_file_integrity(&quot;data.txt&quot;, expected):</span>
+<span class="sd">        &gt;&gt;&gt; if verify_file_integrity(&quot;data.txt&quot;, expected):  # doctest: +SKIP</span>
 <span class="sd">        ...     print(&quot;File integrity verified&quot;)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">current_hash</span> <span class="o">=</span> <span class="n">get_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">algorithm</span><span class="p">)</span>
@@ -784,9 +793,7 @@
 
 
 
-<div class="viewcode-block" id="test_hash_functions">
-<a class="viewcode-back" href="../../../api/siege_utilities/files/hashing/index.html#siege_utilities.test_hash_functions">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">test_hash_functions</span><span class="p">():</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_test_hash_functions</span><span class="p">():</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Test the hash functions with a temporary file&quot;&quot;&quot;</span>
     <span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
     <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
@@ -806,12 +813,11 @@
         <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Verification: </span><span class="si">{</span><span class="n">verification</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">log_info</span><span class="p">(</span><span class="s1">&#39;All hash functions working!&#39;</span><span class="p">)</span>
     <span class="k">finally</span><span class="p">:</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">test_file</span><span class="p">)</span></div>
-
+        <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">test_file</span><span class="p">)</span>
 
 
 <span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
-    <span class="n">test_hash_functions</span><span class="p">()</span>
+    <span class="n">_test_hash_functions</span><span class="p">()</span>
 </pre></div>
 
            </div>

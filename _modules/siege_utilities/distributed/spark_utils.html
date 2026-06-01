@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.distributed.spark_utils &mdash; Siege Utilities 3.17.2 documentation</title>
+  <title>siege_utilities.distributed.spark_utils &mdash; Siege Utilities 3.21.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=e3f4f00d"></script>
+      <script src="../../../_static/documentation_options.js?v=981e9f52"></script>
       <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -584,6 +584,40 @@
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;RESULTS_OUTPUT_FORMAT&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;RESULTS_OUTPUT_DELIMITER&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;DEBUG_SUBDIRECTORY&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;PYSPARK_AVAILABLE&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;sanitise_dataframe_column_names&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;tabulate_null_vs_not_null&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;get_row_count&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;repartition_and_cache&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;register_temp_table&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;move_column_to_front_of_dataframe&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;write_df_to_parquet&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;read_parquet_to_df&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;flatten_json_column_and_join_back_to_df&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;validate_geocode_data&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;mark_valid_geocode_data&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;clean_and_reorder_bbox&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;ensure_literal&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;reproject_geom_columns&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;prepare_dataframe_for_export&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;prepare_summary_dataframe&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;export_pyspark_df_to_excel&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pivot_summary_table_for_bools&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pivot_summary_with_metrics&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;export_prepared_df_as_csv_to_path_using_delimiter&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;print_debug_table&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;walkability_config&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;compute_walkability&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;validate_geometry&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;backup_full_dataframe&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;atomic_write_with_staging&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;create_unique_staging_directory&#39;</span><span class="p">,</span>
+<span class="p">]</span>
+
 <span class="n">RESULTS_OUTPUT_FORMAT</span> <span class="o">=</span> <span class="s1">&#39;csv&#39;</span>
 <span class="n">RESULTS_OUTPUT_DELIMITER</span> <span class="o">=</span> <span class="s1">&#39;,&#39;</span>
 <span class="n">DEBUG_SUBDIRECTORY</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">&#39;debug_output&#39;</span><span class="p">)</span>
@@ -767,6 +801,10 @@
 
 <span class="sd">    Returns:</span>
 <span class="sd">        DataFrame: The DataFrame with the JSON column flattened.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If all JSON samples are corrupt and schema cannot be inferred.</span>
+<span class="sd">        RuntimeError: If Spark analysis fails and the fallback path also fails.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_log_info</span><span class="p">(</span><span class="n">message</span><span class="p">):</span>
@@ -823,36 +861,6 @@
                             <span class="k">break</span>
             <span class="k">if</span> <span class="s1">&#39;_corrupt_record&#39;</span> <span class="ow">in</span> <span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span>
                 <span class="n">inferred_schema</span><span class="o">.</span><span class="n">fields</span><span class="p">]:</span>
-                <span class="n">_log_info</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s1">&#39;All samples contain corrupt JSON. Falling back to string schema for </span><span class="si">{</span><span class="n">json_column</span><span class="si">}</span><span class="s1">&#39;</span>
-                    <span class="p">)</span>
-
-                <span class="k">def</span><span class="w"> </span><span class="nf">validate_json</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
-<span class="w">                    </span><span class="sd">&quot;&quot;&quot;Pass-through with parse-check: return *s* if it</span>
-<span class="sd">                    decodes as JSON, ``None`` otherwise.</span>
-
-<span class="sd">                    Runs as a Spark UDF so each row&#39;s value is evaluated</span>
-<span class="sd">                    individually (passing this function unwrapped to</span>
-<span class="sd">                    .otherwise() would call it once at plan-build time</span>
-<span class="sd">                    with a Column object, which always raises and yields</span>
-<span class="sd">                    a constant None for every row).</span>
-<span class="sd">                    &quot;&quot;&quot;</span>
-                    <span class="k">if</span> <span class="n">s</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                        <span class="k">return</span> <span class="kc">None</span>
-                    <span class="k">try</span><span class="p">:</span>
-                        <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
-                        <span class="k">return</span> <span class="n">s</span>
-                    <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">):</span>
-                        <span class="k">return</span> <span class="kc">None</span>
-                <span class="n">validate_json_udf</span> <span class="o">=</span> <span class="n">udf</span><span class="p">(</span><span class="n">validate_json</span><span class="p">,</span> <span class="n">StringType</span><span class="p">())</span>
-                <span class="n">df_with_json</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;validated_json&#39;</span><span class="p">,</span> <span class="n">when</span><span class="p">(</span><span class="n">col</span><span class="p">(</span>
-                    <span class="n">json_column</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="n">lit</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span>
-                    <span class="n">validate_json_udf</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">json_column</span><span class="p">))))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">,</span>
-                    <span class="n">from_json</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s1">&#39;validated_json&#39;</span><span class="p">),</span> <span class="n">StringType</span><span class="p">(),</span> <span class="p">{</span><span class="s1">&#39;mode&#39;</span><span class="p">:</span>
-                    <span class="s1">&#39;PERMISSIVE&#39;</span><span class="p">}))</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;validated_json&#39;</span><span class="p">)</span>
-                <span class="n">df_with_json</span> <span class="o">=</span> <span class="n">df_with_json</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">,</span> <span class="n">when</span><span class="p">(</span>
-                    <span class="n">col</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="n">lit</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">StringType</span><span class="p">(</span>
-                    <span class="p">)))</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s1">&#39;parsed_json&#39;</span><span class="p">)))</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;All JSON samples in column </span><span class="si">{</span><span class="n">json_column</span><span class="si">!r}</span><span class="s2"> are corrupt; &quot;</span>
                     <span class="sa">f</span><span class="s2">&quot;cannot infer schema for flattening&quot;</span>
@@ -866,15 +874,14 @@
         <span class="k">try</span><span class="p">:</span>
 
             <span class="k">def</span><span class="w"> </span><span class="nf">validate_json</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
-<span class="w">                </span><span class="sd">&quot;&quot;&quot;Same JSON pass-through validator as above.</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;Pass-through with parse-check: return *s* if valid JSON, ``None`` otherwise.</span>
 
-<span class="sd">                Defined locally inside the fallback path so it doesn&#39;t</span>
-<span class="sd">                shadow the outer one when the corrupt-record branch</span>
-<span class="sd">                takes a different schema. Both definitions are</span>
-<span class="sd">                semantically identical -- they exist as separate</span>
-<span class="sd">                closures to match the surrounding try/except scope.</span>
-<span class="sd">                Wrapped as a UDF so .otherwise() invokes it per-row,</span>
-<span class="sd">                not once at plan-build time.</span>
+<span class="sd">                Wrapped as a Spark UDF so .otherwise() invokes it per-row,</span>
+<span class="sd">                not once at plan-build time.  Returning ``None`` for</span>
+<span class="sd">                unparseable cells is the correct Spark idiom (marks the</span>
+<span class="sd">                cell as null) and is NOT an SU-1 violation -- this is a</span>
+<span class="sd">                per-row data transform, not a library function returning</span>
+<span class="sd">                empty on error.</span>
 <span class="sd">                &quot;&quot;&quot;</span>
                 <span class="k">if</span> <span class="n">s</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="k">return</span> <span class="kc">None</span>
@@ -965,7 +972,11 @@
 <div class="viewcode-block" id="validate_geocode_data">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/spark_utils/index.html#siege_utilities.validate_geocode_data">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">validate_geocode_data</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">lat_col_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">lon_col_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Filters out rows with invalid geographic coordinates using string-based column names.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Filters out rows with invalid geographic coordinates using string-based column names.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If *lat_col_name* or *lon_col_name* is not in the DataFrame.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">lat_col_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="ow">or</span> <span class="n">lon_col_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
             <span class="sa">f</span><span class="s1">&#39;Columns </span><span class="si">{</span><span class="n">lat_col_name</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="n">lon_col_name</span><span class="si">}</span><span class="s1"> not found in DataFrame&#39;</span><span class="p">)</span>
@@ -996,6 +1007,9 @@
 <span class="sd">      lon_col_name (str): The name of the longitude column.</span>
 <span class="sd">      output_col_name (str, optional): The name of the output column to store the validity flag.</span>
 <span class="sd">                                       Defaults to &quot;is_valid&quot;.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      ValueError: If *lat_col_name* or *lon_col_name* is not in the DataFrame.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">      DataFrame: A new DataFrame with an additional column indicating geocode validity.</span>
@@ -1075,6 +1089,9 @@
 <span class="sd">      geom_columns (list): List of column names (strings) to reproject.</span>
 <span class="sd">      source_srid (str): The source CRS (e.g. &quot;EPSG:4326&quot;).</span>
 <span class="sd">      target_srid (str): The target CRS (e.g. &quot;EPSG:27700&quot;).</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      ValueError: If *source_srid* or *target_srid* is not a valid EPSG identifier.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">      DataFrame: The DataFrame with each specified geometry column conditionally reprojected.</span>
@@ -1189,6 +1206,9 @@
 <span class="sd">        data_tuples: List of tuples with data</span>
 <span class="sd">        column_names: Column names for the DataFrame</span>
 <span class="sd">        logger_func: Optional logging function</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        RuntimeError: If no active Spark session is found.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Spark DataFrame with all string columns</span>

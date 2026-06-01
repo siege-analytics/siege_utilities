@@ -6,14 +6,14 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Distributed Computing &mdash; Siege Utilities 3.17.2 documentation</title>
+  <title>Distributed Computing &mdash; Siege Utilities 3.21.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=e3f4f00d"></script>
+      <script src="_static/documentation_options.js?v=981e9f52"></script>
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
@@ -556,25 +556,62 @@ Configurable settings for HDFS operations - no hard-coded project dependencies</
 <dl class="py function">
 <dt class="sig sig-object py">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.distributed.hdfs_config.</span></span><span class="sig-name descname"><span class="pre">create_cluster_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_path</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/hdfs_config.html#create_cluster_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
-<dd><p>Create config optimized for cluster deployment</p>
+<dd><p>Create config optimized for cluster deployment.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data_path</strong> – Path to data directory.</p></li>
+<li><p><strong>**kwargs</strong> – Override any HDFSConfig default. Merged on top of cluster
+defaults (num_executors=8, executor_cores=4, executor_memory=’4g’,
+enable_sedona=True). See HDFSConfig for accepted fields.</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.distributed.hdfs_config.</span></span><span class="sig-name descname"><span class="pre">create_geocoding_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_path</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/hdfs_config.html#create_geocoding_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
-<dd><p>Create config optimized for geocoding workloads</p>
+<dd><p>Create config optimized for geocoding workloads.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data_path</strong> – Path to data directory.</p></li>
+<li><p><strong>**kwargs</strong> – Override any HDFSConfig default. Merged on top of geocoding
+defaults (app_name=’GeocodingPipeline’, num_executors=4,
+executor_memory=’2g’, enable_sedona=True, network_timeout=’1200s’).
+See HDFSConfig for accepted fields.</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.distributed.hdfs_config.</span></span><span class="sig-name descname"><span class="pre">create_hdfs_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/hdfs_config.html#create_hdfs_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
-<dd><p>Factory function to create HDFS configuration</p>
+<dd><p>Factory function to create HDFS configuration.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>**kwargs</strong> – Forwarded to HDFSConfig(). See HDFSConfig for accepted fields
+(e.g. data_path, master, executor_memory, enable_sedona, etc.).</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.distributed.hdfs_config.</span></span><span class="sig-name descname"><span class="pre">create_local_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_path</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/hdfs_config.html#create_local_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
-<dd><p>Create config optimized for local development</p>
+<dd><p>Create config optimized for local development.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data_path</strong> – Path to data directory.</p></li>
+<li><p><strong>**kwargs</strong> – Override any HDFSConfig default. Merged on top of local-mode
+defaults (num_executors=2, executor_cores=1, executor_memory=’1g’,
+enable_sedona=False). See HDFSConfig for accepted fields.</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 </section>

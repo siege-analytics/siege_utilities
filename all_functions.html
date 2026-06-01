@@ -6,14 +6,14 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Complete Function Reference &mdash; Siege Utilities 3.17.2 documentation</title>
+  <title>Complete Function Reference &mdash; Siege Utilities 3.21.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=e3f4f00d"></script>
+      <script src="_static/documentation_options.js?v=981e9f52"></script>
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
@@ -628,25 +628,62 @@ shared config and <a class="reference internal" href="#siege_utilities.get_logge
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.create_cluster_config">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">create_cluster_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_path</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/hdfs_config.html#create_cluster_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.create_cluster_config" title="Link to this definition"></a></dt>
-<dd><p>Create config optimized for cluster deployment</p>
+<dd><p>Create config optimized for cluster deployment.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data_path</strong> – Path to data directory.</p></li>
+<li><p><strong>**kwargs</strong> – Override any HDFSConfig default. Merged on top of cluster
+defaults (num_executors=8, executor_cores=4, executor_memory=’4g’,
+enable_sedona=True). See HDFSConfig for accepted fields.</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.create_geocoding_config">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">create_geocoding_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_path</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/hdfs_config.html#create_geocoding_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.create_geocoding_config" title="Link to this definition"></a></dt>
-<dd><p>Create config optimized for geocoding workloads</p>
+<dd><p>Create config optimized for geocoding workloads.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data_path</strong> – Path to data directory.</p></li>
+<li><p><strong>**kwargs</strong> – Override any HDFSConfig default. Merged on top of geocoding
+defaults (app_name=’GeocodingPipeline’, num_executors=4,
+executor_memory=’2g’, enable_sedona=True, network_timeout=’1200s’).
+See HDFSConfig for accepted fields.</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.create_hdfs_config">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">create_hdfs_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/hdfs_config.html#create_hdfs_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.create_hdfs_config" title="Link to this definition"></a></dt>
-<dd><p>Factory function to create HDFS configuration</p>
+<dd><p>Factory function to create HDFS configuration.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>**kwargs</strong> – Forwarded to HDFSConfig(). See HDFSConfig for accepted fields
+(e.g. data_path, master, executor_memory, enable_sedona, etc.).</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.create_local_config">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">create_local_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_path</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/hdfs_config.html#create_local_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.create_local_config" title="Link to this definition"></a></dt>
-<dd><p>Create config optimized for local development</p>
+<dd><p>Create config optimized for local development.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data_path</strong> – Path to data directory.</p></li>
+<li><p><strong>**kwargs</strong> – Override any HDFSConfig default. Merged on top of local-mode
+defaults (num_executors=2, executor_cores=1, executor_memory=’1g’,
+enable_sedona=False). See HDFSConfig for accepted fields.</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 </section>
@@ -788,6 +825,12 @@ Has fallback mechanisms for corrupt JSON data.</p>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>DataFrame</p>
 </dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>ValueError</strong> – If all JSON samples are corrupt and schema cannot be inferred.</p></li>
+<li><p><strong>RuntimeError</strong> – If Spark analysis fails and the fallback path also fails.</p></li>
+</ul>
+</dd>
 </dl>
 </dd></dl>
 
@@ -828,11 +871,14 @@ each row with a True (valid) or False (invalid) value in the new output column.<
 Defaults to “is_valid”.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>A new DataFrame with an additional column indicating geocode validity.</p>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If <em>lat_col_name</em> or <em>lon_col_name</em> is not in the DataFrame.</p>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>DataFrame</p>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A new DataFrame with an additional column indicating geocode validity.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>DataFrame</p>
 </dd>
 </dl>
 </dd></dl>
@@ -946,8 +992,11 @@ Prevents type merging errors by ensuring all values are strings.</p>
 <li><p><strong>logger_func</strong> – Optional logging function</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Spark DataFrame with all string columns</p>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>RuntimeError</strong> – If no active Spark session is found.</p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Spark DataFrame with all string columns</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1028,11 +1077,14 @@ ST_Transform(geom, ‘source_srid’, ‘target_srid’)</p>
 <li><p><strong>target_srid</strong> (<em>str</em>) – The target CRS (e.g. “EPSG:27700”).</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>The DataFrame with each specified geometry column conditionally reprojected.</p>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If <em>source_srid</em> or <em>target_srid</em> is not a valid EPSG identifier.</p>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>DataFrame</p>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The DataFrame with each specified geometry column conditionally reprojected.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>DataFrame</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1079,6 +1131,11 @@ slashes/spaces with underscores.</p>
 <dt class="sig sig-object py" id="siege_utilities.validate_geocode_data">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.</span></span><span class="sig-name descname"><span class="pre">validate_geocode_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lat_col_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lon_col_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/distributed/spark_utils.html#validate_geocode_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.validate_geocode_data" title="Link to this definition"></a></dt>
 <dd><p>Filters out rows with invalid geographic coordinates using string-based column names.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ValueError</strong> – If <em>lat_col_name</em> or <em>lon_col_name</em> is not in the DataFrame.</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
@@ -1240,11 +1297,11 @@ Will be removed in v4.0.0.</p>
 <li><p><strong>create_parents</strong> – Whether to create parent directories</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>True if successful, False otherwise</p>
-</dd>
-<dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>PathSecurityError</strong> – If path fails security validation</p>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>PathSecurityError</strong> – If path fails security validation</p></li>
+<li><p><strong>OSError</strong> – If file creation fails</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
@@ -1271,9 +1328,7 @@ Will be removed in v4.0.0.</p>
 <p class="rubric">Example</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">path</span> <span class="o">=</span> <span class="n">ensure_path_exists</span><span class="p">(</span><span class="s2">&quot;logs/2024/01&quot;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Directory created: </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># This will raise PathSecurityError</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">ensure_path_exists</span><span class="p">(</span><span class="s2">&quot;../../../etc&quot;</span><span class="p">)</span>  <span class="c1"># Path traversal blocked</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ensure_path_exists</span><span class="p">(</span><span class="s2">&quot;../../../etc&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </dd></dl>
@@ -1377,11 +1432,8 @@ by default.</p>
 </dd>
 </dl>
 <p class="rubric">Example</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># This works (safe command)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">output</span> <span class="o">=</span> <span class="n">run_subprocess</span><span class="p">(</span><span class="s2">&quot;ls -la&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># This fails (dangerous command)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">output</span> <span class="o">=</span> <span class="n">run_subprocess</span><span class="p">(</span><span class="s2">&quot;rm -rf /&quot;</span><span class="p">)</span>  <span class="c1"># Raises SecurityError</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">output</span> <span class="o">=</span> <span class="n">run_subprocess</span><span class="p">(</span><span class="s2">&quot;ls -la&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">output</span> <span class="o">=</span> <span class="n">run_subprocess</span><span class="p">(</span><span class="s2">&quot;rm -rf /&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 <dl class="simple">

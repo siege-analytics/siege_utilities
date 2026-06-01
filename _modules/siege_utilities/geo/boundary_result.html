@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.geo.boundary_result &mdash; Siege Utilities 3.17.2 documentation</title>
+  <title>siege_utilities.geo.boundary_result &mdash; Siege Utilities 3.21.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=e3f4f00d"></script>
+      <script src="../../../_static/documentation_options.js?v=981e9f52"></script>
       <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -562,12 +562,23 @@
 <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
     <span class="n">gpd</span> <span class="o">=</span> <span class="kc">None</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">..exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">SiegeGeoError</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;BoundaryConfigurationError&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;BoundaryDiscoveryError&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;BoundaryDownloadError&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;BoundaryFetchResult&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;BoundaryInputError&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;BoundaryParseError&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;BoundaryRetrievalError&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;BoundaryUrlValidationError&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
 
 <span class="c1"># ---------------------------------------------------------------------------</span>
 <span class="c1"># Typed Exceptions</span>
 <span class="c1"># ---------------------------------------------------------------------------</span>
-
-<span class="kn">from</span><span class="w"> </span><span class="nn">..exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">SiegeGeoError</span>
 
 
 <div class="viewcode-block" id="BoundaryRetrievalError">

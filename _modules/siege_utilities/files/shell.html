@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.files.shell &mdash; Siege Utilities 3.17.2 documentation</title>
+  <title>siege_utilities.files.shell &mdash; Siege Utilities 3.21.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=e3f4f00d"></script>
+      <script src="../../../_static/documentation_options.js?v=981e9f52"></script>
       <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -678,11 +678,8 @@
 <span class="sd">        subprocess.TimeoutExpired: If command times out</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; # This works (safe command)</span>
-<span class="sd">        &gt;&gt;&gt; output = run_subprocess(&quot;ls -la&quot;)</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; # This fails (dangerous command)</span>
-<span class="sd">        &gt;&gt;&gt; output = run_subprocess(&quot;rm -rf /&quot;)  # Raises SecurityError</span>
+<span class="sd">        &gt;&gt;&gt; output = run_subprocess(&quot;ls -la&quot;)  # doctest: +SKIP</span>
+<span class="sd">        &gt;&gt;&gt; output = run_subprocess(&quot;rm -rf /&quot;)  # doctest: +SKIP</span>
 
 <span class="sd">    Security Changes:</span>
 <span class="sd">        - Previously used shell=True with no validation (CRITICAL VULNERABILITY)</span>
@@ -762,8 +759,7 @@
 <span class="sd">        subprocess.TimeoutExpired: If command times out</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; # This function allows dangerous commands (use with extreme caution)</span>
-<span class="sd">        &gt;&gt;&gt; output = run_subprocess_unrestricted(&quot;custom_command --arg&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; output = _run_subprocess_unrestricted(&quot;custom_command --arg&quot;)  # doctest: +SKIP</span>
 
 <span class="sd">    Security Warning:</span>
 <span class="sd">        This function replicates the old vulnerable behavior for backward</span>

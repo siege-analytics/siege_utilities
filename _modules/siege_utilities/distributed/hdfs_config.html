@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.distributed.hdfs_config &mdash; Siege Utilities 3.17.2 documentation</title>
+  <title>siege_utilities.distributed.hdfs_config &mdash; Siege Utilities 3.21.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=e3f4f00d"></script>
+      <script src="../../../_static/documentation_options.js?v=981e9f52"></script>
       <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -547,6 +547,16 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.core.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_logger</span><span class="p">,</span> <span class="n">log_info</span><span class="p">,</span> <span class="n">log_warning</span><span class="p">,</span> <span class="n">log_error</span><span class="p">,</span> <span class="n">log_debug</span>
 
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;HDFSConfig&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;create_census_analysis_config&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;create_cluster_config&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;create_geocoding_config&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;create_hdfs_config&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;create_local_config&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;create_yarn_config&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
 
 <div class="viewcode-block" id="HDFSConfig">
 <a class="viewcode-back" href="../../../api/siege_utilities/distributed/hdfs_config/index.html#siege_utilities.HDFSConfig">[docs]</a>
@@ -682,7 +692,12 @@
 <div class="viewcode-block" id="create_hdfs_config">
 <a class="viewcode-back" href="../../../distributed_computing.html#siege_utilities.create_hdfs_config">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">create_hdfs_config</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">HDFSConfig</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Factory function to create HDFS configuration&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Factory function to create HDFS configuration.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        **kwargs: Forwarded to HDFSConfig(). See HDFSConfig for accepted fields</span>
+<span class="sd">            (e.g. data_path, master, executor_memory, enable_sedona, etc.).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">HDFSConfig</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 
@@ -690,7 +705,14 @@
 <div class="viewcode-block" id="create_local_config">
 <a class="viewcode-back" href="../../../distributed_computing.html#siege_utilities.create_local_config">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">create_local_config</span><span class="p">(</span><span class="n">data_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">HDFSConfig</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create config optimized for local development&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create config optimized for local development.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        data_path: Path to data directory.</span>
+<span class="sd">        **kwargs: Override any HDFSConfig default. Merged on top of local-mode</span>
+<span class="sd">            defaults (num_executors=2, executor_cores=1, executor_memory=&#39;1g&#39;,</span>
+<span class="sd">            enable_sedona=False). See HDFSConfig for accepted fields.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;data_path&#39;</span><span class="p">:</span> <span class="n">data_path</span><span class="p">,</span> <span class="s1">&#39;num_executors&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
         <span class="s1">&#39;executor_cores&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;executor_memory&#39;</span><span class="p">:</span> <span class="s1">&#39;1g&#39;</span><span class="p">,</span> <span class="s1">&#39;enable_sedona&#39;</span><span class="p">:</span> 
         <span class="kc">False</span><span class="p">,</span> <span class="s1">&#39;spark_log_level&#39;</span><span class="p">:</span> <span class="s1">&#39;WARN&#39;</span><span class="p">}</span>
@@ -702,7 +724,14 @@
 <div class="viewcode-block" id="create_cluster_config">
 <a class="viewcode-back" href="../../../distributed_computing.html#siege_utilities.create_cluster_config">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">create_cluster_config</span><span class="p">(</span><span class="n">data_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">HDFSConfig</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create config optimized for cluster deployment&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create config optimized for cluster deployment.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        data_path: Path to data directory.</span>
+<span class="sd">        **kwargs: Override any HDFSConfig default. Merged on top of cluster</span>
+<span class="sd">            defaults (num_executors=8, executor_cores=4, executor_memory=&#39;4g&#39;,</span>
+<span class="sd">            enable_sedona=True). See HDFSConfig for accepted fields.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;data_path&#39;</span><span class="p">:</span> <span class="n">data_path</span><span class="p">,</span> <span class="s1">&#39;num_executors&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
         <span class="s1">&#39;executor_cores&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;executor_memory&#39;</span><span class="p">:</span> <span class="s1">&#39;4g&#39;</span><span class="p">,</span> <span class="s1">&#39;enable_sedona&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
         <span class="s1">&#39;spark_log_level&#39;</span><span class="p">:</span> <span class="s1">&#39;WARN&#39;</span><span class="p">}</span>
@@ -714,7 +743,15 @@
 <div class="viewcode-block" id="create_geocoding_config">
 <a class="viewcode-back" href="../../../distributed_computing.html#siege_utilities.create_geocoding_config">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">create_geocoding_config</span><span class="p">(</span><span class="n">data_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span><span class="n">HDFSConfig</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create config optimized for geocoding workloads&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create config optimized for geocoding workloads.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        data_path: Path to data directory.</span>
+<span class="sd">        **kwargs: Override any HDFSConfig default. Merged on top of geocoding</span>
+<span class="sd">            defaults (app_name=&#39;GeocodingPipeline&#39;, num_executors=4,</span>
+<span class="sd">            executor_memory=&#39;2g&#39;, enable_sedona=True, network_timeout=&#39;1200s&#39;).</span>
+<span class="sd">            See HDFSConfig for accepted fields.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;data_path&#39;</span><span class="p">:</span> <span class="n">data_path</span><span class="p">,</span> <span class="s1">&#39;app_name&#39;</span><span class="p">:</span> <span class="s1">&#39;GeocodingPipeline&#39;</span><span class="p">,</span>
         <span class="s1">&#39;num_executors&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;executor_cores&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;executor_memory&#39;</span><span class="p">:</span> <span class="s1">&#39;2g&#39;</span><span class="p">,</span>
         <span class="s1">&#39;enable_sedona&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;network_timeout&#39;</span><span class="p">:</span> <span class="s1">&#39;1200s&#39;</span><span class="p">,</span>
@@ -741,8 +778,8 @@
 <span class="sd">        HDFSConfig configured for YARN deployment</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; config = create_yarn_config(&#39;/data/census&#39;, yarn_queue=&#39;analytics&#39;)</span>
-<span class="sd">        &gt;&gt;&gt; spark, path, _ = setup_distributed_environment(config)</span>
+<span class="sd">        &gt;&gt;&gt; config = create_yarn_config(&#39;/data/census&#39;, yarn_queue=&#39;analytics&#39;)  # doctest: +SKIP</span>
+<span class="sd">        &gt;&gt;&gt; spark, path, _ = setup_distributed_environment(config)  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s1">&#39;data_path&#39;</span><span class="p">:</span> <span class="n">data_path</span><span class="p">,</span>
@@ -780,8 +817,8 @@
 <span class="sd">        HDFSConfig optimized for Census analysis</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; config = create_census_analysis_config(&#39;/data/census/acs&#39;)</span>
-<span class="sd">        &gt;&gt;&gt; spark, path, _ = setup_distributed_environment(config)</span>
+<span class="sd">        &gt;&gt;&gt; config = create_census_analysis_config(&#39;/data/census/acs&#39;)  # doctest: +SKIP</span>
+<span class="sd">        &gt;&gt;&gt; spark, path, _ = setup_distributed_environment(config)  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s1">&#39;data_path&#39;</span><span class="p">:</span> <span class="n">data_path</span><span class="p">,</span>

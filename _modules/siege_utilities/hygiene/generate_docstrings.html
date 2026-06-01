@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.hygiene.generate_docstrings &mdash; Siege Utilities 3.17.2 documentation</title>
+  <title>siege_utilities.hygiene.generate_docstrings &mdash; Siege Utilities 3.21.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=e3f4f00d"></script>
+      <script src="../../../_static/documentation_options.js?v=981e9f52"></script>
       <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -541,6 +541,7 @@
 <span class="sd">Part of the hygiene maintenance toolkit.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">ast</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">inspect</span>
@@ -557,6 +558,20 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">log_warning</span><span class="p">(</span><span class="n">message</span><span class="p">):</span> <span class="k">pass</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">log_error</span><span class="p">(</span><span class="n">message</span><span class="p">):</span> <span class="k">pass</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">log_debug</span><span class="p">(</span><span class="n">message</span><span class="p">):</span> <span class="k">pass</span>
+
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;analyze_function_signature&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;categorize_function&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;generate_docstring_template&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;DocstringAdder&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;process_python_file&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;find_python_files&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;main&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;cli&#39;</span><span class="p">,</span>
+<span class="p">]</span>
 
 
 <div class="viewcode-block" id="analyze_function_signature">
@@ -680,9 +695,9 @@
 <span class="sd">    Any: Description needed</span>
 
 <span class="sd">Example:</span>
-<span class="sd">    &gt;&gt;&gt; import siege_utilities</span>
-<span class="sd">    &gt;&gt;&gt; result = siege_utilities.visit_FunctionDef()</span>
-<span class="sd">    &gt;&gt;&gt; # Process result as needed</span>
+<span class="sd">    &gt;&gt;&gt; import siege_utilities  # doctest: +SKIP</span>
+<span class="sd">    &gt;&gt;&gt; result = siege_utilities.visit_FunctionDef()  # doctest: +SKIP</span>
+<span class="sd">    &gt;&gt;&gt; pass  # Process result as needed  # doctest: +SKIP</span>
 
 <span class="sd">Note:</span>
 <span class="sd">    This function is auto-discovered and available without imports</span>

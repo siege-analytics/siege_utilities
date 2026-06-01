@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.files.paths &mdash; Siege Utilities 3.17.2 documentation</title>
+  <title>siege_utilities.files.paths &mdash; Siege Utilities 3.21.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=e3f4f00d"></script>
+      <script src="../../../_static/documentation_options.js?v=981e9f52"></script>
       <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -570,11 +570,9 @@
 <span class="sd">        PathSecurityError: If path fails security validation</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; path = ensure_path_exists(&quot;logs/2024/01&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; print(f&quot;Directory created: {path}&quot;)</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; # This will raise PathSecurityError</span>
-<span class="sd">        &gt;&gt;&gt; ensure_path_exists(&quot;../../../etc&quot;)  # Path traversal blocked</span>
+<span class="sd">        &gt;&gt;&gt; path = ensure_path_exists(&quot;logs/2024/01&quot;)  # doctest: +SKIP</span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;Directory created: {path}&quot;)  # doctest: +SKIP</span>
+<span class="sd">        &gt;&gt;&gt; ensure_path_exists(&quot;../../../etc&quot;)  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># Validate path</span>
@@ -623,8 +621,8 @@
 <span class="sd">        OSError: If extraction fails</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; extract_dir = unzip_file_to_directory(&quot;data.zip&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; print(f&quot;Files extracted to: {extract_dir}&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; extract_dir = unzip_file_to_directory(&quot;data.zip&quot;)  # doctest: +SKIP</span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;Files extracted to: {extract_dir}&quot;)  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span><span class="p">,</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
@@ -688,11 +686,9 @@
 <span class="sd">        PathSecurityError: If path fails security validation</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; ext = get_file_extension(&quot;document.pdf&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; print(f&quot;File extension: {ext}&quot;)  # .pdf</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; # This will raise PathSecurityError</span>
-<span class="sd">        &gt;&gt;&gt; get_file_extension(&quot;../../../etc/passwd&quot;)  # Path traversal blocked</span>
+<span class="sd">        &gt;&gt;&gt; ext = get_file_extension(&quot;document.pdf&quot;)  # doctest: +SKIP</span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;File extension: {ext}&quot;)  # doctest: +SKIP</span>
+<span class="sd">        &gt;&gt;&gt; get_file_extension(&quot;../../../etc/passwd&quot;)  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># Validate path</span>
@@ -726,11 +722,9 @@
 <span class="sd">        PathSecurityError: If path fails security validation</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; name = get_file_name_without_extension(&quot;document.pdf&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; print(f&quot;File name: {name}&quot;)  # document</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; # This will raise PathSecurityError</span>
-<span class="sd">        &gt;&gt;&gt; get_file_name_without_extension(&quot;../../../etc/shadow&quot;)  # Path traversal blocked</span>
+<span class="sd">        &gt;&gt;&gt; name = get_file_name_without_extension(&quot;document.pdf&quot;)  # doctest: +SKIP</span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;File name: {name}&quot;)  # doctest: +SKIP</span>
+<span class="sd">        &gt;&gt;&gt; get_file_name_without_extension(&quot;../../../etc/shadow&quot;)  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># Validate path</span>
@@ -763,11 +757,9 @@
 <span class="sd">        PathSecurityError: If path fails security validation</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; if is_hidden_file(&quot;.config&quot;):</span>
+<span class="sd">        &gt;&gt;&gt; if is_hidden_file(&quot;.config&quot;):  # doctest: +SKIP</span>
 <span class="sd">        ...     print(&quot;Hidden file detected&quot;)</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; # This will raise PathSecurityError</span>
-<span class="sd">        &gt;&gt;&gt; is_hidden_file(&quot;../../.ssh/id_rsa&quot;)  # Path traversal blocked</span>
+<span class="sd">        &gt;&gt;&gt; is_hidden_file(&quot;../../.ssh/id_rsa&quot;)  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># Validate path</span>
@@ -802,8 +794,8 @@
 <span class="sd">        PathSecurityError: If paths fail security validation</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; rel_path = get_relative_path(&quot;/home/user&quot;, &quot;/home/user/documents/file.txt&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; print(f&quot;Relative path: {rel_path}&quot;)  # documents/file.txt</span>
+<span class="sd">        &gt;&gt;&gt; rel_path = get_relative_path(&quot;/home/user&quot;, &quot;/home/user/documents/file.txt&quot;)  # doctest: +SKIP</span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;Relative path: {rel_path}&quot;)  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
@@ -839,11 +831,9 @@
 <span class="sd">        OSError: If the directory cannot be read</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; files = find_files_by_pattern(&quot;data&quot;, &quot;*.csv&quot;, recursive=True)</span>
-<span class="sd">        &gt;&gt;&gt; print(f&quot;Found {len(files)} CSV files&quot;)</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; # This will raise PathSecurityError</span>
-<span class="sd">        &gt;&gt;&gt; find_files_by_pattern(&quot;../../../etc&quot;, &quot;*&quot;)  # Path traversal blocked</span>
+<span class="sd">        &gt;&gt;&gt; files = find_files_by_pattern(&quot;data&quot;, &quot;*.csv&quot;, recursive=True)  # doctest: +SKIP</span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;Found {len(files)} CSV files&quot;)  # doctest: +SKIP</span>
+<span class="sd">        &gt;&gt;&gt; find_files_by_pattern(&quot;../../../etc&quot;, &quot;*&quot;)  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># Validate directory path</span>
@@ -893,11 +883,9 @@
 <span class="sd">        PathSecurityError: If paths fail security validation</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; backup_path = create_backup_path(&quot;config.yaml&quot;, &quot;.bak&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; print(f&quot;Backup will be saved to: {backup_path}&quot;)</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; # This will raise PathSecurityError</span>
-<span class="sd">        &gt;&gt;&gt; create_backup_path(&quot;/etc/passwd&quot;, &quot;.bak&quot;)  # Sensitive file blocked</span>
+<span class="sd">        &gt;&gt;&gt; backup_path = create_backup_path(&quot;config.yaml&quot;, &quot;.bak&quot;)  # doctest: +SKIP</span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;Backup will be saved to: {backup_path}&quot;)  # doctest: +SKIP</span>
+<span class="sd">        &gt;&gt;&gt; create_backup_path(&quot;/etc/passwd&quot;, &quot;.bak&quot;)  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># Validate original path</span>
@@ -948,11 +936,9 @@
 <span class="sd">        Normalized absolute path</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; norm_path = normalize_path(&quot;~/../data/file.txt&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; print(f&quot;Normalized path: {norm_path}&quot;)</span>
-
-<span class="sd">        &gt;&gt;&gt; # Resolves relative paths</span>
-<span class="sd">        &gt;&gt;&gt; norm_path = normalize_path(&quot;./../data/file.txt&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; norm_path = normalize_path(&quot;~/../data/file.txt&quot;)  # doctest: +SKIP</span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;Normalized path: {norm_path}&quot;)  # doctest: +SKIP</span>
+<span class="sd">        &gt;&gt;&gt; norm_path = normalize_path(&quot;./../data/file.txt&quot;)  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">path_obj</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>

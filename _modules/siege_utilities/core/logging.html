@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.core.logging &mdash; Siege Utilities 3.17.2 documentation</title>
+  <title>siege_utilities.core.logging &mdash; Siege Utilities 3.21.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=e3f4f00d"></script>
+      <script src="../../../_static/documentation_options.js?v=981e9f52"></script>
       <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -858,12 +858,20 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        Configured logger instance</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">log_to_file</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">shared_log_file</span><span class="p">:</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;init_logger(log_to_file=True) without shared_log_file has no &quot;</span>
+            <span class="s2">&quot;effect. Use configure_shared_logging() instead.&quot;</span><span class="p">,</span>
+            <span class="ne">DeprecationWarning</span><span class="p">,</span>
+            <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+        <span class="p">)</span>
     <span class="c1"># For backward compatibility, configure shared logging if specified</span>
     <span class="k">if</span> <span class="n">shared_log_file</span><span class="p">:</span>
         <span class="n">_logger_manager</span><span class="o">.</span><span class="n">configure_shared_logging</span><span class="p">(</span>
             <span class="n">shared_log_file</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="n">max_bytes</span><span class="p">,</span> <span class="n">backup_count</span>
         <span class="p">)</span>
-    
+
     <span class="k">return</span> <span class="n">_logger_manager</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></div>
 
 
@@ -944,6 +952,8 @@
         <span class="n">_logger_manager</span><span class="o">.</span><span class="n">_shared_config</span> <span class="o">=</span> <span class="n">original_config</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;LogLevel&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;LoggerName&#39;</span><span class="p">,</span>
     <span class="s1">&#39;LoggerManager&#39;</span><span class="p">,</span>
     <span class="s1">&#39;LoggingConfig&#39;</span><span class="p">,</span>
     <span class="s1">&#39;configure_shared_logging&#39;</span><span class="p">,</span>

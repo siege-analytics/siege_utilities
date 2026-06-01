@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.config.census_registry &mdash; Siege Utilities 3.17.2 documentation</title>
+  <title>siege_utilities.config.census_registry &mdash; Siege Utilities 3.21.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=e3f4f00d"></script>
+      <script src="../../../_static/documentation_options.js?v=981e9f52"></script>
       <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -552,6 +552,46 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span>
 
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;SurveyType&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;DataReliability&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;GeographyLevel&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;CANONICAL_GEOGRAPHIC_LEVELS&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;resolve_geographic_level&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;GEOGRAPHIC_LEVELS&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;GEOGRAPHIC_HIERARCHY&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;DATASET_TYPES&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;RELIABILITY_LEVELS&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;STATE_FIPS_CODES&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;STATEFIPS_LOOKUP_DICT&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;FIPS_TO_STATE&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;STATE_NAMES&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;CENSUS_BASE_URL&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;CENSUS_API_BASE_URL&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;CENSUS_FTP_BASE_URL&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;AVAILABLE_CENSUS_YEARS&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;DEFAULT_CENSUS_YEAR&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;DECENNIAL_YEARS&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;ACS_AVAILABLE_YEARS&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;ACS5_AVAILABLE_YEARS&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;BOUNDARY_CHANGE_YEARS&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;TIGER_FILE_PATTERNS&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;CENSUS_CACHE_TIMEOUT&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;CENSUS_MAX_CACHE_SIZE&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;CENSUS_TIMEOUT&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;CENSUS_RETRY_ATTEMPTS&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;CENSUS_API_CACHE_TIMEOUT&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;CENSUS_API_DEFAULT_TIMEOUT&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;CENSUS_API_RATE_LIMIT_RETRY_DELAY&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;VARIABLE_GROUPS&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;VARIABLE_DESCRIPTIONS&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;normalize_state_identifier&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;get_tiger_url&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;validate_geographic_level&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;get_fips_info&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;_ALIAS_TO_CANONICAL&#39;</span><span class="p">,</span>
+<span class="p">]</span>
+
 <span class="c1"># ============================================================================</span>
 <span class="c1"># INTERNAL: current year for dynamic range calculation</span>
 <span class="c1"># ============================================================================</span>
@@ -600,23 +640,29 @@
     <span class="s2">&quot;division&quot;</span><span class="p">:</span>    <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
     <span class="s2">&quot;state&quot;</span><span class="p">:</span>       <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
     <span class="s2">&quot;county&quot;</span><span class="p">:</span>      <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span>
-    <span class="s2">&quot;cousub&quot;</span><span class="p">:</span>      <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;county_subdivision&quot;</span><span class="p">],</span>                           <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">},</span>
+    <span class="s2">&quot;cousub&quot;</span><span class="p">:</span>      <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;county_subdivision&quot;</span><span class="p">,</span> <span class="s2">&quot;county subdivision&quot;</span><span class="p">],</span>      <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">},</span>
     <span class="s2">&quot;place&quot;</span><span class="p">:</span>       <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">},</span>
-    <span class="s2">&quot;cd&quot;</span><span class="p">:</span>          <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;congressional_district&quot;</span><span class="p">],</span>                       <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">},</span>
+    <span class="s2">&quot;cd&quot;</span><span class="p">:</span>          <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;congressional_district&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;congressional district&quot;</span><span class="p">],</span>                      <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">},</span>
     <span class="s2">&quot;sldu&quot;</span><span class="p">:</span>        <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;state_legislative_upper&quot;</span><span class="p">,</span>
                                 <span class="s2">&quot;state_legislative_district_upper&quot;</span><span class="p">,</span>
-                                <span class="s2">&quot;state_legislative_district&quot;</span><span class="p">],</span>                   <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span>
+                                <span class="s2">&quot;state_legislative_district&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;state legislative upper&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;state legislative district upper&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;state legislative district&quot;</span><span class="p">],</span>                   <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span>
     <span class="s2">&quot;sldl&quot;</span><span class="p">:</span>        <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;state_legislative_lower&quot;</span><span class="p">,</span>
-                                <span class="s2">&quot;state_legislative_district_lower&quot;</span><span class="p">],</span>             <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span>
+                                <span class="s2">&quot;state_legislative_district_lower&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;state legislative lower&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;state legislative district lower&quot;</span><span class="p">],</span>             <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span>
     <span class="s2">&quot;tract&quot;</span><span class="p">:</span>       <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">11</span><span class="p">},</span>
-    <span class="s2">&quot;block_group&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;bg&quot;</span><span class="p">,</span> <span class="s2">&quot;blockgroup&quot;</span><span class="p">],</span>                             <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">},</span>
+    <span class="s2">&quot;block_group&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;bg&quot;</span><span class="p">,</span> <span class="s2">&quot;blockgroup&quot;</span><span class="p">,</span> <span class="s2">&quot;block group&quot;</span><span class="p">],</span>              <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">},</span>
     <span class="s2">&quot;block&quot;</span><span class="p">:</span>       <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;tabblock&quot;</span><span class="p">],</span>                                     <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">15</span><span class="p">},</span>
     <span class="s2">&quot;tabblock20&quot;</span><span class="p">:</span>  <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">15</span><span class="p">},</span>
     <span class="s2">&quot;tabblock10&quot;</span><span class="p">:</span>  <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">15</span><span class="p">},</span>
-    <span class="s2">&quot;zcta&quot;</span><span class="p">:</span>        <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;zip_code&quot;</span><span class="p">,</span> <span class="s2">&quot;zcta5&quot;</span><span class="p">,</span> <span class="s2">&quot;zipcode&quot;</span><span class="p">],</span>                 <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span>
+    <span class="s2">&quot;zcta&quot;</span><span class="p">:</span>        <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;zip_code&quot;</span><span class="p">,</span> <span class="s2">&quot;zcta5&quot;</span><span class="p">,</span> <span class="s2">&quot;zipcode&quot;</span><span class="p">,</span> <span class="s2">&quot;zip code&quot;</span><span class="p">],</span>      <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span>
     <span class="s2">&quot;cbsa&quot;</span><span class="p">:</span>        <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span>
     <span class="s2">&quot;puma&quot;</span><span class="p">:</span>        <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">},</span>
-    <span class="s2">&quot;vtd&quot;</span><span class="p">:</span>         <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;voting_district&quot;</span><span class="p">],</span>                              <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">6</span><span class="p">},</span>
+    <span class="s2">&quot;vtd&quot;</span><span class="p">:</span>         <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;voting_district&quot;</span><span class="p">,</span> <span class="s2">&quot;voting district&quot;</span><span class="p">],</span>            <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">6</span><span class="p">},</span>
     <span class="s2">&quot;vtd20&quot;</span><span class="p">:</span>       <span class="p">{</span><span class="s2">&quot;aliases&quot;</span><span class="p">:</span> <span class="p">[],</span>                                               <span class="s2">&quot;geoid_length&quot;</span><span class="p">:</span> <span class="mi">6</span><span class="p">},</span>
 <span class="p">}</span>
 
