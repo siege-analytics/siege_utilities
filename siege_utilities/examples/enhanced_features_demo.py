@@ -134,8 +134,11 @@ def demo_spatial_data_sources():
                 "check network connectivity and Census API availability"
             )
 
-    except Exception as exc:
-        logger.error("Census boundary download failed: %s", exc)
+    except (OSError, ValueError, RuntimeError) as exc:
+        raise RuntimeError(
+            f"Census boundary download failed: {exc}. "
+            "Check network connectivity and Census API availability."
+        ) from exc
 
 
 def demo_spatial_transformations():
@@ -179,8 +182,11 @@ def demo_spatial_transformations():
         )
         print(f"Saved GeoJSON: {geojson_path}")
 
-    except Exception as exc:
-        logger.error("Spatial transformation failed: %s", exc)
+    except (OSError, ValueError, RuntimeError) as exc:
+        raise RuntimeError(
+            f"Spatial transformation failed: {exc}. "
+            "Verify the input GeoPackage exists and is not corrupt."
+        ) from exc
 
 
 def main():
@@ -207,7 +213,7 @@ def main():
                     size_mb = f.stat().st_size / (1024 * 1024)
                     print(f"  - {f.name} ({size_mb:.2f} MB)")
 
-    except Exception as exc:
+    except (ImportError, OSError, ValueError, RuntimeError) as exc:
         logger.exception("Demo execution failed: %s", exc)
         return 1
 
