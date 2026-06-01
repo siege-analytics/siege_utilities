@@ -3,6 +3,7 @@ Auto-generate docstrings for functions missing them in siege_utilities.
 Part of the hygiene maintenance toolkit.
 """
 import ast
+import logging
 import os
 import sys
 import inspect
@@ -19,6 +20,8 @@ except ImportError:
     def log_warning(message): pass
     def log_error(message): pass
     def log_debug(message): pass
+
+log = logging.getLogger(__name__)
 
 
 __all__ = [

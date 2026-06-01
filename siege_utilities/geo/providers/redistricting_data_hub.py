@@ -28,6 +28,7 @@ Usage::
 
 from __future__ import annotations
 
+import logging
 import os
 import zipfile
 from dataclasses import dataclass, field
@@ -60,6 +61,8 @@ except ImportError:
     def log_warning(msg: str) -> None: pass
     def log_error(msg: str) -> None: pass
     def log_debug(msg: str) -> None: pass
+
+log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------

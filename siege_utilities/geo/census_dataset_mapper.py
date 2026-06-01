@@ -6,11 +6,14 @@ making it easier to understand which datasets to use for different analysis need
 """
 
 import json
+import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from dataclasses import dataclass
 
 from siege_utilities.core.logging import log_info
+
+log = logging.getLogger(__name__)
 
 # Canonical enum definitions live in census_registry; re-export for backward compat
 from siege_utilities.config.census_registry import (  # noqa: F401
