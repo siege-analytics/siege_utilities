@@ -24,6 +24,7 @@ try:
     from botocore.exceptions import ClientError
 except ImportError:
     boto3 = None
+    ClientError = type('ClientError', (Exception,), {})
 
 try:
     import geopandas as gpd
