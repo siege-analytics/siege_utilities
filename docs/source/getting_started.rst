@@ -1,295 +1,180 @@
 Getting Started
-==============
+===============
 
-Welcome to Siege Utilities! This comprehensive library provides **568+ functions** across **16 modules** for data engineering, analytics, and distributed computing workflows.
+siege_utilities is a thesaurus of space-time composition tools. The library
+ties events to coordinates in space-time, then extrapolates significances from
+placement. **Geo is the gravitational center** — all domain modules produce
+events that need space-time location before they become analytically useful.
 
-Quick Start
------------
-
-.. code-block:: python
-
-    # Import the entire library - all functions are available!
-    import siege_utilities as su
-    
-    # Check what's available
-    print(f"Total functions: {len(su.get_available_functions())}")
-    print(f"Package info: {su.get_package_info()}")
-
-Core Capabilities
-----------------
-
-🔧 **Core Utilities (16 functions)**
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Thread-safe logging system and string manipulation:
-
-.. code-block:: python
-
-    # Initialize logging
-    su.init_logger(level='INFO')
-    
-    # Use logging functions anywhere
-    su.log_info("Starting data processing")
-    su.log_warning("Large dataset detected")
-    su.log_error("Processing failed")
-    
-    # String utilities
-    cleaned = su.remove_wrapping_quotes_and_trim('  "hello world"  ')
-    print(cleaned)  # Output: hello world
-
-📁 **File Operations (22 functions)**
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Advanced file handling, hashing, and operations:
-
-.. code-block:: python
-
-    # File hashing and integrity
-    file_hash = su.calculate_file_hash('data.csv', algorithm='sha256')
-    is_valid = su.verify_file_integrity('data.csv', expected_hash=file_hash)
-    
-    # File analysis
-    total_rows = su.count_total_rows_in_file_pythonically('data.csv')
-    empty_rows = su.count_empty_rows_in_file_pythonically('data.csv')
-    
-    # Path management
-    su.ensure_path_exists('/path/to/new/directory')
-    su.unzip_file_to_its_own_directory('archive.zip')
-    
-    # Remote operations
-    local_path = su.generate_local_path_from_url('https://example.com/file.csv')
-    su.download_file('https://example.com/file.csv', 'local_file.csv')
-
-🚀 **Distributed Computing (503+ functions)**
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-**This is where the power lies!** Full Spark ecosystem support:
-
-.. code-block:: python
-
-    # All 503+ Spark functions are available!
-    from siege_utilities.distributed import spark_utils
-    
-    # DataFrame operations
-    row_count = su.get_row_count(spark_df)
-    su.repartition_and_cache(spark_df, num_partitions=10)
-    
-    # Data validation
-    su.validate_geocode_data(spark_df)
-    
-    # File operations
-    su.write_df_to_parquet(spark_df, 'output.parquet')
-    new_df = su.read_parquet_to_df('input.parquet')
-    
-    # Advanced transformations
-    flattened_df = su.flatten_json_column_and_join_back_to_df(
-        spark_df, 'json_column'
-    )
-    
-    # Performance optimization
-    su.backup_full_dataframe(spark_df, 'backup.parquet')
-    su.atomic_write_with_staging(spark_df, 'final_output.parquet')
-
-🌍 **Geospatial (2 functions)**
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Address processing and geocoding:
-
-.. code-block:: python
-
-    # Address concatenation
-    full_address = su.concatenate_addresses(
-        street='123 Main St',
-        city='New York',
-        state='NY',
-        zip_code='10001'
-    )
-    
-    # Geocoding
-    coordinates = su.use_nominatim_geocoder(full_address)
-    print(f"Lat: {coordinates['lat']}, Lon: {coordinates['lon']}")
-
-⚙️ **Configuration Management (15 functions)**
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Client profiles, connections, and project management:
-
-.. code-block:: python
-
-    # Client management
-    client = su.create_client_profile(
-        "Acme Corp", "ACME001",
-        {"primary_contact": "John Doe", "email": "john@acme.com"}
-    )
-    su.save_client_profile(client)
-    
-    # Connection management
-    connection = su.create_connection_profile(
-        "Production DB", "database",
-        {"connection_string": "postgresql://user:pass@localhost:5432/db"}
-    )
-    su.save_connection_profile(connection)
-    
-    # Project association
-    su.associate_client_with_project("ACME001", "PROJ001")
-
-📊 **Analytics Integration (6 functions)**
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Google Analytics integration with client association:
-
-.. code-block:: python
-
-    # Create GA account profile
-    ga_profile = su.create_ga_account_profile(
-        client_id="ACME001",
-        ga_property_id="123456789",
-        account_type="ga4"
-    )
-    su.save_ga_account_profile(ga_profile)
-    
-    # Batch data retrieval
-    results = su.batch_retrieve_ga_data(
-        client_id="ACME001",
-        start_date="2024-01-01",
-        end_date="2024-01-31",
-        metrics=["sessions", "pageviews", "users"],
-        dimensions=["date", "pagePath"],
-        output_format="both"  # Both Pandas and Spark
-    )
-    
-    print(f"Retrieved {results['total_rows']} rows from {results['accounts_processed']} accounts")
-
-🧹 **Code Hygiene (2 functions)**
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Documentation and code quality tools:
-
-.. code-block:: python
-
-    # Generate docstring templates
-    template = su.generate_docstring_template('my_function')
-    
-    # Analyze function signatures
-    analysis = su.analyze_function_signature('my_function')
-
-🧪 **Testing & Development (2 functions)**
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Environment setup and diagnostics:
-
-.. code-block:: python
-
-    # Setup Spark environment
-    su.setup_spark_environment()
-    
-    # Get system information
-    system_info = su.get_system_info()
-
-Real-World Workflow Examples
----------------------------
-
-**Data Engineering Pipeline:**
-
-.. code-block:: python
-
-    import siege_utilities as su
-    
-    # 1. Setup and logging
-    su.init_logger(level='INFO')
-    su.log_info("Starting data engineering pipeline")
-    
-    # 2. File operations
-    su.ensure_path_exists('data/raw')
-    su.ensure_path_exists('data/processed')
-    
-    # 3. Data ingestion
-    su.download_file('https://api.example.com/data.csv', 'data/raw/input.csv')
-    
-    # 4. Data processing with Spark
-    spark_df = su.read_parquet_to_df('data/raw/input.csv')
-    su.validate_geocode_data(spark_df)
-    
-    # 5. Save processed data
-    su.write_df_to_parquet(spark_df, 'data/processed/output.parquet')
-    
-    su.log_info("Pipeline completed successfully")
-
-**Client Analytics Workflow:**
-
-.. code-block:: python
-
-    import siege_utilities as su
-    
-    # 1. Client setup
-    client = su.create_client_profile(
-        "Tech Startup", "TECH001",
-        {"primary_contact": "Jane Smith", "email": "jane@techstartup.com"}
-    )
-    su.save_client_profile(client)
-    
-    # 2. GA account setup
-    ga_profile = su.create_ga_account_profile(
-        client_id="TECH001",
-        ga_property_id="987654321",
-        account_type="ga4"
-    )
-    su.save_ga_account_profile(ga_profile)
-    
-    # 3. Data retrieval
-    results = su.batch_retrieve_ga_data(
-        client_id="TECH001",
-        start_date="2024-01-01",
-        end_date="2024-01-31",
-        metrics=["sessions", "pageviews"],
-        dimensions=["date", "pagePath"],
-        output_format="spark"
-    )
-    
-    # 4. Process with Spark
-    if results['success']:
-        su.log_info(f"Retrieved {results['total_rows']} rows of analytics data")
-        # Continue with Spark processing...
-
-Installation and Dependencies
----------------------------
-
-**Core Dependencies:**
-- Python 3.11+
-- pyyaml, requests, tqdm, pydantic
-
-**Optional Extras:**
+Installation
+------------
 
 .. code-block:: bash
 
-    # Core only
-    pip install siege-utilities
+   # Core (lightweight, no geospatial C deps)
+   pip install siege-utilities
 
-    # Geospatial tiers
-    pip install siege-utilities[geo-lite]      # shapely, pyproj, geopy (no GDAL)
-    pip install siege-utilities[geo]           # + geopandas, fiona, rtree, tobler
-    pip install siege-utilities[geodjango]     # + Django, DRF-GIS, PostGIS
+   # Geo-lite (shapely, pyproj, geopy — no GDAL)
+   pip install siege-utilities[geo-lite]
 
-    # Analytics (Google Workspace, GA4, Snowflake)
-    pip install siege-utilities[analytics]
+   # Full geospatial (requires GDAL/GEOS/PROJ system libraries)
+   pip install siege-utilities[geo]
 
-    # Everything
-    pip install siege-utilities[all]
+   # GeoDjango spatial platform
+   pip install siege-utilities[geodjango]
 
-Performance and Scalability
+Quick Start: The Composition Chain
+----------------------------------
+
+The canonical workflow is: **address → geocoder → GEOID → boundary → overlay → report**.
+
+1. Geocode an Address
+~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from siege_utilities.geo.geocoding import geocode_address
+
+   result = geocode_address("1600 Pennsylvania Ave NW, Washington, DC")
+   # Returns lat/lon coordinates for spatial operations
+
+2. Normalize a GEOID
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from siege_utilities.geo.geoid_utils import normalize_geoid
+
+   # Census GEOIDs are the universal join key
+   geoid = normalize_geoid("06037", level="county")  # Los Angeles County
+
+3. Download Census Boundaries
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from siege_utilities.geo.spatial_data import census_source
+
+   counties = census_source.get_geographic_boundaries(
+       year=2020,
+       geographic_level="county",
+       state_fips="06",
+   )
+
+4. Use Pluggable Boundary Providers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from siege_utilities.geo.providers.boundary_providers import resolve_boundary_provider
+
+   provider = resolve_boundary_provider("census_tiger")
+   boundary = provider.get_boundary(state_fips="06", level="county", year=2020)
+
+5. Set a Project-Wide CRS
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from siege_utilities.geo.crs import set_default_crs
+
+   set_default_crs("EPSG:2263")  # NY State Plane
+
+Engine-Agnostic DataFrames
 --------------------------
 
-- **Local Development**: All functions work locally for development and testing
-- **Distributed Processing**: 503+ Spark functions for big data workflows
-- **Memory Efficient**: Optimized for large datasets and production environments
-- **Scalable**: From single-machine to cluster deployments
+Same analysis at different scales without rewriting:
 
-Next Steps
-----------
+.. code-block:: python
 
-1. **Explore Functions**: Use `su.get_available_functions()` to see all 568+ functions
-2. **Check Package Info**: Use `su.get_package_info()` for detailed module information
-3. **Run Tests**: Use the testing framework to verify functionality
-4. **Build Workflows**: Combine functions to create your data engineering pipelines
+   from siege_utilities.engines import DataFrameEngine
 
-The library is designed to be **mutually available** - every function can access every other function, creating a powerful and flexible development environment for data engineering and analytics workflows.
+   # pandas for exploration
+   engine = DataFrameEngine("pandas")
+
+   # DuckDB for medium scale
+   engine = DataFrameEngine("duckdb")
+
+   # Spark for distribution
+   engine = DataFrameEngine("spark")
+
+Credential Management
+---------------------
+
+Credentials come from environment variables first, with 1Password CLI fallback:
+
+.. code-block:: python
+
+   from siege_utilities.config.credential_manager import get_credential
+
+   api_key = get_credential("CENSUS_API_KEY")
+
+Lazy Loading
+------------
+
+The library uses PEP 562 ``__getattr__`` for lazy loading. You can import one
+piece in a Lambda or notebook without pulling the whole dependency tree:
+
+.. code-block:: python
+
+   # Only loads geo when you access it
+   from siege_utilities.geo import normalize_geoid
+
+   # Only loads reporting when you access it
+   from siege_utilities.reporting import ReportGenerator
+
+Package Overview
+----------------
+
+.. list-table::
+   :widths: 20 60 20
+   :header-rows: 1
+
+   * - Package
+     - Purpose
+     - Layer
+   * - **geo/**
+     - Boundaries, geocoding, spatial transforms, Census data, isochrones, redistricting
+     - Core (gravitational center)
+   * - **political/**
+     - DDL and entities: Seat, OfficeTerm, RedistrictingPlan
+     - Domain
+   * - **economic/**
+     - BLS QCEW, economic indicators
+     - Domain
+   * - **education/**
+     - NCES data, school districts
+     - Domain
+   * - **survey/**
+     - Survey analysis, crosstabs, weighting, significance
+     - Domain
+   * - **analytics/**
+     - GA, Snowflake, data.world, Facebook connectors
+     - Domain
+   * - **engines/**
+     - Multi-engine DataFrame abstraction (pandas, DuckDB, Spark, PostGIS)
+     - Infrastructure
+   * - **distributed/**
+     - Spark utilities, HDFS operations
+     - Infrastructure
+   * - **databricks/**
+     - Databricks-specific connectors and bridge pattern
+     - Infrastructure
+   * - **config/**
+     - User/project config, credentials, database connections
+     - Infrastructure
+   * - **data/**
+     - Data loading, MOE propagation, cross-tabulation, sample datasets
+     - Data
+   * - **reference/**
+     - Reference lookups (NAICS, SOC, state FIPS)
+     - Data
+   * - **reporting/**
+     - Charts, PDFs, PowerPoint, hex cartograms, 3D maps
+     - Output
+   * - **core/**
+     - Logging, string utilities, SQL safety
+     - Foundation
+   * - **files/**
+     - File operations, hashing, remote downloads
+     - Foundation
