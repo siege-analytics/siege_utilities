@@ -15,6 +15,15 @@ from siege_utilities.geo.overlay_registry import PlaceHistoryOverlay
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "DictUrbanicityProvider",
+    "NCES_VINTAGE_YEARS",
+    "UrbanicityDataProvider",
+    "UrbanicityOverlay",
+    "UrbanicityOverlayResult",
+    "UrbanicityPoint",
+]
+
 
 # ---------------------------------------------------------------------------
 # Result types

@@ -24,6 +24,13 @@ from siege_utilities.core.sql_safety import (
     validate_sql_identifier,
 )
 
+__all__ = [
+    "build_foreign_table_sql",
+    "build_schema_and_table_sync_sql",
+    "quote_ident",
+]
+
+
 
 def quote_ident(value: str) -> str:
     """Quote an identifier with backticks for Databricks SQL."""

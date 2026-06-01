@@ -14,6 +14,7 @@ try:
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
     plt = None
+    mpatches = None
     sns = None
 
 # Data processing
@@ -34,6 +35,10 @@ except ImportError:
     Image = None
 
 log = logging.getLogger(__name__)
+
+__all__ = [
+    "CompositeChartMixin",
+]
 
 
 class CompositeChartMixin:

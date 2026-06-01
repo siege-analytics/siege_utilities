@@ -36,6 +36,10 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "BarChartMixin",
+]
+
 
 class BarChartMixin:
     """Bar chart, line chart, pie chart, and proportional text bar chart methods."""
@@ -278,7 +282,10 @@ class BarChartMixin:
             fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
 
             # Adjust subplot parameters to make room for legend table
-            fig.subplots_adjust(left=0.1, right=0.6, top=0.9, bottom=0.1)
+            if legend_position == "bottom":
+                fig.subplots_adjust(left=0.1, right=0.9, top=0.85, bottom=0.35)
+            else:
+                fig.subplots_adjust(left=0.1, right=0.6, top=0.9, bottom=0.1)
 
             # Create clean pie chart with NO LABELS AT ALL
             ax.pie(values, labels=None, autopct=None,
@@ -305,15 +312,16 @@ class BarChartMixin:
                         f"{pct:.1f}%"
                     ])
 
-                # Create table — bbox is [left, bottom, width, height] in
-                # axes coordinates.  With subplots_adjust(right=0.6) the axes
-                # occupies ~50% of figure width, so 0.6 axes-widths ≈ 1.8in
-                # on a 6-inch figure — enough room for the four columns.
+                # bbox is [left, bottom, width, height] in axes coordinates.
+                if legend_position == "bottom":
+                    table_bbox = [0.0, -0.6, 1.0, 0.5]
+                else:
+                    table_bbox = [1.05, 0.0, 0.6, 0.9]
                 table = ax.table(cellText=legend_data,
                                colLabels=['', 'Label', 'Value', 'Percent'],
                                cellLoc='center',
                                loc='center',
-                               bbox=[1.05, 0.0, 0.6, 0.9])
+                               bbox=table_bbox)
 
                 # Style the table
                 table.auto_set_font_size(False)

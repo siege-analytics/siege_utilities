@@ -26,6 +26,10 @@ from .catalog import (
     parse_table_id,
 )
 
+__all__ = [
+    'CensusCatalogPopulator',
+]
+
 log = logging.getLogger(__name__)
 
 _DATASET_PATHS = {

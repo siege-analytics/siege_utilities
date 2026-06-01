@@ -17,6 +17,21 @@ from typing import Any, Optional
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "ACTIVE_STATUSES",
+    "DictPlanLifecycleProvider",
+    "EnactedBy",
+    "PlanLifecycleEvent",
+    "PlanLifecycleProvider",
+    "PlanLifecycleStatus",
+    "PlanLineage",
+    "PlanType",
+    "RedistrictingPlan",
+    "TERMINAL_STATUSES",
+    "build_lineage",
+    "resolve_plan_at",
+]
+
 
 class PlanLifecycleStatus(str, Enum):
     """Status in the lifecycle of a redistricting plan."""
@@ -245,7 +260,7 @@ def build_lineage(
 ) -> PlanLineage:
     """Build a supersession lineage from a list of related plans.
 
-    Plans are ordered by enacted_date, with supersession links verified.
+    Plans are ordered by enacted_date.
 
     Args:
         plans: Plans that form a lineage (same state + type).
@@ -253,7 +268,6 @@ def build_lineage(
     if not plans:
         return PlanLineage()
 
-    by_id = {p.plan_id: p for p in plans}
     sorted_plans = sorted(
         plans,
         key=lambda p: p.enacted_date or date.min,

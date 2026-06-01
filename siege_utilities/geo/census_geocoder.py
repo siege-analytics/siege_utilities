@@ -2,6 +2,9 @@
 
 Moved during ELE-2438. Will be removed in v4.0.0.
 """
+
+# __all__ is inherited from the wildcard re-export below.
+
 import warnings as _warnings
 
 _warnings.warn(
@@ -26,3 +29,14 @@ from .providers.census_geocoder import (  # noqa: F401, E402
     geocode_single,
     select_vintage_for_cycle,
 )
+
+__all__ = [
+    "CensusGeocodeError",
+    "CensusGeocodeResult",
+    "CensusVintage",
+    "geocode_batch",
+    "geocode_batch_chunked",
+    "geocode_results_to_dataframe",
+    "geocode_single",
+    "select_vintage_for_cycle",
+]

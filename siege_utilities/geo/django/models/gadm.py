@@ -14,6 +14,16 @@ from django.db import models
 
 from .base import TemporalBoundary
 
+__all__ = [
+    'GADMBoundary',
+    'GADMCountry',
+    'GADMAdmin1',
+    'GADMAdmin2',
+    'GADMAdmin3',
+    'GADMAdmin4',
+    'GADMAdmin5',
+]
+
 
 class GADMBoundary(TemporalBoundary):
     """

@@ -26,6 +26,14 @@ except ImportError:
 
 from siege_utilities.geo.crs import reproject_if_needed
 
+__all__ = [
+    'ArealInterpolationResult',
+    'interpolate_areal',
+    'interpolate_extensive',
+    'interpolate_intensive',
+    'compute_area_weights',
+]
+
 log = logging.getLogger(__name__)
 
 

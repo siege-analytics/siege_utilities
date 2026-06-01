@@ -21,6 +21,16 @@ if TYPE_CHECKING:
     import geopandas as gpd
     import pandas as pd
 
+__all__ = [
+    'TemporalDataStore',
+    'get_temporal_store',
+    'save_boundaries',
+    'load_boundaries',
+    'query_boundaries_at_date',
+    'save_demographics',
+    'load_demographics',
+]
+
 log = logging.getLogger(__name__)
 
 _DEFAULT_ROOT = Path.home() / ".siege_utilities" / "store" / "temporal"
@@ -295,7 +305,15 @@ def save_boundaries(
     vintage_year: int,
     **kwargs,
 ) -> Path:
-    """Save boundaries via the default store."""
+    """Save boundaries via the default store.
+
+    Args:
+        gdf: GeoDataFrame of boundaries to persist.
+        geography_type: Type of geography (e.g. "county", "tract").
+        vintage_year: Census vintage year.
+        **kwargs: Forwarded to get_temporal_store(). Accepts root_dir
+            and format.
+    """
     return get_temporal_store(**kwargs).save_boundaries(gdf, geography_type, vintage_year)
 
 
@@ -305,7 +323,15 @@ def load_boundaries(
     state_fips: str | None = None,
     **kwargs,
 ) -> "gpd.GeoDataFrame":
-    """Load boundaries via the default store."""
+    """Load boundaries via the default store.
+
+    Args:
+        geography_type: Type of geography (e.g. "county", "tract").
+        vintage_year: Census vintage year.
+        state_fips: Optional state FIPS code to filter results.
+        **kwargs: Forwarded to get_temporal_store(). Accepts root_dir
+            and format.
+    """
     return get_temporal_store(**kwargs).load_boundaries(
         geography_type, vintage_year, state_fips
     )
@@ -317,7 +343,15 @@ def query_boundaries_at_date(
     state_fips: str | None = None,
     **kwargs,
 ) -> "gpd.GeoDataFrame":
-    """Query boundaries at a date via the default store."""
+    """Query boundaries at a date via the default store.
+
+    Args:
+        geography_type: Type of geography (e.g. "county", "tract").
+        query_date: Date for which to find matching boundaries.
+        state_fips: Optional state FIPS code to filter results.
+        **kwargs: Forwarded to get_temporal_store(). Accepts root_dir
+            and format.
+    """
     return get_temporal_store(**kwargs).query_boundaries_at_date(
         geography_type, query_date, state_fips
     )
@@ -330,7 +364,16 @@ def save_demographics(
     year: int | None = None,
     **kwargs,
 ) -> Path:
-    """Save demographics via the default store."""
+    """Save demographics via the default store.
+
+    Args:
+        snapshots: DataFrame of demographic snapshot data.
+        geography_type: Type of geography (e.g. "county", "tract").
+        dataset: Dataset identifier (default "acs5").
+        year: Year of the snapshot. Inferred from DataFrame if omitted.
+        **kwargs: Forwarded to get_temporal_store(). Accepts root_dir
+            and format.
+    """
     return get_temporal_store(**kwargs).save_demographics(
         snapshots, geography_type, dataset, year
     )
@@ -342,7 +385,15 @@ def load_demographics(
     dataset: str = "acs5",
     **kwargs,
 ) -> "pd.DataFrame":
-    """Load demographics via the default store."""
+    """Load demographics via the default store.
+
+    Args:
+        geography_type: Type of geography (e.g. "county", "tract").
+        year: Year to load. If None, loads all available years.
+        dataset: Dataset identifier (default "acs5").
+        **kwargs: Forwarded to get_temporal_store(). Accepts root_dir
+            and format.
+    """
     return get_temporal_store(**kwargs).load_demographics(
         geography_type, year, dataset
     )

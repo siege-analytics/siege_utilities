@@ -32,6 +32,8 @@ if TYPE_CHECKING:
     from .models import Chain
 
 
+__all__ = ["SignificanceError", "column_proportion_test", "chi_square_flag"]
+
 class SignificanceError(RuntimeError):
     """Raised when significance testing cannot complete on the given chain."""
 

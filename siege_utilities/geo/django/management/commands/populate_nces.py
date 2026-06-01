@@ -10,6 +10,7 @@ Usage:
 
 from django.core.management.base import BaseCommand, CommandError
 
+__all__ = ['Command']
 
 VALID_ACTIONS = ["locale_boundaries", "school_locations", "enrich_districts", "all"]
 

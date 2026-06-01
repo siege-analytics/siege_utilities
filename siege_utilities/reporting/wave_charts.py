@@ -15,6 +15,12 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from ..survey.models import Chain
 
+__all__ = [
+    "WaveChartError",
+    "heatmap",
+    "trend_chart",
+]
+
 
 class WaveChartError(ValueError):
     """Raised when a WaveSet chart cannot be rendered from the given Chain."""

@@ -28,6 +28,17 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    "CCD_DIRECTORY_URL",
+    "CCD_F33_URL",
+    "CCD_NONFISCAL_URL",
+    "CCD_SCHOOL_DIRECTORY_URL",
+    "CCD_SCHOOL_NONFISCAL_URL",
+    "DEFAULT_CACHE_DIR",
+    "EDGE_DISTRICT_DEMOGRAPHICS_URL",
+    "NCESFiles",
+]
+
 # Default cache location.
 DEFAULT_CACHE_DIR = Path.home() / ".siege_utilities" / "cache" / "nces"
 
@@ -87,15 +98,33 @@ class NCESFiles:
         start = int(start_str)
         return start, start + 1
 
+    _MAX_DOWNLOAD_BYTES = 512 * 1024 * 1024  # 512 MB cap
+    _CHUNK_SIZE = 64 * 1024
+
+    def _stream_download(self, url: str) -> bytes:
+        """Stream-download a URL into memory with a size cap."""
+        chunks = []
+        downloaded = 0
+        with requests.get(url, stream=True, timeout=self.timeout) as resp:
+            resp.raise_for_status()
+            for chunk in resp.iter_content(chunk_size=self._CHUNK_SIZE):
+                downloaded += len(chunk)
+                if downloaded > self._MAX_DOWNLOAD_BYTES:
+                    raise ValueError(
+                        f"Download from {url} exceeds "
+                        f"{self._MAX_DOWNLOAD_BYTES / 1024 / 1024:.0f} MB limit"
+                    )
+                chunks.append(chunk)
+        return b''.join(chunks)
+
     def _download_zip(self, url: str, cache_name: str) -> Path:
         """Download + cache one NCES zip; return CSV path inside cache_dir."""
         csv_path = self.cache_dir / f"{cache_name}.csv"
         if csv_path.exists():
             return csv_path
         logger.info("Downloading NCES file: %s", url)
-        resp = requests.get(url, timeout=self.timeout)
-        resp.raise_for_status()
-        with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
+        content = self._stream_download(url)
+        with zipfile.ZipFile(io.BytesIO(content)) as zf:
             csv_name = next((n for n in zf.namelist() if n.endswith((".csv", ".txt"))), None)
             if not csv_name:
                 raise ValueError(f"No CSV/TXT inside {url}")
@@ -155,9 +184,8 @@ class NCESFiles:
         csv_path = self.cache_dir / f"{cache_name}.csv"
         if not csv_path.exists():
             logger.info("Downloading EDGE district demographics: %s", url)
-            resp = requests.get(url, timeout=self.timeout)
-            resp.raise_for_status()
-            csv_path.write_bytes(resp.content)
+            content = self._stream_download(url)
+            csv_path.write_bytes(content)
         return pd.read_csv(
             csv_path,
             dtype={"LEAID": str, "STATEFP": str, "STATEFIPS": str},

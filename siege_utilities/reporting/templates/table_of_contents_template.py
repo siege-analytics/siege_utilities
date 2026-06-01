@@ -27,6 +27,12 @@ from typing import List, Dict, Any
 
 from siege_utilities.core.logging import log_info, log_warning
 
+__all__ = [
+    'TableOfContentsTemplate',
+    'create_table_of_contents',
+    'generate_sections_from_report_structure',
+]
+
 
 class TableOfContentsTemplate:
     """Professional table of contents generator for siege utilities reports"""

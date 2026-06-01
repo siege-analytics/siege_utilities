@@ -30,11 +30,9 @@ def ensure_path_exists(desired_path: FilePath) -> Path:
         PathSecurityError: If path fails security validation
 
     Example:
-        >>> path = ensure_path_exists("logs/2024/01")
-        >>> print(f"Directory created: {path}")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> ensure_path_exists("../../../etc")  # Path traversal blocked
+        >>> path = ensure_path_exists("logs/2024/01")  # doctest: +SKIP
+        >>> print(f"Directory created: {path}")  # doctest: +SKIP
+        >>> ensure_path_exists("../../../etc")  # doctest: +SKIP
     """
     try:
         # Validate path
@@ -82,8 +80,8 @@ def unzip_file_to_directory(zip_file_path: FilePath,
         OSError: If extraction fails
 
     Example:
-        >>> extract_dir = unzip_file_to_directory("data.zip")
-        >>> print(f"Files extracted to: {extract_dir}")
+        >>> extract_dir = unzip_file_to_directory("data.zip")  # doctest: +SKIP
+        >>> print(f"Files extracted to: {extract_dir}")  # doctest: +SKIP
     """
     try:
         from siege_utilities.files.validation import validate_file_path, validate_directory_path, PathSecurityError  # noqa: F401, F811
@@ -145,11 +143,9 @@ def get_file_extension(file_path: FilePath) -> str:
         PathSecurityError: If path fails security validation
 
     Example:
-        >>> ext = get_file_extension("document.pdf")
-        >>> print(f"File extension: {ext}")  # .pdf
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> get_file_extension("../../../etc/passwd")  # Path traversal blocked
+        >>> ext = get_file_extension("document.pdf")  # doctest: +SKIP
+        >>> print(f"File extension: {ext}")  # doctest: +SKIP
+        >>> get_file_extension("../../../etc/passwd")  # doctest: +SKIP
     """
     try:
         # Validate path
@@ -182,11 +178,9 @@ def get_file_name_without_extension(file_path: FilePath) -> str:
         PathSecurityError: If path fails security validation
 
     Example:
-        >>> name = get_file_name_without_extension("document.pdf")
-        >>> print(f"File name: {name}")  # document
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> get_file_name_without_extension("../../../etc/shadow")  # Path traversal blocked
+        >>> name = get_file_name_without_extension("document.pdf")  # doctest: +SKIP
+        >>> print(f"File name: {name}")  # doctest: +SKIP
+        >>> get_file_name_without_extension("../../../etc/shadow")  # doctest: +SKIP
     """
     try:
         # Validate path
@@ -219,11 +213,9 @@ def is_hidden_file(file_path: FilePath) -> bool:
         PathSecurityError: If path fails security validation
 
     Example:
-        >>> if is_hidden_file(".config"):
+        >>> if is_hidden_file(".config"):  # doctest: +SKIP
         ...     print("Hidden file detected")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> is_hidden_file("../../.ssh/id_rsa")  # Path traversal blocked
+        >>> is_hidden_file("../../.ssh/id_rsa")  # doctest: +SKIP
     """
     try:
         # Validate path
@@ -258,8 +250,8 @@ def get_relative_path(base_path: FilePath, target_path: FilePath) -> Path:
         PathSecurityError: If paths fail security validation
 
     Example:
-        >>> rel_path = get_relative_path("/home/user", "/home/user/documents/file.txt")
-        >>> print(f"Relative path: {rel_path}")  # documents/file.txt
+        >>> rel_path = get_relative_path("/home/user", "/home/user/documents/file.txt")  # doctest: +SKIP
+        >>> print(f"Relative path: {rel_path}")  # doctest: +SKIP
     """
     try:
         from siege_utilities.files.validation import validate_safe_path, PathSecurityError  # noqa: F401, F811
@@ -295,11 +287,9 @@ def find_files_by_pattern(directory: FilePath,
         OSError: If the directory cannot be read
 
     Example:
-        >>> files = find_files_by_pattern("data", "*.csv", recursive=True)
-        >>> print(f"Found {len(files)} CSV files")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> find_files_by_pattern("../../../etc", "*")  # Path traversal blocked
+        >>> files = find_files_by_pattern("data", "*.csv", recursive=True)  # doctest: +SKIP
+        >>> print(f"Found {len(files)} CSV files")  # doctest: +SKIP
+        >>> find_files_by_pattern("../../../etc", "*")  # doctest: +SKIP
     """
     try:
         # Validate directory path
@@ -349,11 +339,9 @@ def create_backup_path(original_path: FilePath,
         PathSecurityError: If paths fail security validation
 
     Example:
-        >>> backup_path = create_backup_path("config.yaml", ".bak")
-        >>> print(f"Backup will be saved to: {backup_path}")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> create_backup_path("/etc/passwd", ".bak")  # Sensitive file blocked
+        >>> backup_path = create_backup_path("config.yaml", ".bak")  # doctest: +SKIP
+        >>> print(f"Backup will be saved to: {backup_path}")  # doctest: +SKIP
+        >>> create_backup_path("/etc/passwd", ".bak")  # doctest: +SKIP
     """
     try:
         # Validate original path
@@ -402,11 +390,9 @@ def normalize_path(path: FilePath) -> Path:
         Normalized absolute path
 
     Example:
-        >>> norm_path = normalize_path("~/../data/file.txt")
-        >>> print(f"Normalized path: {norm_path}")
-
-        >>> # Resolves relative paths
-        >>> norm_path = normalize_path("./../data/file.txt")
+        >>> norm_path = normalize_path("~/../data/file.txt")  # doctest: +SKIP
+        >>> print(f"Normalized path: {norm_path}")  # doctest: +SKIP
+        >>> norm_path = normalize_path("./../data/file.txt")  # doctest: +SKIP
     """
     try:
         path_obj = Path(path).expanduser().resolve()

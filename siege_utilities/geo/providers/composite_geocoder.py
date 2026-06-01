@@ -24,6 +24,10 @@ from .batch_geocoder import (
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'CompositeBatchGeocoder',
+]
+
 _QUALITY_RANK = {
     MatchQuality.EXACT.value: 4,
     MatchQuality.INTERPOLATED.value: 3,

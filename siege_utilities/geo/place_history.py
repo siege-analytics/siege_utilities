@@ -22,6 +22,17 @@ from typing import Any, Optional, Protocol, Union
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "CENSUS_DECADE_YEARS",
+    "CrosswalkProvider",
+    "CrosswalkRecord",
+    "DictCrosswalkProvider",
+    "Lineage",
+    "LineageStep",
+    "PlaceHistoryResult",
+    "place_history",
+]
+
 CENSUS_DECADE_YEARS = [1990, 2000, 2010, 2020, 2030]
 
 

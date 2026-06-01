@@ -9,6 +9,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
 
+__all__ = ["CensusTIGERSchema", "TemporalBoundarySchema", "TemporalGeographicFeatureSchema"]
+
 
 class TemporalGeographicFeatureSchema(BaseModel):
     """Schema for TemporalGeographicFeature fields."""

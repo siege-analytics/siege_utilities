@@ -11,6 +11,16 @@ import re
 from typing import Dict, Any, Optional
 from urllib.parse import quote_plus
 
+__all__ = [
+    'create_database_config',
+    'save_database_config',
+    'load_database_config',
+    'get_spark_database_options',
+    'test_database_connection',
+    'list_database_configs',
+    'create_spark_session_with_databases',
+]
+
 logger = logging.getLogger(__name__)
 
 # Import logging functions from core logging module
@@ -65,8 +75,8 @@ def create_database_config(name: str, connection_type: str, host: str, port: int
         Database configuration dictionary
 
     Example:
-        >>> import siege_utilities
-        >>> db_config = siege_utilities.create_database_config(
+        >>> import siege_utilities  # doctest: +SKIP
+        >>> db_config = siege_utilities.create_database_config(  # doctest: +SKIP
         ...     "analytics_db",
         ...     "postgres",
         ...     "localhost",
@@ -136,8 +146,8 @@ def save_database_config(config: Dict[str, Any], config_directory: str = "config
         Path to saved config file
 
     Example:
-        >>> db_config = create_database_config("my_db", "postgres", "localhost", 5432, "testdb", "user", "pass")
-        >>> file_path = siege_utilities.save_database_config(db_config)
+        >>> db_config = create_database_config("my_db", "postgres", "localhost", 5432, "testdb", "user", "pass")  # doctest: +SKIP
+        >>> file_path = siege_utilities.save_database_config(db_config)  # doctest: +SKIP
     """
 
     config_dir = pathlib.Path(config_directory)
@@ -182,8 +192,8 @@ def load_database_config(db_name: str, config_directory: str = "config") -> Dict
         OSError: If the file cannot be read.
 
     Example:
-        >>> db_config = siege_utilities.load_database_config("analytics_db")
-        >>> print(f"Database: {db_config['database']}")
+        >>> db_config = siege_utilities.load_database_config("analytics_db")  # doctest: +SKIP
+        >>> print(f"Database: {db_config['database']}")  # doctest: +SKIP
     """
 
     config_file = pathlib.Path(config_directory) / f"database_{db_name}.json"
@@ -219,8 +229,8 @@ def get_spark_database_options(db_name: str, config_directory: str = "config") -
         KeyError: If the config is missing required keys.
 
     Example:
-        >>> spark_options = siege_utilities.get_spark_database_options("analytics_db")
-        >>> df = spark.read.format("jdbc").options(**spark_options).option("dbtable", "users").load()
+        >>> spark_options = siege_utilities.get_spark_database_options("analytics_db")  # doctest: +SKIP
+        >>> df = spark.read.format("jdbc").options(**spark_options).option("dbtable", "users").load()  # doctest: +SKIP
     """
 
     config = load_database_config(db_name, config_directory)
@@ -257,7 +267,7 @@ def test_database_connection(db_name: str, config_directory: str = "config") -> 
         True if connection successful, False otherwise
 
     Example:
-        >>> if siege_utilities.test_database_connection("analytics_db"):
+        >>> if siege_utilities.test_database_connection("analytics_db"):  # doctest: +SKIP
         ...     print("Database connection successful!")
     """
 
@@ -315,8 +325,8 @@ def list_database_configs(config_directory: str = "config") -> list:
         List of dictionaries with database info
 
     Example:
-        >>> databases = siege_utilities.list_database_configs()
-        >>> for db in databases:
+        >>> databases = siege_utilities.list_database_configs()  # doctest: +SKIP
+        >>> for db in databases:  # doctest: +SKIP
         ...     print(f"{db['name']}: {db['connection_type']}")
     """
 
@@ -369,7 +379,7 @@ def create_spark_session_with_databases(app_name: str = "SiegeAnalytics",
             add a supported config or extend the dispatch.
 
     Example:
-        >>> spark = siege_utilities.create_spark_session_with_databases(
+        >>> spark = siege_utilities.create_spark_session_with_databases(  # doctest: +SKIP
         ...     "Analytics App",
         ...     ["analytics_db", "staging_db"]
         ... )

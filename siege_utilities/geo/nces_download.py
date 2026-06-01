@@ -2,6 +2,9 @@
 
 Moved during ELE-2438. Will be removed in v4.0.0.
 """
+
+# __all__ is inherited from the wildcard re-export below.
+
 import warnings as _warnings
 
 _warnings.warn(
@@ -13,3 +16,11 @@ _warnings.warn(
 )
 
 from .providers.nces_download import *  # noqa: F401, F403, E402
+
+__all__ = [
+    "LOCALE_BOUNDARY_COLUMNS",
+    "SCHOOL_LOCATION_COLUMNS",
+    "DISTRICT_DATA_COLUMNS",
+    "NCESDownloadError",
+    "NCESDownloader",
+]

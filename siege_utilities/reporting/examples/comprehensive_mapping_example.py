@@ -26,6 +26,17 @@ from siege_utilities.reporting.chart_generator import ChartGenerator
 from siege_utilities.reporting.report_generator import ReportGenerator
 from siege_utilities.reporting.powerpoint_generator import PowerPointGenerator
 
+__all__ = [
+    'create_sample_geographic_data',
+    'create_sample_regional_data',
+    'create_sample_flow_data',
+    'demonstrate_comprehensive_mapping',
+    'create_comprehensive_pdf_report',
+    'create_comprehensive_powerpoint',
+    'main',
+]
+
+
 def create_sample_geographic_data():
     """Create sample geographic data for demonstration."""
     

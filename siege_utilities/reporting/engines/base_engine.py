@@ -49,6 +49,10 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "BaseChartEngine",
+]
+
 
 class BaseChartEngine:
     """Core infrastructure: init, colors, styling, scaling, save helpers."""
@@ -384,7 +388,8 @@ class BaseChartEngine:
             title: Section title
             charts: List of chart images
             description: Section description
-            width: Section width in inches
+            width: Maximum section width in inches. Charts exceeding this
+                width are scaled down proportionally.
 
         Returns:
             List of flowables for the section
@@ -401,8 +406,13 @@ class BaseChartEngine:
             section.append(Paragraph(description, self.styles['BodyText']))
             section.append(Spacer(1, 0.2 * inch))
 
-        # Add charts
+        # Add charts, scaling to fit width constraint
+        max_width = width * inch
         for chart in charts:
+            if hasattr(chart, 'drawWidth') and chart.drawWidth > max_width:
+                scale = max_width / chart.drawWidth
+                chart.drawWidth = max_width
+                chart.drawHeight = chart.drawHeight * scale
             section.append(chart)
             section.append(Spacer(1, 0.2 * inch))
 

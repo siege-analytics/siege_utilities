@@ -10,6 +10,12 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
+__all__ = [
+    'DemographicVariable',
+    'DemographicSnapshot',
+    'DemographicTimeSeries',
+]
+
 
 class DemographicVariable(models.Model):
     """

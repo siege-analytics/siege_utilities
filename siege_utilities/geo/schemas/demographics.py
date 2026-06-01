@@ -12,6 +12,13 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
 
+__all__ = [
+    'DATASET_CHOICES',
+    'DemographicSnapshotSchema',
+    'DemographicTimeSeriesSchema',
+    'DemographicVariableSchema',
+]
+
 
 DATASET_CHOICES = frozenset({"acs5", "acs1", "dec", "dec_pl"})
 

@@ -4,6 +4,8 @@
 
 **Scope:** ELE-2417 (audit sub-issue 2/6). Consumes [INTENT.md](INTENT.md) and [FAILURE_MODES.md](FAILURE_MODES.md). Ships [ADRs](adr/) for each decision. Snapshot: 2026-04-22 (revised 2026-04-23).
 
+**Cross-references:** strategic intent and principles in [../CLAUDE.md](../CLAUDE.md); hostile-review checks in `claude-configs-public/projects/siege-utilities/skills/hostile-review/`.
+
 ## Layer model
 
 | Layer | Modules | Rule |
@@ -66,6 +68,22 @@ graph TD
 ```
 
 A follow-up PR will add a `pydeps` CI check that fails on upward edges.
+
+## Design tension resolutions
+
+These resolutions were codified in 2026-05-31 and govern how the Adversary (hostile reviewer) judges ambiguous cases.
+
+| Tension | Resolution |
+|---|---|
+| Engine-agnostic vs technology-appropriate | The abstraction serves the general case. When you must drop to native (Spark SQL, raw pandas), use that engine's idioms. Do not create single-consumer abstractions. |
+| OSGeo preferred vs Databricks first-class | OSGeo is the default. Non-GDAL paths are a fallback constraint, not a dual-first-class mandate. A missing non-GDAL path is a gap to fill. |
+| Pythonic patterns vs PySpark's Java-influenced API | Python idioms always. The Scala port is a long dream, not a design constraint. |
+| Functional preferred vs logging as primary concern | "Functional" means composition + immutability, not strict purity. Logging wraps pure cores. |
+| Lazy loading vs SU-1 (errors are not data) | Lazy loading defers *when* errors surface, not *whether*. `__getattr__` must never catch ImportError and return a stub — let it propagate. |
+| Notebooks rewritable vs notebooks as strategic surface | Notebooks demonstrate intent and must reflect current state (SU-4a). Disposable in form, required in substance. |
+| Fuzzy matching scope | Library provides the mechanism (canonicalization, scoring); heavy entity resolution belongs downstream. |
+| siege_zsh dependency | siege_zsh is a reference architecture (shows what we build for), not a runtime dependency. The degraded path must actually work. |
+| Legibility/elegance boundary | Within a function: legibility (each case obvious to a cold reader). Across modules: elegance (minimal, orthogonal protocols). The module boundary is the threshold. |
 
 ## ADR register
 

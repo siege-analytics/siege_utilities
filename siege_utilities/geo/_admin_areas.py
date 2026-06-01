@@ -6,6 +6,11 @@ returned by callers is a starting point; tune up or down by +/-1 if the
 polygons you actually have are systematically larger or smaller.
 """
 
+__all__ = [
+    'ADMIN_LEVEL_AVG_AREA_KM2',
+    'ADMIN_LEVEL_ALIASES',
+]
+
 ADMIN_LEVEL_AVG_AREA_KM2 = {
     "state": 196_600.0,
     "county": 3_000.0,

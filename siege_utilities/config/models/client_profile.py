@@ -11,6 +11,8 @@ from .social_media_account import SocialMediaAccount
 from .branding_config import BrandingConfig
 from .report_preferences import ReportPreferences
 
+__all__ = ["ContactInfo", "ClientProfile"]
+
 
 class ContactInfo(BaseModel):
     """

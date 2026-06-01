@@ -50,7 +50,7 @@ class BoundaryProvider(ABC):
         """Human-readable name for this provider."""
 
     @abstractmethod
-    def get_boundary(self, level: str, identifier: Optional[str] = None, **kwargs: Any):
+    def get_boundary(self, level: str, identifier: Optional[str] = None, **kwargs: Any) -> Any:
         """
         Fetch boundary geometry for a given geographic level.
 
@@ -95,7 +95,10 @@ class CensusTIGERProvider(BoundaryProvider):
                       (e.g. ``year``, ``congress_number``).
 
         Returns:
-            GeoDataFrame or None.
+            GeoDataFrame with boundary geometries.
+
+        Raises:
+            BoundaryFetchError: When the boundary retrieval fails.
         """
         from ..spatial_data import CensusDataSource
 
@@ -110,12 +113,10 @@ class CensusTIGERProvider(BoundaryProvider):
         ds = CensusDataSource()
         result = ds.fetch_geographic_boundaries(**call_kwargs)
         if not result.success:
-            logger.warning(
-                'CensusTIGERProvider: boundary retrieval failed [%s] %s',
-                result.error_stage,
-                result.message,
+            raise BoundaryFetchError(
+                f"CensusTIGERProvider: boundary retrieval failed "
+                f"[{result.error_stage}] {result.message}"
             )
-            return None
         return result.geodataframe
 
     def list_levels(self) -> list[str]:
@@ -160,7 +161,8 @@ class CensusTIGERProvider(BoundaryProvider):
 
         try:
             vintages = self.list_available_vintages(timeout=timeout)
-        except requests.RequestException:
+        except requests.RequestException as exc:
+            logger.warning("Failed to fetch latest TIGER vintage: %s", exc)
             return None
         return max(vintages) if vintages else None
 
@@ -276,7 +278,8 @@ def resolve_boundary_provider(country: str = 'US', **kwargs: Any) -> BoundaryPro
 
     Args:
         country: ISO-2 or ISO-3 country code (default ``'US'``).
-        **kwargs: Forwarded to the provider constructor.
+        **kwargs: Forwarded to :class:`GADMProvider` constructor for non-US
+            countries. Ignored for US (CensusTIGERProvider takes no options).
 
     Returns:
         CensusTIGERProvider for US / US territories, GADMProvider otherwise.

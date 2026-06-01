@@ -18,6 +18,8 @@ log = logging.getLogger(__name__)
 # is stripped rather than passed through into a filesystem path.
 _SLUG_SAFE = re.compile(r"[^a-z0-9_]+")
 
+__all__ = ["ClientBrandingError", "ClientBrandingManager", "ClientBrandingNotFoundError"]
+
 
 def _slugify_client_name(client_name: str) -> str:
     """Return a filesystem-safe slug for *client_name*.

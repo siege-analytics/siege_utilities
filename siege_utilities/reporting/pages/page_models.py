@@ -7,6 +7,15 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 
+__all__ = [
+    'TableType',
+    'Argument',
+    'Page',
+    'TitlePage',
+    'TableOfContentsPage',
+    'ContentPage',
+]
+
 # ---------------------------------------------------------------------------
 # Table type taxonomy
 # ---------------------------------------------------------------------------

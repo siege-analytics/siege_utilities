@@ -20,6 +20,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    'PopulationResult',
+    'BoundaryPopulationService',
+]
+
 
 @dataclass
 class PopulationResult:

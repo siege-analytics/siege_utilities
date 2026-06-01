@@ -605,10 +605,20 @@ class DataFrameEngine(ABC):
     ) -> Any:
         """Find the k nearest targets for each point.
 
-        Default: brute-force via GeoPandas sjoin_nearest.
+        Default: brute-force via GeoPandas sjoin_nearest (supports k=1 only).
         Engines should override for native spatial indexing (Sedona KNN,
-        PostGIS ST_DWithin + ORDER BY distance, DuckDB spatial).
+        PostGIS ST_DWithin + ORDER BY distance, DuckDB spatial) and k>1.
+
+        Raises
+        ------
+        NotImplementedError
+            If k > 1 (base implementation only supports single-nearest).
         """
+        if k > 1:
+            raise NotImplementedError(
+                f"Base GeoPandas engine only supports k=1 (got k={k}). "
+                "Use a spatial-database engine (PostGIS, Sedona, DuckDB) for k-nearest."
+            )
         import geopandas as gpd
 
         pts = self.to_geodataframe(points, point_geom)
@@ -696,10 +706,18 @@ class PandasEngine(DataFrameEngine):
     # -- I/O ----------------------------------------------------------------
 
     def read_csv(self, path: str, **kwargs: Any) -> Any:
+        """Read a CSV file.
+
+        **kwargs: Forwarded to :func:`pandas.read_csv`.
+        """
         import pandas as pd
         return pd.read_csv(path, **kwargs)
 
     def read_parquet(self, path: str, **kwargs: Any) -> Any:
+        """Read a Parquet file.
+
+        **kwargs: Forwarded to :func:`pandas.read_parquet`.
+        """
         import pandas as pd
         return pd.read_parquet(path, **kwargs)
 
@@ -755,6 +773,10 @@ class PandasEngine(DataFrameEngine):
     # -- Spatial -----------------------------------------------------------
 
     def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
+        """Read a spatial file.
+
+        **kwargs: Forwarded to :func:`geopandas.read_file`.
+        """
         import geopandas as gpd
         from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
         gdf = gpd.read_file(path, **kwargs)
@@ -944,6 +966,11 @@ class DuckDBEngine(DataFrameEngine):
             self._spatial_loaded = True
 
     def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
+        """Read a spatial file via DuckDB's ``ST_Read``.
+
+        **kwargs: Forwarded to :func:`geopandas.read_file` (unused in the
+        current DuckDB path but accepted for interface compatibility).
+        """
         import geopandas as gpd
         from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
         self._ensure_spatial()
@@ -1066,6 +1093,10 @@ class SparkEngine(DataFrameEngine):
     # -- I/O ----------------------------------------------------------------
 
     def read_csv(self, path: str, **kwargs: Any) -> Any:
+        """Read a CSV file via Spark.
+
+        **kwargs: Forwarded to Spark's ``DataFrameReader.csv()``.
+        """
         header = kwargs.pop("header", True)
         infer_schema = kwargs.pop("inferSchema", True)
         return (
@@ -1076,6 +1107,10 @@ class SparkEngine(DataFrameEngine):
         )
 
     def read_parquet(self, path: str, **kwargs: Any) -> Any:
+        """Read a Parquet file via Spark.
+
+        **kwargs: Forwarded to Spark's ``DataFrameReader.parquet()``.
+        """
         return self._session.read.parquet(path, **kwargs)
 
     # -- SQL ----------------------------------------------------------------
@@ -1195,6 +1230,10 @@ class SparkEngine(DataFrameEngine):
         _log.debug("Sedona UDFs registered")
 
     def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
+        """Read a spatial file via GeoPandas and convert to a Spark DataFrame.
+
+        **kwargs: Forwarded to :func:`geopandas.read_file`.
+        """
         # Fallback: read via GeoPandas, convert to Spark DataFrame
         import geopandas as gpd
         from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
@@ -1245,6 +1284,11 @@ class SparkEngine(DataFrameEngine):
 
     def buffer(self, df, distance, geometry_col="geometry", *, crs=None):
         self._ensure_sedona()
+        if crs is not None:
+            raise NotImplementedError(
+                "CRS reprojection before buffer is not yet supported in the "
+                "Sedona engine. Reproject your data beforehand, or omit crs."
+            )
         from siege_utilities.core.sql_safety import validate_sql_identifier_in as validate_identifier_in
         validate_identifier_in(geometry_col, df.columns, label="geometry column")
         # `distance` is interpolated as a float -- coerce so a malicious
@@ -1467,6 +1511,10 @@ class PostGISEngine(DataFrameEngine):
     # -- I/O ----------------------------------------------------------------
 
     def read_csv(self, path: str, **kwargs: Any) -> Any:
+        """Read a CSV file.
+
+        **kwargs: Forwarded to :func:`pandas.read_csv`.
+        """
         import geopandas as gpd
         import pandas as pd
         df = pd.read_csv(path, **kwargs)
@@ -1559,6 +1607,10 @@ class PostGISEngine(DataFrameEngine):
     # -- Spatial -----------------------------------------------------------
 
     def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
+        """Read a spatial file or execute a spatial SQL query.
+
+        **kwargs: Forwarded to :func:`geopandas.read_file`.
+        """
         import geopandas as gpd
         from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
         if path.upper().startswith("SELECT"):

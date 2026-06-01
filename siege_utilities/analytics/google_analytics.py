@@ -67,6 +67,18 @@ except ImportError:
     def log_error(message): pass
     def log_debug(message): pass
 
+__all__ = [
+    "GoogleAnalyticsConnector",
+    "batch_retrieve_ga_data",
+    "create_ga_account_profile",
+    "create_ga_connector_from_1password",
+    "create_ga_connector_with_oauth2",
+    "create_ga_connector_with_service_account",
+    "list_ga_accounts_for_client",
+    "load_ga_account_profile",
+    "save_ga_account_profile",
+]
+
 
 class GoogleAnalyticsConnector:
     """Google Analytics connection and data retrieval manager."""
@@ -161,8 +173,10 @@ class GoogleAnalyticsConnector:
 
     def _save_credentials(self, token_path: pathlib.Path):
         """Save OAuth credentials to file."""
+        import os
         with open(token_path, 'w', encoding='utf-8') as token:
             token.write(self.credentials.to_json())
+        os.chmod(token_path, 0o600)
         log_info(f"Saved credentials to: {token_path}")
 
     def authenticate_service_account(self) -> None:
@@ -453,8 +467,10 @@ def save_ga_account_profile(profile: Dict[str, Any],
     account_id = profile['ga_account_id']
     config_file = config_dir / f"ga_account_{account_id}.json"
 
+    import os
     with open(config_file, 'w', encoding='utf-8') as f:
         json.dump(profile, f, indent=2)
+    os.chmod(config_file, 0o600)
 
     log_info(f"Saved GA account profile to: {config_file}")
     return str(config_file)

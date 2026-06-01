@@ -28,6 +28,7 @@ Usage::
 
 from __future__ import annotations
 
+import logging
 import os
 import zipfile
 from dataclasses import dataclass, field
@@ -60,6 +61,8 @@ except ImportError:
     def log_warning(msg: str) -> None: pass
     def log_error(msg: str) -> None: pass
     def log_debug(msg: str) -> None: pass
+
+log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -766,14 +769,15 @@ def compare_plans(
         if gdf.empty:
             raise ValueError(f"Cannot compute plan stats: '{label}' has no districts")
         pops = gdf[population_col]
-        ideal = pops.sum() / len(pops)
+        num_districts = int(gdf[district_id_col].nunique()) if district_id_col in gdf.columns else len(gdf)
+        ideal = pops.sum() / num_districts
         if ideal == 0:
             raise ValueError(
                 f"Cannot compute plan stats: '{label}' has zero total population"
             )
         return {
             "label": label,
-            "num_districts": len(gdf),
+            "num_districts": num_districts,
             "total_population": int(pops.sum()),
             "ideal_population": round(ideal, 1),
             "max_deviation": round((pops.max() - ideal) / ideal * 100, 2),
@@ -1070,6 +1074,7 @@ __all__ = [
     "RDHDataFormat",
     "RDHDatasetType",
     # Constants
+    "RDH_MAX_RESULTS",
     "RDH_BASE_URL",
     "RDH_SITE_URL",
     "US_STATES",

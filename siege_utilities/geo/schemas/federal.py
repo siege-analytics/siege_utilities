@@ -6,6 +6,11 @@ from pydantic import Field
 
 from .base import TemporalBoundarySchema
 
+__all__ = [
+    'FederalJudicialDistrictSchema',
+    'NLRBRegionSchema',
+]
+
 
 class NLRBRegionSchema(TemporalBoundarySchema):
     region_number: int

@@ -22,6 +22,17 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "ChartCreationError",
+    "ChartParameterError",
+    "ChartType",
+    "ChartTypeRegistry",
+    "UnknownChartTypeError",
+    "create_chart",
+    "get_chart_registry",
+    "register_chart_type",
+]
+
 
 class UnknownChartTypeError(LookupError):
     """Raised when a chart type name is not in the registry."""
@@ -411,7 +422,9 @@ class ChartTypeRegistry:
         ----------
         chart_type_name : str
         **kwargs
-            Parameters to validate.
+            Chart parameters to validate against the chart type's
+            ``required_parameters``. If the chart type defines a custom
+            ``validate_function``, all kwargs are forwarded to it.
 
         Returns
         -------
@@ -532,5 +545,13 @@ def register_chart_type(chart_type: ChartType):
     get_chart_registry().register_chart_type(chart_type)
 
 def create_chart(chart_type_name: str, **kwargs) -> Optional[Figure]:
-    """Create a chart using the specified chart type."""
+    """Create a chart using the specified chart type.
+
+    Args:
+        chart_type_name: Name of a registered chart type.
+        **kwargs: Forwarded to the chart type's create function. Must include
+            all of the chart type's required_parameters. Optional parameters
+            are filled from the chart type's defaults. See
+            ChartTypeRegistry.create_chart() for details.
+    """
     return get_chart_registry().create_chart(chart_type_name, **kwargs)

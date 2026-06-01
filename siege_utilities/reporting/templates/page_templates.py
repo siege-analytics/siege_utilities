@@ -13,6 +13,14 @@ from abc import ABC, abstractmethod
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "PageTemplate",
+    "PageTemplateManager",
+    "get_template",
+    "get_template_manager",
+]
+
+
 @dataclass
 class PageTemplate:
     """Base page template configuration."""
@@ -283,10 +291,14 @@ class PageTemplateManager:
     def modify_template(self, template_name: str, **kwargs):
         """
         Modify an existing template.
-        
+
         Args:
-            template_name: Name of the template to modify
-            **kwargs: Fields to modify
+            template_name: Name of the template to modify.
+            **kwargs: :class:`PageTemplate` attributes to overwrite. Accepted
+                keys include ``page_width``, ``page_height``, ``margins``,
+                ``background_color``, ``default_font``, ``custom_elements``,
+                and any other ``PageTemplate`` field. Unknown keys are logged
+                as warnings and ignored.
         """
         template = self.templates.get(template_name)
         if not template:

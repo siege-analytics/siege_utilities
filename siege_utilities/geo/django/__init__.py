@@ -13,17 +13,17 @@ Usage:
     Add 'siege_utilities.geo.django' to INSTALLED_APPS.
 
 Example:
-    >>> from siege_utilities.geo.django.models import State, County, Tract
-    >>> from siege_utilities.geo.django.services import BoundaryPopulationService
+    >>> from siege_utilities.geo.django.models import State, County, Tract  # doctest: +SKIP
+    >>> from siege_utilities.geo.django.services import BoundaryPopulationService  # doctest: +SKIP
 
     # Fetch boundaries containing a point
-    >>> from django.contrib.gis.geos import Point
-    >>> point = Point(-122.4194, 37.7749, srid=4326)
-    >>> tract = Tract.objects.filter(geometry__contains=point).first()
+    >>> from django.contrib.gis.geos import Point  # doctest: +SKIP
+    >>> point = Point(-122.4194, 37.7749, srid=4326)  # doctest: +SKIP
+    >>> tract = Tract.objects.filter(geometry__contains=point).first()  # doctest: +SKIP
 
     # Populate boundaries from TIGER/Line
-    >>> service = BoundaryPopulationService()
-    >>> service.populate_counties(year=2020, state_fips='06')
+    >>> service = BoundaryPopulationService()  # doctest: +SKIP
+    >>> service.populate_counties(year=2020, state_fips='06')  # doctest: +SKIP
 """
 
 from __future__ import annotations

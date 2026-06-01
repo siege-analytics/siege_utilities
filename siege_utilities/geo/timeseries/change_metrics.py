@@ -28,6 +28,13 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "calculate_change_metrics",
+    "calculate_index",
+    "calculate_multi_period_changes",
+    "get_change_summary",
+]
+
 
 # =============================================================================
 # CHANGE METRIC CALCULATIONS

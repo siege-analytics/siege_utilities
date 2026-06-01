@@ -36,6 +36,10 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "StatsChartMixin",
+]
+
 
 class StatsChartMixin:
     """Statistical chart methods (heatmap, scatter plot, text heatmap)."""

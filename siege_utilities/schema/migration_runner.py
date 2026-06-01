@@ -40,6 +40,14 @@ except ImportError:  # pragma: no cover
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "AppliedMigration",
+    "MigrationFile",
+    "MigrationRunner",
+    "MigrationStatus",
+    "PendingMigration",
+]
+
 _IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 _FILENAME_RE = re.compile(r"^V(?P<version>[^_]+)__(?P<description>.+)\.sql$")
 _PG_IDENTIFIER_MAX_LEN = 63  # PostgreSQL silently truncates names longer than this
@@ -64,7 +72,11 @@ class MigrationFile:
 
     @classmethod
     def from_path(cls, path: Path) -> MigrationFile:
-        """Parse ``V<version>__<description>.sql`` and load its SQL body."""
+        """Parse ``V<version>__<description>.sql`` and load its SQL body.
+
+        Raises:
+            ValueError: If the filename does not match the expected pattern.
+        """
         match = _FILENAME_RE.match(path.name)
         if not match:
             raise ValueError(

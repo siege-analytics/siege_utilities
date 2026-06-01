@@ -18,10 +18,28 @@ import tempfile  # noqa: F401 -- used by create_temporary_service_account_file; 
 from typing import Dict, Any, Optional, List, Union, Tuple
 from pathlib import Path
 
+from siege_utilities.exceptions import SiegeConfigError
+
 # Import logging functions
 import logging
 import re
 _logger = logging.getLogger(__name__)
+
+__all__ = [
+    'CredentialNotFoundError',
+    'CredentialManager',
+    'get_credential',
+    'store_credential',
+    'store_ga_credentials_from_file',
+    'get_ga_credentials',
+    'credential_status',
+    'store_ga_service_account_from_file',
+    'get_ga_service_account_credentials',
+    'get_google_service_account_from_1password',
+    'get_google_oauth_from_1password',
+    'get_google_oauth_document_from_1password',
+    'create_temporary_service_account_file',
+]
 
 try:
     from ..core.logging import log_info, log_warning, log_error
@@ -373,9 +391,13 @@ class CredentialManager:
                     content = f.read().strip()
                     return content if content else None
                     
-        except (OSError, json.JSONDecodeError, KeyError) as e:
-            log_warning(f"Error reading credential file {file_path}: {e}")
+        except KeyError:
+            # Field not present in the file's structure -- legitimate "not found".
             return None
+        except (OSError, json.JSONDecodeError) as e:
+            raise SiegeConfigError(
+                f"Failed to read credential file {file_path}: {e}"
+            ) from e
     
     def _find_field_in_dict(self, data: Dict[str, Any], field: str) -> Optional[str]:
         """Recursively search for field in nested dictionary."""
@@ -501,8 +523,15 @@ class CredentialManager:
             else:
                 return input(prompt)
                 
-        except (EOFError, KeyboardInterrupt):
-            return None
+        except KeyboardInterrupt:
+            # User deliberately cancelled — propagate so the caller does
+            # not silently fall through to a less-trusted backend.
+            raise
+        except EOFError as e:
+            raise SiegeConfigError(
+                f"Interactive credential prompt for {service}/{field} "
+                f"received EOF — stdin may not be connected"
+            ) from e
     
     def store_credential(self, service: str, username: str, value: str,
                         field: str = "password", backend: str = "1password",
@@ -1111,6 +1140,7 @@ def get_google_service_account_from_1password(item_title: str = "Google Analytic
     Raises:
         subprocess.CalledProcessError: If 1Password CLI fails (item not found,
             auth required, etc.)
+        subprocess.TimeoutExpired: If the ``op`` command exceeds 60 s.
         OSError: If the ``op`` binary cannot be executed.
     """
     op_flags = []
@@ -1166,6 +1196,7 @@ def get_google_oauth_from_1password(
 
     Raises:
         subprocess.CalledProcessError: If 1Password CLI fails.
+        subprocess.TimeoutExpired: If the ``op`` command exceeds 60 s.
         ValueError: If the item exists but lacks client_id or client_secret.
         OSError: If the ``op`` binary cannot be executed.
     """
@@ -1236,6 +1267,7 @@ def get_google_oauth_document_from_1password(
     Raises:
         subprocess.CalledProcessError: If 1Password CLI fails (item not found,
             auth required, etc.)
+        subprocess.TimeoutExpired: If the ``op`` command exceeds 60 s.
         json.JSONDecodeError: If the document content is not valid JSON.
         OSError: If the ``op`` binary cannot be executed.
     """

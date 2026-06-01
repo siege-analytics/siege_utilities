@@ -18,6 +18,16 @@ from typing import Any, Dict, List, Optional, Tuple
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "SpatialRuntimePlan",
+    "resolve_spatial_runtime_plan",
+    "GeometryPayload",
+    "encode_geometry",
+    "decode_geometry",
+    "payload_to_spark_row",
+    "spark_row_to_payload",
+]
+
 try:
     import shapely.geometry.base  # noqa: F401
     import shapely.wkt as _swkt
@@ -160,6 +170,9 @@ def _require_shapely(fn_name: str) -> None:
         )
 
 
+_VALID_GEOMETRY_FORMATS = {"wkt", "wkb", "geojson"}
+
+
 def encode_geometry(
     geom: Any,
     fmt: str = "wkt",
@@ -173,17 +186,27 @@ def encode_geometry(
         A ``shapely.geometry.base.BaseGeometry`` instance.
     fmt:
         Primary serialisation format – ``"wkt"``, ``"wkb"``, or ``"geojson"``.
-        All three representations are always populated; *fmt* only controls
-        validation of the primary path.
+        All three representations are always populated; *fmt* validates that
+        the caller's intended primary format is supported.
     crs:
         Coordinate reference system identifier stored on the payload.
 
     Returns
     -------
     GeometryPayload
+
+    Raises
+    ------
+    ValueError
+        If *fmt* is not one of ``"wkt"``, ``"wkb"``, ``"geojson"``.
     """
     _require_shapely("encode_geometry")
     import shapely.geometry  # local import – already guarded
+
+    if fmt not in _VALID_GEOMETRY_FORMATS:
+        raise ValueError(
+            f"fmt must be one of {sorted(_VALID_GEOMETRY_FORMATS)}, got {fmt!r}"
+        )
 
     if not isinstance(geom, shapely.geometry.base.BaseGeometry):
         raise TypeError(

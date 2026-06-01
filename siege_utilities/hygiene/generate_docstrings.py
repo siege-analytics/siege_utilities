@@ -3,6 +3,7 @@ Auto-generate docstrings for functions missing them in siege_utilities.
 Part of the hygiene maintenance toolkit.
 """
 import ast
+import logging
 import os
 import sys
 import inspect
@@ -19,6 +20,20 @@ except ImportError:
     def log_warning(message): pass
     def log_error(message): pass
     def log_debug(message): pass
+
+log = logging.getLogger(__name__)
+
+
+__all__ = [
+    'analyze_function_signature',
+    'categorize_function',
+    'generate_docstring_template',
+    'DocstringAdder',
+    'process_python_file',
+    'find_python_files',
+    'main',
+    'cli',
+]
 
 
 def analyze_function_signature(func):
@@ -129,9 +144,9 @@ Returns:
     Any: Description needed
 
 Example:
-    >>> import siege_utilities
-    >>> result = siege_utilities.visit_FunctionDef()
-    >>> # Process result as needed
+    >>> import siege_utilities  # doctest: +SKIP
+    >>> result = siege_utilities.visit_FunctionDef()  # doctest: +SKIP
+    >>> pass  # Process result as needed  # doctest: +SKIP
 
 Note:
     This function is auto-discovered and available without imports

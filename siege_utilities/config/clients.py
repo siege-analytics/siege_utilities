@@ -13,6 +13,18 @@ from typing import Dict, Any, List
 from datetime import datetime
 import uuid
 
+__all__ = [
+    'create_client_profile',
+    'save_client_profile',
+    'load_client_profile',
+    'update_client_profile',
+    'list_client_profiles',
+    'search_client_profiles',
+    'associate_client_with_project',
+    'get_client_project_associations',
+    'validate_client_profile',
+]
+
 logger = logging.getLogger(__name__)
 
 # Client code becomes part of a filename — restrict to a safe
@@ -50,8 +62,8 @@ def create_client_profile(
         Dictionary with client profile configuration
         
     Example:
-        >>> import siege_utilities
-        >>> client = siege_utilities.create_client_profile(
+        >>> import siege_utilities  # doctest: +SKIP
+        >>> client = siege_utilities.create_client_profile(  # doctest: +SKIP
         ...     "Acme Corporation",
         ...     "ACME001",
         ...     {
@@ -127,9 +139,9 @@ def save_client_profile(
         Path to saved config file
         
     Example:
-        >>> client = create_client_profile("Test Client", "TEST001", {"email": "test@example.com"})
-        >>> file_path = siege_utilities.save_client_profile(client)
-        >>> print(f"Profile saved to: {file_path}")
+        >>> client = create_client_profile("Test Client", "TEST001", {"email": "test@example.com"})  # doctest: +SKIP
+        >>> file_path = siege_utilities.save_client_profile(client)  # doctest: +SKIP
+        >>> print(f"Profile saved to: {file_path}")  # doctest: +SKIP
     """
     
     config_dir = pathlib.Path(config_directory)
@@ -187,8 +199,8 @@ def load_client_profile(
         OSError: If the file cannot be read.
 
     Example:
-        >>> profile = siege_utilities.load_client_profile("ACME001")
-        >>> print(f"Loaded: {profile['client_name']}")
+        >>> profile = siege_utilities.load_client_profile("ACME001")  # doctest: +SKIP
+        >>> print(f"Loaded: {profile['client_name']}")  # doctest: +SKIP
     """
 
     client_code = _validate_client_code(client_code)
@@ -223,7 +235,7 @@ def update_client_profile(
         json.JSONDecodeError: If the existing profile is corrupt.
 
     Example:
-        >>> siege_utilities.update_client_profile(
+        >>> siege_utilities.update_client_profile(  # doctest: +SKIP
         ...     "ACME001",
         ...     {
         ...         "contact_info": {"phone": "+1-555-9999"},
@@ -260,8 +272,8 @@ def list_client_profiles(
         List of dictionaries with client profile info
         
     Example:
-        >>> clients = siege_utilities.list_client_profiles()
-        >>> for client in clients:
+        >>> clients = siege_utilities.list_client_profiles()  # doctest: +SKIP
+        >>> for client in clients:  # doctest: +SKIP
         ...     print(f"{client['code']}: {client['name']}")
     """
     
@@ -311,7 +323,7 @@ def search_client_profiles(
         List of matching client profiles
         
     Example:
-        >>> results = siege_utilities.search_client_profiles(
+        >>> results = siege_utilities.search_client_profiles(  # doctest: +SKIP
         ...     "Technology",
         ...     ["metadata.industry", "client_name"]
         ... )
@@ -372,7 +384,7 @@ def associate_client_with_project(
         OSError: If profiles cannot be read or written.
 
     Example:
-        >>> siege_utilities.associate_client_with_project("ACME001", "PROJ001")
+        >>> siege_utilities.associate_client_with_project("ACME001", "PROJ001")  # doctest: +SKIP
     """
 
     client_profile = load_client_profile(client_code, config_directory)
@@ -410,8 +422,8 @@ def get_client_project_associations(
         FileNotFoundError: If the client profile does not exist.
 
     Example:
-        >>> projects = siege_utilities.get_client_project_associations("ACME001")
-        >>> print(f"Client has {len(projects)} projects")
+        >>> projects = siege_utilities.get_client_project_associations("ACME001")  # doctest: +SKIP
+        >>> print(f"Client has {len(projects)} projects")  # doctest: +SKIP
     """
 
     profile = load_client_profile(client_code, config_directory)
@@ -429,9 +441,9 @@ def validate_client_profile(profile: Dict[str, Any]) -> Dict[str, Any]:
         Dictionary with validation results and any issues found
         
     Example:
-        >>> profile = create_client_profile("Test", "TEST001", {"email": "test@example.com"})
-        >>> validation = siege_utilities.validate_client_profile(profile)
-        >>> if validation['is_valid']:
+        >>> profile = create_client_profile("Test", "TEST001", {"email": "test@example.com"})  # doctest: +SKIP
+        >>> validation = siege_utilities.validate_client_profile(profile)  # doctest: +SKIP
+        >>> if validation['is_valid']:  # doctest: +SKIP
         ...     print("Profile is valid")
     """
     

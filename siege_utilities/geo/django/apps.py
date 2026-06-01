@@ -2,6 +2,8 @@
 
 from django.apps import AppConfig
 
+__all__ = ['SiegeGeoConfig']
+
 
 class SiegeGeoConfig(AppConfig):
     """Django app configuration for Census geographic data models."""

@@ -12,6 +12,8 @@ import logging
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+__all__ = ['Command']
+
 log = logging.getLogger(__name__)
 
 
@@ -206,5 +208,6 @@ class Command(BaseCommand):
             return None
         try:
             return apps.get_model("siege_geo", model_name)
-        except LookupError:
+        except LookupError as exc:
+            log.warning("Could not resolve model: %s", exc)
             return None

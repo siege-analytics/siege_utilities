@@ -156,7 +156,9 @@ class CensusGazetteer:
         if not name or not name.strip():
             return []
         if country_hint and country_hint.upper() not in ("US", "USA"):
-            return []
+            raise GazetteerNotFoundError(
+                f"CensusGazetteer is US-only; country_hint={country_hint!r}"
+            )
         rows = self._cached_lookup(name.strip(), None)
         return [self._row_to_candidate(r) for r in rows[:limit]]
 

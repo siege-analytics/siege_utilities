@@ -36,6 +36,16 @@ from typing import Any, Iterable
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "MISSING_NONE",
+    "MISSING_RAISE",
+    "MISSING_WARN",
+    "detect_format",
+    "extract_attributes_kml",
+    "extract_attributes_ogr",
+    "extract_attributes_swmaps",
+]
+
 # Extension -> format token. Extensions match the dispatcher cases in the
 # salvage source plus the SWMaps `.swmz` archive form.
 _EXTENSION_MAP = {

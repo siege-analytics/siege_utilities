@@ -10,6 +10,13 @@ from django.db import models
 from .base import CensusTIGERBoundary
 from .boundaries import State, County, CongressionalDistrict
 
+__all__ = [
+    'StateLegislativeUpper',
+    'StateLegislativeLower',
+    'VTD',
+    'Precinct',
+]
+
 
 class StateLegislativeUpper(CensusTIGERBoundary):
     """

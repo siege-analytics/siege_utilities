@@ -31,8 +31,8 @@ def remove_tree(path: FilePath) -> None:
         OSError: If removal fails
 
     Example:
-        >>> remove_tree("temp_directory")
-        >>> remove_tree(Path("old_files"))
+        >>> remove_tree("temp_directory")  # doctest: +SKIP
+        >>> remove_tree(Path("old_files"))  # doctest: +SKIP
     """
     try:
         from siege_utilities.files.validation import validate_safe_path, PathSecurityError
@@ -66,11 +66,9 @@ def file_exists(path: FilePath) -> bool:
         PathSecurityError: If path fails security validation
 
     Example:
-        >>> if file_exists("config.yaml"):
+        >>> if file_exists("config.yaml"):  # doctest: +SKIP
         ...     print("Config file found")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> file_exists("../../../etc/passwd")  # Path traversal blocked
+        >>> file_exists("../../../etc/passwd")  # doctest: +SKIP
 
     Security Changes:
         - Now validates paths to block path traversal
@@ -118,8 +116,8 @@ def touch_file(path: FilePath, create_parents: bool = True) -> None:
         OSError: If file creation fails
 
     Example:
-        >>> touch_file("logs/app.log")
-        >>> touch_file(Path("data/output.txt"))
+        >>> touch_file("logs/app.log")  # doctest: +SKIP
+        >>> touch_file(Path("data/output.txt"))  # doctest: +SKIP
     """
     try:
         from siege_utilities.files.validation import validate_safe_path, PathSecurityError
@@ -154,8 +152,8 @@ def count_lines(file_path: FilePath, encoding: str = 'utf-8') -> int:
         UnicodeDecodeError: If file cannot be decoded with given encoding
 
     Example:
-        >>> line_count = count_lines("data.csv")
-        >>> print(f"File has {line_count} lines")
+        >>> line_count = count_lines("data.csv")  # doctest: +SKIP
+        >>> print(f"File has {line_count} lines")  # doctest: +SKIP
     """
     try:
         from siege_utilities.files.validation import validate_file_path, PathSecurityError
@@ -193,8 +191,8 @@ def copy_file(source: FilePath, destination: FilePath, overwrite: bool = False) 
         OSError: If copy fails
 
     Example:
-        >>> copy_file("source.txt", "backup/source.txt")
-        >>> copy_file(Path("config.yaml"), Path("config.yaml.bak"))
+        >>> copy_file("source.txt", "backup/source.txt")  # doctest: +SKIP
+        >>> copy_file(Path("config.yaml"), Path("config.yaml.bak"))  # doctest: +SKIP
     """
     try:
         from siege_utilities.files.validation import validate_file_path, validate_safe_path, PathSecurityError
@@ -236,8 +234,8 @@ def move_file(source: FilePath, destination: FilePath, overwrite: bool = False) 
         OSError: If move fails
 
     Example:
-        >>> move_file("temp.txt", "archive/temp.txt")
-        >>> move_file(Path("old.log"), Path("logs/old.log"))
+        >>> move_file("temp.txt", "archive/temp.txt")  # doctest: +SKIP
+        >>> move_file(Path("old.log"), Path("logs/old.log"))  # doctest: +SKIP
     """
     try:
         from siege_utilities.files.validation import validate_file_path, validate_safe_path, PathSecurityError
@@ -280,8 +278,8 @@ def get_file_size(file_path: FilePath) -> int:
         OSError: If file size cannot be determined
 
     Example:
-        >>> size = get_file_size("large_file.zip")
-        >>> print(f"File size: {size} bytes")
+        >>> size = get_file_size("large_file.zip")  # doctest: +SKIP
+        >>> print(f"File size: {size} bytes")  # doctest: +SKIP
     """
     try:
         from siege_utilities.files.validation import validate_file_path, PathSecurityError
@@ -323,8 +321,8 @@ def list_directory(path: FilePath,
         OSError: If directory cannot be read
 
     Example:
-        >>> files = list_directory("data", "*.csv")
-        >>> dirs = list_directory("logs", include_files=False)
+        >>> files = list_directory("data", "*.csv")  # doctest: +SKIP
+        >>> dirs = list_directory("logs", include_files=False)  # doctest: +SKIP
     """
     try:
         from siege_utilities.files.validation import validate_directory_path, PathSecurityError
@@ -354,7 +352,7 @@ def run_command(command: Union[str, List[str]],
                 timeout: Optional[int] = 30,
                 capture_output: bool = True,
                 allow_list: Optional[set] = None,
-                unsafe: bool = False) -> Optional[subprocess.CompletedProcess]:
+                unsafe: bool = False) -> subprocess.CompletedProcess:
     """
     Run a shell command with security validation and proper error handling.
 
@@ -375,26 +373,19 @@ def run_command(command: Union[str, List[str]],
 
     Returns:
         CompletedProcess object on success or non-zero exit.
-        None on timeout or unexpected error (when unsafe=True).
 
     Raises:
         SecurityError: If command fails security validation (when unsafe=False).
-        Exception: Re-raised on unexpected errors when unsafe=False.
+        subprocess.TimeoutExpired: If the command exceeds *timeout*.
+        OSError: If the command binary cannot be found or executed.
 
     Example:
-        >>> # Safe command (works by default)
-        >>> result = run_command("ls -la")
-        >>> if result and result.returncode == 0:
+        >>> result = run_command("ls -la")  # doctest: +SKIP
+        >>> if result and result.returncode == 0:  # doctest: +SKIP
         ...     print("Command succeeded")
-        >>>
-        >>> # Dangerous command (blocked by default)
-        >>> result = run_command("rm -rf /")  # Raises SecurityError
-        >>>
-        >>> # Custom whitelist
-        >>> result = run_command("git status", allow_list={'git', 'ls'})
-        >>>
-        >>> # Bypass security (DANGEROUS - use only with trusted input)
-        >>> result = run_command("custom_cmd", unsafe=True)
+        >>> result = run_command("rm -rf /")  # doctest: +SKIP
+        >>> result = run_command("git status", allow_list={'git', 'ls'})  # doctest: +SKIP
+        >>> result = run_command("custom_cmd", unsafe=True)  # doctest: +SKIP
 
     Security Changes:
         - Previously used shell=True with no validation (CRITICAL VULNERABILITY)
@@ -459,12 +450,21 @@ def run_command(command: Union[str, List[str]],
             )
             command_to_run = command_list
 
+        # Validate cwd if provided
+        validated_cwd = None
+        if cwd is not None:
+            try:
+                from siege_utilities.files.validation import validate_safe_path
+                validated_cwd = str(validate_safe_path(cwd, allow_absolute=True))
+            except ImportError:
+                validated_cwd = str(cwd)
+
         # Execute command. shell=False unconditionally — argv list, no
         # /bin/sh interpretation of the command string.
         result = subprocess.run(
             command_to_run,
             shell=False,
-            cwd=cwd,
+            cwd=validated_cwd,
             timeout=timeout,
             capture_output=capture_output,
             text=True
@@ -479,16 +479,12 @@ def run_command(command: Union[str, List[str]],
 
         return result
 
-    except subprocess.TimeoutExpired as e:
+    except subprocess.TimeoutExpired:
         log.error(f"Command timed out: {command}")
-        if not unsafe:
-            raise
-        return None
+        raise
     except (OSError, ValueError) as e:
         log.error(f"Failed to run command {command}: {e}")
-        if not unsafe:
-            raise
-        return None
+        raise
 
 # Backward compatibility aliases
 rmtree = remove_tree
@@ -525,11 +521,9 @@ def delete_existing_file_and_replace_it_with_an_empty_file(file_path: FilePath, 
         file_path: Path to the file
         create_parents: Whether to create parent directories
 
-    Returns:
-        True if successful, False otherwise
-
     Raises:
         PathSecurityError: If path fails security validation
+        OSError: If file creation fails
     """
     import warnings
     warnings.warn(
@@ -574,8 +568,15 @@ def ensure_directory_exists(directory: Union[str, Path]) -> Path:
 
     Returns:
         Path object for the directory
+
+    Raises:
+        PathSecurityError: If path fails security validation.
     """
-    dir_path = Path(directory)
+    try:
+        from siege_utilities.files.validation import validate_safe_path
+        dir_path = validate_safe_path(directory, allow_absolute=True)
+    except ImportError:
+        dir_path = Path(directory)
     dir_path.mkdir(parents=True, exist_ok=True)
     return dir_path
 
@@ -597,16 +598,23 @@ def safe_file_write(
 
     Returns:
         True if successful, False otherwise
+
+    Raises:
+        PathSecurityError: If path fails security validation.
     """
     try:
-        file_path = Path(file_path)
+        from siege_utilities.files.validation import validate_file_path
+        validated = validate_file_path(file_path, must_exist=False)
+    except ImportError:
+        validated = Path(file_path)
+    try:
         if create_dirs:
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(file_path, "w", encoding=encoding) as f:
+            validated.parent.mkdir(parents=True, exist_ok=True)
+        with open(validated, "w", encoding=encoding) as f:
             f.write(content)
         return True
     except (OSError, TypeError) as e:
-        log.error(f"Error writing to {file_path}: {e}")
+        log.error(f"Error writing to {validated}: {e}")
         return False
 
 
@@ -625,15 +633,22 @@ def safe_file_read(
 
     Returns:
         File content or default value
+
+    Raises:
+        PathSecurityError: If path fails security validation.
     """
     try:
-        file_path = Path(file_path)
-        if not file_path.exists():
+        from siege_utilities.files.validation import validate_file_path
+        validated = validate_file_path(file_path, must_exist=False)
+    except ImportError:
+        validated = Path(file_path)
+    try:
+        if not validated.exists():
             return default
-        with open(file_path, "r", encoding=encoding) as f:
+        with open(validated, "r", encoding=encoding) as f:
             return f.read()
     except (OSError, UnicodeDecodeError) as e:
-        log.error(f"Error reading {file_path}: {e}")
+        log.error(f"Error reading {validated}: {e}")
         return default
 
 
@@ -654,16 +669,23 @@ def safe_json_write(
 
     Returns:
         True if successful, False otherwise
+
+    Raises:
+        PathSecurityError: If path fails security validation.
     """
     try:
-        file_path = Path(file_path)
+        from siege_utilities.files.validation import validate_file_path
+        validated = validate_file_path(file_path, must_exist=False)
+    except ImportError:
+        validated = Path(file_path)
+    try:
         if create_dirs:
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(file_path, "w", encoding="utf-8") as f:
+            validated.parent.mkdir(parents=True, exist_ok=True)
+        with open(validated, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=indent, ensure_ascii=False)
         return True
     except (OSError, TypeError, ValueError) as e:
-        log.error(f"Error writing JSON to {file_path}: {e}")
+        log.error(f"Error writing JSON to {validated}: {e}")
         return False
 
 
@@ -680,15 +702,22 @@ def safe_json_read(
 
     Returns:
         Parsed JSON data or default value
+
+    Raises:
+        PathSecurityError: If path fails security validation.
     """
     try:
-        file_path = Path(file_path)
-        if not file_path.exists():
+        from siege_utilities.files.validation import validate_file_path
+        validated = validate_file_path(file_path, must_exist=False)
+    except ImportError:
+        validated = Path(file_path)
+    try:
+        if not validated.exists():
             return default
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(validated, "r", encoding="utf-8") as f:
             return json.load(f)
     except (OSError, ValueError, UnicodeDecodeError) as e:
-        log.error(f"Error reading JSON from {file_path}: {e}")
+        log.error(f"Error reading JSON from {validated}: {e}")
         return default
 
 
@@ -704,12 +733,17 @@ def get_file_size_mb(file_path: Union[str, Path]) -> float:
 
     Raises:
         FileNotFoundError: If the file does not exist.
+        PathSecurityError: If path fails security validation.
         OSError: If the file size cannot be determined.
     """
-    file_path = Path(file_path)
-    if not file_path.exists():
-        raise FileNotFoundError(f"File does not exist: {file_path}")
-    size_bytes = file_path.stat().st_size
+    try:
+        from siege_utilities.files.validation import validate_file_path
+        validated = validate_file_path(file_path, must_exist=True)
+    except ImportError:
+        validated = Path(file_path)
+        if not validated.exists():
+            raise FileNotFoundError(f"File does not exist: {validated}")
+    size_bytes = validated.stat().st_size
     return round(size_bytes / (1024 * 1024), 2)
 
 
@@ -731,18 +765,24 @@ def list_files_recursive(
 
     Raises:
         FileNotFoundError: If the directory does not exist.
+        PathSecurityError: If path fails security validation.
         OSError: If the directory cannot be read.
     """
-    directory = Path(directory)
-    if not directory.exists():
-        raise FileNotFoundError(f"Directory does not exist: {directory}")
+    try:
+        from siege_utilities.files.validation import validate_safe_path
+        validated = validate_safe_path(directory, allow_absolute=True)
+    except ImportError:
+        validated = Path(directory)
+    if not validated.exists():
+        raise FileNotFoundError(f"Directory does not exist: {validated}")
     if exclude_dirs:
-        return [p for p in directory.rglob(pattern) if p.is_file()]
+        return [p for p in validated.rglob(pattern) if p.is_file()]
     else:
-        return list(directory.rglob(pattern))
+        return list(validated.rglob(pattern))
 
 
 __all__ = [
+    'FilePath',
     'remove_tree',
     'file_exists',
     'touch_file',

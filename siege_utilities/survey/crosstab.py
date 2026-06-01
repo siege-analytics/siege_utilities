@@ -15,6 +15,8 @@ from .models import Chain, View
 
 DEFAULT_Z_VALUE = 1.96
 
+__all__ = ["CrosstabInputError", "build_chain"]
+
 try:
     from scipy.stats import t as _scipy_t
     _SCIPY_T_AVAILABLE = True

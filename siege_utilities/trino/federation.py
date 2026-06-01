@@ -23,6 +23,12 @@ from typing import Iterable, List
 
 from siege_utilities.core.sql_safety import validate_sql_identifier
 
+__all__ = [
+    "build_trino_federation_view_sql",
+    "build_trino_schema_and_view_sync_sql",
+    "quote_ident",
+]
+
 
 def quote_ident(value: str) -> str:
     """Quote an identifier in Trino dialect.

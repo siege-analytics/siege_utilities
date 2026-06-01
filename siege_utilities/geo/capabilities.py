@@ -11,6 +11,8 @@ from __future__ import annotations
 import importlib
 from typing import Any, Dict
 
+__all__ = ["geo_capabilities"]
+
 
 def _probe(module_name: str) -> bool:
     """Return True if *module_name* can be imported."""
@@ -29,8 +31,10 @@ def geo_capabilities() -> Dict[str, Any]:
     ``"none"``).
 
     >>> caps = geo_capabilities()
-    >>> caps["tier"]         # e.g. "geo-lite"
-    >>> caps["shapely"]      # True / False
+    >>> caps["tier"] in ("geodjango", "geo", "geo-lite", "none")
+    True
+    >>> isinstance(caps["shapely"], bool)
+    True
     """
     caps: Dict[str, Any] = {}
 

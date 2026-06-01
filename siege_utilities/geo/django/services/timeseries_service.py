@@ -13,6 +13,11 @@ from typing import List, Optional
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'TimeseriesResult',
+    'TimeseriesService',
+]
+
 
 @dataclass
 class TimeseriesResult:
@@ -86,14 +91,16 @@ class TimeseriesService:
 
         from ..models.demographics import DemographicSnapshot, DemographicTimeSeries
 
-        # Resolve model from geography level
-        model_cls = self._resolve_model(geography_level)
-        if model_cls is None:
+        # Resolve model from geography level — raises ValueError for
+        # unknown levels or missing Django models.
+        try:
+            model_cls = self._resolve_model(geography_level)
+        except ValueError as exc:
             return [
                 TimeseriesResult(
                     variable_code=v,
                     geography_level=geography_level,
-                    errors=[f"Unknown geography level: {geography_level}"],
+                    errors=[str(exc)],
                 )
                 for v in variables
             ]
@@ -146,7 +153,10 @@ class TimeseriesService:
                 # Compute statistics
                 mean_val = sum(series_values) / len(series_values)
                 std_dev = self._std_dev(series_values, mean_val)
-                cagr = self._cagr(series_values[0], series_values[-1], len(series_years) - 1)
+                try:
+                    cagr = self._cagr(series_values[0], series_values[-1], len(series_years) - 1)
+                except ValueError:
+                    cagr = None  # start_value <= 0 — CAGR undefined
                 trend = self._trend_direction(series_values)
 
                 # Check for existing
@@ -229,11 +239,17 @@ class TimeseriesService:
         }
         model_name = LEVEL_TO_MODEL.get(geography_level)
         if model_name is None:
-            return None
+            raise ValueError(
+                f"Unknown geography level {geography_level!r}; "
+                f"expected one of {sorted(LEVEL_TO_MODEL)}"
+            )
         try:
             return apps.get_model("siege_geo", model_name)
-        except LookupError:
-            return None
+        except LookupError as exc:
+            raise ValueError(
+                f"Django model 'siege_geo.{model_name}' for geography "
+                f"level {geography_level!r} is not installed"
+            ) from exc
 
     @staticmethod
     def _std_dev(values: list, mean: float) -> float:
@@ -244,14 +260,35 @@ class TimeseriesService:
         return math.sqrt(variance)
 
     @staticmethod
-    def _cagr(start_value: float, end_value: float, periods: int) -> Optional[float]:
-        """Compound annual growth rate."""
-        if periods <= 0 or start_value <= 0:
-            return None
+    def _cagr(start_value: float, end_value: float, periods: int) -> float:
+        """Compound annual growth rate.
+
+        Args:
+            start_value: Starting value (must be > 0).
+            end_value: Ending value.
+            periods: Number of periods (must be > 0).
+
+        Returns:
+            The compound annual growth rate.
+
+        Raises:
+            ValueError: When inputs violate constraints.
+        """
+        if periods <= 0:
+            raise ValueError(
+                f"CAGR requires periods > 0; got {periods}"
+            )
+        if start_value <= 0:
+            raise ValueError(
+                f"CAGR requires start_value > 0; got {start_value}"
+            )
         try:
             return (end_value / start_value) ** (1 / periods) - 1
-        except (ZeroDivisionError, ValueError):
-            return None
+        except (ZeroDivisionError, ValueError) as exc:
+            raise ValueError(
+                f"CAGR computation failed for start={start_value}, "
+                f"end={end_value}, periods={periods}: {exc}"
+            ) from exc
 
     @staticmethod
     def _trend_direction(values: list) -> str:

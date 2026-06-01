@@ -10,6 +10,12 @@ from typing import Dict, List, Optional, Union, Any
 
 import pandas as pd
 
+__all__ = [
+    'VARIABLE_GROUPS',
+    'VARIABLE_DESCRIPTIONS',
+    'VariableRegistry',
+]
+
 log = logging.getLogger(__name__)
 
 

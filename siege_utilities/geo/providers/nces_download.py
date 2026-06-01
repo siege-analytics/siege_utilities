@@ -26,6 +26,14 @@ from siege_utilities.config.nces_constants import (
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'LOCALE_BOUNDARY_COLUMNS',
+    'SCHOOL_LOCATION_COLUMNS',
+    'DISTRICT_DATA_COLUMNS',
+    'NCESDownloadError',
+    'NCESDownloader',
+]
+
 # Column name mappings for NCES locale boundary shapefiles
 LOCALE_BOUNDARY_COLUMNS = {
     "LOCALE": "locale_code",

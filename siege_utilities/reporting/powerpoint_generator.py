@@ -18,8 +18,16 @@ try:
 except ImportError:
     PPTX_AVAILABLE = False
     Presentation = None
+    Inches = None
+    Pt = None
+    PP_ALIGN = None
 
 log = logging.getLogger(__name__)
+
+__all__ = [
+    "PowerPointGenerator",
+]
+
 
 class PowerPointGenerator:
     """

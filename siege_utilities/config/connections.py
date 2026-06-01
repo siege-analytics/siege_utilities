@@ -4,11 +4,24 @@ Handles notebook connections, Spark connections, and their persistence.
 """
 
 import json
+import os
 import pathlib
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 import uuid
+
+__all__ = [
+    'create_connection_profile',
+    'save_connection_profile',
+    'load_connection_profile',
+    'find_connection_by_name',
+    'list_connection_profiles',
+    'update_connection_profile',
+    'verify_connection_profile',
+    'get_connection_status',
+    'cleanup_old_connections',
+]
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +45,8 @@ def create_connection_profile(
         Dictionary with connection profile configuration
         
     Example:
-        >>> import siege_utilities
-        >>> notebook_conn = siege_utilities.create_connection_profile(
+        >>> import siege_utilities  # doctest: +SKIP
+        >>> notebook_conn = siege_utilities.create_connection_profile(  # doctest: +SKIP
         ...     "Jupyter Lab",
         ...     "notebook",
         ...     {
@@ -120,8 +133,8 @@ def save_connection_profile(
         Path to saved config file
         
     Example:
-        >>> conn = create_connection_profile("Test", "notebook", {"url": "http://test"})
-        >>> file_path = siege_utilities.save_connection_profile(conn)
+        >>> conn = create_connection_profile("Test", "notebook", {"url": "http://test"})  # doctest: +SKIP
+        >>> file_path = siege_utilities.save_connection_profile(conn)  # doctest: +SKIP
     """
     
     config_dir = pathlib.Path(config_directory)
@@ -139,6 +152,7 @@ def save_connection_profile(
     
     with open(config_file, 'w', encoding='utf-8') as f:
         json.dump(profile, f, indent=2)
+    os.chmod(config_file, 0o600)
 
     log_info(f"Saved connection profile to: {config_file}")
     return str(config_file)
@@ -164,8 +178,8 @@ def load_connection_profile(
         OSError: If the file cannot be read.
 
     Example:
-        >>> profile = siege_utilities.load_connection_profile("uuid-here")
-        >>> print(f"Loaded: {profile['name']}")
+        >>> profile = siege_utilities.load_connection_profile("uuid-here")  # doctest: +SKIP
+        >>> print(f"Loaded: {profile['name']}")  # doctest: +SKIP
     """
 
     connections_dir = pathlib.Path(config_directory) / "connections"
@@ -196,8 +210,8 @@ def find_connection_by_name(
         Connection profile dictionary or None if not found
         
     Example:
-        >>> profile = siege_utilities.find_connection_by_name("Jupyter Lab")
-        >>> if profile:
+        >>> profile = siege_utilities.find_connection_by_name("Jupyter Lab")  # doctest: +SKIP
+        >>> if profile:  # doctest: +SKIP
         ...     print(f"Found connection: {profile['connection_id']}")
     """
     
@@ -236,8 +250,8 @@ def list_connection_profiles(
         List of dictionaries with connection profile info
         
     Example:
-        >>> connections = siege_utilities.list_connection_profiles("notebook")
-        >>> for conn in connections:
+        >>> connections = siege_utilities.list_connection_profiles("notebook")  # doctest: +SKIP
+        >>> for conn in connections:  # doctest: +SKIP
         ...     print(f"{conn['name']}: {conn['status']}")
     """
     
@@ -293,7 +307,7 @@ def update_connection_profile(
         OSError: If the profile cannot be read or written.
 
     Example:
-        >>> siege_utilities.update_connection_profile(
+        >>> siege_utilities.update_connection_profile(  # doctest: +SKIP
         ...     "uuid-here",
         ...     {"metadata": {"status": "inactive"}}
         ... )
@@ -329,8 +343,8 @@ def verify_connection_profile(
         Dictionary with test results
         
     Example:
-        >>> result = siege_utilities.test_connection_profile("uuid-here")
-        >>> if result['success']:
+        >>> result = siege_utilities.test_connection_profile("uuid-here")  # doctest: +SKIP
+        >>> if result['success']:  # doctest: +SKIP
         ...     print("Connection successful!")
     """
     
@@ -432,8 +446,8 @@ def get_connection_status(
         Dictionary with connection status information
         
     Example:
-        >>> status = siege_utilities.get_connection_status("uuid-here")
-        >>> print(f"Status: {status['status']}, Last connected: {status['last_connected']}")
+        >>> status = siege_utilities.get_connection_status("uuid-here")  # doctest: +SKIP
+        >>> print(f"Status: {status['status']}, Last connected: {status['last_connected']}")  # doctest: +SKIP
     """
     
     profile = load_connection_profile(connection_id, config_directory)
@@ -489,8 +503,8 @@ def cleanup_old_connections(
         Number of connections removed
         
     Example:
-        >>> removed = siege_utilities.cleanup_old_connections(30)
-        >>> print(f"Removed {removed} old connections")
+        >>> removed = siege_utilities.cleanup_old_connections(30)  # doctest: +SKIP
+        >>> print(f"Removed {removed} old connections")  # doctest: +SKIP
     """
     
     connections_dir = pathlib.Path(config_directory) / "connections"

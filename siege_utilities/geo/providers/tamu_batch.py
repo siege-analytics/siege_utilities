@@ -28,6 +28,13 @@ from .batch_geocoder import (
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'TAMUBatchGeocoder',
+    'TAMU_BASE_URL',
+    'DEFAULT_RATE_LIMIT',
+    'ENV_API_KEY',
+]
+
 TAMU_BASE_URL = "https://geoservices.tamu.edu/Services/Geocode/WebService/GeocoderWebServiceHttpNonParsed_V04_01.aspx"
 DEFAULT_RATE_LIMIT = 0.25
 ENV_API_KEY = "TAMU_API_KEY"

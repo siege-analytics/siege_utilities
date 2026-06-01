@@ -2,6 +2,11 @@
 
 from typing import Any, Dict, Optional
 
+__all__ = [
+    "get_workspace_client",
+]
+
+
 
 def _validate_azure_sp_inputs(
     azure_client_id: Optional[str],

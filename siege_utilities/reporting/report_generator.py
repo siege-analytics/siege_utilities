@@ -27,13 +27,24 @@ try:
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
-    PageBreak = None  # Define for type hints
+    Paragraph = None
+    Spacer = None
+    Table = None
+    TableStyle = None
+    PageBreak = None
+    RLImage = None
+    colors = None
+    inch = None
 
 from .templates.base_template import BaseReportTemplate
 from .chart_generator import ChartGenerator
 from .client_branding import ClientBrandingManager, ClientBrandingNotFoundError
 
 log = logging.getLogger(__name__)
+
+__all__ = [
+    "ReportGenerator",
+]
 
 
 def _escape_paragraph(text: str) -> str:

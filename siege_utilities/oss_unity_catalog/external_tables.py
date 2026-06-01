@@ -25,6 +25,12 @@ import requests
 
 from siege_utilities.core.sql_safety import validate_sql_identifier
 
+__all__ = [
+    'SUPPORTED_DATA_SOURCE_FORMATS',
+    'build_external_table_payload',
+    'register_external_table',
+]
+
 # OSS UC v0.4.0 supported data source formats (from the proto schema).
 # Update this set when OSS UC adds formats. Keys are upper-case because
 # OSS UC's REST API requires upper-case format names.

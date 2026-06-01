@@ -21,6 +21,12 @@ from typing import Any, Optional, Union
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "BlockProfile",
+    "CodificationResult",
+    "codify_area",
+]
+
 
 # ---------------------------------------------------------------------------
 # Result types
@@ -141,11 +147,11 @@ def codify_area(
         return result
 
     if geocoder is None:
-        geocoder = _get_default_geocoder()
-
-    if geocoder is None:
-        result.errors.append("No geocoder available")
-        return result
+        try:
+            geocoder = _get_default_geocoder()
+        except (ImportError, Exception) as exc:
+            result.errors.append(f"No geocoder available: {exc}")
+            return result
 
     result.geocoding_backend = geocoder.backend_name
 
@@ -202,13 +208,25 @@ def _build_block_profiles(geocoded_results) -> list[BlockProfile]:
 
 
 def _get_default_geocoder():
-    """Attempt to create a default CensusBatchGeocoder."""
+    """Attempt to create a default CensusBatchGeocoder.
+
+    Returns:
+        A CensusBatchGeocoder instance.
+
+    Raises:
+        ImportError: When CensusBatchGeocoder is not available.
+        SiegeGeoError: When geocoder initialisation fails.
+    """
     try:
         from siege_utilities.geo.providers.census_batch import CensusBatchGeocoder
         return CensusBatchGeocoder()
     except ImportError:
-        log.debug("CensusBatchGeocoder not available (missing dependency)")
-        return None
+        raise ImportError(
+            "CensusBatchGeocoder not available; install with: "
+            "pip install 'siege-utilities[geo]'"
+        )
     except (RuntimeError, ValueError, TypeError, AttributeError, OSError) as exc:
-        log.warning("Failed to initialise CensusBatchGeocoder: %s", exc)
-        return None
+        from siege_utilities.exceptions import SiegeGeoError
+        raise SiegeGeoError(
+            f"Failed to initialise CensusBatchGeocoder: {exc}"
+        ) from exc

@@ -24,6 +24,7 @@ try:
     from botocore.exceptions import ClientError
 except ImportError:
     boto3 = None
+    ClientError = type('ClientError', (Exception,), {})
 
 try:
     import geopandas as gpd
@@ -38,6 +39,7 @@ from siege_utilities.geo.django.models import (
     VTD,
 )
 
+__all__ = ['Command']
 
 GEOGRAPHY_MODEL_MAP = {
     "state": State,

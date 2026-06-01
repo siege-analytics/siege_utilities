@@ -19,6 +19,16 @@ except ImportError:
     def log_debug(message): pass
 
 
+__all__ = [
+    'run_command',
+    'quick_smoke_test',
+    'build_pytest_command',
+    'run_test_suite',
+    'get_test_report',
+    'run_comprehensive_test',
+]
+
+
 def run_command(cmd: List[str], description: str, log_file: Optional[str] = None) -> bool:
     """
     Run a command with proper logging and error handling.

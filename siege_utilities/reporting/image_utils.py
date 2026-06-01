@@ -10,7 +10,13 @@ import base64
 from pathlib import Path
 from typing import Optional, Union
 
-from siege_utilities.core.logging import log_info
+from siege_utilities.core.logging import log_info, log_warning
+
+__all__ = [
+    'decode_rl_image',
+    'show_rl_image',
+    'save_rl_image',
+]
 
 
 def decode_rl_image(rl_img) -> Optional[bytes]:
@@ -68,4 +74,6 @@ def save_rl_image(rl_img, path: Union[str, Path]) -> Path:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(png_bytes)
         log_info(f"Saved: {path}")
+    else:
+        log_warning(f"Could not decode image; file not written: {path}")
     return path

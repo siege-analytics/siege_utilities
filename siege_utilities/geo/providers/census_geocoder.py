@@ -32,6 +32,17 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    'CensusGeocodeError',
+    'CensusGeocodeResult',
+    'CensusVintage',
+    'geocode_batch',
+    'geocode_batch_chunked',
+    'geocode_results_to_dataframe',
+    'geocode_single',
+    'select_vintage_for_cycle',
+]
+
 
 def log_warning(message: str) -> None:
     logger.warning(message)

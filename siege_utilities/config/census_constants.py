@@ -6,6 +6,45 @@ re-exports every public name so that existing ``from census_constants
 import …`` statements continue to work without changes.
 """
 
+__all__ = [
+    'SurveyType',
+    'DataReliability',
+    'GeographyLevel',
+    'CANONICAL_GEOGRAPHIC_LEVELS',
+    'resolve_geographic_level',
+    'GEOGRAPHIC_LEVELS',
+    'GEOGRAPHIC_HIERARCHY',
+    'DATASET_TYPES',
+    'RELIABILITY_LEVELS',
+    'STATE_FIPS_CODES',
+    'STATEFIPS_LOOKUP_DICT',
+    'FIPS_TO_STATE',
+    'STATE_NAMES',
+    'CENSUS_BASE_URL',
+    'CENSUS_API_BASE_URL',
+    'CENSUS_FTP_BASE_URL',
+    'AVAILABLE_CENSUS_YEARS',
+    'DEFAULT_CENSUS_YEAR',
+    'DECENNIAL_YEARS',
+    'ACS_AVAILABLE_YEARS',
+    'ACS5_AVAILABLE_YEARS',
+    'BOUNDARY_CHANGE_YEARS',
+    'TIGER_FILE_PATTERNS',
+    'CENSUS_CACHE_TIMEOUT',
+    'CENSUS_MAX_CACHE_SIZE',
+    'CENSUS_TIMEOUT',
+    'CENSUS_RETRY_ATTEMPTS',
+    'CENSUS_API_CACHE_TIMEOUT',
+    'CENSUS_API_DEFAULT_TIMEOUT',
+    'CENSUS_API_RATE_LIMIT_RETRY_DELAY',
+    'VARIABLE_GROUPS',
+    'VARIABLE_DESCRIPTIONS',
+    'normalize_state_identifier',
+    'get_tiger_url',
+    'validate_geographic_level',
+    'get_fips_info',
+]
+
 # Re-export everything from the registry
 from .census_registry import (  # noqa: F401
     # Enums

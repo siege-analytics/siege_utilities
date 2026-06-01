@@ -14,6 +14,11 @@ from .chart_generator import ChartGenerator
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "AnalyticsReportGenerator",
+]
+
+
 class AnalyticsReportGenerator:
     """
     Generates analytics reports from various data sources.
@@ -754,10 +759,8 @@ class AnalyticsReportGenerator:
                                report_config: Dict[str, Any]) -> Dict[str, Any]:
         """Process pandas DataFrame data for reporting."""
         try:
-            # Extract basic statistics
             numeric_cols = df.select_dtypes(include=['number']).columns
-            summary_stats = df[numeric_cols].describe()
-            
+
             # Create charts
             charts = []
             for col in numeric_cols[:5]:  # Limit to 5 columns

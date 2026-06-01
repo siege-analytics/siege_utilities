@@ -46,6 +46,40 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    'RESULTS_OUTPUT_FORMAT',
+    'RESULTS_OUTPUT_DELIMITER',
+    'DEBUG_SUBDIRECTORY',
+    'PYSPARK_AVAILABLE',
+    'sanitise_dataframe_column_names',
+    'tabulate_null_vs_not_null',
+    'get_row_count',
+    'repartition_and_cache',
+    'register_temp_table',
+    'move_column_to_front_of_dataframe',
+    'write_df_to_parquet',
+    'read_parquet_to_df',
+    'flatten_json_column_and_join_back_to_df',
+    'validate_geocode_data',
+    'mark_valid_geocode_data',
+    'clean_and_reorder_bbox',
+    'ensure_literal',
+    'reproject_geom_columns',
+    'prepare_dataframe_for_export',
+    'prepare_summary_dataframe',
+    'export_pyspark_df_to_excel',
+    'pivot_summary_table_for_bools',
+    'pivot_summary_with_metrics',
+    'export_prepared_df_as_csv_to_path_using_delimiter',
+    'print_debug_table',
+    'walkability_config',
+    'compute_walkability',
+    'validate_geometry',
+    'backup_full_dataframe',
+    'atomic_write_with_staging',
+    'create_unique_staging_directory',
+]
+
 RESULTS_OUTPUT_FORMAT = 'csv'
 RESULTS_OUTPUT_DELIMITER = ','
 DEBUG_SUBDIRECTORY = Path('debug_output')
@@ -203,6 +237,10 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
 
     Returns:
         DataFrame: The DataFrame with the JSON column flattened.
+
+    Raises:
+        ValueError: If all JSON samples are corrupt and schema cannot be inferred.
+        RuntimeError: If Spark analysis fails and the fallback path also fails.
     """
 
     def _log_info(message):
@@ -259,36 +297,6 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
                             break
             if '_corrupt_record' in [field.name for field in
                 inferred_schema.fields]:
-                _log_info(
-                    f'All samples contain corrupt JSON. Falling back to string schema for {json_column}'
-                    )
-
-                def validate_json(s):
-                    """Pass-through with parse-check: return *s* if it
-                    decodes as JSON, ``None`` otherwise.
-
-                    Runs as a Spark UDF so each row's value is evaluated
-                    individually (passing this function unwrapped to
-                    .otherwise() would call it once at plan-build time
-                    with a Column object, which always raises and yields
-                    a constant None for every row).
-                    """
-                    if s is None:
-                        return None
-                    try:
-                        json.loads(s)
-                        return s
-                    except (TypeError, json.JSONDecodeError):
-                        return None
-                validate_json_udf = udf(validate_json, StringType())
-                df_with_json = df.withColumn('validated_json', when(col(
-                    json_column).isNull(), lit(None)).otherwise(
-                    validate_json_udf(col(json_column)))).withColumn('parsed_json',
-                    from_json(col('validated_json'), StringType(), {'mode':
-                    'PERMISSIVE'})).drop('validated_json')
-                df_with_json = df_with_json.withColumn('parsed_json', when(
-                    col('parsed_json').isNull(), lit(None).cast(StringType(
-                    ))).otherwise(col('parsed_json')))
                 raise ValueError(
                     f"All JSON samples in column {json_column!r} are corrupt; "
                     f"cannot infer schema for flattening"
@@ -302,15 +310,14 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
         try:
 
             def validate_json(s):
-                """Same JSON pass-through validator as above.
+                """Pass-through with parse-check: return *s* if valid JSON, ``None`` otherwise.
 
-                Defined locally inside the fallback path so it doesn't
-                shadow the outer one when the corrupt-record branch
-                takes a different schema. Both definitions are
-                semantically identical -- they exist as separate
-                closures to match the surrounding try/except scope.
-                Wrapped as a UDF so .otherwise() invokes it per-row,
-                not once at plan-build time.
+                Wrapped as a Spark UDF so .otherwise() invokes it per-row,
+                not once at plan-build time.  Returning ``None`` for
+                unparseable cells is the correct Spark idiom (marks the
+                cell as null) and is NOT an SU-1 violation -- this is a
+                per-row data transform, not a library function returning
+                empty on error.
                 """
                 if s is None:
                     return None
@@ -398,7 +405,11 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
 
 
 def validate_geocode_data(df, lat_col_name: str, lon_col_name: str):
-    """Filters out rows with invalid geographic coordinates using string-based column names."""
+    """Filters out rows with invalid geographic coordinates using string-based column names.
+
+    Raises:
+        ValueError: If *lat_col_name* or *lon_col_name* is not in the DataFrame.
+    """
     if lat_col_name not in df.columns or lon_col_name not in df.columns:
         raise ValueError(
             f'Columns {lat_col_name}, {lon_col_name} not found in DataFrame')
@@ -426,6 +437,9 @@ def mark_valid_geocode_data(df, lat_col_name: str, lon_col_name: str,
       lon_col_name (str): The name of the longitude column.
       output_col_name (str, optional): The name of the output column to store the validity flag.
                                        Defaults to "is_valid".
+
+    Raises:
+      ValueError: If *lat_col_name* or *lon_col_name* is not in the DataFrame.
 
     Returns:
       DataFrame: A new DataFrame with an additional column indicating geocode validity.
@@ -496,6 +510,9 @@ def reproject_geom_columns(df, geom_columns, source_srid, target_srid):
       geom_columns (list): List of column names (strings) to reproject.
       source_srid (str): The source CRS (e.g. "EPSG:4326").
       target_srid (str): The target CRS (e.g. "EPSG:27700").
+
+    Raises:
+      ValueError: If *source_srid* or *target_srid* is not a valid EPSG identifier.
 
     Returns:
       DataFrame: The DataFrame with each specified geometry column conditionally reprojected.
@@ -604,6 +621,9 @@ def prepare_summary_dataframe(data_tuples, column_names=None,
         data_tuples: List of tuples with data
         column_names: Column names for the DataFrame
         logger_func: Optional logging function
+
+    Raises:
+        RuntimeError: If no active Spark session is found.
 
     Returns:
         Spark DataFrame with all string columns

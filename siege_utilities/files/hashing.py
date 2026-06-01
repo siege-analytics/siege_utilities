@@ -3,9 +3,12 @@ Hash Management Functions - Fixed Version
 Provides standardized hash functions that actually exist and work properly
 """
 import hashlib
+import logging
 import pathlib
 
 from siege_utilities.core.logging import log_info, log_error
+
+log = logging.getLogger(__name__)
 
 # Module-level validation import. Falling open to raw pathlib.Path
 # inside each function when the validation module is missing would
@@ -30,6 +33,14 @@ except ImportError:  # pragma: no cover - validation should always be present
         "hashing.py will operate WITHOUT path security guards. "
         "This is almost certainly a packaging bug — investigate."
     )
+
+__all__ = [
+    "calculate_file_hash",
+    "generate_sha256_hash_for_file",
+    "get_file_hash",
+    "get_quick_file_signature",
+    "verify_file_integrity",
+]
 
 # 64 KiB — matches stdlib hashlib's recommended buffered-read size and
 # what the reference filehash recipe uses. Centralised so we don't
@@ -78,7 +89,7 @@ def generate_sha256_hash_for_file(file_path) -> str:
         OSError: If file cannot be read
 
     Example:
-        >>> hash_val = generate_sha256_hash_for_file("data.txt")
+        >>> hash_val = generate_sha256_hash_for_file("data.txt")  # doctest: +SKIP
     """
     import warnings
     warnings.warn(
@@ -111,7 +122,7 @@ def get_file_hash(file_path, algorithm='sha256') -> str:
         ValueError: If algorithm is not supported
 
     Example:
-        >>> hash_val = get_file_hash("data.txt", "sha256")
+        >>> hash_val = get_file_hash("data.txt", "sha256")  # doctest: +SKIP
     """
     path_obj = _validated_path(file_path, must_exist=True)
     if not path_obj.exists():
@@ -160,10 +171,8 @@ def get_quick_file_signature(file_path) ->str:
             (logged before re-raise)
 
     Example:
-        >>> sig = get_quick_file_signature("data.txt")
-        >>>
-        >>> # This will raise PathSecurityError
-        >>> get_quick_file_signature("/etc/passwd")  # Sensitive file blocked
+        >>> sig = get_quick_file_signature("data.txt")  # doctest: +SKIP
+        >>> get_quick_file_signature("/etc/passwd")  # doctest: +SKIP
 
     Security Changes:
         - Now validates paths to block path traversal
@@ -224,14 +233,14 @@ def verify_file_integrity(file_path, expected_hash, algorithm='sha256') -> bool:
 
     Example:
         >>> expected = "abc123..."
-        >>> if verify_file_integrity("data.txt", expected):
+        >>> if verify_file_integrity("data.txt", expected):  # doctest: +SKIP
         ...     print("File integrity verified")
     """
     current_hash = get_file_hash(file_path, algorithm)
     return current_hash.lower() == expected_hash.lower()
 
 
-def test_hash_functions():
+def _test_hash_functions():
     """Test the hash functions with a temporary file"""
     import tempfile
     import os
@@ -255,4 +264,4 @@ def test_hash_functions():
 
 
 if __name__ == '__main__':
-    test_hash_functions()
+    _test_hash_functions()

@@ -38,6 +38,8 @@ try:
     GEOPANDAS_AVAILABLE = True
 except ImportError:
     GEOPANDAS_AVAILABLE = False
+    gpd = None
+    Polygon = None
     gpd = None  # type: ignore[assignment]
 
 # Import existing Census utilities (kept as availability probe even though
@@ -56,6 +58,25 @@ if FAKER_AVAILABLE:
     faker_zh = Faker(['zh_CN'])  # Asian names
     faker_hi = Faker(['hi_IN'])  # Indian names
     faker_ar = Faker(['ar_SA'])  # Arabic names
+
+__all__ = [
+    'HOUSING_LOCALE_PRESETS',
+    'SAMPLE_DATASETS',
+    'CENSUS_SAMPLES',
+    'SYNTHETIC_SAMPLES',
+    'list_available_datasets',
+    'get_dataset_info',
+    'load_sample_data',
+    'get_census_boundaries',
+    'get_census_data',
+    'join_boundaries_and_data',
+    'create_sample_dataset',
+    'get_census_county_sample',
+    'get_metropolitan_sample',
+    'generate_synthetic_population',
+    'generate_synthetic_businesses',
+    'generate_synthetic_housing',
+]
 
 # ---------------------------------------------------------------------------
 # Housing locale presets — geographic parameters for generate_synthetic_housing
@@ -403,11 +424,14 @@ def create_sample_dataset(year: int = 2020,
     """
     log_info(f"Creating sample dataset: {geographic_level} level, year {year}, state {state_fips}")
 
-    # Step 1: Get boundaries (raises RuntimeError on failure)
-    boundaries = get_census_boundaries(year, geographic_level, state_fips, county_fips)
-
-    # Step 2: Get data (raises NotImplementedError until Census data API is wired up)
+    # Step 1: Get data (raises NotImplementedError until Census data API is wired up)
     data = get_census_data(year, 'demographics', geographic_level, state_fips, county_fips)
+
+    if not include_geometry:
+        return data
+
+    # Step 2: Get boundaries (raises RuntimeError on failure)
+    boundaries = get_census_boundaries(year, geographic_level, state_fips, county_fips)
 
     # Step 3: Join boundaries and data (raises ValueError/KeyError on failure)
     result = join_boundaries_and_data(boundaries, data)
@@ -419,8 +443,7 @@ def create_sample_dataset(year: int = 2020,
 
 def get_census_county_sample(state_fips: str = "06",
                             county_fips: str = "037",
-                            tract_count: int = 5,
-                            population_per_tract: int = 500) -> Union[pd.DataFrame, gpd.GeoDataFrame]:
+                            tract_count: int = 5) -> Union[pd.DataFrame, gpd.GeoDataFrame]:
     """
     Generate a sample county dataset with multiple tracts and synthetic data.
 
@@ -428,7 +451,6 @@ def get_census_county_sample(state_fips: str = "06",
         state_fips: State FIPS code (default: CA)
         county_fips: County FIPS code (default: Los Angeles)
         tract_count: Number of tracts to include
-        population_per_tract: Population per tract
 
     Returns:
         DataFrame or GeoDataFrame with county data
@@ -464,15 +486,13 @@ def get_census_county_sample(state_fips: str = "06",
     return county_data
 
 def get_metropolitan_sample(cbsa_code: str = "31080",
-                           county_count: int = 3,
-                           population_per_county: int = 2000) -> Union[pd.DataFrame, gpd.GeoDataFrame]:
+                           county_count: int = 3) -> Union[pd.DataFrame, gpd.GeoDataFrame]:
     """
     Generate a metropolitan area sample with multiple counties.
 
     Args:
         cbsa_code: CBSA code (default: Los Angeles metro)
         county_count: Number of counties to include
-        population_per_county: Population per county
 
     Returns:
         DataFrame or GeoDataFrame with metro data
@@ -489,7 +509,6 @@ def get_metropolitan_sample(cbsa_code: str = "31080",
             state_fips="06",
             county_fips=county_fips,
             tract_count=3,
-            population_per_tract=population_per_county // 3
         )
         county_data['cbsa_code'] = cbsa_code
         all_counties.append(county_data)

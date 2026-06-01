@@ -12,6 +12,24 @@ import pandas as pd
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 
+__all__ = [
+    'GeocodingError',
+    'COUNTRY_CODES',
+    'DEFAULT_COUNTRY_CODE',
+    'NOMINATIM_INTERNAL_URL',
+    'GEOCODER_CONFIG',
+    'get_country_name',
+    'get_country_code',
+    'list_countries',
+    'concatenate_addresses',
+    'get_coordinates',
+    'use_nominatim_geocoder',
+    'NominatimGeoClassifier',
+    'validate_geocode_data_pandas',
+    'mark_valid_geocode_data_pandas',
+    'SpatiaLiteCache',
+]
+
 # Logging — bind the module logger directly. The previous fallback to
 # print() if the package-level helpers couldn't be imported routed
 # diagnostics around the user's logging configuration and bypassed log
@@ -325,15 +343,15 @@ def get_country_name(country_code):
     return COUNTRY_CODES.get(country_code.lower(), country_code)
 
 
-def get_country_code(country_name):
+def get_country_code(country_name) -> Optional[str]:
     """
     Get the country code from a country name.
-    
+
     Args:
         country_name: Full country name (e.g., 'United States', 'Canada')
-        
+
     Returns:
-        str: Two-letter country code or None if not found
+        Two-letter country code, or None if not found.
     """
     for code, name in COUNTRY_CODES.items():
         if name.lower() == country_name.lower():
@@ -585,6 +603,9 @@ class NominatimGeoClassifier:
 
     def from_json(self, json_string):
         """Replace the classifier's lookup tables from a JSON string.
+
+        Args:
+            json_string: JSON produced by :meth:`to_json`.
 
         Inverse of :meth:`to_json` — overwrites ``place_rank_dict`` and
         ``importance_dict`` in place. Unknown top-level keys are

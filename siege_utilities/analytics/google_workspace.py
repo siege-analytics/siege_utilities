@@ -50,6 +50,11 @@ try:
 except ImportError:
     _GOOGLE_AVAILABLE = False
 
+__all__ = [
+    "GoogleWorkspaceClient",
+    "WORKSPACE_SCOPES",
+]
+
 # Scopes needed for read/write on Docs, Sheets, Slides
 WORKSPACE_SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -120,7 +125,9 @@ class GoogleWorkspaceClient:
             creds = flow.run_local_server(port=0)
 
         if token_file and creds:
+            import os
             Path(token_file).write_text(creds.to_json())
+            os.chmod(token_file, 0o600)
 
         return cls(creds)
 

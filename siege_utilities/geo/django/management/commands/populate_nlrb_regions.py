@@ -10,6 +10,8 @@ Usage:
 
 from django.core.management.base import BaseCommand
 
+__all__ = ['Command']
+
 
 class Command(BaseCommand):
     """Populate NLRB region boundaries from built-in registry."""

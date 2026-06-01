@@ -19,6 +19,8 @@ from django.db import transaction
 
 from siege_utilities.geo.django.models import CongressionalTerm
 
+__all__ = ['Command']
+
 
 # Senate class rotation: Class I elected in years ≡ 0 mod 6 (2000, 2006, ...),
 # Class II in years ≡ 2 mod 6, Class III in years ≡ 4 mod 6.

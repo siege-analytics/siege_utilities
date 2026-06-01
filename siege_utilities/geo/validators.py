@@ -21,6 +21,17 @@ import re
 
 from siege_utilities.config.census_constants import FIPS_TO_STATE
 
+__all__ = [
+    "BlockGroupGEOIDValidator",
+    "CountyFIPSValidator",
+    "StateFIPSValidator",
+    "TractGEOIDValidator",
+    "is_valid_block_group_geoid",
+    "is_valid_county_fips",
+    "is_valid_state_fips",
+    "is_valid_tract_geoid",
+]
+
 
 # =============================================================================
 # STANDALONE VALIDATION FUNCTIONS
@@ -56,49 +67,56 @@ def is_valid_block_group_geoid(value: str) -> bool:
 # DJANGO VALIDATORS
 # =============================================================================
 
-try:
+
+def _get_validation_error():
+    """Import Django's ValidationError at call time."""
     from django.core.exceptions import ValidationError
+    return ValidationError
 
-    class StateFIPSValidator:
-        """Django validator for 2-digit state FIPS codes."""
 
-        message = "Enter a valid 2-digit state FIPS code."
-        code = "invalid_state_fips"
+class StateFIPSValidator:
+    """Django validator for 2-digit state FIPS codes."""
 
-        def __call__(self, value):
-            if not is_valid_state_fips(value):
-                raise ValidationError(self.message, code=self.code, params={"value": value})
+    message = "Enter a valid 2-digit state FIPS code."
+    code = "invalid_state_fips"
 
-    class CountyFIPSValidator:
-        """Django validator for 5-digit county FIPS codes."""
+    def __call__(self, value):
+        ValidationError = _get_validation_error()
+        if not is_valid_state_fips(value):
+            raise ValidationError(self.message, code=self.code, params={"value": value})
 
-        message = "Enter a valid 5-digit county FIPS code (2-digit state + 3-digit county)."
-        code = "invalid_county_fips"
 
-        def __call__(self, value):
-            if not is_valid_county_fips(value):
-                raise ValidationError(self.message, code=self.code, params={"value": value})
+class CountyFIPSValidator:
+    """Django validator for 5-digit county FIPS codes."""
 
-    class TractGEOIDValidator:
-        """Django validator for 11-digit tract GEOIDs."""
+    message = "Enter a valid 5-digit county FIPS code (2-digit state + 3-digit county)."
+    code = "invalid_county_fips"
 
-        message = "Enter a valid 11-digit Census tract GEOID."
-        code = "invalid_tract_geoid"
+    def __call__(self, value):
+        ValidationError = _get_validation_error()
+        if not is_valid_county_fips(value):
+            raise ValidationError(self.message, code=self.code, params={"value": value})
 
-        def __call__(self, value):
-            if not is_valid_tract_geoid(value):
-                raise ValidationError(self.message, code=self.code, params={"value": value})
 
-    class BlockGroupGEOIDValidator:
-        """Django validator for 12-digit block group GEOIDs."""
+class TractGEOIDValidator:
+    """Django validator for 11-digit tract GEOIDs."""
 
-        message = "Enter a valid 12-digit Census block group GEOID."
-        code = "invalid_block_group_geoid"
+    message = "Enter a valid 11-digit Census tract GEOID."
+    code = "invalid_tract_geoid"
 
-        def __call__(self, value):
-            if not is_valid_block_group_geoid(value):
-                raise ValidationError(self.message, code=self.code, params={"value": value})
+    def __call__(self, value):
+        ValidationError = _get_validation_error()
+        if not is_valid_tract_geoid(value):
+            raise ValidationError(self.message, code=self.code, params={"value": value})
 
-except ImportError:
-    # Django not installed — standalone functions still available
-    pass
+
+class BlockGroupGEOIDValidator:
+    """Django validator for 12-digit block group GEOIDs."""
+
+    message = "Enter a valid 12-digit Census block group GEOID."
+    code = "invalid_block_group_geoid"
+
+    def __call__(self, value):
+        ValidationError = _get_validation_error()
+        if not is_valid_block_group_geoid(value):
+            raise ValidationError(self.message, code=self.code, params={"value": value})

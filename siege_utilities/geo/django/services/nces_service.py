@@ -19,6 +19,11 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'NCESPopulationResult',
+    'NCESPopulationService',
+]
+
 
 @dataclass
 class NCESPopulationResult:

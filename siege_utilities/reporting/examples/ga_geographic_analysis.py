@@ -53,6 +53,19 @@ try:
 except ImportError:
     GEO_AVAILABLE = False
 
+__all__ = [
+    'STATE_FIPS',
+    'MAJOR_CITIES',
+    'geocode_ga_cities',
+    'aggregate_by_state',
+    'create_state_choropleth',
+    'create_city_heatmap',
+    'create_traffic_demographics_comparison',
+    'create_bivariate_traffic_income_map',
+    'generate_geographic_insights',
+    'main',
+]
+
 log = logging.getLogger(__name__)
 
 
@@ -145,7 +158,10 @@ def aggregate_by_state(ga_city_df: pd.DataFrame) -> pd.DataFrame:
     valid = ga_city_df[ga_city_df['state_fips'].notna()].copy()
 
     if valid.empty:
-        return pd.DataFrame()
+        raise ValueError(
+            "No rows with valid state_fips found in ga_city_df; "
+            "cannot aggregate to state level"
+        )
 
     # Aggregate metrics
     state_data = valid.groupby(['state', 'state_fips']).agg({
@@ -161,17 +177,21 @@ def aggregate_by_state(ga_city_df: pd.DataFrame) -> pd.DataFrame:
 
 def create_state_choropleth(state_data: pd.DataFrame, value_column: str = 'sessions',
                             title: str = "Website Traffic by State",
-                            output_path: Optional[str] = None) -> Optional[str]:
+                            output_path: Optional[str] = None) -> str:
     """
     Create a choropleth map of US states colored by a metric.
     """
     if not GEOPANDAS_AVAILABLE or not MATPLOTLIB_AVAILABLE:
-        log.warning("GeoPandas or matplotlib not available for choropleth")
-        return None
+        raise ImportError(
+            "geopandas and matplotlib are required for choropleth generation. "
+            "Install with: pip install 'siege-utilities[geo,reporting]'"
+        )
 
     if not GEO_AVAILABLE:
-        log.warning("siege_utilities geo module not available")
-        return None
+        raise ImportError(
+            "siege_utilities.geo is required for state boundaries. "
+            "Install with: pip install 'siege-utilities[geo]'"
+        )
 
     states_gdf = get_geographic_boundaries(
         boundary_type='state',
@@ -180,8 +200,10 @@ def create_state_choropleth(state_data: pd.DataFrame, value_column: str = 'sessi
     )
 
     if states_gdf is None or states_gdf.empty:
-        log.warning("Could not load state boundaries")
-        return None
+        raise RuntimeError(
+            "Could not load state boundaries from Census TIGER; "
+            "check network connectivity and Census API availability"
+        )
 
     merged = states_gdf.merge(
         state_data,
@@ -220,19 +242,23 @@ def create_state_choropleth(state_data: pd.DataFrame, value_column: str = 'sessi
 
 
 def create_city_heatmap(ga_city_df: pd.DataFrame, value_column: str = 'sessions',
-                        output_path: Optional[str] = None) -> Optional[str]:
+                        output_path: Optional[str] = None) -> str:
     """
     Create an interactive heatmap of traffic intensity by city.
     """
     if not FOLIUM_AVAILABLE:
-        log.warning("Folium not available for heatmap")
-        return None
+        raise ImportError(
+            "folium is required for heatmap generation. "
+            "Install with: pip install folium"
+        )
 
     valid = ga_city_df[ga_city_df['latitude'].notna()].copy()
 
     if valid.empty:
-        log.warning("No geocoded cities for heatmap")
-        return None
+        raise ValueError(
+            "No geocoded cities (rows with non-null latitude) found in ga_city_df; "
+            "cannot create heatmap"
+        )
 
     center_lat = valid['latitude'].mean()
     center_lon = valid['longitude'].mean()
@@ -308,17 +334,21 @@ def create_traffic_demographics_comparison(ga_state_data: pd.DataFrame,
 
 
 def create_bivariate_traffic_income_map(merged_data: pd.DataFrame,
-                                         output_path: Optional[str] = None) -> Optional[str]:
+                                         output_path: Optional[str] = None) -> str:
     """
     Create a bivariate choropleth showing traffic vs income.
     """
     if not GEOPANDAS_AVAILABLE or not MATPLOTLIB_AVAILABLE:
-        log.warning("geopandas or matplotlib not available; cannot create bivariate map")
-        return None
+        raise ImportError(
+            "geopandas and matplotlib are required for bivariate map generation. "
+            "Install with: pip install 'siege-utilities[geo,reporting]'"
+        )
 
     if not GEO_AVAILABLE:
-        log.warning("siege_utilities.geo not available; cannot create bivariate map")
-        return None
+        raise ImportError(
+            "siege_utilities.geo is required for state boundaries. "
+            "Install with: pip install 'siege-utilities[geo]'"
+        )
 
     states_gdf = get_geographic_boundaries(
         boundary_type='state',
@@ -327,8 +357,10 @@ def create_bivariate_traffic_income_map(merged_data: pd.DataFrame,
     )
 
     if states_gdf is None or states_gdf.empty:
-        log.warning("No state boundary data available; cannot create bivariate map")
-        return None
+        raise RuntimeError(
+            "Could not load state boundaries from Census TIGER; "
+            "check network connectivity and Census API availability"
+        )
 
     gdf = states_gdf.merge(
         merged_data,

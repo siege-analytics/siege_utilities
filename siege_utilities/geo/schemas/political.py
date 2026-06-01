@@ -6,6 +6,13 @@ from pydantic import Field
 
 from .base import CensusTIGERSchema
 
+__all__ = [
+    'PrecinctSchema',
+    'StateLegislativeLowerSchema',
+    'StateLegislativeUpperSchema',
+    'VTDSchema',
+]
+
 
 class StateLegislativeUpperSchema(CensusTIGERSchema):
     district_number: str = Field(max_length=3)

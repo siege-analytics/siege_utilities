@@ -119,7 +119,7 @@ def is_sensitive_path(path: FilePath) -> bool:
     Example:
         >>> is_sensitive_path("/etc/passwd")
         True
-        >>> is_sensitive_path("/home/user/data.txt")
+        >>> is_sensitive_path("/tmp/data.txt")
         False
     """
     try:
@@ -179,14 +179,12 @@ def validate_safe_path(path: FilePath,
         >>> # Safe path
         >>> validated = validate_safe_path("data/file.txt")
         >>>
-        >>> # Dangerous path (raises exception)
         >>> try:
         ...     validate_safe_path("../../../etc/passwd")
         ... except PathSecurityError as e:
-        ...     print(f"Blocked: {e}")
+        ...     pass  # raises PathSecurityError
         >>>
-        >>> # Restrict to base directory
-        >>> validated = validate_safe_path("subdir/file.txt", base_directory="/safe/dir")
+        >>> validated = validate_safe_path("subdir/file.txt", base_directory="/safe/dir")  # doctest: +SKIP
     """
     if not path:
         raise ValueError("Path cannot be empty")
@@ -265,10 +263,8 @@ def validate_file_path(file_path: FilePath,
         ValueError: If path is invalid
 
     Example:
-        >>> # Validate existing file
-        >>> path = validate_file_path("data.csv", must_exist=True)
+        >>> path = validate_file_path("data.csv", must_exist=True)  # doctest: +SKIP
         >>>
-        >>> # Validate path for writing (doesn't need to exist)
         >>> path = validate_file_path("output.txt", must_exist=False)
     """
     validated_path = validate_safe_path(
@@ -340,8 +336,7 @@ def safe_join_paths(*paths: FilePath, base_directory: Optional[FilePath] = None)
         >>> # Safe join
         >>> path = safe_join_paths("data", "2024", "file.txt")
         >>>
-        >>> # With base directory restriction
-        >>> path = safe_join_paths("subdir", "file.txt", base_directory="/safe/dir")
+        >>> path = safe_join_paths("subdir", "file.txt", base_directory="/safe/dir")  # doctest: +SKIP
     """
     if not paths:
         raise ValueError("At least one path component required")

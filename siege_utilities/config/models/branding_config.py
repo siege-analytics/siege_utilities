@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Optional
 import re
 
+__all__ = ["BrandingConfig"]
+
 
 class BrandingConfig(BaseModel):
     """

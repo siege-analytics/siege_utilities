@@ -12,6 +12,8 @@ from django.db import models
 
 from .base import TemporalBoundary
 
+__all__ = ['IsochroneResult']
+
 
 class IsochroneResult(TemporalBoundary):
     """

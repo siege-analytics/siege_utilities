@@ -14,6 +14,18 @@ import logging
 import warnings
 from typing import Literal, Optional, TypeVar
 
+__all__ = [
+    'OnErrorStrategy',
+    'SiegeError',
+    'SiegeDataError',
+    'SiegeGeoError',
+    'SiegeSpatialError',
+    'SiegeAPIError',
+    'SiegeConfigError',
+    'GitError',
+    'handle_error',
+]
+
 log = logging.getLogger(__name__)
 
 #: Strategy for handling non-fatal errors.

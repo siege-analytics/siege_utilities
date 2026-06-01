@@ -30,6 +30,19 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "DEFAULT_THRESHOLDS",
+    "THRESHOLD_PRESETS",
+    "TrendCategory",
+    "TrendThresholds",
+    "classify_by_quantiles",
+    "classify_by_zscore",
+    "classify_trends",
+    "compare_trends",
+    "get_trend_summary",
+    "identify_outliers",
+]
+
 
 # =============================================================================
 # TREND CATEGORIES
@@ -333,7 +346,7 @@ def get_trend_summary(
     percentages = df[trend_column].value_counts(normalize=True) * 100
 
     summary = {
-        'total_geographies': len(df),
+        'total_geographies': int(df[geoid_column].nunique()) if geoid_column in df.columns else len(df),
         'categories': {},
     }
 
