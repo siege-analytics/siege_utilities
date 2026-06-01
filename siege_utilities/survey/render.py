@@ -144,8 +144,9 @@ def _build_map(chain: "Chain", map_generator: Optional[Any] = None) -> Optional[
     as such would mislabel (e.g. relabeling ``"Democrat"`` / ``"Republican"``
     as states).
 
-    Returns ``None`` when no ``geo_column`` is set or when the geo-rendering
-    library is unavailable. Raises :class:`RenderError` on a configuration
+    Returns ``None`` when no ``geo_column`` is set or when the resulting
+    DataFrame is empty. Raises :class:`ImportError` when the reporting
+    extra is not installed. Raises :class:`RenderError` on a configuration
     mismatch or a rendering failure -- callers should not silently ship
     reports missing maps.
     """
@@ -164,9 +165,11 @@ def _build_map(chain: "Chain", map_generator: Optional[Any] = None) -> Optional[
         try:
             from ..reporting.chart_generator import ChartGenerator
             map_generator = ChartGenerator()
-        except ImportError:
-            logger.warning("ChartGenerator unavailable — map rendering skipped")
-            return None
+        except ImportError as exc:
+            raise ImportError(
+                "ChartGenerator is required for map rendering. "
+                "Install with: pip install 'siege-utilities[reporting]'"
+            ) from exc
 
     df = chain.to_dataframe()
     if df.empty:
