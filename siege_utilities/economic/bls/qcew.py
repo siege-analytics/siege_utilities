@@ -54,10 +54,29 @@ class QCEWFiles:
         df = files.load(year=2024, quarter=3, state_fips="06", naics_depth=2)
     """
 
+    _MAX_DOWNLOAD_BYTES = 512 * 1024 * 1024  # 512 MB cap
+    _CHUNK_SIZE = 64 * 1024
+
     def __init__(self, cache_dir: Optional[Path] = None, timeout: int = 120):
         self.cache_dir = Path(cache_dir) if cache_dir else DEFAULT_CACHE_DIR
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.timeout = timeout
+
+    def _stream_download_to_file(self, url: str, dest: Path) -> None:
+        """Stream an HTTP response directly to disk with a size cap."""
+        downloaded = 0
+        with requests.get(url, stream=True, timeout=self.timeout) as resp:
+            resp.raise_for_status()
+            with open(dest, 'wb') as f:
+                for chunk in resp.iter_content(chunk_size=self._CHUNK_SIZE):
+                    downloaded += len(chunk)
+                    if downloaded > self._MAX_DOWNLOAD_BYTES:
+                        dest.unlink(missing_ok=True)
+                        raise ValueError(
+                            f"Download from {url} exceeds "
+                            f"{self._MAX_DOWNLOAD_BYTES / 1024 / 1024:.0f} MB limit"
+                        )
+                    f.write(chunk)
 
     def download(self, year: int) -> Path:
         """Download (or return cached) the year's QCEW zip; return CSV path."""
@@ -70,9 +89,7 @@ class QCEWFiles:
 
         url = QCEW_FILE_URL.format(year=year)
         logger.info("Downloading QCEW %s from %s", year, url)
-        resp = requests.get(url, timeout=self.timeout)
-        resp.raise_for_status()
-        zip_path.write_bytes(resp.content)
+        self._stream_download_to_file(url, zip_path)
 
         with zipfile.ZipFile(zip_path) as zf:
             csv_name = next(

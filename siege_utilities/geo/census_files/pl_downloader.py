@@ -72,6 +72,29 @@ DEFAULT_CACHE_DIR = Path.home() / '.siege_utilities' / 'cache' / 'pl_files'
 # Request timeout
 PL_REQUEST_TIMEOUT = 300  # 5 minutes - files can be large
 
+# Maximum download size (1 GB) — protects against unbounded memory allocation
+PL_MAX_DOWNLOAD_BYTES = 1024 * 1024 * 1024
+
+_STREAM_CHUNK_SIZE = 64 * 1024  # 64 KB chunks
+
+
+def _stream_download_to_file(
+    url: str, dest: Path, timeout: int = PL_REQUEST_TIMEOUT,
+    max_bytes: int = PL_MAX_DOWNLOAD_BYTES,
+) -> None:
+    """Stream an HTTP response directly to disk with a size cap."""
+    with requests.get(url, stream=True, timeout=timeout) as resp:
+        resp.raise_for_status()
+        downloaded = 0
+        with open(dest, 'wb') as f:
+            for chunk in resp.iter_content(chunk_size=_STREAM_CHUNK_SIZE):
+                downloaded += len(chunk)
+                if downloaded > max_bytes:
+                    raise ValueError(
+                        f"Download from {url} exceeds {max_bytes / 1024 / 1024:.0f} MB limit"
+                    )
+                f.write(chunk)
+
 # Summary Level Codes
 SUMMARY_LEVELS = {
     'nation': '010',
@@ -229,6 +252,22 @@ class PLFileDownloader:
         self.timeout = timeout
 
         log.info(f"Initialized PLFileDownloader (cache: {self.cache_dir})")
+
+    def _stream_download(self, url: str) -> bytes:
+        """Stream-download a URL into memory with a size cap."""
+        chunks = []
+        downloaded = 0
+        with requests.get(url, stream=True, timeout=self.timeout) as resp:
+            resp.raise_for_status()
+            for chunk in resp.iter_content(chunk_size=_STREAM_CHUNK_SIZE):
+                downloaded += len(chunk)
+                if downloaded > PL_MAX_DOWNLOAD_BYTES:
+                    raise ValueError(
+                        f"Download from {url} exceeds "
+                        f"{PL_MAX_DOWNLOAD_BYTES / 1024 / 1024:.0f} MB limit"
+                    )
+                chunks.append(chunk)
+        return b''.join(chunks)
 
     def get_data(
         self,
@@ -390,13 +429,11 @@ class PLFileDownloader:
 
     def _download_and_parse_geo(self, url: str, year: int) -> pd.DataFrame:
         """Download and parse geographic header file."""
-        # Download zip file
-        response = requests.get(url, timeout=self.timeout)
-        response.raise_for_status()
+        import io
+        content = self._stream_download(url)
 
         # Extract geo file from zip
-        import io
-        with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
+        with zipfile.ZipFile(io.BytesIO(content)) as zf:
             # Find the geo file (ends with 'geo2020.pl' or similar)
             geo_filename = None
             for name in zf.namelist():
@@ -461,12 +498,10 @@ class PLFileDownloader:
         file_type: str
     ) -> pd.DataFrame:
         """Download and parse data segment file."""
-        # Data files are in the same zip
-        response = requests.get(url, timeout=self.timeout)
-        response.raise_for_status()
-
         import io
-        with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
+        content = self._stream_download(url)
+
+        with zipfile.ZipFile(io.BytesIO(content)) as zf:
             # Find the data file
             file_num = {'pl1': '1', 'pl2': '2', 'pl3': '3', 'pl4': '4'}.get(file_type, '1')
             data_filename = None
@@ -735,10 +770,7 @@ def download_pl_file(
     output_file = output_dir / f"{state_abbr.lower()}{year}.pl.zip"
 
     log.info(f"Downloading {url} to {output_file}")
-    response = requests.get(url, timeout=PL_REQUEST_TIMEOUT)
-    response.raise_for_status()
-
-    output_file.write_bytes(response.content)
+    _stream_download_to_file(url, output_file, timeout=PL_REQUEST_TIMEOUT)
     log.info(f"Downloaded {output_file.stat().st_size / 1024 / 1024:.1f} MB")
 
     return output_file
