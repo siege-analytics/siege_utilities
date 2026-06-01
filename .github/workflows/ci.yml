@@ -590,7 +590,7 @@ jobs:
     - name: Check for Sphinx setup
       id: check_sphinx
       run: |
-        if [ -f "docs/conf.py" ]; then
+        if [ -f "docs/source/conf.py" ] || [ -f "docs/conf.py" ]; then
           echo "sphinx_ready=true" >> $GITHUB_OUTPUT
         else
           echo "sphinx_ready=false" >> $GITHUB_OUTPUT

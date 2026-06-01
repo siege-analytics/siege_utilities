@@ -1,242 +1,168 @@
 Library Architecture
-===================
+====================
 
-Overview
---------
-
-The ``siege_utilities`` library is organized into major functional areas, each providing specialized utilities for data engineering, analytics, and distributed computing workflows.
-
-.. figure:: ../images/architecture_overview.png
-   :alt: Siege Utilities Architecture Overview
-   :align: center
-   :width: 100%
-
-   **Figure 1: Siege Utilities Library Architecture**
-
-Core Architecture
+Strategic Intent
 ----------------
+
+siege_utilities is a thesaurus of space-time composition tools. Every piece
+exists to serve one question: *what happened, where, when, and what does
+proximity imply?*
+
+The library ties events to coordinates in space-time, then extrapolates
+significances and meanings from placement. Domain packages (political,
+economic, education, survey, analytics) produce events. Geo locates them.
+Engines scale them. Reporting presents them.
+
+Composition Chain
+-----------------
+
+The canonical composition chain that drives the architecture::
+
+    address → geocoder → GEOID → boundary provider → demographic overlay → choropleth or report
+
+Every module's position in the library derives from where it sits in this
+chain. Geo is at the center because everything passes through spatial location.
+
+Layer Model
+-----------
 
 .. code-block:: text
 
-    siege_utilities/
-    ├── 🔧 Core Utilities (16 functions)
-    │   ├── Logging System (14 functions)
-    │   │   ├── log_info, log_warning, log_error, log_debug, log_critical
-    │   │   ├── init_logger, get_logger, configure_shared_logging
-    │   │   └── Thread-safe, configurable logging across all modules
-    │   └── String Utilities (2 functions)
-    │       ├── remove_wrapping_quotes_and_trim
-    │       └── Advanced string manipulation and cleaning
-    │
-    ├── 📁 File Operations (22 functions)
-    │   ├── File Hashing (5 functions)
-    │   │   ├── calculate_file_hash, generate_sha256_hash_for_file
-    │   │   ├── get_file_hash, get_quick_file_signature, verify_file_integrity
-    │   │   └── Cryptographic hashing and integrity verification
-    │   ├── File Operations (13 functions)
-    │   │   ├── check_if_file_exists_at_path, delete_existing_file_and_replace_it_with_an_empty_file
-    │   │   ├── count_total_rows_in_file_pythonically, count_empty_rows_in_file_pythonically
-    │   │   ├── count_duplicate_rows_in_file_using_awk, count_total_rows_in_file_using_sed
-    │   │   ├── count_empty_rows_in_file_using_awk, remove_empty_rows_in_file_using_sed
-    │   │   ├── write_data_to_a_new_empty_file, write_data_to_an_existing_file
-    │   │   ├── check_for_file_type_in_directory
-    │   │   └── Advanced file manipulation and analysis
-    │   ├── Path Management (2 functions)
-    │   │   ├── ensure_path_exists, unzip_file_to_its_own_directory
-    │   │   └── Directory creation and file extraction
-    │   ├── Remote Operations (2 functions)
-    │   │   ├── generate_local_path_from_url, download_file
-    │   │   └── URL-based file operations and downloads
-    │   └── Shell Operations (1 function)
-    │       ├── run_subprocess
-    │       └── Command execution and process management
-    │
-    ├── 🚀 Distributed Computing (503+ functions)
-    │   ├── Spark Utilities (503 functions)
-    │   │   ├── DataFrame operations, transformations, and optimizations
-    │   │   ├── Data validation, cleaning, and processing
-    │   │   ├── Performance tuning and caching strategies
-    │   │   ├── File format handling (Parquet, CSV, JSON)
-    │   │   ├── Advanced analytics and machine learning support
-    │   │   └── Production-ready Spark workflows
-    │   ├── HDFS Configuration (5 functions)
-    │   │   ├── Cluster configuration and management
-    │   │   └── Connection and authentication setup
-    │   ├── HDFS Operations (2 functions)
-    │   │   ├── File system operations and management
-    │   │   └── Data movement and organization
-    │   └── HDFS Legacy Support (4 functions)
-    │       ├── Backward compatibility and migration tools
-    │       └── Legacy system integration
-    │
-    ├── 🌍 Geospatial (2 functions)
-    │   ├── Geocoding (2 functions)
-    │   │   ├── concatenate_addresses, use_nominatim_geocoder
-    │   │   └── Address processing and coordinate generation
-    │   └── Location-based analytics and mapping support
-    │
-    ├── ⚙️ Configuration Management (15 functions)
-    │   ├── Client Management (8 functions)
-    │   │   ├── create_client_profile, save_client_profile, load_client_profile
-    │   │   ├── update_client_profile, list_client_profiles, search_client_profiles
-    │   │   ├── validate_client_profile, associate_client_with_project
-    │   │   └── Client profile creation, management, and project association
-    │   ├── Connection Management (7 functions)
-    │   │   ├── create_connection_profile, save_connection_profile, load_connection_profile
-    │   │   ├── find_connection_by_name, list_connection_profiles, update_connection_profile
-    │   │   ├── test_connection_profile, get_connection_status, cleanup_old_connections
-    │   │   └── Database, notebook, and Spark connection persistence
-    │   ├── Database Configurations
-    │   │   └── Connection string management and database utilities
-    │   └── Project Management
-    │       └── Project configuration and directory structure management
-    │
-    ├── 📊 Analytics Integration (6 functions)
-    │   ├── Google Analytics (6 functions)
-    │   │   ├── GoogleAnalyticsConnector class
-    │   │   ├── create_ga_account_profile, save_ga_account_profile, load_ga_account_profile
-    │   │   ├── list_ga_accounts_for_client, batch_retrieve_ga_data
-    │   │   └── GA4/UA data retrieval, client association, Pandas/Spark export
-    │   └── Client-associated analytics account management
-    │
-    ├── 🧹 Code Hygiene (2 functions)
-    │   ├── Documentation Generation (2 functions)
-    │   │   ├── generate_docstring_template, analyze_function_signature
-    │   │   └── Automated documentation and code quality tools
-    │   └── Code maintenance and quality assurance
-    │
-    └── 🧪 Testing & Development (2 functions)
-        ├── Environment Setup (2 functions)
-        │   ├── setup_spark_environment, get_system_info
-        │   └── Development environment configuration and diagnostics
-        └── Testing framework and development tools
+    ┌─────────────────────────────────────────────────────────┐
+    │                     REPORTING                           │
+    │  charts · PDFs · PowerPoint · hex cartograms · 3D maps  │
+    └────────────────────────┬────────────────────────────────┘
+                             │
+    ┌────────────────────────▼────────────────────────────────┐
+    │                  DOMAIN PACKAGES                         │
+    │  political · economic · education · survey · analytics   │
+    └────────────────────────┬────────────────────────────────┘
+                             │
+    ┌────────────────────────▼────────────────────────────────┐
+    │              GEO (gravitational center)                   │
+    │                                                          │
+    │  Boundaries    Census data    Redistricting   Isochrones │
+    │  Geocoding     Spatial joins  CRS management  GEOID ops  │
+    │  Interpolation Gazetteers     Place history   Overlays   │
+    │                                                          │
+    │  Providers: Census TIGER · GADM · RDH · Nominatim ·     │
+    │             TAMU · Census Batch · ORS · Valhalla         │
+    └────────────────────────┬────────────────────────────────┘
+                             │
+    ┌────────────────────────▼────────────────────────────────┐
+    │                     ENGINES                              │
+    │  pandas · DuckDB · Spark+Sedona · PostGIS                │
+    │  (same analysis at different scales without rewriting)   │
+    └────────────────────────┬────────────────────────────────┘
+                             │
+    ┌────────────────────────▼────────────────────────────────┐
+    │                   FOUNDATION                             │
+    │  core · config · files · data · reference · schema       │
+    │  credentials · logging · lazy loading (PEP 562)          │
+    └─────────────────────────────────────────────────────────┘
 
-Function Distribution
---------------------
-
-.. list-table:: Function Distribution by Module
-   :widths: 30 20 20 30
-   :header-rows: 1
-
-   * - Module
-     - Functions
-     - Status
-     - Description
-   * - **Core Utilities**
-     - 16
-     - ✅ Complete
-     - Logging, string manipulation, core infrastructure
-   * - **File Operations**
-     - 22
-     - ✅ Complete
-     - File handling, hashing, operations, remote access
-   * - **Distributed Computing**
-     - 503+
-     - ✅ Complete
-     - Spark, HDFS, cluster management, big data processing
-   * - **Geospatial**
-     - 2
-     - ✅ Complete
-     - Address processing, geocoding, location analytics
-   * - **Configuration Management**
-     - 15
-     - ✅ Complete
-     - Client profiles, connections, projects, databases
-   * - **Analytics Integration**
-     - 6
-     - 🆕 New
-     - Google Analytics, client association, data export
-   * - **Code Hygiene**
-     - 2
-     - ✅ Complete
-     - Documentation, code quality, maintenance
-   * - **Testing & Development**
-     - 2
-     - ✅ Complete
-     - Environment setup, diagnostics, testing tools
-
-**Total Functions: 568+** | **Total Modules: 16** | **Coverage: 100%**
-
-Key Features
-------------
-
-**🔧 Core Infrastructure**
-- Thread-safe logging system with configurable levels
-- String manipulation and cleaning utilities
-- Robust error handling and fallback mechanisms
-
-**📁 File Management**
-- Cryptographic file hashing and integrity verification
-- Advanced file operations with awk/sed integration
-- Remote file operations and downloads
-- Shell command execution and process management
-
-**🚀 Distributed Computing**
-- **503+ Spark functions** for big data processing
-- HDFS cluster configuration and management
-- Production-ready Spark workflows and optimizations
-- Advanced data transformation and analytics
-
-**🌍 Geospatial Capabilities**
-- Address concatenation and standardization
-- Nominatim geocoding integration
-- Location-based analytics support
-
-**⚙️ Configuration Management**
-- Client profile creation and management
-- Connection persistence (databases, notebooks, Spark)
-- Project configuration and directory management
-- Client-project association system
-
-**📊 Analytics Integration**
-- Google Analytics 4 and Universal Analytics support
-- OAuth2 authentication and credential management
-- Client-associated analytics account management
-- Data export to Pandas and Spark formats
-- Batch data retrieval and processing
-
-**🧹 Code Quality**
-- Automated documentation generation
-- Function signature analysis
-- Code maintenance and quality tools
-
-**🧪 Development Support**
-- Spark environment setup and configuration
-- System diagnostics and information
-- Testing framework integration
-
-Integration Points
+Package Structure
 -----------------
 
 .. code-block:: text
 
-    Client Management ←→ Analytics Integration
-           ↓                    ↓
-    Project Association ←→ Configuration Management
-           ↓                    ↓
-    File Operations ←→ Distributed Computing
-           ↓                    ↓
-    Geospatial ←→ Core Utilities
-           ↓                    ↓
-    Testing & Development ←→ Code Hygiene
+    siege_utilities/
+    ├── geo/            ← gravitational center
+    │   ├── providers/      boundary, geocoder, isochrone providers
+    │   ├── census/         Census API, TIGER, catalog, variables
+    │   ├── django/         GeoDjango models, services, management commands
+    │   ├── gazetteers/     Census, Wikidata gazetteers
+    │   ├── interpolation/  areal interpolation (tobler)
+    │   ├── overlays/       demographic, election, redistricting overlays
+    │   ├── schemas/        Pydantic schemas for geo entities
+    │   ├── temporal/       temporal queries and store
+    │   ├── timeseries/     longitudinal data, trend classification
+    │   └── ...             CRS, geocoding, grids, isochrones, GEOID utils
+    │
+    ├── political/      DDL and entities (Seat, OfficeTerm, RedistrictingPlan)
+    ├── economic/       BLS QCEW, economic indicators
+    ├── education/      NCES data, school districts
+    ├── survey/         Survey analysis, crosstabs, weighting
+    ├── analytics/      GA, Snowflake, data.world, Facebook connectors
+    │
+    ├── engines/        Multi-engine DataFrame abstraction
+    ├── distributed/    Spark utilities, HDFS operations
+    ├── databricks/     Databricks bridge pattern (Spark ↔ GeoPandas)
+    ├── trino/          Trino federation connector
+    │
+    ├── data/           Data loading, MOE propagation, sample datasets
+    ├── reference/      Reference lookups (NAICS, SOC, state FIPS)
+    ├── schema/         Schema definitions and migration
+    ├── identifiers/    Entity identification, UUID generation
+    ├── hygiene/        Data cleaning, docstring generation
+    │
+    ├── reporting/      Charts, PDFs, PowerPoint, hex cartograms, 3D maps
+    ├── profiles/       Profile and branding management
+    │
+    ├── core/           Logging, string utilities, SQL safety
+    ├── config/         User/project config, credentials, database connections
+    ├── files/          File operations, hashing, remote downloads
+    ├── git/            Git utilities and branch analysis
+    ├── admin/          Administrative/org utilities
+    ├── cache.py        Caching helpers
+    ├── testing/        Test fixtures and helpers
+    └── exceptions.py   SiegeError hierarchy
 
-Usage Patterns
---------------
+Architectural Decisions
+-----------------------
 
-**Data Engineering Workflow:**
-1. **Setup**: Configure client profiles and connections
-2. **Ingest**: Use file operations and remote capabilities
-3. **Process**: Leverage 503+ Spark functions for transformation
-4. **Analyze**: Apply geospatial and analytics capabilities
-5. **Export**: Save to Pandas or Spark formats
-6. **Manage**: Maintain configurations and monitor performance
+1. **Geo is the gravitational center.** All domain modules produce events
+   that need space-time location. Changes to geo propagate everywhere.
 
-**Client Analytics Workflow:**
-1. **Configure**: Set up GA accounts linked to clients
-2. **Authenticate**: OAuth2 flow for Google Analytics access
-3. **Retrieve**: Batch data retrieval from GA4/UA
-4. **Process**: Transform data using Spark functions
-5. **Export**: Save as Pandas or Spark DataFrames
-6. **Associate**: Link data to client projects and profiles
+2. **Engine-agnostic DataFrame.** Same analysis at different scales: pandas
+   for exploration, DuckDB for medium, Spark for distribution, PostGIS for
+   persistence. Do not create single-consumer abstractions.
 
-This architecture provides a comprehensive, integrated solution for data engineering, analytics, and distributed computing workflows, with all functions mutually available through the main package interface.
+3. **OSGeo preferred, alternatives when constrained.** GDAL/OGR, PROJ, GEOS
+   via Shapely are defaults. When the target cannot run C libraries
+   (Databricks, Lambda), use Sedona, DuckDB-spatial, or pure-Python.
+
+4. **Databricks and Snowflake are first-class targets.** The ``databricks/``
+   bridge pattern (Spark → driver-side GeoPandas → back to Spark) is
+   architectural, not a workaround.
+
+5. **Pluggable providers with shared contracts.** Same failure mode, same
+   return shape, same column names across all providers in a family.
+
+6. **Lazy loading by design.** PEP 562 ``__getattr__`` so you can import one
+   piece in a Lambda without pulling the whole library.
+
+7. **Credential management via external tools.** 1Password CLI, env vars,
+   Databricks secret scopes. Never hardcoded.
+
+8. **Temporal awareness is first-class.** Redistricting plans have effective
+   dates. Congressional districts depend on congress number matching vintage.
+   Not just "where" but "where-when."
+
+Design Tensions (Resolved)
+--------------------------
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Tension
+     - Resolution
+   * - OSGeo vs. Databricks
+     - OSGeo preferred; non-GDAL paths are gaps to fill, not choices to accept
+   * - Engine-agnostic vs. technology-appropriate
+     - Abstraction for general case; native idioms when dropping to Spark SQL or raw pandas
+   * - Pythonic vs. PySpark
+     - Python idioms always; Scala is a far-off dream
+   * - Functional vs. logging
+     - Composition and immutability, not strict purity; logging wraps pure cores
+   * - Lazy loading vs. SU-1
+     - ``__getattr__`` must never catch ImportError; let it propagate
+   * - Notebooks: disposable vs. strategic
+     - Demonstrate intent; must reflect current library state; foundations non-negotiable
+   * - Fuzzy matching scope
+     - Library provides the mechanism; heavy entity resolution belongs downstream
+   * - siege_zsh dependency
+     - Reference architecture showing target frameworks; code detects and leverages but doesn't hard-fail
+   * - Legibility vs. elegance
+     - Legibility within functions; elegance across modules; module boundary is the threshold
