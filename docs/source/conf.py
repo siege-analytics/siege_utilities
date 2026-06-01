@@ -1,5 +1,6 @@
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath('../../'))
 
 project = 'Siege Utilities'
@@ -11,33 +12,39 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
-    # 'autoapi.extension',  # Temporarily disabled for faster builds
+    'sphinx.ext.intersphinx',
 ]
 
-# AutoAPI settings (disabled for performance)
-# autoapi_dirs = ['../../siege_utilities']
-# autoapi_root = 'api'
-# autoapi_add_toctree_entry = False
-# autoapi_generate_api_docs = True
-# autoapi_member_order = 'groupwise'
-# autoapi_keep_files = True
-
-# Autodoc settings (optimized for performance)
 autodoc_default_options = {
-    'members': False,  # Disable member generation for speed
+    'members': True,
     'member-order': 'bysource',
-    'undoc-members': False,  # Disable undocumented members
-    'show-inheritance': False,  # Disable inheritance diagrams
-    'imported-members': False,  # Disable imported member processing
+    'undoc-members': False,
+    'show-inheritance': True,
+    'imported-members': False,
 }
 
-# Performance optimizations
-autodoc_mock_imports = ['pyspark', 'geopy', 'pandas', 'numpy', 'sqlalchemy']
-autodoc_typehints = 'none'  # Disable type hint processing
-autodoc_class_signature = 'separated'  # Faster class signature processing
+autodoc_mock_imports = [
+    'pyspark', 'geopy', 'pandas', 'numpy', 'sqlalchemy',
+    'geopandas', 'shapely', 'fiona', 'pyproj', 'rtree',
+    'django', 'rest_framework', 'osgeo', 'rasterio',
+    'duckdb', 'sedona', 'tobler', 'osmnx', 'h3',
+    'reportlab', 'pptx', 'plotly', 'matplotlib',
+    'databricks', 'trino', 'snowflake',
+    'pydantic', 'yaml', 'requests',
+]
+autodoc_typehints = 'description'
+autodoc_class_signature = 'separated'
 
 napoleon_google_docstring = True
 napoleon_numpy_docstring = True
+napoleon_include_init_with_doc = True
+
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+    'pandas': ('https://pandas.pydata.org/docs/', None),
+    'geopandas': ('https://geopandas.org/en/stable/', None),
+    'shapely': ('https://shapely.readthedocs.io/en/stable/', None),
+}
 
 html_theme = 'sphinx_rtd_theme'
 html_theme_options = {
@@ -47,8 +54,3 @@ html_theme_options = {
     'titles_only': False,
     'prev_next_buttons_location': 'bottom',
 }
-
-# Build performance settings
-html_copy_source = False  # Don't copy source files
-html_show_sourcelink = False  # Don't show source links
-html_use_index = False  # Disable index generation

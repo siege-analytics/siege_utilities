@@ -1,90 +1,116 @@
-Welcome to Siege Utilities documentation!
-========================================
+Siege Utilities
+===============
 
-Siege Utilities is a comprehensive Python utilities package with **enhanced auto-discovery** that automatically imports and makes all functions mutually available across modules.
+A thesaurus of space-time composition tools. Every piece exists to serve one
+question: *what happened, where, when, and what does proximity imply?*
+
+The library ties events to coordinates in space-time, then extrapolates
+significances and meanings from placement. Domain packages produce events.
+**Geo** locates them. **Engines** scale them. **Reporting** presents them.
+
+The canonical composition chain::
+
+    address → geocoder → GEOID → boundary provider → demographic overlay → choropleth or report
 
 .. toctree::
    :maxdepth: 2
-   :caption: Getting Started:
+   :caption: Getting Started
 
    getting_started
    installation_troubleshooting
    architecture_diagram
-   autodiscovery
 
 .. toctree::
    :maxdepth: 2
-   :caption: Core Utilities:
+   :caption: Geospatial (the gravitational center)
 
-   core_utilities
-   string_utilities
-   logging_utilities
+   packages/geo
+   geocoding
+   packages/geo_django
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Domain Packages
+
+   packages/political
+   packages/economic
+   packages/education
+   packages/survey
+   packages/analytics
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Engines & Infrastructure
+
+   packages/engines
+   packages/distributed
+   packages/databricks
+   packages/trino
+   packages/config
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Data & Reference
+
+   packages/data
+   packages/reference
+   packages/schema
+   packages/identifiers
+   packages/hygiene
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Output & Reporting
+
+   packages/reporting
+   packages/profiles
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Utilities
+
+   packages/core
+   packages/files
+   packages/git
+   packages/admin
+   packages/cache
+   packages/testing
    exception_hierarchy
 
 .. toctree::
    :maxdepth: 2
-   :caption: Distributed Computing:
-
-   distributed_computing
-   hdfs_operations
-   spark_utilities
-
-.. toctree::
-   :maxdepth: 2
-   :caption: File Operations:
-
-   file_operations
-   file_hashing
-   remote_operations
-   shell_operations
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Geographic & Analytics:
-
-   geo
-   google_workspace
-   analytics
-   mapping_and_reporting
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Notebooks & Examples:
+   :caption: Examples & Notebooks
 
    notebooks
 
 .. toctree::
    :maxdepth: 2
-   :caption: Development & Testing:
+   :caption: Development
 
    contributor_governance
    coding_style
    pr_review_rubric
-   lint_ratchet_plan
+   testing_guide
    change_classification_and_release_policy
    repository_hygiene
-   coderabbit_workflow
    license_model
-   testing_guide
-   api/index
 
 .. note::
 
-   **v3.13.0** (March 2026) — Latest on `PyPI <https://pypi.org/project/siege-utilities/>`_.
+   **v3.21.0** (June 2026) — `PyPI <https://pypi.org/project/siege-utilities/>`_
 
    Key capabilities:
 
-   - **First-class geospatial** in every DataFrame engine (Pandas, DuckDB, Spark+Sedona, PostGIS)
-   - **Temporal political models**: CongressionalTerm, Seat, Race, ReturnSnapshot
-   - **Redistricting analysis**: Plans, districts, compactness scores, demographics
-   - **Census data intelligence**: API client, boundary downloads, MOE propagation, NAICS/SOC
-   - **27 Jupyter notebooks** with papermill-based automated testing
-   - **Tiered Geo Extras**: ``[geo-lite]`` (no GDAL) / ``[geo]`` / ``[geodjango]``
-   - **Google Workspace Write APIs**: Sheets, Docs, Slides, Drive
-   - **Person/Actor Models**: Pydantic-based identity and contact management
-   - **Report Generation**: PDF (ReportLab), PowerPoint, branded multi-client reports
-   - **Distributed Computing**: Spark + Sedona, HDFS operations, DuckDB engine
-   - **3442 tests passing**, 56% coverage
+   - **Geo is the gravitational center** — boundaries, geocoding, spatial transforms,
+     isochrones, Census data intelligence, redistricting analysis
+   - **Engine-agnostic DataFrame** — pandas, DuckDB, Spark+Sedona, PostGIS
+   - **Temporal political models** — CongressionalTerm, Seat, Race, RedistrictingPlan
+   - **Pluggable providers** — Census TIGER, GADM, RDH boundary providers; Census,
+     Nominatim, TAMU geocoders
+   - **PEP 562 lazy loading** — import one piece without pulling the whole library
+   - **Tiered geo extras** — ``[geo-lite]`` / ``[geo]`` / ``[geodjango]``
+   - **32 Jupyter notebooks** organized by domain
+   - **Report generation** — PDF, PowerPoint, branded multi-client reports, hex cartograms
 
    Install: ``pip install siege-utilities``
 
