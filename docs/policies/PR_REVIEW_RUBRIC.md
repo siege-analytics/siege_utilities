@@ -17,21 +17,28 @@ Use this rubric for every pull request. If any required item is unchecked, the P
 - [ ] No hidden side effects at import time.
 - [ ] Convenience/broad imports are used only in API-boundary modules and remain explicit/tested/documented.
 
-## 3) Error Handling (Required)
+## 3) Architecture Compliance (Required)
+
+- [ ] **Engine abstraction:** New DataFrame code uses the engine abstraction for the general case. If dropping to native (raw pandas, Spark SQL, PostGIS), the reason is justified in code comments or PR notes.
+- [ ] **Provider contracts:** New or modified providers follow shared contracts — same failure mode, same return shape, same column names as existing providers in the same category.
+- [ ] **Technology-appropriate idioms:** SQL uses SQL strengths (window functions, CTEs, set logic). pandas uses pandas strengths (vectorized ops, groupby-apply). No transliteration of one technology's patterns into another.
+- [ ] **Logging adequacy:** Side-effecting code (I/O, network, mutation) produces observable output. Long-running operations emit progress indicators.
+
+## 4) Error Handling (Required)
 
 - [ ] No bare `except:` blocks.
 - [ ] Exceptions are specific and include actionable context.
 - [ ] No silent failure paths (`pass` without rationale, opaque `None` returns).
 - [ ] Failure behavior is documented and tested.
 
-## 4) Dependency and Environment Behavior (Required)
+## 5) Dependency and Environment Behavior (Required)
 
 - [ ] Required dependencies are explicit.
 - [ ] Optional dependency paths fail with actionable errors.
 - [ ] Django + GDAL dependent behavior is covered by marked tests and setup docs.
 - [ ] No secret material is logged or committed.
 
-## 5) Tests and Validation (Required)
+## 6) Tests and Validation (Required)
 
 - [ ] Unit/integration tests added or updated for changed behavior.
 - [ ] Regression tests added for bug fixes.
@@ -39,7 +46,7 @@ Use this rubric for every pull request. If any required item is unchecked, the P
 - [ ] Lint passes for touched files/modules or debt is explicitly tracked.
 - [ ] Required CI checks are green, including CodeRabbit review status.
 
-## 6) Documentation (Required)
+## 7) Documentation (Required)
 
 - [ ] Public API behavior changes are reflected in docs/examples.
 - [ ] Config precedence/fallback/caching behavior is documented where relevant.

@@ -19,6 +19,18 @@ Applies to all Python code under `siege_utilities/`, tests under `tests/`, and s
 - Use classes only when they provide clear value: lifecycle state, cohesive domain behavior, plugin boundaries, or protocol implementations.
 - Do not introduce classes as namespaces for unrelated functions.
 - Keep object state minimal and explicit; avoid mutation-heavy flows.
+- **Legibility/elegance boundary:** Within a function, prioritize legibility — each case obvious to a cold reader. Across modules, prioritize elegance — minimal, orthogonal protocols. The module boundary is where the threshold shifts.
+
+## Technology-Appropriate Implementation
+
+Each technology has its own strengths. Do not transliterate idioms from one into another.
+
+- **SQL:** Use window functions, CTEs, lateral joins, and set-based logic. Do not loop row-by-row in application code when the database can do it.
+- **pandas:** Use vectorized operations, `groupby`/`apply`, and index alignment. Do not iterate with `iterrows()` for transformations that have vectorized equivalents.
+- **Spark:** Use DataFrame API or Spark SQL for distributed logic. Reserve `collect()` and driver-side processing for small results or bridge patterns (e.g., Databricks driver-side GeoPandas).
+- **PostGIS:** Use spatial SQL (ST_* functions, spatial indexes) rather than pulling geometry to Python for operations the database handles natively.
+
+The constraint is: write code that uses the target technology's strengths. A PostgreSQL query and a pandas pipeline solving the same problem should look different.
 
 ## Iterative vs Recursive
 
@@ -83,9 +95,13 @@ If any condition is false, prefer explicit imports and analyzability.
 
 ## Logging
 
+Logging is a primary concern, not an afterthought. Every side-effecting process must produce observable output.
+
 - Use structured, actionable log messages with context.
 - Do not log secrets, tokens, credentials, or PII.
 - Use `debug` for internals, `info` for major lifecycle events, `warning` for recoverable anomalies, `error` for user-visible failures.
+- Long-running operations must emit progress indicators — the operator must always be able to see what is happening.
+- If a function performs I/O, network calls, or mutates external state, it must log entry/exit or key milestones at `info` or `debug` level.
 
 ## Django and GeoDjango Expectations
 
