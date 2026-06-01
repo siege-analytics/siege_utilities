@@ -352,7 +352,7 @@ def run_command(command: Union[str, List[str]],
                 timeout: Optional[int] = 30,
                 capture_output: bool = True,
                 allow_list: Optional[set] = None,
-                unsafe: bool = False) -> Optional[subprocess.CompletedProcess]:
+                unsafe: bool = False) -> subprocess.CompletedProcess:
     """
     Run a shell command with security validation and proper error handling.
 
@@ -373,11 +373,11 @@ def run_command(command: Union[str, List[str]],
 
     Returns:
         CompletedProcess object on success or non-zero exit.
-        None on timeout or unexpected error (when unsafe=True).
 
     Raises:
         SecurityError: If command fails security validation (when unsafe=False).
-        Exception: Re-raised on unexpected errors when unsafe=False.
+        subprocess.TimeoutExpired: If the command exceeds *timeout*.
+        OSError: If the command binary cannot be found or executed.
 
     Example:
         >>> result = run_command("ls -la")  # doctest: +SKIP
@@ -479,16 +479,12 @@ def run_command(command: Union[str, List[str]],
 
         return result
 
-    except subprocess.TimeoutExpired as e:
+    except subprocess.TimeoutExpired:
         log.error(f"Command timed out: {command}")
-        if not unsafe:
-            raise
-        return None
+        raise
     except (OSError, ValueError) as e:
         log.error(f"Failed to run command {command}: {e}")
-        if not unsafe:
-            raise
-        return None
+        raise
 
 # Backward compatibility aliases
 rmtree = remove_tree

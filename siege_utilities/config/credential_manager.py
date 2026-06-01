@@ -18,6 +18,8 @@ import tempfile  # noqa: F401 -- used by create_temporary_service_account_file; 
 from typing import Dict, Any, Optional, List, Union, Tuple
 from pathlib import Path
 
+from siege_utilities.exceptions import SiegeConfigError
+
 # Import logging functions
 import logging
 import re
@@ -389,9 +391,13 @@ class CredentialManager:
                     content = f.read().strip()
                     return content if content else None
                     
-        except (OSError, json.JSONDecodeError, KeyError) as e:
-            log_warning(f"Error reading credential file {file_path}: {e}")
+        except KeyError:
+            # Field not present in the file's structure -- legitimate "not found".
             return None
+        except (OSError, json.JSONDecodeError) as e:
+            raise SiegeConfigError(
+                f"Failed to read credential file {file_path}: {e}"
+            ) from e
     
     def _find_field_in_dict(self, data: Dict[str, Any], field: str) -> Optional[str]:
         """Recursively search for field in nested dictionary."""
@@ -517,9 +523,15 @@ class CredentialManager:
             else:
                 return input(prompt)
                 
-        except (EOFError, KeyboardInterrupt):
-            _logger.warning("Interactive credential prompt cancelled by user")
-            return None
+        except KeyboardInterrupt:
+            # User deliberately cancelled — propagate so the caller does
+            # not silently fall through to a less-trusted backend.
+            raise
+        except EOFError as e:
+            raise SiegeConfigError(
+                f"Interactive credential prompt for {service}/{field} "
+                f"received EOF — stdin may not be connected"
+            ) from e
     
     def store_credential(self, service: str, username: str, value: str,
                         field: str = "password", backend: str = "1password",
