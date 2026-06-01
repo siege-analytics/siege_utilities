@@ -450,9 +450,17 @@ class CensusCatalog:
         ]
 
     def geography_for_table(self, table_id: str) -> list[str]:
+        """Return the geography levels supported by *table_id*.
+
+        Raises:
+            KeyError: If *table_id* is not in the catalog.
+        """
         table = self._tables.get(table_id)
         if table is None:
-            return []
+            raise KeyError(
+                f"Table {table_id!r} not found in catalog; "
+                f"use search() to discover valid table IDs"
+            )
         return list(table.geography_levels)
 
     def families_for_table(self, table_id: str) -> list[CensusFamily]:

@@ -95,7 +95,10 @@ class CensusTIGERProvider(BoundaryProvider):
                       (e.g. ``year``, ``congress_number``).
 
         Returns:
-            GeoDataFrame or None.
+            GeoDataFrame with boundary geometries.
+
+        Raises:
+            BoundaryFetchError: When the boundary retrieval fails.
         """
         from ..spatial_data import CensusDataSource
 
@@ -110,12 +113,10 @@ class CensusTIGERProvider(BoundaryProvider):
         ds = CensusDataSource()
         result = ds.fetch_geographic_boundaries(**call_kwargs)
         if not result.success:
-            logger.warning(
-                'CensusTIGERProvider: boundary retrieval failed [%s] %s',
-                result.error_stage,
-                result.message,
+            raise BoundaryFetchError(
+                f"CensusTIGERProvider: boundary retrieval failed "
+                f"[{result.error_stage}] {result.message}"
             )
-            return None
         return result.geodataframe
 
     def list_levels(self) -> list[str]:
