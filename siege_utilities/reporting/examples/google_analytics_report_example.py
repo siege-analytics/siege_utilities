@@ -491,7 +491,7 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
                         vault: Optional[str] = None,
                         account: Optional[str] = None,
                         service_account_data: Optional[Dict[str, Any]] = None,
-                        ) -> Optional[Dict[str, Any]]:
+                        ) -> Dict[str, Any]:
     """
     Fetch real GA4 data using GoogleAnalyticsConnector.
 
@@ -511,14 +511,21 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
         account: 1Password account shorthand or UUID
 
     Returns:
-        GA data dict matching generate_sample_ga_data() structure, or None if unavailable
+        GA data dict matching generate_sample_ga_data() structure.
+
+    Raises:
+        ImportError: If required analytics dependencies are not installed.
+        RuntimeError: If credential retrieval or GA4 API calls fail.
+        ValueError: If the GA4 API returns no data.
     """
     try:
         from siege_utilities.analytics import GoogleAnalyticsConnector
         from siege_utilities.config import get_google_service_account_from_1password
-    except ImportError:
-        log.warning("GoogleAnalyticsConnector not available — install google-analytics-data")
-        return None
+    except ImportError as exc:
+        raise ImportError(
+            "GoogleAnalyticsConnector is required for fetching real GA4 data. "
+            "Install with: pip install 'siege-utilities[analytics]'"
+        ) from exc
 
     try:
         connector = None
@@ -547,15 +554,19 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
         if connector is None:
             try:
                 from siege_utilities.config import get_google_oauth_from_1password
-            except ImportError:
-                log.warning("get_google_oauth_from_1password not available")
-                return None
+            except ImportError as exc:
+                raise ImportError(
+                    "get_google_oauth_from_1password is required for OAuth2 fallback. "
+                    "Install with: pip install 'siege-utilities[config]'"
+                ) from exc
 
             try:
                 oauth_creds = get_google_oauth_from_1password(vault=vault, account=account)
-            except (subprocess.CalledProcessError, ValueError, OSError):
-                log.warning("No GA credentials found in 1Password (service account or OAuth2)")
-                return None
+            except (subprocess.CalledProcessError, ValueError, OSError) as exc:
+                raise RuntimeError(
+                    "No GA credentials found in 1Password (service account or OAuth2). "
+                    "Ensure 1Password CLI is configured and credentials are available."
+                ) from exc
 
             connector = GoogleAnalyticsConnector(
                 client_id=oauth_creds['client_id'],
@@ -566,9 +577,11 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
             token_path.parent.mkdir(parents=True, exist_ok=True)
             try:
                 connector.authenticate(token_file=str(token_path))
-            except (OSError, ValueError, RuntimeError) as e:
-                log.warning("OAuth2 authentication failed: %s", e)
-                return None
+            except (OSError, ValueError, RuntimeError) as exc:
+                raise RuntimeError(
+                    f"OAuth2 authentication failed: {exc}. "
+                    "Check token file and credential configuration."
+                ) from exc
 
         # Fetch daily metrics
         daily_df = connector.get_ga4_data(
@@ -580,8 +593,10 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
         )
 
         if daily_df is None or daily_df.empty:
-            log.warning("No daily data returned from GA4")
-            return None
+            raise ValueError(
+                f"No daily data returned from GA4 for property {property_id} "
+                f"({start_date} to {end_date}). Verify the property ID and date range."
+            )
 
         # Fetch traffic sources
         sources_df = connector.get_ga4_data(
@@ -822,8 +837,10 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
 def create_kpi_dashboard(ga_data: Dict[str, Any]) -> List[Flowable]:
     """Create a row of KPI cards for the dashboard section."""
     if not REPORTLAB_AVAILABLE:
-        log.warning("reportlab not installed — skipping KPI dashboard (pip install reportlab)")
-        return []
+        raise ImportError(
+            "reportlab is required for KPI dashboard generation. "
+            "Install with: pip install 'siege-utilities[reporting]'"
+        )
 
     totals = ga_data['totals']
     changes = ga_data['changes']
@@ -867,7 +884,7 @@ def create_kpi_dashboard(ga_data: Dict[str, Any]) -> List[Flowable]:
 
 def create_traffic_trend_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
                                 height: float = 3.5*inch,
-                                vector_export_path: Optional[str] = None) -> Optional[str]:
+                                vector_export_path: Optional[str] = None) -> str:
     """Create a line chart showing traffic trends over time.
 
     Args:
@@ -877,11 +894,16 @@ def create_traffic_trend_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
         vector_export_path: If provided, save an SVG copy to this path.
 
     Returns:
-        Path to the temporary PNG file, or ``None`` if matplotlib unavailable.
+        Path to the temporary PNG file.
+
+    Raises:
+        ImportError: If matplotlib is not installed.
     """
     if not MATPLOTLIB_AVAILABLE:
-        log.warning("matplotlib not installed — skipping chart (pip install matplotlib)")
-        return None
+        raise ImportError(
+            "matplotlib is required for chart generation. "
+            "Install with: pip install 'siege-utilities[reporting]'"
+        )
 
     daily = ga_data['daily_data']
     dates = [datetime.strptime(d, '%Y-%m-%d') for d in daily['dates']]
@@ -920,7 +942,7 @@ def create_traffic_trend_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
 def create_traffic_sources_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
                                   height: float = 3.5*inch,
-                                  vector_export_path: Optional[str] = None) -> Optional[str]:
+                                  vector_export_path: Optional[str] = None) -> str:
     """Create a pie chart of traffic sources.
 
     Args:
@@ -930,11 +952,16 @@ def create_traffic_sources_chart(ga_data: Dict[str, Any], width: float = 5.5*inc
         vector_export_path: If provided, save an SVG copy to this path.
 
     Returns:
-        Path to the temporary PNG file, or ``None`` if matplotlib unavailable.
+        Path to the temporary PNG file.
+
+    Raises:
+        ImportError: If matplotlib is not installed.
     """
     if not MATPLOTLIB_AVAILABLE:
-        log.warning("matplotlib not installed — skipping chart (pip install matplotlib)")
-        return None
+        raise ImportError(
+            "matplotlib is required for chart generation. "
+            "Install with: pip install 'siege-utilities[reporting]'"
+        )
 
     sources = ga_data['traffic_sources']
     labels = [s['source'] for s in sources]
@@ -965,7 +992,7 @@ def create_traffic_sources_chart(ga_data: Dict[str, Any], width: float = 5.5*inc
 
 def create_device_breakdown_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
                                    height: float = 3.5*inch,
-                                   vector_export_path: Optional[str] = None) -> Optional[str]:
+                                   vector_export_path: Optional[str] = None) -> str:
     """Create a horizontal bar chart for device breakdown.
 
     Args:
@@ -975,11 +1002,16 @@ def create_device_breakdown_chart(ga_data: Dict[str, Any], width: float = 5.5*in
         vector_export_path: If provided, save an SVG copy to this path.
 
     Returns:
-        Path to the temporary PNG file, or ``None`` if matplotlib unavailable.
+        Path to the temporary PNG file.
+
+    Raises:
+        ImportError: If matplotlib is not installed.
     """
     if not MATPLOTLIB_AVAILABLE:
-        log.warning("matplotlib not installed — skipping chart (pip install matplotlib)")
-        return None
+        raise ImportError(
+            "matplotlib is required for chart generation. "
+            "Install with: pip install 'siege-utilities[reporting]'"
+        )
 
     devices = ga_data['devices']
     labels = [d['device'].title() for d in devices]
@@ -1068,7 +1100,7 @@ def create_geo_table(ga_data: Dict[str, Any]) -> List[List[str]]:
 
 def create_geo_country_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
                               height: float = 3.5*inch,
-                              vector_export_path: Optional[str] = None) -> Optional[str]:
+                              vector_export_path: Optional[str] = None) -> str:
     """
     Create a country-level geographic chart.
 
@@ -1076,12 +1108,14 @@ def create_geo_country_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
     Fallback: horizontal bar chart of top countries.
     """
     if not MATPLOTLIB_AVAILABLE:
-        log.warning("matplotlib not installed — skipping chart (pip install matplotlib)")
-        return None
+        raise ImportError(
+            "matplotlib is required for chart generation. "
+            "Install with: pip install 'siege-utilities[reporting]'"
+        )
 
     geo = ga_data.get('geo_data', [])
     if not geo:
-        return None
+        raise ValueError("ga_data contains no 'geo_data'; cannot create country chart")
 
     # Aggregate by country
     country_sessions = {}
@@ -1090,7 +1124,7 @@ def create_geo_country_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
         country_sessions[c] = country_sessions.get(c, 0) + loc.get('sessions', 0)
 
     if not country_sessions:
-        return None
+        raise ValueError("No country-level sessions found in geo_data")
 
     # Try geopandas choropleth
     try:
@@ -1161,7 +1195,7 @@ def create_geo_country_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
 def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
                              height: float = 3.5*inch,
-                             vector_export_path: Optional[str] = None) -> Optional[str]:
+                             vector_export_path: Optional[str] = None) -> str:
     """
     Create a region/state-level geographic chart.
 
@@ -1169,12 +1203,14 @@ def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
     Fallback: horizontal bar chart of top regions.
     """
     if not MATPLOTLIB_AVAILABLE:
-        log.warning("matplotlib not installed — skipping chart (pip install matplotlib)")
-        return None
+        raise ImportError(
+            "matplotlib is required for chart generation. "
+            "Install with: pip install 'siege-utilities[reporting]'"
+        )
 
     geo = ga_data.get('geo_data', [])
     if not geo:
-        return None
+        raise ValueError("ga_data contains no 'geo_data'; cannot create region chart")
 
     # Aggregate by region
     region_sessions = {}
@@ -1185,7 +1221,7 @@ def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
         region_users[r] = region_users.get(r, 0) + loc.get('users', 0)
 
     if not region_sessions:
-        return None
+        raise ValueError("No region-level sessions found in geo_data")
 
     # Try bivariate choropleth if both sessions and users are available
     try:
@@ -1268,7 +1304,7 @@ def create_geo_region_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
 def create_geo_city_scatter(ga_data: Dict[str, Any], width: float = 5.5*inch,
                              height: float = 3.5*inch,
-                             vector_export_path: Optional[str] = None) -> Optional[str]:
+                             vector_export_path: Optional[str] = None) -> str:
     """
     Create a city-level scatter plot using lat/lon coordinates.
 
@@ -1276,12 +1312,14 @@ def create_geo_city_scatter(ga_data: Dict[str, Any], width: float = 5.5*inch,
     Fallback: horizontal bar chart of top cities.
     """
     if not MATPLOTLIB_AVAILABLE:
-        log.warning("matplotlib not installed — skipping chart (pip install matplotlib)")
-        return None
+        raise ImportError(
+            "matplotlib is required for chart generation. "
+            "Install with: pip install 'siege-utilities[reporting]'"
+        )
 
     geo = ga_data.get('geo_data', [])
     if not geo:
-        return None
+        raise ValueError("ga_data contains no 'geo_data'; cannot create city scatter plot")
 
     # Check for coordinate data
     has_coords = all('lat' in loc and 'lon' in loc for loc in geo)
@@ -1373,15 +1411,17 @@ def create_geo_city_scatter(ga_data: Dict[str, Any], width: float = 5.5*inch,
 
 def create_continent_donut_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
                                   height: float = 3.5*inch,
-                                  vector_export_path: Optional[str] = None) -> Optional[str]:
+                                  vector_export_path: Optional[str] = None) -> str:
     """Create a donut chart of sessions by continent."""
     if not MATPLOTLIB_AVAILABLE:
-        log.warning("matplotlib not installed — skipping chart (pip install matplotlib)")
-        return None
+        raise ImportError(
+            "matplotlib is required for chart generation. "
+            "Install with: pip install 'siege-utilities[reporting]'"
+        )
 
     geo = ga_data.get('geo_data', [])
     if not geo:
-        return None
+        raise ValueError("ga_data contains no 'geo_data'; cannot create continent donut chart")
 
     # Aggregate by continent
     continent_sessions = {}
@@ -1391,7 +1431,7 @@ def create_continent_donut_chart(ga_data: Dict[str, Any], width: float = 5.5*inc
             continent_sessions[c] = continent_sessions.get(c, 0) + loc.get('sessions', 0)
 
     if not continent_sessions:
-        return None
+        raise ValueError("No continent-level sessions found in geo_data")
 
     sorted_continents = sorted(continent_sessions.items(), key=lambda x: x[1], reverse=True)
     labels = [c[0] for c in sorted_continents]
@@ -1430,11 +1470,11 @@ def create_geo_summary_table(ga_data: Dict[str, Any]) -> List[List[str]]:
     """
     geo = ga_data.get('geo_data', [])
     if not geo:
-        return []
+        raise ValueError("ga_data contains no 'geo_data'; cannot create geographic summary")
 
     total_sessions = sum(loc.get('sessions', 0) for loc in geo)
     if total_sessions == 0:
-        return []
+        raise ValueError("All geo_data entries have zero sessions; cannot compute market share")
 
     # Aggregate by country
     country_sessions = {}
@@ -1485,21 +1525,26 @@ def create_geo_summary_table(ga_data: Dict[str, Any]) -> List[List[str]]:
 
 def create_period_comparison_chart(ga_data: Dict[str, Any], width: float = 5.5*inch,
                                     height: float = 4.0*inch,
-                                    vector_export_path: Optional[str] = None) -> Optional[str]:
+                                    vector_export_path: Optional[str] = None) -> str:
     """Create an overlay chart comparing current vs prior period daily traffic.
 
     Shows current and prior period sessions on the same axes, aligned by
     day number (not date), so periods of different lengths align from day 1.
     """
     if not MATPLOTLIB_AVAILABLE:
-        log.warning("matplotlib not installed — skipping chart (pip install matplotlib)")
-        return None
+        raise ImportError(
+            "matplotlib is required for chart generation. "
+            "Install with: pip install 'siege-utilities[reporting]'"
+        )
 
     daily = ga_data.get('daily_data', {})
     prior = ga_data.get('prior_daily_data', {})
 
     if not daily.get('sessions') or not prior.get('sessions'):
-        return None
+        raise ValueError(
+            "Both 'daily_data.sessions' and 'prior_daily_data.sessions' are required "
+            "for period comparison chart"
+        )
 
     current_sessions = daily['sessions']
     prior_sessions = prior['sessions']
