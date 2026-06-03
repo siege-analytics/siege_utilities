@@ -22,7 +22,7 @@ _register(['geo_capabilities'], '.capabilities')
 # --- crs (configurable default CRS + axis-order-aware reprojection) ---
 _register([
     'get_default_crs', 'set_default_crs', 'reproject_if_needed',
-    'detect_crs', 'reproject_geom',
+    'detect_crs', 'distance_to_decimal_degrees', 'reproject_geom',
     'AXIS_ORDER_TRAD_GIS', 'AXIS_ORDER_AUTH_COMPLIANT',
 ], '.crs')
 
@@ -89,10 +89,16 @@ _register([
     'SWMapsArchive', 'open_swmaps', 'read_features',
 ], '.swmaps_reader')
 
+# --- vector file discovery ---
+_register([
+    'VALID_VECTOR_EXTENSIONS', 'find_vector_dataset_file_in_directory',
+], '.vector_files')
+
 # --- geocoding ---
 _register([
     'concatenate_addresses', 'use_nominatim_geocoder', 'NominatimGeoClassifier',
     'get_country_name', 'get_country_code', 'list_countries', 'get_coordinates',
+    'geocode_with_nominatim_public', 'geocode_addresses_with_nominatim',
     'NOMINATIM_INTERNAL_URL', 'GeocodingError',
     'validate_geocode_data_pandas', 'mark_valid_geocode_data_pandas',
 ], '.geocoding')
