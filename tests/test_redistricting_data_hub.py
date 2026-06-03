@@ -533,10 +533,18 @@ class TestPolsbyPopper:
     def test_empty_geometry(self):
         from shapely.geometry import Point
         empty = Point().buffer(0)
-        assert polsby_popper(empty) == 0.0
+        assert math.isnan(polsby_popper(empty))
 
     def test_none(self):
-        assert polsby_popper(None) == 0.0
+        assert math.isnan(polsby_popper(None))
+
+    def test_with_source_crs_reprojects(self):
+        from shapely.geometry import box
+        geom_4326 = box(-90.0, 30.0, -89.9, 30.1)
+        score_raw = polsby_popper(geom_4326)
+        score_projected = polsby_popper(geom_4326, source_crs="EPSG:4326")
+        assert score_projected != score_raw
+        assert 0 < score_projected <= 1.0
 
 
 class TestReock:
@@ -557,11 +565,11 @@ class TestReock:
         assert abs(score - 2 / math.pi) < 0.02
 
     def test_none(self):
-        assert reock(None) == 0.0
+        assert math.isnan(reock(None))
 
     def test_empty(self):
         from shapely.geometry import Point
-        assert reock(Point().buffer(0)) == 0.0
+        assert math.isnan(reock(Point().buffer(0)))
 
 
 class TestConvexHullRatio:
@@ -583,7 +591,7 @@ class TestConvexHullRatio:
         assert score > 0.5
 
     def test_none(self):
-        assert convex_hull_ratio(None) == 0.0
+        assert math.isnan(convex_hull_ratio(None))
 
 
 class TestSchwartzberg:
@@ -601,7 +609,7 @@ class TestSchwartzberg:
         assert score < 0.5
 
     def test_none(self):
-        assert schwartzberg(None) == 0.0
+        assert math.isnan(schwartzberg(None))
 
 
 class TestComputeCompactness:
@@ -630,6 +638,26 @@ class TestComputeCompactness:
 
         # Circle should have highest PP score
         assert result.iloc[0]["polsby_popper"] > result.iloc[2]["polsby_popper"]
+
+    def test_compute_reprojects_geographic_crs(self):
+        import pandas as pd
+        import geopandas as gpd
+        from shapely.geometry import box
+
+        gdf_4326 = gpd.GeoDataFrame(
+            {"GEOID": ["D1", "D2"]},
+            geometry=[
+                box(-90.0, 30.0, -89.5, 30.5),
+                box(-90.0, 30.0, -89.9, 30.9),
+            ],
+            crs="EPSG:4326",
+        )
+
+        result = compute_compactness(gdf_4326)
+        assert len(result) == 2
+        for col in ["polsby_popper", "reock", "convex_hull_ratio", "schwartzberg"]:
+            for val in result[col]:
+                assert 0 < val <= 1.0, f"{col} out of range: {val}"
 
 
 # ---------------------------------------------------------------------------
