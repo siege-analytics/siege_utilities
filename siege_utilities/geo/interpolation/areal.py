@@ -9,6 +9,11 @@ Two types of variables are handled:
   split proportionally when a source polygon overlaps multiple targets.
 - **Intensive** (e.g., median income, poverty rate): rates/densities that
   should be area-weighted averaged across overlapping sources.
+
+Backend dispatch (in priority order):
+1. **tobler** — PySAL's area_interpolate (requires geopandas + tobler)
+2. **duckdb** — DuckDB spatial extension (ST_Intersection / ST_Area)
+3. **shapely** — Pure Shapely STRtree + intersection (always available)
 """
 
 from __future__ import annotations
@@ -17,12 +22,33 @@ import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
+import numpy as np
+
 try:
     import geopandas as gpd
     _GEOPANDAS_AVAILABLE = True
 except ImportError:
     gpd = None
     _GEOPANDAS_AVAILABLE = False
+
+try:
+    import shapely
+    from shapely import STRtree
+    _SHAPELY_AVAILABLE = True
+except ImportError:
+    _SHAPELY_AVAILABLE = False
+
+try:
+    import duckdb as _duckdb
+    _DUCKDB_AVAILABLE = True
+except ImportError:
+    _DUCKDB_AVAILABLE = False
+
+try:
+    from tobler.area_weighted import area_interpolate as _tobler_area_interpolate
+    _TOBLER_AVAILABLE = True
+except ImportError:
+    _TOBLER_AVAILABLE = False
 
 from siege_utilities.geo.crs import reproject_if_needed
 
@@ -50,6 +76,7 @@ class ArealInterpolationResult:
         n_source: Number of source polygons.
         n_target: Number of target polygons.
         warnings: Any warnings generated during interpolation.
+        backend: Which backend performed the interpolation.
     """
 
     data: gpd.GeoDataFrame
@@ -60,6 +87,7 @@ class ArealInterpolationResult:
     n_source: int = 0
     n_target: int = 0
     warnings: list[str] = field(default_factory=list)
+    backend: str = ""
 
 
 def _ensure_common_crs(
@@ -88,6 +116,191 @@ def _ensure_common_crs(
     return source, target, warnings
 
 
+# ---------------------------------------------------------------------------
+# Backend: tobler (geopandas + PySAL)
+# ---------------------------------------------------------------------------
+
+def _interpolate_tobler(
+    source: gpd.GeoDataFrame,
+    target: gpd.GeoDataFrame,
+    extensive_variables: list[str],
+    intensive_variables: list[str],
+    allocate_total: bool,
+    n_jobs: int,
+) -> gpd.GeoDataFrame:
+    result_gdf = _tobler_area_interpolate(
+        source_df=source,
+        target_df=target,
+        extensive_variables=extensive_variables or None,
+        intensive_variables=intensive_variables or None,
+        allocate_total=allocate_total,
+        n_jobs=n_jobs,
+    )
+    return result_gdf
+
+
+# ---------------------------------------------------------------------------
+# Backend: DuckDB spatial
+# ---------------------------------------------------------------------------
+
+def _interpolate_duckdb(
+    source: gpd.GeoDataFrame,
+    target: gpd.GeoDataFrame,
+    extensive_variables: list[str],
+    intensive_variables: list[str],
+) -> gpd.GeoDataFrame:
+    """Area-weighted interpolation via DuckDB spatial SQL."""
+    import pandas as pd
+    from shapely import wkb as shapely_wkb
+
+    con = _duckdb.connect()
+    con.execute("INSTALL spatial; LOAD spatial;")
+
+    src_df = pd.DataFrame(source.drop(columns="geometry"))
+    src_df["_geom_wkb"] = source.geometry.apply(lambda g: g.wkb_hex)
+    src_df["_src_idx"] = range(len(src_df))
+
+    tgt_df = pd.DataFrame(target.drop(columns="geometry"))
+    tgt_df["_geom_wkb"] = target.geometry.apply(lambda g: g.wkb_hex)
+    tgt_df["_tgt_idx"] = range(len(tgt_df))
+
+    con.register("source_tbl", src_df)
+    con.register("target_tbl", tgt_df)
+
+    overlap_sql = """
+        SELECT
+            s._src_idx,
+            t._tgt_idx,
+            ST_Area(ST_Intersection(
+                ST_GeomFromWKB(UNHEX(s._geom_wkb)),
+                ST_GeomFromWKB(UNHEX(t._geom_wkb))
+            )) AS overlap_area,
+            ST_Area(ST_GeomFromWKB(UNHEX(s._geom_wkb))) AS src_area,
+            ST_Area(ST_GeomFromWKB(UNHEX(t._geom_wkb))) AS tgt_area
+        FROM source_tbl s, target_tbl t
+        WHERE ST_Intersects(
+            ST_GeomFromWKB(UNHEX(s._geom_wkb)),
+            ST_GeomFromWKB(UNHEX(t._geom_wkb))
+        )
+        AND ST_Area(ST_Intersection(
+            ST_GeomFromWKB(UNHEX(s._geom_wkb)),
+            ST_GeomFromWKB(UNHEX(t._geom_wkb))
+        )) > 0
+    """
+    overlaps = con.execute(overlap_sql).fetchdf()
+    con.close()
+
+    if overlaps.empty:
+        log.warning("No intersections found between source and target (DuckDB).")
+        result_df = target.copy()
+        for v in extensive_variables + intensive_variables:
+            result_df[v] = 0.0
+        return result_df
+
+    overlaps["src_fraction"] = overlaps["overlap_area"] / overlaps["src_area"]
+    overlaps["tgt_fraction"] = overlaps["overlap_area"] / overlaps["tgt_area"]
+
+    result_df = target.copy()
+
+    for var in extensive_variables:
+        src_vals = source[var].values
+        weighted = overlaps.copy()
+        weighted["contribution"] = src_vals[weighted["_src_idx"].values] * weighted["src_fraction"]
+        result_df[var] = weighted.groupby("_tgt_idx")["contribution"].sum().reindex(
+            range(len(target)), fill_value=0.0
+        ).values
+
+    for var in intensive_variables:
+        src_vals = source[var].values
+        weighted = overlaps.copy()
+        weighted["weighted_val"] = src_vals[weighted["_src_idx"].values] * weighted["overlap_area"]
+        tgt_total_overlap = weighted.groupby("_tgt_idx")["overlap_area"].sum()
+        tgt_weighted_sum = weighted.groupby("_tgt_idx")["weighted_val"].sum()
+        with np.errstate(divide="ignore", invalid="ignore"):
+            avg = (tgt_weighted_sum / tgt_total_overlap).fillna(0.0)
+        result_df[var] = avg.reindex(range(len(target)), fill_value=0.0).values
+
+    return result_df
+
+
+# ---------------------------------------------------------------------------
+# Backend: pure Shapely (STRtree)
+# ---------------------------------------------------------------------------
+
+def _interpolate_shapely(
+    source: gpd.GeoDataFrame,
+    target: gpd.GeoDataFrame,
+    extensive_variables: list[str],
+    intensive_variables: list[str],
+) -> gpd.GeoDataFrame:
+    """Area-weighted interpolation via Shapely STRtree (no GDAL, no DuckDB)."""
+    src_geoms = source.geometry.values
+    tgt_geoms = target.geometry.values
+
+    tree = STRtree(src_geoms)
+
+    src_areas = np.array([g.area for g in src_geoms])
+    n_tgt = len(tgt_geoms)
+
+    ext_results = {v: np.zeros(n_tgt) for v in extensive_variables}
+    int_weighted_sums = {v: np.zeros(n_tgt) for v in intensive_variables}
+    int_total_overlaps = np.zeros(n_tgt)
+
+    for tgt_i, tgt_geom in enumerate(tgt_geoms):
+        candidates = tree.query(tgt_geom)
+        for src_i in candidates:
+            src_geom = src_geoms[src_i]
+            if not tgt_geom.intersects(src_geom):
+                continue
+            intersection = tgt_geom.intersection(src_geom)
+            ov_area = intersection.area
+            if ov_area <= 0:
+                continue
+
+            src_frac = ov_area / src_areas[src_i] if src_areas[src_i] > 0 else 0.0
+
+            for var in extensive_variables:
+                ext_results[var][tgt_i] += source[var].iat[src_i] * src_frac
+
+            for var in intensive_variables:
+                int_weighted_sums[var][tgt_i] += source[var].iat[src_i] * ov_area
+            int_total_overlaps[tgt_i] += ov_area
+
+    result_df = target.copy()
+    for var in extensive_variables:
+        result_df[var] = ext_results[var]
+    for var in intensive_variables:
+        with np.errstate(divide="ignore", invalid="ignore"):
+            result_df[var] = np.where(
+                int_total_overlaps > 0,
+                int_weighted_sums[var] / int_total_overlaps,
+                0.0,
+            )
+
+    return result_df
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+def _select_backend(
+    extensive_variables: list[str],
+    intensive_variables: list[str],
+) -> str:
+    """Select the best available backend."""
+    if _TOBLER_AVAILABLE and _GEOPANDAS_AVAILABLE:
+        return "tobler"
+    if _DUCKDB_AVAILABLE and _GEOPANDAS_AVAILABLE:
+        return "duckdb"
+    if _SHAPELY_AVAILABLE and _GEOPANDAS_AVAILABLE:
+        return "shapely"
+    raise ImportError(
+        "Areal interpolation requires at least shapely + geopandas. "
+        "Install with: pip install geopandas shapely"
+    )
+
+
 def interpolate_areal(
     source_gdf: gpd.GeoDataFrame,
     target_gdf: gpd.GeoDataFrame,
@@ -100,8 +313,13 @@ def interpolate_areal(
 ) -> ArealInterpolationResult:
     """Transfer attribute data between non-coincident geographies.
 
-    Uses tobler's area_interpolate to redistribute values from source
+    Uses area-weighted interpolation to redistribute values from source
     polygons to target polygons based on the area of intersection.
+
+    Backend dispatch (in priority order):
+    1. tobler (PySAL) — when tobler + geopandas are installed
+    2. DuckDB spatial — when duckdb is installed (no GDAL needed)
+    3. pure Shapely — STRtree + intersection (always available with geopandas)
 
     Args:
         source_gdf: Source GeoDataFrame with attribute columns.
@@ -110,25 +328,18 @@ def interpolate_areal(
             These are split proportionally by area overlap.
         intensive_variables: Columns containing rates/densities.
             These are area-weighted averaged.
-        allocate_total: If True, ensure 100% of source area is allocated.
-        n_jobs: Number of parallel jobs (-1 for all CPUs).
-        crs: Output CRS for the result GeoDataFrame (default ``"EPSG:4326"``).
+        allocate_total: If True, ensure 100% of source area is allocated
+            (only applies to tobler backend).
+        n_jobs: Number of parallel jobs (only applies to tobler backend).
+        crs: Output CRS for the result GeoDataFrame (default: source CRS).
 
     Returns:
         ArealInterpolationResult with interpolated GeoDataFrame in *crs*.
 
     Raises:
-        ImportError: If tobler is not installed.
-        ValueError: If no variables are specified.
+        ImportError: If no suitable backend is available.
+        ValueError: If no variables are specified or columns missing.
     """
-    try:
-        from tobler.area_weighted import area_interpolate
-    except ImportError as e:
-        raise ImportError(
-            "tobler is required for areal interpolation. "
-            "Install it with: pip install tobler"
-        ) from e
-
     extensive_variables = extensive_variables or []
     intensive_variables = intensive_variables or []
 
@@ -137,7 +348,6 @@ def interpolate_areal(
             "At least one extensive or intensive variable must be specified."
         )
 
-    # Validate columns exist in source
     missing = [
         v for v in extensive_variables + intensive_variables
         if v not in source_gdf.columns
@@ -145,25 +355,30 @@ def interpolate_areal(
     if missing:
         raise ValueError(f"Variables not found in source: {missing}")
 
-    # Ensure matching CRS
     source, target, warnings = _ensure_common_crs(source_gdf, target_gdf)
 
+    backend = _select_backend(extensive_variables, intensive_variables)
     log.info(
-        f"Interpolating {len(extensive_variables)} extensive + "
-        f"{len(intensive_variables)} intensive variables "
-        f"from {len(source)} source to {len(target)} target polygons"
+        "Interpolating %d extensive + %d intensive variables "
+        "from %d source to %d target polygons (backend=%s)",
+        len(extensive_variables), len(intensive_variables),
+        len(source), len(target), backend,
     )
 
-    result_gdf = area_interpolate(
-        source_df=source,
-        target_df=target,
-        extensive_variables=extensive_variables or None,
-        intensive_variables=intensive_variables or None,
-        allocate_total=allocate_total,
-        n_jobs=n_jobs,
-    )
+    if backend == "tobler":
+        result_gdf = _interpolate_tobler(
+            source, target, extensive_variables, intensive_variables,
+            allocate_total, n_jobs,
+        )
+    elif backend == "duckdb":
+        result_gdf = _interpolate_duckdb(
+            source, target, extensive_variables, intensive_variables,
+        )
+    else:
+        result_gdf = _interpolate_shapely(
+            source, target, extensive_variables, intensive_variables,
+        )
 
-    # Reproject to requested output CRS
     result_gdf = reproject_if_needed(result_gdf, crs)
 
     return ArealInterpolationResult(
@@ -175,6 +390,7 @@ def interpolate_areal(
         n_source=len(source),
         n_target=len(target),
         warnings=warnings,
+        backend=backend,
     )
 
 
@@ -187,22 +403,7 @@ def interpolate_extensive(
     *,
     crs: str | None = None,
 ) -> ArealInterpolationResult:
-    """Interpolate extensive (total/count) variables between geographies.
-
-    Extensive variables represent totals (population, housing units) that
-    should be split proportionally based on area overlap.
-
-    Args:
-        source_gdf: Source GeoDataFrame with count/total columns.
-        target_gdf: Target GeoDataFrame.
-        variables: Column names of extensive variables.
-        allocate_total: Ensure all source area is allocated.
-        n_jobs: Parallel jobs.
-        crs: Output CRS (default ``"EPSG:4326"``).
-
-    Returns:
-        ArealInterpolationResult.
-    """
+    """Interpolate extensive (total/count) variables between geographies."""
     return interpolate_areal(
         source_gdf=source_gdf,
         target_gdf=target_gdf,
@@ -222,22 +423,7 @@ def interpolate_intensive(
     *,
     crs: str | None = None,
 ) -> ArealInterpolationResult:
-    """Interpolate intensive (rate/density) variables between geographies.
-
-    Intensive variables represent rates or densities (median income,
-    poverty rate) that should be area-weighted averaged.
-
-    Args:
-        source_gdf: Source GeoDataFrame with rate/density columns.
-        target_gdf: Target GeoDataFrame.
-        variables: Column names of intensive variables.
-        allocate_total: Ensure all source area is allocated.
-        n_jobs: Parallel jobs.
-        crs: Output CRS (default ``"EPSG:4326"``).
-
-    Returns:
-        ArealInterpolationResult.
-    """
+    """Interpolate intensive (rate/density) variables between geographies."""
     return interpolate_areal(
         source_gdf=source_gdf,
         target_gdf=target_gdf,
@@ -263,13 +449,10 @@ def compute_area_weights(
     - source_fraction: Fraction of source polygon covered.
     - target_fraction: Fraction of target polygon covered.
 
-    Useful for inspecting how much overlap exists between boundary sets
-    before running interpolation.
-
     Args:
         source_gdf: Source polygons.
         target_gdf: Target polygons.
-        crs: Output CRS (default ``"EPSG:4326"``).
+        crs: Output CRS (default: source CRS).
 
     Returns:
         GeoDataFrame with overlap weights in *crs*.
