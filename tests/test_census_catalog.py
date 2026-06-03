@@ -223,7 +223,8 @@ class TestCensusCatalog:
         cat.add_tables(mixed_tables)
         geo = cat.geography_for_table("B01003")
         assert "block_group" in geo
-        assert cat.geography_for_table("NONEXISTENT") == []
+        with pytest.raises(KeyError, match="NONEXISTENT"):
+            cat.geography_for_table("NONEXISTENT")
 
     def test_build_families(self, mixed_tables):
         cat = CensusCatalog()

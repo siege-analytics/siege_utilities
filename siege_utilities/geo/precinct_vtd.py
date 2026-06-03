@@ -441,7 +441,7 @@ class PrecinctVTDReconciler:
             try:
                 overlaps = self._spatial.compute_overlaps(precinct_ids)
                 spatial_mappings = reconcile_spatial(overlaps)
-            except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
+            except Exception as exc:
                 errors.append(f"Spatial reconciliation error: {exc}")
 
         if self._names is not None:
