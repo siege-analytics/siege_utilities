@@ -240,6 +240,12 @@ _register([
     'interpolate_extensive', 'interpolate_intensive', 'compute_area_weights',
 ], '.interpolation')
 
+# --- classification (pure-numpy, no GDAL) ---
+_register([
+    'ClassificationResult', 'classify_series', 'classify_choropleth',
+    'AVAILABLE_SCHEMES',
+], '.classification')
+
 # --- choropleth ---
 _register([
     'create_choropleth', 'create_choropleth_comparison',
