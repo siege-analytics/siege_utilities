@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.geo.geoid_utils &mdash; Siege Utilities 3.21.0 documentation</title>
+  <title>siege_utilities.geo.classification &mdash; Siege Utilities 3.21.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
@@ -8544,7 +8544,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
-      <li class="breadcrumb-item active">siege_utilities.geo.geoid_utils</li>
+      <li class="breadcrumb-item active">siege_utilities.geo.classification</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -8553,894 +8553,448 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <h1>Source code for siege_utilities.geo.geoid_utils</h1><div class="highlight"><pre>
+  <h1>Source code for siege_utilities.geo.classification</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">GEOID utilities for Census data processing.</span>
+<span class="sd">Pure-numpy choropleth classification schemes.</span>
 
-<span class="sd">This module provides functions for constructing, normalizing, and validating</span>
-<span class="sd">Census GEOIDs (Geographic Identifiers). GEOIDs are hierarchical codes that</span>
-<span class="sd">uniquely identify geographic areas.</span>
+<span class="sd">Provides map classification (quantiles, equal interval, natural breaks, etc.)</span>
+<span class="sd">without geopandas or mapclassify. When mapclassify is available it is used</span>
+<span class="sd">as the primary backend; when it is not, equivalent numpy implementations</span>
+<span class="sd">provide the same bin edges and assignments.</span>
 
-<span class="sd">GEOID Structure:</span>
-<span class="sd">- State: 2 digits (e.g., &quot;06&quot; for California)</span>
-<span class="sd">- County: 5 digits (state + county, e.g., &quot;06037&quot; for LA County)</span>
-<span class="sd">- Tract: 11 digits (state + county + tract, e.g., &quot;06037101100&quot;)</span>
-<span class="sd">- Block Group: 12 digits (state + county + tract + block group)</span>
-<span class="sd">- Block: 15 digits (state + county + tract + block)</span>
-
-<span class="sd">Example usage:</span>
-<span class="sd">    from siege_utilities.geo import normalize_geoid, construct_geoid, validate_geoid, can_normalize_geoid</span>
-
-<span class="sd">    # Normalize a GEOID to proper length</span>
-<span class="sd">    geoid = normalize_geoid(&quot;6037&quot;, &quot;county&quot;)  # Returns &quot;06037&quot;</span>
-
-<span class="sd">    # Construct GEOID from components</span>
-<span class="sd">    geoid = construct_geoid(state=&quot;06&quot;, county=&quot;037&quot;, geography=&quot;county&quot;)</span>
-
-<span class="sd">    # Validate GEOID format (strict by default — requires leading zeros)</span>
-<span class="sd">    is_valid = validate_geoid(&quot;06037&quot;, &quot;county&quot;)  # Returns True</span>
-<span class="sd">    is_valid = validate_geoid(&quot;6037&quot;, &quot;county&quot;)   # Returns False (missing leading zero)</span>
-
-<span class="sd">    # Check if a value can be normalized to a valid GEOID</span>
-<span class="sd">    can_fix = can_normalize_geoid(&quot;6037&quot;, &quot;county&quot;)  # Returns True</span>
+<span class="sd">Backend dispatch (in priority order):</span>
+<span class="sd">1. **mapclassify** — PySAL&#39;s mapclassify library (when installed)</span>
+<span class="sd">2. **numpy** — pure-numpy implementations (always available)</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.config.census_constants</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">CANONICAL_GEOGRAPHIC_LEVELS</span><span class="p">,</span>
-    <span class="n">resolve_geographic_level</span><span class="p">,</span>
-<span class="p">)</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">mapclassify</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_mc</span>
+    <span class="n">_MAPCLASSIFY_AVAILABLE</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">_MAPCLASSIFY_AVAILABLE</span> <span class="o">=</span> <span class="kc">False</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.colors</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_mcolors</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_plt</span>
+    <span class="n">_MATPLOTLIB_AVAILABLE</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">_MATPLOTLIB_AVAILABLE</span> <span class="o">=</span> <span class="kc">False</span>
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
-
-<span class="c1"># =============================================================================</span>
-<span class="c1"># GEOID LENGTH CONSTANTS (derived from canonical geographic levels)</span>
-<span class="c1"># =============================================================================</span>
-
-<span class="n">GEOID_LENGTHS</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="n">name</span><span class="p">:</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;geoid_length&#39;</span><span class="p">]</span>
-    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">CANONICAL_GEOGRAPHIC_LEVELS</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;geoid_length&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-<span class="p">}</span>
-
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s2">&quot;GEOID_LENGTHS&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;GEOID_COMPONENT_LENGTHS&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;GEOIDValidator&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;normalize_geoid&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;normalize_geoid_column&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;construct_geoid&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;construct_geoid_from_row&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;parse_geoid&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;extract_parent_geoid&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;validate_geoid&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;can_normalize_geoid&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;validate_geoid_column&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;prepare_geoid_for_join&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;geoid_to_slug&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;slug_to_geoid&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;find_geoid_column&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ClassificationResult&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;classify_series&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;classify_choropleth&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;AVAILABLE_SCHEMES&quot;</span><span class="p">,</span>
 <span class="p">]</span>
 
-<span class="c1"># Component lengths within GEOID</span>
-<span class="n">GEOID_COMPONENT_LENGTHS</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
-    <span class="s1">&#39;county&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
-    <span class="s1">&#39;tract&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
-    <span class="s1">&#39;block_group&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
-    <span class="s1">&#39;block&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
-    <span class="s1">&#39;place&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
-    <span class="s1">&#39;zcta&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
-<span class="p">}</span>
+<span class="n">ArrayLike</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span> <span class="nb">list</span><span class="p">]</span>
 
 
-<span class="c1"># =============================================================================</span>
-<span class="c1"># GEOID VALIDATOR (for Django model field validation)</span>
-<span class="c1"># =============================================================================</span>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ClassificationResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of a classification operation.</span>
 
-<div class="viewcode-block" id="GEOIDValidator">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geoid_utils.GEOIDValidator">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">GEOIDValidator</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Callable validator for GEOID fields.</span>
-
-<span class="sd">    Validates that a GEOID is digits-only and the correct length for the</span>
-<span class="sd">    given geography level.</span>
-
-<span class="sd">    Usage in Django models:</span>
-<span class="sd">        geoid = CharField(validators=[GEOIDValidator(&#39;tract&#39;)])</span>
+<span class="sd">    Attributes:</span>
+<span class="sd">        bins: Bin assignment per value (0 .. k-1). NaN inputs get -1.</span>
+<span class="sd">        breaks: k+1 break points (bin edges, including min and max).</span>
+<span class="sd">        k: Number of classes actually produced (may be &lt; requested if data</span>
+<span class="sd">            has fewer unique values).</span>
+<span class="sd">        scheme: Scheme name used.</span>
+<span class="sd">        backend: &#39;mapclassify&#39; or &#39;numpy&#39;.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="GEOIDValidator.__init__">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geoid_utils.GEOIDValidator.__init__">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">geography_level</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">geography_level</span> <span class="o">=</span> <span class="n">geography_level</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">expected_length</span> <span class="o">=</span> <span class="n">GEOID_LENGTHS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">geography_level</span><span class="p">)</span></div>
+    <span class="n">bins</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="n">breaks</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="n">k</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">scheme</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">backend</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
 
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">django.core.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">ValidationError</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Pure-numpy scheme implementations</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">value</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;GEOID must be a non-empty string, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">value</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;GEOID must contain only digits, got &#39;</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
-            <span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">expected_length</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">expected_length</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;GEOID for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">geography_level</span><span class="si">}</span><span class="s2"> must be </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">expected_length</span><span class="si">}</span><span class="s2"> &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;digits, got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_classify_quantiles</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+    <span class="n">percentiles</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">breaks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">percentiles</span><span class="p">)</span>
+    <span class="n">breaks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">breaks</span><span class="p">)</span>
+    <span class="n">actual_k</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">breaks</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">breaks</span><span class="p">,</span> <span class="n">actual_k</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">(</span>
-            <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">GEOIDValidator</span><span class="p">)</span>
-            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">geography_level</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">geography_level</span>
-        <span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">geography_level</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_classify_equal_interval</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+    <span class="n">breaks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">values</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">breaks</span><span class="p">,</span> <span class="n">k</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;GEOIDValidator(&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">geography_level</span><span class="si">}</span><span class="s2">&#39;)&quot;</span>
 
-<div class="viewcode-block" id="GEOIDValidator.deconstruct">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geoid_utils.GEOIDValidator.deconstruct">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">deconstruct</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__module__</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__qualname__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">geography_level</span><span class="p">,),</span>
-            <span class="p">{},</span>
-        <span class="p">)</span></div>
-</div>
+<span class="k">def</span><span class="w"> </span><span class="nf">_classify_natural_breaks</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fisher-Jenks optimal breaks via dynamic programming.&quot;&quot;&quot;</span>
+    <span class="n">sorted_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sorted_vals</span><span class="p">)</span>
 
+    <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;=</span> <span class="n">k</span><span class="p">:</span>
+        <span class="n">breaks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">sorted_vals</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([[</span><span class="n">sorted_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">breaks</span><span class="p">]),</span> <span class="nb">len</span><span class="p">(</span><span class="n">breaks</span><span class="p">)</span>
 
+    <span class="n">ssm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">bp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
 
-<span class="c1"># =============================================================================</span>
-<span class="c1"># GEOID NORMALIZATION</span>
-<span class="c1"># =============================================================================</span>
+    <span class="n">cumsum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">sorted_vals</span><span class="p">)</span>
+    <span class="n">cumsum2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">sorted_vals</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
 
-<div class="viewcode-block" id="normalize_geoid">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geoid_utils.normalize_geoid">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">normalize_geoid</span><span class="p">(</span>
-    <span class="n">geoid</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
-    <span class="n">geography_level</span><span class="p">:</span> <span class="nb">str</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Normalize a GEOID to the standard format with proper zero-padding.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        geoid: GEOID value (can be string or int)</span>
-<span class="sd">        geography_level: Geographic level (&#39;state&#39;, &#39;county&#39;, &#39;tract&#39;, etc.)</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Normalized GEOID string with proper zero-padding</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        ValueError: If geography level is unknown or GEOID is invalid</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; normalize_geoid(&quot;6037&quot;, &quot;county&quot;)</span>
-<span class="sd">        &#39;06037&#39;</span>
-<span class="sd">        &gt;&gt;&gt; normalize_geoid(6, &quot;state&quot;)</span>
-<span class="sd">        &#39;06&#39;</span>
-<span class="sd">        &gt;&gt;&gt; normalize_geoid(&quot;6037101100&quot;, &quot;tract&quot;)</span>
-<span class="sd">        &#39;06037101100&#39;</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># Convert to string</span>
-    <span class="n">geoid_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">geoid</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-
-    <span class="c1"># Resolve to canonical name and get expected length</span>
-    <span class="n">geography_lower</span> <span class="o">=</span> <span class="n">resolve_geographic_level</span><span class="p">(</span><span class="n">geography_level</span><span class="p">)</span>
-    <span class="n">expected_length</span> <span class="o">=</span> <span class="n">GEOID_LENGTHS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">geography_lower</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">expected_length</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Unknown geography level: &#39;</span><span class="si">{</span><span class="n">geography_level</span><span class="si">}</span><span class="s2">&#39;. &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;Valid levels: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">GEOID_LENGTHS</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="p">)</span>
-
-    <span class="c1"># Zero-pad to expected length</span>
-    <span class="n">normalized</span> <span class="o">=</span> <span class="n">geoid_str</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="n">expected_length</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">normalized</span><span class="p">)</span> <span class="o">!=</span> <span class="n">expected_length</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;GEOID &#39;</span><span class="si">{</span><span class="n">geoid</span><span class="si">}</span><span class="s2">&#39; is longer than expected for </span><span class="si">{</span><span class="n">geography_level</span><span class="si">}</span><span class="s2"> &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;(expected </span><span class="si">{</span><span class="n">expected_length</span><span class="si">}</span><span class="s2"> digits, got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">geoid_str</span><span class="p">)</span><span class="si">}</span><span class="s2">). &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;Check that the geography_level is correct.&quot;</span>
-        <span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">normalized</span></div>
-
-
-
-<div class="viewcode-block" id="normalize_geoid_column">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geoid_utils.normalize_geoid_column">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">normalize_geoid_column</span><span class="p">(</span>
-    <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
-    <span class="n">geoid_column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">geography_level</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">inplace</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Normalize a GEOID column in a DataFrame.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        df: DataFrame containing GEOID column</span>
-<span class="sd">        geoid_column: Name of the GEOID column</span>
-<span class="sd">        geography_level: Geographic level for normalization</span>
-<span class="sd">        inplace: If True, modify DataFrame in place</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        DataFrame with normalized GEOID column</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">inplace</span><span class="p">:</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-
-    <span class="n">df</span><span class="p">[</span><span class="n">geoid_column</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">geoid_column</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
-        <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">normalize_geoid</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">geography_level</span><span class="p">)</span> <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">notna</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">else</span> <span class="n">x</span>
-    <span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">df</span></div>
-
-
-
-<span class="c1"># =============================================================================</span>
-<span class="c1"># GEOID CONSTRUCTION</span>
-<span class="c1"># =============================================================================</span>
-
-<div class="viewcode-block" id="construct_geoid">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geoid_utils.construct_geoid">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">construct_geoid</span><span class="p">(</span>
-    <span class="n">geography</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">county</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">tract</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">block_group</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">block</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">place</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Construct a GEOID from component parts.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        geography: Target geography level</span>
-<span class="sd">        state: State FIPS code (2 digits)</span>
-<span class="sd">        county: County FIPS code (3 digits)</span>
-<span class="sd">        tract: Census tract code (6 digits)</span>
-<span class="sd">        block_group: Block group code (1 digit)</span>
-<span class="sd">        block: Block code (4 digits)</span>
-<span class="sd">        place: Place code (5 digits)</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Constructed GEOID string</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        ValueError: If required components are missing</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; construct_geoid(&quot;county&quot;, state=&quot;06&quot;, county=&quot;037&quot;)</span>
-<span class="sd">        &#39;06037&#39;</span>
-<span class="sd">        &gt;&gt;&gt; construct_geoid(&quot;tract&quot;, state=&quot;06&quot;, county=&quot;037&quot;, tract=&quot;101100&quot;)</span>
-<span class="sd">        &#39;06037101100&#39;</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">geography_lower</span> <span class="o">=</span> <span class="n">resolve_geographic_level</span><span class="p">(</span><span class="n">geography</span><span class="p">)</span>
-
-    <span class="c1"># Normalize components</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">pad</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">length</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Missing required component&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="n">length</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;state&#39;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">pad</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-
-    <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;county&#39;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">pad</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">pad</span><span class="p">(</span><span class="n">county</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
-
-    <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;tract&#39;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">pad</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">pad</span><span class="p">(</span><span class="n">county</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span> <span class="o">+</span> <span class="n">pad</span><span class="p">(</span><span class="n">tract</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
-
-    <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;block_group&#39;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">pad</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">pad</span><span class="p">(</span><span class="n">county</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span> <span class="o">+</span> <span class="n">pad</span><span class="p">(</span><span class="n">tract</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span> <span class="o">+</span> <span class="n">pad</span><span class="p">(</span><span class="n">block_group</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-
-    <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;block&#39;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">pad</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">pad</span><span class="p">(</span><span class="n">county</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span> <span class="o">+</span> <span class="n">pad</span><span class="p">(</span><span class="n">tract</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span> <span class="o">+</span> <span class="n">pad</span><span class="p">(</span><span class="n">block</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
-
-    <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;place&#39;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">pad</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">pad</span><span class="p">(</span><span class="n">place</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
-
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported geography for GEOID construction: </span><span class="si">{</span><span class="n">geography</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
-
-
-
-<div class="viewcode-block" id="construct_geoid_from_row">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geoid_utils.construct_geoid_from_row">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">construct_geoid_from_row</span><span class="p">(</span>
-    <span class="n">row</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
-    <span class="n">geography_level</span><span class="p">:</span> <span class="nb">str</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Construct a GEOID from a DataFrame row containing Census API response columns.</span>
-
-<span class="sd">    This function handles the column names returned by the Census API.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        row: DataFrame row with Census columns (state, county, tract, etc.)</span>
-<span class="sd">        geography_level: Target geography level</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Constructed GEOID string</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        # For a row from Census API response:</span>
-<span class="sd">        # {&#39;state&#39;: &#39;06&#39;, &#39;county&#39;: &#39;037&#39;, &#39;tract&#39;: &#39;101100&#39;, ...}</span>
-<span class="sd">        geoid = construct_geoid_from_row(row, &#39;tract&#39;)</span>
-<span class="sd">        # Returns: &#39;06037101100&#39;</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">get_value</span><span class="p">(</span><span class="n">col_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get value from row, handling different column name formats.&quot;&quot;&quot;</span>
-        <span class="c1"># Try exact match first</span>
-        <span class="k">if</span> <span class="n">col_name</span> <span class="ow">in</span> <span class="n">row</span><span class="o">.</span><span class="n">index</span><span class="p">:</span>
-            <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">col_name</span><span class="p">])</span>
-        <span class="c1"># Try lowercase</span>
-        <span class="k">if</span> <span class="n">col_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">row</span><span class="o">.</span><span class="n">index</span><span class="p">:</span>
-            <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">col_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()])</span>
-        <span class="c1"># Try with spaces replaced</span>
-        <span class="n">col_with_space</span> <span class="o">=</span> <span class="n">col_name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">col_with_space</span> <span class="ow">in</span> <span class="n">row</span><span class="o">.</span><span class="n">index</span><span class="p">:</span>
-            <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">col_with_space</span><span class="p">])</span>
-        <span class="k">return</span> <span class="kc">None</span>
-
-    <span class="n">state</span> <span class="o">=</span> <span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;state&#39;</span><span class="p">)</span>
-    <span class="n">county</span> <span class="o">=</span> <span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;county&#39;</span><span class="p">)</span>
-    <span class="n">tract</span> <span class="o">=</span> <span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;tract&#39;</span><span class="p">)</span>
-    <span class="n">block_group</span> <span class="o">=</span> <span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;block_group&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;block group&#39;</span><span class="p">)</span>
-    <span class="n">block</span> <span class="o">=</span> <span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;block&#39;</span><span class="p">)</span>
-    <span class="n">place</span> <span class="o">=</span> <span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;place&#39;</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">construct_geoid</span><span class="p">(</span>
-        <span class="n">geography</span><span class="o">=</span><span class="n">geography_level</span><span class="p">,</span>
-        <span class="n">state</span><span class="o">=</span><span class="n">state</span><span class="p">,</span>
-        <span class="n">county</span><span class="o">=</span><span class="n">county</span><span class="p">,</span>
-        <span class="n">tract</span><span class="o">=</span><span class="n">tract</span><span class="p">,</span>
-        <span class="n">block_group</span><span class="o">=</span><span class="n">block_group</span><span class="p">,</span>
-        <span class="n">block</span><span class="o">=</span><span class="n">block</span><span class="p">,</span>
-        <span class="n">place</span><span class="o">=</span><span class="n">place</span>
-    <span class="p">)</span></div>
-
-
-
-<span class="c1"># =============================================================================</span>
-<span class="c1"># GEOID PARSING</span>
-<span class="c1"># =============================================================================</span>
-
-<div class="viewcode-block" id="parse_geoid">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geoid_utils.parse_geoid">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">parse_geoid</span><span class="p">(</span>
-    <span class="n">geoid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">geography_level</span><span class="p">:</span> <span class="nb">str</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Parse a GEOID into its component parts.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        geoid: GEOID string</span>
-<span class="sd">        geography_level: Geography level of the GEOID</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Dictionary with component parts (state, county, tract, etc.)</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; parse_geoid(&quot;06037101100&quot;, &quot;tract&quot;)</span>
-<span class="sd">        {&#39;state&#39;: &#39;06&#39;, &#39;county&#39;: &#39;037&#39;, &#39;tract&#39;: &#39;101100&#39;}</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">geography_lower</span> <span class="o">=</span> <span class="n">resolve_geographic_level</span><span class="p">(</span><span class="n">geography_level</span><span class="p">)</span>
-
-    <span class="c1"># Normalize first</span>
-    <span class="n">geoid</span> <span class="o">=</span> <span class="n">normalize_geoid</span><span class="p">(</span><span class="n">geoid</span><span class="p">,</span> <span class="n">geography_level</span><span class="p">)</span>
-
-    <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
-
-    <span class="k">if</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;state&#39;</span><span class="p">:</span>
-        <span class="n">result</span><span class="p">[</span><span class="s1">&#39;state&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">geoid</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
-
-    <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;county&#39;</span><span class="p">:</span>
-        <span class="n">result</span><span class="p">[</span><span class="s1">&#39;state&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">geoid</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
-        <span class="n">result</span><span class="p">[</span><span class="s1">&#39;county&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">geoid</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">5</span><span class="p">]</span>
-
-    <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;tract&#39;</span><span class="p">:</span>
-        <span class="n">result</span><span class="p">[</span><span class="s1">&#39;state&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">geoid</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
-        <span class="n">result</span><span class="p">[</span><span class="s1">&#39;county&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">geoid</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">5</span><span class="p">]</span>
-        <span class="n">result</span><span class="p">[</span><span class="s1">&#39;tract&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">geoid</span><span class="p">[</span><span class="mi">5</span><span class="p">:</span><span class="mi">11</span><span class="p">]</span>
-
-    <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;block_group&#39;</span><span class="p">:</span>
-        <span class="n">result</span><span class="p">[</span><span class="s1">&#39;state&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">geoid</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
-        <span class="n">result</span><span class="p">[</span><span class="s1">&#39;county&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">geoid</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">5</span><span class="p">]</span>
-        <span class="n">result</span><span class="p">[</span><span class="s1">&#39;tract&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">geoid</span><span class="p">[</span><span class="mi">5</span><span class="p">:</span><span class="mi">11</span><span class="p">]</span>
-        <span class="n">result</span><span class="p">[</span><span class="s1">&#39;block_group&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">geoid</span><span class="p">[</span><span class="mi">11</span><span class="p">:</span><span class="mi">12</span><span class="p">]</span>
-
-    <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;block&#39;</span><span class="p">:</span>
-        <span class="n">result</span><span class="p">[</span><span class="s1">&#39;state&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">geoid</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
-        <span class="n">result</span><span class="p">[</span><span class="s1">&#39;county&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">geoid</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">5</span><span class="p">]</span>
-        <span class="n">result</span><span class="p">[</span><span class="s1">&#39;tract&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">geoid</span><span class="p">[</span><span class="mi">5</span><span class="p">:</span><span class="mi">11</span><span class="p">]</span>
-        <span class="n">result</span><span class="p">[</span><span class="s1">&#39;block&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">geoid</span><span class="p">[</span><span class="mi">11</span><span class="p">:</span><span class="mi">15</span><span class="p">]</span>
-
-    <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;place&#39;</span><span class="p">:</span>
-        <span class="n">result</span><span class="p">[</span><span class="s1">&#39;state&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">geoid</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
-        <span class="n">result</span><span class="p">[</span><span class="s1">&#39;place&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">geoid</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">7</span><span class="p">]</span>
-
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported geography for GEOID parsing: </span><span class="si">{</span><span class="n">geography_level</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">result</span></div>
-
-
-
-<div class="viewcode-block" id="extract_parent_geoid">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geoid_utils.extract_parent_geoid">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">extract_parent_geoid</span><span class="p">(</span>
-    <span class="n">geoid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">child_geography</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">parent_geography</span><span class="p">:</span> <span class="nb">str</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Extract a parent GEOID from a child GEOID.</span>
-
-<span class="sd">    Supports extracting state, county, or tract as the parent level.</span>
-<span class="sd">    Other parent levels raise ValueError.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        geoid: Child GEOID</span>
-<span class="sd">        child_geography: Geography level of the input GEOID</span>
-<span class="sd">        parent_geography: Target parent level (``&quot;state&quot;``, ``&quot;county&quot;``,</span>
-<span class="sd">            or ``&quot;tract&quot;``)</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Parent GEOID</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        ValueError: If *parent_geography* is not one of the supported</span>
-<span class="sd">            parent levels (state, county, tract).</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; extract_parent_geoid(&quot;06037101100&quot;, &quot;tract&quot;, &quot;county&quot;)</span>
-<span class="sd">        &#39;06037&#39;</span>
-<span class="sd">        &gt;&gt;&gt; extract_parent_geoid(&quot;060371011001&quot;, &quot;block_group&quot;, &quot;state&quot;)</span>
-<span class="sd">        &#39;06&#39;</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">components</span> <span class="o">=</span> <span class="n">parse_geoid</span><span class="p">(</span><span class="n">geoid</span><span class="p">,</span> <span class="n">child_geography</span><span class="p">)</span>
-
-    <span class="n">parent_lower</span> <span class="o">=</span> <span class="n">resolve_geographic_level</span><span class="p">(</span><span class="n">parent_geography</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">parent_lower</span> <span class="o">==</span> <span class="s1">&#39;state&#39;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;state&#39;</span><span class="p">]</span>
-    <span class="k">elif</span> <span class="n">parent_lower</span> <span class="o">==</span> <span class="s1">&#39;county&#39;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;state&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;county&#39;</span><span class="p">]</span>
-    <span class="k">elif</span> <span class="n">parent_lower</span> <span class="o">==</span> <span class="s1">&#39;tract&#39;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;state&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;county&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;tract&#39;</span><span class="p">]</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cannot extract </span><span class="si">{</span><span class="n">parent_geography</span><span class="si">}</span><span class="s2"> from </span><span class="si">{</span><span class="n">child_geography</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
-
-
-
-<span class="c1"># =============================================================================</span>
-<span class="c1"># GEOID VALIDATION</span>
-<span class="c1"># =============================================================================</span>
-
-<div class="viewcode-block" id="validate_geoid">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geoid_utils.validate_geoid">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">validate_geoid</span><span class="p">(</span>
-    <span class="n">geoid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">geography_level</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">strict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Validate a GEOID format.</span>
-
-<span class="sd">    Census GEOIDs are always fixed-width, zero-padded strings. A value missing</span>
-<span class="sd">    leading zeros (e.g., &#39;6037&#39; instead of &#39;06037&#39;) is NOT a valid GEOID — it</span>
-<span class="sd">    may be normalizable via normalize_geoid(), but it would fail joins against</span>
-<span class="sd">    Census shapefiles.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        geoid: GEOID string to validate</span>
-<span class="sd">        geography_level: Expected geography level</span>
-<span class="sd">        strict: If True (default), require exact length match.</span>
-<span class="sd">                If False, allow shorter values that could be zero-padded.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        True if GEOID is valid, False otherwise</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; validate_geoid(&quot;06037&quot;, &quot;county&quot;)</span>
-<span class="sd">        True</span>
-<span class="sd">        &gt;&gt;&gt; validate_geoid(&quot;6037&quot;, &quot;county&quot;)  # Missing leading zero</span>
-<span class="sd">        False</span>
-<span class="sd">        &gt;&gt;&gt; validate_geoid(&quot;6037&quot;, &quot;county&quot;, strict=False)</span>
-<span class="sd">        True</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">geoid</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">geoid</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="k">return</span> <span class="kc">False</span>
-
-    <span class="c1"># Remove whitespace</span>
-    <span class="n">geoid</span> <span class="o">=</span> <span class="n">geoid</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-
-    <span class="c1"># Check if all digits</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">geoid</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
-        <span class="k">return</span> <span class="kc">False</span>
-
-    <span class="c1"># Resolve to canonical name and get expected length</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">geography_lower</span> <span class="o">=</span> <span class="n">resolve_geographic_level</span><span class="p">(</span><span class="n">geography_level</span><span class="p">)</span>
-    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-        <span class="k">return</span> <span class="kc">False</span>
-    <span class="n">expected_length</span> <span class="o">=</span> <span class="n">GEOID_LENGTHS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">geography_lower</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">expected_length</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">return</span> <span class="kc">False</span>
-
-    <span class="k">if</span> <span class="n">strict</span><span class="p">:</span>
-        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">geoid</span><span class="p">)</span> <span class="o">==</span> <span class="n">expected_length</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="c1"># Non-strict: allow shorter (can be zero-padded)</span>
-        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">geoid</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">expected_length</span></div>
-
-
-
-<div class="viewcode-block" id="can_normalize_geoid">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geoid_utils.can_normalize_geoid">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">can_normalize_geoid</span><span class="p">(</span>
-    <span class="n">geoid</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
-    <span class="n">geography_level</span><span class="p">:</span> <span class="nb">str</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Check whether a value can be normalized to a valid GEOID.</span>
-
-<span class="sd">    Unlike validate_geoid(), this accepts values that are shorter than the</span>
-<span class="sd">    expected length (e.g., &#39;6037&#39; for county) because they can be zero-padded</span>
-<span class="sd">    to a valid GEOID via normalize_geoid().</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        geoid: Value to check (string or integer)</span>
-<span class="sd">        geography_level: Expected geography level</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        True if value can be normalized to a valid GEOID</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; can_normalize_geoid(&quot;6037&quot;, &quot;county&quot;)</span>
-<span class="sd">        True</span>
-<span class="sd">        &gt;&gt;&gt; can_normalize_geoid(&quot;06037&quot;, &quot;county&quot;)</span>
-<span class="sd">        True</span>
-<span class="sd">        &gt;&gt;&gt; can_normalize_geoid(&quot;CA037&quot;, &quot;county&quot;)</span>
-<span class="sd">        False</span>
-<span class="sd">        &gt;&gt;&gt; can_normalize_geoid(&quot;123456&quot;, &quot;county&quot;)</span>
-<span class="sd">        False</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">geoid_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">geoid</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">geoid_str</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">geoid_str</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
-        <span class="k">return</span> <span class="kc">False</span>
-
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">geography_lower</span> <span class="o">=</span> <span class="n">resolve_geographic_level</span><span class="p">(</span><span class="n">geography_level</span><span class="p">)</span>
-    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-        <span class="k">return</span> <span class="kc">False</span>
-    <span class="n">expected_length</span> <span class="o">=</span> <span class="n">GEOID_LENGTHS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">geography_lower</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">expected_length</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">return</span> <span class="kc">False</span>
-
-    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">geoid_str</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">expected_length</span></div>
-
-
-
-<div class="viewcode-block" id="validate_geoid_column">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geoid_utils.validate_geoid_column">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">validate_geoid_column</span><span class="p">(</span>
-    <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
-    <span class="n">geoid_column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">geography_level</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">strict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Validate a GEOID column in a DataFrame.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        df: DataFrame containing GEOID column</span>
-<span class="sd">        geoid_column: Name of the GEOID column</span>
-<span class="sd">        geography_level: Expected geography level</span>
-<span class="sd">        strict: If True (default), require exact length match</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Boolean Series indicating validity of each GEOID</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">df</span><span class="p">[</span><span class="n">geoid_column</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
-        <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">validate_geoid</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">geography_level</span><span class="p">,</span> <span class="n">strict</span><span class="p">)</span> <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">notna</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">else</span> <span class="kc">False</span>
-    <span class="p">)</span></div>
-
-
-
-<span class="c1"># =============================================================================</span>
-<span class="c1"># GEOID MATCHING FOR JOINS</span>
-<span class="c1"># =============================================================================</span>
-
-<div class="viewcode-block" id="prepare_geoid_for_join">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geoid_utils.prepare_geoid_for_join">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">prepare_geoid_for_join</span><span class="p">(</span>
-    <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
-    <span class="n">geoid_column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">geography_level</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">output_column</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Prepare a GEOID column for joining with another dataset.</span>
-
-<span class="sd">    This function:</span>
-<span class="sd">    1. Normalizes GEOIDs to standard format</span>
-<span class="sd">    2. Validates GEOIDs</span>
-<span class="sd">    3. Optionally creates a new column for the normalized GEOID</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        df: DataFrame with GEOID column</span>
-<span class="sd">        geoid_column: Name of the GEOID column</span>
-<span class="sd">        geography_level: Geography level</span>
-<span class="sd">        output_column: Name for normalized column (defaults to geoid_column)</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        DataFrame with normalized GEOID column</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-    <span class="n">output_col</span> <span class="o">=</span> <span class="n">output_column</span> <span class="ow">or</span> <span class="n">geoid_column</span>
-
-    <span class="c1"># Normalize</span>
-    <span class="n">df</span><span class="p">[</span><span class="n">output_col</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">geoid_column</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
-        <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">normalize_geoid</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">geography_level</span><span class="p">)</span> <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">notna</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
-    <span class="p">)</span>
-
-    <span class="c1"># Log any invalid GEOIDs</span>
-    <span class="n">valid_mask</span> <span class="o">=</span> <span class="n">validate_geoid_column</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">output_col</span><span class="p">,</span> <span class="n">geography_level</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">invalid_count</span> <span class="o">=</span> <span class="p">(</span><span class="o">~</span><span class="n">valid_mask</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">invalid_count</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="n">invalid_count</span><span class="si">}</span><span class="s2"> invalid GEOIDs in column &#39;</span><span class="si">{</span><span class="n">geoid_column</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">df</span></div>
-
-
-
-<span class="c1"># =============================================================================</span>
-<span class="c1"># GEOID ↔ SLUG CONVERSION</span>
-<span class="c1"># =============================================================================</span>
-
-<span class="c1"># Slug-friendly geography labels</span>
-<span class="n">_SLUG_LEVEL_LABELS</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="s1">&#39;state&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;county&#39;</span><span class="p">:</span> <span class="s1">&#39;county&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;tract&#39;</span><span class="p">:</span> <span class="s1">&#39;tract&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;block_group&#39;</span><span class="p">:</span> <span class="s1">&#39;bg&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;block&#39;</span><span class="p">:</span> <span class="s1">&#39;block&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;place&#39;</span><span class="p">:</span> <span class="s1">&#39;place&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;zcta&#39;</span><span class="p">:</span> <span class="s1">&#39;zcta&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;cd&#39;</span><span class="p">:</span> <span class="s1">&#39;cd&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;sldu&#39;</span><span class="p">:</span> <span class="s1">&#39;sldu&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;sldl&#39;</span><span class="p">:</span> <span class="s1">&#39;sldl&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;vtd&#39;</span><span class="p">:</span> <span class="s1">&#39;vtd&#39;</span><span class="p">,</span>
-<span class="p">}</span>
-
-<span class="c1"># Reverse: slug label → canonical level</span>
-<span class="n">_SLUG_LABEL_TO_LEVEL</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">_SLUG_LEVEL_LABELS</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
-
-
-<div class="viewcode-block" id="geoid_to_slug">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geoid_utils.geoid_to_slug">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">geoid_to_slug</span><span class="p">(</span><span class="n">geoid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">geography_level</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Convert a GEOID to a URL-friendly slug.</span>
-
-<span class="sd">    Encodes the state FIPS as a lowercase abbreviation and appends</span>
-<span class="sd">    the remaining GEOID components separated by hyphens.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        geoid: Full GEOID string</span>
-<span class="sd">        geography_level: Geography level of the GEOID</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        URL-friendly slug string</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; geoid_to_slug(&quot;06037101100&quot;, &quot;tract&quot;)</span>
-<span class="sd">        &#39;ca-037-tract-101100&#39;</span>
-<span class="sd">        &gt;&gt;&gt; geoid_to_slug(&quot;06&quot;, &quot;state&quot;)</span>
-<span class="sd">        &#39;ca&#39;</span>
-<span class="sd">        &gt;&gt;&gt; geoid_to_slug(&quot;0614&quot;, &quot;cd&quot;)</span>
-<span class="sd">        &#39;ca-cd-14&#39;</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.config.census_constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">FIPS_TO_STATE</span>
-
-    <span class="n">geography_lower</span> <span class="o">=</span> <span class="n">resolve_geographic_level</span><span class="p">(</span><span class="n">geography_level</span><span class="p">)</span>
-    <span class="n">geoid</span> <span class="o">=</span> <span class="n">normalize_geoid</span><span class="p">(</span><span class="n">geoid</span><span class="p">,</span> <span class="n">geography_level</span><span class="p">)</span>
-    <span class="n">level_label</span> <span class="o">=</span> <span class="n">_SLUG_LEVEL_LABELS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">geography_lower</span><span class="p">,</span> <span class="n">geography_lower</span><span class="p">)</span>
-
-    <span class="n">state_fips</span> <span class="o">=</span> <span class="n">geoid</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
-    <span class="n">state_abbr</span> <span class="o">=</span> <span class="n">FIPS_TO_STATE</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">state_fips</span><span class="p">,</span> <span class="n">state_fips</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-
-    <span class="k">if</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;state&#39;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">state_abbr</span>
-
-    <span class="k">if</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;zcta&#39;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;zcta-</span><span class="si">{</span><span class="n">geoid</span><span class="si">}</span><span class="s2">&quot;</span>
-
-    <span class="c1"># Parse the remaining components after state</span>
-    <span class="n">remainder</span> <span class="o">=</span> <span class="n">geoid</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span>
-
-    <span class="k">if</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;county&#39;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">state_abbr</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">level_label</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">remainder</span><span class="si">}</span><span class="s2">&quot;</span>
-    <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;tract&#39;</span><span class="p">:</span>
-        <span class="n">county</span> <span class="o">=</span> <span class="n">remainder</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
-        <span class="n">tract</span> <span class="o">=</span> <span class="n">remainder</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">state_abbr</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">county</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">level_label</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">tract</span><span class="si">}</span><span class="s2">&quot;</span>
-    <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;block_group&#39;</span><span class="p">:</span>
-        <span class="n">county</span> <span class="o">=</span> <span class="n">remainder</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
-        <span class="n">tract</span> <span class="o">=</span> <span class="n">remainder</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">9</span><span class="p">]</span>
-        <span class="n">bg</span> <span class="o">=</span> <span class="n">remainder</span><span class="p">[</span><span class="mi">9</span><span class="p">:]</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">state_abbr</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">county</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">tract</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">level_label</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">bg</span><span class="si">}</span><span class="s2">&quot;</span>
-    <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;block&#39;</span><span class="p">:</span>
-        <span class="n">county</span> <span class="o">=</span> <span class="n">remainder</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
-        <span class="n">tract</span> <span class="o">=</span> <span class="n">remainder</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">9</span><span class="p">]</span>
-        <span class="n">block</span> <span class="o">=</span> <span class="n">remainder</span><span class="p">[</span><span class="mi">9</span><span class="p">:]</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">state_abbr</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">county</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">tract</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">level_label</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">block</span><span class="si">}</span><span class="s2">&quot;</span>
-    <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;place&#39;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">state_abbr</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">level_label</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">remainder</span><span class="si">}</span><span class="s2">&quot;</span>
-    <span class="k">elif</span> <span class="n">geography_lower</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;cd&#39;</span><span class="p">,</span> <span class="s1">&#39;sldu&#39;</span><span class="p">,</span> <span class="s1">&#39;sldl&#39;</span><span class="p">):</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">state_abbr</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">level_label</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">remainder</span><span class="si">}</span><span class="s2">&quot;</span>
-    <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;vtd&#39;</span><span class="p">:</span>
-        <span class="n">county</span> <span class="o">=</span> <span class="n">remainder</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
-        <span class="n">vtd</span> <span class="o">=</span> <span class="n">remainder</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">state_abbr</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">county</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">level_label</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">vtd</span><span class="si">}</span><span class="s2">&quot;</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">state_abbr</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">level_label</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">remainder</span><span class="si">}</span><span class="s2">&quot;</span></div>
-
-
-
-<div class="viewcode-block" id="slug_to_geoid">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geoid_utils.slug_to_geoid">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">slug_to_geoid</span><span class="p">(</span><span class="n">slug</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Convert a slug back to a GEOID.</span>
-
-<span class="sd">    Inverse of geoid_to_slug(). Parses the state abbreviation and</span>
-<span class="sd">    component parts from the slug.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        slug: URL-friendly slug string</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Full GEOID string</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        ValueError: If slug cannot be parsed</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; slug_to_geoid(&quot;ca-037-tract-101100&quot;)</span>
-<span class="sd">        &#39;06037101100&#39;</span>
-<span class="sd">        &gt;&gt;&gt; slug_to_geoid(&quot;ca&quot;)</span>
-<span class="sd">        &#39;06&#39;</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.config.census_constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">STATE_FIPS_CODES</span>
-
-    <span class="n">parts</span> <span class="o">=</span> <span class="n">slug</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">parts</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Empty slug: &#39;</span><span class="si">{</span><span class="n">slug</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
-
-    <span class="c1"># ZCTA: &quot;zcta-90210&quot;</span>
-    <span class="k">if</span> <span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;zcta&quot;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
-
-    <span class="c1"># State abbreviation is always first</span>
-    <span class="n">state_abbr</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
-    <span class="n">state_fips</span> <span class="o">=</span> <span class="n">STATE_FIPS_CODES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">state_abbr</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">state_fips</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown state abbreviation in slug: &#39;</span><span class="si">{</span><span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
-
-    <span class="c1"># Just state: &quot;ca&quot;</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">state_fips</span>
-
-    <span class="c1"># Find the level label in the parts</span>
-    <span class="n">level_label</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">level_idx</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">part</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="mi">1</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">_SLUG_LABEL_TO_LEVEL</span><span class="p">:</span>
-            <span class="n">level_label</span> <span class="o">=</span> <span class="n">part</span>
-            <span class="n">level_idx</span> <span class="o">=</span> <span class="n">i</span>
-            <span class="k">break</span>
-
-    <span class="k">if</span> <span class="n">level_label</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No geography level found in slug: &#39;</span><span class="si">{</span><span class="n">slug</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
-
-    <span class="n">geography_lower</span> <span class="o">=</span> <span class="n">_SLUG_LABEL_TO_LEVEL</span><span class="p">[</span><span class="n">level_label</span><span class="p">]</span>
-
-    <span class="k">try</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;county&#39;</span><span class="p">:</span>
-            <span class="n">county</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="n">level_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
-            <span class="k">return</span> <span class="n">state_fips</span> <span class="o">+</span> <span class="n">county</span>
-        <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;tract&#39;</span><span class="p">:</span>
-            <span class="n">county</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="n">level_idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
-            <span class="n">tract</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="n">level_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
-            <span class="k">return</span> <span class="n">state_fips</span> <span class="o">+</span> <span class="n">county</span> <span class="o">+</span> <span class="n">tract</span>
-        <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;block_group&#39;</span><span class="p">:</span>
-            <span class="n">county</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-            <span class="n">tract</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
-            <span class="n">bg</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="n">level_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
-            <span class="k">return</span> <span class="n">state_fips</span> <span class="o">+</span> <span class="n">county</span> <span class="o">+</span> <span class="n">tract</span> <span class="o">+</span> <span class="n">bg</span>
-        <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;block&#39;</span><span class="p">:</span>
-            <span class="n">county</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-            <span class="n">tract</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
-            <span class="n">block</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="n">level_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
-            <span class="k">return</span> <span class="n">state_fips</span> <span class="o">+</span> <span class="n">county</span> <span class="o">+</span> <span class="n">tract</span> <span class="o">+</span> <span class="n">block</span>
-        <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;place&#39;</span><span class="p">:</span>
-            <span class="n">place</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="n">level_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
-            <span class="k">return</span> <span class="n">state_fips</span> <span class="o">+</span> <span class="n">place</span>
-        <span class="k">elif</span> <span class="n">geography_lower</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;cd&#39;</span><span class="p">,</span> <span class="s1">&#39;sldu&#39;</span><span class="p">,</span> <span class="s1">&#39;sldl&#39;</span><span class="p">):</span>
-            <span class="n">district</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="n">level_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
-            <span class="k">return</span> <span class="n">state_fips</span> <span class="o">+</span> <span class="n">district</span>
-        <span class="k">elif</span> <span class="n">geography_lower</span> <span class="o">==</span> <span class="s1">&#39;vtd&#39;</span><span class="p">:</span>
-            <span class="n">county</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="n">level_idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
-            <span class="n">vtd</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="n">level_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
-            <span class="k">return</span> <span class="n">state_fips</span> <span class="o">+</span> <span class="n">county</span> <span class="o">+</span> <span class="n">vtd</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_ss</span><span class="p">(</span><span class="n">i</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">j</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">cumsum</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="n">s2</span> <span class="o">=</span> <span class="n">cumsum2</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="n">cnt</span> <span class="o">=</span> <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">remainder</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="n">level_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:])</span>
-            <span class="k">return</span> <span class="n">state_fips</span> <span class="o">+</span> <span class="n">remainder</span>
-    <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">cumsum</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">-</span> <span class="n">cumsum</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">s2</span> <span class="o">=</span> <span class="n">cumsum2</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">-</span> <span class="n">cumsum2</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">cnt</span> <span class="o">=</span> <span class="n">j</span> <span class="o">-</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">s2</span> <span class="o">-</span> <span class="p">(</span><span class="n">s</span> <span class="o">*</span> <span class="n">s</span><span class="p">)</span> <span class="o">/</span> <span class="n">cnt</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+        <span class="n">ssm</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">_ss</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">bp</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+            <span class="n">best_cost</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+            <span class="n">best_bp</span> <span class="o">=</span> <span class="n">j</span>
+            <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+                <span class="n">cost</span> <span class="o">=</span> <span class="n">ssm</span><span class="p">[</span><span class="n">m</span><span class="p">,</span> <span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">_ss</span><span class="p">(</span><span class="n">m</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">cost</span> <span class="o">&lt;</span> <span class="n">best_cost</span><span class="p">:</span>
+                    <span class="n">best_cost</span> <span class="o">=</span> <span class="n">cost</span>
+                    <span class="n">best_bp</span> <span class="o">=</span> <span class="n">m</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">ssm</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">best_cost</span>
+            <span class="n">bp</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">best_bp</span>
+
+    <span class="n">breaks_idx</span> <span class="o">=</span> <span class="p">[</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="n">kk</span> <span class="o">=</span> <span class="n">k</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">while</span> <span class="n">kk</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">breaks_idx</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bp</span><span class="p">[</span><span class="n">breaks_idx</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">kk</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">kk</span> <span class="o">-=</span> <span class="mi">1</span>
+    <span class="n">breaks_idx</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+
+    <span class="n">break_values</span> <span class="o">=</span> <span class="p">[</span><span class="n">sorted_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+    <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">breaks_idx</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">:</span>
+            <span class="n">break_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sorted_vals</span><span class="p">[</span><span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="n">break_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sorted_vals</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+    <span class="n">breaks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">break_values</span><span class="p">)</span>
+    <span class="n">actual_k</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">breaks</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">breaks</span><span class="p">,</span> <span class="n">actual_k</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_classify_percentiles</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fixed percentile breakpoints: [0, 1, 10, 50, 90, 99, 100].&quot;&quot;&quot;</span>
+    <span class="n">pcts</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span> <span class="mi">99</span><span class="p">,</span> <span class="mi">100</span><span class="p">]</span>
+    <span class="n">breaks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">pcts</span><span class="p">)</span>
+    <span class="n">breaks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">breaks</span><span class="p">)</span>
+    <span class="n">actual_k</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">breaks</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">breaks</span><span class="p">,</span> <span class="n">actual_k</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_classify_std_mean</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Standard deviation classification around the mean.&quot;&quot;&quot;</span>
+    <span class="n">mean</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+    <span class="n">std</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">std</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">std</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">values</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">values</span><span class="o">.</span><span class="n">max</span><span class="p">()]),</span> <span class="mi">1</span>
+
+    <span class="n">half</span> <span class="o">=</span> <span class="n">k</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">lower</span> <span class="o">=</span> <span class="p">[</span><span class="n">mean</span> <span class="o">-</span> <span class="n">i</span> <span class="o">*</span> <span class="n">std</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">half</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)]</span>
+    <span class="n">upper</span> <span class="o">=</span> <span class="p">[</span><span class="n">mean</span> <span class="o">+</span> <span class="n">i</span> <span class="o">*</span> <span class="n">std</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">half</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
+    <span class="n">breaks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">values</span><span class="o">.</span><span class="n">min</span><span class="p">()]</span> <span class="o">+</span> <span class="n">lower</span> <span class="o">+</span> <span class="p">[</span><span class="n">mean</span><span class="p">]</span> <span class="o">+</span> <span class="n">upper</span> <span class="o">+</span> <span class="p">[</span><span class="n">values</span><span class="o">.</span><span class="n">max</span><span class="p">()])</span>
+    <span class="n">breaks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">breaks</span><span class="p">,</span> <span class="n">values</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">values</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+    <span class="n">breaks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">breaks</span><span class="p">)</span>
+    <span class="n">actual_k</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">breaks</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">breaks</span><span class="p">,</span> <span class="n">actual_k</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_classify_headtailbreaks</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Head/tail breaks (Jiang 2013) — recursive mean splitting.&quot;&quot;&quot;</span>
+    <span class="n">breaks</span> <span class="o">=</span> <span class="p">[</span><span class="n">values</span><span class="o">.</span><span class="n">min</span><span class="p">()]</span>
+    <span class="n">remaining</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">max_iter</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="mi">40</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_iter</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">remaining</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">break</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="n">remaining</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="n">breaks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mean</span><span class="p">)</span>
+        <span class="n">head</span> <span class="o">=</span> <span class="n">remaining</span><span class="p">[</span><span class="n">remaining</span> <span class="o">&gt;</span> <span class="n">mean</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">head</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">head</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">remaining</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mf">0.40</span><span class="p">:</span>
+            <span class="k">break</span>
+        <span class="n">remaining</span> <span class="o">=</span> <span class="n">head</span>
+
+    <span class="n">breaks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+    <span class="n">breaks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">breaks</span><span class="p">)</span>
+    <span class="n">actual_k</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">breaks</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">breaks</span><span class="p">,</span> <span class="n">actual_k</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_classify_boxplot</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Box plot classification: whiskers, Q1, median, Q3.&quot;&quot;&quot;</span>
+    <span class="n">q1</span><span class="p">,</span> <span class="n">q2</span><span class="p">,</span> <span class="n">q3</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">75</span><span class="p">])</span>
+    <span class="n">iqr</span> <span class="o">=</span> <span class="n">q3</span> <span class="o">-</span> <span class="n">q1</span>
+    <span class="n">lower_whisker</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">q1</span> <span class="o">-</span> <span class="mf">1.5</span> <span class="o">*</span> <span class="n">iqr</span><span class="p">)</span>
+    <span class="n">upper_whisker</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">q3</span> <span class="o">+</span> <span class="mf">1.5</span> <span class="o">*</span> <span class="n">iqr</span><span class="p">)</span>
+
+    <span class="n">breaks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">values</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">lower_whisker</span><span class="p">,</span> <span class="n">q1</span><span class="p">,</span> <span class="n">q2</span><span class="p">,</span> <span class="n">q3</span><span class="p">,</span> <span class="n">upper_whisker</span><span class="p">,</span> <span class="n">values</span><span class="o">.</span><span class="n">max</span><span class="p">()])</span>
+    <span class="n">breaks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">breaks</span><span class="p">)</span>
+    <span class="n">actual_k</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">breaks</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">breaks</span><span class="p">,</span> <span class="n">actual_k</span>
+
+
+<span class="n">_NUMPY_SCHEMES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;quantiles&quot;</span><span class="p">:</span> <span class="n">_classify_quantiles</span><span class="p">,</span>
+    <span class="s2">&quot;equal_interval&quot;</span><span class="p">:</span> <span class="n">_classify_equal_interval</span><span class="p">,</span>
+    <span class="s2">&quot;natural_breaks&quot;</span><span class="p">:</span> <span class="n">_classify_natural_breaks</span><span class="p">,</span>
+    <span class="s2">&quot;fisher_jenks&quot;</span><span class="p">:</span> <span class="n">_classify_natural_breaks</span><span class="p">,</span>
+    <span class="s2">&quot;percentiles&quot;</span><span class="p">:</span> <span class="n">_classify_percentiles</span><span class="p">,</span>
+    <span class="s2">&quot;std_mean&quot;</span><span class="p">:</span> <span class="n">_classify_std_mean</span><span class="p">,</span>
+    <span class="s2">&quot;headtailbreaks&quot;</span><span class="p">:</span> <span class="n">_classify_headtailbreaks</span><span class="p">,</span>
+    <span class="s2">&quot;boxplot&quot;</span><span class="p">:</span> <span class="n">_classify_boxplot</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="n">AVAILABLE_SCHEMES</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;quantiles&quot;</span><span class="p">:</span> <span class="s2">&quot;Quantiles (equal count)&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;equal_interval&quot;</span><span class="p">:</span> <span class="s2">&quot;Equal Interval&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;natural_breaks&quot;</span><span class="p">:</span> <span class="s2">&quot;Natural Breaks (Fisher-Jenks)&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;fisher_jenks&quot;</span><span class="p">:</span> <span class="s2">&quot;Fisher-Jenks (natural breaks)&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;percentiles&quot;</span><span class="p">:</span> <span class="s2">&quot;Percentiles&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;std_mean&quot;</span><span class="p">:</span> <span class="s2">&quot;Standard Deviation&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;headtailbreaks&quot;</span><span class="p">:</span> <span class="s2">&quot;Head/Tail Breaks&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;boxplot&quot;</span><span class="p">:</span> <span class="s2">&quot;Box Plot&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># mapclassify backend</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+
+<span class="n">_MC_SCHEME_MAP</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;quantiles&quot;</span><span class="p">:</span> <span class="s2">&quot;Quantiles&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;equal_interval&quot;</span><span class="p">:</span> <span class="s2">&quot;EqualInterval&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;natural_breaks&quot;</span><span class="p">:</span> <span class="s2">&quot;NaturalBreaks&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;fisher_jenks&quot;</span><span class="p">:</span> <span class="s2">&quot;FisherJenks&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;percentiles&quot;</span><span class="p">:</span> <span class="s2">&quot;Percentiles&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;std_mean&quot;</span><span class="p">:</span> <span class="s2">&quot;StdMean&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;headtailbreaks&quot;</span><span class="p">:</span> <span class="s2">&quot;HeadTailBreaks&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;boxplot&quot;</span><span class="p">:</span> <span class="s2">&quot;BoxPlot&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;max_p&quot;</span><span class="p">:</span> <span class="s2">&quot;MaxP&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_classify_with_mapclassify</span><span class="p">(</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">scheme</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ClassificationResult</span><span class="p">:</span>
+    <span class="n">mc_name</span> <span class="o">=</span> <span class="n">_MC_SCHEME_MAP</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">scheme</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">mc_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Malformed slug &#39;</span><span class="si">{</span><span class="n">slug</span><span class="si">}</span><span class="s2">&#39;: not enough components for &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">geography_lower</span><span class="si">}</span><span class="s2">-level GEOID&quot;</span>
-        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span></div>
+            <span class="sa">f</span><span class="s2">&quot;Unknown scheme &#39;</span><span class="si">{</span><span class="n">scheme</span><span class="si">}</span><span class="s2">&#39; for mapclassify backend. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Available: </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">_MC_SCHEME_MAP</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+    <span class="bp">cls</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">_mc</span><span class="p">,</span> <span class="n">mc_name</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">scheme</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;percentiles&quot;</span><span class="p">,</span> <span class="s2">&quot;boxplot&quot;</span><span class="p">):</span>
+        <span class="n">classifier</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">classifier</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">)</span>
+
+    <span class="n">breaks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([[</span><span class="n">values</span><span class="o">.</span><span class="n">min</span><span class="p">()],</span> <span class="n">classifier</span><span class="o">.</span><span class="n">bins</span><span class="p">])</span>
+    <span class="n">breaks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">breaks</span><span class="p">)</span>
+    <span class="n">actual_k</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">breaks</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+
+    <span class="n">bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">breaks</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">values</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">ClassificationResult</span><span class="p">(</span>
+        <span class="n">bins</span><span class="o">=</span><span class="n">bins</span><span class="p">,</span>
+        <span class="n">breaks</span><span class="o">=</span><span class="n">breaks</span><span class="p">,</span>
+        <span class="n">k</span><span class="o">=</span><span class="n">actual_k</span><span class="p">,</span>
+        <span class="n">scheme</span><span class="o">=</span><span class="n">scheme</span><span class="p">,</span>
+        <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;mapclassify&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
 
 
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Public API</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
 
-<div class="viewcode-block" id="find_geoid_column">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geoid_utils.find_geoid_column">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">find_geoid_column</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Find the GEOID column in a DataFrame.</span>
+<div class="viewcode-block" id="classify_series">
+<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.choropleth.classify_series">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">classify_series</span><span class="p">(</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">scheme</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;quantiles&quot;</span><span class="p">,</span>
+    <span class="n">k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ClassificationResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Classify numeric values into k bins using the named scheme.</span>
 
-<span class="sd">    Looks for common GEOID column names used in Census data.</span>
+<span class="sd">    Backend dispatch: mapclassify (when installed) → pure numpy.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        df: DataFrame to search</span>
+<span class="sd">        values: Numeric array, Series, or list.</span>
+<span class="sd">        scheme: Classification scheme name (see AVAILABLE_SCHEMES).</span>
+<span class="sd">        k: Number of classes. Some schemes (percentiles, boxplot) ignore k.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        Name of GEOID column if found, None otherwise</span>
+<span class="sd">        ClassificationResult with bin assignments, break points, and metadata.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If scheme is unknown or values are empty.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">common_names</span> <span class="o">=</span> <span class="p">[</span>
-        <span class="s1">&#39;GEOID&#39;</span><span class="p">,</span> <span class="s1">&#39;geoid&#39;</span><span class="p">,</span> <span class="s1">&#39;GEOID20&#39;</span><span class="p">,</span> <span class="s1">&#39;GEOID10&#39;</span><span class="p">,</span> <span class="s1">&#39;GEOID00&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;geoid20&#39;</span><span class="p">,</span> <span class="s1">&#39;geoid10&#39;</span><span class="p">,</span> <span class="s1">&#39;geoid00&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;GEO_ID&#39;</span><span class="p">,</span> <span class="s1">&#39;geo_id&#39;</span><span class="p">,</span> <span class="s1">&#39;GEOCODE&#39;</span><span class="p">,</span> <span class="s1">&#39;geocode&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;FIPS&#39;</span><span class="p">,</span> <span class="s1">&#39;fips&#39;</span><span class="p">,</span> <span class="s1">&#39;FIPSCODE&#39;</span><span class="p">,</span> <span class="s1">&#39;fipscode&#39;</span>
-    <span class="p">]</span>
+    <span class="n">arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
 
-    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">common_names</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">name</span>
+    <span class="n">nan_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span>
+    <span class="n">clean</span> <span class="o">=</span> <span class="n">arr</span><span class="p">[</span><span class="o">~</span><span class="n">nan_mask</span><span class="p">]</span>
 
-    <span class="c1"># Try case-insensitive search</span>
-    <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">col</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="n">n</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">common_names</span><span class="p">]:</span>
-            <span class="k">return</span> <span class="n">col</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">clean</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Cannot classify empty or all-NaN values.&quot;</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="kc">None</span></div>
+    <span class="k">if</span> <span class="n">k</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;k must be &gt;= 1, got </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">clean</span><span class="p">))</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;All values are identical; producing single-bin classification.&quot;</span><span class="p">)</span>
+        <span class="n">bins_clean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">clean</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">)</span>
+        <span class="n">breaks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">clean</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">clean</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+        <span class="n">result_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">arr</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">)</span>
+        <span class="n">result_bins</span><span class="p">[</span><span class="o">~</span><span class="n">nan_mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">bins_clean</span>
+        <span class="k">return</span> <span class="n">ClassificationResult</span><span class="p">(</span>
+            <span class="n">bins</span><span class="o">=</span><span class="n">result_bins</span><span class="p">,</span> <span class="n">breaks</span><span class="o">=</span><span class="n">breaks</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">scheme</span><span class="o">=</span><span class="n">scheme</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;numpy&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">k</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">clean</span><span class="p">):</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="s2">&quot;k=</span><span class="si">%d</span><span class="s2"> exceeds data size (</span><span class="si">%d</span><span class="s2">); reducing to </span><span class="si">%d</span><span class="s2">.&quot;</span><span class="p">,</span>
+            <span class="n">k</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">clean</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">clean</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">clean</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">_MAPCLASSIFY_AVAILABLE</span> <span class="ow">and</span> <span class="n">scheme</span> <span class="ow">in</span> <span class="n">_MC_SCHEME_MAP</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">_classify_with_mapclassify</span><span class="p">(</span><span class="n">clean</span><span class="p">,</span> <span class="n">scheme</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+            <span class="n">full_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">arr</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">)</span>
+            <span class="n">full_bins</span><span class="p">[</span><span class="o">~</span><span class="n">nan_mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">bins</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">bins</span> <span class="o">=</span> <span class="n">full_bins</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Classified </span><span class="si">%d</span><span class="s2"> values into </span><span class="si">%d</span><span class="s2"> bins (scheme=</span><span class="si">%s</span><span class="s2">, backend=mapclassify)&quot;</span><span class="p">,</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">clean</span><span class="p">),</span> <span class="n">result</span><span class="o">.</span><span class="n">k</span><span class="p">,</span> <span class="n">scheme</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">result</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;mapclassify failed for scheme &#39;</span><span class="si">%s</span><span class="s2">&#39;; falling back to numpy.&quot;</span><span class="p">,</span> <span class="n">scheme</span><span class="p">,</span>
+            <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">scheme</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_NUMPY_SCHEMES</span><span class="p">:</span>
+        <span class="n">available</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">_NUMPY_SCHEMES</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">+</span> <span class="p">(</span>
+            <span class="nb">list</span><span class="p">(</span><span class="n">_MC_SCHEME_MAP</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="k">if</span> <span class="n">_MAPCLASSIFY_AVAILABLE</span> <span class="k">else</span> <span class="p">[]</span>
+        <span class="p">)))</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Unknown classification scheme &#39;</span><span class="si">{</span><span class="n">scheme</span><span class="si">}</span><span class="s2">&#39;. Available: </span><span class="si">{</span><span class="n">available</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">breaks</span><span class="p">,</span> <span class="n">actual_k</span> <span class="o">=</span> <span class="n">_NUMPY_SCHEMES</span><span class="p">[</span><span class="n">scheme</span><span class="p">](</span><span class="n">clean</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+
+    <span class="n">bins_clean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">breaks</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">clean</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">)</span>
+
+    <span class="n">full_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">arr</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">)</span>
+    <span class="n">full_bins</span><span class="p">[</span><span class="o">~</span><span class="n">nan_mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">bins_clean</span>
+
+    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="s2">&quot;Classified </span><span class="si">%d</span><span class="s2"> values into </span><span class="si">%d</span><span class="s2"> bins (scheme=</span><span class="si">%s</span><span class="s2">, backend=numpy)&quot;</span><span class="p">,</span>
+        <span class="nb">len</span><span class="p">(</span><span class="n">clean</span><span class="p">),</span> <span class="n">actual_k</span><span class="p">,</span> <span class="n">scheme</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">ClassificationResult</span><span class="p">(</span>
+        <span class="n">bins</span><span class="o">=</span><span class="n">full_bins</span><span class="p">,</span>
+        <span class="n">breaks</span><span class="o">=</span><span class="n">breaks</span><span class="p">,</span>
+        <span class="n">k</span><span class="o">=</span><span class="n">actual_k</span><span class="p">,</span>
+        <span class="n">scheme</span><span class="o">=</span><span class="n">scheme</span><span class="p">,</span>
+        <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;numpy&quot;</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="classify_choropleth">
+<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.choropleth.classify_choropleth">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">classify_choropleth</span><span class="p">(</span>
+    <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">scheme</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;quantiles&quot;</span><span class="p">,</span>
+    <span class="n">k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">cmap</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;YlOrRd&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Classify a DataFrame column and add bin/color columns.</span>
+
+<span class="sd">    This is the non-GDAL entry point for choropleth classification. It</span>
+<span class="sd">    produces the data layer (bin assignments + hex colors) that consumers</span>
+<span class="sd">    render using their platform&#39;s native visualization.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        df: DataFrame (or GeoDataFrame) with a numeric column.</span>
+<span class="sd">        column: Column name to classify.</span>
+<span class="sd">        scheme: Classification scheme name.</span>
+<span class="sd">        k: Number of classes.</span>
+<span class="sd">        cmap: Matplotlib colormap name for color assignment. Requires</span>
+<span class="sd">            matplotlib; omitted columns if unavailable.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Copy of df with added columns:</span>
+<span class="sd">            _bin: int bin assignment (0..k-1, or -1 for NaN)</span>
+<span class="sd">            _break_low: lower bound of the bin</span>
+<span class="sd">            _break_high: upper bound of the bin</span>
+<span class="sd">            _color: hex color string (if matplotlib available)</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If column not in df or values are empty.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">column</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Column &#39;</span><span class="si">{</span><span class="n">column</span><span class="si">}</span><span class="s2">&#39; not found in DataFrame.&quot;</span><span class="p">)</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">classify_series</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">column</span><span class="p">],</span> <span class="n">scheme</span><span class="o">=</span><span class="n">scheme</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">)</span>
+
+    <span class="n">out</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">out</span><span class="p">[</span><span class="s2">&quot;_bin&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">bins</span>
+    <span class="n">out</span><span class="p">[</span><span class="s2">&quot;_break_low&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">bins</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">breaks</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">bins</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)],</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">out</span><span class="p">[</span><span class="s2">&quot;_break_high&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">bins</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">breaks</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">bins</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">k</span><span class="p">)],</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">_MATPLOTLIB_AVAILABLE</span><span class="p">:</span>
+        <span class="n">colormap</span> <span class="o">=</span> <span class="n">_plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="n">cmap</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">k</span><span class="p">)</span>
+        <span class="n">colors</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">bins</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">b</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">colors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">rgba</span> <span class="o">=</span> <span class="n">colormap</span><span class="p">(</span><span class="n">b</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+                <span class="n">colors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_mcolors</span><span class="o">.</span><span class="n">to_hex</span><span class="p">(</span><span class="n">rgba</span><span class="p">))</span>
+        <span class="n">out</span><span class="p">[</span><span class="s2">&quot;_color&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">colors</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;matplotlib not available; _color column omitted.&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">out</span></div>
 
 </pre></div>
 

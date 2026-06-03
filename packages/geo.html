@@ -4241,6 +4241,8 @@
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.choropleth.BivariateAnalysisResult.__init__"><code class="docutils literal notranslate"><span class="pre">BivariateAnalysisResult.__init__()</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.choropleth.classify_choropleth"><code class="docutils literal notranslate"><span class="pre">classify_choropleth()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.choropleth.classify_series"><code class="docutils literal notranslate"><span class="pre">classify_series()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.choropleth.create_bivariate_analysis"><code class="docutils literal notranslate"><span class="pre">create_bivariate_analysis()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.choropleth.create_bivariate_choropleth"><code class="docutils literal notranslate"><span class="pre">create_bivariate_choropleth()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.choropleth.create_bivariate_companion_maps"><code class="docutils literal notranslate"><span class="pre">create_bivariate_companion_maps()</span></code></a></li>
@@ -5525,6 +5527,7 @@
 <li class="toctree-l3"><a class="reference internal" href="engines.html#siege_utilities.engines.DataFrameEngine.buffer"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.buffer()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="engines.html#siege_utilities.engines.DataFrameEngine.distance"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.distance()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="engines.html#siege_utilities.engines.DataFrameEngine.to_geodataframe"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.to_geodataframe()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="engines.html#siege_utilities.engines.DataFrameEngine.from_geodataframe"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.from_geodataframe()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="engines.html#siege_utilities.engines.DataFrameEngine.index_points"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.index_points()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="engines.html#siege_utilities.engines.DataFrameEngine.index_polygon"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.index_polygon()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="engines.html#siege_utilities.engines.DataFrameEngine.point_in_polygon"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.point_in_polygon()</span></code></a></li>
@@ -5570,6 +5573,7 @@
 <li class="toctree-l3"><a class="reference internal" href="engines.html#siege_utilities.engines.DuckDBEngine.buffer"><code class="docutils literal notranslate"><span class="pre">DuckDBEngine.buffer()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="engines.html#siege_utilities.engines.DuckDBEngine.distance"><code class="docutils literal notranslate"><span class="pre">DuckDBEngine.distance()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="engines.html#siege_utilities.engines.DuckDBEngine.to_geodataframe"><code class="docutils literal notranslate"><span class="pre">DuckDBEngine.to_geodataframe()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="engines.html#siege_utilities.engines.DuckDBEngine.from_geodataframe"><code class="docutils literal notranslate"><span class="pre">DuckDBEngine.from_geodataframe()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="engines.html#siege_utilities.engines.SparkEngine"><code class="docutils literal notranslate"><span class="pre">SparkEngine</span></code></a><ul>
@@ -5635,6 +5639,7 @@
 <li class="toctree-l4"><a class="reference internal" href="engines.html#siege_utilities.engines.dataframe_engine.DataFrameEngine.buffer"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.buffer()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="engines.html#siege_utilities.engines.dataframe_engine.DataFrameEngine.distance"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.distance()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="engines.html#siege_utilities.engines.dataframe_engine.DataFrameEngine.to_geodataframe"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.to_geodataframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="engines.html#siege_utilities.engines.dataframe_engine.DataFrameEngine.from_geodataframe"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.from_geodataframe()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="engines.html#siege_utilities.engines.dataframe_engine.DataFrameEngine.index_points"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.index_points()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="engines.html#siege_utilities.engines.dataframe_engine.DataFrameEngine.index_polygon"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.index_polygon()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="engines.html#siege_utilities.engines.dataframe_engine.DataFrameEngine.point_in_polygon"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.point_in_polygon()</span></code></a></li>
@@ -5680,6 +5685,7 @@
 <li class="toctree-l4"><a class="reference internal" href="engines.html#siege_utilities.engines.dataframe_engine.DuckDBEngine.buffer"><code class="docutils literal notranslate"><span class="pre">DuckDBEngine.buffer()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="engines.html#siege_utilities.engines.dataframe_engine.DuckDBEngine.distance"><code class="docutils literal notranslate"><span class="pre">DuckDBEngine.distance()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="engines.html#siege_utilities.engines.dataframe_engine.DuckDBEngine.to_geodataframe"><code class="docutils literal notranslate"><span class="pre">DuckDBEngine.to_geodataframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="engines.html#siege_utilities.engines.dataframe_engine.DuckDBEngine.from_geodataframe"><code class="docutils literal notranslate"><span class="pre">DuckDBEngine.from_geodataframe()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="engines.html#siege_utilities.engines.dataframe_engine.SparkEngine"><code class="docutils literal notranslate"><span class="pre">SparkEngine</span></code></a><ul>
@@ -6894,6 +6900,7 @@
 <li class="toctree-l3"><a class="reference internal" href="data.html#siege_utilities.data.DataFrameEngine.buffer"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.buffer()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="data.html#siege_utilities.data.DataFrameEngine.distance"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.distance()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="data.html#siege_utilities.data.DataFrameEngine.to_geodataframe"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.to_geodataframe()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="data.html#siege_utilities.data.DataFrameEngine.from_geodataframe"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.from_geodataframe()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="data.html#siege_utilities.data.DataFrameEngine.index_points"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.index_points()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="data.html#siege_utilities.data.DataFrameEngine.index_polygon"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.index_polygon()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="data.html#siege_utilities.data.DataFrameEngine.point_in_polygon"><code class="docutils literal notranslate"><span class="pre">DataFrameEngine.point_in_polygon()</span></code></a></li>
@@ -6939,6 +6946,7 @@
 <li class="toctree-l3"><a class="reference internal" href="data.html#siege_utilities.data.DuckDBEngine.buffer"><code class="docutils literal notranslate"><span class="pre">DuckDBEngine.buffer()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="data.html#siege_utilities.data.DuckDBEngine.distance"><code class="docutils literal notranslate"><span class="pre">DuckDBEngine.distance()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="data.html#siege_utilities.data.DuckDBEngine.to_geodataframe"><code class="docutils literal notranslate"><span class="pre">DuckDBEngine.to_geodataframe()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="data.html#siege_utilities.data.DuckDBEngine.from_geodataframe"><code class="docutils literal notranslate"><span class="pre">DuckDBEngine.from_geodataframe()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="data.html#siege_utilities.data.SparkEngine"><code class="docutils literal notranslate"><span class="pre">SparkEngine</span></code></a><ul>
@@ -9046,11 +9054,18 @@ documented hierarchy and slipped past <code class="docutils literal notranslate"
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Geographic level (e.g. ‘county’, ‘tract’, ‘admin1’).</p></li>
 <li><p><strong>identifier</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – Optional identifier to narrow the query (e.g. state FIPS).</p></li>
-<li><p><strong>**kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Provider-specific options.</p></li>
+<li><p><strong>**kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – <p>Provider-specific options. Recognized cross-provider kwargs:
+engine: Optional DataFrameEngine instance. When provided,</p>
+<blockquote>
+<div><p>the result is converted to the engine’s native format
+via <code class="docutils literal notranslate"><span class="pre">engine.from_geodataframe()</span></code>. Default (None)
+returns a GeoDataFrame.</p>
+</div></blockquote>
+</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>GeoDataFrame with boundary geometries.</p>
+<dd class="field-even"><p>GeoDataFrame when engine is None; engine-native DataFrame otherwise.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a></p>
@@ -9105,11 +9120,12 @@ documented hierarchy and slipped past <code class="docutils literal notranslate"
 <li><p><strong>level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – A canonical geographic level (e.g. ‘county’, ‘tract’, ‘cd’).</p></li>
 <li><p><strong>identifier</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – State FIPS code when the level requires it.</p></li>
 <li><p><strong>**kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Forwarded to <code class="docutils literal notranslate"><span class="pre">CensusDataSource.fetch_geographic_boundaries</span></code>
-(e.g. <code class="docutils literal notranslate"><span class="pre">year</span></code>, <code class="docutils literal notranslate"><span class="pre">congress_number</span></code>).</p></li>
+(e.g. <code class="docutils literal notranslate"><span class="pre">year</span></code>, <code class="docutils literal notranslate"><span class="pre">congress_number</span></code>).
+<code class="docutils literal notranslate"><span class="pre">engine</span></code>: Optional DataFrameEngine for result conversion.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>GeoDataFrame with boundary geometries.</p>
+<dd class="field-even"><p>GeoDataFrame (default) or engine-native DataFrame when engine is provided.</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.BoundaryFetchError" title="siege_utilities.geo.BoundaryFetchError"><strong>BoundaryFetchError</strong></a> – When the boundary retrieval fails.</p>
@@ -9209,11 +9225,12 @@ Requires <em>geopandas</em> at runtime.</p>
 <li><p><strong>level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – One of ‘country’, ‘admin1’, ‘admin2’, ‘admin3’.</p></li>
 <li><p><strong>identifier</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – ISO-3 country code (e.g. ‘DEU’, ‘FRA’).
 Can also be passed as <code class="docutils literal notranslate"><span class="pre">country_code</span></code> kwarg.</p></li>
-<li><p><strong>**kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – <code class="docutils literal notranslate"><span class="pre">country_code</span></code> accepted as an alias for <em>identifier</em>.</p></li>
+<li><p><strong>**kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – <code class="docutils literal notranslate"><span class="pre">country_code</span></code> accepted as an alias for <em>identifier</em>.
+<code class="docutils literal notranslate"><span class="pre">engine</span></code>: Optional DataFrameEngine for result conversion.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>GeoDataFrame with boundary geometries.</p>
+<dd class="field-even"><p>GeoDataFrame (default) or engine-native DataFrame when engine is provided.</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -9316,11 +9333,13 @@ via constructor arguments or environment variables
 Can also be passed as <code class="docutils literal notranslate"><span class="pre">state</span></code> kwarg.</p></li>
 <li><p><strong>**kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – <code class="docutils literal notranslate"><span class="pre">state</span></code> — alias for <em>identifier</em>.
 <code class="docutils literal notranslate"><span class="pre">year</span></code> — filter datasets by year string (e.g. <code class="docutils literal notranslate"><span class="pre">'2022'</span></code>).
-<code class="docutils literal notranslate"><span class="pre">format</span></code> — <code class="docutils literal notranslate"><span class="pre">'shp'</span></code> (default) or <code class="docutils literal notranslate"><span class="pre">'csv'</span></code>.</p></li>
+<code class="docutils literal notranslate"><span class="pre">format</span></code> — <code class="docutils literal notranslate"><span class="pre">'shp'</span></code> (default) or <code class="docutils literal notranslate"><span class="pre">'csv'</span></code>.
+<code class="docutils literal notranslate"><span class="pre">engine</span></code> — Optional DataFrameEngine for result conversion.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>GeoDataFrame with boundary geometries (shapefiles) or None.</p>
+<dd class="field-even"><p>GeoDataFrame (default) or engine-native DataFrame when engine is provided.
+None if no matching datasets found.</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -18304,11 +18323,18 @@ geopandas is absent).</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Geographic level (e.g. ‘county’, ‘tract’, ‘admin1’).</p></li>
 <li><p><strong>identifier</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – Optional identifier to narrow the query (e.g. state FIPS).</p></li>
-<li><p><strong>**kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Provider-specific options.</p></li>
+<li><p><strong>**kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – <p>Provider-specific options. Recognized cross-provider kwargs:
+engine: Optional DataFrameEngine instance. When provided,</p>
+<blockquote>
+<div><p>the result is converted to the engine’s native format
+via <code class="docutils literal notranslate"><span class="pre">engine.from_geodataframe()</span></code>. Default (None)
+returns a GeoDataFrame.</p>
+</div></blockquote>
+</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>GeoDataFrame with boundary geometries.</p>
+<dd class="field-even"><p>GeoDataFrame when engine is None; engine-native DataFrame otherwise.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a></p>
@@ -18363,11 +18389,12 @@ geopandas is absent).</p>
 <li><p><strong>level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – A canonical geographic level (e.g. ‘county’, ‘tract’, ‘cd’).</p></li>
 <li><p><strong>identifier</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – State FIPS code when the level requires it.</p></li>
 <li><p><strong>**kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Forwarded to <code class="docutils literal notranslate"><span class="pre">CensusDataSource.fetch_geographic_boundaries</span></code>
-(e.g. <code class="docutils literal notranslate"><span class="pre">year</span></code>, <code class="docutils literal notranslate"><span class="pre">congress_number</span></code>).</p></li>
+(e.g. <code class="docutils literal notranslate"><span class="pre">year</span></code>, <code class="docutils literal notranslate"><span class="pre">congress_number</span></code>).
+<code class="docutils literal notranslate"><span class="pre">engine</span></code>: Optional DataFrameEngine for result conversion.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>GeoDataFrame with boundary geometries.</p>
+<dd class="field-even"><p>GeoDataFrame (default) or engine-native DataFrame when engine is provided.</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.boundary_providers.BoundaryFetchError" title="siege_utilities.geo.boundary_providers.BoundaryFetchError"><strong>BoundaryFetchError</strong></a> – When the boundary retrieval fails.</p>
@@ -18467,11 +18494,12 @@ Requires <em>geopandas</em> at runtime.</p>
 <li><p><strong>level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – One of ‘country’, ‘admin1’, ‘admin2’, ‘admin3’.</p></li>
 <li><p><strong>identifier</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – ISO-3 country code (e.g. ‘DEU’, ‘FRA’).
 Can also be passed as <code class="docutils literal notranslate"><span class="pre">country_code</span></code> kwarg.</p></li>
-<li><p><strong>**kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – <code class="docutils literal notranslate"><span class="pre">country_code</span></code> accepted as an alias for <em>identifier</em>.</p></li>
+<li><p><strong>**kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – <code class="docutils literal notranslate"><span class="pre">country_code</span></code> accepted as an alias for <em>identifier</em>.
+<code class="docutils literal notranslate"><span class="pre">engine</span></code>: Optional DataFrameEngine for result conversion.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>GeoDataFrame with boundary geometries.</p>
+<dd class="field-even"><p>GeoDataFrame (default) or engine-native DataFrame when engine is provided.</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -18574,11 +18602,13 @@ via constructor arguments or environment variables
 Can also be passed as <code class="docutils literal notranslate"><span class="pre">state</span></code> kwarg.</p></li>
 <li><p><strong>**kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – <code class="docutils literal notranslate"><span class="pre">state</span></code> — alias for <em>identifier</em>.
 <code class="docutils literal notranslate"><span class="pre">year</span></code> — filter datasets by year string (e.g. <code class="docutils literal notranslate"><span class="pre">'2022'</span></code>).
-<code class="docutils literal notranslate"><span class="pre">format</span></code> — <code class="docutils literal notranslate"><span class="pre">'shp'</span></code> (default) or <code class="docutils literal notranslate"><span class="pre">'csv'</span></code>.</p></li>
+<code class="docutils literal notranslate"><span class="pre">format</span></code> — <code class="docutils literal notranslate"><span class="pre">'shp'</span></code> (default) or <code class="docutils literal notranslate"><span class="pre">'csv'</span></code>.
+<code class="docutils literal notranslate"><span class="pre">engine</span></code> — Optional DataFrameEngine for result conversion.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>GeoDataFrame with boundary geometries (shapefiles) or None.</p>
+<dd class="field-even"><p>GeoDataFrame (default) or engine-native DataFrame when engine is provided.
+None if no matching datasets found.</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -19141,11 +19171,18 @@ from different sources:</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Geographic level (e.g. ‘county’, ‘tract’, ‘admin1’).</p></li>
 <li><p><strong>identifier</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – Optional identifier to narrow the query (e.g. state FIPS).</p></li>
-<li><p><strong>**kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Provider-specific options.</p></li>
+<li><p><strong>**kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – <p>Provider-specific options. Recognized cross-provider kwargs:
+engine: Optional DataFrameEngine instance. When provided,</p>
+<blockquote>
+<div><p>the result is converted to the engine’s native format
+via <code class="docutils literal notranslate"><span class="pre">engine.from_geodataframe()</span></code>. Default (None)
+returns a GeoDataFrame.</p>
+</div></blockquote>
+</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>GeoDataFrame with boundary geometries.</p>
+<dd class="field-even"><p>GeoDataFrame when engine is None; engine-native DataFrame otherwise.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a></p>
@@ -19200,11 +19237,12 @@ from different sources:</p>
 <li><p><strong>level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – A canonical geographic level (e.g. ‘county’, ‘tract’, ‘cd’).</p></li>
 <li><p><strong>identifier</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – State FIPS code when the level requires it.</p></li>
 <li><p><strong>**kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Forwarded to <code class="docutils literal notranslate"><span class="pre">CensusDataSource.fetch_geographic_boundaries</span></code>
-(e.g. <code class="docutils literal notranslate"><span class="pre">year</span></code>, <code class="docutils literal notranslate"><span class="pre">congress_number</span></code>).</p></li>
+(e.g. <code class="docutils literal notranslate"><span class="pre">year</span></code>, <code class="docutils literal notranslate"><span class="pre">congress_number</span></code>).
+<code class="docutils literal notranslate"><span class="pre">engine</span></code>: Optional DataFrameEngine for result conversion.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>GeoDataFrame with boundary geometries.</p>
+<dd class="field-even"><p>GeoDataFrame (default) or engine-native DataFrame when engine is provided.</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.providers.boundary_providers.BoundaryFetchError" title="siege_utilities.geo.providers.boundary_providers.BoundaryFetchError"><strong>BoundaryFetchError</strong></a> – When the boundary retrieval fails.</p>
@@ -19304,11 +19342,12 @@ Requires <em>geopandas</em> at runtime.</p>
 <li><p><strong>level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – One of ‘country’, ‘admin1’, ‘admin2’, ‘admin3’.</p></li>
 <li><p><strong>identifier</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – ISO-3 country code (e.g. ‘DEU’, ‘FRA’).
 Can also be passed as <code class="docutils literal notranslate"><span class="pre">country_code</span></code> kwarg.</p></li>
-<li><p><strong>**kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – <code class="docutils literal notranslate"><span class="pre">country_code</span></code> accepted as an alias for <em>identifier</em>.</p></li>
+<li><p><strong>**kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – <code class="docutils literal notranslate"><span class="pre">country_code</span></code> accepted as an alias for <em>identifier</em>.
+<code class="docutils literal notranslate"><span class="pre">engine</span></code>: Optional DataFrameEngine for result conversion.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>GeoDataFrame with boundary geometries.</p>
+<dd class="field-even"><p>GeoDataFrame (default) or engine-native DataFrame when engine is provided.</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -19411,11 +19450,13 @@ via constructor arguments or environment variables
 Can also be passed as <code class="docutils literal notranslate"><span class="pre">state</span></code> kwarg.</p></li>
 <li><p><strong>**kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – <code class="docutils literal notranslate"><span class="pre">state</span></code> — alias for <em>identifier</em>.
 <code class="docutils literal notranslate"><span class="pre">year</span></code> — filter datasets by year string (e.g. <code class="docutils literal notranslate"><span class="pre">'2022'</span></code>).
-<code class="docutils literal notranslate"><span class="pre">format</span></code> — <code class="docutils literal notranslate"><span class="pre">'shp'</span></code> (default) or <code class="docutils literal notranslate"><span class="pre">'csv'</span></code>.</p></li>
+<code class="docutils literal notranslate"><span class="pre">format</span></code> — <code class="docutils literal notranslate"><span class="pre">'shp'</span></code> (default) or <code class="docutils literal notranslate"><span class="pre">'csv'</span></code>.
+<code class="docutils literal notranslate"><span class="pre">engine</span></code> — Optional DataFrameEngine for result conversion.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>GeoDataFrame with boundary geometries (shapefiles) or None.</p>
+<dd class="field-even"><p>GeoDataFrame (default) or engine-native DataFrame when engine is provided.
+None if no matching datasets found.</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -45904,6 +45945,64 @@ save_map                         – Save figure to file with sensible defaults<
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.geo.choropleth.classify_choropleth">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.choropleth.</span></span><span class="sig-name descname"><span class="pre">classify_choropleth</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">column</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scheme</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'quantiles'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cmap</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'YlOrRd'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/classification.html#classify_choropleth"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.choropleth.classify_choropleth" title="Link to this definition"></a></dt>
+<dd><p>Classify a DataFrame column and add bin/color columns.</p>
+<p>This is the non-GDAL entry point for choropleth classification. It
+produces the data layer (bin assignments + hex colors) that consumers
+render using their platform’s native visualization.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame (or GeoDataFrame) with a numeric column.</p></li>
+<li><p><strong>column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column name to classify.</p></li>
+<li><p><strong>scheme</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Classification scheme name.</p></li>
+<li><p><strong>k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of classes.</p></li>
+<li><p><strong>cmap</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Matplotlib colormap name for color assignment. Requires
+matplotlib; omitted columns if unavailable.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>_bin: int bin assignment (0..k-1, or -1 for NaN)
+_break_low: lower bound of the bin
+_break_high: upper bound of the bin
+_color: hex color string (if matplotlib available)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Copy of df with added columns</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If column not in df or values are empty.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.geo.choropleth.classify_series">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.choropleth.</span></span><span class="sig-name descname"><span class="pre">classify_series</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scheme</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'quantiles'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/classification.html#classify_series"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.choropleth.classify_series" title="Link to this definition"></a></dt>
+<dd><p>Classify numeric values into k bins using the named scheme.</p>
+<p>Backend dispatch: mapclassify (when installed) → pure numpy.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>values</strong> (<em>numpy.ndarray</em><em> | </em><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v3.0.3)"><em>pandas.Series</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>) – Numeric array, Series, or list.</p></li>
+<li><p><strong>scheme</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Classification scheme name (see AVAILABLE_SCHEMES).</p></li>
+<li><p><strong>k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of classes. Some schemes (percentiles, boxplot) ignore k.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>ClassificationResult with bin assignments, break points, and metadata.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If scheme is unknown or values are empty.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>ClassificationResult</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.geo.choropleth.create_bivariate_analysis">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.choropleth.</span></span><span class="sig-name descname"><span class="pre">create_bivariate_analysis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gdf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">var1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">var2</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Bivariate</span> <span class="pre">Choropleth'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_classes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color_scheme</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'purple_blue'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(14,</span> <span class="pre">10)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edgecolor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'white'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">linewidth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">legend_size_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cmap1</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'YlOrRd'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cmap2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'YlGnBu'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">companion_figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(16,</span> <span class="pre">8)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crosstab_figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(6,</span> <span class="pre">5)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/choropleth.html#create_bivariate_analysis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.choropleth.create_bivariate_analysis" title="Link to this definition"></a></dt>
 <dd><p>Create a complete bivariate choropleth analysis with all verification artifacts.</p>
@@ -46054,7 +46153,7 @@ If render=True: Tuple of (DataFrame, fig, ax).</p>
 <dd class="field-even"><p>(fig, ax) tuple.</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ImportError" title="(in Python v3.14)"><strong>ImportError</strong></a> – If scheme is requested but mapclassify is not installed.</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If scheme is unknown and no backend can handle it.</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a>[matplotlib.figure.Figure, matplotlib.pyplot.Axes]</p>
@@ -46112,7 +46211,7 @@ If render=True: Tuple of (DataFrame, fig, ax).</p>
 <dd class="field-even"><p>(fig, axes) tuple.</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ImportError" title="(in Python v3.14)"><strong>ImportError</strong></a> – If mapclassify is not installed.</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If a scheme is unknown and no backend can handle it.</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a>[matplotlib.figure.Figure, numpy.ndarray]</p>
