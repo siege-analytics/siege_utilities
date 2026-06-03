@@ -694,3 +694,40 @@ class TestFromCensusYearHelpers:
         """_UA_POP_THRESHOLD should be 50,000."""
         from siege_utilities.geo.locale import _UA_POP_THRESHOLD
         assert _UA_POP_THRESHOLD == 50_000
+
+
+class TestClassifyPolygonMethodValidation:
+    """classify_polygon and classify_polygons reject invalid method strings (#867)."""
+
+    @pytest.fixture()
+    def classifier(self):
+        ua = gpd.GeoDataFrame(
+            {"UACE20": ["00001"]},
+            geometry=[box(-98.5, 29.5, -97.5, 30.5)],
+            crs="EPSG:4269",
+        )
+        empty = gpd.GeoDataFrame(columns=["geometry"], geometry="geometry", crs="EPSG:4269")
+        return NCESLocaleClassifier(
+            urbanized_areas=ua,
+            urban_clusters=empty,
+            principal_cities=empty,
+            place_populations={},
+            ua_populations={"00001": 500_000},
+        )
+
+    def test_classify_polygon_rejects_invalid(self, classifier):
+        poly = box(-98.0, 30.0, -97.9, 30.1)
+        with pytest.raises(ValueError, match="Invalid method"):
+            classifier.classify_polygon(poly, method="invalid")
+
+    def test_classify_polygon_rejects_typo(self, classifier):
+        poly = box(-98.0, 30.0, -97.9, 30.1)
+        with pytest.raises(ValueError, match="Invalid method"):
+            classifier.classify_polygon(poly, method="majoriy")
+
+    def test_classify_polygons_rejects_invalid(self, classifier):
+        gdf = gpd.GeoDataFrame(
+            {"id": [1]}, geometry=[box(-98.0, 30.0, -97.9, 30.1)], crs="EPSG:4326"
+        )
+        with pytest.raises(ValueError, match="Invalid method"):
+            classifier.classify_polygons(gdf, method="mean")
