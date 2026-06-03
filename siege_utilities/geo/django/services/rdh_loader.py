@@ -476,16 +476,16 @@ class RDHLoaderService:
         )
 
         districts = plan.districts.exclude(geometry__isnull=True)
+        srid = districts.first().geometry.srid if districts.exists() else 4326
         updated = 0
         for district in districts:
-            # Convert GEOS to Shapely for compactness functions
             from shapely import wkt
 
             shapely_geom = wkt.loads(district.geometry.wkt)
-            district.polsby_popper = pp_fn(shapely_geom)
-            district.reock = reock_fn(shapely_geom)
-            district.convex_hull_ratio = chr_fn(shapely_geom)
-            district.schwartzberg = sw_fn(shapely_geom)
+            district.polsby_popper = pp_fn(shapely_geom, source_crs=f"EPSG:{srid}")
+            district.reock = reock_fn(shapely_geom, source_crs=f"EPSG:{srid}")
+            district.convex_hull_ratio = chr_fn(shapely_geom, source_crs=f"EPSG:{srid}")
+            district.schwartzberg = sw_fn(shapely_geom, source_crs=f"EPSG:{srid}")
             district.save(update_fields=[
                 "polsby_popper", "reock", "convex_hull_ratio", "schwartzberg",
             ])

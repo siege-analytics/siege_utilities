@@ -375,12 +375,17 @@ class GoogleAnalyticsConnector:
         output_path = pathlib.Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
+        from siege_utilities.files.operations import atomic_write_path
+
         if format.lower() == 'parquet':
-            df.to_parquet(output_path, index=False)
+            with atomic_write_path(output_path) as tmp:
+                df.to_parquet(tmp, index=False)
         elif format.lower() == 'csv':
-            df.to_csv(output_path, index=False)
+            with atomic_write_path(output_path) as tmp:
+                df.to_csv(tmp, index=False)
         elif format.lower() == 'excel':
-            df.to_excel(output_path, index=False)
+            with atomic_write_path(output_path) as tmp:
+                df.to_excel(tmp, index=False)
         else:
             raise ValueError(f"Unsupported format: {format}")
 

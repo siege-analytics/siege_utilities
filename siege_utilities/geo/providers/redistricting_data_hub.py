@@ -189,6 +189,23 @@ class RDHClient:
             self.cache_dir = Path(cache_dir)
 
         self._session = requests.Session()
+        self._closed = False
+
+    def close(self) -> None:
+        """Close the underlying HTTP session."""
+        if not self._closed:
+            self._session.close()
+            self._closed = True
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+        return False
+
+    def __del__(self):
+        self.close()
 
     # -- Authentication check -------------------------------------------------
 
@@ -622,41 +639,82 @@ class RDHClient:
 # Compactness scoring
 # ---------------------------------------------------------------------------
 
-def polsby_popper(geometry) -> float:
+_EQUAL_AREA_CRS = "ESRI:54009"
+
+
+def _reproject_geometry(geom, source_crs, target_crs=_EQUAL_AREA_CRS):
+    """Reproject a single Shapely geometry between CRS."""
+    from pyproj import Transformer
+    from shapely.ops import transform
+
+    transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)
+    return transform(transformer.transform, geom)
+
+
+def _is_geographic_crs(crs) -> bool:
+    """Return True if crs is a geographic (lat/lon) coordinate system."""
+    from pyproj import CRS
+
+    parsed = CRS.from_user_input(crs)
+    return parsed.is_geographic
+
+
+def polsby_popper(geometry, source_crs=None) -> float:
     """Compute Polsby-Popper compactness score for a geometry.
 
     Score = (4 * pi * area) / perimeter^2
     Range: 0 (least compact) to 1 (circle).
+
+    Parameters
+    ----------
+    geometry : shapely geometry
+        Must be in a projected (equal-area) CRS for meaningful results.
+    source_crs : optional
+        If provided and geographic, geometry is reprojected to equal-area
+        before calculation. Pass the CRS (e.g., "EPSG:4326") when calling
+        with unprojected data.
     """
     import math
+
     if geometry is None or geometry.is_empty:
-        return 0.0
+        return float("nan")
+    if source_crs is not None and _is_geographic_crs(source_crs):
+        geometry = _reproject_geometry(geometry, source_crs)
     area = geometry.area
     perimeter = geometry.length
     if perimeter == 0:
-        return 0.0
+        return float("nan")
     return (4.0 * math.pi * area) / (perimeter ** 2)
 
 
-def reock(geometry) -> float:
+def reock(geometry, source_crs=None) -> float:
     """Compute Reock compactness score for a geometry.
 
     Score = area / area_of_minimum_bounding_circle
     Range: 0 (least compact) to 1 (circle).
+
+    Parameters
+    ----------
+    geometry : shapely geometry
+        Must be in a projected (equal-area) CRS for meaningful results.
+    source_crs : optional
+        If provided and geographic, geometry is reprojected to equal-area.
     """
     import math
+
     if geometry is None or geometry.is_empty:
-        return 0.0
+        return float("nan")
+    if source_crs is not None and _is_geographic_crs(source_crs):
+        geometry = _reproject_geometry(geometry, source_crs)
     area = geometry.area
-    # Approximate MBC using minimum rotated rectangle's diagonal
     mrr = geometry.minimum_rotated_rectangle
     if mrr is None or mrr.is_empty:
-        return 0.0
+        return float("nan")
     coords = list(mrr.exterior.coords)
     if len(coords) < 4:
-        return 0.0
-    # Diagonal of the minimum rotated rectangle as diameter estimate
+        return float("nan")
     from shapely.geometry import Point
+
     p0, p1, p2 = Point(coords[0]), Point(coords[1]), Point(coords[2])
     side1 = p0.distance(p1)
     side2 = p1.distance(p2)
@@ -664,37 +722,56 @@ def reock(geometry) -> float:
     radius = diameter / 2.0
     circle_area = math.pi * radius**2
     if circle_area == 0:
-        return 0.0
+        return float("nan")
     return area / circle_area
 
 
-def convex_hull_ratio(geometry) -> float:
+def convex_hull_ratio(geometry, source_crs=None) -> float:
     """Compute convex hull ratio for a geometry.
 
     Score = area / convex_hull_area
     Range: 0 to 1.
+
+    Parameters
+    ----------
+    geometry : shapely geometry
+        Must be in a projected (equal-area) CRS for meaningful results.
+    source_crs : optional
+        If provided and geographic, geometry is reprojected to equal-area.
     """
     if geometry is None or geometry.is_empty:
-        return 0.0
+        return float("nan")
+    if source_crs is not None and _is_geographic_crs(source_crs):
+        geometry = _reproject_geometry(geometry, source_crs)
     hull = geometry.convex_hull
     if hull.is_empty or hull.area == 0:
-        return 0.0
+        return float("nan")
     return geometry.area / hull.area
 
 
-def schwartzberg(geometry) -> float:
+def schwartzberg(geometry, source_crs=None) -> float:
     """Compute Schwartzberg compactness score.
 
     Score = 1 / (perimeter / circumference_of_equal_area_circle)
     Range: 0 to 1.
+
+    Parameters
+    ----------
+    geometry : shapely geometry
+        Must be in a projected (equal-area) CRS for meaningful results.
+    source_crs : optional
+        If provided and geographic, geometry is reprojected to equal-area.
     """
     import math
+
     if geometry is None or geometry.is_empty:
-        return 0.0
+        return float("nan")
+    if source_crs is not None and _is_geographic_crs(source_crs):
+        geometry = _reproject_geometry(geometry, source_crs)
     area = geometry.area
     perimeter = geometry.length
     if perimeter == 0 or area == 0:
-        return 0.0
+        return float("nan")
     circle_circumference = 2.0 * math.pi * math.sqrt(area / math.pi)
     return circle_circumference / perimeter
 
@@ -705,6 +782,9 @@ def compute_compactness(
     geometry_col: str = "geometry",
 ) -> "pd.DataFrame":
     """Compute all compactness metrics for a GeoDataFrame of districts.
+
+    Automatically reprojects to an equal-area CRS (Mollweide) before
+    calculating area-dependent metrics.
 
     Parameters
     ----------
@@ -723,8 +803,12 @@ def compute_compactness(
     if not HAS_PANDAS:
         raise ImportError("pandas is required")
 
+    projected = gdf
+    if gdf.crs is not None and _is_geographic_crs(gdf.crs):
+        projected = gdf.to_crs(_EQUAL_AREA_CRS)
+
     records = []
-    for _, row in gdf.iterrows():
+    for _, row in projected.iterrows():
         geom = row[geometry_col]
         records.append({
             "district_id": row[district_id_col],

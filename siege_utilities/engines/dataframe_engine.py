@@ -789,6 +789,11 @@ class PandasEngine(DataFrameEngine):
             left = left.set_geometry(left_geom)
         if right.geometry.name != right_geom:
             right = right.set_geometry(right_geom)
+        if left.crs is not None and right.crs is not None and left.crs != right.crs:
+            raise ValueError(
+                f"CRS mismatch in spatial_join: left has {left.crs}, "
+                f"right has {right.crs}. Reproject one input to match the other."
+            )
         return gpd.sjoin(left, right, how=how, predicate=predicate)
 
     def buffer(self, df, distance, geometry_col="geometry", *, crs=None):
