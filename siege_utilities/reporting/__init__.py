@@ -60,6 +60,7 @@ _register([
     'generate_sections_from_report_structure',
 ], '.templates.table_of_contents_template')
 _register(['ContentPageTemplate', 'create_content_page'], '.templates.content_page_template')
+_register(['sort_table_data'], '.table_utils')
 
 __all__ = [
     # Templates
@@ -95,6 +96,8 @@ __all__ = [
     # 3D maps
     'ThreeDMapRenderer', 'PYDECK_AVAILABLE',
     'create_3d_hexbin', 'create_3d_columns',
+    # Table utilities
+    'sort_table_data',
     # Module-level convenience functions
     'get_report_output_directory', 'create_report_generator',
     'create_powerpoint_generator',

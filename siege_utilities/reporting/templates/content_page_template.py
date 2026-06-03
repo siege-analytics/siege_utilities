@@ -196,21 +196,39 @@ class ContentPageTemplate:
         # Add spacing after paragraph
         self.current_y -= 10
     
-    def add_table(self, data: List[List[str]], 
+    def add_table(self, data: List[List[str]],
                   headers: List[str] = None,
-                  table_title: str = "") -> None:
-        """Add a table to the page"""
+                  table_title: str = "",
+                  sort_by=None,
+                  sort_order: str = "asc") -> None:
+        """Add a table to the page.
+
+        Args:
+            data: Row data (list of lists).
+            headers: Column headers.
+            table_title: Optional title above the table.
+            sort_by: Column index (int) or header name (str) to sort by.
+                None preserves existing order.
+            sort_order: ``'asc'`` or ``'desc'``.
+        """
         if not data:
             return
-        
+
         if table_title:
             self.add_section_title(table_title, 14)
-        
+
         # Prepare table data
         table_data = []
         if headers:
             table_data.append(headers)
         table_data.extend(data)
+
+        if sort_by is not None:
+            from siege_utilities.reporting.table_utils import sort_table_data
+            table_data = sort_table_data(
+                table_data, sort_by=sort_by, sort_order=sort_order,
+                has_header=bool(headers),
+            )
         
         # Calculate column widths
         num_cols = len(table_data[0]) if table_data else 0
