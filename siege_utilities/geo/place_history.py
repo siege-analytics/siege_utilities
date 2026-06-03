@@ -396,7 +396,7 @@ def place_history(
                 result.overlays[name] = overlay_impl.fetch(
                     geoid, from_year, to_year, state_fips
                 )
-            except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
+            except Exception as exc:
                 result.errors.append(f"Overlay '{name}' failed: {exc}")
                 log.warning("Overlay %s failed for %s: %s", name, geoid, exc)
 

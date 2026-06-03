@@ -137,7 +137,11 @@ class OverlayRegistry:
             return self._overlays[name]
 
         if name in self._classes:
-            instance = self._classes[name]()
+            try:
+                instance = self._classes[name]()
+            except Exception as exc:
+                log.warning("Failed to instantiate overlay %r: %s", name, exc)
+                return None
             self._overlays[name] = instance
             return instance
 
