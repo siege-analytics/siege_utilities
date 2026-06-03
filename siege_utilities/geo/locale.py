@@ -29,6 +29,8 @@ from siege_utilities.config.nces_constants import (
 
 log = logging.getLogger(__name__)
 
+_VALID_METHODS = frozenset({"area_weighted", "majority", "distribution"})
+
 __all__ = [
     "CITY_LARGE",
     "CITY_MIDSIZE",
@@ -541,7 +543,14 @@ class NCESLocaleClassifier:
             If ``method="majority"``: ``{"locale_code": 21, "locale_label": "..."}``
             If ``method="distribution"`` or ``"area_weighted"``: dict of
             ``{code: fraction}`` pairs summing to ~1.0.
+
+        Raises:
+            ValueError: If *method* is not one of the valid options.
         """
+        if method not in _VALID_METHODS:
+            raise ValueError(
+                f"Invalid method {method!r}; must be one of {sorted(_VALID_METHODS)}"
+            )
         import geopandas as gpd
 
         self._ensure_projected()
@@ -617,7 +626,14 @@ class NCESLocaleClassifier:
 
         Returns:
             The input GeoDataFrame with locale columns added.
+
+        Raises:
+            ValueError: If *method* is not one of the valid options.
         """
+        if method not in _VALID_METHODS:
+            raise ValueError(
+                f"Invalid method {method!r}; must be one of {sorted(_VALID_METHODS)}"
+            )
         gdf = gdf.copy()
 
         if method == "majority":
