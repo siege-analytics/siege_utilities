@@ -5,6 +5,7 @@ State legislative districts (upper/lower chambers), voting tabulation
 districts (VTDs), and precincts.  All inherit from CensusTIGERBoundary.
 """
 
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from .base import CensusTIGERBoundary
@@ -217,6 +218,20 @@ class VTD(CensusTIGERBoundary):
             "county_fips": geoid[2:5],
             "vtd_code": geoid[5:],
         }
+
+    def clean(self):
+        super().clean()
+        if self.congressional_district_id and self.state_fips:
+            cd = self.congressional_district
+            if cd is not None and cd.state_fips != self.state_fips:
+                raise ValidationError(
+                    {
+                        "congressional_district": (
+                            f"VTD state_fips '{self.state_fips}' does not match "
+                            f"congressional district state_fips '{cd.state_fips}'."
+                        )
+                    }
+                )
 
     def populate_parent_relationships(self):
         """
