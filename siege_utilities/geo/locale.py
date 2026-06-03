@@ -273,12 +273,26 @@ class NCESLocaleClassifier:
         self._place_populations = place_populations
         self._ua_populations = ua_populations or {}
         self._projection_crs = projection_crs or settings.PROJECTION_CRS
+        self._input_crs = f"EPSG:{settings.INPUT_CRS}"
+        self._align_input_crs()
 
         self._locale_index: Optional[LocaleIndex] = None
 
         # Lazily projected copies (created on first classify call)
         self._ua_proj = None
         self._uc_proj = None
+
+    def _align_input_crs(self) -> None:
+        """Reproject boundary layers to input CRS if mismatched."""
+        if self._ua is not None and self._ua.crs is not None:
+            if str(self._ua.crs) != self._input_crs:
+                self._ua = self._ua.to_crs(self._input_crs)
+        if self._uc is not None and self._uc.crs is not None:
+            if str(self._uc.crs) != self._input_crs:
+                self._uc = self._uc.to_crs(self._input_crs)
+        if self._principal_cities is not None and self._principal_cities.crs is not None:
+            if str(self._principal_cities.crs) != self._input_crs:
+                self._principal_cities = self._principal_cities.to_crs(self._input_crs)
 
     def _ensure_projected(self) -> None:
         """Project UA/UC layers to the configured CRS for distance ops."""
