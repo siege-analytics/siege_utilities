@@ -217,3 +217,113 @@ class TestComputeAreaWeights:
         )
         weights = compute_area_weights(source, target)
         assert len(weights) == 0
+
+
+# ---------------------------------------------------------------------------
+# #986: Backend-specific tests
+# ---------------------------------------------------------------------------
+
+class TestShapelyBackend:
+    """Test pure-Shapely areal interpolation (no tobler, no DuckDB)."""
+
+    def test_extensive_even_split(self, source_gdf, target_gdf):
+        from unittest.mock import patch
+        from siege_utilities.geo.interpolation import areal
+
+        with patch.object(areal, "_TOBLER_AVAILABLE", False), \
+             patch.object(areal, "_DUCKDB_AVAILABLE", False):
+            result = areal.interpolate_areal(
+                source_gdf, target_gdf,
+                extensive_variables=["total_pop"],
+            )
+        assert result.backend == "shapely"
+        pops = result.data["total_pop"].values
+        assert np.allclose(pops.sum(), 1000, atol=1.0)
+        assert np.allclose(pops, 250, atol=1.0)
+
+    def test_intensive_uniform(self, source_gdf, target_gdf):
+        from unittest.mock import patch
+        from siege_utilities.geo.interpolation import areal
+
+        with patch.object(areal, "_TOBLER_AVAILABLE", False), \
+             patch.object(areal, "_DUCKDB_AVAILABLE", False):
+            result = areal.interpolate_areal(
+                source_gdf, target_gdf,
+                intensive_variables=["median_income"],
+            )
+        assert result.backend == "shapely"
+        incomes = result.data["median_income"].values
+        assert np.allclose(incomes, 50000, atol=1.0)
+
+    def test_two_sources_extensive(self, two_source_gdf, target_gdf):
+        from unittest.mock import patch
+        from siege_utilities.geo.interpolation import areal
+
+        with patch.object(areal, "_TOBLER_AVAILABLE", False), \
+             patch.object(areal, "_DUCKDB_AVAILABLE", False):
+            result = areal.interpolate_areal(
+                two_source_gdf, target_gdf,
+                extensive_variables=["total_pop"],
+            )
+        assert result.backend == "shapely"
+        assert np.allclose(result.data["total_pop"].sum(), 1000, atol=1.0)
+
+
+class TestDuckDBBackend:
+    """Test DuckDB-spatial areal interpolation."""
+
+    @pytest.fixture(autouse=True)
+    def _skip_without_duckdb(self):
+        pytest.importorskip("duckdb")
+
+    def test_extensive_even_split(self, source_gdf, target_gdf):
+        from unittest.mock import patch
+        from siege_utilities.geo.interpolation import areal
+
+        with patch.object(areal, "_TOBLER_AVAILABLE", False):
+            result = areal.interpolate_areal(
+                source_gdf, target_gdf,
+                extensive_variables=["total_pop"],
+            )
+        assert result.backend == "duckdb"
+        pops = result.data["total_pop"].values
+        assert np.allclose(pops.sum(), 1000, atol=1.0)
+        assert np.allclose(pops, 250, atol=1.0)
+
+    def test_intensive_uniform(self, source_gdf, target_gdf):
+        from unittest.mock import patch
+        from siege_utilities.geo.interpolation import areal
+
+        with patch.object(areal, "_TOBLER_AVAILABLE", False):
+            result = areal.interpolate_areal(
+                source_gdf, target_gdf,
+                intensive_variables=["median_income"],
+            )
+        assert result.backend == "duckdb"
+        incomes = result.data["median_income"].values
+        assert np.allclose(incomes, 50000, atol=1.0)
+
+    def test_two_sources_extensive(self, two_source_gdf, target_gdf):
+        from unittest.mock import patch
+        from siege_utilities.geo.interpolation import areal
+
+        with patch.object(areal, "_TOBLER_AVAILABLE", False):
+            result = areal.interpolate_areal(
+                two_source_gdf, target_gdf,
+                extensive_variables=["total_pop"],
+            )
+        assert result.backend == "duckdb"
+        assert np.allclose(result.data["total_pop"].sum(), 1000, atol=1.0)
+
+
+class TestBackendSelection:
+    """Test backend dispatch logic."""
+
+    def test_reports_backend_in_result(self, source_gdf, target_gdf):
+        from siege_utilities.geo.interpolation import areal
+
+        result = areal.interpolate_areal(
+            source_gdf, target_gdf,
+            extensive_variables=["total_pop"],
+        )
+        assert result.backend in ("tobler", "duckdb", "shapely")
