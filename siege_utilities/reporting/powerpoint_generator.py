@@ -430,10 +430,12 @@ class PowerPointGenerator:
     def add_table_slide(self, presentation_content: Dict[str, Any], title: str,
                         table_data: Union[List[List], pd.DataFrame],
                         headers: List[str] = None, level: int = 1,
-                        table_style: str = "default") -> Dict[str, Any]:
+                        table_style: str = "default",
+                        sort_by: Optional[Union[int, str]] = None,
+                        sort_order: str = "asc") -> Dict[str, Any]:
         """
         Add a table slide to the presentation.
-        
+
         Args:
             presentation_content: Existing presentation content
             title: Slide title
@@ -441,10 +443,15 @@ class PowerPointGenerator:
             headers: Column headers
             level: Section level
             table_style: Table styling
-            
+            sort_by: Column index or header name to sort by.
+                None preserves existing order.
+            sort_order: ``'asc'`` or ``'desc'``.
+
         Returns:
             Updated presentation content
         """
+        from siege_utilities.reporting.table_utils import sort_table_data
+
         # Convert DataFrame to list format if needed
         if hasattr(table_data, 'to_dict'):
             if headers is None:
@@ -452,7 +459,12 @@ class PowerPointGenerator:
             table_data = [headers] + table_data.values.tolist()
         elif headers and table_data:
             table_data = [headers] + table_data
-        
+
+        if sort_by is not None:
+            table_data = sort_table_data(
+                table_data, sort_by=sort_by, sort_order=sort_order
+            )
+
         content = {
             'data': table_data,
             'headers': headers,
