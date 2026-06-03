@@ -225,6 +225,23 @@ class DataFrameEngine(ABC):
         Always returns a ``geopandas.GeoDataFrame`` regardless of engine.
         """
 
+    def from_geodataframe(
+        self,
+        gdf: Any,
+        geometry_col: str = "geometry",
+    ) -> Any:
+        """Convert a GeoPandas ``GeoDataFrame`` to this engine's native format.
+
+        The inverse of :meth:`to_geodataframe`.  Geometry is serialized
+        as WKB-hex (DuckDB) or WKT (Spark/PostGIS) for engine-native
+        spatial operations.
+
+        Subclasses should override this for engine-specific conversion.
+        The default implementation returns the GeoDataFrame unchanged
+        (suitable for PandasEngine).
+        """
+        return gdf
+
     # -- Grid indexing (concrete defaults; engines may override) -----------
 
     def index_points(
@@ -1050,13 +1067,44 @@ class DuckDBEngine(DataFrameEngine):
             non_null = df[geometry_col].dropna()
             sample = non_null.iloc[0] if not non_null.empty else None
             if sample is not None and not isinstance(sample, BaseGeometry):
-                if isinstance(sample, bytes):
-                    geoms = df[geometry_col].apply(lambda g: shapely_wkb.loads(g) if g is not None else None)
+                if isinstance(sample, (bytes, bytearray)):
+                    geoms = df[geometry_col].apply(lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g) if g is not None else None)
                 else:
                     geoms = df[geometry_col].apply(lambda g: shapely_wkt.loads(g) if isinstance(g, str) else g)
                 return gpd.GeoDataFrame(df, geometry=geoms, crs=crs or get_default_crs())
             return gpd.GeoDataFrame(df, geometry=geometry_col, crs=crs or get_default_crs())
         raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
+
+    def from_geodataframe(self, gdf, geometry_col="geometry"):
+        """Convert GeoDataFrame to a DuckDB pandas DataFrame with WKB-hex geometry."""
+        import pandas as pd
+
+        self._ensure_spatial()
+
+        attr_cols = [c for c in gdf.columns if c != geometry_col]
+        df = pd.DataFrame({c: gdf[c].values for c in attr_cols})
+        df["_geom_wkb"] = [
+            g.wkb_hex if g is not None else None
+            for g in gdf[geometry_col]
+        ]
+
+        if df.empty:
+            result = pd.DataFrame(columns=attr_cols + [geometry_col])
+            return result
+
+        tbl_name = f"_boundary_{id(gdf) % 100000}"
+        self._connection.register(tbl_name, df)
+
+        col_list = ", ".join(f'"{c}"' for c in attr_cols)
+        sql = (
+            f"SELECT {col_list}, "
+            f"ST_GeomFromWKB(UNHEX(_geom_wkb)) AS {geometry_col} "
+            f"FROM {tbl_name}"
+        )
+        result = self._connection.execute(sql).fetchdf()
+        self._connection.unregister(tbl_name)
+
+        return result
 
 
 # ---------------------------------------------------------------------------
