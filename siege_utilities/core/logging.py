@@ -231,7 +231,7 @@ class LoggerManager:
         if isinstance(level, str):
             level_upper = level.upper()
             if hasattr(logging, level_upper):
-                return getattr(logging, level_upper)
+                return int(getattr(logging, level_upper))
         
         return logging.INFO
     

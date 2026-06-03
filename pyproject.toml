@@ -335,6 +335,50 @@ markers = [
     "requires_api_key: connector smoke tests that hit a live external API; require ~/.siege-test-credentials.yaml. Skipped by default; opt in with `pytest -m requires_api_key`.",
 ]
 
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_configs = true
+warn_return_any = true
+check_untyped_defs = false
+disallow_untyped_defs = false
+
+# Legacy modules — type checking deferred to WS2-T2 gradual rollout
+[[tool.mypy.overrides]]
+module = [
+    "siege_utilities",
+    "siege_utilities.admin.*",
+    "siege_utilities.analytics.*",
+    "siege_utilities.cache",
+    "siege_utilities.conf.*",
+    "siege_utilities.config.*",
+    "siege_utilities.data.*",
+    "siege_utilities.databricks.*",
+    "siege_utilities.development.*",
+    "siege_utilities.distributed.*",
+    "siege_utilities.economic.*",
+    "siege_utilities.education.*",
+    "siege_utilities.engines.*",
+    "siege_utilities.examples.*",
+    "siege_utilities.files.hashing",
+    "siege_utilities.files.operations",
+    "siege_utilities.files.remote",
+    "siege_utilities.files.shell",
+    "siege_utilities.geo.*",
+    "siege_utilities.git.*",
+    "siege_utilities.hygiene.*",
+    "siege_utilities.identifiers.*",
+    "siege_utilities.oss_unity_catalog.*",
+    "siege_utilities.political.*",
+    "siege_utilities.reference.*",
+    "siege_utilities.reporting.*",
+    "siege_utilities.survey.*",
+    "siege_utilities.testing.*",
+    "siege_utilities.trino.*",
+    "siege_utilities.schema.tests.*",
+]
+ignore_errors = true
+
 [tool.bandit]
 exclude_dirs = ["tests", "scripts/archive"]
 skips = [

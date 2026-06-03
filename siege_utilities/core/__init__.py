@@ -8,7 +8,7 @@ All submodules load on first attribute access via PEP 562 __getattr__.
 import importlib
 import sys
 
-_LAZY_IMPORTS = {}
+_LAZY_IMPORTS: dict[str, str] = {}
 
 
 def _register(names, module):
