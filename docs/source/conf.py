@@ -30,7 +30,14 @@ autodoc_mock_imports = [
     'duckdb', 'sedona', 'tobler', 'osmnx', 'h3',
     'reportlab', 'pptx', 'plotly', 'matplotlib',
     'databricks', 'trino', 'snowflake',
-    'pydantic', 'yaml', 'requests',
+    'pydantic', 'yaml', 'requests', 'tqdm',
+    'scipy', 'openpyxl', 'pyarrow', 'faker',
+    'folium', 'branca', 'seaborn', 'PIL',
+    'mapclassify', 'censusgeocode', 'topojson',
+    'google', 'facebook_business', 'datadotworld',
+    'weightipy', 'keyring', 'boto3', 'hydra',
+    'omegaconf', 'bs4', 'lxml', 's2sphere', 'h3',
+    'psycopg', 'psycopg2', 'wkls', 'etter',
 ]
 autodoc_typehints = 'description'
 autodoc_class_signature = 'separated'
