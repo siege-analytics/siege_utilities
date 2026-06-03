@@ -987,3 +987,29 @@ class TestRDHClientErrorPaths:
                     states=["VA"], format=None, year=None,
                     dataset_type=None, geography=None, official=None,
                 )
+
+
+class TestRDHClientSessionLifecycle:
+    """#979: RDHClient implements context manager and close()."""
+
+    def test_close_closes_session(self):
+        client = RDHClient(username="u", password="p")
+        client.close()
+        assert client._closed is True
+
+    def test_close_idempotent(self):
+        client = RDHClient(username="u", password="p")
+        client.close()
+        client.close()
+        assert client._closed is True
+
+    def test_context_manager_closes_on_exit(self):
+        with RDHClient(username="u", password="p") as client:
+            assert client._closed is False
+        assert client._closed is True
+
+    def test_context_manager_closes_on_exception(self):
+        with pytest.raises(RuntimeError):
+            with RDHClient(username="u", password="p") as client:
+                raise RuntimeError("boom")
+        assert client._closed is True
