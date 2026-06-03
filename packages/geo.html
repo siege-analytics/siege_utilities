@@ -89,6 +89,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.set_default_crs"><code class="docutils literal notranslate"><span class="pre">set_default_crs()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.reproject_if_needed"><code class="docutils literal notranslate"><span class="pre">reproject_if_needed()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.detect_crs"><code class="docutils literal notranslate"><span class="pre">detect_crs()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.distance_to_decimal_degrees"><code class="docutils literal notranslate"><span class="pre">distance_to_decimal_degrees()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.reproject_geom"><code class="docutils literal notranslate"><span class="pre">reproject_geom()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.BoundaryFetchResult"><code class="docutils literal notranslate"><span class="pre">BoundaryFetchResult</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.BoundaryFetchResult.success"><code class="docutils literal notranslate"><span class="pre">BoundaryFetchResult.success</span></code></a></li>
@@ -297,6 +298,7 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.open_swmaps"><code class="docutils literal notranslate"><span class="pre">open_swmaps()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.read_features"><code class="docutils literal notranslate"><span class="pre">read_features()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.find_vector_dataset_file_in_directory"><code class="docutils literal notranslate"><span class="pre">find_vector_dataset_file_in_directory()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.concatenate_addresses"><code class="docutils literal notranslate"><span class="pre">concatenate_addresses()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.use_nominatim_geocoder"><code class="docutils literal notranslate"><span class="pre">use_nominatim_geocoder()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.NominatimGeoClassifier"><code class="docutils literal notranslate"><span class="pre">NominatimGeoClassifier</span></code></a><ul>
@@ -311,6 +313,8 @@
 <li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.get_country_code"><code class="docutils literal notranslate"><span class="pre">get_country_code()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.list_countries"><code class="docutils literal notranslate"><span class="pre">list_countries()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.get_coordinates"><code class="docutils literal notranslate"><span class="pre">get_coordinates()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.geocode_with_nominatim_public"><code class="docutils literal notranslate"><span class="pre">geocode_with_nominatim_public()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.geocode_addresses_with_nominatim"><code class="docutils literal notranslate"><span class="pre">geocode_addresses_with_nominatim()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.GeocodingError"><code class="docutils literal notranslate"><span class="pre">GeocodingError</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.validate_geocode_data_pandas"><code class="docutils literal notranslate"><span class="pre">validate_geocode_data_pandas()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#siege_utilities.geo.mark_valid_geocode_data_pandas"><code class="docutils literal notranslate"><span class="pre">mark_valid_geocode_data_pandas()</span></code></a></li>
@@ -752,6 +756,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.crs.set_default_crs"><code class="docutils literal notranslate"><span class="pre">set_default_crs()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.crs.reproject_if_needed"><code class="docutils literal notranslate"><span class="pre">reproject_if_needed()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.crs.detect_crs"><code class="docutils literal notranslate"><span class="pre">detect_crs()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.crs.distance_to_decimal_degrees"><code class="docutils literal notranslate"><span class="pre">distance_to_decimal_degrees()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.crs.reproject_geom"><code class="docutils literal notranslate"><span class="pre">reproject_geom()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.geoid_utils.GEOIDValidator"><code class="docutils literal notranslate"><span class="pre">GEOIDValidator</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.geoid_utils.GEOIDValidator.__init__"><code class="docutils literal notranslate"><span class="pre">GEOIDValidator.__init__()</span></code></a></li>
@@ -778,6 +783,8 @@
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.geocoding.concatenate_addresses"><code class="docutils literal notranslate"><span class="pre">concatenate_addresses()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.geocoding.get_coordinates"><code class="docutils literal notranslate"><span class="pre">get_coordinates()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.geocoding.use_nominatim_geocoder"><code class="docutils literal notranslate"><span class="pre">use_nominatim_geocoder()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.geocoding.geocode_with_nominatim_public"><code class="docutils literal notranslate"><span class="pre">geocode_with_nominatim_public()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.geocoding.geocode_addresses_with_nominatim"><code class="docutils literal notranslate"><span class="pre">geocode_addresses_with_nominatim()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.geocoding.NominatimGeoClassifier"><code class="docutils literal notranslate"><span class="pre">NominatimGeoClassifier</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.geocoding.NominatimGeoClassifier.__init__"><code class="docutils literal notranslate"><span class="pre">NominatimGeoClassifier.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.geocoding.NominatimGeoClassifier.get_place_ranks_by_label"><code class="docutils literal notranslate"><span class="pre">NominatimGeoClassifier.get_place_ranks_by_label()</span></code></a></li>
@@ -4368,6 +4375,8 @@
 <li class="toctree-l3"><a class="reference internal" href="../geocoding.html#siege_utilities.geo.geocoding.concatenate_addresses"><code class="docutils literal notranslate"><span class="pre">concatenate_addresses()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../geocoding.html#siege_utilities.geo.geocoding.get_coordinates"><code class="docutils literal notranslate"><span class="pre">get_coordinates()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../geocoding.html#siege_utilities.geo.geocoding.use_nominatim_geocoder"><code class="docutils literal notranslate"><span class="pre">use_nominatim_geocoder()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../geocoding.html#siege_utilities.geo.geocoding.geocode_with_nominatim_public"><code class="docutils literal notranslate"><span class="pre">geocode_with_nominatim_public()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../geocoding.html#siege_utilities.geo.geocoding.geocode_addresses_with_nominatim"><code class="docutils literal notranslate"><span class="pre">geocode_addresses_with_nominatim()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../geocoding.html#siege_utilities.geo.geocoding.NominatimGeoClassifier"><code class="docutils literal notranslate"><span class="pre">NominatimGeoClassifier</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../geocoding.html#siege_utilities.geo.geocoding.NominatimGeoClassifier.__init__"><code class="docutils literal notranslate"><span class="pre">NominatimGeoClassifier.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../geocoding.html#siege_utilities.geo.geocoding.NominatimGeoClassifier.get_place_ranks_by_label"><code class="docutils literal notranslate"><span class="pre">NominatimGeoClassifier.get_place_ranks_by_label()</span></code></a></li>
@@ -8669,6 +8678,34 @@ surface.</p>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.geo.distance_to_decimal_degrees">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.</span></span><span class="sig-name descname"><span class="pre">distance_to_decimal_degrees</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">distance_meters</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">latitude</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/crs.html#distance_to_decimal_degrees"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.distance_to_decimal_degrees" title="Link to this definition"></a></dt>
+<dd><p>Convert a distance in meters to approximate decimal degrees.</p>
+<p>Uses the WGS-84 ellipsoid approximation. The result is the
+longitudinal span at the given latitude (degrees of longitude
+shrink toward the poles).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>distance_meters</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Distance in meters.</p></li>
+<li><p><strong>latitude</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Latitude in decimal degrees where the conversion
+applies.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Approximate equivalent distance in decimal degrees of
+longitude at <em>latitude</em>.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <em>latitude</em> is outside [-90, 90].</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.geo.reproject_geom">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.</span></span><span class="sig-name descname"><span class="pre">reproject_geom</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">geom</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">src_crs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst_crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis_order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'trad_gis'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/crs.html#reproject_geom"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.reproject_geom" title="Link to this definition"></a></dt>
 <dd><p>Reproject a shapely geometry with explicit axis-order control.</p>
@@ -10447,6 +10484,31 @@ with <code class="docutils literal notranslate"><span class="pre">.wkt</span></c
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.geo.find_vector_dataset_file_in_directory">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.</span></span><span class="sig-name descname"><span class="pre">find_vector_dataset_file_in_directory</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extensions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/vector_files.html#find_vector_dataset_file_in_directory"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.find_vector_dataset_file_in_directory" title="Link to this definition"></a></dt>
+<dd><p>Find a vector dataset file in a directory.</p>
+<p>Searches <em>directory</em> recursively for files matching common
+geospatial vector formats.  Returns the first match found.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>directory</strong> – Directory path to search (str or Path).</p></li>
+<li><p><strong>extensions</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – Sequence of file extensions to match, including
+the leading dot (e.g. <code class="docutils literal notranslate"><span class="pre">[&quot;.shp&quot;,</span> <span class="pre">&quot;.geojson&quot;]</span></code>).  Defaults
+to <code class="xref py py-data docutils literal notranslate"><span class="pre">VALID_VECTOR_EXTENSIONS</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a> to the first matching file, or <code class="docutils literal notranslate"><span class="pre">None</span></code>
+if no vector file is found.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><em>Path</em></a> | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.geo.concatenate_addresses">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.</span></span><span class="sig-name descname"><span class="pre">concatenate_addresses</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">street</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">city</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_province_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">postal_code</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">country</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/geocoding.html#concatenate_addresses"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.concatenate_addresses" title="Link to this definition"></a></dt>
 <dd><p>Concatenate address components into a single string suitable for geocoding.
@@ -10629,6 +10691,56 @@ no match for the address (a legitimate non-error outcome).</p>
     parse error — i.e., the geocoder could not even attempt to
     match. Wraps the underlying exception via <code class="docutils literal notranslate"><span class="pre">__cause__</span></code>.</p></li>
 </ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.geo.geocode_with_nominatim_public">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.</span></span><span class="sig-name descname"><span class="pre">geocode_with_nominatim_public</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">address</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">country_codes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/geocoding.html#geocode_with_nominatim_public"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.geocode_with_nominatim_public" title="Link to this definition"></a></dt>
+<dd><p>Geocode a single address using the public Nominatim service.</p>
+<p>Thin wrapper around <a class="reference internal" href="#siege_utilities.geo.get_coordinates" title="siege_utilities.geo.get_coordinates"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_coordinates()</span></code></a> that forces the public
+endpoint (no custom <code class="docutils literal notranslate"><span class="pre">server_url</span></code>).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>address</strong> – Address string to geocode.</p></li>
+<li><p><strong>country_codes</strong> – Optional country code filter (defaults to US).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">(lat,</span> <span class="pre">lon)</span></code> tuple, or <code class="docutils literal notranslate"><span class="pre">None</span></code> if no match found.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <em>address</em> is empty.</p></li>
+<li><p><a class="reference internal" href="#siege_utilities.geo.GeocodingError" title="siege_utilities.geo.GeocodingError"><strong>GeocodingError</strong></a> – On network/service failure.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.geo.geocode_addresses_with_nominatim">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.</span></span><span class="sig-name descname"><span class="pre">geocode_addresses_with_nominatim</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">addresses</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">country_codes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_retries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">server_url</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/geocoding.html#geocode_addresses_with_nominatim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.geocode_addresses_with_nominatim" title="Link to this definition"></a></dt>
+<dd><p>Batch-geocode a list of addresses using Nominatim.</p>
+<p>Calls <a class="reference internal" href="#siege_utilities.geo.get_coordinates" title="siege_utilities.geo.get_coordinates"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_coordinates()</span></code></a> for each address sequentially with
+Nominatim’s built-in rate limiting (1 s for public, 50 ms for
+self-hosted).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>addresses</strong> – Iterable of address strings.</p></li>
+<li><p><strong>country_codes</strong> – Optional country code filter (defaults to US).</p></li>
+<li><p><strong>max_retries</strong> – Retry attempts per address.</p></li>
+<li><p><strong>server_url</strong> – Optional custom Nominatim server URL.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of <code class="docutils literal notranslate"><span class="pre">{&quot;address&quot;:</span> <span class="pre">str,</span> <span class="pre">&quot;lat&quot;:</span> <span class="pre">float,</span> <span class="pre">&quot;lon&quot;:</span> <span class="pre">float}</span></code> dicts.
+Addresses that returned no match have <code class="docutils literal notranslate"><span class="pre">lat</span></code> and <code class="docutils literal notranslate"><span class="pre">lon</span></code> set to
+<code class="docutils literal notranslate"><span class="pre">None</span></code>.  Addresses that raised <a class="reference internal" href="#siege_utilities.geo.GeocodingError" title="siege_utilities.geo.GeocodingError"><code class="xref py py-class docutils literal notranslate"><span class="pre">GeocodingError</span></code></a> are
+logged and included with <code class="docutils literal notranslate"><span class="pre">None</span></code> coordinates.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -15650,6 +15762,34 @@ surface.</p>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.geo.crs.distance_to_decimal_degrees">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.crs.</span></span><span class="sig-name descname"><span class="pre">distance_to_decimal_degrees</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">distance_meters</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">latitude</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/crs.html#distance_to_decimal_degrees"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.crs.distance_to_decimal_degrees" title="Link to this definition"></a></dt>
+<dd><p>Convert a distance in meters to approximate decimal degrees.</p>
+<p>Uses the WGS-84 ellipsoid approximation. The result is the
+longitudinal span at the given latitude (degrees of longitude
+shrink toward the poles).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>distance_meters</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Distance in meters.</p></li>
+<li><p><strong>latitude</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Latitude in decimal degrees where the conversion
+applies.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Approximate equivalent distance in decimal degrees of
+longitude at <em>latitude</em>.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <em>latitude</em> is outside [-90, 90].</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.geo.crs.reproject_geom">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.crs.</span></span><span class="sig-name descname"><span class="pre">reproject_geom</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">geom</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">src_crs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst_crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis_order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'trad_gis'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/crs.html#reproject_geom"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.crs.reproject_geom" title="Link to this definition"></a></dt>
 <dd><p>Reproject a shapely geometry with explicit axis-order control.</p>
@@ -16250,6 +16390,56 @@ returned no match for the address (a legitimate non-error outcome).</p>
     attempt to match). Wraps the underlying geopy exception via
     <code class="docutils literal notranslate"><span class="pre">__cause__</span></code>.</p></li>
 </ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.geo.geocoding.geocode_with_nominatim_public">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.geocoding.</span></span><span class="sig-name descname"><span class="pre">geocode_with_nominatim_public</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">address</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">country_codes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/geocoding.html#geocode_with_nominatim_public"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.geocoding.geocode_with_nominatim_public" title="Link to this definition"></a></dt>
+<dd><p>Geocode a single address using the public Nominatim service.</p>
+<p>Thin wrapper around <a class="reference internal" href="#siege_utilities.geo.geocoding.get_coordinates" title="siege_utilities.geo.geocoding.get_coordinates"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_coordinates()</span></code></a> that forces the public
+endpoint (no custom <code class="docutils literal notranslate"><span class="pre">server_url</span></code>).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>address</strong> – Address string to geocode.</p></li>
+<li><p><strong>country_codes</strong> – Optional country code filter (defaults to US).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">(lat,</span> <span class="pre">lon)</span></code> tuple, or <code class="docutils literal notranslate"><span class="pre">None</span></code> if no match found.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <em>address</em> is empty.</p></li>
+<li><p><a class="reference internal" href="#siege_utilities.geo.geocoding.GeocodingError" title="siege_utilities.geo.geocoding.GeocodingError"><strong>GeocodingError</strong></a> – On network/service failure.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.geo.geocoding.geocode_addresses_with_nominatim">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.geocoding.</span></span><span class="sig-name descname"><span class="pre">geocode_addresses_with_nominatim</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">addresses</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">country_codes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_retries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">server_url</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/geocoding.html#geocode_addresses_with_nominatim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.geocoding.geocode_addresses_with_nominatim" title="Link to this definition"></a></dt>
+<dd><p>Batch-geocode a list of addresses using Nominatim.</p>
+<p>Calls <a class="reference internal" href="#siege_utilities.geo.geocoding.get_coordinates" title="siege_utilities.geo.geocoding.get_coordinates"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_coordinates()</span></code></a> for each address sequentially with
+Nominatim’s built-in rate limiting (1 s for public, 50 ms for
+self-hosted).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>addresses</strong> – Iterable of address strings.</p></li>
+<li><p><strong>country_codes</strong> – Optional country code filter (defaults to US).</p></li>
+<li><p><strong>max_retries</strong> – Retry attempts per address.</p></li>
+<li><p><strong>server_url</strong> – Optional custom Nominatim server URL.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of <code class="docutils literal notranslate"><span class="pre">{&quot;address&quot;:</span> <span class="pre">str,</span> <span class="pre">&quot;lat&quot;:</span> <span class="pre">float,</span> <span class="pre">&quot;lon&quot;:</span> <span class="pre">float}</span></code> dicts.
+Addresses that returned no match have <code class="docutils literal notranslate"><span class="pre">lat</span></code> and <code class="docutils literal notranslate"><span class="pre">lon</span></code> set to
+<code class="docutils literal notranslate"><span class="pre">None</span></code>.  Addresses that raised <a class="reference internal" href="#siege_utilities.geo.geocoding.GeocodingError" title="siege_utilities.geo.geocoding.GeocodingError"><code class="xref py py-class docutils literal notranslate"><span class="pre">GeocodingError</span></code></a> are
+logged and included with <code class="docutils literal notranslate"><span class="pre">None</span></code> coordinates.</p>
 </dd>
 </dl>
 </dd></dl>

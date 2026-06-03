@@ -89,6 +89,7 @@
 <li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.set_default_crs"><code class="docutils literal notranslate"><span class="pre">set_default_crs()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.reproject_if_needed"><code class="docutils literal notranslate"><span class="pre">reproject_if_needed()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.detect_crs"><code class="docutils literal notranslate"><span class="pre">detect_crs()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.distance_to_decimal_degrees"><code class="docutils literal notranslate"><span class="pre">distance_to_decimal_degrees()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.reproject_geom"><code class="docutils literal notranslate"><span class="pre">reproject_geom()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.BoundaryFetchResult"><code class="docutils literal notranslate"><span class="pre">BoundaryFetchResult</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="geo.html#siege_utilities.geo.BoundaryFetchResult.success"><code class="docutils literal notranslate"><span class="pre">BoundaryFetchResult.success</span></code></a></li>
@@ -297,6 +298,7 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.open_swmaps"><code class="docutils literal notranslate"><span class="pre">open_swmaps()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.read_features"><code class="docutils literal notranslate"><span class="pre">read_features()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.find_vector_dataset_file_in_directory"><code class="docutils literal notranslate"><span class="pre">find_vector_dataset_file_in_directory()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.concatenate_addresses"><code class="docutils literal notranslate"><span class="pre">concatenate_addresses()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.use_nominatim_geocoder"><code class="docutils literal notranslate"><span class="pre">use_nominatim_geocoder()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.NominatimGeoClassifier"><code class="docutils literal notranslate"><span class="pre">NominatimGeoClassifier</span></code></a><ul>
@@ -311,6 +313,8 @@
 <li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.get_country_code"><code class="docutils literal notranslate"><span class="pre">get_country_code()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.list_countries"><code class="docutils literal notranslate"><span class="pre">list_countries()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.get_coordinates"><code class="docutils literal notranslate"><span class="pre">get_coordinates()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.geocode_with_nominatim_public"><code class="docutils literal notranslate"><span class="pre">geocode_with_nominatim_public()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.geocode_addresses_with_nominatim"><code class="docutils literal notranslate"><span class="pre">geocode_addresses_with_nominatim()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.GeocodingError"><code class="docutils literal notranslate"><span class="pre">GeocodingError</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.validate_geocode_data_pandas"><code class="docutils literal notranslate"><span class="pre">validate_geocode_data_pandas()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="geo.html#siege_utilities.geo.mark_valid_geocode_data_pandas"><code class="docutils literal notranslate"><span class="pre">mark_valid_geocode_data_pandas()</span></code></a></li>
@@ -752,6 +756,7 @@
 <li class="toctree-l3"><a class="reference internal" href="geo.html#siege_utilities.geo.crs.set_default_crs"><code class="docutils literal notranslate"><span class="pre">set_default_crs()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="geo.html#siege_utilities.geo.crs.reproject_if_needed"><code class="docutils literal notranslate"><span class="pre">reproject_if_needed()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="geo.html#siege_utilities.geo.crs.detect_crs"><code class="docutils literal notranslate"><span class="pre">detect_crs()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="geo.html#siege_utilities.geo.crs.distance_to_decimal_degrees"><code class="docutils literal notranslate"><span class="pre">distance_to_decimal_degrees()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="geo.html#siege_utilities.geo.crs.reproject_geom"><code class="docutils literal notranslate"><span class="pre">reproject_geom()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="geo.html#siege_utilities.geo.geoid_utils.GEOIDValidator"><code class="docutils literal notranslate"><span class="pre">GEOIDValidator</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo.html#siege_utilities.geo.geoid_utils.GEOIDValidator.__init__"><code class="docutils literal notranslate"><span class="pre">GEOIDValidator.__init__()</span></code></a></li>
@@ -778,6 +783,8 @@
 <li class="toctree-l3"><a class="reference internal" href="geo.html#siege_utilities.geo.geocoding.concatenate_addresses"><code class="docutils literal notranslate"><span class="pre">concatenate_addresses()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="geo.html#siege_utilities.geo.geocoding.get_coordinates"><code class="docutils literal notranslate"><span class="pre">get_coordinates()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="geo.html#siege_utilities.geo.geocoding.use_nominatim_geocoder"><code class="docutils literal notranslate"><span class="pre">use_nominatim_geocoder()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="geo.html#siege_utilities.geo.geocoding.geocode_with_nominatim_public"><code class="docutils literal notranslate"><span class="pre">geocode_with_nominatim_public()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="geo.html#siege_utilities.geo.geocoding.geocode_addresses_with_nominatim"><code class="docutils literal notranslate"><span class="pre">geocode_addresses_with_nominatim()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="geo.html#siege_utilities.geo.geocoding.NominatimGeoClassifier"><code class="docutils literal notranslate"><span class="pre">NominatimGeoClassifier</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo.html#siege_utilities.geo.geocoding.NominatimGeoClassifier.__init__"><code class="docutils literal notranslate"><span class="pre">NominatimGeoClassifier.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo.html#siege_utilities.geo.geocoding.NominatimGeoClassifier.get_place_ranks_by_label"><code class="docutils literal notranslate"><span class="pre">NominatimGeoClassifier.get_place_ranks_by_label()</span></code></a></li>
@@ -4368,6 +4375,8 @@
 <li class="toctree-l3"><a class="reference internal" href="../geocoding.html#siege_utilities.geo.geocoding.concatenate_addresses"><code class="docutils literal notranslate"><span class="pre">concatenate_addresses()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../geocoding.html#siege_utilities.geo.geocoding.get_coordinates"><code class="docutils literal notranslate"><span class="pre">get_coordinates()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../geocoding.html#siege_utilities.geo.geocoding.use_nominatim_geocoder"><code class="docutils literal notranslate"><span class="pre">use_nominatim_geocoder()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../geocoding.html#siege_utilities.geo.geocoding.geocode_with_nominatim_public"><code class="docutils literal notranslate"><span class="pre">geocode_with_nominatim_public()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../geocoding.html#siege_utilities.geo.geocoding.geocode_addresses_with_nominatim"><code class="docutils literal notranslate"><span class="pre">geocode_addresses_with_nominatim()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../geocoding.html#siege_utilities.geo.geocoding.NominatimGeoClassifier"><code class="docutils literal notranslate"><span class="pre">NominatimGeoClassifier</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../geocoding.html#siege_utilities.geo.geocoding.NominatimGeoClassifier.__init__"><code class="docutils literal notranslate"><span class="pre">NominatimGeoClassifier.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../geocoding.html#siege_utilities.geo.geocoding.NominatimGeoClassifier.get_place_ranks_by_label"><code class="docutils literal notranslate"><span class="pre">NominatimGeoClassifier.get_place_ranks_by_label()</span></code></a></li>
@@ -8562,11 +8571,11 @@
 <p>Economic data utilities: BLS QCEW downloads and economic indicators.</p>
 <p id="module-siege_utilities.economic">Economic data utilities.</p>
 <p>Currently:
-- <cite>bls.qcew</cite>: BLS Quarterly Census of Employment and Wages downloader/parser.</p>
+- <cite>bls.qcew</cite>: BLS Quarterly Census of Employment and Wages downloader/parser.
+- <cite>irs.soi</cite>: IRS Statistics of Income by ZIP code.</p>
 <p>Future:
 - <cite>bls.api</cite>: keyed-API client for incremental loads.
-- <cite>bea</cite>: BEA Regional Economic Accounts.
-- <cite>irs.soi</cite>: IRS Statistics of Income by ZIP/ZCTA.</p>
+- <cite>bea</cite>: BEA Regional Economic Accounts.</p>
 <section id="module-siege_utilities.economic.bls">
 <span id="submodules"></span><h2>Submodules<a class="headerlink" href="#module-siege_utilities.economic.bls" title="Link to this heading"></a></h2>
 <p>BLS (Bureau of Labor Statistics) data utilities.</p>
