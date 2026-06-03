@@ -370,3 +370,32 @@ def test_overpass_empty_elements_raises_backend_error(wd_gaz):
          patch.object(wd_gaz._session, "post", return_value=overpass_empty):
         with pytest.raises(GazetteerBackendError, match="no elements"):
             wd_gaz.lookup("X")
+
+
+# ---------------------------------------------------------------------------
+# #979: Session lifecycle tests
+# ---------------------------------------------------------------------------
+
+class TestWikidataGazetteerSessionLifecycle:
+
+    def test_close_closes_session(self, wd_gaz):
+        wd_gaz.close()
+        assert wd_gaz._closed is True
+
+    def test_close_idempotent(self, wd_gaz):
+        wd_gaz.close()
+        wd_gaz.close()
+        assert wd_gaz._closed is True
+
+    def test_context_manager_closes_on_exit(self):
+        from siege_utilities.geo.gazetteers.wikidata_gazetteer import WikidataGazetteer
+        with WikidataGazetteer() as gaz:
+            assert gaz._closed is False
+        assert gaz._closed is True
+
+    def test_context_manager_closes_on_exception(self):
+        from siege_utilities.geo.gazetteers.wikidata_gazetteer import WikidataGazetteer
+        with pytest.raises(RuntimeError):
+            with WikidataGazetteer() as gaz:
+                raise RuntimeError("boom")
+        assert gaz._closed is True

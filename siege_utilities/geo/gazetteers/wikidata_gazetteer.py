@@ -177,9 +177,26 @@ class WikidataGazetteer:
             "Accept": "application/sparql-results+json",
             "User-Agent": _USER_AGENT,
         })
+        self._closed = False
         self._cached_lookup = functools.lru_cache(maxsize=cache_size)(
             self._uncached_lookup
         )
+
+    def close(self) -> None:
+        """Close the underlying HTTP session."""
+        if not self._closed:
+            self._session.close()
+            self._closed = True
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+        return False
+
+    def __del__(self):
+        self.close()
 
     def is_available(self) -> bool:
         return REQUESTS_AVAILABLE and SHAPELY_AVAILABLE

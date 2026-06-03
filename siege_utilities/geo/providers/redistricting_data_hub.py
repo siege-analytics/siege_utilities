@@ -189,6 +189,23 @@ class RDHClient:
             self.cache_dir = Path(cache_dir)
 
         self._session = requests.Session()
+        self._closed = False
+
+    def close(self) -> None:
+        """Close the underlying HTTP session."""
+        if not self._closed:
+            self._session.close()
+            self._closed = True
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+        return False
+
+    def __del__(self):
+        self.close()
 
     # -- Authentication check -------------------------------------------------
 
