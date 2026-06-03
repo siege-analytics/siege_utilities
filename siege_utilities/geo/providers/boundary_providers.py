@@ -57,10 +57,14 @@ class BoundaryProvider(ABC):
         Args:
             level: Geographic level (e.g. 'county', 'tract', 'admin1').
             identifier: Optional identifier to narrow the query (e.g. state FIPS).
-            **kwargs: Provider-specific options.
+            **kwargs: Provider-specific options. Recognized cross-provider kwargs:
+                engine: Optional DataFrameEngine instance. When provided,
+                    the result is converted to the engine's native format
+                    via ``engine.from_geodataframe()``. Default (None)
+                    returns a GeoDataFrame.
 
         Returns:
-            GeoDataFrame with boundary geometries.
+            GeoDataFrame when engine is None; engine-native DataFrame otherwise.
         """
 
     @abstractmethod
@@ -70,6 +74,16 @@ class BoundaryProvider(ABC):
     @abstractmethod
     def is_available(self) -> bool:
         """Return True if this provider's dependencies are installed and reachable."""
+
+    def _maybe_convert(self, gdf: Any, engine: Any = None) -> Any:
+        """Convert GeoDataFrame to engine-native format if engine is provided."""
+        if engine is None:
+            return gdf
+        logger.info(
+            "%s: converting result to %s engine format",
+            self.provider_name, getattr(engine, 'name', type(engine).__name__),
+        )
+        return engine.from_geodataframe(gdf)
 
 
 class CensusTIGERProvider(BoundaryProvider):
@@ -93,16 +107,18 @@ class CensusTIGERProvider(BoundaryProvider):
             identifier: State FIPS code when the level requires it.
             **kwargs: Forwarded to ``CensusDataSource.fetch_geographic_boundaries``
                       (e.g. ``year``, ``congress_number``).
+                      ``engine``: Optional DataFrameEngine for result conversion.
 
         Returns:
-            GeoDataFrame with boundary geometries.
+            GeoDataFrame (default) or engine-native DataFrame when engine is provided.
 
         Raises:
             BoundaryFetchError: When the boundary retrieval fails.
         """
         from ..spatial_data import CensusDataSource
 
-        kwargs.pop('geographic_level', None)  # level arg is authoritative
+        engine = kwargs.pop('engine', None)
+        kwargs.pop('geographic_level', None)
         call_kwargs: dict[str, Any] = {
             'geographic_level': level,
             **kwargs,
@@ -117,7 +133,7 @@ class CensusTIGERProvider(BoundaryProvider):
                 f"CensusTIGERProvider: boundary retrieval failed "
                 f"[{result.error_stage}] {result.message}"
             )
-        return result.geodataframe
+        return self._maybe_convert(result.geodataframe, engine)
 
     def list_levels(self) -> list[str]:
         """Return canonical Census geographic level names."""
@@ -210,14 +226,16 @@ class GADMProvider(BoundaryProvider):
             identifier: ISO-3 country code (e.g. 'DEU', 'FRA').
                         Can also be passed as ``country_code`` kwarg.
             **kwargs: ``country_code`` accepted as an alias for *identifier*.
+                      ``engine``: Optional DataFrameEngine for result conversion.
 
         Returns:
-            GeoDataFrame with boundary geometries.
+            GeoDataFrame (default) or engine-native DataFrame when engine is provided.
 
         Raises:
             ValueError: If *level* is unknown or *country_code* is missing.
             ImportError: If geopandas is not installed.
         """
+        engine = kwargs.pop('engine', None)
         country_code = kwargs.pop('country_code', None) or identifier
         if country_code is None:
             raise ValueError('GADMProvider.get_boundary() requires a country_code or identifier.')
@@ -242,7 +260,8 @@ class GADMProvider(BoundaryProvider):
             ) from e
 
         logger.info('Downloading GADM boundaries: %s', url)
-        return gpd.read_file(url)
+        gdf = gpd.read_file(url)
+        return self._maybe_convert(gdf, engine)
 
     def list_levels(self) -> list[str]:
         """Return GADM administrative levels."""
@@ -380,14 +399,17 @@ class RDHProvider(BoundaryProvider):
                 ``state`` — alias for *identifier*.
                 ``year`` — filter datasets by year string (e.g. ``'2022'``).
                 ``format`` — ``'shp'`` (default) or ``'csv'``.
+                ``engine`` — Optional DataFrameEngine for result conversion.
 
         Returns:
-            GeoDataFrame with boundary geometries (shapefiles) or None.
+            GeoDataFrame (default) or engine-native DataFrame when engine is provided.
+            None if no matching datasets found.
 
         Raises:
             ValueError: If *level* is not recognised or *state* is missing.
             ImportError: If geopandas is not installed.
         """
+        engine = kwargs.pop('engine', None)
         if level not in self._LEVELS:
             raise ValueError(
                 f"Unknown RDH level {level!r}. Choose from {self._LEVELS}."
@@ -436,10 +458,9 @@ class RDHProvider(BoundaryProvider):
             )
             return None
 
-        # Load the first matching dataset as a GeoDataFrame. Only shapefile
-        # formats are loadable; other formats would need a different reader.
         try:
-            return client.load_shapefile(datasets[0], **kwargs)
+            gdf = client.load_shapefile(datasets[0], **kwargs)
+            return self._maybe_convert(gdf, engine)
         except (OSError, ValueError) as exc:
             raise BoundaryFetchError(
                 f"RDHProvider: failed to load {level} shapefile for state={state}, "
