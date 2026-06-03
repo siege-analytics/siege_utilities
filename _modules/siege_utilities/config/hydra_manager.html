@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.survey.weights &mdash; Siege Utilities 3.21.0 documentation</title>
+  <title>siege_utilities.config.hydra_manager &mdash; Siege Utilities 3.21.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
@@ -8730,7 +8730,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
-      <li class="breadcrumb-item active">siege_utilities.survey.weights</li>
+      <li class="breadcrumb-item active">siege_utilities.config.hydra_manager</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -8739,142 +8739,491 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <h1>Source code for siege_utilities.survey.weights</h1><div class="highlight"><pre>
+  <h1>Source code for siege_utilities.config.hydra_manager</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">RIM (raking) weighting wrapper around weightipy.</span>
+<span class="sd">Hydra Configuration Manager for siege_utilities.</span>
 
-<span class="sd">Install: pip install siege-utilities[survey]</span>
-
-<span class="sd">weightipy&#39;s public API uses :func:`weightipy.scheme_from_dict` + \</span>
-<span class="sd">:func:`weightipy.weight_dataframe`; pass iteration / convergence parameters</span>
-<span class="sd">via the :class:`weightipy.internal.rim.Rim` constructor&#39;s ``rim_params`` dict.</span>
+<span class="sd">This module provides a unified interface for loading and managing</span>
+<span class="sd">configurations using Hydra with Pydantic validation.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">hydra</span><span class="w"> </span><span class="kn">import</span> <span class="n">initialize_config_dir</span><span class="p">,</span> <span class="n">compose</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">hydra.core.global_hydra</span><span class="w"> </span><span class="kn">import</span> <span class="n">GlobalHydra</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">omegaconf</span><span class="w"> </span><span class="kn">import</span> <span class="n">OmegaConf</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">UserProfile</span><span class="p">,</span>
+    <span class="n">ClientProfile</span><span class="p">,</span>
+    <span class="n">ContactInfo</span><span class="p">,</span>
+    <span class="n">DatabaseConnection</span><span class="p">,</span>
+    <span class="n">SocialMediaAccount</span><span class="p">,</span>
+    <span class="n">BrandingConfig</span><span class="p">,</span>
+    <span class="n">ReportPreferences</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.models.actor_types</span><span class="w"> </span><span class="kn">import</span> <span class="n">User</span><span class="p">,</span> <span class="n">Client</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;HydraConfigManager&#39;</span><span class="p">,</span>
+<span class="p">]</span>
 
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;WeightingConvergenceError&quot;</span><span class="p">,</span> <span class="s2">&quot;apply_rim_weights&quot;</span><span class="p">]</span>
-
-
-<div class="viewcode-block" id="WeightingConvergenceError">
-<a class="viewcode-back" href="../../../packages/survey.html#siege_utilities.survey.weights.WeightingConvergenceError">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">WeightingConvergenceError</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when weightipy fails to converge within max_iterations.&quot;&quot;&quot;</span></div>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
-
-<div class="viewcode-block" id="apply_rim_weights">
-<a class="viewcode-back" href="../../../packages/survey.html#siege_utilities.survey.weights.apply_rim_weights">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">apply_rim_weights</span><span class="p">(</span>
-    <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
-    <span class="n">targets</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="nb">float</span><span class="p">]],</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">weight_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;weight&quot;</span><span class="p">,</span>
-    <span class="n">max_iterations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span>
-    <span class="n">convergence</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-6</span><span class="p">,</span>
-    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply RIM (raking / iterative proportional fitting) weights.</span>
-
-<span class="sd">    Adds *weight_col* to a copy of *df* and returns the result. Does NOT</span>
-<span class="sd">    mutate the input.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    df : pd.DataFrame</span>
-<span class="sd">        Respondent-level DataFrame; each row is one respondent.</span>
-<span class="sd">    targets : dict</span>
-<span class="sd">        Mapping of column name → {category: proportion}. Proportions per</span>
-<span class="sd">        variable must sum to 1.0. Example::</span>
-
-<span class="sd">            {</span>
-<span class="sd">                &quot;age_group&quot;: {&quot;18-34&quot;: 0.25, &quot;35-54&quot;: 0.40, &quot;55+&quot;: 0.35},</span>
-<span class="sd">                &quot;gender&quot;:    {&quot;M&quot;: 0.48, &quot;F&quot;: 0.52},</span>
-<span class="sd">            }</span>
-<span class="sd">    weight_col : str, keyword-only, default ``&quot;weight&quot;``</span>
-<span class="sd">        Column name for the computed weight values.</span>
-<span class="sd">    max_iterations : int, keyword-only, default 1000</span>
-<span class="sd">        Upper bound on raking iterations.</span>
-<span class="sd">    convergence : float, keyword-only, default ``1e-6``</span>
-<span class="sd">        Convergence threshold (``convcrit`` in weightipy terms).</span>
-<span class="sd">    verbose : bool, keyword-only, default False</span>
-<span class="sd">        If True, weightipy prints per-iteration progress.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    pd.DataFrame</span>
-<span class="sd">        Copy of *df* with *weight_col* populated.</span>
-
-<span class="sd">    Raises</span>
-<span class="sd">    ------</span>
-<span class="sd">    ImportError</span>
-<span class="sd">        If weightipy is not installed.</span>
-<span class="sd">    WeightingConvergenceError</span>
-<span class="sd">        If weightipy fails to converge.</span>
+<div class="viewcode-block" id="HydraConfigManager">
+<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.hydra_manager.HydraConfigManager">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">HydraConfigManager</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Hydra Configuration Manager with Pydantic validation.</span>
+<span class="sd">    </span>
+<span class="sd">    Provides a unified interface for loading configurations using Hydra</span>
+<span class="sd">    and validating them with Pydantic models.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="kn">import</span><span class="w"> </span><span class="nn">weightipy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">wp</span>
-    <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
-            <span class="s2">&quot;weightipy is required for RIM weighting. &quot;</span>
-            <span class="s2">&quot;Install it with: pip install siege-utilities[survey]&quot;</span>
-        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+    
+<div class="viewcode-block" id="HydraConfigManager.__init__">
+<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.hydra_manager.HydraConfigManager.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize the Hydra configuration manager.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            config_dir: Directory containing Hydra configuration files</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config_dir</span> <span class="o">=</span> <span class="n">config_dir</span> <span class="ow">or</span> <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s2">&quot;configs&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_hydra_initialized</span> <span class="o">=</span> <span class="kc">False</span>
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_dir</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Configuration directory not found: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">config_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Initialized HydraConfigManager with config directory: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">config_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
 
-    <span class="c1"># Pre-validate targets against the DataFrame. weightipy would</span>
-    <span class="c1"># otherwise fail to converge with an opaque message hours into a</span>
-    <span class="c1"># large run; a fast structural check catches typos / column-name</span>
-    <span class="c1"># drift before any iteration starts.</span>
-    <span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">cats</span> <span class="ow">in</span> <span class="n">targets</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-        <span class="k">if</span> <span class="n">col</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;apply_rim_weights: target column </span><span class="si">{</span><span class="n">col</span><span class="si">!r}</span><span class="s2"> not in df.columns &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)[:</span><span class="mi">10</span><span class="p">]</span><span class="si">}{</span><span class="s1">&#39;...&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="si">}</span><span class="s2">)&quot;</span>
-            <span class="p">)</span>
-        <span class="n">df_cats</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
-        <span class="c1"># NaN keys in ``targets`` would always compare unequal (NaN != NaN)</span>
-        <span class="c1"># and falsely trip the missing-category branch; skip them.</span>
-        <span class="n">missing</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">cats</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="ow">and</span> <span class="n">c</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df_cats</span><span class="p">]</span>
-        <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;apply_rim_weights: targets[</span><span class="si">{</span><span class="n">col</span><span class="si">!r}</span><span class="s2">] references &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;categor</span><span class="si">{</span><span class="s1">&#39;y&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">missing</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;ies&#39;</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">missing</span><span class="si">!r}</span><span class="s2"> &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;that do not appear in df[</span><span class="si">{</span><span class="n">col</span><span class="si">!r}</span><span class="s2">]. weightipy would fail &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;to converge with an opaque error. Drop the missing &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;category from targets or fix the upstream filter.&quot;</span>
-            <span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_ensure_hydra_initialized</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Ensure Hydra is initialized.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hydra_initialized</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">initialize_config_dir</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config_dir</span><span class="p">),</span> <span class="n">version_base</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_hydra_initialized</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Hydra initialized successfully&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to initialize Hydra: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">raise</span>
+    
+<div class="viewcode-block" id="HydraConfigManager.load_config">
+<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.hydra_manager.HydraConfigManager.load_config">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">overrides</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load configuration with Hydra.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            config_name: Name of the configuration to load</span>
+<span class="sd">            overrides: List of override strings (e.g., [&quot;+client=client_a&quot;])</span>
+<span class="sd">            </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Dictionary containing the loaded configuration</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_hydra_initialized</span><span class="p">()</span>
+        
+        <span class="n">overrides</span> <span class="o">=</span> <span class="n">overrides</span> <span class="ow">or</span> <span class="p">[]</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">cfg</span> <span class="o">=</span> <span class="n">compose</span><span class="p">(</span><span class="n">config_name</span><span class="o">=</span><span class="n">config_name</span><span class="p">,</span> <span class="n">overrides</span><span class="o">=</span><span class="n">overrides</span><span class="p">)</span>
+            <span class="n">config_data</span> <span class="o">=</span> <span class="n">OmegaConf</span><span class="o">.</span><span class="n">to_container</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">resolve</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded configuration: </span><span class="si">{</span><span class="n">config_name</span><span class="si">}</span><span class="s2"> with overrides: </span><span class="si">{</span><span class="n">overrides</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">config_data</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load configuration </span><span class="si">{</span><span class="n">config_name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span></div>
 
-    <span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">cats</span> <span class="ow">in</span> <span class="n">targets</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cats</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-            <span class="n">total</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">cats</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)))</span>
-            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">total</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.01</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;apply_rim_weights: targets[</span><span class="si">{</span><span class="n">col</span><span class="si">!r}</span><span class="s2">] proportions sum to &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">total</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, expected 1.0. RIM weighting requires target &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;proportions that sum to 1.0.&quot;</span>
-                <span class="p">)</span>
+    
+<div class="viewcode-block" id="HydraConfigManager.load_user_profile">
+<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.hydra_manager.HydraConfigManager.load_user_profile">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_user_profile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_code</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UserProfile</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load user profile with optional client overrides.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            client_code: Optional client code for client-specific overrides</span>
+<span class="sd">            </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Validated UserProfile instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">overrides</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">client_code</span><span class="p">:</span>
+            <span class="n">overrides</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;+client=</span><span class="si">{</span><span class="n">client_code</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="n">config_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;default/user_profile&quot;</span><span class="p">,</span> <span class="n">overrides</span><span class="p">)</span>
+        
+        <span class="c1"># Extract user profile data from the nested structure</span>
+        <span class="k">if</span> <span class="s1">&#39;default&#39;</span> <span class="ow">in</span> <span class="n">config_data</span><span class="p">:</span>
+            <span class="n">profile_data</span> <span class="o">=</span> <span class="n">config_data</span><span class="p">[</span><span class="s1">&#39;default&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">profile_data</span> <span class="o">=</span> <span class="n">config_data</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">profile</span> <span class="o">=</span> <span class="n">UserProfile</span><span class="p">(</span><span class="o">**</span><span class="n">profile_data</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded user profile for client: </span><span class="si">{</span><span class="n">client_code</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">&#39;default&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">profile</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to validate user profile: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span></div>
 
-    <span class="c1"># Map our convergence param to weightipy&#39;s Rim-class ``convcrit`` via</span>
-    <span class="c1"># the rim_params passthrough. See weightipy.internal.rim.Rim.__init__.</span>
-    <span class="n">scheme</span> <span class="o">=</span> <span class="n">wp</span><span class="o">.</span><span class="n">scheme_from_dict</span><span class="p">(</span>
-        <span class="n">targets</span><span class="p">,</span>
-        <span class="n">rim_params</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;max_iterations&quot;</span><span class="p">:</span> <span class="n">max_iterations</span><span class="p">,</span> <span class="s2">&quot;convcrit&quot;</span><span class="p">:</span> <span class="n">convergence</span><span class="p">},</span>
-    <span class="p">)</span>
+    
+<div class="viewcode-block" id="HydraConfigManager.load_client_profile">
+<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.hydra_manager.HydraConfigManager.load_client_profile">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_client_profile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_code</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ClientProfile</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load client profile with client-specific overrides.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            client_code: Client code for the profile to load</span>
+<span class="sd">            </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Validated ClientProfile instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">overrides</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;+client=</span><span class="si">{</span><span class="n">client_code</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span>
+        
+        <span class="c1"># Load base client profile</span>
+        <span class="n">config_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;default/client_profile&quot;</span><span class="p">,</span> <span class="n">overrides</span><span class="p">)</span>
+        
+        <span class="c1"># Load client-specific overrides</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">client_config_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_config</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;client/</span><span class="si">{</span><span class="n">client_code</span><span class="si">}</span><span class="s2">/branding&quot;</span><span class="p">)</span>
+            <span class="c1"># Merge client-specific branding</span>
+            <span class="k">if</span> <span class="s1">&#39;branding_config&#39;</span> <span class="ow">in</span> <span class="n">config_data</span><span class="p">:</span>
+                <span class="n">branding_data</span> <span class="o">=</span> <span class="n">config_data</span><span class="p">[</span><span class="s1">&#39;branding_config&#39;</span><span class="p">]</span>
+                <span class="n">client_branding</span> <span class="o">=</span> <span class="n">client_config_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;client&#39;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">client_code</span><span class="p">,</span> <span class="p">{})</span>
+                
+                <span class="c1"># Override branding with client-specific values</span>
+                <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">client_branding</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">branding_data</span><span class="p">:</span>
+                        <span class="n">branding_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">branding_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not load client-specific branding for </span><span class="si">{</span><span class="n">client_code</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-    <span class="k">try</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">wp</span><span class="o">.</span><span class="n">weight_dataframe</span><span class="p">(</span>
-            <span class="n">df</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span>
-            <span class="n">scheme</span><span class="p">,</span>
-            <span class="n">weight_column</span><span class="o">=</span><span class="n">weight_col</span><span class="p">,</span>
-            <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span>
-        <span class="p">)</span>
-    <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">RuntimeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">WeightingConvergenceError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;RIM weighting failed (max_iterations=</span><span class="si">{</span><span class="n">max_iterations</span><span class="si">}</span><span class="s2">, &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;convergence=</span><span class="si">{</span><span class="n">convergence</span><span class="si">}</span><span class="s2">): </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span></div>
+        <span class="c1"># Extract client profile data</span>
+        <span class="k">if</span> <span class="s1">&#39;default&#39;</span> <span class="ow">in</span> <span class="n">config_data</span><span class="p">:</span>
+            <span class="n">profile_data</span> <span class="o">=</span> <span class="n">config_data</span><span class="p">[</span><span class="s1">&#39;default&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">profile_data</span> <span class="o">=</span> <span class="n">config_data</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Create nested objects</span>
+            <span class="k">if</span> <span class="s1">&#39;contact_info&#39;</span> <span class="ow">in</span> <span class="n">profile_data</span><span class="p">:</span>
+                <span class="n">profile_data</span><span class="p">[</span><span class="s1">&#39;contact_info&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ContactInfo</span><span class="p">(</span><span class="o">**</span><span class="n">profile_data</span><span class="p">[</span><span class="s1">&#39;contact_info&#39;</span><span class="p">])</span>
+            
+            <span class="k">if</span> <span class="s1">&#39;branding_config&#39;</span> <span class="ow">in</span> <span class="n">profile_data</span><span class="p">:</span>
+                <span class="n">profile_data</span><span class="p">[</span><span class="s1">&#39;branding_config&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">BrandingConfig</span><span class="p">(</span><span class="o">**</span><span class="n">profile_data</span><span class="p">[</span><span class="s1">&#39;branding_config&#39;</span><span class="p">])</span>
+            
+            <span class="k">if</span> <span class="s1">&#39;report_preferences&#39;</span> <span class="ow">in</span> <span class="n">profile_data</span><span class="p">:</span>
+                <span class="n">profile_data</span><span class="p">[</span><span class="s1">&#39;report_preferences&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ReportPreferences</span><span class="p">(</span><span class="o">**</span><span class="n">profile_data</span><span class="p">[</span><span class="s1">&#39;report_preferences&#39;</span><span class="p">])</span>
+            
+            <span class="c1"># Create database connections</span>
+            <span class="k">if</span> <span class="s1">&#39;database_connections&#39;</span> <span class="ow">in</span> <span class="n">profile_data</span><span class="p">:</span>
+                <span class="n">connections</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">conn_data</span> <span class="ow">in</span> <span class="n">profile_data</span><span class="p">[</span><span class="s1">&#39;database_connections&#39;</span><span class="p">]:</span>
+                    <span class="n">connections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">DatabaseConnection</span><span class="p">(</span><span class="o">**</span><span class="n">conn_data</span><span class="p">))</span>
+                <span class="n">profile_data</span><span class="p">[</span><span class="s1">&#39;database_connections&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">connections</span>
+            
+            <span class="c1"># Create social media accounts</span>
+            <span class="k">if</span> <span class="s1">&#39;social_media_accounts&#39;</span> <span class="ow">in</span> <span class="n">profile_data</span><span class="p">:</span>
+                <span class="n">accounts</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">acc_data</span> <span class="ow">in</span> <span class="n">profile_data</span><span class="p">[</span><span class="s1">&#39;social_media_accounts&#39;</span><span class="p">]:</span>
+                    <span class="n">accounts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SocialMediaAccount</span><span class="p">(</span><span class="o">**</span><span class="n">acc_data</span><span class="p">))</span>
+                <span class="n">profile_data</span><span class="p">[</span><span class="s1">&#39;social_media_accounts&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">accounts</span>
+            
+            <span class="n">profile</span> <span class="o">=</span> <span class="n">ClientProfile</span><span class="p">(</span><span class="o">**</span><span class="n">profile_data</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded client profile for: </span><span class="si">{</span><span class="n">client_code</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">profile</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to validate client profile for </span><span class="si">{</span><span class="n">client_code</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span></div>
+
+    
+<div class="viewcode-block" id="HydraConfigManager.load_database_connections">
+<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.hydra_manager.HydraConfigManager.load_database_connections">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_database_connections</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_code</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">DatabaseConnection</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load database connections with optional client overrides.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            client_code: Optional client code for client-specific connections</span>
+<span class="sd">            </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            List of validated DatabaseConnection instances</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">overrides</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">client_code</span><span class="p">:</span>
+            <span class="n">overrides</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;+client=</span><span class="si">{</span><span class="n">client_code</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="n">config_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;default/database_connections&quot;</span><span class="p">,</span> <span class="n">overrides</span><span class="p">)</span>
+        
+        <span class="c1"># Extract connections data</span>
+        <span class="k">if</span> <span class="s1">&#39;default&#39;</span> <span class="ow">in</span> <span class="n">config_data</span><span class="p">:</span>
+            <span class="n">connections_data</span> <span class="o">=</span> <span class="n">config_data</span><span class="p">[</span><span class="s1">&#39;default&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;connections&#39;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">connections_data</span> <span class="o">=</span> <span class="n">config_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;connections&#39;</span><span class="p">,</span> <span class="p">[])</span>
+        
+        <span class="n">connections</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">conn_data</span> <span class="ow">in</span> <span class="n">connections_data</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">connection</span> <span class="o">=</span> <span class="n">DatabaseConnection</span><span class="p">(</span><span class="o">**</span><span class="n">conn_data</span><span class="p">)</span>
+                <span class="n">connections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to validate database connection </span><span class="si">{</span><span class="n">conn_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;unknown&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">raise</span>
+        
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">connections</span><span class="p">)</span><span class="si">}</span><span class="s2"> database connections for client: </span><span class="si">{</span><span class="n">client_code</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">&#39;default&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">connections</span></div>
+
+    
+<div class="viewcode-block" id="HydraConfigManager.load_social_media_accounts">
+<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.hydra_manager.HydraConfigManager.load_social_media_accounts">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_social_media_accounts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_code</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">SocialMediaAccount</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load social media accounts with optional client overrides.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            client_code: Optional client code for client-specific accounts</span>
+<span class="sd">            </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            List of validated SocialMediaAccount instances</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">overrides</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">client_code</span><span class="p">:</span>
+            <span class="n">overrides</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;+client=</span><span class="si">{</span><span class="n">client_code</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="n">config_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;default/social_media_accounts&quot;</span><span class="p">,</span> <span class="n">overrides</span><span class="p">)</span>
+        
+        <span class="c1"># Extract accounts data</span>
+        <span class="k">if</span> <span class="s1">&#39;default&#39;</span> <span class="ow">in</span> <span class="n">config_data</span><span class="p">:</span>
+            <span class="n">accounts_data</span> <span class="o">=</span> <span class="n">config_data</span><span class="p">[</span><span class="s1">&#39;default&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;accounts&#39;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">accounts_data</span> <span class="o">=</span> <span class="n">config_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;accounts&#39;</span><span class="p">,</span> <span class="p">[])</span>
+        
+        <span class="n">accounts</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">acc_data</span> <span class="ow">in</span> <span class="n">accounts_data</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">account</span> <span class="o">=</span> <span class="n">SocialMediaAccount</span><span class="p">(</span><span class="o">**</span><span class="n">acc_data</span><span class="p">)</span>
+                <span class="n">accounts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">account</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to validate social media account </span><span class="si">{</span><span class="n">acc_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;platform&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;unknown&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">raise</span>
+        
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">accounts</span><span class="p">)</span><span class="si">}</span><span class="s2"> social media accounts for client: </span><span class="si">{</span><span class="n">client_code</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">&#39;default&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">accounts</span></div>
+
+    
+<div class="viewcode-block" id="HydraConfigManager.load_branding_config">
+<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.hydra_manager.HydraConfigManager.load_branding_config">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_branding_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_code</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BrandingConfig</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load branding configuration with optional client overrides.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            client_code: Optional client code for client-specific branding</span>
+<span class="sd">            </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Validated BrandingConfig instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">client_code</span><span class="p">:</span>
+            <span class="c1"># Load client-specific branding</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">config_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_config</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;client/</span><span class="si">{</span><span class="n">client_code</span><span class="si">}</span><span class="s2">/branding&quot;</span><span class="p">)</span>
+                
+                <span class="c1"># Extract branding data from client config</span>
+                <span class="k">if</span> <span class="s1">&#39;client&#39;</span> <span class="ow">in</span> <span class="n">config_data</span> <span class="ow">and</span> <span class="n">client_code</span> <span class="ow">in</span> <span class="n">config_data</span><span class="p">[</span><span class="s1">&#39;client&#39;</span><span class="p">]:</span>
+                    <span class="n">client_data</span> <span class="o">=</span> <span class="n">config_data</span><span class="p">[</span><span class="s1">&#39;client&#39;</span><span class="p">][</span><span class="n">client_code</span><span class="p">]</span>
+                    
+                    <span class="c1"># Start with default data if it exists, but flatten it first</span>
+                    <span class="k">if</span> <span class="s1">&#39;default&#39;</span> <span class="ow">in</span> <span class="n">client_data</span><span class="p">:</span>
+                        <span class="n">branding_data</span> <span class="o">=</span> <span class="p">{}</span>
+                        <span class="n">default_data</span> <span class="o">=</span> <span class="n">client_data</span><span class="p">[</span><span class="s1">&#39;default&#39;</span><span class="p">]</span>
+                        
+                        <span class="c1"># Flatten default data first</span>
+                        <span class="n">sections_to_flatten</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;colors&#39;</span><span class="p">,</span> <span class="s1">&#39;typography&#39;</span><span class="p">,</span> <span class="s1">&#39;logo&#39;</span><span class="p">,</span> <span class="s1">&#39;layout&#39;</span><span class="p">,</span> <span class="s1">&#39;charts&#39;</span><span class="p">]</span>
+                        <span class="k">for</span> <span class="n">section</span> <span class="ow">in</span> <span class="n">sections_to_flatten</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">section</span> <span class="ow">in</span> <span class="n">default_data</span><span class="p">:</span>
+                                <span class="n">section_data</span> <span class="o">=</span> <span class="n">default_data</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">section</span><span class="p">)</span>
+                                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">section_data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                                    <span class="n">branding_data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">section_data</span><span class="p">)</span>
+                        
+                        <span class="c1"># Add any remaining default data</span>
+                        <span class="n">branding_data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">default_data</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">branding_data</span> <span class="o">=</span> <span class="p">{}</span>
+                    
+                    <span class="c1"># Apply client-specific overrides (these take precedence)</span>
+                    <span class="k">for</span> <span class="n">section</span><span class="p">,</span> <span class="n">section_data</span> <span class="ow">in</span> <span class="n">client_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                        <span class="k">if</span> <span class="n">section</span> <span class="o">!=</span> <span class="s1">&#39;default&#39;</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">section_data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                            <span class="n">branding_data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">section_data</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">branding_data</span> <span class="o">=</span> <span class="n">config_data</span>
+                
+                <span class="c1"># Flatten all nested structures</span>
+                <span class="n">sections_to_flatten</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;colors&#39;</span><span class="p">,</span> <span class="s1">&#39;typography&#39;</span><span class="p">,</span> <span class="s1">&#39;logo&#39;</span><span class="p">,</span> <span class="s1">&#39;layout&#39;</span><span class="p">,</span> <span class="s1">&#39;charts&#39;</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">section</span> <span class="ow">in</span> <span class="n">sections_to_flatten</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">section</span> <span class="ow">in</span> <span class="n">branding_data</span><span class="p">:</span>
+                        <span class="n">section_data</span> <span class="o">=</span> <span class="n">branding_data</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">section</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">section_data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                            <span class="n">branding_data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">section_data</span><span class="p">)</span>
+                
+                <span class="n">branding</span> <span class="o">=</span> <span class="n">BrandingConfig</span><span class="p">(</span><span class="o">**</span><span class="n">branding_data</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded client-specific branding for: </span><span class="si">{</span><span class="n">client_code</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">branding</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not load client-specific branding for </span><span class="si">{</span><span class="n">client_code</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="c1"># Fall back to default</span>
+        
+        <span class="c1"># Load default branding</span>
+        <span class="n">config_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;default/branding_config&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Extract branding data</span>
+        <span class="k">if</span> <span class="s1">&#39;default&#39;</span> <span class="ow">in</span> <span class="n">config_data</span><span class="p">:</span>
+            <span class="n">branding_data</span> <span class="o">=</span> <span class="n">config_data</span><span class="p">[</span><span class="s1">&#39;default&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">branding_data</span> <span class="o">=</span> <span class="n">config_data</span>
+        
+        <span class="c1"># Flatten all nested structures</span>
+        <span class="n">sections_to_flatten</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;colors&#39;</span><span class="p">,</span> <span class="s1">&#39;typography&#39;</span><span class="p">,</span> <span class="s1">&#39;logo&#39;</span><span class="p">,</span> <span class="s1">&#39;layout&#39;</span><span class="p">,</span> <span class="s1">&#39;charts&#39;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">section</span> <span class="ow">in</span> <span class="n">sections_to_flatten</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">section</span> <span class="ow">in</span> <span class="n">branding_data</span><span class="p">:</span>
+                <span class="n">section_data</span> <span class="o">=</span> <span class="n">branding_data</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">section</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">section_data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                    <span class="n">branding_data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">section_data</span><span class="p">)</span>
+        
+        <span class="n">branding</span> <span class="o">=</span> <span class="n">BrandingConfig</span><span class="p">(</span><span class="o">**</span><span class="n">branding_data</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded default branding for client: </span><span class="si">{</span><span class="n">client_code</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">&#39;default&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">branding</span></div>
+
+    
+    <span class="c1"># Modern Person/Actor model methods</span>
+<div class="viewcode-block" id="HydraConfigManager.load_user">
+<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.hydra_manager.HydraConfigManager.load_user">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">person_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">profiles_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">User</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load a modern User from YAML file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            person_id: The person_id of the user to load.</span>
+<span class="sd">            profiles_dir: Directory containing user YAML files. Defaults to config_dir/profiles/users.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            User instance.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            FileNotFoundError: If the user profile YAML file does not exist.</span>
+<span class="sd">            OSError: If the file cannot be read.</span>
+<span class="sd">            yaml.YAMLError: If the YAML is malformed.</span>
+<span class="sd">            ValueError: If the data cannot be parsed into a User.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">profiles_dir</span> <span class="o">=</span> <span class="n">profiles_dir</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_dir</span> <span class="o">/</span> <span class="s2">&quot;profiles&quot;</span> <span class="o">/</span> <span class="s2">&quot;users&quot;</span>
+        <span class="n">user_file</span> <span class="o">=</span> <span class="n">profiles_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">person_id</span><span class="si">}</span><span class="s2">.yaml&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">user_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;User profile not found: </span><span class="si">{</span><span class="n">user_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">user</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span><span class="n">user_file</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded modern User: </span><span class="si">{</span><span class="n">person_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">user</span></div>
+
+
+<div class="viewcode-block" id="HydraConfigManager.load_client">
+<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.hydra_manager.HydraConfigManager.load_client">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_code</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">profiles_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Client</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load a modern Client from YAML file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            client_code: The client_code to load.</span>
+<span class="sd">            profiles_dir: Directory containing client YAML files. Defaults to config_dir/profiles/clients.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Client instance.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            FileNotFoundError: If the client profile YAML file does not exist.</span>
+<span class="sd">            OSError: If the file cannot be read.</span>
+<span class="sd">            yaml.YAMLError: If the YAML is malformed.</span>
+<span class="sd">            ValueError: If the data cannot be parsed into a Client.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">profiles_dir</span> <span class="o">=</span> <span class="n">profiles_dir</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_dir</span> <span class="o">/</span> <span class="s2">&quot;profiles&quot;</span> <span class="o">/</span> <span class="s2">&quot;clients&quot;</span>
+        <span class="n">client_file</span> <span class="o">=</span> <span class="n">profiles_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">client_code</span><span class="si">}</span><span class="s2">.yaml&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">client_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Client profile not found: </span><span class="si">{</span><span class="n">client_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">client</span> <span class="o">=</span> <span class="n">Client</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span><span class="n">client_file</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded modern Client: </span><span class="si">{</span><span class="n">client_code</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">client</span></div>
+
+
+<div class="viewcode-block" id="HydraConfigManager.save_user">
+<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.hydra_manager.HydraConfigManager.save_user">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">save_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span><span class="p">,</span> <span class="n">profiles_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save a modern User to YAML file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            user: User instance to save.</span>
+<span class="sd">            profiles_dir: Directory to save the YAML file. Defaults to config_dir/profiles/users.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            OSError: If the file cannot be written.</span>
+<span class="sd">            yaml.YAMLError: If serialization fails.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">profiles_dir</span> <span class="o">=</span> <span class="n">profiles_dir</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_dir</span> <span class="o">/</span> <span class="s2">&quot;profiles&quot;</span> <span class="o">/</span> <span class="s2">&quot;users&quot;</span>
+        <span class="n">profiles_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">user_file</span> <span class="o">=</span> <span class="n">profiles_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">user</span><span class="o">.</span><span class="n">person_id</span><span class="si">}</span><span class="s2">.yaml&quot;</span>
+
+        <span class="n">user</span><span class="o">.</span><span class="n">to_yaml</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">user_file</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saved modern User: </span><span class="si">{</span><span class="n">user</span><span class="o">.</span><span class="n">person_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HydraConfigManager.save_client">
+<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.hydra_manager.HydraConfigManager.save_client">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">save_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">:</span> <span class="n">Client</span><span class="p">,</span> <span class="n">profiles_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save a modern Client to YAML file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            client: Client instance to save.</span>
+<span class="sd">            profiles_dir: Directory to save the YAML file. Defaults to config_dir/profiles/clients.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            OSError: If the file cannot be written.</span>
+<span class="sd">            yaml.YAMLError: If serialization fails.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">profiles_dir</span> <span class="o">=</span> <span class="n">profiles_dir</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_dir</span> <span class="o">/</span> <span class="s2">&quot;profiles&quot;</span> <span class="o">/</span> <span class="s2">&quot;clients&quot;</span>
+        <span class="n">profiles_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">client_file</span> <span class="o">=</span> <span class="n">profiles_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">client</span><span class="o">.</span><span class="n">client_code</span><span class="si">}</span><span class="s2">.yaml&quot;</span>
+
+        <span class="n">client</span><span class="o">.</span><span class="n">to_yaml</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">client_file</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saved modern Client: </span><span class="si">{</span><span class="n">client</span><span class="o">.</span><span class="n">client_code</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HydraConfigManager.cleanup">
+<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.hydra_manager.HydraConfigManager.cleanup">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Clean up Hydra instance.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hydra_initialized</span><span class="p">:</span>
+            <span class="n">GlobalHydra</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_hydra_initialized</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Hydra instance cleared&quot;</span><span class="p">)</span></div>
+
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Context manager entry.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Context manager exit.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span></div>
 
 </pre></div>
 
