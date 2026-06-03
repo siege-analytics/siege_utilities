@@ -7610,6 +7610,7 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../../packages/reporting.html#siege_utilities.reporting.create_3d_hexbin"><code class="docutils literal notranslate"><span class="pre">create_3d_hexbin()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../packages/reporting.html#siege_utilities.reporting.create_3d_columns"><code class="docutils literal notranslate"><span class="pre">create_3d_columns()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../packages/reporting.html#siege_utilities.reporting.sort_table_data"><code class="docutils literal notranslate"><span class="pre">sort_table_data()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../packages/reporting.html#siege_utilities.reporting.get_report_output_directory"><code class="docutils literal notranslate"><span class="pre">get_report_output_directory()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../packages/reporting.html#siege_utilities.reporting.create_report_generator"><code class="docutils literal notranslate"><span class="pre">create_report_generator()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../packages/reporting.html#siege_utilities.reporting.create_powerpoint_generator"><code class="docutils literal notranslate"><span class="pre">create_powerpoint_generator()</span></code></a></li>
@@ -8616,6 +8617,7 @@
     <span class="s1">&#39;generate_sections_from_report_structure&#39;</span><span class="p">,</span>
 <span class="p">],</span> <span class="s1">&#39;.templates.table_of_contents_template&#39;</span><span class="p">)</span>
 <span class="n">_register</span><span class="p">([</span><span class="s1">&#39;ContentPageTemplate&#39;</span><span class="p">,</span> <span class="s1">&#39;create_content_page&#39;</span><span class="p">],</span> <span class="s1">&#39;.templates.content_page_template&#39;</span><span class="p">)</span>
+<span class="n">_register</span><span class="p">([</span><span class="s1">&#39;sort_table_data&#39;</span><span class="p">],</span> <span class="s1">&#39;.table_utils&#39;</span><span class="p">)</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="c1"># Templates</span>
@@ -8651,6 +8653,8 @@
     <span class="c1"># 3D maps</span>
     <span class="s1">&#39;ThreeDMapRenderer&#39;</span><span class="p">,</span> <span class="s1">&#39;PYDECK_AVAILABLE&#39;</span><span class="p">,</span>
     <span class="s1">&#39;create_3d_hexbin&#39;</span><span class="p">,</span> <span class="s1">&#39;create_3d_columns&#39;</span><span class="p">,</span>
+    <span class="c1"># Table utilities</span>
+    <span class="s1">&#39;sort_table_data&#39;</span><span class="p">,</span>
     <span class="c1"># Module-level convenience functions</span>
     <span class="s1">&#39;get_report_output_directory&#39;</span><span class="p">,</span> <span class="s1">&#39;create_report_generator&#39;</span><span class="p">,</span>
     <span class="s1">&#39;create_powerpoint_generator&#39;</span><span class="p">,</span>

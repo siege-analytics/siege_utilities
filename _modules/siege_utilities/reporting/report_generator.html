@@ -7610,6 +7610,7 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/reporting.html#siege_utilities.reporting.create_3d_hexbin"><code class="docutils literal notranslate"><span class="pre">create_3d_hexbin()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/reporting.html#siege_utilities.reporting.create_3d_columns"><code class="docutils literal notranslate"><span class="pre">create_3d_columns()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../packages/reporting.html#siege_utilities.reporting.sort_table_data"><code class="docutils literal notranslate"><span class="pre">sort_table_data()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/reporting.html#siege_utilities.reporting.get_report_output_directory"><code class="docutils literal notranslate"><span class="pre">get_report_output_directory()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/reporting.html#siege_utilities.reporting.create_report_generator"><code class="docutils literal notranslate"><span class="pre">create_report_generator()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/reporting.html#siege_utilities.reporting.create_powerpoint_generator"><code class="docutils literal notranslate"><span class="pre">create_powerpoint_generator()</span></code></a></li>
@@ -8875,10 +8876,12 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">add_table_section</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">report_content</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                           <span class="n">table_data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">],</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">],</span>
                           <span class="n">headers</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
-                          <span class="n">table_style</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+                          <span class="n">table_style</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span>
+                          <span class="n">sort_by</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                          <span class="n">sort_order</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;asc&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Add a table section to the report.</span>
-<span class="sd">        </span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            report_content: Existing report content</span>
 <span class="sd">            title: Section title</span>
@@ -8886,10 +8889,15 @@
 <span class="sd">            headers: Column headers</span>
 <span class="sd">            level: Section level</span>
 <span class="sd">            table_style: Table styling</span>
-<span class="sd">            </span>
+<span class="sd">            sort_by: Column index or header name to sort by.</span>
+<span class="sd">                None preserves existing order.</span>
+<span class="sd">            sort_order: ``&#39;asc&#39;`` or ``&#39;desc&#39;``.</span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            Updated report content</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.reporting.table_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">sort_table_data</span>
+
         <span class="c1"># Convert DataFrame to list format if needed</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">table_data</span><span class="p">,</span> <span class="s1">&#39;to_dict&#39;</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">headers</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -8897,7 +8905,12 @@
             <span class="n">table_data</span> <span class="o">=</span> <span class="p">[</span><span class="n">headers</span><span class="p">]</span> <span class="o">+</span> <span class="n">table_data</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
         <span class="k">elif</span> <span class="n">headers</span> <span class="ow">and</span> <span class="n">table_data</span><span class="p">:</span>
             <span class="n">table_data</span> <span class="o">=</span> <span class="p">[</span><span class="n">headers</span><span class="p">]</span> <span class="o">+</span> <span class="n">table_data</span>
-        
+
+        <span class="k">if</span> <span class="n">sort_by</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">table_data</span> <span class="o">=</span> <span class="n">sort_table_data</span><span class="p">(</span>
+                <span class="n">table_data</span><span class="p">,</span> <span class="n">sort_by</span><span class="o">=</span><span class="n">sort_by</span><span class="p">,</span> <span class="n">sort_order</span><span class="o">=</span><span class="n">sort_order</span>
+            <span class="p">)</span>
+
         <span class="n">content</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s1">&#39;data&#39;</span><span class="p">:</span> <span class="n">table_data</span><span class="p">,</span>
             <span class="s1">&#39;headers&#39;</span><span class="p">:</span> <span class="n">headers</span><span class="p">,</span>

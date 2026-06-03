@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.survey.models &mdash; Siege Utilities 3.21.0 documentation</title>
+  <title>siege_utilities.reporting.table_utils &mdash; Siege Utilities 3.21.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
@@ -8545,7 +8545,8 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
-      <li class="breadcrumb-item active">siege_utilities.survey.models</li>
+          <li class="breadcrumb-item"><a href="../reporting.html">siege_utilities.reporting</a></li>
+      <li class="breadcrumb-item active">siege_utilities.reporting.table_utils</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -8554,272 +8555,95 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <h1>Source code for siege_utilities.survey.models</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Survey hierarchy dataclasses: View → Chain → Cluster → Stack.</span>
-
-<span class="sd">Stack   = complete report (all sections + shared WeightScheme)</span>
-<span class="sd">Cluster = one named section (→ one deck section)</span>
-<span class="sd">Chain   = one cross-tab slide (question × break variables)</span>
-<span class="sd">View    = one cell statistic (count, pct, sig flag)</span>
-<span class="sd">&quot;&quot;&quot;</span>
+  <h1>Source code for siege_utilities.reporting.table_utils</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Table data utilities for the reporting module.&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">date</span> <span class="k">as</span> <span class="n">_date</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-
-<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">..reporting.pages.page_models</span><span class="w"> </span><span class="kn">import</span> <span class="n">TableType</span>
-
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Chain&quot;</span><span class="p">,</span> <span class="s2">&quot;Cluster&quot;</span><span class="p">,</span> <span class="s2">&quot;Stack&quot;</span><span class="p">,</span> <span class="s2">&quot;View&quot;</span><span class="p">,</span> <span class="s2">&quot;Wave&quot;</span><span class="p">,</span> <span class="s2">&quot;WaveSet&quot;</span><span class="p">,</span> <span class="s2">&quot;WeightScheme&quot;</span><span class="p">]</span>
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;sort_table_data&quot;</span><span class="p">]</span>
 
 
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># View -- one cell statistic</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
+<div class="viewcode-block" id="sort_table_data">
+<a class="viewcode-back" href="../../../packages/reporting.html#siege_utilities.reporting.sort_table_data">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">sort_table_data</span><span class="p">(</span>
+    <span class="n">table_data</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">],</span>
+    <span class="n">sort_by</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">sort_order</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;asc&quot;</span><span class="p">,</span>
+    <span class="n">has_header</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sort table rows by a column.</span>
 
-<div class="viewcode-block" id="View">
-<a class="viewcode-back" href="../../../packages/survey.html#siege_utilities.survey.models.View">[docs]</a>
-<span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">View</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;A single statistic in one cell of a cross-tabulation.&quot;&quot;&quot;</span>
-    <span class="n">metric</span><span class="p">:</span> <span class="nb">str</span>                  <span class="c1"># column name / statistic label</span>
-    <span class="n">base</span><span class="p">:</span> <span class="nb">float</span>                  <span class="c1"># effective respondent count (weighted sum or raw count)</span>
-    <span class="n">count</span><span class="p">:</span> <span class="nb">float</span>                 <span class="c1"># weighted or raw count</span>
-    <span class="n">pct</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># proportion (0–1); None for non-percent views</span>
-    <span class="n">sig_flag</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># column letter if significantly different</span>
-    <span class="n">ci</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>   <span class="c1"># 95% confidence interval (MEAN_SCALE only)</span></div>
+<span class="sd">    Args:</span>
+<span class="sd">        table_data: Table as list of lists. First row may be headers.</span>
+<span class="sd">        sort_by: Column index (int) or header name (str) to sort by.</span>
+<span class="sd">            ``None`` preserves existing order.</span>
+<span class="sd">        sort_order: ``&#39;asc&#39;`` or ``&#39;desc&#39;``.</span>
+<span class="sd">        has_header: Whether the first row is a header row.</span>
 
+<span class="sd">    Returns:</span>
+<span class="sd">        A new list with rows sorted. The header row (if present) stays first.</span>
 
-
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># Chain -- one cross-tabulation</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
-
-<div class="viewcode-block" id="Chain">
-<a class="viewcode-back" href="../../../packages/survey.html#siege_utilities.survey.models.Chain">[docs]</a>
-<span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">Chain</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;One cross-tabulation: row_var × break_vars.</span>
-
-<span class="sd">    ``table_type`` drives chart selection, significance testing approach, and</span>
-<span class="sd">    whether percent bases are respondents (MULTIPLE_RESPONSE) or column totals.</span>
-
-<span class="sd">    Fields populated by later pipeline stages (significance testing,</span>
-<span class="sd">    weighting) are declared here with ``None`` defaults so</span>
-<span class="sd">    :func:`dataclasses.fields` / :func:`dataclasses.asdict` see them -- the</span>
-<span class="sd">    previous pattern of attaching them dynamically via ``setattr`` broke</span>
-<span class="sd">    introspection.</span>
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If *sort_order* is not ``&#39;asc&#39;`` or ``&#39;desc&#39;``,</span>
+<span class="sd">            or *sort_by* names a column not found in the header.</span>
+<span class="sd">        IndexError: If *sort_by* is an int outside the column range.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">sort_by</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">table_data</span><span class="p">)</span>
 
-    <span class="n">row_var</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">break_vars</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
-    <span class="n">views</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">View</span><span class="p">]]</span>       <span class="c1"># key = break variable value</span>
-    <span class="n">table_type</span><span class="p">:</span> <span class="n">TableType</span>
-    <span class="n">base_note</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
-    <span class="n">geo_column</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># presence triggers map generation</span>
-    <span class="n">delta_column</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># for LONGITUDINAL: computed change column</span>
+    <span class="k">if</span> <span class="n">sort_order</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;asc&quot;</span><span class="p">,</span> <span class="s2">&quot;desc&quot;</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;sort_order must be &#39;asc&#39; or &#39;desc&#39;, got </span><span class="si">{</span><span class="n">sort_order</span><span class="si">!r}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
 
-    <span class="c1"># Populated by siege_utilities.survey.significance.chi_square_flag.</span>
-    <span class="c1"># None = not yet tested; True/False = tested.</span>
-    <span class="n">chi_square_significant</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">chi_square_p</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">table_data</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">table_data</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Chain.to_dataframe">
-<a class="viewcode-back" href="../../../packages/survey.html#siege_utilities.survey.models.Chain.to_dataframe">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">to_dataframe</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Render the chain as a display-ready wide DataFrame.</span>
+    <span class="k">if</span> <span class="n">has_header</span><span class="p">:</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="n">table_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="n">table_data</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">table_data</span><span class="p">)</span>
 
-<span class="sd">        Columns = break variable values; rows = row variable categories.</span>
-<span class="sd">        For MULTIPLE_RESPONSE, cells are percents (may exceed 100% column-sum).</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">views</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sort_by</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">header</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;sort_by is a column name but has_header=False&quot;</span>
+            <span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">col_idx</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">h</span><span class="p">)</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">header</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">sort_by</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Column </span><span class="si">{</span><span class="n">sort_by</span><span class="si">!r}</span><span class="s2"> not found in headers </span><span class="si">{</span><span class="n">header</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">col_idx</span> <span class="o">=</span> <span class="n">sort_by</span>
+        <span class="k">if</span> <span class="n">table_data</span> <span class="ow">and</span> <span class="p">(</span><span class="n">col_idx</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">col_idx</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">table_data</span><span class="p">[</span><span class="mi">0</span><span class="p">])):</span>
+            <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;sort_by index </span><span class="si">{</span><span class="n">col_idx</span><span class="si">}</span><span class="s2"> out of range for &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">table_data</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="si">}</span><span class="s2"> columns&quot;</span>
+            <span class="p">)</span>
 
-        <span class="n">records</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="n">break_val</span><span class="p">,</span> <span class="n">view_list</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">views</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">view_list</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">v</span><span class="o">.</span><span class="n">metric</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">records</span><span class="p">:</span>
-                    <span class="n">records</span><span class="p">[</span><span class="n">v</span><span class="o">.</span><span class="n">metric</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
-                <span class="n">records</span><span class="p">[</span><span class="n">v</span><span class="o">.</span><span class="n">metric</span><span class="p">][</span><span class="n">break_val</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-                    <span class="n">v</span><span class="o">.</span><span class="n">pct</span> <span class="o">*</span> <span class="mi">100</span> <span class="k">if</span> <span class="n">v</span><span class="o">.</span><span class="n">pct</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">v</span><span class="o">.</span><span class="n">count</span>
-                <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sort_key</span><span class="p">(</span><span class="n">row</span><span class="p">):</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">col_idx</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">cleaned</span> <span class="o">=</span> <span class="n">val</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;%&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;s&quot;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">cleaned</span><span class="p">))</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
+                <span class="k">return</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">val</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">val</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
 
-        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">orient</span><span class="o">=</span><span class="s2">&quot;index&quot;</span><span class="p">)</span>
-        <span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">row_var</span>
-        <span class="k">return</span> <span class="n">df</span></div>
-</div>
+    <span class="n">sorted_rows</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">_sort_key</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="p">(</span><span class="n">sort_order</span> <span class="o">==</span> <span class="s2">&quot;desc&quot;</span><span class="p">))</span>
 
-
-
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># Cluster -- one named section</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
-
-<div class="viewcode-block" id="Cluster">
-<a class="viewcode-back" href="../../../packages/survey.html#siege_utilities.survey.models.Cluster">[docs]</a>
-<span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">Cluster</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;A named group of Chains forming one report section.&quot;&quot;&quot;</span>
-    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">chains</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Chain</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-
-<div class="viewcode-block" id="Cluster.add_chain">
-<a class="viewcode-back" href="../../../packages/survey.html#siege_utilities.survey.models.Cluster.add_chain">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">add_chain</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chain</span><span class="p">:</span> <span class="n">Chain</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Cluster&quot;</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">chains</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chain</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span></div>
-</div>
-
-
-
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># WeightScheme -- RIM target marginals</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
-
-<div class="viewcode-block" id="WeightScheme">
-<a class="viewcode-back" href="../../../packages/survey.html#siege_utilities.survey.models.WeightScheme">[docs]</a>
-<span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">WeightScheme</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Target marginals for RIM (raking) weighting.</span>
-
-<span class="sd">    Example::</span>
-
-<span class="sd">        WeightScheme(targets={</span>
-<span class="sd">            &quot;age_group&quot;: {&quot;18-34&quot;: 0.25, &quot;35-54&quot;: 0.40, &quot;55+&quot;: 0.35},</span>
-<span class="sd">            &quot;gender&quot;:    {&quot;M&quot;: 0.48, &quot;F&quot;: 0.52},</span>
-<span class="sd">        })</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="n">targets</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span>
-    <span class="n">weight_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;weight&quot;</span>
-    <span class="n">max_iterations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span>
-    <span class="n">convergence</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-6</span>
-
-<div class="viewcode-block" id="WeightScheme.validate">
-<a class="viewcode-back" href="../../../packages/survey.html#siege_utilities.survey.models.WeightScheme.validate">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">var</span><span class="p">,</span> <span class="n">marginals</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">targets</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="n">total</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">marginals</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
-            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">total</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">1e-4</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;WeightScheme targets for &#39;</span><span class="si">{</span><span class="n">var</span><span class="si">}</span><span class="s2">&#39; sum to </span><span class="si">{</span><span class="n">total</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, expected 1.0&quot;</span>
-                <span class="p">)</span></div>
-</div>
-
-
-
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># Stack -- complete report</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
-
-<div class="viewcode-block" id="Stack">
-<a class="viewcode-back" href="../../../packages/survey.html#siege_utilities.survey.models.Stack">[docs]</a>
-<span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">Stack</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;A complete survey report: all Clusters + shared WeightScheme.&quot;&quot;&quot;</span>
-    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">clusters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Cluster</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-    <span class="n">weight_scheme</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">WeightScheme</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-
-<div class="viewcode-block" id="Stack.add_cluster">
-<a class="viewcode-back" href="../../../packages/survey.html#siege_utilities.survey.models.Stack.add_cluster">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">add_cluster</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cluster</span><span class="p">:</span> <span class="n">Cluster</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Stack&quot;</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">clusters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cluster</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span></div>
-
-
-    <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">all_chains</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Chain</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">chain</span> <span class="k">for</span> <span class="n">cluster</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">clusters</span> <span class="k">for</span> <span class="n">chain</span> <span class="ow">in</span> <span class="n">cluster</span><span class="o">.</span><span class="n">chains</span><span class="p">]</span></div>
-
-
-
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># Wave -- one survey fielding</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
-
-<div class="viewcode-block" id="Wave">
-<a class="viewcode-back" href="../../../packages/survey.html#siege_utilities.survey.models.Wave">[docs]</a>
-<span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">Wave</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;One survey wave: the same questionnaire fielded at a point in time.</span>
-
-<span class="sd">    ``df`` is the respondent-level DataFrame for this wave and is what</span>
-<span class="sd">    :meth:`WaveSet.compare_chain` consumes. ``stack`` is optional: callers</span>
-<span class="sd">    that have already built a per-wave Stack (with its own weight scheme)</span>
-<span class="sd">    can attach it for later retrieval; longitudinal comparison does not</span>
-<span class="sd">    require it.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="nb">id</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">date</span><span class="p">:</span> <span class="n">_date</span>
-    <span class="n">df</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">stack</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Stack</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">weight_scheme</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">WeightScheme</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
-
-
-
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># WaveSet -- ordered waves of the same survey</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
-
-<div class="viewcode-block" id="WaveSet">
-<a class="viewcode-back" href="../../../packages/survey.html#siege_utilities.survey.models.WaveSet">[docs]</a>
-<span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">WaveSet</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;An ordered set of Waves from the same survey instrument.</span>
-
-<span class="sd">    Waves are sorted by ``date`` on access so longitudinal output is always</span>
-<span class="sd">    chronological regardless of insertion order.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">waves</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Wave</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-    <span class="n">client_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># key into ClientBrandingManager / ClientSurveyRegistry</span>
-
-<div class="viewcode-block" id="WaveSet.add_wave">
-<a class="viewcode-back" href="../../../packages/survey.html#siege_utilities.survey.models.WaveSet.add_wave">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">add_wave</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wave</span><span class="p">:</span> <span class="n">Wave</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;WaveSet&quot;</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">waves</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">wave</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span></div>
-
-
-    <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">ordered</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Wave</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">waves</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">w</span><span class="p">:</span> <span class="n">w</span><span class="o">.</span><span class="n">date</span><span class="p">)</span>
-
-<div class="viewcode-block" id="WaveSet.compare_chain">
-<a class="viewcode-back" href="../../../packages/survey.html#siege_utilities.survey.models.WaveSet.compare_chain">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">compare_chain</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">row_var</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">break_vars</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="o">*</span><span class="p">,</span>
-        <span class="n">metric</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;value&quot;</span><span class="p">,</span>
-        <span class="n">weight_var</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">top_n</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Chain</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a LONGITUDINAL Chain aligned across waves.</span>
-
-<span class="sd">        Columns are ``wave_id`` keys (ordered by date); rows are ``row_var``</span>
-<span class="sd">        categories. Delegates to :mod:`siege_utilities.survey.waves` so the</span>
-<span class="sd">        primitive lives in one place.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">.waves</span><span class="w"> </span><span class="kn">import</span> <span class="n">compare_waves</span>
-        <span class="k">return</span> <span class="n">compare_waves</span><span class="p">(</span>
-            <span class="bp">self</span><span class="p">,</span>
-            <span class="n">row_var</span><span class="o">=</span><span class="n">row_var</span><span class="p">,</span>
-            <span class="n">break_vars</span><span class="o">=</span><span class="n">break_vars</span><span class="p">,</span>
-            <span class="n">metric</span><span class="o">=</span><span class="n">metric</span><span class="p">,</span>
-            <span class="n">weight_var</span><span class="o">=</span><span class="n">weight_var</span><span class="p">,</span>
-            <span class="n">top_n</span><span class="o">=</span><span class="n">top_n</span><span class="p">,</span>
-        <span class="p">)</span></div>
-</div>
+    <span class="k">if</span> <span class="n">header</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">header</span><span class="p">]</span> <span class="o">+</span> <span class="n">sorted_rows</span>
+    <span class="k">return</span> <span class="n">sorted_rows</span></div>
 
 </pre></div>
 
