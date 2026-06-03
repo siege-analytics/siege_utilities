@@ -57,6 +57,8 @@ log = logging.getLogger(__name__)
 
 __all__ = [
     "BivariateAnalysisResult",
+    "classify_choropleth",
+    "classify_series",
     "create_bivariate_analysis",
     "create_bivariate_choropleth",
     "create_bivariate_companion_maps",
@@ -74,6 +76,13 @@ try:
     HAS_MAPCLASSIFY = True
 except ImportError:
     HAS_MAPCLASSIFY = False
+
+from siege_utilities.geo.classification import (
+    ClassificationResult,
+    classify_choropleth,
+    classify_series,
+    AVAILABLE_SCHEMES,
+)
 
 
 # =============================================================================
@@ -266,14 +275,8 @@ def create_choropleth(
         (fig, ax) tuple.
 
     Raises:
-        ImportError: If scheme is requested but mapclassify is not installed.
+        ValueError: If scheme is unknown and no backend can handle it.
     """
-    if scheme is not None and not HAS_MAPCLASSIFY:
-        raise ImportError(
-            f"Classification scheme '{scheme}' requires mapclassify. "
-            f"Install it: pip install mapclassify"
-        )
-
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize)
     else:
@@ -292,9 +295,16 @@ def create_choropleth(
         plot_kwargs['legend_kwds'] = legend_kwds
     if missing_kwds is not None:
         plot_kwargs['missing_kwds'] = missing_kwds
-    if scheme is not None:
+
+    if scheme is not None and HAS_MAPCLASSIFY:
         plot_kwargs['scheme'] = scheme
         plot_kwargs['k'] = k
+    elif scheme is not None:
+        cr = classify_series(gdf[column], scheme=scheme, k=k)
+        norm = mcolors.BoundaryNorm(cr.breaks, plt.get_cmap(cmap).N)
+        plot_kwargs['norm'] = norm
+        plot_kwargs.pop('legend', None)
+        plot_kwargs['legend'] = True
 
     gdf.plot(**plot_kwargs)
 
@@ -392,13 +402,8 @@ def create_classified_comparison(
         (fig, axes) tuple.
 
     Raises:
-        ImportError: If mapclassify is not installed.
+        ValueError: If a scheme is unknown and no backend can handle it.
     """
-    if not HAS_MAPCLASSIFY:
-        raise ImportError(
-            "Classification comparison requires mapclassify. "
-            "Install it: pip install mapclassify"
-        )
 
     n = len(schemes)
     nrows = max(1, (n + ncols - 1) // ncols)
