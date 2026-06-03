@@ -82,21 +82,26 @@ def save_spatial(
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
+    from siege_utilities.files.operations import atomic_write_path
+
     if fmt is SpatialFormat.GEOPARQUET:
-        gdf.to_parquet(str(path), **kwargs)
+        with atomic_write_path(path) as tmp:
+            gdf.to_parquet(str(tmp), **kwargs)
 
     elif fmt is SpatialFormat.PARQUET:
-        # Drop geometry, write plain parquet via pandas
         import pandas as pd
 
         df = pd.DataFrame(gdf.drop(columns="geometry"))
-        df.to_parquet(str(path), **kwargs)
+        with atomic_write_path(path) as tmp:
+            df.to_parquet(str(tmp), **kwargs)
 
     elif fmt is SpatialFormat.GPKG:
-        gdf.to_file(str(path), driver="GPKG", **kwargs)
+        with atomic_write_path(path) as tmp:
+            gdf.to_file(str(tmp), driver="GPKG", **kwargs)
 
     elif fmt is SpatialFormat.GEOJSON:
-        gdf.to_file(str(path), driver="GeoJSON", **kwargs)
+        with atomic_write_path(path) as tmp:
+            gdf.to_file(str(tmp), driver="GeoJSON", **kwargs)
 
     elif fmt is SpatialFormat.TOPOJSON:
         try:
@@ -107,17 +112,20 @@ def save_spatial(
                 "Install with: pip install topojson"
             ) from exc
         topo = tp.Topology(gdf, **kwargs)
-        path.write_text(topo.to_json())
+        with atomic_write_path(path) as tmp:
+            tmp.write_text(topo.to_json())
 
     elif fmt is SpatialFormat.CSV:
         import pandas as pd
 
         df = gdf.copy()
         df["geometry"] = df.geometry.astype(str)
-        pd.DataFrame(df).to_csv(str(path), index=False, **kwargs)
+        with atomic_write_path(path) as tmp:
+            pd.DataFrame(df).to_csv(str(tmp), index=False, **kwargs)
 
     elif fmt is SpatialFormat.SHAPEFILE:
-        gdf.to_file(str(path), driver="ESRI Shapefile", **kwargs)
+        from siege_utilities.files.operations import atomic_write_shapefile
+        atomic_write_shapefile(gdf, path, **kwargs)
 
     else:
         raise ValueError(f"Unsupported spatial format: {fmt}")
@@ -156,17 +164,23 @@ def save_tabular(
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
+    from siege_utilities.files.operations import atomic_write_path
+
     if fmt is TabularFormat.PARQUET:
-        df.to_parquet(str(path), **kwargs)
+        with atomic_write_path(path) as tmp:
+            df.to_parquet(str(tmp), **kwargs)
 
     elif fmt is TabularFormat.CSV:
-        df.to_csv(str(path), index=False, **kwargs)
+        with atomic_write_path(path) as tmp:
+            df.to_csv(str(tmp), index=False, **kwargs)
 
     elif fmt is TabularFormat.EXCEL:
-        df.to_excel(str(path), index=False, **kwargs)
+        with atomic_write_path(path) as tmp:
+            df.to_excel(str(tmp), index=False, **kwargs)
 
     elif fmt is TabularFormat.JSON:
-        df.to_json(str(path), orient="records", **kwargs)
+        with atomic_write_path(path) as tmp:
+            df.to_json(str(tmp), orient="records", **kwargs)
 
     else:
         raise ValueError(f"Unsupported tabular format: {fmt}")

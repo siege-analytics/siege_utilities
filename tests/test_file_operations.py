@@ -3,6 +3,7 @@
 import pytest
 
 from siege_utilities.files.operations import (
+    atomic_write_path,
     remove_tree,
     file_exists,
     touch_file,
@@ -212,3 +213,43 @@ class TestDeleteAndReplace:
         delete_existing_file_and_replace_it_with_an_empty_file(str(f))
         assert f.exists()
         assert f.read_text() == ""
+
+
+class TestAtomicWritePath:
+    def test_successful_write_replaces_target(self, tmp_path):
+        target = tmp_path / "output.csv"
+        target.write_text("old data")
+        with atomic_write_path(target) as tmp:
+            tmp.write_text("new data")
+        assert target.read_text() == "new data"
+
+    def test_failed_write_leaves_target_unchanged(self, tmp_path):
+        target = tmp_path / "output.csv"
+        target.write_text("original")
+        with pytest.raises(ValueError):
+            with atomic_write_path(target) as tmp:
+                tmp.write_text("partial")
+                raise ValueError("simulated failure")
+        assert target.read_text() == "original"
+
+    def test_failed_write_cleans_up_temp(self, tmp_path):
+        target = tmp_path / "output.csv"
+        captured_tmp = None
+        with pytest.raises(RuntimeError):
+            with atomic_write_path(target) as tmp:
+                captured_tmp = tmp
+                tmp.write_text("data")
+                raise RuntimeError("boom")
+        assert not captured_tmp.exists()
+
+    def test_creates_parent_directories(self, tmp_path):
+        target = tmp_path / "a" / "b" / "c" / "file.txt"
+        with atomic_write_path(target) as tmp:
+            tmp.write_text("nested")
+        assert target.read_text() == "nested"
+
+    def test_preserves_extension(self, tmp_path):
+        target = tmp_path / "data.parquet"
+        with atomic_write_path(target) as tmp:
+            assert tmp.suffix == ".parquet"
+            tmp.write_text("fake parquet")

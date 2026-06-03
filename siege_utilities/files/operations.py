@@ -3,11 +3,14 @@ Modern file operations for siege_utilities.
 Provides clean, type-safe file manipulation utilities.
 """
 
+import contextlib
 import json
+import os
 import subprocess
 import shutil
 import logging
-from typing import Union, Optional, List, Any
+import tempfile
+from typing import Generator, Union, Optional, List, Any
 from pathlib import Path
 
 # Get logger for this module
@@ -15,6 +18,60 @@ log = logging.getLogger(__name__)
 
 # Type aliases
 FilePath = Union[str, Path]
+
+
+@contextlib.contextmanager
+def atomic_write_path(target: FilePath) -> Generator[Path, None, None]:
+    """Context manager that yields a temporary path for writing, then
+    atomically replaces the target on successful exit.
+
+    Usage::
+
+        with atomic_write_path("/data/output.csv") as tmp:
+            df.to_csv(tmp, index=False)
+        # target is now atomically updated
+
+    If the block raises, the temp file is cleaned up and the target
+    is left unchanged.
+    """
+    target = Path(target)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(
+        dir=target.parent,
+        prefix="atomic_",
+        suffix=target.suffix or ".tmp",
+    )
+    os.close(fd)
+    tmp = Path(tmp_path)
+    try:
+        yield tmp
+        os.replace(tmp, target)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
+def atomic_write_shapefile(gdf, target: FilePath, **kwargs) -> None:
+    """Write a GeoDataFrame as a Shapefile atomically.
+
+    Shapefiles produce sidecar files (.shx, .dbf, .prj, .cpg). This writes
+    to a temp stem then renames all produced files to the final stem.
+    """
+    target = Path(target)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp_dir = Path(tempfile.mkdtemp(dir=target.parent, prefix="atomic_shp_"))
+    tmp_shp = tmp_dir / target.name
+    try:
+        gdf.to_file(str(tmp_shp), driver="ESRI Shapefile", **kwargs)
+        for f in tmp_dir.iterdir():
+            dest = target.parent / (target.stem + f.suffix)
+            os.replace(f, dest)
+        tmp_dir.rmdir()
+    except BaseException:
+        import shutil
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise
+
 
 def remove_tree(path: FilePath) -> None:
     """
@@ -783,6 +840,8 @@ def list_files_recursive(
 
 __all__ = [
     'FilePath',
+    'atomic_write_path',
+    'atomic_write_shapefile',
     'remove_tree',
     'file_exists',
     'touch_file',

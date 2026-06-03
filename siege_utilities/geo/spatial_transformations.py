@@ -117,47 +117,60 @@ class SpatialDataTransformer:
     def _convert_to_shapefile(self, gdf: GeoDataFrame, **kwargs) -> None:
         """Convert to ESRI Shapefile format."""
         output_path = kwargs.get('output_path', 'output.shp')
-        gdf.to_file(output_path, driver='ESRI Shapefile')
+        from siege_utilities.files.operations import atomic_write_shapefile
+        atomic_write_shapefile(gdf, output_path)
         log.info(f"Successfully converted to Shapefile: {output_path}")
 
     def _convert_to_geojson(self, gdf: GeoDataFrame, **kwargs) -> None:
         """Convert to GeoJSON format."""
         output_path = kwargs.get('output_path', 'output.geojson')
-        gdf.to_file(output_path, driver='GeoJSON')
+        from siege_utilities.files.operations import atomic_write_path
+        with atomic_write_path(output_path) as tmp:
+            gdf.to_file(str(tmp), driver='GeoJSON')
         log.info(f"Successfully converted to GeoJSON: {output_path}")
 
     def _convert_to_geopackage(self, gdf: GeoDataFrame, **kwargs) -> None:
         """Convert to GeoPackage format."""
         output_path = kwargs.get('output_path', 'output.gpkg')
-        gdf.to_file(output_path, driver='GPKG')
+        from siege_utilities.files.operations import atomic_write_path
+        with atomic_write_path(output_path) as tmp:
+            gdf.to_file(str(tmp), driver='GPKG')
         log.info(f"Successfully converted to GeoPackage: {output_path}")
 
     def _convert_to_kml(self, gdf: GeoDataFrame, **kwargs) -> None:
         """Convert to KML format."""
         output_path = kwargs.get('output_path', 'output.kml')
-        gdf.to_file(output_path, driver='KML')
+        from siege_utilities.files.operations import atomic_write_path
+        with atomic_write_path(output_path) as tmp:
+            gdf.to_file(str(tmp), driver='KML')
         log.info(f"Successfully converted to KML: {output_path}")
 
     def _convert_to_gml(self, gdf: GeoDataFrame, **kwargs) -> None:
         """Convert to GML format."""
         output_path = kwargs.get('output_path', 'output.gml')
-        gdf.to_file(output_path, driver='GML')
+        from siege_utilities.files.operations import atomic_write_path
+        with atomic_write_path(output_path) as tmp:
+            gdf.to_file(str(tmp), driver='GML')
         log.info(f"Successfully converted to GML: {output_path}")
 
     def _convert_to_wkt(self, gdf: GeoDataFrame, **kwargs) -> None:
         """Convert to WKT (Well-Known Text) format."""
         output_path = kwargs.get('output_path', 'output.wkt')
+        from siege_utilities.files.operations import atomic_write_path
         wkt_data = gdf.copy()
         wkt_data['geometry'] = wkt_data.geometry.astype(str)
-        wkt_data.to_csv(output_path, index=False)
+        with atomic_write_path(output_path) as tmp:
+            wkt_data.to_csv(str(tmp), index=False)
         log.info(f"Successfully converted to WKT: {output_path}")
 
     def _convert_to_wkb(self, gdf: GeoDataFrame, **kwargs) -> None:
         """Convert to WKB (Well-Known Binary) format."""
         output_path = kwargs.get('output_path', 'output.wkb')
+        from siege_utilities.files.operations import atomic_write_path
         wkb_data = gdf.copy()
         wkb_data['geometry'] = wkb_data.geometry.apply(lambda geom: geom.wkb)
-        wkb_data.to_pickle(output_path)
+        with atomic_write_path(output_path) as tmp:
+            wkb_data.to_pickle(str(tmp))
         log.info(f"Successfully converted to WKB: {output_path}")
     
     def _convert_to_postgis(self, gdf: GeoDataFrame, **kwargs) -> None:
@@ -172,8 +185,9 @@ class SpatialDataTransformer:
             + "'));"
         )
 
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write('\n'.join(sql_lines))
+        from siege_utilities.files.operations import atomic_write_path
+        with atomic_write_path(output_path) as tmp:
+            tmp.write_text('\n'.join(sql_lines), encoding='utf-8')
 
         log.info(f"Successfully generated PostGIS SQL: {output_path}")
 
