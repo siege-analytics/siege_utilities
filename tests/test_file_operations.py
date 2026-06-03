@@ -1,9 +1,14 @@
 """Tests for siege_utilities.files.operations — file manipulation utilities."""
 
+import subprocess
+from pathlib import Path
+from unittest.mock import MagicMock
+
 import pytest
 
 from siege_utilities.files.operations import (
     atomic_write_path,
+    atomic_write_shapefile,
     remove_tree,
     file_exists,
     touch_file,
@@ -12,6 +17,7 @@ from siege_utilities.files.operations import (
     move_file,
     get_file_size,
     list_directory,
+    run_command,
     ensure_directory_exists,
     safe_file_write,
     safe_file_read,
@@ -253,3 +259,101 @@ class TestAtomicWritePath:
         with atomic_write_path(target) as tmp:
             assert tmp.suffix == ".parquet"
             tmp.write_text("fake parquet")
+
+
+class TestRunCommand:
+    """Tests for run_command — security validation, allow-list, and execution."""
+
+    def test_allowed_command_succeeds(self):
+        result = run_command("echo hello")
+        assert result.returncode == 0
+        assert "hello" in result.stdout
+
+    def test_allowed_command_as_list(self):
+        result = run_command(["echo", "hello world"])
+        assert result.returncode == 0
+        assert "hello world" in result.stdout
+
+    def test_disallowed_command_raises(self):
+        from siege_utilities.files.shell import SecurityError
+        with pytest.raises(SecurityError):
+            run_command("python --version")
+
+    def test_custom_allow_list(self):
+        result = run_command("true", allow_list={"true"})
+        assert result.returncode == 0
+
+    def test_unsafe_bypasses_allow_list(self):
+        result = run_command("true", unsafe=True)
+        assert result.returncode == 0
+
+    def test_unsafe_rejects_shell_metacharacters_in_string(self):
+        with pytest.raises(ValueError, match="shell metacharacters"):
+            run_command("echo hello | cat", unsafe=True)
+
+    def test_unsafe_list_form_allows_non_allowed_command(self):
+        result = run_command(["true"], unsafe=True)
+        assert result.returncode == 0
+
+    def test_nonzero_exit_returns_completed_process(self):
+        result = run_command("ls /nonexistent_path_xyz_abc")
+        assert result.returncode != 0
+        assert isinstance(result, subprocess.CompletedProcess)
+
+    def test_cwd_is_respected(self, tmp_path):
+        result = run_command("pwd", cwd=str(tmp_path))
+        assert str(tmp_path) in result.stdout
+
+    def test_timeout_raises(self):
+        with pytest.raises(subprocess.TimeoutExpired):
+            run_command(["sleep", "10"], allow_list={"sleep"}, timeout=1)
+
+    def test_dangerous_chars_blocked(self):
+        from siege_utilities.files.shell import SecurityError
+        with pytest.raises(SecurityError):
+            run_command("echo hello; rm -rf /")
+
+    def test_path_traversal_blocked(self):
+        from siege_utilities.files.shell import SecurityError
+        with pytest.raises(SecurityError):
+            run_command("cat ../../some/file")
+
+
+class TestAtomicWriteShapefile:
+    """Tests for atomic_write_shapefile — atomic GeoDataFrame→Shapefile."""
+
+    def test_writes_shapefile_and_sidecars(self, tmp_path):
+        target = tmp_path / "output.shp"
+        mock_gdf = MagicMock()
+
+        def fake_to_file(path, driver, **kwargs):
+            p = Path(path)
+            for ext in (".shp", ".shx", ".dbf", ".prj"):
+                (p.parent / (p.stem + ext)).write_text(f"fake {ext}")
+
+        mock_gdf.to_file = fake_to_file
+        atomic_write_shapefile(mock_gdf, target)
+        for ext in (".shp", ".shx", ".dbf", ".prj"):
+            assert (tmp_path / f"output{ext}").exists()
+
+    def test_cleans_up_on_failure(self, tmp_path):
+        target = tmp_path / "output.shp"
+        mock_gdf = MagicMock()
+        mock_gdf.to_file.side_effect = RuntimeError("write failed")
+        with pytest.raises(RuntimeError):
+            atomic_write_shapefile(mock_gdf, target)
+        assert not target.exists()
+        assert list(tmp_path.glob("atomic_shp_*")) == []
+
+    def test_creates_parent_directories(self, tmp_path):
+        target = tmp_path / "a" / "b" / "output.shp"
+        mock_gdf = MagicMock()
+
+        def fake_to_file(path, driver, **kwargs):
+            p = Path(path)
+            for ext in (".shp", ".shx", ".dbf"):
+                (p.parent / (p.stem + ext)).write_text(f"fake {ext}")
+
+        mock_gdf.to_file = fake_to_file
+        atomic_write_shapefile(mock_gdf, target)
+        assert target.exists()
