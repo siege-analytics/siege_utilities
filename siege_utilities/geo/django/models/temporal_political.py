@@ -167,6 +167,15 @@ class Seat(models.Model):
             models.Index(fields=["office", "state"]),
             models.Index(fields=["office"]),
         ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(state__isnull=False)
+                    | models.Q(office="PRESIDENT")
+                ),
+                name="seat_state_required_unless_president",
+            ),
+        ]
 
     def __str__(self):
         parts = [self.get_office_display()]
