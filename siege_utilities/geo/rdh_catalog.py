@@ -260,7 +260,8 @@ class RDHCatalog:
             return len(self._entries)
 
         if self._provider is None:
-            raise RuntimeError("No provider configured; cannot load catalog")
+            log.warning("No provider configured; catalog is empty")
+            return 0
 
         entries = self._provider.fetch_all_datasets()
         self._entries = entries
