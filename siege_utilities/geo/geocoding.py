@@ -24,6 +24,8 @@ __all__ = [
     'concatenate_addresses',
     'get_coordinates',
     'use_nominatim_geocoder',
+    'geocode_with_nominatim_public',
+    'geocode_addresses_with_nominatim',
     'NominatimGeoClassifier',
     'validate_geocode_data_pandas',
     'mark_valid_geocode_data_pandas',
@@ -521,6 +523,63 @@ def use_nominatim_geocoder(query_address, id=None, country_codes=None,
         f'Nominatim geocoder loop exited without result for '
         f'{query_address!r} (max_retries={max_retries})'
     )
+
+
+def geocode_with_nominatim_public(address, country_codes=None):
+    """Geocode a single address using the public Nominatim service.
+
+    Thin wrapper around :func:`get_coordinates` that forces the public
+    endpoint (no custom ``server_url``).
+
+    Args:
+        address: Address string to geocode.
+        country_codes: Optional country code filter (defaults to US).
+
+    Returns:
+        ``(lat, lon)`` tuple, or ``None`` if no match found.
+
+    Raises:
+        ValueError: If *address* is empty.
+        GeocodingError: On network/service failure.
+    """
+    return get_coordinates(address, country_codes=country_codes, server_url=None)
+
+
+def geocode_addresses_with_nominatim(addresses, country_codes=None,
+                                     max_retries=3, server_url=None):
+    """Batch-geocode a list of addresses using Nominatim.
+
+    Calls :func:`get_coordinates` for each address sequentially with
+    Nominatim's built-in rate limiting (1 s for public, 50 ms for
+    self-hosted).
+
+    Args:
+        addresses: Iterable of address strings.
+        country_codes: Optional country code filter (defaults to US).
+        max_retries: Retry attempts per address.
+        server_url: Optional custom Nominatim server URL.
+
+    Returns:
+        List of ``{"address": str, "lat": float, "lon": float}`` dicts.
+        Addresses that returned no match have ``lat`` and ``lon`` set to
+        ``None``.  Addresses that raised :class:`GeocodingError` are
+        logged and included with ``None`` coordinates.
+    """
+    results = []
+    for addr in addresses:
+        try:
+            coords = get_coordinates(
+                addr, country_codes=country_codes,
+                max_retries=max_retries, server_url=server_url,
+            )
+        except GeocodingError as exc:
+            log_warning(f"Geocoding failed for {addr!r}: {exc}")
+            coords = None
+        if coords is not None:
+            results.append({"address": addr, "lat": coords[0], "lon": coords[1]})
+        else:
+            results.append({"address": addr, "lat": None, "lon": None})
+    return results
 
 
 class NominatimGeoClassifier:

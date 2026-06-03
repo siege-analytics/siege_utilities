@@ -48,6 +48,7 @@ __all__ = [
     "set_default_crs",
     "reproject_if_needed",
     "detect_crs",
+    "distance_to_decimal_degrees",
     "reproject_geom",
 ]
 
@@ -266,3 +267,33 @@ def reproject_geom(
     always_xy = axis_order == AXIS_ORDER_TRAD_GIS
     transformer = Transformer.from_crs(src, dst, always_xy=always_xy)
     return shapely_transform(transformer.transform, geom)
+
+
+def distance_to_decimal_degrees(distance_meters: float, latitude: float) -> float:
+    """Convert a distance in meters to approximate decimal degrees.
+
+    Uses the WGS-84 ellipsoid approximation. The result is the
+    longitudinal span at the given latitude (degrees of longitude
+    shrink toward the poles).
+
+    Args:
+        distance_meters: Distance in meters.
+        latitude: Latitude in decimal degrees where the conversion
+            applies.
+
+    Returns:
+        Approximate equivalent distance in decimal degrees of
+        longitude at *latitude*.
+
+    Raises:
+        ValueError: If *latitude* is outside [-90, 90].
+    """
+    import math
+
+    if not -90 <= latitude <= 90:
+        raise ValueError(f"latitude must be in [-90, 90], got {latitude}")
+
+    meters_per_degree = 111_320 * math.cos(math.radians(latitude))
+    if abs(meters_per_degree) < 1e-10:
+        return 0.0
+    return distance_meters / meters_per_degree
