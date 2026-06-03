@@ -1,93 +1,61 @@
 Jupyter Notebooks
 =================
 
-The ``notebooks/`` directory contains 27 runnable Jupyter notebooks
-demonstrating all major library capabilities. Run them headlessly
-via the test runner::
+The ``notebooks/`` directory contains 24 active Jupyter notebooks organized
+by domain, plus 12 archived notebooks from prior reorganizations.
 
-    pytest tests/test_notebooks.py -k pure_python -v
+Foundations
+-----------
 
-Configuration & Profiles
-------------------------
+- **01_configuration** — Hydra + Pydantic configuration system with client overlays
+- **02_profiles_branding** — Client profile registration and branded chart rendering
+- **entity_identification** — Deduplicating donors across vendor lists (normalize, UUID5, namespace)
+- **file_operations_and_security** — Atomic writes, path security, safe I/O, command restriction
 
-- **NB01** — Configuration System Demo (Hydra + Pydantic)
-- **NB02** — Create User & Client Profiles
-- **NB03** — Person/Actor Architecture (full model reference)
+Engines
+-------
 
-Geospatial & Census
---------------------
+- **01_multi_engine_dataframes** — Same ranking query against pandas and DuckDB backends
+- **02_distributed_spark** — Spark + Sedona call shapes for scaled operations (conceptual)
+- **03_databricks_geo** — Asset Bundles, LakeBase, Unity Catalog DDL, Spark-GeoPandas bridge
+- **04_statistics_primitives** — MOE propagation, NAICS/SOC hierarchies, contingency tables
 
-- **NB04** — Spatial Data & Census Boundaries (comprehensive reference)
-- **NB05** — Choropleth Maps & Classification
-- **NB07** — Geocoding & Address Processing
-- **NB15** — Census Demographics Quick Start
-- **NB25** — SpatiaLite Cache & Advanced Geocoding
-- **NB26** — International Boundaries (GADM)
-- **NB27** — Advanced Census (MOE Propagation, NAICS/SOC)
+Spatial
+-------
 
-Political & Redistricting
---------------------------
+- **01_boundaries** — Census TIGER geographies (state, county, tract) with ACS join
+- **02_geocoding** — Batch geocoding with Census geocoder, cache, quality flags
+- **03_choropleth_maps** — Bivariate choropleths (Dem share x turnout), tertile binning
+- **04_redistricting** — Congressional district boundary comparison across cycles
+- **05_multi_source_joins** — Unifying three polling vendors via exact + fuzzy joins
+- **06_geodjango** — GeoDjango model + PostGIS + FeatureCollection endpoint (conceptual)
+- **07_natural_language_to_geometry** — NL query to Shapely polygon via WKLS/Etter
 
-- **NB22** — Temporal Political Models (CongressionalTerm, Seat, Race)
-- **NB23** — Redistricting Analysis (Plans, Compactness, Demographics)
-
-Data Engines
-------------
-
-- **NB24** — DuckDB & Engine Abstraction (engine switching, spatial ops)
-- **NB16** — Spark & Sedona Distributed Operations
-
-Reporting
+Analytics
 ---------
 
-- **NB06** — Report Generation (chart gallery)
-- **NB11** — ReportLab PDF Features
-- **NB12** — PowerPoint Generation
-- **NB21** — Enterprise Onboarding Presentation
+- **01_connectors** — GA, Snowflake, data.world connector patterns
+- **02_ga_end_to_end** — Weekly GA digest pipeline: fetch, chart, PDF
 
-Analytics & Integrations
--------------------------
+Reports
+-------
 
-- **NB09** — Analytics Connectors (Facebook, GA4, Snowflake)
-- **NB14** — GA Analytics Report
-- **NB18** — Google Workspace Write APIs
+- **01_charts_and_pdf** — Branded Q1 deliverable assembly (chart + table + PDF)
+- **02_slides_pptx_and_google** — 5-slide deck generation (PPTX + Google Slides)
+- **03_polling_survey_analysis** — Three-wave party-ID tracker with crosstabs and trends
+- **04_survey_full_showcase** — All seven TableTypes with branded multi-section PDF
 
-Data & Development
-------------------
+Economic
+--------
 
-- **NB08** — Sample Data Generation
-- **NB10** — Profile & Branding Testing
-- **NB13** — GeoDjango Integration
-- **NB17** — Developer Tooling
-- **NB19** — NLRB Data Integration
-- **NB20** — Multi-Source Spatial Tabulation
+- **economic_data_irs_bls** — IRS SOI ZIP-code income data and BLS QCEW employment context
 
-Dependency Groups
------------------
+Git
+---
 
-Notebooks are grouped by dependency for selective execution:
+- **repo_analysis** — Repository status, commit history, branch analysis (read-only)
 
-.. list-table::
-   :header-rows: 1
+Config
+------
 
-   * - Group
-     - Marker
-     - Count
-   * - Pure Python
-     - (none)
-     - 13
-   * - Geo (GDAL)
-     - ``requires_gdal``
-     - 5
-   * - Django (PostGIS)
-     - ``requires_gdal`` + ``django_db``
-     - 2
-   * - Analytics (credentials)
-     - ``integration``
-     - 3
-   * - Spark
-     - ``integration``
-     - 1
-   * - External downloads
-     - ``integration``
-     - 3
+- **credential_management** — Credential backend discovery and management patterns
