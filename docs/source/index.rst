@@ -47,6 +47,8 @@ The canonical composition chain::
    packages/databricks
    packages/trino
    packages/config
+   packages/conf
+   packages/oss_unity_catalog
 
 .. toctree::
    :maxdepth: 2
@@ -75,6 +77,7 @@ The canonical composition chain::
    packages/admin
    packages/cache
    packages/testing
+   packages/development
    exception_hierarchy
 
 .. toctree::
@@ -109,7 +112,7 @@ The canonical composition chain::
      Nominatim, TAMU geocoders
    - **PEP 562 lazy loading** — import one piece without pulling the whole library
    - **Tiered geo extras** — ``[geo-lite]`` / ``[geo]`` / ``[geodjango]``
-   - **32 Jupyter notebooks** organized by domain
+   - **24 Jupyter notebooks** organized by domain
    - **Report generation** — PDF, PowerPoint, branded multi-client reports, hex cartograms
 
    Install: ``pip install siege-utilities``
