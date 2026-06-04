@@ -282,6 +282,14 @@ _register_lazy([
     'list_facebook_accounts_for_client', 'batch_retrieve_facebook_data',
 ], '.analytics.facebook_business', deps=['facebook-business'])
 
+# ── CRM Connectors (protocol + error types, core-only deps) ───────────
+
+_register_lazy([
+    'ConnectorProtocol', 'UpsertResult', 'UpsertError',
+    'ConnectorError', 'ConnectorAuthError',
+    'ConnectorRateLimitError', 'ConnectorNotFoundError',
+], '.connectors._protocol', deps=['pandas'])
+
 # ── Reporting (requires matplotlib, reportlab, etc.) ─────────────────
 
 _register_lazy([
@@ -395,7 +403,7 @@ def __getattr__(name):
 
 
 def __dir__():
-    return sorted(set(list(globals().keys()) + list(_LAZY_IMPORTS.keys()) + __all__))
+    return sorted(set(list(globals().keys()) + list(_LAZY_IMPORTS.keys())))
 
 
 # ── Introspection functions (defined here, always available) ─────────
