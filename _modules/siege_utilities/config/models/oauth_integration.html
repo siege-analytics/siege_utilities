@@ -6846,6 +6846,9 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.oauth_integration.OAuthProvider.SALESFORCE"><code class="docutils literal notranslate"><span class="pre">OAuthProvider.SALESFORCE</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.oauth_integration.OAuthProvider.SLACK"><code class="docutils literal notranslate"><span class="pre">OAuthProvider.SLACK</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.oauth_integration.OAuthProvider.ZOOM"><code class="docutils literal notranslate"><span class="pre">OAuthProvider.ZOOM</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.oauth_integration.OAuthProvider.HUBSPOT"><code class="docutils literal notranslate"><span class="pre">OAuthProvider.HUBSPOT</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.oauth_integration.OAuthProvider.ZOHO"><code class="docutils literal notranslate"><span class="pre">OAuthProvider.ZOHO</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.oauth_integration.OAuthProvider.DYNAMICS"><code class="docutils literal notranslate"><span class="pre">OAuthProvider.DYNAMICS</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.oauth_integration.OAuthProvider.CUSTOM"><code class="docutils literal notranslate"><span class="pre">OAuthProvider.CUSTOM</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.oauth_integration.OAuthProvider.__new__"><code class="docutils literal notranslate"><span class="pre">OAuthProvider.__new__()</span></code></a></li>
 </ul>
@@ -8829,6 +8832,9 @@
     <span class="n">SALESFORCE</span> <span class="o">=</span> <span class="s2">&quot;salesforce&quot;</span>
     <span class="n">SLACK</span> <span class="o">=</span> <span class="s2">&quot;slack&quot;</span>
     <span class="n">ZOOM</span> <span class="o">=</span> <span class="s2">&quot;zoom&quot;</span>
+    <span class="n">HUBSPOT</span> <span class="o">=</span> <span class="s2">&quot;hubspot&quot;</span>
+    <span class="n">ZOHO</span> <span class="o">=</span> <span class="s2">&quot;zoho&quot;</span>
+    <span class="n">DYNAMICS</span> <span class="o">=</span> <span class="s2">&quot;dynamics&quot;</span>
     <span class="n">CUSTOM</span> <span class="o">=</span> <span class="s2">&quot;custom&quot;</span></div>
 
 
@@ -9059,7 +9065,10 @@
             <span class="n">OAuthProvider</span><span class="o">.</span><span class="n">TWITTER</span><span class="p">:</span> <span class="s2">&quot;https://twitter.com/i/oauth2/authorize&quot;</span><span class="p">,</span>
             <span class="n">OAuthProvider</span><span class="o">.</span><span class="n">SALESFORCE</span><span class="p">:</span> <span class="s2">&quot;https://login.salesforce.com/services/oauth2/authorize&quot;</span><span class="p">,</span>
             <span class="n">OAuthProvider</span><span class="o">.</span><span class="n">SLACK</span><span class="p">:</span> <span class="s2">&quot;https://slack.com/oauth/v2/authorize&quot;</span><span class="p">,</span>
-            <span class="n">OAuthProvider</span><span class="o">.</span><span class="n">ZOOM</span><span class="p">:</span> <span class="s2">&quot;https://zoom.us/oauth/authorize&quot;</span>
+            <span class="n">OAuthProvider</span><span class="o">.</span><span class="n">ZOOM</span><span class="p">:</span> <span class="s2">&quot;https://zoom.us/oauth/authorize&quot;</span><span class="p">,</span>
+            <span class="n">OAuthProvider</span><span class="o">.</span><span class="n">HUBSPOT</span><span class="p">:</span> <span class="s2">&quot;https://app.hubspot.com/oauth/authorize&quot;</span><span class="p">,</span>
+            <span class="n">OAuthProvider</span><span class="o">.</span><span class="n">ZOHO</span><span class="p">:</span> <span class="s2">&quot;https://accounts.zoho.com/oauth/v2/auth&quot;</span><span class="p">,</span>
+            <span class="n">OAuthProvider</span><span class="o">.</span><span class="n">DYNAMICS</span><span class="p">:</span> <span class="s2">&quot;https://login.microsoftonline.com/common/oauth2/v2.0/authorize&quot;</span>
         <span class="p">}</span>
         
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">provider</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">base_urls</span><span class="p">:</span>
