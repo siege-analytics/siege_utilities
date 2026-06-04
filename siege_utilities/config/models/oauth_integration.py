@@ -22,6 +22,9 @@ class OAuthProvider(str, Enum):
     SALESFORCE = "salesforce"
     SLACK = "slack"
     ZOOM = "zoom"
+    HUBSPOT = "hubspot"
+    ZOHO = "zoho"
+    DYNAMICS = "dynamics"
     CUSTOM = "custom"
 
 
@@ -229,7 +232,10 @@ class OAuthIntegration(BaseModel):
             OAuthProvider.TWITTER: "https://twitter.com/i/oauth2/authorize",
             OAuthProvider.SALESFORCE: "https://login.salesforce.com/services/oauth2/authorize",
             OAuthProvider.SLACK: "https://slack.com/oauth/v2/authorize",
-            OAuthProvider.ZOOM: "https://zoom.us/oauth/authorize"
+            OAuthProvider.ZOOM: "https://zoom.us/oauth/authorize",
+            OAuthProvider.HUBSPOT: "https://app.hubspot.com/oauth/authorize",
+            OAuthProvider.ZOHO: "https://accounts.zoho.com/oauth/v2/auth",
+            OAuthProvider.DYNAMICS: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
         }
         
         if self.provider not in base_urls:
