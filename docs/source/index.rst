@@ -46,6 +46,7 @@ The canonical composition chain::
    packages/distributed
    packages/databricks
    packages/trino
+   packages/connectors
    packages/config
    packages/conf
    packages/oss_unity_catalog
@@ -100,19 +101,20 @@ The canonical composition chain::
 
 .. note::
 
-   **v3.21.0** (June 2026) — `PyPI <https://pypi.org/project/siege-utilities/>`_
+   **v3.22.0** (June 2026) — `PyPI <https://pypi.org/project/siege-utilities/3.22.0/>`_
 
    Key capabilities:
 
    - **Geo is the gravitational center** — boundaries, geocoding, spatial transforms,
      isochrones, Census data intelligence, redistricting analysis
    - **Engine-agnostic DataFrame** — pandas, DuckDB, Spark+Sedona, PostGIS
+   - **CRM connectors** — ``ConnectorProtocol`` for Salesforce, HubSpot, Zoho, Dynamics
    - **Temporal political models** — CongressionalTerm, Seat, Race, RedistrictingPlan
    - **Pluggable providers** — Census TIGER, GADM, RDH boundary providers; Census,
      Nominatim, TAMU geocoders
    - **PEP 562 lazy loading** — import one piece without pulling the whole library
    - **Tiered geo extras** — ``[geo-lite]`` / ``[geo]`` / ``[geodjango]``
-   - **24 Jupyter notebooks** organized by domain
+   - **32 Jupyter notebooks** organized by domain
    - **Report generation** — PDF, PowerPoint, branded multi-client reports, hex cartograms
 
    Install: ``pip install siege-utilities``
