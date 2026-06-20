@@ -119,9 +119,16 @@ class GoogleAnalyticsConnector:
                 self.service_account_data = get_google_service_account_from_1password()
                 self.authenticate_service_account()
             except ImportError:
-                log_warning("Could not import 1Password service account function")
-            except subprocess.CalledProcessError:
-                log_warning("No service account data provided and could not retrieve from 1Password")
+                raise RuntimeError(
+                    "service_account auth requested but no service_account_data "
+                    "provided and the 1Password config module is not available. "
+                    "Either pass service_account_data or install the config extras."
+                )
+            except subprocess.CalledProcessError as exc:
+                raise RuntimeError(
+                    "service_account auth requested but 1Password credential "
+                    f"lookup failed: {exc}"
+                ) from exc
 
         log_info(f"Initialized Google Analytics connector with {auth_method} authentication")
 
@@ -642,6 +649,7 @@ def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
                 results['errors'].append(error_msg)
                 logger.error("Error processing account %s", account['ga_account_id'], exc_info=True)
 
+        results['success'] = not results['errors']
         log_info(f"Batch GA data retrieval completed: {results['accounts_processed']} accounts, {results['total_rows']} rows")
         return results
 
