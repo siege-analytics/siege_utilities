@@ -257,8 +257,11 @@ class TestValidateYearsEmptyInput:
 # =========================================================================
 
 class TestGetAvailableYearsUnknownDataset:
-    def test_unknown_dataset_returns_empty(self):
-        assert get_available_years(dataset="nonexistent") == []
+    def test_unknown_dataset_raises(self):
+        # SU-1: an unknown dataset is invalid input; get_available_years raises
+        # ValueError rather than returning an empty list.
+        with pytest.raises(ValueError):
+            get_available_years(dataset="nonexistent")
 
 
 class TestGetAvailableYearsKnownDatasets:

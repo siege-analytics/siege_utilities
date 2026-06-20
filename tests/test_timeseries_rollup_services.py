@@ -58,10 +58,13 @@ class TestTimeseriesService:
         assert cagr is not None
         assert abs(cagr - 0.1487) < 0.001
 
-    def test_cagr_zero_start_returns_none(self):
+    def test_cagr_zero_start_raises(self):
         from siege_utilities.geo.django.services.timeseries_service import TimeseriesService
 
-        assert TimeseriesService._cagr(0, 100, 5) is None
+        # SU-1: CAGR is undefined for a zero start value; _cagr raises ValueError
+        # (its return type is float) rather than returning None.
+        with pytest.raises(ValueError):
+            TimeseriesService._cagr(0, 100, 5)
 
     def test_trend_direction_increasing(self):
         from siege_utilities.geo.django.services.timeseries_service import TimeseriesService
@@ -86,11 +89,14 @@ class TestTimeseriesService:
         model = svc._resolve_model("tract")
         assert model is Tract
 
-    def test_resolve_model_unknown_level(self):
+    def test_resolve_model_unknown_level_raises(self):
         from siege_utilities.geo.django.services.timeseries_service import TimeseriesService
 
+        # SU-1: an unknown geography level is invalid input; _resolve_model
+        # raises ValueError rather than returning None.
         svc = TimeseriesService()
-        assert svc._resolve_model("galaxy") is None
+        with pytest.raises(ValueError):
+            svc._resolve_model("galaxy")
 
 
 @pytest.mark.skipif(
