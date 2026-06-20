@@ -32,6 +32,7 @@ _register([
 ], '.chart_generator')
 _register(['ClientBrandingManager'], '.client_branding')
 _register(['AnalyticsReportGenerator'], '.analytics_reports')
+_register(['SocialMediaReportGenerator'], '.social_media_reports')
 _register(['PowerPointGenerator'], '.powerpoint_generator')
 _register(['decode_rl_image', 'show_rl_image', 'save_rl_image'], '.image_utils')
 _register(['ChartTypeRegistry'], '.chart_types')
@@ -71,6 +72,7 @@ __all__ = [
     'ContentPageTemplate', 'create_content_page',
     # Generators
     'ReportGenerator', 'PowerPointGenerator', 'AnalyticsReportGenerator',
+    'SocialMediaReportGenerator',
     'ChartGenerator', 'ChartTypeRegistry',
     # Chart creation functions
     'create_bar_chart', 'create_line_chart', 'create_scatter_plot',
