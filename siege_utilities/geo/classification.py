@@ -14,8 +14,8 @@ Backend dispatch (in priority order):
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import Optional, Union
+from dataclasses import dataclass
+from typing import Union
 
 import numpy as np
 import pandas as pd

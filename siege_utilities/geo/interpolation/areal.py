@@ -32,7 +32,6 @@ except ImportError:
     _GEOPANDAS_AVAILABLE = False
 
 try:
-    import shapely
     from shapely import STRtree
     _SHAPELY_AVAILABLE = True
 except ImportError:
@@ -151,7 +150,6 @@ def _interpolate_duckdb(
 ) -> gpd.GeoDataFrame:
     """Area-weighted interpolation via DuckDB spatial SQL."""
     import pandas as pd
-    from shapely import wkb as shapely_wkb
 
     con = _duckdb.connect()
     con.execute("INSTALL spatial; LOAD spatial;")

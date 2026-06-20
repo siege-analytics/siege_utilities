@@ -3,8 +3,6 @@
 Moved during ELE-2438. Will be removed in v4.0.0.
 """
 
-# __all__ is inherited from the wildcard re-export below.
-
 import warnings as _warnings
 
 _warnings.warn(
@@ -15,7 +13,13 @@ _warnings.warn(
     stacklevel=2,
 )
 
-from .providers.nces_download import *  # noqa: F401, F403, E402
+from .providers.nces_download import (  # noqa: E402
+    DISTRICT_DATA_COLUMNS,
+    LOCALE_BOUNDARY_COLUMNS,
+    NCESDownloadError,
+    NCESDownloader,
+    SCHOOL_LOCATION_COLUMNS,
+)
 
 __all__ = [
     "LOCALE_BOUNDARY_COLUMNS",
