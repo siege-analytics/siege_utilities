@@ -2349,7 +2349,7 @@ def __getattr__(name: str):
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-__all__ = [
+__all__ = [  # noqa: F822  -- census_source/government_source/osm_source are PEP 562 lazy attrs via __getattr__
     # Errors
     'SpatialDataError',
     # Classes
