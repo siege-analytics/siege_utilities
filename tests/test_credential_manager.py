@@ -41,6 +41,7 @@ from siege_utilities.config.credential_manager import (
     get_ga_service_account_credentials,
     credential_status,
 )
+from siege_utilities.exceptions import SiegeConfigError
 
 
 # =============================================================================
@@ -311,14 +312,18 @@ class TestGetFromFiles:
                                           additional_paths=[tmp_cred_dir])
         assert result is None
 
-    def test_handles_invalid_json(self, manager_files_only, tmp_cred_dir):
+    def test_invalid_json_raises_config_error(self, manager_files_only, tmp_cred_dir):
+        # SU-1 (errors are not data): a malformed credential file is a failure,
+        # not an empty result. _extract_from_file raises SiegeConfigError on
+        # json.JSONDecodeError (hardened in #967). This test previously asserted
+        # `result is None`; it now asserts the raise so it fails on revert.
         manager, _ = manager_files_only
         cred_file = tmp_cred_dir / "myservice.json"
         cred_file.write_text("not valid json {{{")
 
-        result = manager._get_from_files('myservice', 'user', 'password',
-                                          additional_paths=[tmp_cred_dir])
-        assert result is None
+        with pytest.raises(SiegeConfigError):
+            manager._get_from_files('myservice', 'user', 'password',
+                                    additional_paths=[tmp_cred_dir])
 
     def test_handles_nonexistent_search_path(self, manager_files_only):
         manager, _ = manager_files_only
@@ -569,19 +574,27 @@ class TestGetFromPrompt:
             result = manager._get_from_prompt('service', 'user', 'username')
             assert result == 'my_username'
 
-    def test_handles_eof_error(self, mock_op_available):
+    def test_eof_raises_config_error(self, mock_op_available):
+        # SU-1 (errors are not data): EOF on the interactive prompt means stdin
+        # is not connected -- a failure, not an empty result. _get_from_prompt
+        # raises SiegeConfigError (hardened in #967). Previously asserted
+        # `result is None`; now asserts the raise so it fails on revert.
         manager = CredentialManager()
         with patch('os.isatty', return_value=True), \
              patch('getpass.getpass', side_effect=EOFError):
-            result = manager._get_from_prompt('service', 'user', 'secret')
-            assert result is None
+            with pytest.raises(SiegeConfigError):
+                manager._get_from_prompt('service', 'user', 'secret')
 
-    def test_handles_keyboard_interrupt(self, mock_op_available):
+    def test_keyboard_interrupt_propagates(self, mock_op_available):
+        # #967: a deliberate Ctrl-C during the prompt propagates so the caller
+        # does not silently fall through to a less-trusted backend. Previously
+        # asserted `result is None`, which let KeyboardInterrupt escape the test
+        # and abort the entire pytest session. Now asserts propagation.
         manager = CredentialManager()
         with patch('os.isatty', return_value=True), \
              patch('getpass.getpass', side_effect=KeyboardInterrupt):
-            result = manager._get_from_prompt('service', 'user', 'token')
-            assert result is None
+            with pytest.raises(KeyboardInterrupt):
+                manager._get_from_prompt('service', 'user', 'token')
 
 
 # =============================================================================
@@ -1614,7 +1627,12 @@ class TestFetchRealGA4DataOAuth2Fallback:
     def test_tries_oauth2_when_service_account_fails(self, mock_connector_cls, mock_sa, mock_oauth):
         from siege_utilities.reporting.examples.google_analytics_report_example import fetch_real_ga4_data
 
-        mock_sa.return_value = None
+        # writing-tests:4 mock fidelity: get_google_service_account_from_1password
+        # never returns None -- it raises subprocess.CalledProcessError when the
+        # 1Password item is absent (see its docstring). Mocking it to return None
+        # set up an impossible scenario. Use the real failure mode so Strategy 1
+        # is caught and the OAuth2 fallback (Strategy 2) is exercised.
+        mock_sa.side_effect = subprocess.CalledProcessError(1, ['op', 'item', 'get'])
         mock_oauth.return_value = {
             'client_id': 'test-id',
             'client_secret': 'test-secret',
@@ -1626,7 +1644,12 @@ class TestFetchRealGA4DataOAuth2Fallback:
         mock_connector.get_ga4_data.return_value = None
         mock_connector_cls.return_value = mock_connector
 
-        result = fetch_real_ga4_data('12345', '2026-01-01', '2026-01-31')
+        # The OAuth connector is built and authenticated (the behavior under
+        # test), then get_ga4_data returns None -> production raises ValueError
+        # ("No daily data returned"), wrapped as RuntimeError by the outer
+        # handler. SU-1: no-data is a failure, not a None return.
+        with pytest.raises(RuntimeError):
+            fetch_real_ga4_data('12345', '2026-01-01', '2026-01-31')
 
         mock_connector_cls.assert_called_once_with(
             client_id='test-id',
@@ -1634,38 +1657,42 @@ class TestFetchRealGA4DataOAuth2Fallback:
             redirect_uri='http://localhost',
         )
         mock_connector.authenticate.assert_called_once()
-        # get_ga4_data returns None, so the function should return None
-        assert result is None
 
     @patch('siege_utilities.config.get_google_oauth_from_1password')
     @patch('siege_utilities.config.get_google_service_account_from_1password')
-    def test_returns_none_when_both_fail(self, mock_sa, mock_oauth):
+    def test_raises_when_both_credentials_unavailable(self, mock_sa, mock_oauth):
         from siege_utilities.reporting.examples.google_analytics_report_example import fetch_real_ga4_data
 
-        mock_sa.return_value = None
-        mock_oauth.return_value = None
+        # writing-tests:4 + SU-1: both credential helpers raise (not return None)
+        # when 1Password has nothing. When every strategy fails, production
+        # raises RuntimeError ("No GA credentials found in 1Password ...") rather
+        # than returning None. Previously asserted `result is None`.
+        mock_sa.side_effect = subprocess.CalledProcessError(1, ['op', 'item', 'get'])
+        mock_oauth.side_effect = subprocess.CalledProcessError(1, ['op', 'item', 'get'])
 
-        result = fetch_real_ga4_data('12345', '2026-01-01', '2026-01-31')
-        assert result is None
+        with pytest.raises(RuntimeError):
+            fetch_real_ga4_data('12345', '2026-01-01', '2026-01-31')
 
     @patch('siege_utilities.config.get_google_oauth_from_1password')
     @patch('siege_utilities.config.get_google_service_account_from_1password')
     def test_passes_vault_account_to_both_strategies(self, mock_sa, mock_oauth):
         from siege_utilities.reporting.examples.google_analytics_report_example import fetch_real_ga4_data
 
-        mock_sa.return_value = None
-        mock_oauth.return_value = None
+        # writing-tests:4: the helpers raise (not return None) when creds are
+        # absent. The behavior under test is that vault/account are threaded to
+        # BOTH strategies before the final RuntimeError.
+        mock_sa.side_effect = subprocess.CalledProcessError(1, ['op', 'item', 'get'])
+        mock_oauth.side_effect = subprocess.CalledProcessError(1, ['op', 'item', 'get'])
 
-        result = fetch_real_ga4_data('12345', '2026-01-01', '2026-01-31',
-                           vault='Private', account='Dheeraj_Chand_Family')
+        with pytest.raises(RuntimeError):
+            fetch_real_ga4_data('12345', '2026-01-01', '2026-01-31',
+                                vault='Private', account='Dheeraj_Chand_Family')
 
         mock_sa.assert_called_once_with(
             item_title='Google Analytics Service Account - Multi-Client Reporter',
             vault='Private', account='Dheeraj_Chand_Family',
         )
         mock_oauth.assert_called_once_with(vault='Private', account='Dheeraj_Chand_Family')
-        # Both credential strategies failed, so result should be None
-        assert result is None
 
 
 # ---------------------------------------------------------------------------
