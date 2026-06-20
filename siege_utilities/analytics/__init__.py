@@ -84,6 +84,14 @@ _register([
     'load_instagram_account_profile',
 ], '.instagram')
 
+# X/Twitter API v2 connector
+_register([
+    'XTwitterConnector',
+    'create_x_account_profile',
+    'save_x_account_profile',
+    'load_x_account_profile',
+], '.x_twitter')
+
 __all__ = list(_LAZY_IMPORTS.keys())
 
 
