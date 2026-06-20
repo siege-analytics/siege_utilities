@@ -18,10 +18,13 @@ Override in tests:
         assert settings.STORAGE_CRS == 4326
 """
 
+import logging
 import os
 import threading
 from contextlib import contextmanager
 from pathlib import Path
+
+_logger = logging.getLogger(__name__)
 
 from .defaults import DEFAULTS
 
@@ -89,11 +92,19 @@ class Settings:
             try:
                 return int(val)
             except (ValueError, TypeError):
+                _logger.warning(
+                    "Invalid int for setting %s=%r; falling back to default %r",
+                    name, val, default,
+                )
                 return default
         if isinstance(default, float):
             try:
                 return float(val)
             except (ValueError, TypeError):
+                _logger.warning(
+                    "Invalid float for setting %s=%r; falling back to default %r",
+                    name, val, default,
+                )
                 return default
         return val
 
