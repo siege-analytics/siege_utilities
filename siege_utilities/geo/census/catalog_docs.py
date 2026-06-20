@@ -10,13 +10,11 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 from .catalog import (
     CensusCatalog,
     CensusCatalogDataset,
     CensusFamily,
-    CensusSubject,
     CensusTable,
     FamilyType,
 )
@@ -187,7 +185,7 @@ def _render_table_page(
             lines.append(f"- {ds.dataset_id} ({ds.survey_type}, {ds.year})")
         lines.append("")
 
-    lines.append(f"[← Back to index](../index.md)")
+    lines.append("[← Back to index](../index.md)")
     lines.append("")
 
     return "\n".join(lines)

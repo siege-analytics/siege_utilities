@@ -6,10 +6,9 @@ geographic spread metrics (block count, spatial extent, concentration).
 
 from __future__ import annotations
 
-import math
 import logging
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 __all__ = [
