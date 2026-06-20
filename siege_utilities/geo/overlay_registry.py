@@ -131,17 +131,16 @@ class OverlayRegistry:
             name: Overlay identifier.
 
         Returns:
-            PlaceHistoryOverlay instance or None if not registered.
+            PlaceHistoryOverlay instance, or None if not registered.
+
+        Raises:
+            Exception: If the registered overlay class fails to instantiate.
         """
         if name in self._overlays:
             return self._overlays[name]
 
         if name in self._classes:
-            try:
-                instance = self._classes[name]()
-            except Exception as exc:
-                log.warning("Failed to instantiate overlay %r: %s", name, exc)
-                return None
+            instance = self._classes[name]()
             self._overlays[name] = instance
             return instance
 
