@@ -35,9 +35,9 @@ def quote_ident(value: str) -> str:
 
     Trino uses ANSI double quotes for identifiers (not backticks like
     Databricks). Internal double-quote characters are escaped by
-    doubling. The identifier itself is also run through the SU
-    identifier allow-list before quoting, so the double-quote
-    doubling is defense-in-depth.
+    doubling. Callers must validate identifiers before passing them
+    here (the higher-level federation builders call
+    ``validate_sql_identifier`` before ``quote_ident``).
     """
     return '"' + value.replace('"', '""') + '"'
 
