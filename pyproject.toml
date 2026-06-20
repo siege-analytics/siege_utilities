@@ -319,6 +319,15 @@ exclude = [
     "docs*",
 ]
 
+[tool.setuptools.exclude-package-data]
+"*" = [
+    # macOS Finder "copy" duplicates (e.g. "file 2.py", "file 3.py").
+    # These are gitignored but can contaminate wheels built from dirty
+    # working trees. See issues #1040, #1049.
+    "* [0-9].py",
+    "* [0-9][0-9].py",
+]
+
 [tool.setuptools.package-data]
 siege_utilities = ["py.typed"]
 
