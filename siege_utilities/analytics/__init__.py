@@ -76,6 +76,14 @@ _register([
     'SocialMediaError', 'SocialMediaAuthError', 'SocialMediaRateLimitError',
 ], '._social_protocol')
 
+# Instagram Graph API connector
+_register([
+    'InstagramConnector',
+    'create_instagram_account_profile',
+    'save_instagram_account_profile',
+    'load_instagram_account_profile',
+], '.instagram')
+
 __all__ = list(_LAZY_IMPORTS.keys())
 
 
