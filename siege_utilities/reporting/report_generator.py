@@ -542,7 +542,10 @@ class ReportGenerator:
             List of ReportLab Image flowables
         """
         if not REPORTLAB_AVAILABLE:
-            return []
+            raise ImportError(
+                "ReportLab is required to process charts. "
+                "Install with: pip install reportlab"
+            )
 
         import io
 
@@ -634,8 +637,10 @@ class ReportGenerator:
             List of ReportLab flowables
         """
         if not REPORTLAB_AVAILABLE:
-            log.error("ReportLab not available - cannot build section content")
-            return []
+            raise ImportError(
+                "ReportLab is required to build report sections. "
+                "Install with: pip install reportlab"
+            )
 
         story = []
         section_type = section.get('type', 'text')
