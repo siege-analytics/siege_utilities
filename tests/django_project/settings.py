@@ -23,7 +23,12 @@ _HAS_GDAL = False
 try:
     from django.contrib.gis.gdal import libgdal  # noqa: F401
     _HAS_GDAL = True
-except (ImportError, RuntimeError):
+except Exception:
+    # When the GDAL shared library is absent, django.contrib.gis.gdal raises
+    # django.core.exceptions.ImproperlyConfigured ("Could not find the GDAL
+    # library") -- NOT ImportError/RuntimeError -- at import time. Catch broadly
+    # so the no-GDAL path degrades to plain PostgreSQL + no GIS apps instead of
+    # failing settings load (the core-only CI job runs without GDAL).
     pass
 
 INSTALLED_APPS = [

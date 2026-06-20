@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING (packaging):** the native GDAL/OGR Python bindings (`gdal`) are now
+  a dedicated optional extra and are no longer pulled in by `[geo]` or `[all]`.
+  GDAL requires a matching system `libgdal` + `gdal-config` to build, which is
+  unavailable on Databricks / Lambda / serverless and on CI jobs that exercise
+  the documented no-GDAL path. Install the native stack explicitly with
+  `pip install siege-utilities[geo,gdal]`; the pure-Python geo path
+  (geopandas/shapely/pyproj/fiona) continues to work via `[geo]` without it.
+
+### Fixed
+
+- The Django test settings now degrade to plain PostgreSQL + no GIS apps when
+  the GDAL shared library is absent. The detection caught only
+  `(ImportError, RuntimeError)`, but `django.contrib.gis.gdal` raises
+  `ImproperlyConfigured` ("Could not find the GDAL library") at import time, so
+  settings load failed on no-GDAL runners.
+
 ## [3.17.2] - 2026-05-14
 
 Patch release: hydra is an optional extra; importing siege_utilities without it must not emit a misleading "Pydantic config system" warning. Closes #498.
