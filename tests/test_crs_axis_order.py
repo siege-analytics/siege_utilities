@@ -78,7 +78,7 @@ def test_reproject_geom_missing_src_crs():
 def test_reproject_geom_same_crs_noop():
     from shapely.geometry import Point
     p = Point(1.0, 2.0)
-    result = reproject_geom(p, "EPSG:4326", dst_epsg=4326)
+    result = reproject_geom(p, "EPSG:4326", dst_crs=4326)
     # Identity short-circuit returns the same object.
     assert result is p
 
@@ -88,8 +88,8 @@ def test_reproject_geom_4326_to_3857_round_trip():
 
     # Origin Point in Austin, TX
     src = Point(-97.7431, 30.2672)
-    web_merc = reproject_geom(src, "EPSG:4326", dst_epsg=3857)
-    back = reproject_geom(web_merc, "EPSG:3857", dst_epsg=4326)
+    web_merc = reproject_geom(src, "EPSG:4326", dst_crs=3857)
+    back = reproject_geom(web_merc, "EPSG:3857", dst_crs=4326)
 
     assert abs(back.x - src.x) < 1e-6
     assert abs(back.y - src.y) < 1e-6
@@ -103,7 +103,7 @@ def test_reproject_geom_trad_gis_lon_first():
     # is roughly -10878000 in EPSG:3857).
     src = Point(-97.7431, 30.2672)
     web_merc = reproject_geom(
-        src, "EPSG:4326", dst_epsg=3857, axis_order=AXIS_ORDER_TRAD_GIS
+        src, "EPSG:4326", dst_crs=3857, axis_order=AXIS_ORDER_TRAD_GIS
     )
     assert -1.1e7 < web_merc.x < -1.0e7
 
@@ -116,10 +116,10 @@ def test_reproject_geom_axis_order_toggle_differs():
 
     src = Point(-97.7431, 30.2672)
     trad = reproject_geom(
-        src, "EPSG:4326", dst_epsg=3857, axis_order=AXIS_ORDER_TRAD_GIS
+        src, "EPSG:4326", dst_crs=3857, axis_order=AXIS_ORDER_TRAD_GIS
     )
     auth = reproject_geom(
-        src, "EPSG:4326", dst_epsg=3857, axis_order=AXIS_ORDER_AUTH_COMPLIANT
+        src, "EPSG:4326", dst_crs=3857, axis_order=AXIS_ORDER_AUTH_COMPLIANT
     )
     # Under auth_compliant, the (x=-97.7431, y=30.2672) tuple is interpreted
     # as (lat=-97.7431, lon=30.2672) which is nonsense and produces a different
