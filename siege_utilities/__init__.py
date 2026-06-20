@@ -37,6 +37,25 @@ __description__ = "Comprehensive utilities for data engineering, analytics, and 
 # ── Dependency wrapper for graceful failures ─────────────────────────
 
 
+import re as _re
+
+_DEP_NAME_RE = _re.compile(r'^([A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?)')
+
+
+def _is_dep_missing(deps: list) -> bool:
+    """Return True only when a root dependency package is genuinely uninstalled."""
+    for spec in deps:
+        m = _DEP_NAME_RE.match(spec)
+        if not m:
+            continue
+        pkg = m.group(1).replace('-', '_')
+        try:
+            importlib.import_module(pkg)
+        except ImportError:
+            return True
+    return False
+
+
 def _create_dependency_wrapper(func_name: str, required_deps: list):
     """Create a wrapper that gives helpful error messages for missing dependencies."""
     def wrapper(*args, **kwargs):
@@ -378,7 +397,7 @@ def __getattr__(name):
             setattr(sys.modules[__name__], name, val)
             return val
         except ImportError:
-            if deps:
+            if deps and _is_dep_missing(deps):
                 wrapper = _create_dependency_wrapper(attr_name, deps)
                 setattr(sys.modules[__name__], name, wrapper)
                 return wrapper
