@@ -452,11 +452,10 @@ class RDHProvider(BoundaryProvider):
             )
 
         if not datasets:
-            logger.warning(
-                'RDHProvider: no %s datasets found for state=%s year=%s format=%s',
-                level, state, year, fmt,
+            raise BoundaryFetchError(
+                f"RDHProvider: no {level} datasets found for state={state}, "
+                f"year={year}, format={fmt}"
             )
-            return None
 
         try:
             gdf = client.load_shapefile(datasets[0], **kwargs)
