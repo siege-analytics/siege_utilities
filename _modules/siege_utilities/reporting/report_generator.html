@@ -9465,7 +9465,10 @@
 <span class="sd">            List of ReportLab Image flowables</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">REPORTLAB_AVAILABLE</span><span class="p">:</span>
-            <span class="k">return</span> <span class="p">[]</span>
+            <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+                <span class="s2">&quot;ReportLab is required to process charts. &quot;</span>
+                <span class="s2">&quot;Install with: pip install reportlab&quot;</span>
+            <span class="p">)</span>
 
         <span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
 
@@ -9557,8 +9560,10 @@
 <span class="sd">            List of ReportLab flowables</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">REPORTLAB_AVAILABLE</span><span class="p">:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;ReportLab not available - cannot build section content&quot;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="p">[]</span>
+            <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+                <span class="s2">&quot;ReportLab is required to build report sections. &quot;</span>
+                <span class="s2">&quot;Install with: pip install reportlab&quot;</span>
+            <span class="p">)</span>
 
         <span class="n">story</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">section_type</span> <span class="o">=</span> <span class="n">section</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">,</span> <span class="s1">&#39;text&#39;</span><span class="p">)</span>
