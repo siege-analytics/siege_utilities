@@ -1082,7 +1082,11 @@ class CensusDirectoryDiscovery:
                 f"URL validation timed out after {self.timeout}s: {url}",
                 context=ctx,
             ) from e
-        except (requests.exceptions.RequestException, OSError) as e:
+        except BoundaryUrlValidationError:
+            raise
+        except Exception as e:
+            # Any failure reaching the validation endpoint means the URL could
+            # not be validated; surface it as the documented typed error.
             ctx["error_type"] = type(e).__name__
             raise BoundaryUrlValidationError(
                 f"URL validation failed for {url}: {e}",
@@ -1405,7 +1409,7 @@ class CensusDataSource(SpatialDataSource):
                 message=str(e),
                 context={**base_ctx, **e.context},
             )
-        except (OSError, ValueError, TypeError, KeyError, AttributeError, requests.exceptions.RequestException, ImportError) as e:
+        except Exception as e:
             return BoundaryFetchResult.fail(
                 error_code="UNEXPECTED_ERROR",
                 error_stage="unknown",

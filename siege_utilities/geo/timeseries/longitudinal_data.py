@@ -184,7 +184,9 @@ def get_longitudinal_data(
             else:
                 log.warning(f"  No data returned for {year}")
 
-        except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError) as e:
+        except Exception as e:
+            # Any per-year fetch failure is surfaced: strict_years re-raises it
+            # as ValueError (documented), otherwise it is logged and skipped.
             if strict_years:
                 raise ValueError(
                     f"Failed to fetch data for year {year}: {e}. "

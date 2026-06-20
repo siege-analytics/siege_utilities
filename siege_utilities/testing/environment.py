@@ -312,7 +312,9 @@ def setup_spark_environment() -> bool:
         else:
             log_warning("Apache Sedona not available (optional)")
 
-    except (ImportError, AttributeError) as e:
+    except Exception as e:
+        # Any failure probing dependencies means the environment is not ready;
+        # report it and return False rather than crashing the setup helper.
         log_error(f"Could not check dependencies: {e}")
         return False
 
@@ -355,7 +357,9 @@ def get_system_info() -> Dict[str, str]:
         package_info = siege_utilities.get_package_info()
         info['siege_utilities_functions'] = str(package_info['total_functions'])
         info['siege_utilities_modules'] = str(package_info['total_modules'])
-    except (ImportError, AttributeError) as e:
+    except Exception as e:
+        # Diagnostic info-gathering records any failure as a status string
+        # rather than crashing get_system_info.
         info['siege_utilities_status'] = f'Error: {e}'
 
     return info
@@ -385,7 +389,9 @@ def diagnose_environment() -> bool:
         log_info(f"Python: {info['python_version']}")
         log_info(f"Platform: {info['platform']}")
         log_info(f"Working directory: {info['working_directory']}")
-    except (OSError, ImportError, AttributeError) as e:
+    except Exception as e:
+        # Diagnostic: a sub-check failure is recorded as an issue and reported,
+        # never allowed to crash the survey, regardless of the error type.
         issues_found.append(f"Could not get system info: {e}")
 
     # Check environment variables
@@ -396,7 +402,7 @@ def diagnose_environment() -> bool:
         for var, value in resolved.items():
             if value is None:
                 issues_found.append(f"Missing environment variable: {var}")
-    except (OSError, KeyError, ValueError) as e:
+    except Exception as e:
         issues_found.append(f"Environment variable check failed: {e}")
 
     # Check Java
@@ -406,7 +412,7 @@ def diagnose_environment() -> bool:
             issues_found.append("Java not available")
         elif not java_compatible:
             issues_found.append(f"Java version {java_version} may be incompatible")
-    except (OSError, subprocess.TimeoutExpired, ValueError) as e:
+    except Exception as e:
         issues_found.append(f"Java check failed: {e}")
 
     # Check dependencies
@@ -419,7 +425,7 @@ def diagnose_environment() -> bool:
             if not deps.get(dep, False):
                 issues_found.append(f"Missing critical dependency: {dep}")
 
-    except (ImportError, AttributeError) as e:
+    except Exception as e:
         issues_found.append(f"Dependency check failed: {e}")
 
     # Report results
@@ -478,6 +484,6 @@ def quick_environment_setup() -> bool:
         log_info("Quick environment setup complete!")
         return True
 
-    except (OSError, ImportError, AttributeError, ValueError, AssertionError) as e:
+    except Exception as e:
         log_error(f"Quick setup failed: {e}")
         return False
