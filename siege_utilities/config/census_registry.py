@@ -118,8 +118,8 @@ CANONICAL_GEOGRAPHIC_LEVELS: Dict[str, dict] = {
     "zcta":        {"aliases": ["zip_code", "zcta5", "zipcode", "zip code"],      "geoid_length": 5},
     "cbsa":        {"aliases": [],                                               "geoid_length": 5},
     "puma":        {"aliases": [],                                               "geoid_length": 7},
-    "vtd":         {"aliases": ["voting_district", "voting district"],            "geoid_length": 6},
-    "vtd20":       {"aliases": [],                                               "geoid_length": 6},
+    "vtd":         {"aliases": ["voting_district", "voting district"],            "geoid_length": 11},
+    "vtd20":       {"aliases": [],                                               "geoid_length": 11},
 }
 
 # Build reverse lookup: alias → canonical (computed once at import time)
