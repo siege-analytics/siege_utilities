@@ -8927,9 +8927,9 @@
 
 <span class="sd">    Trino uses ANSI double quotes for identifiers (not backticks like</span>
 <span class="sd">    Databricks). Internal double-quote characters are escaped by</span>
-<span class="sd">    doubling. The identifier itself is also run through the SU</span>
-<span class="sd">    identifier allow-list before quoting, so the double-quote</span>
-<span class="sd">    doubling is defense-in-depth.</span>
+<span class="sd">    doubling. Callers must validate identifiers before passing them</span>
+<span class="sd">    here (the higher-level federation builders call</span>
+<span class="sd">    ``validate_sql_identifier`` before ``quote_ident``).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="s1">&#39;&quot;&#39;</span> <span class="o">+</span> <span class="n">value</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;&quot;&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;&quot;&#39;</span></div>
 
