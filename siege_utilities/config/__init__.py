@@ -264,16 +264,25 @@ def _config_dependency_wrapper(func_name, required_deps):
     return wrapper
 
 
+def _is_pkg_missing(pkg_name: str) -> bool:
+    """Return True when *pkg_name* is genuinely uninstalled."""
+    try:
+        importlib.import_module(pkg_name.replace('-', '_'))
+        return False
+    except ImportError:
+        return True
+
+
 def _resolve_with_fallback(mod_path, attr_name, public_name):
     """Import *attr_name* from *mod_path*, returning a dependency wrapper on failure."""
     try:
         mod = importlib.import_module(mod_path, __package__)
         return getattr(mod, attr_name)
     except ImportError as exc:
-        if mod_path in _PYDANTIC_MODULES:
+        if mod_path in _PYDANTIC_MODULES and _is_pkg_missing('pydantic'):
             _config_logger.warning("Could not import Pydantic config system: %s", exc)
             return _config_dependency_wrapper(public_name, ['pydantic>=2.0'])
-        if mod_path in _HYDRA_MODULES:
+        if mod_path in _HYDRA_MODULES and _is_pkg_missing('hydra'):
             _config_logger.debug(
                 "Hydra config manager not available (install with the "
                 "'config-extras' extra: pip install "
