@@ -76,6 +76,9 @@ def read_versions() -> Dict[str, str]:
     """Read current version from each location."""
     versions = {}
     for name, spec in VERSION_FILES.items():
+        if not spec['path'].exists():
+            versions[name] = 'FILE MISSING'
+            continue
         content = spec['path'].read_text()
         match = re.search(spec['pattern'], content)
         if match:
@@ -150,7 +153,7 @@ def check_ci_status() -> bool:
 def check_consistency() -> Dict:
     """Check version consistency across all files."""
     versions = read_versions()
-    unique = set(versions.values()) - {'NOT FOUND'}
+    unique = set(versions.values()) - {'NOT FOUND', 'FILE MISSING'}
     return {
         'versions': versions,
         'consistent': len(unique) <= 1,
@@ -162,6 +165,9 @@ def set_version(new_version: str):
     """Set version across all files."""
     for name, spec in VERSION_FILES.items():
         path = spec['path']
+        if not path.exists():
+            logger.warning(f"Skipping {name} (file not found: {path})")
+            continue
         content = path.read_text()
         new_content = re.sub(spec['pattern'], rf'\g<1>{new_version}\2', content)
         if new_content == content:
