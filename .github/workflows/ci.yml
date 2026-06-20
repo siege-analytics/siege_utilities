@@ -193,8 +193,8 @@ jobs:
 
     - name: Install dependencies
       run: |
-        echo "gdal==$(gdal-config --version)" > /tmp/uv-constraints.txt
-        UV_CONSTRAINT=/tmp/uv-constraints.txt uv sync --extra all --extra dev
+        sed -i "s/\"gdal>=3.6,<4\"/\"gdal==$(gdal-config --version)\"/g" pyproject.toml
+        uv sync --extra all --extra dev
 
     - name: Lint with flake8
       run: |
@@ -451,8 +451,8 @@ jobs:
 
     - name: Install dependencies
       run: |
-        echo "gdal==$(gdal-config --version)" > /tmp/uv-constraints.txt
-        UV_CONSTRAINT=/tmp/uv-constraints.txt uv sync --extra all --extra dev
+        sed -i "s/\"gdal>=3.6,<4\"/\"gdal==$(gdal-config --version)\"/g" pyproject.toml
+        uv sync --extra all --extra dev
 
     - name: Run Battle Testing Suite
       run: |
