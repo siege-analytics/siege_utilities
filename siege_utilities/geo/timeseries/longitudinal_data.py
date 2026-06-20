@@ -722,7 +722,8 @@ class LongitudinalAligner:
                 current_df = self._apply_crosswalk_step(
                     current_df, src, tgt, geo, sfips, geoid_column,
                 )
-            except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
+            except Exception as exc:
+                # Any crosswalk-step failure falls back to areal interpolation.
                 log.warning(
                     "Crosswalk %d→%d failed (%s), trying areal interpolation",
                     src, tgt, exc,
@@ -735,7 +736,7 @@ class LongitudinalAligner:
                     warnings.append(
                         f"Used areal interpolation for {src}→{tgt} (crosswalk unavailable)"
                     )
-                except (ValueError, TypeError, KeyError, AttributeError, OSError) as areal_exc:
+                except Exception as areal_exc:
                     msg = (
                         f"Both crosswalk and areal interpolation failed for "
                         f"{src}→{tgt}: {areal_exc}"

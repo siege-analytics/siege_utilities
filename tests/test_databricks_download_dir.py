@@ -94,13 +94,17 @@ class TestGetDownloadDirectory:
         auto-remediate to /tmp/siege_utilities/downloads instead of raising."""
         from siege_utilities.config import user_config as uc_mod
 
-        # Make user_config.get_download_directory() return an unwritable path
+        # #901 removed the eager user_config singleton; get_download_directory()
+        # now resolves the dir via get_user_config().get_download_directory().
+        # Stub that accessor to return an unwritable path.
         unwritable = tmp_path / "root_downloads"
         unwritable.mkdir()
-        monkeypatch.setattr(
-            uc_mod.user_config, "get_download_directory",
-            lambda specific_path=None: unwritable,
-        )
+
+        class _StubManager:
+            def get_download_directory(self, *a, **k):
+                return unwritable
+
+        monkeypatch.setattr(uc_mod, "get_user_config", lambda *a, **k: _StubManager())
         # Simulate unwritable directory
         original_access = os.access
         def fake_access(path, mode):
@@ -119,10 +123,12 @@ class TestGetDownloadDirectory:
 
         unwritable = tmp_path / "locked_dir"
         unwritable.mkdir()
-        monkeypatch.setattr(
-            uc_mod.user_config, "get_download_directory",
-            lambda specific_path=None: unwritable,
-        )
+
+        class _StubManager:
+            def get_download_directory(self, *a, **k):
+                return unwritable
+
+        monkeypatch.setattr(uc_mod, "get_user_config", lambda *a, **k: _StubManager())
         monkeypatch.setattr(os, "access", lambda path, mode: False)
 
         with patch.object(uc_mod, "_is_databricks_runtime", return_value=False):

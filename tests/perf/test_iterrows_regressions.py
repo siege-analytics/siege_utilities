@@ -35,7 +35,9 @@ def test_convert_to_postgis_output_matches_iterrows_baseline(tmp_path):
 
     out_path = tmp_path / "out.sql"
     transformer = SpatialDataTransformer()
-    assert transformer._convert_to_postgis(gdf, output_path=str(out_path)) is True
+    # _convert_to_postgis returns None and raises on failure (#967); success is
+    # verified by the output file comparison below.
+    transformer._convert_to_postgis(gdf, output_path=str(out_path))
 
     expected = "\n".join(
         f"INSERT INTO spatial_table (geom) VALUES (ST_GeomFromText('{escape(g.wkt)}'));"

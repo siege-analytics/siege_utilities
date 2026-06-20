@@ -156,9 +156,12 @@ def test_workspace_secret_scope_and_put():
             self.secrets = SecretsApi()
 
     client = WorkspaceClientStub()
-    assert ensure_secret_scope("existing-scope", workspace_client=client) is True
-    assert ensure_secret_scope("new-scope", workspace_client=client) is True
+    # ensure_secret_scope returns the scope name; put_secret returns the
+    # scope-qualified key (writing-code:11 inspectable return). Previously
+    # asserted `is True`.
+    assert ensure_secret_scope("existing-scope", workspace_client=client) == "existing-scope"
+    assert ensure_secret_scope("new-scope", workspace_client=client) == "new-scope"
     assert client.secrets.created == ["new-scope"]
 
-    assert put_secret("new-scope", "token", "abc", workspace_client=client) is True
+    assert put_secret("new-scope", "token", "abc", workspace_client=client) == "new-scope/token"
     assert client.secrets.puts == [("new-scope", "token", "abc")]
