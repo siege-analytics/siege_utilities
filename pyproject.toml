@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "siege-utilities"
-version = "3.22.1"
+version = "3.23.0"
 description = "A comprehensive Python utilities package with enhanced auto-discovery"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -345,7 +345,7 @@ markers = [
 ]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.23.0"
 ignore_missing_imports = true
 warn_unused_configs = true
 warn_return_any = true
