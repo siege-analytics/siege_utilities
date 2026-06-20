@@ -35043,10 +35043,13 @@ the decorator-based registry without changing core query logic.</p>
 <dd class="field-odd"><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Overlay identifier.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>PlaceHistoryOverlay instance or None if not registered.</p>
+<dd class="field-even"><p>PlaceHistoryOverlay instance, or None if not registered.</p>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.overlay_registry.PlaceHistoryOverlay" title="siege_utilities.geo.overlay_registry.PlaceHistoryOverlay"><em>PlaceHistoryOverlay</em></a> | None</p>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#Exception" title="(in Python v3.14)"><strong>Exception</strong></a> – If the registered overlay class fails to instantiate.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#siege_utilities.geo.overlay_registry.PlaceHistoryOverlay" title="siege_utilities.geo.overlay_registry.PlaceHistoryOverlay"><em>PlaceHistoryOverlay</em></a> | None</p>
 </dd>
 </dl>
 </dd></dl>

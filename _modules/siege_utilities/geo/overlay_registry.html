@@ -9043,17 +9043,16 @@
 <span class="sd">            name: Overlay identifier.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            PlaceHistoryOverlay instance or None if not registered.</span>
+<span class="sd">            PlaceHistoryOverlay instance, or None if not registered.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception: If the registered overlay class fails to instantiate.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_overlays</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_overlays</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
 
         <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_classes</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">instance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_classes</span><span class="p">[</span><span class="n">name</span><span class="p">]()</span>
-            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to instantiate overlay </span><span class="si">%r</span><span class="s2">: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">exc</span><span class="p">)</span>
-                <span class="k">return</span> <span class="kc">None</span>
+            <span class="n">instance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_classes</span><span class="p">[</span><span class="n">name</span><span class="p">]()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_overlays</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">instance</span>
             <span class="k">return</span> <span class="n">instance</span>
 
