@@ -6,6 +6,7 @@ Provides clean, type-safe file manipulation utilities.
 import contextlib
 import json
 import os
+import re
 import subprocess
 import shutil
 import logging
@@ -18,6 +19,43 @@ log = logging.getLogger(__name__)
 
 # Type aliases
 FilePath = Union[str, Path]
+
+# Characters that are unsafe in a filename across the common filesystems.
+# Anything that is not a word char, dot, or hyphen is replaced.
+_UNSAFE_FILENAME_CHARS = re.compile(r"[^\w.\-]+")
+
+
+def sanitize_filename(name: str) -> str:
+    """Convert an arbitrary string into a safe filename component.
+
+    Unsafe characters (path separators, control characters, punctuation other
+    than ``.`` and ``-``) are replaced with underscores, runs of underscores
+    are collapsed, and leading/trailing dots and underscores are trimmed. The
+    result is always a non-empty string and the operation is idempotent
+    (``sanitize_filename(sanitize_filename(x)) == sanitize_filename(x)``).
+
+    Parameters
+    ----------
+    name : str
+        Arbitrary input string.
+
+    Returns
+    -------
+    str
+        A filesystem-safe filename component.
+
+    Raises
+    ------
+    TypeError
+        If ``name`` is not a string.
+    """
+    if not isinstance(name, str):
+        raise TypeError(f"name must be str, got {type(name).__name__}")
+
+    cleaned = _UNSAFE_FILENAME_CHARS.sub("_", name)
+    cleaned = re.sub(r"_+", "_", cleaned)
+    cleaned = cleaned.strip("._")
+    return cleaned or "_"
 
 
 @contextlib.contextmanager
@@ -840,6 +878,7 @@ def list_files_recursive(
 
 __all__ = [
     'FilePath',
+    'sanitize_filename',
     'atomic_write_path',
     'atomic_write_shapefile',
     'remove_tree',
