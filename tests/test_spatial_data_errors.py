@@ -84,12 +84,19 @@ class TestGovernmentDataSource:
         with pytest.raises(AttributeError):
             src._find_best_format("not a dict", "geojson")
 
-    def test_format_finder_returns_none_on_empty_metadata(self):
-        """Missing 'resources' key returns None (no usable format), not
-        an error. This is the documented data-shaped failure mode."""
+    def test_format_finder_raises_on_empty_metadata(self):
+        """No downloadable resource is a failure, not data.
+
+        _find_best_format is typed `-> str` and documents "Raises
+        SpatialDataError if no downloadable resource URL is found" (SU-1,
+        writing-code:13). Previously asserted a None return -- the same
+        retroactive-fix as test_metadata_http_error_status_raises above.
+        """
         src = GovernmentDataSource(portal_url="https://example.com")
-        assert src._find_best_format({}, "geojson") is None
-        assert src._find_best_format({"resources": []}, "geojson") is None
+        with pytest.raises(SpatialDataError):
+            src._find_best_format({}, "geojson")
+        with pytest.raises(SpatialDataError):
+            src._find_best_format({"resources": []}, "geojson")
 
     def test_download_dataset_surface_raises(self):
         """download_dataset() wraps helper SpatialDataError cleanly
@@ -115,9 +122,13 @@ class TestOpenStreetMapDataSource:
                 src.download_osm_data("node[highway]")
         assert isinstance(exc_info.value.__cause__, ConnectionError)
 
-    def test_overpass_http_error_status_returns_none(self):
-        """Matches the metadata test — non-2xx responses legitimately
-        return None rather than raising."""
+    def test_overpass_http_error_status_raises(self):
+        """A non-2xx Overpass response is a failure, not data.
+
+        download_osm_data is typed `-> GeoDataFrame` and documents "Raises
+        SpatialDataError on HTTP or processing failure" (SU-1). Previously
+        asserted a None return.
+        """
         src = OpenStreetMapDataSource()
         fake_response = MagicMock()
         fake_response.ok = False
@@ -126,8 +137,8 @@ class TestOpenStreetMapDataSource:
             "siege_utilities.geo.spatial_data.requests.get",
             return_value=fake_response,
         ):
-            result = src.download_osm_data("node[highway]")
-        assert result is None
+            with pytest.raises(SpatialDataError):
+                src.download_osm_data("node[highway]")
 
 
 class TestKnownTigerDirectories:
