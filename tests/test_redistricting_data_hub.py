@@ -249,20 +249,22 @@ class TestListDatasets:
         # Should make 2 batches: 4 + 2
         assert mock_get.call_count == 2
 
-    def test_list_no_credentials(self, tmp_path):
+    def test_list_no_credentials_raises(self, tmp_path):
+        # Missing/invalid credentials is a configuration error, not an empty
+        # result set (SU-1). list_datasets raises ValueError. Previously [].
         c = RDHClient(username="", password="", cache_dir=tmp_path)
-        results = c.list_datasets(states=["VA"])
-        assert results == []
+        with pytest.raises(ValueError):
+            c.list_datasets(states=["VA"])
 
-    def test_list_api_error(self, client):
+    def test_list_api_error_raises(self, client):
+        # An API transport failure raises rather than returning [] (SU-1).
         import requests
         mock_resp = MagicMock()
         mock_resp.raise_for_status.side_effect = requests.RequestException("timeout")
 
         with patch.object(client._session, "get", return_value=mock_resp):
-            results = client.list_datasets(states=["VA"])
-
-        assert results == []
+            with pytest.raises(ConnectionError):
+                client.list_datasets(states=["VA"])
 
     def test_list_with_dataset_type_filter(self, client, sample_api_response):
         mock_resp = MagicMock()
@@ -888,8 +890,10 @@ class TestDemographicProfile:
         )
 
         from siege_utilities.geo.providers.redistricting_data_hub import demographic_profile
-        result = demographic_profile(plan, census)
-        assert len(result) == 0
+        # No population columns means the overlay cannot be computed; this is a
+        # data error that raises ValueError, not an empty result (SU-1).
+        with pytest.raises(ValueError):
+            demographic_profile(plan, census)
 
 
 class TestToCrosstabInput:

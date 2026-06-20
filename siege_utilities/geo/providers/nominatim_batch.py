@@ -130,7 +130,9 @@ class NominatimBatchGeocoder(BatchGeocoder):
                     match_quality=MatchQuality.APPROXIMATE.value,
                     backend=self.backend_name,
                 )
-        except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+        except Exception as exc:
+            # Batch robustness: any failure on one address is logged and
+            # recorded as an unmatched result so the rest of the batch proceeds.
             log.warning("Nominatim geocode failed for %s: %s", addr.input_id, exc)
 
         return GeocodingResult(
@@ -166,7 +168,9 @@ class NominatimBatchGeocoder(BatchGeocoder):
                         lon = float(data[0]["lon"])
                         return (lat, lon)
                     return None
-            except (OSError, ValueError, TypeError):
+            except Exception:
+                # Retry on any request/parse failure up to max_retries, then
+                # re-raise so the caller sees the underlying error.
                 if attempt == self._max_retries:
                     raise
                 time.sleep(self._rate_limit)

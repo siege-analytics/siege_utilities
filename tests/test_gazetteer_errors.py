@@ -286,9 +286,12 @@ class TestCensusSearchNonUSReturnsEmpty:
         not (cg.REQUESTS_AVAILABLE and cg.SHAPELY_AVAILABLE),
         reason="requests or shapely not installed",
     )
-    def test_non_us_search_returns_empty(self):
+    def test_non_us_search_raises(self):
+        # CensusGazetteer is US-only; a non-US country_hint is a usage error
+        # that raises GazetteerNotFoundError rather than returning [] (SU-1).
         gz = cg.CensusGazetteer()
-        assert gz.search("Berlin", country_hint="DE") == []
+        with pytest.raises(GazetteerNotFoundError):
+            gz.search("Berlin", country_hint="DE")
 
 
 class TestCensusSearchEmptyReturnsEmpty:
