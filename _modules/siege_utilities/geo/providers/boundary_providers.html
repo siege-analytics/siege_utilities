@@ -9400,11 +9400,10 @@
             <span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">datasets</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                <span class="s1">&#39;RDHProvider: no </span><span class="si">%s</span><span class="s1"> datasets found for state=</span><span class="si">%s</span><span class="s1"> year=</span><span class="si">%s</span><span class="s1"> format=</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
-                <span class="n">level</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">year</span><span class="p">,</span> <span class="n">fmt</span><span class="p">,</span>
+            <span class="k">raise</span> <span class="n">BoundaryFetchError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;RDHProvider: no </span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2"> datasets found for state=</span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;year=</span><span class="si">{</span><span class="n">year</span><span class="si">}</span><span class="s2">, format=</span><span class="si">{</span><span class="n">fmt</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="p">)</span>
-            <span class="k">return</span> <span class="kc">None</span>
 
         <span class="k">try</span><span class="p">:</span>
             <span class="n">gdf</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">load_shapefile</span><span class="p">(</span><span class="n">datasets</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
