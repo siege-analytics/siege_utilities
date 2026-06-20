@@ -133,6 +133,12 @@ def get_report_output_directory(client_code: str = None) -> Path:
             return base_dir / client_code / "reports"
         return base_dir / "reports"
     except ImportError:
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "Enhanced config not available; report output directory "
+            "falling back to %s/reports",
+            Path.cwd(),
+        )
         return Path.cwd() / "reports"
 
 
