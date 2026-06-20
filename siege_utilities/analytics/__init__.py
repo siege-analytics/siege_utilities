@@ -70,6 +70,12 @@ _register([
     'VistaSocialError', 'VistaSocialAuthError', 'VistaSocialRateLimitError',
 ], '.vista_social')
 
+# Social media analytics protocol and shared types
+_register([
+    'SocialMediaProtocol', 'SocialPost', 'SocialMetric',
+    'SocialMediaError', 'SocialMediaAuthError', 'SocialMediaRateLimitError',
+], '._social_protocol')
+
 __all__ = list(_LAZY_IMPORTS.keys())
 
 
