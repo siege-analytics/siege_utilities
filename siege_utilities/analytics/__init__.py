@@ -70,6 +70,28 @@ _register([
     'VistaSocialError', 'VistaSocialAuthError', 'VistaSocialRateLimitError',
 ], '.vista_social')
 
+# Social media analytics protocol and shared types
+_register([
+    'SocialMediaProtocol', 'SocialPost', 'SocialMetric',
+    'SocialMediaError', 'SocialMediaAuthError', 'SocialMediaRateLimitError',
+], '._social_protocol')
+
+# Instagram Graph API connector
+_register([
+    'InstagramConnector',
+    'create_instagram_account_profile',
+    'save_instagram_account_profile',
+    'load_instagram_account_profile',
+], '.instagram')
+
+# X/Twitter API v2 connector
+_register([
+    'XTwitterConnector',
+    'create_x_account_profile',
+    'save_x_account_profile',
+    'load_x_account_profile',
+], '.x_twitter')
+
 __all__ = list(_LAZY_IMPORTS.keys())
 
 
