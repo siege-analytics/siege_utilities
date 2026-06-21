@@ -5,14 +5,11 @@ from __future__ import annotations
 import json
 import time
 
-import pytest
 
 from siege_utilities.geo.rdh_catalog import (
     CatalogEntry,
-    CoverageCell,
     DictRDHCatalogProvider,
     RDHCatalog,
-    SearchResult,
     _infer_chamber,
     _score_entry,
 )

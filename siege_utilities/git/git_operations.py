@@ -5,7 +5,6 @@ Comprehensive git commands and workflow automation.
 
 from typing import Dict, Optional
 import re
-import subprocess
 
 from siege_utilities.core.logging import log_info, log_warning
 from siege_utilities.exceptions import GitError

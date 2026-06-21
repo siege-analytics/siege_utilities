@@ -6,7 +6,6 @@ import pytest
 
 from siege_utilities.geo.codification_demographics import (
     BlockDemographics,
-    DemographicSignature,
     DictBlockDemographicsProvider,
     compute_demographic_signature,
 )

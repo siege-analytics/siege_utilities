@@ -15,17 +15,13 @@ Prerequisites:
 
 import logging
 import sys
-from pathlib import Path
 from typing import Optional
 
 import geopandas as gpd
-import pandas as pd
 
 from siege_utilities import get_user_config, get_download_directory
 from siege_utilities.geo import (
     get_census_boundaries,
-    get_census_data,
-    download_osm_data,
     SpatialDataTransformer,
 )
 from siege_utilities.reporting.chart_types import get_chart_registry

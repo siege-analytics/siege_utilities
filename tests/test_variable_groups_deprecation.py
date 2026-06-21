@@ -2,7 +2,6 @@
 
 import warnings
 
-import pytest
 
 
 def _reset_warned():

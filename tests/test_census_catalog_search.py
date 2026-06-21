@@ -11,7 +11,6 @@ from siege_utilities.geo.census.catalog import (
     CensusVariable,
     FamilyType,
     SearchLevel,
-    SearchResult,
     _tokenize_query,
 )
 
@@ -170,7 +169,9 @@ class TestSearchCrossLevel:
         all_results = search_catalog.search("income", level=SearchLevel.TABLE)
         filtered = search_catalog.search("income", level=SearchLevel.TABLE, dataset="acs5_2022")
         # Dataset only has B19001 and B19013 for income, not B19001A/B
+        all_ids = {r.id for r in all_results}
         filtered_ids = {r.id for r in filtered}
+        assert filtered_ids < all_ids  # the dataset filter strictly narrows the result set
         assert "B19001A" not in filtered_ids
         assert "B19001" in filtered_ids
 

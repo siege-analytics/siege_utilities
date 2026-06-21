@@ -763,7 +763,7 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
                         'pageviews': int(year_df['screenPageViews'].sum()),
                     }
             except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
-                log.debug(f"Could not fetch longitudinal data for {year}")
+                log.debug(f"Could not fetch longitudinal data for {year}: {exc}")
 
         result = {
             'date_range': {'start': start_date, 'end': end_date},
