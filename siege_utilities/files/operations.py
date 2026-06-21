@@ -130,7 +130,7 @@ def remove_tree(path: FilePath) -> None:
         >>> remove_tree(Path("old_files"))  # doctest: +SKIP
     """
     try:
-        from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+        from siege_utilities.files.validation import validate_safe_path
         path_obj = validate_safe_path(path, allow_absolute=True)
     except ImportError:
         path_obj = Path(path)
@@ -215,7 +215,7 @@ def touch_file(path: FilePath, create_parents: bool = True) -> None:
         >>> touch_file(Path("data/output.txt"))  # doctest: +SKIP
     """
     try:
-        from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+        from siege_utilities.files.validation import validate_safe_path
         path_obj = validate_safe_path(path, allow_absolute=True)
     except ImportError:
         path_obj = Path(path)
@@ -251,7 +251,7 @@ def count_lines(file_path: FilePath, encoding: str = 'utf-8') -> int:
         >>> print(f"File has {line_count} lines")  # doctest: +SKIP
     """
     try:
-        from siege_utilities.files.validation import validate_file_path, PathSecurityError
+        from siege_utilities.files.validation import validate_file_path
         path_obj = validate_file_path(file_path, must_exist=True)
     except ImportError:
         path_obj = Path(file_path)
@@ -290,7 +290,7 @@ def copy_file(source: FilePath, destination: FilePath, overwrite: bool = False) 
         >>> copy_file(Path("config.yaml"), Path("config.yaml.bak"))  # doctest: +SKIP
     """
     try:
-        from siege_utilities.files.validation import validate_file_path, validate_safe_path, PathSecurityError
+        from siege_utilities.files.validation import validate_file_path, validate_safe_path
         source_obj = validate_file_path(source, must_exist=True)
         dest_obj = validate_safe_path(destination, allow_absolute=True)
     except ImportError:
@@ -333,7 +333,7 @@ def move_file(source: FilePath, destination: FilePath, overwrite: bool = False) 
         >>> move_file(Path("old.log"), Path("logs/old.log"))  # doctest: +SKIP
     """
     try:
-        from siege_utilities.files.validation import validate_file_path, validate_safe_path, PathSecurityError
+        from siege_utilities.files.validation import validate_file_path, validate_safe_path
         source_obj = validate_file_path(source, must_exist=True)
         dest_obj = validate_safe_path(destination, allow_absolute=True)
     except ImportError:
@@ -377,7 +377,7 @@ def get_file_size(file_path: FilePath) -> int:
         >>> print(f"File size: {size} bytes")  # doctest: +SKIP
     """
     try:
-        from siege_utilities.files.validation import validate_file_path, PathSecurityError
+        from siege_utilities.files.validation import validate_file_path
         path_obj = validate_file_path(file_path, must_exist=True)
     except ImportError:
         path_obj = Path(file_path)
@@ -420,7 +420,7 @@ def list_directory(path: FilePath,
         >>> dirs = list_directory("logs", include_files=False)  # doctest: +SKIP
     """
     try:
-        from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+        from siege_utilities.files.validation import validate_directory_path
         path_obj = validate_directory_path(path, must_exist=True)
     except ImportError:
         path_obj = Path(path)
