@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import pytest
 import pandas as pd
-import numpy as np
 
 from siege_utilities.geo.timeseries.change_metrics import (
     calculate_change_metrics,
@@ -16,12 +15,7 @@ from siege_utilities.geo.timeseries.change_metrics import (
     calculate_index,
     _find_year_columns,
 )
-from siege_utilities.geo.timeseries.trend_classifier import (
-    TrendThresholds,
-    classify_trends,
-    classify_by_quantiles,
-    identify_outliers,
-)
+from siege_utilities.geo.timeseries.trend_classifier import classify_trends, classify_by_quantiles, identify_outliers
 from siege_utilities.geo.timeseries.longitudinal_data import (
     validate_longitudinal_years,
     get_available_years,

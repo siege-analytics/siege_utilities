@@ -4,12 +4,11 @@ Tests that path functions handle arbitrary input without crashing
 and that sanitization is idempotent.
 """
 
-import os
 
 import pytest
 
 hypothesis = pytest.importorskip("hypothesis")
-from hypothesis import given, assume, settings
+from hypothesis import given, settings
 import hypothesis.strategies as st
 
 

@@ -424,7 +424,6 @@ class TestDownloadDataset:
 class TestLoadCSV:
 
     def test_load_csv_from_path(self, client, tmp_path):
-        import pandas as pd
         csv_file = tmp_path / "data.csv"
         csv_file.write_text("a,b\n1,2\n3,4\n")
 
@@ -617,7 +616,6 @@ class TestSchwartzberg:
 class TestComputeCompactness:
 
     def test_compute_from_geodataframe(self):
-        import pandas as pd
         import geopandas as gpd
         from shapely.geometry import Point, box
 
@@ -642,7 +640,6 @@ class TestComputeCompactness:
         assert result.iloc[0]["polsby_popper"] > result.iloc[2]["polsby_popper"]
 
     def test_compute_reprojects_geographic_crs(self):
-        import pandas as pd
         import geopandas as gpd
         from shapely.geometry import box
 
@@ -847,7 +844,6 @@ class TestDemographicProfile:
 
     def test_overlay_aggregates_by_district(self):
         import geopandas as gpd
-        import pandas as pd
         from shapely.geometry import box
 
         plan = gpd.GeoDataFrame(
@@ -899,7 +895,6 @@ class TestDemographicProfile:
 class TestToCrosstabInput:
 
     def test_melts_wide_to_long(self):
-        import pandas as pd
         df = pd.DataFrame({
             "GEOID": ["A", "B"],
             "TOTPOP": [100, 200],
@@ -911,7 +906,6 @@ class TestToCrosstabInput:
         assert set(result["variable"]) == {"TOTPOP", "VAP"}
 
     def test_explicit_variable_cols(self):
-        import pandas as pd
         df = pd.DataFrame({
             "GEOID": ["A"],
             "TOTPOP": [100],
@@ -923,7 +917,6 @@ class TestToCrosstabInput:
         assert result.iloc[0]["variable"] == "TOTPOP"
 
     def test_empty_dataframe(self):
-        import pandas as pd
         df = pd.DataFrame({"GEOID": [], "TOTPOP": []})
         result = RDHClient.to_crosstab_input(df)
         assert len(result) == 0

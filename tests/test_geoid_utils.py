@@ -9,7 +9,6 @@ import pandas as pd
 
 from siege_utilities.geo.geoid_utils import (
     GEOID_LENGTHS,
-    GEOID_COMPONENT_LENGTHS,
     normalize_geoid,
     normalize_geoid_column,
     construct_geoid,

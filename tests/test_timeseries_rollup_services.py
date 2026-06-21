@@ -5,7 +5,6 @@ Tests service class structure, statistics helpers, and configuration
 without requiring a full Django database.
 """
 
-import math
 
 import pytest
 

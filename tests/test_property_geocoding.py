@@ -7,7 +7,7 @@ without crashing and that outputs satisfy domain invariants.
 import pytest
 
 hypothesis = pytest.importorskip("hypothesis")
-from hypothesis import given, assume, settings, HealthCheck
+from hypothesis import given, settings, HealthCheck
 import hypothesis.strategies as st
 
 
