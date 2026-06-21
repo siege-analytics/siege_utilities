@@ -20,28 +20,36 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple
+from typing import (
+    Dict,
+    List,
+    Any,
+    Optional,
+)
 import logging
-import io
 import subprocess
 import tempfile
 
 # ReportLab imports
 try:
     from reportlab.lib import colors
-    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.lib.pagesizes import letter
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import inch
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-    from reportlab.platypus import (
-        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-        PageBreak, Image as RLImage, KeepTogether, Flowable
+    from reportlab.lib.enums import (
+        TA_CENTER,
+        TA_LEFT,
     )
-    from reportlab.graphics.shapes import Drawing, Rect, String, Line
-    from reportlab.graphics.charts.lineplots import LinePlot
-    from reportlab.graphics.charts.barcharts import VerticalBarChart
-    from reportlab.graphics.charts.piecharts import Pie
-    from reportlab.graphics.widgets.markers import makeMarker
+    from reportlab.platypus import (
+        SimpleDocTemplate,
+        Paragraph,
+        Spacer,
+        Table,
+        TableStyle,
+        PageBreak,
+        Image as RLImage,
+        Flowable,
+    )
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
@@ -55,8 +63,6 @@ except ImportError:
     MATPLOTLIB_AVAILABLE = False
 
 # siege_utilities imports
-from siege_utilities.reporting.chart_generator import ChartGenerator
-from siege_utilities.reporting.report_generator import ReportGenerator
 
 __all__ = [
     'KPICard',
@@ -1329,7 +1335,6 @@ def create_geo_city_scatter(ga_data: Dict[str, Any], width: float = 5.5*inch,
             lats = [loc['lat'] for loc in geo]
             lons = [loc['lon'] for loc in geo]
             sessions = [loc.get('sessions', 1) for loc in geo]
-            users = [loc.get('users', 1) for loc in geo]
             cities = [loc.get('city', '') for loc in geo]
 
             fig, ax = plt.subplots(figsize=(width / 72, height / 72))
