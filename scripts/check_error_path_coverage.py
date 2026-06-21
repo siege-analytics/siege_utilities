@@ -170,18 +170,25 @@ def find_test_files(module_rel: Path, test_dir: Path) -> list[Path]:
                     matched.append(tf)
                     break
 
-    # Pass 2: import-based matching (catches bundled test files like
-    # test_config_model_validation.py that cover multiple source modules).
-    if not matched:
-        import_path = _module_import_path(module_rel)
-        if import_path:
-            for tf in all_tests:
-                try:
-                    text = tf.read_text(encoding="utf-8", errors="ignore")
-                except OSError:
-                    continue
-                if f"from {import_path} import" in text or f"import {import_path}" in text:
-                    matched.append(tf)
+    # Pass 2: import-based matching. ALWAYS unions with Pass 1 -- a test file
+    # that imports the module's dotted path is exercising it, even when a
+    # differently-named stem-matched file also exists. Previously this only ran
+    # when Pass 1 found nothing, so an empty stem-matched file (e.g.
+    # test_actor_types_exclude_sensitive.py) masked the real error-path tests in
+    # an import-only-matched file (test_person_actor.py has 36). The union adds
+    # recall; dedup via set() below. Precision note: a test importing module X
+    # whose error-path tests are actually for module Y will credit X -- accepted
+    # as a bounded tradeoff (focused test files rarely do this, and the
+    # alternative, masking real coverage, is worse).
+    import_path = _module_import_path(module_rel)
+    if import_path:
+        for tf in all_tests:
+            try:
+                text = tf.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            if f"from {import_path} import" in text or f"import {import_path}" in text:
+                matched.append(tf)
 
     return sorted(set(matched))
 
@@ -215,11 +222,14 @@ def main() -> int:
         print(f"ERROR: source root not found: {src_root}", file=sys.stderr)
         return 1
 
-    # Collect all source modules.
+    # Collect all source modules. Skip __pycache__ and any embedded test
+    # directory (``siege_utilities/**/tests/``) -- those are test code scanned
+    # as source, not library modules. ``testing/`` (the test-helpers package)
+    # is real library code and is intentionally NOT excluded.
     modules: list[Path] = sorted(
         p
         for p in src_root.rglob("*.py")
-        if "__pycache__" not in p.parts
+        if "__pycache__" not in p.parts and "tests" not in p.parts
     )
 
     results: list[dict] = []
