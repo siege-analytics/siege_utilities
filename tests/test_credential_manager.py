@@ -48,6 +48,28 @@ from siege_utilities.exceptions import SiegeConfigError
 # FIXTURES
 # =============================================================================
 
+@pytest.fixture(autouse=True)
+def _reset_default_manager_cache():
+    """Clear the module-level CredentialManager cache around every test.
+
+    ``_get_default_manager`` caches one manager per (vault, account) and each
+    manager detects backend availability (notably 1Password) exactly once at
+    construction. Without this reset the first convenience-function call in the
+    suite freezes that detection: a test that runs while ``op`` is unavailable
+    (real binary absent in CI, or a sibling mocking it unavailable) caches a
+    manager with ``1password=False`` that later tests reuse regardless of their
+    own subprocess mock. That is an order-dependent (random-seed-dependent)
+    failure -- e.g. test_get_credential_backward_compat raising
+    CredentialNotFoundError under one seed and passing under another. Clearing
+    the cache per test makes availability re-detect under each test's own mock.
+    """
+    from siege_utilities.config import credential_manager as _cm
+
+    _cm._default_managers.clear()
+    yield
+    _cm._default_managers.clear()
+
+
 @pytest.fixture
 def mock_op_available():
     """Mock subprocess so 1Password CLI appears available."""
