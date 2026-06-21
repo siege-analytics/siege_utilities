@@ -45,13 +45,23 @@ def _is_import_error_guard(node: ast.ExceptHandler) -> bool:
                 names.append(elt.id)
     if "ImportError" not in names and "ModuleNotFoundError" not in names:
         return False
-    # Check for the flag pattern: body is a single assignment of False.
-    if len(node.body) == 1:
-        stmt = node.body[0]
-        if isinstance(stmt, ast.Assign):
-            if isinstance(stmt.value, ast.Constant) and stmt.value.value is False:
-                return True
-    return False
+    # Flag/availability-fallback pattern: the body is made up entirely of
+    # assignments whose values are the sentinels ``False`` or ``None``.
+    # This covers both the single-line ``HAS_X = False`` form and the
+    # multi-line ``import`` fallback (e.g. ``X = None; X_sql = None``) used
+    # to stub out an optional dependency. Such a handler is a dependency
+    # guard, not error-handling logic, so it carries no error-path test
+    # obligation.
+    if not node.body:
+        return False
+    for stmt in node.body:
+        if not isinstance(stmt, ast.Assign):
+            return False
+        if not isinstance(stmt.value, ast.Constant):
+            return False
+        if stmt.value.value is not False and stmt.value.value is not None:
+            return False
+    return True
 
 
 def _is_finally_cleanup(node: ast.ExceptHandler) -> bool:
