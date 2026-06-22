@@ -34,7 +34,6 @@ from siege_utilities.analytics._social_protocol import (
     SocialMediaAuthError,
     SocialMediaError,
     SocialMediaRateLimitError,
-    SocialPost,
 )
 
 log = logging.getLogger(__name__)
