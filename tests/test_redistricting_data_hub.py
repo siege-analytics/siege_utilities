@@ -8,6 +8,7 @@ import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import pytest
 
 from siege_utilities.geo.providers.redistricting_data_hub import (
