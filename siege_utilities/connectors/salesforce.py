@@ -19,10 +19,12 @@ hard-code ``na1.salesforce.com`` or similar.
 
 from __future__ import annotations
 
+import csv
+import io
 import logging
 import time
 from datetime import datetime, timedelta
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 import pandas as pd
 
@@ -49,6 +51,9 @@ API_VERSION = "v60.0"
 DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_BACKOFF = 2.0
+BULK_THRESHOLD = 2000
+BULK_POLL_INTERVAL = 5.0
+BULK_TIMEOUT = 600.0
 
 STANDARD_OBJECTS = [
     "Account",
@@ -644,27 +649,62 @@ class SalesforceConnector:
         object_type: str,
         records: pd.DataFrame,
         match_field: str,
+        *,
+        force_bulk: bool = False,
+        progress_callback: Callable[[str, int, int], None] | None = None,
     ) -> UpsertResult:
-        """Bulk create-or-update from a DataFrame via Composite API.
+        """Bulk create-or-update from a DataFrame.
 
-        Uses the Composite SObject Collections endpoint, batching up to
-        25 records per request. Each record is matched on *match_field*
-        (using the Salesforce external ID or standard field upsert endpoint).
+        Automatically routes to Bulk API v2 for datasets > 2000 records
+        or when *force_bulk* is True. Smaller datasets use the Composite
+        SObject Collections endpoint (25 records per request).
+
+        Args:
+            object_type: Salesforce object API name.
+            records: DataFrame whose columns map to Salesforce fields.
+            match_field: Field used to match existing records.
+            force_bulk: Force Bulk API even for small datasets.
+            progress_callback: Optional ``(status, processed, total)`` callback.
 
         Returns:
             :class:`UpsertResult` with per-record outcome.
         """
-        from siege_utilities.connectors._protocol import UpsertError
-
         if records.empty:
             log.warning("upsert_records(%s): empty DataFrame, nothing to upsert", object_type)
             return UpsertResult(success_count=0, failure_count=0)
+
+        if force_bulk or len(records) > BULK_THRESHOLD:
+            log.info(
+                "upsert_records(%s): routing to Bulk API v2 (%d records)",
+                object_type, len(records),
+            )
+            return self._bulk_upsert(
+                object_type, records, match_field,
+                progress_callback=progress_callback,
+            )
+
+        return self._composite_upsert_all(
+            object_type, records, match_field,
+            progress_callback=progress_callback,
+        )
+
+    def _composite_upsert_all(
+        self,
+        object_type: str,
+        records: pd.DataFrame,
+        match_field: str,
+        *,
+        progress_callback: Callable[[str, int, int], None] | None = None,
+    ) -> UpsertResult:
+        """Upsert via Composite API, batching in groups of 25."""
+        from siege_utilities.connectors._protocol import UpsertError
 
         all_created: list[str] = []
         all_updated: list[str] = []
         all_errors: list[UpsertError] = []
         total_success = 0
         total_failure = 0
+        total = len(records)
 
         record_dicts = records.to_dict(orient="records")
         batches = [
@@ -687,6 +727,10 @@ class SalesforceConnector:
             all_updated.extend(result.updated_ids)
             all_errors.extend(result.errors)
 
+            if progress_callback:
+                processed = min((batch_idx + 1) * self.COMPOSITE_BATCH_SIZE, total)
+                progress_callback("processing", processed, total)
+
         log.info(
             "upsert_records(%s): %d succeeded, %d failed (total %d)",
             object_type, total_success, total_failure, total_success + total_failure,
@@ -698,6 +742,244 @@ class SalesforceConnector:
             updated_ids=all_updated,
             errors=all_errors,
         )
+
+    # ------------------------------------------------------------------
+    # Bulk API v2
+    # ------------------------------------------------------------------
+
+    def bulk_insert(
+        self,
+        object_type: str,
+        records: pd.DataFrame,
+        *,
+        progress_callback: Callable[[str, int, int], None] | None = None,
+    ) -> UpsertResult:
+        """Insert records via Bulk API v2.
+
+        Creates a Bulk API v2 ingest job, uploads CSV data, and polls
+        for completion. Returns :class:`UpsertResult` with success/failure
+        counts and failed record details.
+        """
+        return self._bulk_job(
+            object_type, records,
+            operation="insert",
+            external_id_field=None,
+            progress_callback=progress_callback,
+        )
+
+    def _bulk_upsert(
+        self,
+        object_type: str,
+        records: pd.DataFrame,
+        match_field: str,
+        *,
+        progress_callback: Callable[[str, int, int], None] | None = None,
+    ) -> UpsertResult:
+        """Upsert records via Bulk API v2."""
+        return self._bulk_job(
+            object_type, records,
+            operation="upsert",
+            external_id_field=match_field,
+            progress_callback=progress_callback,
+        )
+
+    def _bulk_job(
+        self,
+        object_type: str,
+        records: pd.DataFrame,
+        *,
+        operation: str,
+        external_id_field: str | None,
+        progress_callback: Callable[[str, int, int], None] | None = None,
+    ) -> UpsertResult:
+        """Execute a complete Bulk API v2 ingest job lifecycle."""
+        self._ensure_connected()
+        total = len(records)
+
+        job_id = self._bulk_create_job(object_type, operation, external_id_field)
+        log.info("Bulk API %s job created: %s (%d records)", operation, job_id, total)
+
+        if progress_callback:
+            progress_callback("uploading", 0, total)
+
+        csv_data = self._dataframe_to_csv(records)
+        self._bulk_upload_data(job_id, csv_data)
+        log.info("Bulk API job %s: CSV data uploaded (%d bytes)", job_id, len(csv_data))
+
+        self._bulk_close_job(job_id)
+
+        if progress_callback:
+            progress_callback("processing", 0, total)
+
+        job_info = self._bulk_poll_job(job_id, total, progress_callback)
+        result = self._bulk_collect_results(job_id, job_info)
+
+        log.info(
+            "Bulk API job %s complete: %d succeeded, %d failed",
+            job_id, result.success_count, result.failure_count,
+        )
+        return result
+
+    def _bulk_create_job(
+        self,
+        object_type: str,
+        operation: str,
+        external_id_field: str | None,
+    ) -> str:
+        """Create a Bulk API v2 ingest job."""
+        path = f"/services/data/{API_VERSION}/jobs/ingest"
+        body: dict[str, Any] = {
+            "object": object_type,
+            "operation": operation,
+            "contentType": "CSV",
+            "lineEnding": "LF",
+        }
+        if external_id_field:
+            body["externalIdFieldName"] = external_id_field
+
+        data = self.request("POST", path, json_body=body)
+        return data["id"]
+
+    def _bulk_upload_data(self, job_id: str, csv_data: str) -> None:
+        """Upload CSV data to an open Bulk API v2 job."""
+        path = f"/services/data/{API_VERSION}/jobs/ingest/{job_id}/batches"
+        url = f"{self._instance_url}{path}"
+        resp = self._session.put(
+            url,
+            data=csv_data.encode("utf-8"),
+            headers={
+                "Content-Type": "text/csv",
+                "Authorization": f"Bearer {self._access_token}",
+            },
+            timeout=self._timeout * 4,
+        )
+        if resp.status_code not in (200, 201):
+            raise ConnectorError(
+                f"Bulk API upload failed ({resp.status_code}): {resp.text[:200]}"
+            )
+
+    def _bulk_close_job(self, job_id: str) -> None:
+        """Close a Bulk API v2 job to begin processing."""
+        path = f"/services/data/{API_VERSION}/jobs/ingest/{job_id}"
+        self.request("PATCH", path, json_body={"state": "UploadComplete"})
+
+    def _bulk_poll_job(
+        self,
+        job_id: str,
+        total: int,
+        progress_callback: Callable[[str, int, int], None] | None = None,
+    ) -> dict[str, Any]:
+        """Poll a Bulk API v2 job until completion or timeout."""
+        path = f"/services/data/{API_VERSION}/jobs/ingest/{job_id}"
+        start = time.monotonic()
+        terminal_states = {"JobComplete", "Failed", "Aborted"}
+
+        while True:
+            elapsed = time.monotonic() - start
+            if elapsed > BULK_TIMEOUT:
+                raise ConnectorError(
+                    f"Bulk API job {job_id} timed out after {BULK_TIMEOUT}s"
+                )
+
+            job_info = self.request("GET", path)
+            state = job_info.get("state", "Unknown")
+            processed = job_info.get("numberRecordsProcessed", 0)
+            failed = job_info.get("numberRecordsFailed", 0)
+
+            log.info(
+                "Bulk API job %s: state=%s, processed=%d, failed=%d (%.0fs elapsed)",
+                job_id, state, processed, failed, elapsed,
+            )
+
+            if progress_callback:
+                progress_callback(state, processed, total)
+
+            if state in terminal_states:
+                return job_info
+
+            time.sleep(BULK_POLL_INTERVAL)
+
+    def _bulk_collect_results(
+        self, job_id: str, job_info: dict[str, Any]
+    ) -> UpsertResult:
+        """Collect success and failure results from a completed Bulk job."""
+        from siege_utilities.connectors._protocol import UpsertError
+
+        state = job_info.get("state", "Unknown")
+        if state in ("Failed", "Aborted"):
+            error_msg = job_info.get("errorMessage", f"Job {state}")
+            raise ConnectorError(f"Bulk API job {job_id} {state}: {error_msg}")
+
+        processed = job_info.get("numberRecordsProcessed", 0)
+        failed = job_info.get("numberRecordsFailed", 0)
+        succeeded = processed - failed
+
+        errors: list[UpsertError] = []
+        created_ids: list[str] = []
+        updated_ids: list[str] = []
+
+        if succeeded > 0:
+            try:
+                success_path = f"/services/data/{API_VERSION}/jobs/ingest/{job_id}/successfulResults"
+                success_data = self._bulk_get_csv_results(success_path)
+                for row in success_data:
+                    rec_id = row.get("sf__Id", "")
+                    if row.get("sf__Created", "").lower() == "true":
+                        created_ids.append(rec_id)
+                    else:
+                        updated_ids.append(rec_id)
+            except ConnectorError as exc:
+                log.warning("Could not retrieve success results: %s", exc)
+
+        if failed > 0:
+            try:
+                fail_path = f"/services/data/{API_VERSION}/jobs/ingest/{job_id}/failedResults"
+                fail_data = self._bulk_get_csv_results(fail_path)
+                for i, row in enumerate(fail_data):
+                    errors.append(UpsertError(
+                        record_index=i,
+                        message=row.get("sf__Error", "Unknown error"),
+                        code=row.get("sf__Error", None),
+                    ))
+            except ConnectorError as exc:
+                log.warning("Could not retrieve failure results: %s", exc)
+                errors.append(UpsertError(
+                    record_index=0,
+                    message=f"Failed to retrieve error details: {exc}",
+                ))
+
+        return UpsertResult(
+            success_count=succeeded,
+            failure_count=failed,
+            created_ids=created_ids,
+            updated_ids=updated_ids,
+            errors=errors,
+        )
+
+    def _bulk_get_csv_results(self, path: str) -> list[dict[str, str]]:
+        """Retrieve CSV results from a Bulk API v2 job endpoint."""
+        url = f"{self._instance_url}{path}"
+        resp = self._session.get(
+            url,
+            headers={
+                "Accept": "text/csv",
+                "Authorization": f"Bearer {self._access_token}",
+            },
+            timeout=self._timeout * 2,
+        )
+        if resp.status_code != 200:
+            raise ConnectorError(
+                f"Bulk API results retrieval failed ({resp.status_code}): {resp.text[:200]}"
+            )
+        reader = csv.DictReader(io.StringIO(resp.text))
+        return list(reader)
+
+    @staticmethod
+    def _dataframe_to_csv(df: pd.DataFrame) -> str:
+        """Convert a DataFrame to CSV string for Bulk API upload."""
+        buf = io.StringIO()
+        df.to_csv(buf, index=False, lineterminator="\n")
+        return buf.getvalue()
 
     def _composite_upsert(
         self,
