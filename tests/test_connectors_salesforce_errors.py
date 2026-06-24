@@ -46,23 +46,29 @@ def test_ensure_connected_raises_when_not_authenticated():
     assert "Not authenticated" in str(exc_info.value)
 
 
-def test_list_object_types_not_implemented():
-    with pytest.raises(NotImplementedError):
+# NOTE (writing-tests:1 retroactive-fix corollary): these four methods were
+# NotImplementedError stubs at this PR's original base. The CRM workstream
+# (#1015-1033) reimplemented them; they now route through request() ->
+# _ensure_connected(), so on an unauthenticated connector each raises
+# ConnectorAuthError. Tests rewritten to assert the new contract (auth is
+# enforced before any data call) and renamed to match; coverage preserved.
+def test_list_object_types_requires_authentication():
+    with pytest.raises(ConnectorAuthError):
         _connector().list_object_types()
 
 
-def test_get_objects_not_implemented():
-    with pytest.raises(NotImplementedError):
+def test_get_objects_requires_authentication():
+    with pytest.raises(ConnectorAuthError):
         _connector().get_objects("Account")
 
 
-def test_create_record_not_implemented():
-    with pytest.raises(NotImplementedError):
+def test_create_record_requires_authentication():
+    with pytest.raises(ConnectorAuthError):
         _connector().create_record("Account", {"Name": "Acme"})
 
 
-def test_update_record_not_implemented():
-    with pytest.raises(NotImplementedError):
+def test_update_record_requires_authentication():
+    with pytest.raises(ConnectorAuthError):
         _connector().update_record("Account", "001", {"Name": "Acme"})
 
 
