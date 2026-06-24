@@ -604,20 +604,40 @@ class SalesforceConnector:
         return results
 
     # ------------------------------------------------------------------
-    # ConnectorProtocol — write stubs (follow-up tickets)
+    # ConnectorProtocol — write operations
     # ------------------------------------------------------------------
+
+    COMPOSITE_BATCH_SIZE = 25
 
     def create_record(
         self, object_type: str, data: dict[str, Any]
     ) -> str:
-        """Create a single record. Implemented in #1018."""
-        raise NotImplementedError("create_record() — see #1018")
+        """Create a single record; return its ID.
+
+        Raises:
+            ConnectorError: Validation or API failure.
+        """
+        path = f"/services/data/{API_VERSION}/sobjects/{object_type}"
+        resp = self.request("POST", path, json_body=data)
+        if not resp.get("success"):
+            errors = resp.get("errors", [])
+            msg = errors[0].get("message", str(errors)) if errors else "Unknown error"
+            raise ConnectorError(f"Failed to create {object_type}: {msg}")
+        record_id = resp["id"]
+        log.info("Created %s record: %s", object_type, record_id)
+        return record_id
 
     def update_record(
         self, object_type: str, record_id: str, data: dict[str, Any]
     ) -> bool:
-        """Update a single record. Implemented in #1018."""
-        raise NotImplementedError("update_record() — see #1018")
+        """Update a single record; return True on success.
+
+        Raises on failure — never returns False silently (SU-1).
+        """
+        path = f"/services/data/{API_VERSION}/sobjects/{object_type}/{record_id}"
+        self.request("PATCH", path, json_body=data)
+        log.info("Updated %s record: %s", object_type, record_id)
+        return True
 
     def upsert_records(
         self,
@@ -625,8 +645,125 @@ class SalesforceConnector:
         records: pd.DataFrame,
         match_field: str,
     ) -> UpsertResult:
-        """Bulk upsert from DataFrame. Implemented in #1018/#1019."""
-        raise NotImplementedError("upsert_records() — see #1018/#1019")
+        """Bulk create-or-update from a DataFrame via Composite API.
+
+        Uses the Composite SObject Collections endpoint, batching up to
+        25 records per request. Each record is matched on *match_field*
+        (using the Salesforce external ID or standard field upsert endpoint).
+
+        Returns:
+            :class:`UpsertResult` with per-record outcome.
+        """
+        from siege_utilities.connectors._protocol import UpsertError
+
+        if records.empty:
+            log.warning("upsert_records(%s): empty DataFrame, nothing to upsert", object_type)
+            return UpsertResult(success_count=0, failure_count=0)
+
+        all_created: list[str] = []
+        all_updated: list[str] = []
+        all_errors: list[UpsertError] = []
+        total_success = 0
+        total_failure = 0
+
+        record_dicts = records.to_dict(orient="records")
+        batches = [
+            record_dicts[i:i + self.COMPOSITE_BATCH_SIZE]
+            for i in range(0, len(record_dicts), self.COMPOSITE_BATCH_SIZE)
+        ]
+
+        for batch_idx, batch in enumerate(batches):
+            log.info(
+                "upsert_records(%s): batch %d/%d (%d records)",
+                object_type, batch_idx + 1, len(batches), len(batch),
+            )
+            result = self._composite_upsert(
+                object_type, batch, match_field,
+                base_index=batch_idx * self.COMPOSITE_BATCH_SIZE,
+            )
+            total_success += result.success_count
+            total_failure += result.failure_count
+            all_created.extend(result.created_ids)
+            all_updated.extend(result.updated_ids)
+            all_errors.extend(result.errors)
+
+        log.info(
+            "upsert_records(%s): %d succeeded, %d failed (total %d)",
+            object_type, total_success, total_failure, total_success + total_failure,
+        )
+        return UpsertResult(
+            success_count=total_success,
+            failure_count=total_failure,
+            created_ids=all_created,
+            updated_ids=all_updated,
+            errors=all_errors,
+        )
+
+    def _composite_upsert(
+        self,
+        object_type: str,
+        records: list[dict[str, Any]],
+        match_field: str,
+        *,
+        base_index: int = 0,
+    ) -> UpsertResult:
+        """Execute a single Composite SObject Collections upsert batch."""
+        from siege_utilities.connectors._protocol import UpsertError
+
+        path = (
+            f"/services/data/{API_VERSION}/composite/sobjects"
+            f"/{object_type}/{match_field}"
+        )
+        for rec in records:
+            rec["attributes"] = {"type": object_type}
+
+        try:
+            resp = self.request("PATCH", path, json_body={"allOrNone": False, "records": records})
+        except ConnectorError:
+            raise
+
+        if not isinstance(resp, list):
+            resp_list = resp.get("results", [resp]) if isinstance(resp, dict) else [resp]
+        else:
+            resp_list = resp
+
+        created: list[str] = []
+        updated: list[str] = []
+        errors: list[UpsertError] = []
+        success_count = 0
+        failure_count = 0
+
+        for i, result in enumerate(resp_list):
+            if isinstance(result, dict) and result.get("success"):
+                record_id = result.get("id", "")
+                if result.get("created"):
+                    created.append(record_id)
+                else:
+                    updated.append(record_id)
+                success_count += 1
+            else:
+                failure_count += 1
+                err_list = result.get("errors", []) if isinstance(result, dict) else []
+                for err in err_list:
+                    errors.append(UpsertError(
+                        record_index=base_index + i,
+                        message=err.get("message", "Unknown error"),
+                        field=err.get("fields", [None])[0] if err.get("fields") else None,
+                        code=err.get("statusCode"),
+                    ))
+                if not err_list:
+                    errors.append(UpsertError(
+                        record_index=base_index + i,
+                        message="Record failed without error details",
+                    ))
+
+        return UpsertResult(
+            success_count=success_count,
+            failure_count=failure_count,
+            created_ids=created,
+            updated_ids=updated,
+            errors=errors,
+        )
 
     # ------------------------------------------------------------------
     # SOQL query building
