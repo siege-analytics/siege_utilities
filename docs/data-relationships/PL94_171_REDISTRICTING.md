@@ -109,7 +109,7 @@ PL 94-171 is available at every Census summary level:
 | Block Group | 12 | `060371011001` |
 | **Block** | **15** | **`060371011001001`** |
 | Place | 7 | `0644000` |
-| VTD | 8 | `06037001` |
+| VTD | 11 | `06037001234` |
 | CD | 4 | `0614` |
 | SLDU / SLDL | 5 | `06001` |
 

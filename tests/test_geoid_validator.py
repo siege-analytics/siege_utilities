@@ -18,6 +18,32 @@ except (ImportError, RuntimeError):
     _DJANGO_AVAILABLE = False
 
 
+def _constraint_geoid_regex(constraint):
+    """Extract the ``geoid__regex`` pattern from a CheckConstraint's condition.
+
+    The constraint's ``condition`` (``check`` on older Django) is a ``Q``
+    object such as ``Q(geoid__regex=r"^\\d{11}$")``. Walk its children
+    (including nested ``Q`` nodes) and return the regex bound to a
+    ``*regex`` lookup, or ``None`` if there isn't one.
+    """
+    condition = getattr(constraint, "condition", None)
+    if condition is None:
+        condition = getattr(constraint, "check", None)
+    if condition is None:
+        return None
+
+    stack = list(getattr(condition, "children", []))
+    while stack:
+        node = stack.pop()
+        if isinstance(node, tuple) and len(node) == 2:
+            lookup, value = node
+            if str(lookup).endswith("regex"):
+                return value
+        else:
+            stack.extend(getattr(node, "children", []))
+    return None
+
+
 class TestGEOIDValidator:
     """Tests for the GEOIDValidator callable."""
 
@@ -122,15 +148,33 @@ class TestBoundaryModelConstraints:
         ids=list(EXPECTED_CONSTRAINTS.keys()),
     )
     def test_model_has_geoid_constraint(self, model_name, expected):
-        """Each concrete boundary model should have a GEOID CheckConstraint."""
+        """Each concrete boundary model should have a GEOID CheckConstraint
+        whose regex matches the expected GEOID length.
+
+        This asserts the actual check expression, not just the constraint
+        name: a constraint correctly named ``vtd_geoid_11_digits`` that still
+        carried the old ``^\\d{8}$`` regex must fail here. Verified by mutation
+        (revert the regex to 8 digits -> this test goes red).
+        """
         from siege_utilities.geo.django import models as geo_models
 
         model_cls = getattr(geo_models, model_name)
+        expected_name, expected_regex = expected
+
+        constraint = next(
+            (c for c in model_cls._meta.constraints if c.name == expected_name),
+            None,
+        )
         constraint_names = [c.name for c in model_cls._meta.constraints]
-        expected_name, _ = expected
-        assert expected_name in constraint_names, (
+        assert constraint is not None, (
             f"{model_name} missing constraint '{expected_name}'. "
             f"Found: {constraint_names}"
+        )
+
+        actual_regex = _constraint_geoid_regex(constraint)
+        assert actual_regex == expected_regex, (
+            f"{model_name} constraint '{expected_name}' enforces regex "
+            f"{actual_regex!r}, expected {expected_regex!r}."
         )
 
 

@@ -94,7 +94,7 @@ embeds its parent's identifier:
 | CongressionalDistrict | `0614` | 4 | SS+DD | State |
 | StateLegislativeUpper | `06001` | 5 | SS+DDD | State |
 | StateLegislativeLower | `06001` | 5 | SS+DDD | State |
-| VTD | `06037001` | 8 | SS+CCC+VVV | State, County, CD (soft) |
+| VTD | `06037001234` | 11 | SS+CCC+VVVVVV | State, County, CD (soft) |
 | Precinct | variable | — | SS+CCC+code | State, County |
 
 **Nesting hierarchy** (child GEOID always starts with parent GEOID):
