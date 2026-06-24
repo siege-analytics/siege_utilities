@@ -45,21 +45,26 @@ def _is_import_error_guard(node: ast.ExceptHandler) -> bool:
                 names.append(elt.id)
     if "ImportError" not in names and "ModuleNotFoundError" not in names:
         return False
-    # Flag/availability-fallback pattern: the body is made up entirely of
-    # assignments whose values are the sentinels ``False`` or ``None``.
-    # This covers both the single-line ``HAS_X = False`` form and the
-    # multi-line ``import`` fallback (e.g. ``X = None; X_sql = None``) used
-    # to stub out an optional dependency. Such a handler is a dependency
-    # guard, not error-handling logic, so it carries no error-path test
-    # obligation.
+    # Availability-fallback pattern: the body is made up entirely of simple
+    # rebinds — assignments whose right-hand side is a literal constant, a
+    # bare name, or an attribute reference. This covers:
+    #   except ImportError: HAS_X = False
+    #   except ImportError: X = None; X_sql = None
+    #   except ImportError: Serializer = drf.ModelSerializer   # fallback class
+    # Such a handler only rebinds names to a fallback; it contains no
+    # error-handling logic (no calls, no re-raise, no computation), so it is a
+    # dependency guard and carries no error-path-test obligation. Restricting
+    # the RHS to Constant/Name/Attribute keeps handlers that *compute* a
+    # fallback (e.g. ``x = build_stub()``) in scope as real error sites.
     if not node.body:
         return False
     for stmt in node.body:
-        if not isinstance(stmt, ast.Assign):
+        if not isinstance(stmt, (ast.Assign, ast.AnnAssign)):
             return False
-        if not isinstance(stmt.value, ast.Constant):
+        value = stmt.value
+        if value is None:  # bare annotation, e.g. ``x: int`` — not a rebind
             return False
-        if stmt.value.value is not False and stmt.value.value is not None:
+        if not isinstance(value, (ast.Constant, ast.Name, ast.Attribute)):
             return False
     return True
 
