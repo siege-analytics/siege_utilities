@@ -5,7 +5,6 @@ on boundary providers. Uses synthetic GeoDataFrames to avoid network calls.
 """
 
 import pytest
-import numpy as np
 import pandas as pd
 
 

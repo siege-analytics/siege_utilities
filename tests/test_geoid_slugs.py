@@ -43,7 +43,8 @@ class TestGeoidToSlug:
         assert geoid_to_slug("06001", "sldl") == "ca-sldl-001"
 
     def test_vtd(self):
-        assert geoid_to_slug("06037001", "vtd") == "ca-037-vtd-001"
+        # Full Census VTD GEOID is 11 chars: state(2) + county(3) + VTD(6).
+        assert geoid_to_slug("06037000123", "vtd") == "ca-037-vtd-000123"
 
 
 class TestSlugToGeoid:
@@ -80,7 +81,7 @@ class TestSlugToGeoid:
         assert slug_to_geoid("ca-sldl-001") == "06001"
 
     def test_vtd(self):
-        assert slug_to_geoid("ca-037-vtd-001") == "06037001"
+        assert slug_to_geoid("ca-037-vtd-000123") == "06037000123"
 
     def test_unknown_state_raises(self):
         with pytest.raises(ValueError, match="Unknown state"):
@@ -105,7 +106,7 @@ class TestRoundTrip:
         ("0614", "cd"),
         ("06001", "sldu"),
         ("06001", "sldl"),
-        ("06037001", "vtd"),
+        ("06037000123", "vtd"),
     ]
 
     @pytest.mark.parametrize("geoid,level", CASES, ids=[c[1] for c in CASES])

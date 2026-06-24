@@ -15,7 +15,6 @@ from siege_utilities.geo.overlays.redistricting import (
 )
 from siege_utilities.geo.overlays.election_results import (
     DictElectionDataProvider,
-    ElectionDataProvider,
     ElectionResultsOverlay,
     ElectionResultsOverlayResult,
     ElectionReturn,

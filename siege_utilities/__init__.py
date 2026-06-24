@@ -153,7 +153,7 @@ _register_lazy([
 # ── Pydantic config system (requires pydantic>=2.0) ──────────────────
 
 _register_lazy([
-    'UserConfigManager', 'UserProfile', 'user_config',
+    'UserConfigManager', 'UserProfile',
     'get_user_config', 'get_download_directory',
 ], '.config.user_config', deps=['pydantic>=2.0'])
 

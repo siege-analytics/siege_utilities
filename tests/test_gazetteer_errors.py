@@ -7,7 +7,7 @@ exercised WITHOUT network, GDAL, or geopandas.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -175,7 +175,7 @@ class TestWklsFetchGeometryErrors:
                 gz._fetch_geometry("some-id")
 
     def test_resolve_failure_raises_backend_error(self, monkeypatch):
-        shapely_wkt = pytest.importorskip("shapely.wkt")
+        pytest.importorskip("shapely.wkt")
 
         fake_wkls = MagicMock()
         fake_wkls.resolve.side_effect = RuntimeError("network down")
@@ -286,9 +286,12 @@ class TestCensusSearchNonUSReturnsEmpty:
         not (cg.REQUESTS_AVAILABLE and cg.SHAPELY_AVAILABLE),
         reason="requests or shapely not installed",
     )
-    def test_non_us_search_returns_empty(self):
+    def test_non_us_search_raises(self):
+        # CensusGazetteer is US-only; a non-US country_hint is a usage error
+        # that raises GazetteerNotFoundError rather than returning [] (SU-1).
         gz = cg.CensusGazetteer()
-        assert gz.search("Berlin", country_hint="DE") == []
+        with pytest.raises(GazetteerNotFoundError):
+            gz.search("Berlin", country_hint="DE")
 
 
 class TestCensusSearchEmptyReturnsEmpty:

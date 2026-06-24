@@ -464,29 +464,37 @@ class TestDataFetching:
         assert len(df['GEOID'].iloc[0]) == 11  # Tract GEOID is 11 digits
 
     @patch('siege_utilities.geo.census_api_client.requests.get')
-    def test_fetch_handles_empty_response(self, mock_get, census_client):
-        """Test handling of empty API response."""
+    def test_fetch_empty_response_raises(self, mock_get, census_client):
+        """An empty Census API response (< 2 rows) is a failure, not data.
+
+        SU-1: the client raises CensusAPIError rather than returning an empty
+        DataFrame the caller cannot distinguish from a real result. Previously
+        asserted a returned empty DataFrame.
+        """
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = []
         mock_response.raise_for_status = Mock()
         mock_get.return_value = mock_response
 
-        df = census_client.fetch_data(
-            variables=['B01001_001E'],
-            year=2020,
-            dataset='acs5',
-            geography='county',
-            state_fips='06',
-            include_moe=False
-        )
+        with pytest.raises(CensusAPIError):
+            census_client.fetch_data(
+                variables=['B01001_001E'],
+                year=2020,
+                dataset='acs5',
+                geography='county',
+                state_fips='06',
+                include_moe=False
+            )
 
-        assert isinstance(df, pd.DataFrame)
-        assert len(df) == 0
-
+    @patch('siege_utilities.geo.census.api.time.sleep')
     @patch('siege_utilities.geo.census_api_client.requests.get')
-    def test_fetch_handles_rate_limit(self, mock_get, census_client):
-        """Test handling of rate limit response."""
+    def test_fetch_handles_rate_limit(self, mock_get, mock_sleep, census_client):
+        """A 429 is retried then surfaced as CensusRateLimitError.
+
+        time.sleep is mocked so the production 60s-per-attempt retry delay does
+        not run in real time.
+        """
         mock_response = Mock()
         mock_response.status_code = 429
         mock_response.raise_for_status = Mock()

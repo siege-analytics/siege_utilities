@@ -14,7 +14,6 @@ except (ImportError, RuntimeError):
     _DJANGO_AVAILABLE = False
 
 try:
-    import pandas as pd
 
     _PANDAS_AVAILABLE = True
 except ImportError:

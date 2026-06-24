@@ -49,6 +49,21 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+
+def _rl_image_from_data_uri(data_uri: str, width_pts: float, height_pts: float) -> "Image":
+    """Build a ReportLab Image from a base64 ``data:`` URI.
+
+    ReportLab 5 cannot construct an Image directly from a data: URI (its
+    open_for_read gates the data scheme behind trustedHosts and raises at
+    construction). Decode the URI to an in-memory buffer for rendering, then
+    keep the URI on ``.filename`` so image_utils can still extract the PNG.
+    """
+    b64 = data_uri.split(",", 1)[1]
+    buffer = io.BytesIO(base64.b64decode(b64))
+    image = Image(buffer, width=width_pts, height=height_pts)
+    image.filename = data_uri
+    return image
+
 __all__ = [
     "BaseChartEngine",
 ]
@@ -310,12 +325,17 @@ class BaseChartEngine:
                 width, height, max_width=max_width, max_height=max_height,
             )
 
-            # Always specify both width and height explicitly.
-            # ReportLab cannot reliably infer height from base64 data URLs
-            # and may treat raw pixel height as points, producing oversized
-            # images (e.g. 800px → 800pt = 11.1in instead of 4in at 200 DPI).
-            rl_image = Image(data_url, width=scaled_w * inch,
+            # ReportLab 5 cannot construct an Image from a data: URI -- its
+            # open_for_read gates the data scheme behind trustedHosts and fails
+            # at construction. Build the Image from the in-memory PNG buffer
+            # (which renders correctly), then keep the data URI on .filename so
+            # image_utils can still extract/save the embedded PNG. Width and
+            # height are set explicitly so ReportLab does not size from raw
+            # pixels (800px would otherwise become 800pt = 11.1in).
+            img_buffer.seek(0)
+            rl_image = Image(img_buffer, width=scaled_w * inch,
                              height=scaled_h * inch)
+            rl_image.filename = data_url
 
             return rl_image
 
@@ -352,14 +372,18 @@ class BaseChartEngine:
             else:
                 # Fallback to simple text — still honour auto-scaling
                 sw, sh = self._scale_dimensions(width, height)
-                return Image("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-                           width=sw*inch, height=sh*inch)
+                return _rl_image_from_data_uri(
+                    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+                    sw * inch, sh * inch,
+                )
         except (ValueError, TypeError, AttributeError, OSError) as e:
             log.error(f"Error creating placeholder chart: {e}")
             # Return a minimal image — still honour auto-scaling
             sw, sh = self._scale_dimensions(width, height)
-            return Image("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-                       width=sw*inch, height=sh*inch)
+            return _rl_image_from_data_uri(
+                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+                sw * inch, sh * inch,
+            )
 
     def create_chart_with_caption(self, chart: Image, caption: str,
                                 caption_style: Optional[str] = None) -> List:

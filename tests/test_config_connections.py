@@ -101,6 +101,8 @@ class TestSaveAndLoadConnectionProfile:
         assert loaded["name"] == "Test"
         assert loaded["connection_type"] == "notebook"
 
-    def test_load_nonexistent(self, tmp_path):
-        loaded = load_connection_profile("nonexistent-id", str(tmp_path))
-        assert loaded is None
+    def test_load_nonexistent_raises(self, tmp_path):
+        # SU-1: load_connection_profile raises FileNotFoundError for a missing
+        # profile (documented contract), it does not return None.
+        with pytest.raises(FileNotFoundError):
+            load_connection_profile("nonexistent-id", str(tmp_path))

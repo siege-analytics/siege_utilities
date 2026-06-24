@@ -14,8 +14,8 @@ Backend dispatch (in priority order):
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import Optional, Union
+from dataclasses import dataclass
+from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -233,7 +233,11 @@ AVAILABLE_SCHEMES: dict[str, str] = {
 _MC_SCHEME_MAP = {
     "quantiles": "Quantiles",
     "equal_interval": "EqualInterval",
-    "natural_breaks": "NaturalBreaks",
+    # "natural_breaks" is documented as Fisher-Jenks (see AVAILABLE_SCHEMES) and
+    # the numpy fallback aliases the two. Use the exact FisherJenks classifier
+    # for both -- mapclassify's "NaturalBreaks" is a k-means approximation that
+    # produces suboptimal, non-aliased breaks.
+    "natural_breaks": "FisherJenks",
     "fisher_jenks": "FisherJenks",
     "percentiles": "Percentiles",
     "std_mean": "StdMean",
@@ -263,7 +267,9 @@ def _classify_with_mapclassify(
     breaks = np.unique(breaks)
     actual_k = len(breaks) - 1
 
-    bins = np.searchsorted(breaks[1:-1], values, side="right").astype(np.intp)
+    # mapclassify bins are upper-inclusive (a value <= an edge belongs to that
+    # bin), so a value exactly on an interior break maps to the lower bin.
+    bins = np.searchsorted(breaks[1:-1], values, side="left").astype(np.intp)
 
     return ClassificationResult(
         bins=bins,

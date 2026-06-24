@@ -598,30 +598,37 @@ class TestConvenienceFunctions:
             return_value={},
         ):
             from siege_utilities.geo.spatial_transformations import convert_spatial_format
-            result = convert_spatial_format(sample_gdf, "geojson", output_path=out)
-        assert result is True
+            # convert_spatial_format returns None and raises on failure (#967);
+            # success is verified by the output file. Previously asserted True.
+            convert_spatial_format(sample_gdf, "geojson", output_path=out)
         assert Path(out).exists()
 
-    def test_upload_to_duckdb_unavailable(self, sample_gdf):
+    def test_upload_to_duckdb_unavailable_raises(self, sample_gdf):
+        # writing-code:8 / SU-1: with DuckDB unavailable, the optional-dependency
+        # path raises a clear ImportError naming the install command, rather than
+        # returning False. Previously asserted `is False`.
         with patch(
             "siege_utilities.geo.spatial_transformations.DUCKDB_AVAILABLE", False
         ):
             from siege_utilities.geo.spatial_transformations import upload_to_duckdb
-            assert upload_to_duckdb(sample_gdf, "tbl") is False
+            with pytest.raises(ImportError):
+                upload_to_duckdb(sample_gdf, "tbl")
 
-    def test_download_from_duckdb_unavailable(self):
+    def test_download_from_duckdb_unavailable_raises(self):
         with patch(
             "siege_utilities.geo.spatial_transformations.DUCKDB_AVAILABLE", False
         ):
             from siege_utilities.geo.spatial_transformations import download_from_duckdb
-            assert download_from_duckdb("tbl") is None
+            with pytest.raises(ImportError):
+                download_from_duckdb("tbl")
 
-    def test_execute_duckdb_query_unavailable(self):
+    def test_execute_duckdb_query_unavailable_raises(self):
         with patch(
             "siege_utilities.geo.spatial_transformations.DUCKDB_AVAILABLE", False
         ):
             from siege_utilities.geo.spatial_transformations import execute_duckdb_query
-            assert execute_duckdb_query("SELECT 1") is None
+            with pytest.raises(ImportError):
+                execute_duckdb_query("SELECT 1")
 
 
 # ---------------------------------------------------------------------------
@@ -634,6 +641,7 @@ class TestModuleExports:
         from siege_utilities.geo.spatial_transformations import __all__
 
         expected = {
+            "SpatialQueryError",
             "SpatialDataTransformer",
             "PostGISConnector",
             "DuckDBConnector",

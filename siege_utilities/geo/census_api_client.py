@@ -200,7 +200,7 @@ class CensusAPIClient:
         df = self._make_request_with_retry(url)
 
         # Process response
-        df = self._process_response(df, geography, state_fips, county_fips)
+        df = self._process_response(df, geography)
 
         # Cache result
         self._save_to_cache(cache_key, df)
@@ -300,10 +300,8 @@ class CensusAPIClient:
     def _make_request_with_retry(self, url: str) -> pd.DataFrame:
         return self._api._make_request_with_retry(url)
 
-    def _process_response(self, df: pd.DataFrame, geography: str,
-                          state_fips: Optional[str],
-                          county_fips: Optional[str]) -> pd.DataFrame:
-        return self._api._process_response(df, geography, state_fips, county_fips)
+    def _process_response(self, df: pd.DataFrame, geography: str) -> pd.DataFrame:
+        return self._api._process_response(df, geography)
 
     def _resolve_api_key(self, explicit_key: Optional[str]) -> Optional[str]:
         return CensusAPI._resolve_api_key(explicit_key)

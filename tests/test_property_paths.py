@@ -4,12 +4,11 @@ Tests that path functions handle arbitrary input without crashing
 and that sanitization is idempotent.
 """
 
-import os
 
 import pytest
 
 hypothesis = pytest.importorskip("hypothesis")
-from hypothesis import given, assume, settings
+from hypothesis import given, settings
 import hypothesis.strategies as st
 
 
@@ -53,8 +52,11 @@ class TestEnsurePathExistsProperties:
     def test_never_crashes_on_arbitrary_input(self, raw_path):
         """ensure_path_exists should handle arbitrary strings gracefully."""
         from siege_utilities.files.paths import ensure_path_exists
+        from siege_utilities.files.validation import PathSecurityError
 
         try:
             ensure_path_exists(raw_path)
-        except (OSError, ValueError, TypeError):
+        except (OSError, ValueError, TypeError, PathSecurityError):
+            # PathSecurityError (e.g. embedded null byte) is a deliberate,
+            # graceful rejection of a malicious path, not an unexpected crash.
             pass

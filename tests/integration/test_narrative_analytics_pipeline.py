@@ -9,7 +9,6 @@ SU-1 enforcement: expired/invalid auth raises, not returns empty DataFrame.
 """
 
 import importlib
-import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 

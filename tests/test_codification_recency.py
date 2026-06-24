@@ -7,7 +7,6 @@ import pytest
 from siege_utilities.geo.codification_recency import (
     AddressVintage,
     DictAddressVintageProvider,
-    RecencyAnalysis,
     compute_recency,
 )
 

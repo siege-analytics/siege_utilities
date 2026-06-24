@@ -193,6 +193,8 @@ jobs:
 
     - name: Install dependencies
       run: |
+        sed -i "s/\"gdal>=3.6,<4\"/\"gdal==$(gdal-config --version)\"/g" pyproject.toml
+        grep -qE '"gdal==[0-9]' pyproject.toml || { echo "gdal pin rewrite failed (gdal-config missing or pin literal changed)"; exit 1; }
         uv sync --extra all --extra dev
 
     - name: Lint with flake8
@@ -287,9 +289,6 @@ jobs:
     runs-on: ubuntu-latest
     name: "api contract regression"
 
-    env:
-      BASELINE_VERSION: "3.18.0"
-
     steps:
     - uses: actions/checkout@v4
 
@@ -297,6 +296,12 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: "3.11"
+
+    - name: Resolve baseline version (latest published on PyPI)
+      run: |
+        BV=$(curl -sf --retry 3 --max-time 20 https://pypi.org/pypi/siege-utilities/json | python3 -c "import sys,json; print(json.load(sys.stdin)['info']['version'])")
+        echo "BASELINE_VERSION=${BV}" >> $GITHUB_ENV
+        echo "Resolved baseline (latest published on PyPI): ${BV}"
 
     - name: Infer release impact from version delta
       id: impact
@@ -429,6 +434,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Install system geospatial libraries
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          gdal-bin libgdal-dev libgeos-dev libproj-dev
+
     - name: Set up Java 17
       uses: actions/setup-java@v4
       with:
@@ -447,6 +458,8 @@ jobs:
 
     - name: Install dependencies
       run: |
+        sed -i "s/\"gdal>=3.6,<4\"/\"gdal==$(gdal-config --version)\"/g" pyproject.toml
+        grep -qE '"gdal==[0-9]' pyproject.toml || { echo "gdal pin rewrite failed (gdal-config missing or pin literal changed)"; exit 1; }
         uv sync --extra all --extra dev
 
     - name: Run Battle Testing Suite

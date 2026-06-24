@@ -8,7 +8,7 @@ import os
 import pathlib
 import logging
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from urllib.parse import quote_plus
 
 __all__ = [

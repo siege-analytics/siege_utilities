@@ -5,7 +5,10 @@ Comprehensive git commands and workflow automation.
 
 from typing import Dict, Optional
 import re
-import subprocess
+# run_git_command lives in ._utils, but the git-command tests patch
+# `siege_utilities.git.git_operations.subprocess.run`, so this module must
+# expose `subprocess` as that patch surface. Kept deliberately; not dead code.
+import subprocess  # noqa: F401
 
 from siege_utilities.core.logging import log_info, log_warning
 from siege_utilities.exceptions import GitError

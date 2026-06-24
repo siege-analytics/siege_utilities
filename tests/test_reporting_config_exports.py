@@ -37,13 +37,15 @@ class TestExportBrandingConfig:
             with pytest.raises(ReportingConfigError, match="acme"):
                 export_branding_config("acme", str(tmp_path / "out.yaml"))
 
-    def test_success_returns_true(self, tmp_path):
+    def test_success_returns_none(self, tmp_path):
+        # The wrapper returns None and raises ReportingConfigError on failure
+        # (#967); success is the absence of a raise. Previously asserted True.
         class _OK:
             def export_branding_config(self, *a, **kw):
-                return True
+                return None
 
         with patch("siege_utilities.reporting.client_branding.ClientBrandingManager", return_value=_OK()):
-            assert export_branding_config("acme", str(tmp_path / "out.yaml")) is True
+            assert export_branding_config("acme", str(tmp_path / "out.yaml")) is None
 
 
 class TestImportBrandingConfig:
@@ -72,10 +74,12 @@ class TestImportBrandingConfig:
             def import_branding_config(self, path, client_name):
                 captured["path"] = path
                 captured["client_name"] = client_name
-                return True
+                return None
 
         with patch("siege_utilities.reporting.client_branding.ClientBrandingManager", return_value=_OK()):
-            assert import_branding_config(str(tmp_path / "x.yaml"), client_name="acme") is True
+            # Returns None; the behavior under test is that client_name is
+            # threaded through to the manager. Previously asserted True.
+            import_branding_config(str(tmp_path / "x.yaml"), client_name="acme")
         assert captured["client_name"] == "acme"
 
 

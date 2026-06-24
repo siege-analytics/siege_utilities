@@ -8,6 +8,7 @@ import pytest
 
 from siege_utilities.geo.providers.boundary_providers import (
     BoundaryProvider,
+    BoundaryFetchError,
     CensusTIGERProvider,
     GADMProvider,
     RDHProvider,
@@ -124,18 +125,19 @@ class TestCensusTIGERProvider:
         assert call_kwargs['geographic_level'] == 'county'
 
     @patch('siege_utilities.geo.spatial_data.CensusDataSource')
-    def test_get_boundary_failure_returns_none(self, MockDS):
-        """result.success=False returns None and logs a warning."""
+    def test_get_boundary_failure_raises(self, MockDS):
+        """A failed fetch (result.success=False) raises BoundaryFetchError.
+
+        SU-1 / consistent provider contract: get_boundary documents
+        "Raises BoundaryFetchError when retrieval fails"; it does not return
+        None. Previously asserted a None return plus a logged warning.
+        """
         mock_result = MagicMock(success=False, error_stage='download', message='404')
         MockDS.return_value.fetch_geographic_boundaries.return_value = mock_result
 
         provider = CensusTIGERProvider()
-        import logging
-        with patch.object(logging.getLogger('siege_utilities.geo.providers.boundary_providers'),
-                          'warning') as mock_warn:
-            result = provider.get_boundary('county')
-        assert result is None
-        mock_warn.assert_called_once()
+        with pytest.raises(BoundaryFetchError):
+            provider.get_boundary('county')
 
 
 # ---------------------------------------------------------------------------
@@ -173,11 +175,16 @@ class TestCensusTIGERVintageDiscovery:
         assert provider.latest_vintage() == 2025
 
     @patch('requests.get')
-    def test_list_vintages_empty_on_network_failure(self, mock_get):
+    def test_list_vintages_raises_on_network_failure(self, mock_get):
+        # SU-1: list_available_vintages re-raises the network error rather than
+        # returning [] (an empty list is indistinguishable from "no vintages
+        # published"). latest_vintage() is the documented None-on-failure
+        # variant. Previously asserted == [].
         import requests
         mock_get.side_effect = requests.ConnectionError('down')
         provider = CensusTIGERProvider()
-        assert provider.list_available_vintages() == []
+        with pytest.raises(requests.RequestException):
+            provider.list_available_vintages()
         assert provider.latest_vintage() is None
 
 
@@ -347,15 +354,19 @@ class TestRDHProvider:
         assert result is sentinel_gdf
 
     @patch('siege_utilities.geo.providers.boundary_providers.RDHProvider._get_client')
-    def test_get_boundary_no_datasets_returns_none(self, mock_get_client):
-        """When RDH returns no matching datasets, get_boundary returns None."""
+    def test_get_boundary_no_datasets_raises(self, mock_get_client):
+        """When RDH returns no matching datasets, get_boundary raises.
+
+        SU-1 / consistent provider contract: no datasets is a fetch failure
+        (BoundaryFetchError), not a None return. Previously asserted None.
+        """
         mock_client = MagicMock()
         mock_client.get_precinct_data.return_value = []
         mock_get_client.return_value = mock_client
 
         provider = RDHProvider(username=TEST_USERNAME, password=TEST_PASSWORD)
-        result = provider.get_boundary('precinct', identifier='TX')
-        assert result is None
+        with pytest.raises(BoundaryFetchError):
+            provider.get_boundary('precinct', identifier='TX')
 
     def test_credentials_from_env(self, monkeypatch):
         monkeypatch.setenv('RDH_USERNAME', 'env_user')

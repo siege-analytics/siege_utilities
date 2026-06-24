@@ -10,13 +10,9 @@ import abc
 import logging
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Any, Optional
+from typing import Optional
 
 from siege_utilities.geo.overlay_registry import PlaceHistoryOverlay
-from siege_utilities.geo.plan_lifecycle import (
-    PlanType,
-    RedistrictingPlan,
-)
 
 log = logging.getLogger(__name__)
 

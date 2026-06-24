@@ -237,8 +237,9 @@ class IDMLExporter:
                 pkg.set_tag(placeholder, content)
             except (ValueError, KeyError, AttributeError, TypeError) as exc:
                 log.debug(
-                    "simpleidml.set_tag failed for %r; doing raw XML substitution.",
+                    "simpleidml.set_tag failed for %r (%s); doing raw XML substitution.",
                     placeholder,
+                    exc,
                 )
                 # Fall through to raw XML sub in _apply_replacements_raw
                 self._apply_replacements_raw_simpleidml(pkg, placeholder, content)

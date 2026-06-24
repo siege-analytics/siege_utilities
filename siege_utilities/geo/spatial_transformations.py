@@ -59,7 +59,10 @@ class SpatialDataTransformer:
         """Initialize the spatial data transformer."""
         try:
             self.user_config = get_user_config()
-        except (ImportError, OSError, ValueError, KeyError, AttributeError) as e:
+        except Exception as e:
+            # user_config is optional; ANY failure to load it (missing pydantic,
+            # bad config file, validation error, etc.) degrades to None rather
+            # than breaking construction. The error is logged, not swallowed.
             log.warning(f"Failed to load user config: {e}")
             # Use None (not {}) so callers branching on `is None` work
             # uniformly across SpatialDataTransformer / PostGISConnector
@@ -242,7 +245,10 @@ class PostGISConnector:
         """
         try:
             self.user_config = get_user_config()
-        except (ImportError, OSError, ValueError, KeyError, AttributeError) as e:
+        except Exception as e:
+            # user_config is optional; ANY failure to load it (missing pydantic,
+            # bad config file, validation error, etc.) degrades to None rather
+            # than breaking construction. The error is logged, not swallowed.
             log.warning(f"Failed to load user config: {e}")
             self.user_config = None
 
@@ -347,7 +353,11 @@ class PostGISConnector:
                 f"({len(gdf)} rows, {len(gdf.columns)} columns)"
             )
 
-        except (_Psycopg2Error, OSError, ValueError, TypeError, AttributeError, ImportError) as e:
+        except Exception as e:
+            # to_postgis surfaces failures as SQLAlchemy / psycopg2 / value
+            # errors depending on the cause; wrap them all in the documented
+            # SpatialQueryError (preserving the cause). The engine is already
+            # disposed in the finally above.
             raise SpatialQueryError(f"Failed to upload to PostGIS: {e}") from e
     
     def download_spatial_data(self, table_name: str, *, crs: str | None = None, **kwargs) -> GeoDataFrame:
@@ -531,7 +541,10 @@ class DuckDBConnector:
         
         try:
             self.user_config = get_user_config()
-        except (ImportError, OSError, ValueError, KeyError, AttributeError) as e:
+        except Exception as e:
+            # user_config is optional; ANY failure to load it (missing pydantic,
+            # bad config file, validation error, etc.) degrades to None rather
+            # than breaking construction. The error is logged, not swallowed.
             log.warning(f"Failed to load user config: {e}")
             self.user_config = None
 
@@ -553,7 +566,9 @@ class DuckDBConnector:
         try:
             self.connection = duckdb.connect(self.db_path)
             log.info("Successfully connected to DuckDB")
-        except (_DuckDBError, OSError) as e:
+        except Exception as e:
+            # Any failure opening the connection is a connection failure; wrap
+            # it (preserving the cause) so callers see one typed error.
             raise RuntimeError(f"Failed to connect to DuckDB: {e}") from e
 
     def close(self):

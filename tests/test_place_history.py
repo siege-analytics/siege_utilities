@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import pytest
 
 from siege_utilities.geo.place_history import (
-    CrosswalkRecord,
     DictCrosswalkProvider,
     Lineage,
     LineageStep,

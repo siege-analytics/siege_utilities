@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from siege_utilities.geo.codification import BlockProfile, CodificationResult
 from siege_utilities.geo.codification_blocks import BlockGroup, SpreadMetrics

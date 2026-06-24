@@ -276,10 +276,11 @@ class EtterParser:
             raise EtterParseError("Empty query string")
         try:
             geo_query = self._parser.parse(query)
-        except (ValueError, TypeError, KeyError, AttributeError) as exc:
-            # If the upstream raised its own low-confidence error
-            # (matching by class name to avoid a hard import dependency
-            # on a moving target), surface it as our typed exception.
+        except Exception as exc:
+            # Any upstream parse failure is surfaced as our typed exception
+            # (cause chained). If the upstream raised its own low-confidence
+            # error (matched by class name to avoid a hard import dependency on
+            # a moving target), translate it specifically.
             if type(exc).__name__ == "LowConfidenceError":
                 raise EtterLowConfidenceError(
                     f"Upstream rejected {query!r} as low-confidence: {exc}"

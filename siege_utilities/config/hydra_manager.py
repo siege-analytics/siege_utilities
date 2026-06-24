@@ -11,7 +11,6 @@ from omegaconf import OmegaConf
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 import logging
-import yaml
 
 from .models import (
     UserProfile,

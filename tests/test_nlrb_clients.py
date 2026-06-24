@@ -7,9 +7,8 @@ import io
 import textwrap
 import xml.etree.ElementTree as ET
 from datetime import date
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
 
 from siege_utilities.geo.providers.nlrb_clients import (
     CaseStatus,

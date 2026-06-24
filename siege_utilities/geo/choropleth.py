@@ -78,10 +78,8 @@ except ImportError:
     HAS_MAPCLASSIFY = False
 
 from siege_utilities.geo.classification import (
-    ClassificationResult,
     classify_choropleth,
     classify_series,
-    AVAILABLE_SCHEMES,
 )
 
 

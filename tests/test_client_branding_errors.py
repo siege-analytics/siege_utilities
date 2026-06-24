@@ -26,9 +26,12 @@ class TestExceptionHierarchy:
 
 
 class TestGetClientBranding:
-    def test_returns_none_when_not_found(self, manager):
-        # No predefined template, no custom dir — legitimate "not found" path
-        assert manager.get_client_branding("nonexistent_xyz") is None
+    def test_not_found_raises(self, manager):
+        # SU-1 + ELE-2420 typed hierarchy: get_client_branding documents
+        # "Raises ClientBrandingNotFoundError if no branding configuration
+        # exists". Previously asserted `is None`, contradicting the contract.
+        with pytest.raises(ClientBrandingNotFoundError):
+            manager.get_client_branding("nonexistent_xyz")
 
     def test_io_error_raises(self, manager, tmp_path):
         client_dir = tmp_path / "corrupt_client"
@@ -57,13 +60,19 @@ class TestUpdateClientBranding:
 
 
 class TestDeleteClientBranding:
-    def test_predefined_template_returns_false(self, manager):
-        """Legitimate 'cannot delete template' path stays as False return."""
-        assert manager.delete_client_branding("siege_analytics") is False
+    def test_predefined_template_raises(self, manager):
+        # delete_client_branding documents "Raises ClientBrandingError if
+        # attempting to delete a predefined template". Previously asserted
+        # `is False`, contradicting the documented contract (SU-1).
+        with pytest.raises(ClientBrandingError):
+            manager.delete_client_branding("siege_analytics")
 
-    def test_missing_dir_returns_false(self, manager):
-        """Legitimate 'nothing to delete' path stays as False return."""
-        assert manager.delete_client_branding("never_existed") is False
+    def test_missing_dir_raises_not_found(self, manager):
+        # delete_client_branding documents "Raises ClientBrandingNotFoundError
+        # if no configuration exists for the client". Previously asserted
+        # `is False`.
+        with pytest.raises(ClientBrandingNotFoundError):
+            manager.delete_client_branding("never_existed")
 
     def test_io_error_raises(self, manager, tmp_path):
         manager.create_client_branding(
@@ -96,11 +105,14 @@ class TestImportBrandingConfig:
             manager.import_branding_config(bad)
         assert exc_info.value.__cause__ is not None
 
-    def test_unsupported_format_returns_false(self, manager, tmp_path):
-        """Legitimate 'unsupported format' path stays as False return (input validation)."""
+    def test_unsupported_format_raises(self, manager, tmp_path):
+        # import_branding_config documents "Raises ValueError if the file
+        # format is unsupported or validation fails". Previously asserted
+        # `is False` (SU-1: input validation failure is not a False return).
         bogus = tmp_path / "config.txt"
         bogus.write_text("whatever")
-        assert manager.import_branding_config(bogus) is False
+        with pytest.raises(ValueError, match="Unsupported file format"):
+            manager.import_branding_config(bogus)
 
 
 class TestGetBrandingSummary:

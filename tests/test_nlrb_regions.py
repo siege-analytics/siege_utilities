@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import pytest
 
 from siege_utilities.geo.providers.nlrb_clients import NLRBCaseRecord
 from siege_utilities.geo.providers.nlrb_regions import (
     NLRB_REGIONS,
-    STATE_TO_REGIONS,
     aggregate_by_region,
     assign_region,
     lookup_region_by_state,

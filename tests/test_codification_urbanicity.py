@@ -7,7 +7,6 @@ import pytest
 from siege_utilities.geo.codification_urbanicity import (
     BlockLocale,
     DictBlockLocaleProvider,
-    UrbanicityDistribution,
     compute_urbanicity_distribution,
 )
 

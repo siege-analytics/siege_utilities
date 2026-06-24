@@ -124,7 +124,9 @@ def quick_smoke_test() -> bool:
         log_info("\nBasic smoke test PASSED!")
         return True
 
-    except (ImportError, AttributeError, AssertionError, ValueError) as e:
+    except Exception as e:
+        # Runner status: any failure means the smoke test did not pass; report
+        # and return False rather than crashing.
         log_error(f"\nBasic smoke test FAILED: {e}")
         return False
 
@@ -265,7 +267,7 @@ def run_test_suite(
             import siege_utilities
             if not siege_utilities.setup_spark_environment():
                 log_warning("Environment setup had issues, continuing anyway...")
-        except (ImportError, AttributeError) as e:
+        except Exception as e:
             log_error(f"Environment setup failed: {e}")
             return False
 
@@ -386,7 +388,7 @@ def run_comprehensive_test() -> bool:
         if not env_healthy:
             log_warning("Environment issues detected, but continuing...")
             all_passed = False
-    except (ImportError, AttributeError) as e:
+    except Exception as e:
         log_error(f"Environment diagnostics failed: {e}")
         all_passed = False
 
@@ -408,7 +410,7 @@ def run_comprehensive_test() -> bool:
 
         if not deps.get('pyspark', False):
             log_warning("PySpark not available - some tests may be skipped")
-    except (ImportError, AttributeError) as e:
+    except Exception as e:
         log_error(f"Dependency check failed: {e}")
         all_passed = False
 
