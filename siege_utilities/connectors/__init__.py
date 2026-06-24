@@ -41,7 +41,7 @@ _register([
 ], "._models")
 
 # --- Connector modules (added as workstreams land) ---
-_register(["SalesforceConnector"], ".salesforce")
+_register(["SalesforceConnector", "SOQLQuery"], ".salesforce")
 # _register(["HubSpotConnector"], ".hubspot")
 # _register(["ZohoConnector"], ".zoho")
 # _register(["DynamicsConnector"], ".dynamics")

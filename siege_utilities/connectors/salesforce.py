@@ -107,7 +107,155 @@ DEFAULT_FIELDS: dict[str, list[str]] = {
     ],
 }
 
-__all__ = ["SalesforceConnector"]
+__all__ = ["SalesforceConnector", "SOQLQuery"]
+
+_UNSET = object()
+
+
+class SOQLQuery:
+    """Fluent SOQL query builder.
+
+    Usage::
+
+        q = (SOQLQuery()
+             .select("FirstName", "LastName", "Email")
+             .from_("Contact")
+             .where("Status", eq="Active")
+             .where("Department", eq="Sales")
+             .order_by("LastName")
+             .limit(100))
+        print(q.build())
+        # SELECT FirstName, LastName, Email FROM Contact
+        # WHERE Status = 'Active' AND Department = 'Sales'
+        # ORDER BY LastName ASC LIMIT 100
+    """
+
+    def __init__(self) -> None:
+        self._fields: list[str] = []
+        self._object_type: str | None = None
+        self._conditions: list[str] = []
+        self._order_clauses: list[str] = []
+        self._limit_val: int | None = None
+        self._offset_val: int | None = None
+
+    def select(self, *fields: str) -> SOQLQuery:
+        """Add fields to the SELECT clause."""
+        self._fields.extend(fields)
+        return self
+
+    def from_(self, object_type: str) -> SOQLQuery:
+        """Set the FROM object type."""
+        self._object_type = object_type
+        return self
+
+    def where(
+        self,
+        field: str,
+        *,
+        eq: Any = _UNSET,
+        ne: Any = _UNSET,
+        gt: Any = _UNSET,
+        gte: Any = _UNSET,
+        lt: Any = _UNSET,
+        lte: Any = _UNSET,
+        in_: list | None = None,
+        not_in: list | None = None,
+        like: str | None = None,
+        is_null: bool | None = None,
+    ) -> SOQLQuery:
+        """Add a WHERE condition.
+
+        Supports equality, comparison, IN, NOT IN, LIKE, and null checks.
+        Multiple calls are joined with AND.
+        """
+        if eq is not _UNSET:
+            self._conditions.append(f"{field} = {_soql_literal(eq)}")
+        if ne is not _UNSET:
+            self._conditions.append(f"{field} != {_soql_literal(ne)}")
+        if gt is not _UNSET:
+            self._conditions.append(f"{field} > {_soql_literal(gt)}")
+        if gte is not _UNSET:
+            self._conditions.append(f"{field} >= {_soql_literal(gte)}")
+        if lt is not _UNSET:
+            self._conditions.append(f"{field} < {_soql_literal(lt)}")
+        if lte is not _UNSET:
+            self._conditions.append(f"{field} <= {_soql_literal(lte)}")
+        if in_ is not None:
+            vals = ", ".join(_soql_literal(v) for v in in_)
+            self._conditions.append(f"{field} IN ({vals})")
+        if not_in is not None:
+            vals = ", ".join(_soql_literal(v) for v in not_in)
+            self._conditions.append(f"{field} NOT IN ({vals})")
+        if like is not None:
+            self._conditions.append(f"{field} LIKE {_soql_literal(like)}")
+        if is_null is True:
+            self._conditions.append(f"{field} = null")
+        elif is_null is False:
+            self._conditions.append(f"{field} != null")
+        return self
+
+    def where_raw(self, condition: str) -> SOQLQuery:
+        """Add a raw SOQL WHERE condition string."""
+        self._conditions.append(condition)
+        return self
+
+    def order_by(self, field: str, *, desc: bool = False) -> SOQLQuery:
+        """Add an ORDER BY clause."""
+        direction = "DESC" if desc else "ASC"
+        self._order_clauses.append(f"{field} {direction}")
+        return self
+
+    def limit(self, n: int) -> SOQLQuery:
+        """Set the LIMIT value."""
+        self._limit_val = int(n)
+        return self
+
+    def offset(self, n: int) -> SOQLQuery:
+        """Set the OFFSET value."""
+        self._offset_val = int(n)
+        return self
+
+    def build(self) -> str:
+        """Build the SOQL query string.
+
+        Raises:
+            ValueError: If no object type or fields are set.
+        """
+        if not self._object_type:
+            raise ValueError("SOQLQuery requires from_() to set the object type.")
+        if not self._fields:
+            raise ValueError("SOQLQuery requires at least one field via select().")
+
+        parts = [f"SELECT {', '.join(self._fields)} FROM {self._object_type}"]
+
+        if self._conditions:
+            parts.append("WHERE " + " AND ".join(self._conditions))
+
+        if self._order_clauses:
+            parts.append("ORDER BY " + ", ".join(self._order_clauses))
+
+        if self._limit_val is not None:
+            parts.append(f"LIMIT {self._limit_val}")
+
+        if self._offset_val is not None:
+            parts.append(f"OFFSET {self._offset_val}")
+
+        return " ".join(parts)
+
+    def __str__(self) -> str:
+        return self.build()
+
+
+def _soql_literal(value: Any) -> str:
+    """Convert a Python value to a SOQL literal."""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    escaped = str(value).replace("\\", "\\\\").replace("'", "\\'")
+    return f"'{escaped}'"
 
 
 class SalesforceConnector:
@@ -329,6 +477,21 @@ class SalesforceConnector:
         df = pd.DataFrame(cleaned)
         log.info("get_objects(%s): returned %d records, %d fields", object_type, len(df), len(df.columns))
         return df
+
+    def soql(self, query: str | SOQLQuery) -> pd.DataFrame:
+        """Execute a raw SOQL string or :class:`SOQLQuery` and return a DataFrame.
+
+        This is the escape hatch for queries that ``get_objects()`` can't
+        express (subqueries, aggregate functions, relationship traversals).
+        """
+        soql_str = query.build() if isinstance(query, SOQLQuery) else query
+        records = self._query_all(soql_str)
+        if not records:
+            log.warning("soql(): query returned 0 records")
+            return pd.DataFrame()
+        keys = [k for k in records[0].keys() if k != "attributes"]
+        cleaned = [{k: rec.get(k) for k in keys} for rec in records]
+        return pd.DataFrame(cleaned)
 
     # ------------------------------------------------------------------
     # CRM model mapping helpers
