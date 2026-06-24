@@ -1,15 +1,19 @@
 """Error-path coverage (SU-4b) for geo.django.services.crosswalk_service.
 
-populate() wraps the crosswalk load in a (OSError, ValueError, TypeError,
-ImportError, RuntimeError) handler, but populate() runs inside
-@transaction.atomic and therefore needs a live database (unavailable in the
-unit-test environment / the CI ``test`` job, which has no Postgres service).
+Drives the real load-failure handler in CrosswalkPopulationService.populate()
+(crosswalk_service.py ~168-183): when the crosswalk load raises one of
+(OSError, ValueError, TypeError, ImportError, RuntimeError), populate() must
+catch it and return a CrosswalkPopulationResult flagged unsuccessful rather
+than propagating.
 
-This test instead forces the load failure that the handler is designed to
-catch: with the underlying get_crosswalk patched to raise, _load_crosswalk_data
-must propagate the error (so populate's handler has something to catch). It is
-DB-free and fail-on-revert.
+populate() is decorated @transaction.atomic, which needs a live database to
+enter; the CI ``test`` job has no Postgres service. The transaction wrapper is
+infrastructure, not the unit under test, so we no-op Atomic.__enter__/__exit__
+for the duration of the test and force the load to fail. mutation-check:
+deleting the try/except handler lets the ValueError escape populate() and this
+test goes red.
 """
+import django.db.transaction as _transaction
 import pytest
 
 import siege_utilities.geo.crosswalk as crosswalk_pkg
@@ -18,12 +22,26 @@ from siege_utilities.geo.django.services.crosswalk_service import (
 )
 
 
-def test_load_crosswalk_data_propagates_source_failure(monkeypatch):
+@pytest.fixture
+def _no_db_transaction(monkeypatch):
+    # @transaction.atomic would require a DB connection to enter; bypass the
+    # transaction machinery so populate()'s body (the handler) is reachable.
+    monkeypatch.setattr(_transaction.Atomic, "__enter__", lambda self: None)
+    monkeypatch.setattr(_transaction.Atomic, "__exit__", lambda self, *exc: False)
+
+
+def test_populate_returns_failed_result_when_load_raises(_no_db_transaction, monkeypatch):
     def boom(**kwargs):
         raise ValueError("crosswalk source unavailable")
 
     monkeypatch.setattr(crosswalk_pkg, "get_crosswalk", boom)
-    svc = CrosswalkPopulationService()
-    with pytest.raises(ValueError) as exc_info:
-        svc._load_crosswalk_data("tract", 2010, 2020)
-    assert "crosswalk source unavailable" in str(exc_info.value)
+
+    result = CrosswalkPopulationService().populate(
+        geography_type="tract", source_year=2010, target_year=2020,
+    )
+
+    # The handler caught the load failure and returned an unsuccessful result
+    # instead of letting it propagate.
+    assert result.success is False
+    assert result.records_created == 0
+    assert any("crosswalk source unavailable" in e for e in result.errors)
