@@ -9166,6 +9166,31 @@
                 <span class="s1">&#39;confidence_intervals&#39;</span><span class="p">:</span> <span class="kc">True</span>
             <span class="p">}</span>
         <span class="p">))</span>
+
+        <span class="c1"># CRM / Sales Chart Types</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_chart_type</span><span class="p">(</span><span class="n">ChartType</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s1">&#39;sales_pipeline&#39;</span><span class="p">,</span>
+            <span class="n">category</span><span class="o">=</span><span class="s1">&#39;statistical&#39;</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="s1">&#39;Sales pipeline / funnel chart for CRM opportunity data&#39;</span><span class="p">,</span>
+            <span class="n">required_parameters</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;stage_column&#39;</span><span class="p">,</span> <span class="s1">&#39;value_column&#39;</span><span class="p">],</span>
+            <span class="n">optional_parameters</span><span class="o">=</span><span class="p">{</span>
+                <span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;count_column&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s1">&#39;stage_order&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s1">&#39;orientation&#39;</span><span class="p">:</span> <span class="s1">&#39;horizontal&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;color_map&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="n">custom_options</span><span class="o">=</span><span class="p">{</span>
+                <span class="s1">&#39;stage_colors&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;open&#39;</span><span class="p">:</span> <span class="s1">&#39;#4A90D9&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;won&#39;</span><span class="p">:</span> <span class="s1">&#39;#27AE60&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;lost&#39;</span><span class="p">:</span> <span class="s1">&#39;#E74C3C&#39;</span><span class="p">,</span>
+                <span class="p">},</span>
+                <span class="s1">&#39;show_values&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="s1">&#39;show_counts&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="s1">&#39;funnel_style&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">))</span>
     
 <div class="viewcode-block" id="ChartTypeRegistry.register_chart_type">
 <a class="viewcode-back" href="../../../packages/reporting.html#siege_utilities.reporting.chart_types.ChartTypeRegistry.register_chart_type">[docs]</a>
