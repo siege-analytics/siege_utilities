@@ -34,12 +34,16 @@ python --version  # Should show 3.11.x
 pip install -e ".[dev]"
 
 # Full install (all extras — geo, analytics, reporting, etc.)
+# No system GDAL needed; [all] does not pull the native osgeo bindings.
 pip install -e ".[all,dev]"
 
-# Geospatial work (requires system GDAL libraries)
-# macOS: brew install gdal
-# Ubuntu: sudo apt-get install gdal-bin libgdal-dev libgeos-dev libproj-dev
+# Geospatial work — [geo] is pure-Python (bundled-GDAL wheels), no system GDAL.
 pip install -e ".[geo,dev]"
+
+# Native OSGeo bindings (only if you import `osgeo` directly) — needs system
+# GDAL, pinned to the wheel version (the path CI exercises):
+# macOS: brew install gdal | Ubuntu: sudo apt-get install gdal-bin libgdal-dev libgeos-dev libproj-dev
+pip install -e ".[geo,dev]" && pip install "gdal==$(gdal-config --version)"
 ```
 
 The `-e` flag installs in **editable mode** — your code changes take effect immediately without reinstalling.

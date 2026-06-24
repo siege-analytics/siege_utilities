@@ -1,25 +1,41 @@
 # Managed Environments Setup Guide
 
-## Tiered Geo Extras
+## Geo Extras and GDAL
 
-siege_utilities offers three tiers of geospatial functionality:
+As of the GDAL-optional-extra split, `[geo]` installs the pure-Python
+geospatial stack — its wheels bundle their own GDAL/GEOS/PROJ, so it needs
+**no system GDAL**. The native OSGeo bindings are a separate opt-in `[gdal]`
+extra. This is what makes managed environments that cannot install system
+GDAL (Databricks, Colab, SageMaker) work with a plain `pip install`.
 
 | Extra | What it installs | System deps | Works on |
 |-------|-----------------|-------------|----------|
-| `[geo-lite]` | shapely, pyproj, geopy, censusgeocode | None | Everywhere |
-| `[geo]` | geo-lite + geopandas, fiona, rtree, mapclassify, tobler, osmnx, pysal | GDAL, GEOS, PROJ | Systems with C libs |
-| `[geodjango]` | geo + Django, DRF, PostGIS bindings | GDAL + PostgreSQL | Full PostGIS stack |
+| `[geo]` | geopandas, fiona, shapely, pyproj, rtree, mapclassify, tobler, osmnx, pysal, censusgeocode | **None** (bundled in wheels) | Everywhere, incl. Databricks / Colab / SageMaker |
+| `[gdal]` | native OSGeo `gdal` Python bindings (`from osgeo import gdal`) | system libgdal, **version-matched** | Hosts with system GDAL |
+| `[geodjango]` | `[geo]` use + Django, DRF, DRF-GIS, PostGIS bindings | system libgdal at runtime + PostgreSQL | Full PostGIS stack |
 
-### Which tier do I need?
+> The native `[gdal]` wheel must match the installed libgdal exactly. Add it
+> on top of `[geo]` only when you import `osgeo` directly, and pin it — the
+> path CI exercises:
+> `pip install siege-utilities[geo]` then `pip install "gdal==$(gdal-config --version)"`.
+> A bare `pip install siege-utilities[geo,gdal]` resolves the newest `gdal` in
+> `>=3.6,<4` and will fail to build against an older system libgdal.
 
-| Use case | Tier |
-|----------|------|
-| Geocoding, coordinate transforms, GEOID validation | `geo-lite` |
-| Census data download, spatial joins, choropleth maps | `geo` |
-| Django models with PostGIS geometry fields | `geodjango` |
-| Everything | `all` |
+### Which extra do I need?
+
+| Use case | Install |
+|----------|---------|
+| Geocoding, coordinate transforms, GEOID validation, spatial joins, choropleths | `[geo]` |
+| Importing `osgeo` (`gdal`/`ogr`/`osr`) directly | `[geo]` + version-matched `[gdal]` |
+| Django models with PostGIS geometry fields | `[geodjango]` (+ system libgdal) |
+| Everything | `[all]` (no system GDAL; add `[gdal]` separately if you need osgeo) |
 
 ### Runtime detection
+
+`geo_capabilities()` reports a runtime *capability* tier based on what is
+actually importable — distinct from the pip extras above. The `"geo-lite"`
+tier means the lightweight subset (shapely/pyproj) is present but GeoPandas
+is not; it is not a pip extra, just a detected capability level.
 
 ```python
 from siege_utilities.geo import geo_capabilities
@@ -31,19 +47,23 @@ print(caps["geopandas"]) # True / False
 
 ## Azure Databricks
 
-Databricks runtimes include numpy, pandas, and scipy but **not** GDAL/GEOS/PROJ.
+Databricks runtimes include numpy, pandas, and scipy but **not** system
+GDAL/GEOS/PROJ. Because `[geo]` no longer requires system GDAL, install it
+directly — no init script needed:
 
 ```bash
 # In a notebook cell or init script:
-%pip install siege-utilities[geo-lite,data]
+%pip install siege-utilities[geo,data]
 ```
 
-For full geo support, use a Databricks init script to install system libraries:
+You only need a system-GDAL init script if you import `osgeo` directly or
+use GeoDjango/PostGIS:
 
 ```bash
 #!/bin/bash
 apt-get update && apt-get install -y gdal-bin libgdal-dev libgeos-dev libproj-dev
 pip install siege-utilities[geo,data]
+pip install "gdal==$(gdal-config --version)"   # only if you import osgeo
 ```
 
 ### Spark integration
@@ -56,33 +76,34 @@ PySpark and Apache Sedona are pure Python packages — install them with:
 
 ## Google Colab
 
-Colab includes most Python data science packages but not GDAL.
+Colab includes most Python data science packages but not system GDAL.
+`[geo]` works out of the box:
 
-```python
-# geo-lite works out of the box
-!pip install siege-utilities[geo-lite,data]
-
-# For full geo, install GDAL first
-!apt-get install -y gdal-bin libgdal-dev libgeos-dev libproj-dev
+```bash
 !pip install siege-utilities[geo,data,reporting]
+
+# Only if you import osgeo directly:
+!apt-get install -y gdal-bin libgdal-dev libgeos-dev libproj-dev
+!pip install "gdal==$(gdal-config --version)"
 ```
 
 ## AWS SageMaker
 
-SageMaker conda environments include numpy/pandas but not GDAL.
+SageMaker conda environments include numpy/pandas but not system GDAL.
+`[geo]` installs without it:
 
 ```bash
 # In a lifecycle config or notebook:
-pip install siege-utilities[geo-lite,data]
-
-# For full geo:
-conda install -c conda-forge gdal geopandas fiona
 pip install siege-utilities[geo,data]
+
+# Only if you import osgeo directly:
+conda install -c conda-forge gdal
+pip install "gdal==$(gdal-config --version)"
 ```
 
-## Functions by Tier
+## Functions by Capability Tier
 
-### geo-lite (no GDAL required)
+### geo-lite tier — no GDAL, no GeoPandas (lightweight subset)
 
 - `validate_geoid()`, `normalize_geoid()`, `parse_geoid()` — GEOID utilities
 - `geocode_single()`, `geocode_batch()` — Census geocoder
@@ -91,7 +112,7 @@ pip install siege-utilities[geo,data]
 - `geo_capabilities()` — runtime detection
 - Census constants, FIPS lookups, state normalization
 
-### geo (requires GDAL)
+### geo tier — `[geo]`, no system GDAL required
 
 - `get_census_boundaries()`, `download_data()` — boundary downloads
 - `interpolate_areal()` — areal interpolation
@@ -99,7 +120,7 @@ pip install siege-utilities[geo,data]
 - `SpatialDataTransformer` — format conversion
 - All Django boundary models and services
 
-### geodjango (requires GDAL + PostgreSQL)
+### geodjango tier — `[geodjango]` (system libgdal + PostgreSQL)
 
 - All geo models (`CongressionalDistrict`, `CensusTract`, etc.)
 - Population services, management commands
