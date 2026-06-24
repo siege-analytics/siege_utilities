@@ -295,6 +295,31 @@ class ChartTypeRegistry:
                 'confidence_intervals': True
             }
         ))
+
+        # CRM / Sales Chart Types
+        self.register_chart_type(ChartType(
+            name='sales_pipeline',
+            category='statistical',
+            description='Sales pipeline / funnel chart for CRM opportunity data',
+            required_parameters=['data', 'stage_column', 'value_column'],
+            optional_parameters={
+                'title': '',
+                'count_column': None,
+                'stage_order': None,
+                'orientation': 'horizontal',
+                'color_map': None,
+            },
+            custom_options={
+                'stage_colors': {
+                    'open': '#4A90D9',
+                    'won': '#27AE60',
+                    'lost': '#E74C3C',
+                },
+                'show_values': True,
+                'show_counts': True,
+                'funnel_style': False,
+            }
+        ))
     
     def register_chart_type(self, chart_type: ChartType):
         """

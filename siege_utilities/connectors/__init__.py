@@ -46,6 +46,16 @@ _register(["HubSpotConnector"], ".hubspot")
 _register(["ZohoConnector"], ".zoho")
 _register(["DynamicsConnector"], ".dynamics")
 
+# Adapters and pipeline utilities
+_register([
+    "pipeline_adapter",
+    "timeseries_adapter",
+    "geographic_adapter",
+    "tabular_adapter",
+], "._adapters")
+
+_register(["crm_dedup_pipeline"], "._dedup")
+
 __all__ = list(_LAZY_IMPORTS.keys())
 
 
