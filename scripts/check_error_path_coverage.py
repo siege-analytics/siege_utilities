@@ -53,13 +53,25 @@ def _is_import_error_guard(node: ast.ExceptHandler) -> bool:
     #   except ImportError: Serializer = drf.ModelSerializer   # fallback class
     # Such a handler only rebinds names to a fallback; it contains no
     # error-handling logic (no calls, no re-raise, no computation), so it is a
-    # dependency guard and carries no error-path-test obligation. Restricting
-    # the RHS to Constant/Name/Attribute keeps handlers that *compute* a
-    # fallback (e.g. ``x = build_stub()``) in scope as real error sites.
+    # dependency guard and carries no error-path-test obligation.
+    #
+    # BOTH the target and the value are constrained:
+    #   * Target must be a bare NAME being rebound (``X = None``,
+    #     ``HAS_X = False``, ``Serializer = drf.ModelSerializer``). A subscript
+    #     or attribute target (``result['error'] = 'X not available'``,
+    #     ``self.err = ...``) is real error-handling logic that *records* a
+    #     failure into a structure — NOT a dependency rebind — so it keeps the
+    #     handler in scope as a real error site.
+    #   * Value (RHS) must be a literal constant, a bare name, or an attribute
+    #     reference. A value that *computes* a fallback (``x = build_stub()``)
+    #     keeps the handler in scope.
     if not node.body:
         return False
     for stmt in node.body:
         if not isinstance(stmt, (ast.Assign, ast.AnnAssign)):
+            return False
+        targets = stmt.targets if isinstance(stmt, ast.Assign) else [stmt.target]
+        if not all(isinstance(t, ast.Name) for t in targets):
             return False
         value = stmt.value
         if value is None:  # bare annotation, e.g. ``x: int`` — not a rebind
