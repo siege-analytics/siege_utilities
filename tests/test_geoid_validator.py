@@ -113,7 +113,7 @@ class TestBoundaryModelConstraints:
         "CongressionalDistrict": ("cd_geoid_4_digits", r"^\d{4}$"),
         "StateLegislativeUpper": ("sldu_geoid_5_digits", r"^\d{5}$"),
         "StateLegislativeLower": ("sldl_geoid_5_digits", r"^\d{5}$"),
-        "VTD": ("vtd_geoid_8_digits", r"^\d{8}$"),
+        "VTD": ("vtd_geoid_11_digits", r"^\d{11}$"),
     }
 
     @pytest.mark.parametrize(
