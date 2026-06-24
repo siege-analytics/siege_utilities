@@ -43,7 +43,7 @@ _register([
 # --- Connector modules (added as workstreams land) ---
 _register(["SalesforceConnector", "SOQLQuery"], ".salesforce")
 _register(["HubSpotConnector"], ".hubspot")
-# _register(["ZohoConnector"], ".zoho")
+_register(["ZohoConnector"], ".zoho")
 # _register(["DynamicsConnector"], ".dynamics")
 
 __all__ = list(_LAZY_IMPORTS.keys())
