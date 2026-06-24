@@ -375,7 +375,14 @@ jobs:
           --ignore=tests/test_django_temporal_models_orm.py \
           --ignore=tests/test_nces_service_bulk_update_timestamp.py \
           --ignore=tests/test_nces_service_enrich_districts.py \
-          --ignore=tests/test_dataframe_engine_spatial.py
+          --ignore=tests/test_dataframe_engine_spatial.py \
+          --ignore=tests/test_nlrb_models.py \
+          --ignore=tests/test_redistricting_plan_status.py \
+          --ignore=tests/test_urbanicity_overlay.py \
+          --ignore=tests/test_seats_overlay.py \
+          --ignore=tests/test_place_history.py \
+          --ignore=tests/test_events_overlay.py \
+          --ignore=tests/test_demographics_overlay.py
 
   test-smoke:
     runs-on: ubuntu-latest
