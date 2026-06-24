@@ -11,6 +11,8 @@ DB credentials via environment variables with local dev defaults.
 
 import os
 
+from django.core.exceptions import ImproperlyConfigured
+
 SECRET_KEY = "test-secret-key-not-for-production"
 
 DEBUG = False
@@ -18,17 +20,22 @@ DEBUG = False
 GDAL_LIBRARY_PATH = os.getenv("GDAL_LIBRARY_PATH", "")
 GEOS_LIBRARY_PATH = os.getenv("GEOS_LIBRARY_PATH", "")
 
-# Detect GDAL availability — controls DB engine and installed apps
+# Detect GDAL availability — controls DB engine and installed apps.
+# Narrow to the exceptions that genuinely signal GDAL absence, so that an
+# UNRELATED Django/GIS misconfiguration surfaces loudly instead of silently
+# downgrading the test project to plain PostgreSQL (writing-code:7):
+#   - ImproperlyConfigured: django.contrib.gis.gdal.libgdal raises this when
+#     no GDAL library is found in its search names ("Could not find the GDAL
+#     library") or the OS is unsupported.
+#   - OSError: ctypes.CDLL fails to load a GDAL_LIBRARY_PATH that points at a
+#     missing/unloadable shared object.
+#   - ImportError: django.contrib.gis itself is unavailable.
+# Any other exception (a real settings bug) is intentionally NOT caught.
 _HAS_GDAL = False
 try:
     from django.contrib.gis.gdal import libgdal  # noqa: F401
     _HAS_GDAL = True
-except Exception:
-    # When the GDAL shared library is absent, django.contrib.gis.gdal raises
-    # django.core.exceptions.ImproperlyConfigured ("Could not find the GDAL
-    # library") -- NOT ImportError/RuntimeError -- at import time. Catch broadly
-    # so the no-GDAL path degrades to plain PostgreSQL + no GIS apps instead of
-    # failing settings load (the core-only CI job runs without GDAL).
+except (ImproperlyConfigured, ImportError, OSError):
     pass
 
 INSTALLED_APPS = [

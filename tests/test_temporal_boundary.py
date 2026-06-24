@@ -12,8 +12,16 @@ import pytest
 
 # Skip entire module if GDAL is not available (CI without geospatial libs)
 try:
+    from django.core.exceptions import ImproperlyConfigured
+except ImportError:  # Django absent; the gis import below raises ImportError
+    ImproperlyConfigured = ImportError
+try:
     from django.contrib.gis.db import models as gis_models  # noqa: F401
-except Exception:  # GeoDjango w/o system libgdal raises ImproperlyConfigured
+except (ImportError, RuntimeError, ImproperlyConfigured, OSError):
+    # GeoDjango without system libgdal raises ImproperlyConfigured (or
+    # OSError for an unloadable GDAL_LIBRARY_PATH); django(.contrib.gis)
+    # absent raises ImportError. Narrowed so an UNRELATED error fails
+    # loudly instead of silently skipping these tests (writing-code:7).
     pytest.skip("GeoDjango/GDAL not available", allow_module_level=True)
 
 
