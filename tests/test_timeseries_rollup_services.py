@@ -13,7 +13,7 @@ try:
     from django.contrib.gis.db import models as gis_models  # noqa: F401
 
     _DJANGO_AVAILABLE = True
-except (ImportError, RuntimeError):
+except Exception:  # GeoDjango w/o system libgdal raises ImproperlyConfigured
     _DJANGO_AVAILABLE = False
 
 

@@ -22,7 +22,7 @@ try:
     from django.db import IntegrityError
 
     HAS_GDAL = True
-except (ImportError, RuntimeError):
+except Exception:  # GeoDjango w/o system libgdal raises ImproperlyConfigured
     HAS_GDAL = False
 
 pytestmark = [
