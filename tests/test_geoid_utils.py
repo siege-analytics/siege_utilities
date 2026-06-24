@@ -9,7 +9,6 @@ import pandas as pd
 
 from siege_utilities.geo.geoid_utils import (
     GEOID_LENGTHS,
-    GEOID_COMPONENT_LENGTHS,
     normalize_geoid,
     normalize_geoid_column,
     construct_geoid,
@@ -413,7 +412,25 @@ class TestGEOIDLengthsCompleteness:
         assert GEOID_LENGTHS['puma'] == 7
 
     def test_vtd_geoid_length(self):
-        assert GEOID_LENGTHS['vtd'] == 6
+        # GEOID_LENGTHS stores the FULL concatenated GEOID length (county=5,
+        # tract=11, block=15, ...). A full Census VTD GEOID is 11 chars:
+        # state(2) + county(3) + VTD(6). The prior value of 6 stored the VTD
+        # component length, inconsistent with the table's full-length contract.
+        assert GEOID_LENGTHS['vtd'] == 11
+
+    def test_real_census_vtd_geoid_normalizes_at_full_length(self):
+        """A real 11-char Census VTD GEOID validates at its full length.
+
+        Structure: state(2) + county(3) + VTD(6). Example: California (06),
+        Los Angeles County (037), VTD 000123 -> "06037000123".
+        """
+        # Already-full 11-char GEOID is returned unchanged.
+        assert normalize_geoid("06037000123", "vtd") == "06037000123"
+        # A GEOID with a stripped leading zero is zero-padded to full length.
+        assert normalize_geoid("6037000123", "vtd") == "06037000123"
+        # Longer than the full VTD length is rejected (wrong level / malformed).
+        with pytest.raises(ValueError):
+            normalize_geoid("060370001234", "vtd")
 
     def test_cbsa_geoid_length(self):
         assert GEOID_LENGTHS['cbsa'] == 5

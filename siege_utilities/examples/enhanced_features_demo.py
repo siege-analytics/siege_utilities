@@ -15,17 +15,13 @@ Prerequisites:
 
 import logging
 import sys
-from pathlib import Path
 from typing import Optional
 
 import geopandas as gpd
-import pandas as pd
 
 from siege_utilities import get_user_config, get_download_directory
 from siege_utilities.geo import (
     get_census_boundaries,
-    get_census_data,
-    download_osm_data,
     SpatialDataTransformer,
 )
 from siege_utilities.reporting.chart_types import get_chart_registry
@@ -78,7 +74,7 @@ def demo_page_templates():
 
     title_template = template_manager.get_template("pdf_title")
     if title_template:
-        print(f"\nTitle template properties:")
+        print("\nTitle template properties:")
         print(f"  - Page dimensions: {title_template.page_width}\" x {title_template.page_height}\"")
         print(f"  - Margins: {title_template.margins}")
         print(f"  - Custom elements: {title_template.custom_elements}")
@@ -100,7 +96,7 @@ def demo_chart_types():
 
     bivariate_help = chart_registry.get_chart_help("bivariate_choropleth")
     if bivariate_help:
-        print(f"\nBivariate choropleth chart:")
+        print("\nBivariate choropleth chart:")
         print(f"  - Description: {bivariate_help['description']}")
         print(f"  - Required parameters: {bivariate_help['required_parameters']}")
         print(f"  - Supports interactive: {bivariate_help['supports_interactive']}")

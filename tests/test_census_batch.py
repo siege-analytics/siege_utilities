@@ -2,14 +2,10 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 
-from siege_utilities.geo.providers.batch_geocoder import (
-    GeocodingResult,
-    MatchQuality,
-)
+from siege_utilities.geo.providers.batch_geocoder import MatchQuality
 from siege_utilities.geo.providers.census_batch import (
     CensusBatchGeocoder,
     _census_result_to_geocoding_result,

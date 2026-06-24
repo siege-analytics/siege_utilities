@@ -6,9 +6,6 @@ base_template, and client_branding error handling.
 
 from __future__ import annotations
 
-import logging
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
@@ -109,30 +106,32 @@ class TestReportGeneratorErrors:
         # Should have fallen back to empty config
         assert gen.branding_config is not None
 
-    def test_generate_pdf_report_invalid_output_dir_fails(self, tmp_path):
-        """Writing to a non-writable dir should return False."""
+    def test_generate_pdf_report_invalid_output_dir_raises(self, tmp_path):
+        """Writing to an unwritable dir raises OSError (documented, SU-1)."""
         from siege_utilities.reporting.report_generator import ReportGenerator
         gen = ReportGenerator(client_name="test", output_dir=tmp_path)
         report_content = gen.create_analytics_report(
             title="Test", charts=[], data_summary="test",
         )
-        # Use a path that can't be created (null byte or absurd depth)
-        result = gen.generate_pdf_report(
-            report_content,
-            output_path="/dev/null/impossible/path/report.pdf",
-        )
-        assert result is False
+        # A path that cannot be created/written. generate_pdf_report documents
+        # "Raises OSError if the output directory cannot be created or is not
+        # writable"; previously asserted a False return.
+        with pytest.raises(OSError):
+            gen.generate_pdf_report(
+                report_content,
+                output_path="/dev/null/impossible/path/report.pdf",
+            )
 
-    def test_generate_pdf_report_empty_content_fails_gracefully(self, tmp_path):
-        """Generating a PDF from empty content should not raise."""
+    def test_generate_pdf_report_empty_content_succeeds(self, tmp_path):
+        """Empty content produces a trivial PDF and returns None (success)."""
         from siege_utilities.reporting.report_generator import ReportGenerator
         gen = ReportGenerator(client_name="test", output_dir=tmp_path)
-        result = gen.generate_pdf_report(
-            report_content={},
-            output_path=str(tmp_path / "empty.pdf"),
-        )
-        # Should either succeed (trivial PDF) or return False gracefully
-        assert isinstance(result, bool)
+        out = tmp_path / "empty.pdf"
+        # Returns None on success and raises on failure (documented contract);
+        # previously asserted isinstance(result, bool).
+        result = gen.generate_pdf_report(report_content={}, output_path=str(out))
+        assert result is None
+        assert out.exists()
 
     def test_add_section_to_report_missing_sections_key(self, tmp_path):
         """add_section should create the sections list if missing."""
@@ -183,13 +182,15 @@ class TestChartGeneratorErrors:
         result = generator.create_line_chart(df, title="Empty Line")
         assert result is not None
 
-    def test_save_figure_as_vector_invalid_format_returns_none(self, generator):
-        """An unsupported vector format should return None."""
+    def test_save_figure_as_vector_invalid_format_raises(self, generator):
+        """An unsupported vector format is invalid input -> ValueError (SU-1)."""
         fig, ax = plt.subplots()
         ax.plot([1, 2, 3])
-        result = generator.save_figure_as_vector(fig, "/tmp/test", fmt="bmp")
-        assert result is None
-        plt.close(fig)
+        try:
+            with pytest.raises(ValueError):
+                generator.save_figure_as_vector(fig, "/tmp/test", fmt="bmp")
+        finally:
+            plt.close(fig)
 
 
 # ---------------------------------------------------------------------------

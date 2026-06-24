@@ -1,7 +1,6 @@
 """Tests for database configuration security fixes."""
 
 import json
-import os
 
 import pytest
 

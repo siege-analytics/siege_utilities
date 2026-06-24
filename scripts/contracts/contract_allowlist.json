@@ -6,7 +6,9 @@
     "get_isochrone",
     "isochrone_to_geodataframe"
   ],
-  "removed_symbols": [],
+  "removed_symbols": [
+    "user_config"
+  ],
   "signature_changes": [
     "compare_census_datasets",
     "compare_datasets",

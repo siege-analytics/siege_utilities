@@ -7,8 +7,6 @@ import pytest
 from siege_utilities.geo.providers.batch_geocoder import GeocodingResult, MatchQuality
 from siege_utilities.geo.codification_blocks import (
     BlockAssignment,
-    BlockGroup,
-    SpreadMetrics,
     assign_blocks,
     compute_spread,
     group_by_block,

@@ -1,6 +1,5 @@
 """Tests for siege_utilities.geo.census.catalog_docs."""
 
-import pytest
 
 from siege_utilities.geo.census.catalog import (
     CensusCatalog,
@@ -98,6 +97,7 @@ class TestGenerateDocs:
         written = generate_catalog_docs(cat, tmp_path)
         assert (tmp_path / "tables" / "B19001.md").exists()
         assert (tmp_path / "tables" / "B01001.md").exists()
+        assert (tmp_path / "tables" / "B19001.md") in written
 
     def test_table_page_has_variables(self, tmp_path):
         cat = _make_catalog()

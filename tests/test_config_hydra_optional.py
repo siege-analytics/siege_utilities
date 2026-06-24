@@ -30,15 +30,18 @@ def _reload_siege_config_with_hydra_blocked(monkeypatch, caplog_or_handler):
     blocker = _BlockHydra()
     monkeypatch.setattr(sys, "meta_path", [blocker, *sys.meta_path])
 
-    # Purge any cached siege_utilities.config / hydra_manager modules so
-    # the re-import re-runs the try/except.
+    # Purge any cached siege_utilities.config / hydra_manager modules so the
+    # re-import re-runs the try/except. Use monkeypatch.delitem so the ORIGINAL
+    # modules are restored on teardown -- otherwise the reloaded (hydra-blocked)
+    # config leaks into later tests, whose model classes (ClientProfile,
+    # ContactInfo, ...) would then mismatch by module identity.
     for mod_name in list(sys.modules):
         if mod_name.startswith("siege_utilities.config") or mod_name in {
             "hydra",
             "omegaconf",
             "siege_utilities.config.hydra_manager",
         }:
-            sys.modules.pop(mod_name, None)
+            monkeypatch.delitem(sys.modules, mod_name, raising=False)
 
     # Capture warnings emitted during the (re-)import.
     return importlib.import_module("siege_utilities.config")
@@ -68,7 +71,12 @@ def test_hydra_missing_logs_at_debug_not_warning(monkeypatch, caplog):
     """Issue #498: optional-extra absence is DEBUG-level, not WARNING."""
     caplog.set_level(logging.DEBUG, logger="siege_utilities.config")
 
-    _reload_siege_config_with_hydra_blocked(monkeypatch, caplog)
+    cfg = _reload_siege_config_with_hydra_blocked(monkeypatch, caplog)
+
+    # The hydra-absent message is emitted lazily, when HydraConfigManager is
+    # first resolved (PEP 562 __getattr__), not at import time. Access it to
+    # trigger the resolution under the hydra-blocked meta_path finder.
+    _ = cfg.HydraConfigManager
 
     debug_records = [
         rec for rec in caplog.records

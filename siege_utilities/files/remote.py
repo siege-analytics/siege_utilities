@@ -131,7 +131,7 @@ def download_file(url: str, local_filename: FilePath,
     log.info(f'Downloading {url} to {local_filename}')
 
     try:
-        from siege_utilities.files.validation import validate_safe_path, PathSecurityError
+        from siege_utilities.files.validation import validate_safe_path
         local_path = validate_safe_path(local_filename, allow_absolute=True)
     except ImportError:
         local_path = Path(local_filename)
@@ -238,7 +238,7 @@ def generate_local_path_from_url(url: str, directory_path: FilePath,
         raise ValueError(f"Could not extract filename from URL: {url}")
 
     try:
-        from siege_utilities.files.validation import validate_directory_path, PathSecurityError
+        from siege_utilities.files.validation import validate_directory_path
         dir_path = validate_directory_path(directory_path, must_exist=False)
     except ImportError:
         dir_path = Path(directory_path)

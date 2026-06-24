@@ -273,7 +273,7 @@ class ClientBrandingManager:
             log.info(f"Created branding configuration for {client_name}: {config_file}")
             return config_file
 
-        except (OSError, ValueError, KeyError, TypeError) as e:
+        except (OSError, ValueError, KeyError, TypeError, yaml.YAMLError) as e:
             log.error(f"Error creating branding configuration for {client_name}: {e}")
             raise
 
@@ -309,7 +309,7 @@ class ClientBrandingManager:
 
         except (ClientBrandingNotFoundError, ClientBrandingError):
             raise
-        except (OSError, ValueError, KeyError, TypeError) as e:
+        except (OSError, ValueError, KeyError, TypeError, yaml.YAMLError) as e:
             raise ClientBrandingError(
                 f"Error loading branding configuration for {client_name}: {e}"
             ) from e
@@ -345,7 +345,7 @@ class ClientBrandingManager:
 
         except (ClientBrandingNotFoundError, ClientBrandingError):
             raise
-        except (OSError, ValueError, KeyError, TypeError) as e:
+        except (OSError, ValueError, KeyError, TypeError, yaml.YAMLError) as e:
             raise ClientBrandingError(
                 f"Error updating branding configuration for {client_name}: {e}"
             ) from e
@@ -433,7 +433,7 @@ class ClientBrandingManager:
             
             return self.create_client_branding(client_name, branding_config)
             
-        except (OSError, ValueError, KeyError, TypeError) as e:
+        except (OSError, ValueError, KeyError, TypeError, yaml.YAMLError) as e:
             log.error(f"Error creating branding from template: {e}")
             raise
 
@@ -547,7 +547,7 @@ class ClientBrandingManager:
 
         except (ClientBrandingError, ValueError):
             raise
-        except (OSError, KeyError, TypeError) as e:
+        except (OSError, KeyError, TypeError, yaml.YAMLError) as e:
             raise ClientBrandingError(
                 f"Error importing branding configuration: {e}"
             ) from e
@@ -578,7 +578,7 @@ class ClientBrandingManager:
 
         except (ClientBrandingNotFoundError, ClientBrandingError):
             raise
-        except (OSError, ValueError, KeyError, TypeError) as e:
+        except (OSError, ValueError, KeyError, TypeError, yaml.YAMLError) as e:
             raise ClientBrandingError(
                 f"Error getting branding summary for {client_name}: {e}"
             ) from e

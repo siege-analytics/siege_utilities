@@ -11,12 +11,14 @@ try:
 
     from siege_utilities.geo.django.models.temporal_political import Seat
     from siege_utilities.geo.django.models.political import VTD
+    from siege_utilities.geo.django.models.boundaries import CongressionalDistrict
 
     HAS_DJANGO_GIS = True
 except (ImportError, RuntimeError, Exception):
     HAS_DJANGO_GIS = False
     Seat = None
     VTD = None
+    CongressionalDistrict = None
 
 pytestmark = pytest.mark.skipif(
     not HAS_DJANGO_GIS, reason="Django GIS (GDAL) not available"
@@ -51,16 +53,16 @@ class TestVTDCrossStateValidation:
             vintage_year=2020,
         )
         if cd_state_fips is not None:
-
-            class FakeCD:
-                def __init__(self, sf):
-                    self.state_fips = sf
-
-            vtd.congressional_district_id = 999
-            vtd._congressional_district_cache = FakeCD(cd_state_fips)
-            # Django caches FK objects on the descriptor; simulate by
-            # patching the attribute the clean() method reads.
-            vtd.congressional_district = FakeCD(cd_state_fips)
+            # writing-tests:4 mock fidelity: VTD.congressional_district is a
+            # real Django ForeignKey, whose descriptor rejects a stand-in stub
+            # ("must be a CongressionalDistrict instance"). Use a real
+            # CongressionalDistrict instance with an explicit pk so the FK id
+            # column is populated (clean() guards on congressional_district_id)
+            # without touching the database.
+            cd = CongressionalDistrict(
+                pk=999, state_fips=cd_state_fips, vintage_year=2020,
+            )
+            vtd.congressional_district = cd
         return vtd
 
     def test_same_state_passes(self):

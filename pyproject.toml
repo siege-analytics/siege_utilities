@@ -55,6 +55,13 @@ geo = [
     "tobler>=0.11.0",
     "osmnx>=1.9.4",
     "pysal>=24.1",
+    # pysal pulls segregation -> numba -> llvmlite transitively. Floor numba to
+    # a release with cp312/cp313 wheels: the CI gdal pin edits pyproject (to
+    # match the runner's libgdal), which invalidates uv.lock and forces a fresh
+    # resolve; without this floor that resolve backtracks to segregation 2.5.4
+    # -> numba 0.53.1 -> llvmlite 0.36.0, which has no 3.12/3.13 wheel and fails
+    # to build. numba>=0.61 forces segregation 2.5.5 + llvmlite 0.44+ (wheels).
+    "numba>=0.61",
     "censusgeocode>=0.5.2",
     "topojson>=1.8",
     # Required by PostGISConnector.upload_spatial_data for full-column
@@ -240,6 +247,9 @@ all = [
     "tobler>=0.11.0",
     "osmnx>=1.9.4",
     "pysal>=24.1",
+    # See the geo extra: floor numba so the CI-gdal-pin's fresh resolve does
+    # not pull the unbuildable llvmlite 0.36.0 on Python 3.12/3.13.
+    "numba>=0.61",
     "censusgeocode>=0.5.2",
     # h3
     "h3>=4.0.0",

@@ -66,7 +66,8 @@ class TestRunCommand:
         result = run_command(["echo", "hello"], "Echo test", log_file="/tmp/test.log")
 
         assert result is True
-        mock_file.assert_called_once_with("/tmp/test.log", "w")
+        # run_command opens the log file with an explicit utf-8 encoding.
+        mock_file.assert_called_once_with("/tmp/test.log", "w", encoding="utf-8")
         handle = mock_file()
         assert handle.write.call_count == 2
 

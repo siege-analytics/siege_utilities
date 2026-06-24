@@ -177,7 +177,7 @@ class TestOverlayRegistry:
     def test_get_unknown(self):
         assert self.registry.get("unknown") is None
 
-    def test_instantiation_failure_returns_none(self):
+    def test_instantiation_failure_raises(self):
         @self.registry.register("broken")
         class BrokenOverlay(PlaceHistoryOverlay):
             def __init__(self):
@@ -190,7 +190,12 @@ class TestOverlayRegistry:
             def fetch(self, geoid, from_year, to_year, state_fips=None):
                 return None
 
-        assert self.registry.get("broken") is None
+        # get() lazily instantiates and documents "Raises: Exception if the
+        # registered overlay class fails to instantiate" (SU-1: surface the
+        # broken provider, don't hide it as a None lookup miss). Previously
+        # asserted None.
+        with pytest.raises(RuntimeError):
+            self.registry.get("broken")
 
     def test_instance_overrides_class(self):
         @self.registry.register("dup")

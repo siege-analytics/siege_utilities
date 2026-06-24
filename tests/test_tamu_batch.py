@@ -11,7 +11,6 @@ from siege_utilities.geo.providers.batch_geocoder import MatchQuality
 from siege_utilities.geo.providers.tamu_batch import (
     DEFAULT_RATE_LIMIT,
     ENV_API_KEY,
-    TAMU_BASE_URL,
     TAMUBatchGeocoder,
 )
 

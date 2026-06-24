@@ -792,9 +792,10 @@ class TestCreateSparkSession:
             ops = self._make_ops(tmpdir)
             # Since pyspark IS available in CI, we mock ImportError
             with patch('builtins.__import__', side_effect=ImportError("no pyspark")):
-                # The create_spark_session catches ImportError
-                result = ops.create_spark_session()
-                assert result is None
+                # writing-code:8 / SU-1: an unavailable PySpark raises a clear
+                # ImportError naming the install command, not a None return.
+                with pytest.raises(ImportError):
+                    ops.create_spark_session()
 
 
 class TestSetupDistributedEnvironment:
@@ -811,8 +812,8 @@ class TestSetupDistributedEnvironment:
         )
         return AbstractHDFSOperations(config)
 
-    def test_returns_none_triple_without_data_path(self):
-        """Returns (None, None, None) when no data path."""
+    def test_missing_data_path_raises(self):
+        """A missing data path raises ValueError (SU-1)."""
         from siege_utilities.distributed.hdfs_config import HDFSConfig
         from siege_utilities.distributed.hdfs_operations import AbstractHDFSOperations
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -823,11 +824,13 @@ class TestSetupDistributedEnvironment:
                 data_path=None,
             )
             ops = AbstractHDFSOperations(config)
-            result = ops.setup_distributed_environment()
-            assert result == (None, None, None)
+            # SU-1: a missing data path is invalid input -> ValueError, not a
+            # None triple the caller cannot distinguish from success.
+            with pytest.raises(ValueError):
+                ops.setup_distributed_environment()
 
-    def test_returns_none_triple_for_nonexistent_path(self):
-        """Returns (None, None, None) when data path doesn't exist."""
+    def test_nonexistent_path_raises(self):
+        """A nonexistent data path raises FileNotFoundError."""
         from siege_utilities.distributed.hdfs_config import HDFSConfig
         from siege_utilities.distributed.hdfs_operations import AbstractHDFSOperations
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -837,8 +840,10 @@ class TestSetupDistributedEnvironment:
                 log_error_func=Mock(),
             )
             ops = AbstractHDFSOperations(config)
-            result = ops.setup_distributed_environment(data_path='/nonexistent/path')
-            assert result == (None, None, None)
+            # SU-1: a nonexistent data path raises rather than returning a None
+            # triple.
+            with pytest.raises(FileNotFoundError):
+                ops.setup_distributed_environment(data_path='/nonexistent/path')
 
     @patch.object(
         __import__('siege_utilities.distributed.hdfs_operations',
@@ -925,8 +930,10 @@ class TestConvenienceFunction:
                 log_error_func=Mock(),
                 data_path=None,
             )
-            result = setup_distributed_environment(config)
-            assert result == (None, None, None)
+            # The convenience function delegates to the ops instance; a missing
+            # data path raises ValueError (SU-1), not a None triple.
+            with pytest.raises(ValueError):
+                setup_distributed_environment(config)
 
     def test_create_hdfs_operations_factory(self):
         """create_hdfs_operations returns an AbstractHDFSOperations instance."""
@@ -959,18 +966,20 @@ class TestFlattenJsonCorruptPathUsesUDF:
 
         The fix introduces `validate_json_udf = udf(validate_json, ...)`
         before the .otherwise() call. We assert the source contains that
-        wrapping at both call sites.
+        wrapping at the corrupt-record fallback branch.
         """
         import pathlib
         src = pathlib.Path(
             "siege_utilities/distributed/spark_utils.py"
         ).read_text()
-        # Two corrupt-path branches, both must wrap as UDF before use.
-        assert src.count("validate_json_udf = udf(validate_json, StringType())") == 2, (
+        # The corrupt-record fallback branch must wrap validate_json as a UDF
+        # before use (the schema-inference fallback was consolidated to one
+        # branch). A revert that drops the wrapping makes this count 0 -> red.
+        assert src.count("validate_json_udf = udf(validate_json, StringType())") == 1, (
             "spark_utils.py must wrap validate_json as a Spark UDF before "
             "calling it inside .otherwise(). Found "
             f"{src.count('validate_json_udf = udf(validate_json, StringType())')} "
-            "of the expected 2 wrappings."
+            "of the expected 1 wrapping."
         )
         # And the .otherwise() must call the udf-wrapped binding, not the
         # bare Python function.

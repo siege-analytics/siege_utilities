@@ -8,6 +8,7 @@ import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import pytest
 
 from siege_utilities.geo.providers.redistricting_data_hub import (
@@ -249,20 +250,22 @@ class TestListDatasets:
         # Should make 2 batches: 4 + 2
         assert mock_get.call_count == 2
 
-    def test_list_no_credentials(self, tmp_path):
+    def test_list_no_credentials_raises(self, tmp_path):
+        # Missing/invalid credentials is a configuration error, not an empty
+        # result set (SU-1). list_datasets raises ValueError. Previously [].
         c = RDHClient(username="", password="", cache_dir=tmp_path)
-        results = c.list_datasets(states=["VA"])
-        assert results == []
+        with pytest.raises(ValueError):
+            c.list_datasets(states=["VA"])
 
-    def test_list_api_error(self, client):
+    def test_list_api_error_raises(self, client):
+        # An API transport failure raises rather than returning [] (SU-1).
         import requests
         mock_resp = MagicMock()
         mock_resp.raise_for_status.side_effect = requests.RequestException("timeout")
 
         with patch.object(client._session, "get", return_value=mock_resp):
-            results = client.list_datasets(states=["VA"])
-
-        assert results == []
+            with pytest.raises(ConnectionError):
+                client.list_datasets(states=["VA"])
 
     def test_list_with_dataset_type_filter(self, client, sample_api_response):
         mock_resp = MagicMock()
@@ -422,7 +425,6 @@ class TestDownloadDataset:
 class TestLoadCSV:
 
     def test_load_csv_from_path(self, client, tmp_path):
-        import pandas as pd
         csv_file = tmp_path / "data.csv"
         csv_file.write_text("a,b\n1,2\n3,4\n")
 
@@ -615,7 +617,6 @@ class TestSchwartzberg:
 class TestComputeCompactness:
 
     def test_compute_from_geodataframe(self):
-        import pandas as pd
         import geopandas as gpd
         from shapely.geometry import Point, box
 
@@ -640,7 +641,6 @@ class TestComputeCompactness:
         assert result.iloc[0]["polsby_popper"] > result.iloc[2]["polsby_popper"]
 
     def test_compute_reprojects_geographic_crs(self):
-        import pandas as pd
         import geopandas as gpd
         from shapely.geometry import box
 
@@ -845,7 +845,6 @@ class TestDemographicProfile:
 
     def test_overlay_aggregates_by_district(self):
         import geopandas as gpd
-        import pandas as pd
         from shapely.geometry import box
 
         plan = gpd.GeoDataFrame(
@@ -888,14 +887,15 @@ class TestDemographicProfile:
         )
 
         from siege_utilities.geo.providers.redistricting_data_hub import demographic_profile
-        result = demographic_profile(plan, census)
-        assert len(result) == 0
+        # No population columns means the overlay cannot be computed; this is a
+        # data error that raises ValueError, not an empty result (SU-1).
+        with pytest.raises(ValueError):
+            demographic_profile(plan, census)
 
 
 class TestToCrosstabInput:
 
     def test_melts_wide_to_long(self):
-        import pandas as pd
         df = pd.DataFrame({
             "GEOID": ["A", "B"],
             "TOTPOP": [100, 200],
@@ -907,7 +907,6 @@ class TestToCrosstabInput:
         assert set(result["variable"]) == {"TOTPOP", "VAP"}
 
     def test_explicit_variable_cols(self):
-        import pandas as pd
         df = pd.DataFrame({
             "GEOID": ["A"],
             "TOTPOP": [100],
@@ -919,7 +918,6 @@ class TestToCrosstabInput:
         assert result.iloc[0]["variable"] == "TOTPOP"
 
     def test_empty_dataframe(self):
-        import pandas as pd
         df = pd.DataFrame({"GEOID": [], "TOTPOP": []})
         result = RDHClient.to_crosstab_input(df)
         assert len(result) == 0

@@ -77,8 +77,18 @@ class TestDownloadCache:
         # tmp_path. Clean slate:
         (tmp_path / "2024.qcew.csv").unlink(missing_ok=True)
 
-        with patch.object(__import__("siege_utilities.economic.bls.qcew", fromlist=["requests"]).requests, "get") as mock_get:
-            mock_get.return_value = MagicMock(content=fake_zip_bytes, raise_for_status=lambda: None)
+        # writing-tests:4 mock fidelity: download() streams via
+        # `with requests.get(stream=True) as resp: resp.iter_content(...)`, so
+        # the mock must expose the streaming context-manager interface (not a
+        # plain `.content` attribute, which the streaming path never reads).
+        import siege_utilities.economic.bls.qcew as qcew_mod
+        with patch.object(qcew_mod.requests, "get") as mock_get:
+            stream_resp = MagicMock()
+            stream_resp.raise_for_status.return_value = None
+            stream_resp.iter_content.return_value = [fake_zip_bytes]
+            stream_resp.__enter__.return_value = stream_resp
+            stream_resp.__exit__.return_value = False
+            mock_get.return_value = stream_resp
             result = files.download(2024)
         assert result.exists()
         assert result.name == "2024.qcew.csv"

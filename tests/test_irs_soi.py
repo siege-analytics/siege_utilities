@@ -1,11 +1,9 @@
 """Tests for IRS SOI ZIP-code data helper (#539)."""
 
 import csv
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pandas as pd
-import pytest
 
 from siege_utilities.economic.irs.soi import IRSSOIFiles, DEFAULT_CACHE_DIR
 
@@ -100,7 +98,6 @@ class TestIRSSOIFilesInit:
     """Constructor creates cache directory."""
 
     def test_default_cache_dir(self):
-        files = IRSSOIFiles.__new__(IRSSOIFiles)
         assert DEFAULT_CACHE_DIR.name == "irs_soi"
 
     def test_custom_cache_dir(self, tmp_path):

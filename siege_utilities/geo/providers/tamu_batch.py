@@ -132,7 +132,9 @@ class TAMUBatchGeocoder(BatchGeocoder):
             resp = self._tamu_request(addr)
             if resp is not None:
                 return resp
-        except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+        except Exception as exc:
+            # Batch robustness: any failure on one address is logged and
+            # recorded as an unmatched result so the rest of the batch proceeds.
             log.warning("TAMU geocode failed for %s: %s", addr.input_id, exc)
 
         return GeocodingResult(
@@ -169,7 +171,9 @@ class TAMUBatchGeocoder(BatchGeocoder):
                 with urllib.request.urlopen(req, timeout=15) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
                     return self._parse_response(data, addr)
-            except (OSError, ValueError, TypeError):
+            except Exception:
+                # Retry on any request/parse failure up to max_retries, then
+                # re-raise so the caller sees the underlying error.
                 if attempt == self._max_retries:
                     raise
                 time.sleep(self._rate_limit)

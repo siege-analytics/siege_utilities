@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from siege_utilities.geo.providers.nlrb_clients import NLRBCaseRecord
 

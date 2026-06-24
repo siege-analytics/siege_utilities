@@ -10,7 +10,6 @@ system loads correctly (no regression).
 """
 
 import pytest
-import sys
 
 
 def _pydantic_major_version():
@@ -41,7 +40,7 @@ class TestCoreModulesAvailable:
     """Core modules that do NOT depend on pydantic must always work."""
 
     def test_core_logging(self):
-        from siege_utilities.core.logging import get_logger, log_info, log_warning
+        from siege_utilities.core.logging import get_logger, log_info
         assert callable(get_logger)
         assert callable(log_info)
 
@@ -105,10 +104,17 @@ class TestPydanticV1Fallback:
         with pytest.raises(ImportError, match="pydantic"):
             get_default_profile_location()
 
-    @pytest.mark.skipif(_HAS_PYDANTIC_V2, reason="pydantic v2 is available")
-    def test_user_config_singleton_is_none(self):
-        from siege_utilities import user_config
-        assert user_config is None
+    def test_user_config_eager_singleton_removed(self):
+        # #901 removed the eager module-level `user_config = UserConfigManager()`
+        # singleton (it created directories on import) in favour of the lazy
+        # get_user_config() accessor. The top-level name is therefore no longer
+        # exported. This previously asserted `user_config is None`; that symbol
+        # no longer exists, so the lazy registry entry was also stale
+        # (writing-code:16 migration completeness). Assert the name is gone so a
+        # revert that re-adds the eager singleton fails here. Version-independent.
+        import siege_utilities
+        with pytest.raises(AttributeError):
+            siege_utilities.user_config
 
 
 class TestConfigDirectImportFallback:

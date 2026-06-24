@@ -3,7 +3,11 @@
 import pytest
 import json
 import yaml
-from siege_utilities.reporting.client_branding import ClientBrandingManager
+from siege_utilities.reporting.client_branding import (
+    ClientBrandingManager,
+    ClientBrandingError,
+    ClientBrandingNotFoundError,
+)
 
 
 class TestClientBrandingManagerInit:
@@ -43,10 +47,12 @@ class TestGetClientBranding:
         branding = mgr.get_client_branding("SIEGE_ANALYTICS")
         assert branding is not None
 
-    def test_get_nonexistent_returns_none(self, tmp_path):
+    def test_get_nonexistent_raises(self, tmp_path):
+        # SU-1 / ELE-2420: get_client_branding raises (documented contract),
+        # it does not return None. Previously asserted `is None`.
         mgr = ClientBrandingManager(config_dir=tmp_path / "branding")
-        branding = mgr.get_client_branding("nonexistent_client")
-        assert branding is None
+        with pytest.raises(ClientBrandingNotFoundError):
+            mgr.get_client_branding("nonexistent_client")
 
 
 class TestCreateClientBranding:
@@ -154,11 +160,16 @@ class TestDeleteClientBranding:
     """Tests for delete_client_branding."""
 
     def test_cannot_delete_predefined(self, tmp_path):
+        # delete raises ClientBrandingError on a predefined template (SU-1).
+        # Previously asserted `is False`.
         mgr = ClientBrandingManager(config_dir=tmp_path / "branding")
-        result = mgr.delete_client_branding("siege_analytics")
-        assert result is False
+        with pytest.raises(ClientBrandingError):
+            mgr.delete_client_branding("siege_analytics")
 
     def test_delete_custom_client(self, tmp_path):
+        # delete_client_branding returns None on success (#967 -> None signature);
+        # success is verified by the client no longer being retrievable.
+        # Previously asserted `is True`.
         mgr = ClientBrandingManager(config_dir=tmp_path / "branding")
         config = {
             "name": "Deletable",
@@ -166,13 +177,16 @@ class TestDeleteClientBranding:
             "fonts": {"default_font": "Arial"},
         }
         mgr.create_client_branding("deletable", config)
-        result = mgr.delete_client_branding("deletable")
-        assert result is True
+        mgr.delete_client_branding("deletable")
+        with pytest.raises(ClientBrandingNotFoundError):
+            mgr.get_client_branding("deletable")
 
-    def test_delete_nonexistent(self, tmp_path):
+    def test_delete_nonexistent_raises(self, tmp_path):
+        # delete raises ClientBrandingNotFoundError when nothing exists (SU-1).
+        # Previously asserted `is False`.
         mgr = ClientBrandingManager(config_dir=tmp_path / "branding")
-        result = mgr.delete_client_branding("nonexistent_xyz")
-        assert result is False
+        with pytest.raises(ClientBrandingNotFoundError):
+            mgr.delete_client_branding("nonexistent_xyz")
 
 
 class TestCreateBrandingFromTemplate:
@@ -203,8 +217,9 @@ class TestExportBrandingConfig:
     def test_export_yaml(self, tmp_path):
         mgr = ClientBrandingManager(config_dir=tmp_path / "branding")
         export_path = tmp_path / "export.yaml"
-        result = mgr.export_branding_config("siege_analytics", export_path)
-        assert result is True
+        # export_branding_config returns None and raises on failure (#967).
+        # Success is verified by the exported file's contents, not a True return.
+        mgr.export_branding_config("siege_analytics", export_path)
         assert export_path.exists()
         with open(export_path) as f:
             data = yaml.safe_load(f)
@@ -213,8 +228,8 @@ class TestExportBrandingConfig:
     def test_export_json(self, tmp_path):
         mgr = ClientBrandingManager(config_dir=tmp_path / "branding")
         export_path = tmp_path / "export.json"
-        result = mgr.export_branding_config("siege_analytics", export_path)
-        assert result is True
+        mgr.export_branding_config("siege_analytics", export_path)
+        assert export_path.exists()
         with open(export_path) as f:
             data = json.load(f)
         assert data["name"] == "Siege Analytics"
@@ -241,10 +256,13 @@ class TestGetBrandingSummary:
         assert "fonts" in summary
         assert "has_logo" in summary
 
-    def test_summary_of_nonexistent(self, tmp_path):
+    def test_summary_of_nonexistent_raises(self, tmp_path):
+        # get_branding_summary delegates to get_client_branding, which raises
+        # ClientBrandingNotFoundError for an unknown client (SU-1). Previously
+        # asserted `summary == {}`.
         mgr = ClientBrandingManager(config_dir=tmp_path / "branding")
-        summary = mgr.get_branding_summary("nonexistent")
-        assert summary == {}
+        with pytest.raises(ClientBrandingNotFoundError):
+            mgr.get_branding_summary("nonexistent")
 
 
 class TestImportBrandingConfig:
@@ -261,13 +279,18 @@ class TestImportBrandingConfig:
         import_file = tmp_path / "import.yaml"
         with open(import_file, "w") as f:
             yaml.dump(config, f)
-        result = mgr.import_branding_config(import_file)
-        assert result is True
+        # import_branding_config returns None and raises on failure (#967).
+        # Success is verified by the imported client becoming retrievable.
+        mgr.import_branding_config(import_file)
+        loaded = mgr.get_client_branding("Imported Client")
+        assert loaded["name"] == "Imported Client"
 
-    def test_import_invalid_config(self, tmp_path):
+    def test_import_invalid_config_raises(self, tmp_path):
+        # Validation failure raises ValueError (documented contract, SU-1).
+        # Previously asserted `is False`.
         mgr = ClientBrandingManager(config_dir=tmp_path / "branding")
         import_file = tmp_path / "bad.yaml"
         with open(import_file, "w") as f:
             yaml.dump({"invalid": True}, f)
-        result = mgr.import_branding_config(import_file)
-        assert result is False
+        with pytest.raises(ValueError, match="Invalid branding configuration"):
+            mgr.import_branding_config(import_file)

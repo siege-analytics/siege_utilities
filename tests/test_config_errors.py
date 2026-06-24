@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 import pytest
 import yaml
@@ -18,7 +16,6 @@ from siege_utilities.config.enhanced_config import (
     load_user_profile,
     save_user_profile,
     load_client_profile,
-    save_client_profile,
 )
 from siege_utilities.config.models.user_profile import UserProfile
 

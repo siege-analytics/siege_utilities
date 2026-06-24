@@ -8,7 +8,7 @@ converting :class:`CensusGeocodeResult` to the unified
 from __future__ import annotations
 
 import logging
-from typing import Optional, Union
+from typing import Union
 
 from .batch_geocoder import (
     AddressInput,

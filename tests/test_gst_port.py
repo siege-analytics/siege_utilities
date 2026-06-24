@@ -1,9 +1,7 @@
 """Tests for GST-ported geocoding + spatial-data helpers (#515)."""
 
 import math
-import json
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 

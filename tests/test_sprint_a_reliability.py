@@ -175,8 +175,10 @@ def test_generate_pdf_report_rejects_unwritable_dir(tmp_path):
     blocker.write_text("placeholder")
     bad_out = blocker / "report.pdf"
 
-    ok = gen.generate_pdf_report({"metadata": {"title": "x"}, "sections": []}, str(bad_out))
-    assert ok is False, "writability pre-check should fail before building PDF"
+    # generate_pdf_report raises OSError when the output directory cannot be
+    # created or written (documented contract, SU-1); previously asserted False.
+    with pytest.raises(OSError):
+        gen.generate_pdf_report({"metadata": {"title": "x"}, "sections": []}, str(bad_out))
 
 
 # ---------------------------------------------------------------------------

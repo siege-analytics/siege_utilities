@@ -48,7 +48,11 @@ except ImportError:
     FOLIUM_AVAILABLE = False
 
 # Lazy-safe imports — modules themselves guard optional deps internally
-from siege_utilities.reporting.client_branding import ClientBrandingManager
+from siege_utilities.reporting.client_branding import (
+    ClientBrandingManager,
+    ClientBrandingError,
+    ClientBrandingNotFoundError,
+)
 from siege_utilities.reporting.legend_manager import (
     ColorScheme,
     LegendManager,
@@ -307,8 +311,10 @@ class TestChartGenerator:
         from siege_utilities.reporting.chart_generator import ChartGenerator
         cg = ChartGenerator(output_dir=tmp_output)
         fig = MagicMock()
-        result = cg.save_figure_as_vector(fig, tmp_output / "test_chart", fmt="bmp")
-        assert result is None
+        # SU-1: an unsupported vector format is invalid input; save_figure_as_vector
+        # raises ValueError rather than returning None.
+        with pytest.raises(ValueError):
+            cg.save_figure_as_vector(fig, tmp_output / "test_chart", fmt="bmp")
 
     @pytest.mark.skipif(not MATPLOTLIB_AVAILABLE, reason="matplotlib not installed")
     def test_matplotlib_to_reportlab_image(self, tmp_output):
@@ -458,9 +464,11 @@ class TestClientBrandingManager:
         config = branding_manager.get_client_branding("hillcrest")
         assert config is not None
 
-    def test_get_unknown_client_returns_none(self, branding_manager):
-        result = branding_manager.get_client_branding("totally_unknown_client")
-        assert result is None
+    def test_get_unknown_client_raises(self, branding_manager):
+        # SU-1: get_client_branding raises for an unknown client (documented
+        # ClientBrandingNotFoundError), it does not return None.
+        with pytest.raises(ClientBrandingNotFoundError):
+            branding_manager.get_client_branding("totally_unknown_client")
 
     def test_list_clients_includes_builtins(self, branding_manager):
         clients = branding_manager.list_clients()
@@ -498,9 +506,11 @@ class TestClientBrandingManager:
         errors = branding_manager.validate_branding_config(config)
         assert any("primary" in e for e in errors)
 
-    def test_delete_predefined_template_fails(self, branding_manager):
-        result = branding_manager.delete_client_branding("siege_analytics")
-        assert result is False
+    def test_delete_predefined_template_raises(self, branding_manager):
+        # SU-1: deleting a predefined template raises ClientBrandingError
+        # (documented), it does not return False.
+        with pytest.raises(ClientBrandingError):
+            branding_manager.delete_client_branding("siege_analytics")
 
     def test_branding_summary(self, branding_manager):
         summary = branding_manager.get_branding_summary("siege_analytics")
@@ -510,14 +520,14 @@ class TestClientBrandingManager:
 
     def test_export_branding_yaml(self, branding_manager, tmp_path):
         export_path = tmp_path / "export.yaml"
-        result = branding_manager.export_branding_config("siege_analytics", export_path)
-        assert result is True
+        # export_branding_config returns None and raises on failure (#967);
+        # success is verified by the exported file existing.
+        branding_manager.export_branding_config("siege_analytics", export_path)
         assert export_path.exists()
 
     def test_export_branding_json(self, branding_manager, tmp_path):
         export_path = tmp_path / "export.json"
-        result = branding_manager.export_branding_config("siege_analytics", export_path)
-        assert result is True
+        branding_manager.export_branding_config("siege_analytics", export_path)
         assert export_path.exists()
 
     def test_color_extraction_from_branding(self, branding_manager):

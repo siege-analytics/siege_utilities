@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import date
 
-import pytest
 
 from siege_utilities.geo.plan_lifecycle import (
     DictPlanLifecycleProvider,
