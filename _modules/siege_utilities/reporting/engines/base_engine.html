@@ -8469,6 +8469,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.get_quick_file_signature"><code class="docutils literal notranslate"><span class="pre">get_quick_file_signature()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.verify_file_integrity"><code class="docutils literal notranslate"><span class="pre">verify_file_integrity()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/files.html#module-siege_utilities.files.operations">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.sanitize_filename"><code class="docutils literal notranslate"><span class="pre">sanitize_filename()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.atomic_write_path"><code class="docutils literal notranslate"><span class="pre">atomic_write_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.atomic_write_shapefile"><code class="docutils literal notranslate"><span class="pre">atomic_write_shapefile()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.remove_tree"><code class="docutils literal notranslate"><span class="pre">remove_tree()</span></code></a></li>
@@ -8902,6 +8903,21 @@
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_rl_image_from_data_uri</span><span class="p">(</span><span class="n">data_uri</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">width_pts</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">height_pts</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Image&quot;</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a ReportLab Image from a base64 ``data:`` URI.</span>
+
+<span class="sd">    ReportLab 5 cannot construct an Image directly from a data: URI (its</span>
+<span class="sd">    open_for_read gates the data scheme behind trustedHosts and raises at</span>
+<span class="sd">    construction). Decode the URI to an in-memory buffer for rendering, then</span>
+<span class="sd">    keep the URI on ``.filename`` so image_utils can still extract the PNG.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">b64</span> <span class="o">=</span> <span class="n">data_uri</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">buffer</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">(</span><span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">b64</span><span class="p">))</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">Image</span><span class="p">(</span><span class="n">buffer</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width_pts</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="n">height_pts</span><span class="p">)</span>
+    <span class="n">image</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">data_uri</span>
+    <span class="k">return</span> <span class="n">image</span>
+
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s2">&quot;BaseChartEngine&quot;</span><span class="p">,</span>
 <span class="p">]</span>
@@ -9171,12 +9187,17 @@
                 <span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">max_width</span><span class="o">=</span><span class="n">max_width</span><span class="p">,</span> <span class="n">max_height</span><span class="o">=</span><span class="n">max_height</span><span class="p">,</span>
             <span class="p">)</span>
 
-            <span class="c1"># Always specify both width and height explicitly.</span>
-            <span class="c1"># ReportLab cannot reliably infer height from base64 data URLs</span>
-            <span class="c1"># and may treat raw pixel height as points, producing oversized</span>
-            <span class="c1"># images (e.g. 800px → 800pt = 11.1in instead of 4in at 200 DPI).</span>
-            <span class="n">rl_image</span> <span class="o">=</span> <span class="n">Image</span><span class="p">(</span><span class="n">data_url</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">scaled_w</span> <span class="o">*</span> <span class="n">inch</span><span class="p">,</span>
+            <span class="c1"># ReportLab 5 cannot construct an Image from a data: URI -- its</span>
+            <span class="c1"># open_for_read gates the data scheme behind trustedHosts and fails</span>
+            <span class="c1"># at construction. Build the Image from the in-memory PNG buffer</span>
+            <span class="c1"># (which renders correctly), then keep the data URI on .filename so</span>
+            <span class="c1"># image_utils can still extract/save the embedded PNG. Width and</span>
+            <span class="c1"># height are set explicitly so ReportLab does not size from raw</span>
+            <span class="c1"># pixels (800px would otherwise become 800pt = 11.1in).</span>
+            <span class="n">img_buffer</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">rl_image</span> <span class="o">=</span> <span class="n">Image</span><span class="p">(</span><span class="n">img_buffer</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">scaled_w</span> <span class="o">*</span> <span class="n">inch</span><span class="p">,</span>
                              <span class="n">height</span><span class="o">=</span><span class="n">scaled_h</span> <span class="o">*</span> <span class="n">inch</span><span class="p">)</span>
+            <span class="n">rl_image</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">data_url</span>
 
             <span class="k">return</span> <span class="n">rl_image</span>
 
@@ -9213,14 +9234,18 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># Fallback to simple text — still honour auto-scaling</span>
                 <span class="n">sw</span><span class="p">,</span> <span class="n">sh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scale_dimensions</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">)</span>
-                <span class="k">return</span> <span class="n">Image</span><span class="p">(</span><span class="s2">&quot;data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==&quot;</span><span class="p">,</span>
-                           <span class="n">width</span><span class="o">=</span><span class="n">sw</span><span class="o">*</span><span class="n">inch</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="n">sh</span><span class="o">*</span><span class="n">inch</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">_rl_image_from_data_uri</span><span class="p">(</span>
+                    <span class="s2">&quot;data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==&quot;</span><span class="p">,</span>
+                    <span class="n">sw</span> <span class="o">*</span> <span class="n">inch</span><span class="p">,</span> <span class="n">sh</span> <span class="o">*</span> <span class="n">inch</span><span class="p">,</span>
+                <span class="p">)</span>
         <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error creating placeholder chart: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="c1"># Return a minimal image — still honour auto-scaling</span>
             <span class="n">sw</span><span class="p">,</span> <span class="n">sh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scale_dimensions</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">Image</span><span class="p">(</span><span class="s2">&quot;data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==&quot;</span><span class="p">,</span>
-                       <span class="n">width</span><span class="o">=</span><span class="n">sw</span><span class="o">*</span><span class="n">inch</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="n">sh</span><span class="o">*</span><span class="n">inch</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">_rl_image_from_data_uri</span><span class="p">(</span>
+                <span class="s2">&quot;data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==&quot;</span><span class="p">,</span>
+                <span class="n">sw</span> <span class="o">*</span> <span class="n">inch</span><span class="p">,</span> <span class="n">sh</span> <span class="o">*</span> <span class="n">inch</span><span class="p">,</span>
+            <span class="p">)</span>
 
 <div class="viewcode-block" id="BaseChartEngine.create_chart_with_caption">
 <a class="viewcode-back" href="../../../../packages/reporting.html#siege_utilities.reporting.engines.BaseChartEngine.create_chart_with_caption">[docs]</a>

@@ -8469,6 +8469,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.get_quick_file_signature"><code class="docutils literal notranslate"><span class="pre">get_quick_file_signature()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.verify_file_integrity"><code class="docutils literal notranslate"><span class="pre">verify_file_integrity()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/files.html#module-siege_utilities.files.operations">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.sanitize_filename"><code class="docutils literal notranslate"><span class="pre">sanitize_filename()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.atomic_write_path"><code class="docutils literal notranslate"><span class="pre">atomic_write_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.atomic_write_shapefile"><code class="docutils literal notranslate"><span class="pre">atomic_write_shapefile()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.remove_tree"><code class="docutils literal notranslate"><span class="pre">remove_tree()</span></code></a></li>
@@ -8860,7 +8861,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Union</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">.batch_geocoder</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">AddressInput</span><span class="p">,</span>

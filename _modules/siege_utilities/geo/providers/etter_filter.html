@@ -8469,6 +8469,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.get_quick_file_signature"><code class="docutils literal notranslate"><span class="pre">get_quick_file_signature()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.verify_file_integrity"><code class="docutils literal notranslate"><span class="pre">verify_file_integrity()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/files.html#module-siege_utilities.files.operations">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.sanitize_filename"><code class="docutils literal notranslate"><span class="pre">sanitize_filename()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.atomic_write_path"><code class="docutils literal notranslate"><span class="pre">atomic_write_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.atomic_write_shapefile"><code class="docutils literal notranslate"><span class="pre">atomic_write_shapefile()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.remove_tree"><code class="docutils literal notranslate"><span class="pre">remove_tree()</span></code></a></li>
@@ -9153,10 +9154,11 @@
             <span class="k">raise</span> <span class="n">EtterParseError</span><span class="p">(</span><span class="s2">&quot;Empty query string&quot;</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">geo_query</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parser</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
-        <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="c1"># If the upstream raised its own low-confidence error</span>
-            <span class="c1"># (matching by class name to avoid a hard import dependency</span>
-            <span class="c1"># on a moving target), surface it as our typed exception.</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="c1"># Any upstream parse failure is surfaced as our typed exception</span>
+            <span class="c1"># (cause chained). If the upstream raised its own low-confidence</span>
+            <span class="c1"># error (matched by class name to avoid a hard import dependency on</span>
+            <span class="c1"># a moving target), translate it specifically.</span>
             <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;LowConfidenceError&quot;</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">EtterLowConfidenceError</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;Upstream rejected </span><span class="si">{</span><span class="n">query</span><span class="si">!r}</span><span class="s2"> as low-confidence: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span>

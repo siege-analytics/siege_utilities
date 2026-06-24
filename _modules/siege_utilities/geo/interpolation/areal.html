@@ -8469,6 +8469,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.get_quick_file_signature"><code class="docutils literal notranslate"><span class="pre">get_quick_file_signature()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.verify_file_integrity"><code class="docutils literal notranslate"><span class="pre">verify_file_integrity()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/files.html#module-siege_utilities.files.operations">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.sanitize_filename"><code class="docutils literal notranslate"><span class="pre">sanitize_filename()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.atomic_write_path"><code class="docutils literal notranslate"><span class="pre">atomic_write_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.atomic_write_shapefile"><code class="docutils literal notranslate"><span class="pre">atomic_write_shapefile()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.remove_tree"><code class="docutils literal notranslate"><span class="pre">remove_tree()</span></code></a></li>
@@ -8884,7 +8885,6 @@
     <span class="n">_GEOPANDAS_AVAILABLE</span> <span class="o">=</span> <span class="kc">False</span>
 
 <span class="k">try</span><span class="p">:</span>
-    <span class="kn">import</span><span class="w"> </span><span class="nn">shapely</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">shapely</span><span class="w"> </span><span class="kn">import</span> <span class="n">STRtree</span>
     <span class="n">_SHAPELY_AVAILABLE</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
@@ -9006,7 +9006,6 @@
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Area-weighted interpolation via DuckDB spatial SQL.&quot;&quot;&quot;</span>
     <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">shapely</span><span class="w"> </span><span class="kn">import</span> <span class="n">wkb</span> <span class="k">as</span> <span class="n">shapely_wkb</span>
 
     <span class="n">con</span> <span class="o">=</span> <span class="n">_duckdb</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span>
     <span class="n">con</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;INSTALL spatial; LOAD spatial;&quot;</span><span class="p">)</span>

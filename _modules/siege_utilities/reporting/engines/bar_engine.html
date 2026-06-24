@@ -8469,6 +8469,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.get_quick_file_signature"><code class="docutils literal notranslate"><span class="pre">get_quick_file_signature()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.verify_file_integrity"><code class="docutils literal notranslate"><span class="pre">verify_file_integrity()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/files.html#module-siege_utilities.files.operations">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.sanitize_filename"><code class="docutils literal notranslate"><span class="pre">sanitize_filename()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.atomic_write_path"><code class="docutils literal notranslate"><span class="pre">atomic_write_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.atomic_write_shapefile"><code class="docutils literal notranslate"><span class="pre">atomic_write_shapefile()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/files.html#siege_utilities.files.operations.remove_tree"><code class="docutils literal notranslate"><span class="pre">remove_tree()</span></code></a></li>
@@ -8992,15 +8993,14 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matplotlib_to_reportlab_image</span><span class="p">(</span><span class="n">fig</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">)</span>
 
         <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">,</span> <span class="ne">IndexError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-
-
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-
-
-                <span class="sa">f</span><span class="s2">&quot;Chart Error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
-
-
-            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span></div>
+            <span class="c1"># Reporting robustness: a single chart with bad/empty data renders a</span>
+            <span class="c1"># visible &quot;Chart Error&quot; placeholder (logged) rather than aborting the</span>
+            <span class="c1"># whole report. Consistent with the matplotlib-unavailable path above</span>
+            <span class="c1"># and the documented &quot;Returns: ReportLab Image&quot; contract.</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Chart generation failed (</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">); rendering placeholder&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_placeholder_chart</span><span class="p">(</span>
+                <span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Chart Error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="BarChartMixin.create_line_chart">
@@ -9087,15 +9087,14 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matplotlib_to_reportlab_image</span><span class="p">(</span><span class="n">fig</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">)</span>
 
         <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">,</span> <span class="ne">IndexError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-
-
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-
-
-                <span class="sa">f</span><span class="s2">&quot;Chart Error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
-
-
-            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span></div>
+            <span class="c1"># Reporting robustness: a single chart with bad/empty data renders a</span>
+            <span class="c1"># visible &quot;Chart Error&quot; placeholder (logged) rather than aborting the</span>
+            <span class="c1"># whole report. Consistent with the matplotlib-unavailable path above</span>
+            <span class="c1"># and the documented &quot;Returns: ReportLab Image&quot; contract.</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Chart generation failed (</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">); rendering placeholder&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_placeholder_chart</span><span class="p">(</span>
+                <span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Chart Error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="BarChartMixin.create_pie_chart">
@@ -9210,15 +9209,14 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matplotlib_to_reportlab_image</span><span class="p">(</span><span class="n">fig</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">)</span>
 
         <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">,</span> <span class="ne">IndexError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-
-
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-
-
-                <span class="sa">f</span><span class="s2">&quot;Chart Error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
-
-
-            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span></div>
+            <span class="c1"># Reporting robustness: a single chart with bad/empty data renders a</span>
+            <span class="c1"># visible &quot;Chart Error&quot; placeholder (logged) rather than aborting the</span>
+            <span class="c1"># whole report. Consistent with the matplotlib-unavailable path above</span>
+            <span class="c1"># and the documented &quot;Returns: ReportLab Image&quot; contract.</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Chart generation failed (</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">); rendering placeholder&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_placeholder_chart</span><span class="p">(</span>
+                <span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Chart Error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="BarChartMixin.create_proportional_text_bar_chart">

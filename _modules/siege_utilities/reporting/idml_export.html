@@ -8469,6 +8469,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.get_quick_file_signature"><code class="docutils literal notranslate"><span class="pre">get_quick_file_signature()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.verify_file_integrity"><code class="docutils literal notranslate"><span class="pre">verify_file_integrity()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/files.html#module-siege_utilities.files.operations">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.operations.sanitize_filename"><code class="docutils literal notranslate"><span class="pre">sanitize_filename()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.operations.atomic_write_path"><code class="docutils literal notranslate"><span class="pre">atomic_write_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.operations.atomic_write_shapefile"><code class="docutils literal notranslate"><span class="pre">atomic_write_shapefile()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.operations.remove_tree"><code class="docutils literal notranslate"><span class="pre">remove_tree()</span></code></a></li>
@@ -9110,8 +9111,9 @@
                 <span class="n">pkg</span><span class="o">.</span><span class="n">set_tag</span><span class="p">(</span><span class="n">placeholder</span><span class="p">,</span> <span class="n">content</span><span class="p">)</span>
             <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                    <span class="s2">&quot;simpleidml.set_tag failed for </span><span class="si">%r</span><span class="s2">; doing raw XML substitution.&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;simpleidml.set_tag failed for </span><span class="si">%r</span><span class="s2"> (</span><span class="si">%s</span><span class="s2">); doing raw XML substitution.&quot;</span><span class="p">,</span>
                     <span class="n">placeholder</span><span class="p">,</span>
+                    <span class="n">exc</span><span class="p">,</span>
                 <span class="p">)</span>
                 <span class="c1"># Fall through to raw XML sub in _apply_replacements_raw</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_apply_replacements_raw_simpleidml</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">placeholder</span><span class="p">,</span> <span class="n">content</span><span class="p">)</span>

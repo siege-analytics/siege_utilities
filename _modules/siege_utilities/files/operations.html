@@ -8469,6 +8469,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.get_quick_file_signature"><code class="docutils literal notranslate"><span class="pre">get_quick_file_signature()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.verify_file_integrity"><code class="docutils literal notranslate"><span class="pre">verify_file_integrity()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/files.html#module-siege_utilities.files.operations">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.operations.sanitize_filename"><code class="docutils literal notranslate"><span class="pre">sanitize_filename()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.operations.atomic_write_path"><code class="docutils literal notranslate"><span class="pre">atomic_write_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.operations.atomic_write_shapefile"><code class="docutils literal notranslate"><span class="pre">atomic_write_shapefile()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.operations.remove_tree"><code class="docutils literal notranslate"><span class="pre">remove_tree()</span></code></a></li>
@@ -8859,6 +8860,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">contextlib</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
@@ -8871,6 +8873,46 @@
 
 <span class="c1"># Type aliases</span>
 <span class="n">FilePath</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span>
+
+<span class="c1"># Characters that are unsafe in a filename across the common filesystems.</span>
+<span class="c1"># Anything that is not a word char, dot, or hyphen is replaced.</span>
+<span class="n">_UNSAFE_FILENAME_CHARS</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;[^\w.\-]+&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="sanitize_filename">
+<a class="viewcode-back" href="../../../packages/files.html#siege_utilities.files.operations.sanitize_filename">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">sanitize_filename</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert an arbitrary string into a safe filename component.</span>
+
+<span class="sd">    Unsafe characters (path separators, control characters, punctuation other</span>
+<span class="sd">    than ``.`` and ``-``) are replaced with underscores, runs of underscores</span>
+<span class="sd">    are collapsed, and leading/trailing dots and underscores are trimmed. The</span>
+<span class="sd">    result is always a non-empty string and the operation is idempotent</span>
+<span class="sd">    (``sanitize_filename(sanitize_filename(x)) == sanitize_filename(x)``).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    name : str</span>
+<span class="sd">        Arbitrary input string.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str</span>
+<span class="sd">        A filesystem-safe filename component.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    TypeError</span>
+<span class="sd">        If ``name`` is not a string.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;name must be str, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">cleaned</span> <span class="o">=</span> <span class="n">_UNSAFE_FILENAME_CHARS</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+    <span class="n">cleaned</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;_+&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">,</span> <span class="n">cleaned</span><span class="p">)</span>
+    <span class="n">cleaned</span> <span class="o">=</span> <span class="n">cleaned</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;._&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">cleaned</span> <span class="ow">or</span> <span class="s2">&quot;_&quot;</span></div>
+
 
 
 <div class="viewcode-block" id="atomic_write_path">
@@ -8953,7 +8995,7 @@
 <span class="sd">        &gt;&gt;&gt; remove_tree(Path(&quot;old_files&quot;))  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span>
         <span class="n">path_obj</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
         <span class="n">path_obj</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
@@ -9044,7 +9086,7 @@
 <span class="sd">        &gt;&gt;&gt; touch_file(Path(&quot;data/output.txt&quot;))  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span>
         <span class="n">path_obj</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
         <span class="n">path_obj</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
@@ -9083,7 +9125,7 @@
 <span class="sd">        &gt;&gt;&gt; print(f&quot;File has {line_count} lines&quot;)  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span>
         <span class="n">path_obj</span> <span class="o">=</span> <span class="n">validate_file_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
         <span class="n">path_obj</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
@@ -9125,7 +9167,7 @@
 <span class="sd">        &gt;&gt;&gt; copy_file(Path(&quot;config.yaml&quot;), Path(&quot;config.yaml.bak&quot;))  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span><span class="p">,</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span><span class="p">,</span> <span class="n">validate_safe_path</span>
         <span class="n">source_obj</span> <span class="o">=</span> <span class="n">validate_file_path</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">dest_obj</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span><span class="n">destination</span><span class="p">,</span> <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
@@ -9171,7 +9213,7 @@
 <span class="sd">        &gt;&gt;&gt; move_file(Path(&quot;old.log&quot;), Path(&quot;logs/old.log&quot;))  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span><span class="p">,</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span><span class="p">,</span> <span class="n">validate_safe_path</span>
         <span class="n">source_obj</span> <span class="o">=</span> <span class="n">validate_file_path</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">dest_obj</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span><span class="n">destination</span><span class="p">,</span> <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
@@ -9218,7 +9260,7 @@
 <span class="sd">        &gt;&gt;&gt; print(f&quot;File size: {size} bytes&quot;)  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_file_path</span>
         <span class="n">path_obj</span> <span class="o">=</span> <span class="n">validate_file_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
         <span class="n">path_obj</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
@@ -9264,7 +9306,7 @@
 <span class="sd">        &gt;&gt;&gt; dirs = list_directory(&quot;logs&quot;, include_files=False)  # doctest: +SKIP</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_directory_path</span>
         <span class="n">path_obj</span> <span class="o">=</span> <span class="n">validate_directory_path</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
         <span class="n">path_obj</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
@@ -9753,6 +9795,7 @@
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s1">&#39;FilePath&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;sanitize_filename&#39;</span><span class="p">,</span>
     <span class="s1">&#39;atomic_write_path&#39;</span><span class="p">,</span>
     <span class="s1">&#39;atomic_write_shapefile&#39;</span><span class="p">,</span>
     <span class="s1">&#39;remove_tree&#39;</span><span class="p">,</span>
