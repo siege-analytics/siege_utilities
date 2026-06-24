@@ -1,11 +1,13 @@
 """
-Salesforce CRM connector — OAuth + connection management.
+Salesforce CRM connector — OAuth, connection management, and read operations.
 
 Provides OAuth 2.0 authentication (Web Server Flow and Username-Password
-Flow) and an authenticated HTTP client for the Salesforce REST API.
-Implements the auth contract of :class:`ConnectorProtocol`; data
-methods (``get_objects``, ``create_record``, etc.) are implemented in
-follow-up tickets.
+Flow), an authenticated HTTP client, and read operations for standard
+Salesforce objects (Contact, Account, Opportunity, Lead, Case).
+
+Records are returned as DataFrames. Known object types can be mapped to
+canonical :mod:`connectors._models` shapes via ``to_crm_contacts()``,
+``to_crm_accounts()``, ``to_crm_opportunities()``.
 
 Two auth flows:
 - **Web Server Flow** (production): interactive OAuth with redirect.
@@ -47,6 +49,63 @@ API_VERSION = "v60.0"
 DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_BACKOFF = 2.0
+
+STANDARD_OBJECTS = [
+    "Account",
+    "Campaign",
+    "Case",
+    "Contact",
+    "Lead",
+    "Opportunity",
+    "Task",
+    "Event",
+]
+
+DEFAULT_FIELDS: dict[str, list[str]] = {
+    "Contact": [
+        "Id", "FirstName", "LastName", "Email", "Phone", "Title",
+        "AccountId", "Department", "MailingStreet", "MailingCity",
+        "MailingState", "MailingPostalCode", "MailingCountry",
+        "CreatedDate", "LastModifiedDate",
+    ],
+    "Account": [
+        "Id", "Name", "Industry", "Website", "AnnualRevenue",
+        "NumberOfEmployees", "BillingStreet", "BillingCity",
+        "BillingState", "BillingPostalCode", "BillingCountry",
+        "Phone", "Type", "CreatedDate", "LastModifiedDate",
+    ],
+    "Opportunity": [
+        "Id", "Name", "AccountId", "StageName", "Amount", "CloseDate",
+        "Probability", "OwnerId", "Type", "LeadSource",
+        "CreatedDate", "LastModifiedDate",
+    ],
+    "Lead": [
+        "Id", "FirstName", "LastName", "Email", "Phone", "Company",
+        "Title", "Status", "LeadSource", "Industry",
+        "Street", "City", "State", "PostalCode", "Country",
+        "CreatedDate", "LastModifiedDate",
+    ],
+    "Case": [
+        "Id", "CaseNumber", "Subject", "Description", "Status",
+        "Priority", "Type", "ContactId", "AccountId",
+        "CreatedDate", "LastModifiedDate", "ClosedDate",
+    ],
+    "Campaign": [
+        "Id", "Name", "Type", "Status", "StartDate", "EndDate",
+        "BudgetedCost", "ActualCost", "NumberOfLeads", "NumberOfContacts",
+        "CreatedDate", "LastModifiedDate",
+    ],
+    "Task": [
+        "Id", "Subject", "Description", "Status", "Priority",
+        "ActivityDate", "WhoId", "WhatId", "OwnerId",
+        "CreatedDate", "LastModifiedDate",
+    ],
+    "Event": [
+        "Id", "Subject", "Description", "StartDateTime", "EndDateTime",
+        "WhoId", "WhatId", "OwnerId",
+        "CreatedDate", "LastModifiedDate",
+    ],
+}
 
 __all__ = ["SalesforceConnector"]
 
@@ -224,12 +283,17 @@ class SalesforceConnector:
         log.info("Access token refreshed (instance: %s)", self._instance_url)
 
     # ------------------------------------------------------------------
-    # ConnectorProtocol — data contract (stubs for follow-up tickets)
+    # ConnectorProtocol — read operations
     # ------------------------------------------------------------------
 
     def list_object_types(self) -> list[str]:
-        """Available Salesforce object types. Implemented in #1016."""
-        raise NotImplementedError("list_object_types() — see #1016")
+        """Available Salesforce standard object types."""
+        self._ensure_connected()
+        path = f"/services/data/{API_VERSION}/sobjects"
+        data = self.request("GET", path)
+        names = sorted(obj["name"] for obj in data.get("sobjects", []) if obj.get("queryable"))
+        log.info("Discovered %d queryable object types", len(names))
+        return names
 
     def get_objects(
         self,
@@ -239,8 +303,146 @@ class SalesforceConnector:
         filters: dict[str, Any] | None = None,
         limit: int | None = None,
     ) -> pd.DataFrame:
-        """Fetch records. Implemented in #1016."""
-        raise NotImplementedError("get_objects() — see #1016")
+        """Fetch records of *object_type* as a DataFrame.
+
+        Args:
+            object_type: Salesforce object API name (``"Contact"``, etc.).
+            fields: Columns to return. ``None`` uses the default set for
+                known objects, or ``["Id"]`` for unknown objects.
+            filters: Key-value criteria translated to a SOQL WHERE clause.
+                Values may be str, int, float, bool, None, or a list
+                (translated to ``IN``).
+            limit: Maximum records. ``None`` for all (paginated automatically).
+
+        Returns:
+            DataFrame with one row per record, columns matching *fields*.
+            Empty DataFrame (with correct columns) when no records match.
+        """
+        soql = self._build_soql(object_type, fields=fields, filters=filters, limit=limit)
+        records = self._query_all(soql)
+        selected_fields = fields or DEFAULT_FIELDS.get(object_type, ["Id"])
+        if not records:
+            log.warning("get_objects(%s): query returned 0 records", object_type)
+            return pd.DataFrame(columns=selected_fields)
+
+        cleaned = self._clean_records(records, selected_fields)
+        df = pd.DataFrame(cleaned)
+        log.info("get_objects(%s): returned %d records, %d fields", object_type, len(df), len(df.columns))
+        return df
+
+    # ------------------------------------------------------------------
+    # CRM model mapping helpers
+    # ------------------------------------------------------------------
+
+    def to_crm_contacts(self, df: pd.DataFrame) -> list:
+        """Map a Contact DataFrame to a list of :class:`CRMContact`."""
+        from siege_utilities.connectors._models import CRMAddress, CRMContact
+
+        results: list[CRMContact] = []
+        for _, row in df.iterrows():
+            r = row.to_dict()
+            address = CRMAddress(
+                street=r.get("MailingStreet"),
+                city=r.get("MailingCity"),
+                state=r.get("MailingState"),
+                postal_code=r.get("MailingPostalCode"),
+                country=r.get("MailingCountry"),
+            )
+            extra_keys = set(r.keys()) - {
+                "Id", "FirstName", "LastName", "Email", "Phone",
+                "Title", "AccountId", "MailingStreet", "MailingCity",
+                "MailingState", "MailingPostalCode", "MailingCountry",
+            }
+            results.append(CRMContact(
+                id=r["Id"],
+                first_name=r.get("FirstName"),
+                last_name=r.get("LastName"),
+                email=r.get("Email"),
+                phone=r.get("Phone"),
+                title=r.get("Title"),
+                account_id=r.get("AccountId"),
+                address=address,
+                source_system="salesforce",
+                source_id=r["Id"],
+                metadata={k: r[k] for k in extra_keys if r.get(k) is not None},
+            ))
+        return results
+
+    def to_crm_accounts(self, df: pd.DataFrame) -> list:
+        """Map an Account DataFrame to a list of :class:`CRMAccount`."""
+        from siege_utilities.connectors._models import CRMAccount, CRMAddress
+        from decimal import Decimal
+
+        results: list[CRMAccount] = []
+        for _, row in df.iterrows():
+            r = row.to_dict()
+            address = CRMAddress(
+                street=r.get("BillingStreet"),
+                city=r.get("BillingCity"),
+                state=r.get("BillingState"),
+                postal_code=r.get("BillingPostalCode"),
+                country=r.get("BillingCountry"),
+            )
+            revenue = r.get("AnnualRevenue")
+            extra_keys = set(r.keys()) - {
+                "Id", "Name", "Industry", "Website", "AnnualRevenue",
+                "NumberOfEmployees", "BillingStreet", "BillingCity",
+                "BillingState", "BillingPostalCode", "BillingCountry",
+            }
+            results.append(CRMAccount(
+                id=r["Id"],
+                name=r["Name"],
+                industry=r.get("Industry"),
+                website=r.get("Website"),
+                revenue=Decimal(str(revenue)) if revenue is not None else None,
+                employee_count=int(r["NumberOfEmployees"]) if r.get("NumberOfEmployees") is not None else None,
+                address=address,
+                source_system="salesforce",
+                source_id=r["Id"],
+                metadata={k: r[k] for k in extra_keys if r.get(k) is not None},
+            ))
+        return results
+
+    def to_crm_opportunities(self, df: pd.DataFrame) -> list:
+        """Map an Opportunity DataFrame to a list of :class:`CRMOpportunity`."""
+        from siege_utilities.connectors._models import CRMOpportunity
+        from datetime import date as date_type
+        from decimal import Decimal
+
+        results: list[CRMOpportunity] = []
+        for _, row in df.iterrows():
+            r = row.to_dict()
+            amount = r.get("Amount")
+            close_date_raw = r.get("CloseDate")
+            close_date = None
+            if close_date_raw:
+                if isinstance(close_date_raw, str):
+                    close_date = date_type.fromisoformat(close_date_raw)
+                elif isinstance(close_date_raw, date_type):
+                    close_date = close_date_raw
+
+            extra_keys = set(r.keys()) - {
+                "Id", "Name", "AccountId", "StageName", "Amount",
+                "CloseDate", "Probability", "OwnerId",
+            }
+            results.append(CRMOpportunity(
+                id=r["Id"],
+                name=r["Name"],
+                account_id=r.get("AccountId"),
+                stage=r.get("StageName"),
+                amount=Decimal(str(amount)) if amount is not None else None,
+                close_date=close_date,
+                probability=float(r["Probability"]) if r.get("Probability") is not None else None,
+                owner_id=r.get("OwnerId"),
+                source_system="salesforce",
+                source_id=r["Id"],
+                metadata={k: r[k] for k in extra_keys if r.get(k) is not None},
+            ))
+        return results
+
+    # ------------------------------------------------------------------
+    # ConnectorProtocol — write stubs (follow-up tickets)
+    # ------------------------------------------------------------------
 
     def create_record(
         self, object_type: str, data: dict[str, Any]
@@ -262,6 +464,91 @@ class SalesforceConnector:
     ) -> UpsertResult:
         """Bulk upsert from DataFrame. Implemented in #1018/#1019."""
         raise NotImplementedError("upsert_records() — see #1018/#1019")
+
+    # ------------------------------------------------------------------
+    # SOQL query building
+    # ------------------------------------------------------------------
+
+    def _build_soql(
+        self,
+        object_type: str,
+        *,
+        fields: list[str] | None = None,
+        filters: dict[str, Any] | None = None,
+        limit: int | None = None,
+    ) -> str:
+        """Build a SOQL SELECT query from Python arguments."""
+        selected = fields or DEFAULT_FIELDS.get(object_type, ["Id"])
+        field_clause = ", ".join(selected)
+        query = f"SELECT {field_clause} FROM {object_type}"
+
+        if filters:
+            where_parts: list[str] = []
+            for key, value in filters.items():
+                where_parts.append(self._soql_condition(key, value))
+            query += " WHERE " + " AND ".join(where_parts)
+
+        if limit is not None:
+            query += f" LIMIT {int(limit)}"
+
+        return query
+
+    @staticmethod
+    def _soql_condition(field: str, value: Any) -> str:
+        """Translate a single key-value filter into a SOQL condition."""
+        if value is None:
+            return f"{field} = null"
+        if isinstance(value, bool):
+            return f"{field} = {'true' if value else 'false'}"
+        if isinstance(value, (int, float)):
+            return f"{field} = {value}"
+        if isinstance(value, list):
+            if not value:
+                return f"{field} = null"
+            escaped = [SalesforceConnector._soql_escape(str(v)) for v in value]
+            in_clause = ", ".join(f"'{e}'" for e in escaped)
+            return f"{field} IN ({in_clause})"
+        escaped_str = SalesforceConnector._soql_escape(str(value))
+        return f"{field} = '{escaped_str}'"
+
+    @staticmethod
+    def _soql_escape(value: str) -> str:
+        """Escape single quotes for SOQL string literals."""
+        return value.replace("\\", "\\\\").replace("'", "\\'")
+
+    # ------------------------------------------------------------------
+    # Query execution with pagination
+    # ------------------------------------------------------------------
+
+    def _query_all(self, soql: str) -> list[dict[str, Any]]:
+        """Execute a SOQL query and follow pagination to completion."""
+        self._ensure_connected()
+        path = f"/services/data/{API_VERSION}/query"
+        data = self.request("GET", path, params={"q": soql})
+        all_records: list[dict[str, Any]] = data.get("records", [])
+        total = data.get("totalSize", len(all_records))
+        log.info("SOQL query returned %d total records (first page: %d)", total, len(all_records))
+
+        while data.get("nextRecordsUrl"):
+            next_path = data["nextRecordsUrl"]
+            data = self.request("GET", next_path)
+            page_records = data.get("records", [])
+            all_records.extend(page_records)
+            log.info("Fetched page: %d records (total so far: %d)", len(page_records), len(all_records))
+
+        return all_records
+
+    @staticmethod
+    def _clean_records(
+        records: list[dict[str, Any]],
+        fields: list[str],
+    ) -> list[dict[str, Any]]:
+        """Strip Salesforce metadata (``attributes``) and normalize columns."""
+        cleaned: list[dict[str, Any]] = []
+        for rec in records:
+            row = {f: rec.get(f) for f in fields}
+            cleaned.append(row)
+        return cleaned
 
     # ------------------------------------------------------------------
     # HTTP plumbing
