@@ -9,12 +9,9 @@ Run with: pytest -m integration tests/test_boundary_smoke_matrix.py -v
 """
 
 import pytest
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 
 from siege_utilities.geo.boundary_result import (
-    BoundaryFetchResult,
-    BoundaryInputError,
-    BoundaryDiscoveryError,
     BoundaryConfigurationError,
 )
 

@@ -14,8 +14,6 @@ from siege_utilities.config.census_constants import (
     GEOGRAPHIC_LEVELS,
     GEOGRAPHIC_HIERARCHY,
     TIGER_FILE_PATTERNS,
-    get_tiger_url,
-    _ALIAS_TO_CANONICAL,
 )
 from siege_utilities.geo.census_dataset_mapper import GeographyLevel
 from siege_utilities.geo.geoid_utils import GEOID_LENGTHS

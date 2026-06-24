@@ -8,7 +8,6 @@ Each adapter is DataFrame-in, DataFrame-out — no side effects.
 
 from __future__ import annotations
 
-from typing import Any
 
 import pandas as pd
 

@@ -6,7 +6,7 @@ Provides comprehensive legend generation and management for charts, tables, and 
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Any, Optional, Union, Tuple
+from typing import Dict, List, Any, Optional
 from enum import Enum
 
 # Core plotting libraries
@@ -24,7 +24,6 @@ try:
     from reportlab.platypus import Table, Paragraph, Spacer, TableStyle
     from reportlab.lib import colors
     from reportlab.lib.units import inch
-    from reportlab.lib.styles import getSampleStyleSheet
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
@@ -34,7 +33,6 @@ except ImportError:
     Spacer = None
     colors = None
     inch = None
-    getSampleStyleSheet = None
 
 log = logging.getLogger(__name__)
 
@@ -188,9 +186,7 @@ class LegendManager:
         if not REPORTLAB_AVAILABLE:
             log.warning("ReportLab not available for legend table generation")
             return None
-        
-        styles = getSampleStyleSheet()
-        
+
         # Create legend data
         legend_data = [["Intensity", "Color", f"{value_name} Range"]]
         

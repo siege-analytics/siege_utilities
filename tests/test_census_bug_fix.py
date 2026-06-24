@@ -12,7 +12,6 @@ import pytest
 
 pytestmark = pytest.mark.integration
 from unittest.mock import patch, MagicMock
-import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
 
@@ -137,8 +136,9 @@ class TestCensusBugFix:
                 geographic_level='county',
                 state_fips='10'
             )
-            # If we get here without exception, the bug is fixed
-            assert True, "No NameError thrown - bug is fixed"
+            # If we get here without exception, the NameError bug is fixed.
+            # Assert the return shape so the computed result is actually checked.
+            assert result is None or isinstance(result, gpd.GeoDataFrame)
         except NameError as e:
             if "name 'state' is not defined" in str(e):
                 pytest.fail("NameError for 'state' variable still exists - bug not fixed")

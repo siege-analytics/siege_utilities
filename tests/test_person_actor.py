@@ -17,7 +17,6 @@ from datetime import datetime, timedelta
 
 pytestmark = pytest.mark.config
 
-from siege_utilities.config.models.person import Person
 from siege_utilities.config.models.actor_types import (
     User, Client, Collaborator, Organization, Collaboration,
 )
