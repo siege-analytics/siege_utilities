@@ -195,7 +195,7 @@ jobs:
       run: |
         sed -i "s/\"gdal>=3.6,<4\"/\"gdal==$(gdal-config --version)\"/g" pyproject.toml
         grep -qE '"gdal==[0-9]' pyproject.toml || { echo "gdal pin rewrite failed (gdal-config missing or pin literal changed)"; exit 1; }
-        uv sync --extra all --extra dev
+        uv sync --extra all --extra gdal --extra dev
 
     - name: Lint with flake8
       run: |
@@ -460,7 +460,7 @@ jobs:
       run: |
         sed -i "s/\"gdal>=3.6,<4\"/\"gdal==$(gdal-config --version)\"/g" pyproject.toml
         grep -qE '"gdal==[0-9]' pyproject.toml || { echo "gdal pin rewrite failed (gdal-config missing or pin literal changed)"; exit 1; }
-        uv sync --extra all --extra dev
+        uv sync --extra all --extra gdal --extra dev
 
     - name: Run Battle Testing Suite
       run: |
