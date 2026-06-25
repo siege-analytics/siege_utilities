@@ -209,12 +209,30 @@ class RDHClient:
 
     # -- Authentication check -------------------------------------------------
 
-    def validate_credentials(self) -> bool:
-        """Test that credentials are set (non-empty)."""
+    def credentials_present(self) -> bool:
+        """Return True if a username and password are both set.
+
+        This is a *presence* check only -- it does NOT contact RDH or verify
+        that the credentials authenticate. A live check is impractical here:
+        the RDH catalog endpoint is WAF-gated to allowlisted ingest hosts
+        (#1115), so from other hosts an authenticated-style request returns
+        the website HTML rather than the JSON API. Callers needing a true
+        liveness check should call :meth:`list_datasets` and handle the
+        ``ValueError`` it now raises on an API error envelope.
+        """
         if not self.username or not self.password:
             log_warning("RDH credentials not set. Set RDH_USERNAME/RDH_PASSWORD or pass to constructor.")
             return False
         return True
+
+    def validate_credentials(self) -> bool:
+        """Backward-compatible alias for :meth:`credentials_present`.
+
+        Retained for existing callers. The name is a misnomer kept for
+        compatibility: it checks credential *presence*, not live
+        authentication (see :meth:`credentials_present`). (#1115)
+        """
+        return self.credentials_present()
 
     # -- Listing datasets -----------------------------------------------------
 
@@ -295,6 +313,17 @@ class RDHClient:
             raise ConnectionError(f"RDH API request failed: {e}") from e
 
         raw_data = resp.json()
+        # The RDH WP API returns error envelopes as HTTP 200 with a
+        # {"code", "message", ...} body (e.g. rest_cannot_access / 401), so
+        # raise_for_status() above does not catch them. Without this check the
+        # envelope's "data" object is silently coerced into an empty dataset
+        # list -- "0 datasets found" while an auth/API failure goes unreported
+        # (the SU-1 "errors are not data" hazard). (#1115)
+        if isinstance(raw_data, dict) and "code" in raw_data:
+            msg = raw_data.get("message", raw_data.get("code", ""))
+            if "0 states" in str(msg) or "unknown states" in str(msg):
+                return []  # documented "no datasets for these states" case
+            raise ValueError(f"RDH API error: {msg}")
         if not isinstance(raw_data, list):
             raw_data = raw_data.get("data", []) if isinstance(raw_data, dict) else []
 

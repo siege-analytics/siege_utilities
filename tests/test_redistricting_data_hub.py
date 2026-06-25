@@ -1011,3 +1011,55 @@ class TestRDHClientSessionLifecycle:
             with RDHClient(username="u", password="p") as client:
                 raise RuntimeError("boom")
         assert client._closed is True
+
+
+class TestErrorEnvelopeHandling:
+    """#1115: an HTTP-200 RDH error envelope must raise, not return 0 datasets.
+
+    The RDH WP API returns auth/API errors as HTTP 200 with a
+    {"code", "message", ...} body, so raise_for_status() passes; the envelope
+    must not be silently coerced into an empty dataset list ("errors are not
+    data", SU-1).
+    """
+
+    def test_rest_cannot_access_envelope_raises(self, client):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "code": "rest_cannot_access",
+            "message": "Not authorized.",
+            "data": {"status": 401},
+        }
+        mock_resp.raise_for_status = MagicMock()  # simulate HTTP 200
+        with patch.object(client._session, "get", return_value=mock_resp):
+            with pytest.raises(ValueError, match="Not authorized"):
+                client.list_datasets(states=["VA"])
+
+    def test_unknown_states_envelope_returns_empty(self, client):
+        # The documented "no datasets for these states" case is legitimately empty.
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"code": "ok", "message": "unknown states: ZZ"}
+        mock_resp.raise_for_status = MagicMock()
+        with patch.object(client._session, "get", return_value=mock_resp):
+            assert client.list_datasets(states=["ZZ"]) == []
+
+    def test_zero_states_envelope_returns_empty(self, client):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"code": "ok", "message": "0 states matched"}
+        mock_resp.raise_for_status = MagicMock()
+        with patch.object(client._session, "get", return_value=mock_resp):
+            assert client.list_datasets(states=["VA"]) == []
+
+
+class TestCredentialsPresent:
+    """#1115: credentials_present is the honest presence check; validate_credentials
+    is the backward-compatible alias."""
+
+    def test_present_true(self, client):
+        assert client.credentials_present() is True
+
+    def test_present_false_when_missing(self, tmp_path):
+        c = RDHClient(username="u", password="", cache_dir=tmp_path)
+        assert c.credentials_present() is False
+
+    def test_validate_credentials_delegates_to_present(self, client):
+        assert client.validate_credentials() == client.credentials_present()
