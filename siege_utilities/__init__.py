@@ -40,19 +40,41 @@ __description__ = "Comprehensive utilities for data engineering, analytics, and 
 import re as _re
 
 _DEP_NAME_RE = _re.compile(r'^([A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?)')
+_DEP_FLOOR_RE = _re.compile(r'>=\s*(\d+)')
+
+
+def _installed_major(mod) -> int:
+    """Best-effort major version of an imported module (VERSION or __version__)."""
+    raw = getattr(mod, 'VERSION', None) or getattr(mod, '__version__', '') or ''
+    try:
+        return int(str(raw).split('.', 1)[0])
+    except (ValueError, IndexError):
+        return -1  # unknown — treat as satisfying (don't false-positive)
 
 
 def _is_dep_missing(deps: list) -> bool:
-    """Return True only when a root dependency package is genuinely uninstalled."""
+    """Return True when a required dependency is unavailable.
+
+    A package counts as missing when it is uninstalled OR installed below a
+    declared major-version floor (e.g. ``pydantic>=2.0`` under pydantic v1).
+    Without the floor check, a version-specific ImportError such as pydantic
+    v2's ``field_validator`` under pydantic v1 would leak raw instead of
+    producing the helpful dependency-wrapper error (see #1118).
+    """
     for spec in deps:
         m = _DEP_NAME_RE.match(spec)
         if not m:
             continue
         pkg = m.group(1).replace('-', '_')
         try:
-            importlib.import_module(pkg)
+            mod = importlib.import_module(pkg)
         except ImportError:
             return True
+        floor = _DEP_FLOOR_RE.search(spec)
+        if floor:
+            major = _installed_major(mod)
+            if major != -1 and major < int(floor.group(1)):
+                return True
     return False
 
 
