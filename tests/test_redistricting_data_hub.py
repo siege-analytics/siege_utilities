@@ -1063,3 +1063,61 @@ class TestCredentialsPresent:
 
     def test_validate_credentials_delegates_to_present(self, client):
         assert client.validate_credentials() == client.credentials_present()
+
+
+class TestRequestAuthentication:
+    """#1115: credentials must be SENT (query params) on RDH requests — the
+    load-bearing half. The RDH WP API authenticates via username/password query
+    params on every request; creds must be attached for the catalog list and
+    the dataset download, and never leaked to a non-RDH URL."""
+
+    def test_auth_params_attached_for_rdh_host(self, client):
+        params = client._auth_params("https://redistrictingdatahub.org/files/x.csv")
+        assert params == {"username": client.username, "password": client.password}
+
+    def test_auth_params_empty_for_foreign_host(self, client):
+        assert client._auth_params("https://example.com/x.csv") == {}
+
+    def test_auth_params_empty_when_no_creds(self, tmp_path):
+        c = RDHClient(username="", password="", cache_dir=tmp_path)
+        assert c._auth_params("https://redistrictingdatahub.org/x") == {}
+
+    def test_list_datasets_sends_credentials(self, client, sample_api_response):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = sample_api_response
+        mock_resp.raise_for_status = MagicMock()
+        mock_get = MagicMock(return_value=mock_resp)
+
+        with patch.object(client._session, "get", mock_get):
+            client.list_datasets(states=["VA"])
+
+        _, kwargs = mock_get.call_args
+        assert kwargs["params"]["username"] == client.username
+        assert kwargs["params"]["password"] == client.password
+
+    def test_download_sends_credentials_for_rdh_url(self, client, tmp_path):
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.iter_content = MagicMock(return_value=[b"data"])
+        mock_get = MagicMock(return_value=mock_resp)
+        url = "https://redistrictingdatahub.org/files/VA_2020_PL94171_block.csv"
+
+        with patch.object(client._session, "get", mock_get):
+            client.download_dataset(url, output_dir=tmp_path, use_cache=False)
+
+        _, kwargs = mock_get.call_args
+        assert kwargs["params"]["username"] == client.username
+        assert kwargs["params"]["password"] == client.password
+
+    def test_download_does_not_leak_credentials_to_foreign_url(self, client, tmp_path):
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.iter_content = MagicMock(return_value=[b"data"])
+        mock_get = MagicMock(return_value=mock_resp)
+        url = "https://example.com/evil/file.csv"
+
+        with patch.object(client._session, "get", mock_get):
+            client.download_dataset(url, output_dir=tmp_path, use_cache=False)
+
+        _, kwargs = mock_get.call_args
+        assert kwargs["params"] == {}
