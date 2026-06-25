@@ -71,11 +71,16 @@ geo = [
 ]
 
 # Native GDAL/OGR Python bindings. Kept as a SEPARATE opt-in extra (not part of
-# `geo` or `all`) because gdal requires the matching system libgdal + gdal-config
-# to build, which is unavailable on Databricks / Lambda / serverless and on CI
-# jobs that deliberately exercise the no-GDAL path (CLAUDE.md arch decisions
-# #3/#4). Install with `pip install siege-utilities[geo,gdal]` when the OSGeo
-# native stack is present; the pure-Python geo path works without it.
+# `geo` or `all`) because the OSGeo `gdal` wheel requires the matching system
+# libgdal + gdal-config and must be pinned to the installed libgdal version,
+# which is unavailable on Databricks / Lambda / serverless and on CI jobs that
+# deliberately exercise the no-GDAL path (CLAUDE.md arch decisions #3/#4). The
+# pure-Python geo path works without it via `[geo]`. To install the native
+# bindings, pin to the system libgdal — the path CI exercises (a bare
+# `[geo,gdal]` resolves the newest gdal in >=3.6,<4 and fails to build against
+# an older libgdal):
+#   pip install siege-utilities[geo]
+#   pip install "gdal==$(gdal-config --version)"
 gdal = [
     "gdal>=3.6,<4",
 ]
