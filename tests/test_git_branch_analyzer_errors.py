@@ -28,6 +28,7 @@ def _run(args, cwd):
     subprocess.run(
         [_GIT, *args], cwd=cwd, check=True,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        timeout=30,  # writing-code:15 — bound the git subprocess
     )
 
 
