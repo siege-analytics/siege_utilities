@@ -145,7 +145,7 @@ datasets are available at all levels. The canonical level definitions live in
 | zcta | 5 | `90210` | ZZZZZ | zip_code, zcta5, zipcode |
 | cbsa | 5 | `31080` | MMMMM | — |
 | puma | 7 | `0600100` | SS+PPPPP | — |
-| vtd | 6 | `060370` | SS+CCCC (varies) | voting_district |
+| vtd | 11 | `06037001234` | SS+CCC+VVVVVV | voting_district |
 
 ### GEOID Hierarchy (Nesting)
 
