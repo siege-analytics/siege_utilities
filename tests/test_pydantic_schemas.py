@@ -5,7 +5,6 @@ Tests schema validation, field constraints, inheritance, and round-trip
 conversion via converters.
 """
 
-from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -254,7 +253,6 @@ class TestIntersectionSchemas:
 
 class TestSchemaConverters:
     def test_gdf_to_schemas(self):
-        import pandas as pd
         import geopandas as gpd
         from shapely.geometry import box
 

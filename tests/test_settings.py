@@ -15,13 +15,11 @@ Covers:
 
 import os
 import threading
-import tempfile
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
 
-from siege_utilities.conf import Settings, settings
+from siege_utilities.conf import Settings
 from siege_utilities.conf.defaults import DEFAULTS
 
 
