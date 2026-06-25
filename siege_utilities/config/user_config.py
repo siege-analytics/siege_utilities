@@ -11,6 +11,7 @@ import yaml
 from pathlib import Path
 from typing import Optional
 import os
+import tempfile
 from dataclasses import dataclass, asdict
 
 # Import enhanced config for validation
@@ -52,6 +53,54 @@ def _default_download_directory() -> Path:
     if _is_databricks_runtime():
         return Path("/tmp/siege_utilities/downloads")
     return Path.home() / "Downloads" / "siege_utilities"
+
+
+def _resolve_config_dir(config_dir: Optional[Path] = None) -> Path:
+    """Resolve and create the user-config directory without hard-failing.
+
+    Resolution order: an explicit ``config_dir`` argument, then the
+    ``SIEGE_USER_CONFIG`` environment override, then
+    ``~/.siege_utilities/config``.
+
+    Directory creation is best-effort. An unwritable or non-existent HOME
+    (e.g. ``HOME=/nonexistent`` on a non-root Spark/Kubernetes pod) must not
+    crash ``import siege_utilities`` — the module-level singleton below runs
+    this at import time. On failure we warn and fall back to the system temp
+    dir; if that also fails we warn and return the resolved path anyway
+    (profile load/save already degrade gracefully without raising).
+    """
+    resolved = config_dir
+    if resolved is None:
+        env_override = os.environ.get("SIEGE_USER_CONFIG")
+        if env_override:
+            resolved = Path(env_override)
+    if resolved is None:
+        try:
+            resolved = Path.home() / ".siege_utilities" / "config"
+        except RuntimeError:
+            # Path.home() raises when HOME is unset and no passwd entry exists.
+            resolved = Path(tempfile.gettempdir()) / "siege_utilities" / "config"
+
+    try:
+        resolved.mkdir(parents=True, exist_ok=True)
+        return resolved
+    except (PermissionError, FileNotFoundError, OSError) as exc:
+        fallback = Path(tempfile.gettempdir()) / "siege_utilities" / "config"
+        log.warning(
+            "Could not create user-config dir %s (%s); falling back to %s. "
+            "Set SIEGE_USER_CONFIG to a writable path to silence this.",
+            resolved, exc, fallback,
+        )
+        try:
+            fallback.mkdir(parents=True, exist_ok=True)
+            return fallback
+        except (PermissionError, FileNotFoundError, OSError) as exc2:
+            log.warning(
+                "Could not create fallback user-config dir %s (%s); "
+                "config persistence is disabled for this session.",
+                fallback, exc2,
+            )
+            return resolved
 
 @dataclass
 class UserProfile:
@@ -110,9 +159,8 @@ class UserConfigManager:
         Args:
             config_dir: Directory containing user configuration files
         """
-        self.config_dir = config_dir or Path.home() / ".siege_utilities" / "config"
-        self.config_dir.mkdir(parents=True, exist_ok=True)
-        
+        self.config_dir = _resolve_config_dir(config_dir)
+
         self.user_config_file = self.config_dir / "user_config.yaml"
         self.user_profile = self._load_user_profile()
         
