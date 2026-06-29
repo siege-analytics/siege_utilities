@@ -7,7 +7,6 @@ parquet and Django cache backends.
 
 import inspect
 
-import pytest
 
 
 class TestCacheBackendInit:

@@ -17,7 +17,6 @@ Based on the approach from: https://github.com/mikhailsirenko/bivariate-chorople
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 import pandas as pd
 

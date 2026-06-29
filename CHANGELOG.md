@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING (packaging):** the native GDAL/OGR Python bindings (`gdal`) are now
+  a dedicated optional `[gdal]` extra and are no longer pulled in by `[geo]` or
+  `[all]`. The OSGeo `gdal` wheel requires a matching system `libgdal` +
+  `gdal-config` and must be pinned to the installed libgdal version, which is
+  unavailable on Databricks / Lambda / serverless and on CI jobs that exercise
+  the documented no-GDAL path. The pure-Python geo path
+  (geopandas/shapely/pyproj/fiona, bundled-GDAL wheels) continues to work via
+  `[geo]` with no system GDAL. To install the native OSGeo bindings, pin to your
+  system libgdal — the path CI exercises (a bare `[geo,gdal]` resolves the newest
+  `gdal` in `>=3.6,<4` and fails to build against an older libgdal):
+
+  ```bash
+  pip install siege-utilities[geo]
+  pip install "gdal==$(gdal-config --version)"
+  ```
+
+### Fixed
+
+- The Django test settings and the GeoDjango-availability guards in nine test
+  files now degrade cleanly when the GDAL shared library is absent **without**
+  swallowing unrelated errors. `django.contrib.gis.gdal` raises
+  `ImproperlyConfigured` ("Could not find the GDAL library") — not
+  `ImportError`/`RuntimeError` — so the original guards aborted on no-GDAL
+  runners; a subsequent broad `except Exception` over-corrected and would have
+  hidden a real Django/GIS misconfiguration. The guards now catch exactly
+  `(ImproperlyConfigured, ImportError, OSError)` (plus `RuntimeError` in the test
+  guards), so a real misconfig surfaces loudly (writing-code:7).
+
 ## [3.17.2] - 2026-05-14
 
 Patch release: hydra is an optional extra; importing siege_utilities without it must not emit a misleading "Pydantic config system" warning. Closes #498.

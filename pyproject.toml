@@ -48,7 +48,6 @@ geo = [
     "shapely>=2.0.0,<3.0",
     "pyproj>=3.3.0",
     "fiona>=1.9.0",
-    "gdal>=3.6,<4",
     "geopy>=2.4.1",
     "rtree>=1.0.0",
     "mapclassify>=2.5.0",
@@ -69,6 +68,21 @@ geo = [
     "geoalchemy2>=0.14.0",
     # Required by geo/spatial_data.py (BeautifulSoup HTML/XML parsing).
     "beautifulsoup4>=4.12.0",
+]
+
+# Native GDAL/OGR Python bindings. Kept as a SEPARATE opt-in extra (not part of
+# `geo` or `all`) because the OSGeo `gdal` wheel requires the matching system
+# libgdal + gdal-config and must be pinned to the installed libgdal version,
+# which is unavailable on Databricks / Lambda / serverless and on CI jobs that
+# deliberately exercise the no-GDAL path (CLAUDE.md arch decisions #3/#4). The
+# pure-Python geo path works without it via `[geo]`. To install the native
+# bindings, pin to the system libgdal — the path CI exercises (a bare
+# `[geo,gdal]` resolves the newest gdal in >=3.6,<4 and fails to build against
+# an older libgdal):
+#   pip install siege-utilities[geo]
+#   pip install "gdal==$(gdal-config --version)"
+gdal = [
+    "gdal>=3.6,<4",
 ]
 # H3 hexagonal spatial index (lightweight spatial joins)
 h3 = [
@@ -240,7 +254,6 @@ all = [
     "shapely>=2.0.0,<3.0",
     "pyproj>=3.3.0",
     "fiona>=1.9.0",
-    "gdal>=3.6,<4",
     "geopy>=2.4.1",
     "rtree>=1.0.0",
     "mapclassify>=2.5.0",

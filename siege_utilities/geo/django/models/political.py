@@ -123,8 +123,8 @@ class VTD(CensusTIGERBoundary):
     voting-age population data.  They approximate but don't exactly match
     election precincts.
 
-    GEOID: 8 digits = state (2) + county (3) + VTD (3)
-    Example: "06037001" for VTD 001 in LA County, CA
+    GEOID: 11 digits = state (2) + county (3) + VTD (6)
+    Example: "06037001234" for VTD 001234 in LA County, CA
 
     Enhanced fields support enterprise-compatible workflows:
     - precinct_name/precinct_code for election data linkage
@@ -202,14 +202,14 @@ class VTD(CensusTIGERBoundary):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(geoid__regex=r"^\d{8}$"),
-                name="vtd_geoid_8_digits",
+                condition=models.Q(geoid__regex=r"^\d{11}$"),
+                name="vtd_geoid_11_digits",
             ),
         ]
 
     @classmethod
     def get_geoid_length(cls) -> int:
-        return 8
+        return 11
 
     @classmethod
     def parse_geoid(cls, geoid: str) -> dict:

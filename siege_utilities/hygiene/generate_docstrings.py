@@ -4,16 +4,13 @@ Part of the hygiene maintenance toolkit.
 """
 import ast
 import logging
-import os
 import sys
 import inspect
-import textwrap
 from pathlib import Path
-from typing import get_type_hints, Any
 
 # Import logging functions from main package
 try:
-    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+    from siege_utilities.core.logging import log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if main package not available yet
     def log_info(message): pass
@@ -100,8 +97,8 @@ def generate_docstring_template(func_name, func_obj=None):
         params, return_desc = analyze_function_signature(func_obj)
     readable_name = func_name.replace('_', ' ').title()
     brief = f'{readable_name}.'
-    docstring_parts = [f'{brief}', f'', f'{category_desc}',
-        f'Auto-discovered function available at package level.', f'']
+    docstring_parts = [f'{brief}', '', f'{category_desc}',
+        'Auto-discovered function available at package level.', '']
     if params:
         docstring_parts.extend(['Args:', *[f'    {param}' for param in
             params], ''])
@@ -200,7 +197,7 @@ def process_python_file(file_path):
             f'Processed: {transformer.functions_processed}, Skipped: {transformer.functions_skipped}'
         )
     else:
-        log_info(f'No changes needed')
+        log_info('No changes needed')
 
 
 def find_python_files(base_path):
@@ -251,17 +248,17 @@ def main():
         except (SyntaxError, OSError, ImportError, ValueError, TypeError) as e:
             log_error(f'Error processing {file_path}: {e}')
             errors.append((file_path, e))
-    log_info(f'\n' + '=' * 60)
-    log_info(f'Docstring generation complete!')
-    log_info(f'Summary:')
+    log_info('\n' + '=' * 60)
+    log_info('Docstring generation complete!')
+    log_info('Summary:')
     log_info(f'Successfully processed: {successful} files')
     if errors:
         log_error(f'Failed: {len(errors)} files')
-    log_info(f'Next steps:')
-    log_info(f'1. Review generated docstrings')
-    log_info(f'2. Rebuild docs: cd docs && make html')
+    log_info('Next steps:')
+    log_info('1. Review generated docstrings')
+    log_info('2. Rebuild docs: cd docs && make html')
     log_info(
-        f"3. Commit changes: git add -A && git commit -m 'Add auto-generated docstrings'"
+        "3. Commit changes: git add -A && git commit -m 'Add auto-generated docstrings'"
         )
     return len(errors) == 0
 

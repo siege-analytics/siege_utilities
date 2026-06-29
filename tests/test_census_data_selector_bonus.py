@@ -5,10 +5,9 @@ Verifies that the primary_dataset bonus (+1.5) is correctly applied
 when a dataset's ID matches the pattern's primary_datasets list.
 """
 
-import pytest
 from siege_utilities.geo.census_data_selector import CensusDataSelector
 from siege_utilities.geo.census_dataset_mapper import (
-    CensusDataset, CensusDatasetMapper, SurveyType, GeographyLevel, DataReliability,
+    CensusDatasetMapper, GeographyLevel,
 )
 
 

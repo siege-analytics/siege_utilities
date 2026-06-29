@@ -13,6 +13,10 @@ from datetime import date, datetime, timezone
 import pytest
 
 try:
+    from django.core.exceptions import ImproperlyConfigured
+except ImportError:  # Django absent; the gis import below raises ImportError
+    ImproperlyConfigured = ImportError
+try:
     from django.contrib.gis.geos import (
         GeometryCollection,
         MultiPolygon,
@@ -22,7 +26,11 @@ try:
     from django.db import IntegrityError
 
     HAS_GDAL = True
-except (ImportError, RuntimeError):
+except (ImportError, RuntimeError, ImproperlyConfigured, OSError):
+    # GeoDjango without system libgdal raises ImproperlyConfigured (or
+    # OSError for an unloadable GDAL_LIBRARY_PATH); django(.contrib.gis)
+    # absent raises ImportError. Narrowed so an UNRELATED error fails
+    # loudly instead of silently skipping these tests (writing-code:7).
     HAS_GDAL = False
 
 pytestmark = [
