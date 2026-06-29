@@ -37,7 +37,12 @@ __all__ = [
 class TableOfContentsTemplate:
     """Professional table of contents generator for siege utilities reports"""
     
-    def __init__(self, canvas_obj: canvas.Canvas, page_size: tuple = letter):
+    def __init__(self, canvas_obj: "canvas.Canvas", page_size: tuple = letter):
+        if not REPORTLAB_AVAILABLE:
+            raise ImportError(
+                "reportlab is required for PDF table of contents but is not installed. "
+                "Install it with: pip install reportlab"
+            )
         self.canvas = canvas_obj
         self.page_size = page_size
         self.width, self.height = page_size
@@ -277,7 +282,7 @@ class TableOfContentsTemplate:
         self.canvas.drawString(page_x, footer_y, page_text)
 
 
-def create_table_of_contents(canvas_obj: canvas.Canvas,
+def create_table_of_contents(canvas_obj: "canvas.Canvas",
                            sections: List[Dict[str, Any]],
                            title: str = "Table of Contents",
                            page_number: int = 2,
