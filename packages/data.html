@@ -61,10 +61,8 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../installation_troubleshooting.html">Installation Troubleshooting</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../installation_troubleshooting.html#system-dependencies-for-geospatial">System Dependencies for Geospatial</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../installation_troubleshooting.html#ubuntu-debian">Ubuntu / Debian</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../installation_troubleshooting.html#macos-homebrew">macOS (Homebrew)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../installation_troubleshooting.html#windows">Windows</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation_troubleshooting.html#geospatial-extras-and-gdal">Geospatial Extras and GDAL</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../installation_troubleshooting.html#system-dependencies-only-for-the-two-cases-above">System Dependencies (only for the two cases above)</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../installation_troubleshooting.html#choosing-the-right-extras">Choosing the Right Extras</a></li>
@@ -1422,6 +1420,7 @@
 <li class="toctree-l3"><a class="reference internal" href="geo.html#siege_utilities.geo.providers.redistricting_data_hub.RDHClient"><code class="docutils literal notranslate"><span class="pre">RDHClient</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo.html#siege_utilities.geo.providers.redistricting_data_hub.RDHClient.__init__"><code class="docutils literal notranslate"><span class="pre">RDHClient.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo.html#siege_utilities.geo.providers.redistricting_data_hub.RDHClient.close"><code class="docutils literal notranslate"><span class="pre">RDHClient.close()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo.html#siege_utilities.geo.providers.redistricting_data_hub.RDHClient.credentials_present"><code class="docutils literal notranslate"><span class="pre">RDHClient.credentials_present()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo.html#siege_utilities.geo.providers.redistricting_data_hub.RDHClient.validate_credentials"><code class="docutils literal notranslate"><span class="pre">RDHClient.validate_credentials()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo.html#siege_utilities.geo.providers.redistricting_data_hub.RDHClient.list_datasets"><code class="docutils literal notranslate"><span class="pre">RDHClient.list_datasets()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo.html#siege_utilities.geo.providers.redistricting_data_hub.RDHClient.download_dataset"><code class="docutils literal notranslate"><span class="pre">RDHClient.download_dataset()</span></code></a></li>
@@ -7098,6 +7097,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#siege_utilities.data.RDHClient"><code class="docutils literal notranslate"><span class="pre">RDHClient</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.data.RDHClient.__init__"><code class="docutils literal notranslate"><span class="pre">RDHClient.__init__()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.data.RDHClient.close"><code class="docutils literal notranslate"><span class="pre">RDHClient.close()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.data.RDHClient.credentials_present"><code class="docutils literal notranslate"><span class="pre">RDHClient.credentials_present()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.data.RDHClient.validate_credentials"><code class="docutils literal notranslate"><span class="pre">RDHClient.validate_credentials()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.data.RDHClient.list_datasets"><code class="docutils literal notranslate"><span class="pre">RDHClient.list_datasets()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.data.RDHClient.download_dataset"><code class="docutils literal notranslate"><span class="pre">RDHClient.download_dataset()</span></code></a></li>
@@ -7360,6 +7360,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.data.redistricting_data_hub.RDHClient"><code class="docutils literal notranslate"><span class="pre">RDHClient</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.data.redistricting_data_hub.RDHClient.__init__"><code class="docutils literal notranslate"><span class="pre">RDHClient.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.data.redistricting_data_hub.RDHClient.close"><code class="docutils literal notranslate"><span class="pre">RDHClient.close()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.data.redistricting_data_hub.RDHClient.credentials_present"><code class="docutils literal notranslate"><span class="pre">RDHClient.credentials_present()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.data.redistricting_data_hub.RDHClient.validate_credentials"><code class="docutils literal notranslate"><span class="pre">RDHClient.validate_credentials()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.data.redistricting_data_hub.RDHClient.list_datasets"><code class="docutils literal notranslate"><span class="pre">RDHClient.list_datasets()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.data.redistricting_data_hub.RDHClient.download_dataset"><code class="docutils literal notranslate"><span class="pre">RDHClient.download_dataset()</span></code></a></li>
@@ -8912,9 +8913,30 @@ new homes) for one deprecation window so existing callers still work.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.data.RDHClient.credentials_present">
+<span class="sig-name descname"><span class="pre">credentials_present</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/providers/redistricting_data_hub.html#RDHClient.credentials_present"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.data.RDHClient.credentials_present" title="Link to this definition"></a></dt>
+<dd><p>Return True if a username and password are both set.</p>
+<p>This is a <em>presence</em> check only – it does NOT contact RDH or verify
+that the credentials authenticate. A live check is impractical here:
+the RDH catalog endpoint is WAF-gated to allowlisted ingest hosts
+(#1115), so from other hosts an authenticated-style request returns
+the website HTML rather than the JSON API. Callers needing a true
+liveness check should call <a class="reference internal" href="#siege_utilities.data.RDHClient.list_datasets" title="siege_utilities.data.RDHClient.list_datasets"><code class="xref py py-meth docutils literal notranslate"><span class="pre">list_datasets()</span></code></a> and handle the
+<code class="docutils literal notranslate"><span class="pre">ValueError</span></code> it now raises on an API error envelope.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.data.RDHClient.validate_credentials">
 <span class="sig-name descname"><span class="pre">validate_credentials</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/providers/redistricting_data_hub.html#RDHClient.validate_credentials"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.data.RDHClient.validate_credentials" title="Link to this definition"></a></dt>
-<dd><p>Test that credentials are set (non-empty).</p>
+<dd><p>Backward-compatible alias for <a class="reference internal" href="#siege_utilities.data.RDHClient.credentials_present" title="siege_utilities.data.RDHClient.credentials_present"><code class="xref py py-meth docutils literal notranslate"><span class="pre">credentials_present()</span></code></a>.</p>
+<p>Retained for existing callers. The name is a misnomer kept for
+compatibility: it checks credential <em>presence</em>, not live
+authentication (see <a class="reference internal" href="#siege_utilities.data.RDHClient.credentials_present" title="siege_utilities.data.RDHClient.credentials_present"><code class="xref py py-meth docutils literal notranslate"><span class="pre">credentials_present()</span></code></a>). (#1115)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)">bool</a></p>
@@ -10164,7 +10186,7 @@ column names never appear in the output.</p>
 <dt class="sig sig-object py" id="siege_utilities.data.PandasEngine.read_csv">
 <span class="sig-name descname"><span class="pre">read_csv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/engines/dataframe_engine.html#PandasEngine.read_csv"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.data.PandasEngine.read_csv" title="Link to this definition"></a></dt>
 <dd><p>Read a CSV file.</p>
-<p><a href="#id1"><span class="problematic" id="id2">**</span></a>kwargs: Forwarded to <a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html#pandas.read_csv" title="(in pandas v3.0.3)"><code class="xref py py-func docutils literal notranslate"><span class="pre">pandas.read_csv()</span></code></a>.</p>
+<p><a href="#id1"><span class="problematic" id="id2">**</span></a>kwargs: Forwarded to <a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html#pandas.read_csv" title="(in pandas v3.0.4)"><code class="xref py py-func docutils literal notranslate"><span class="pre">pandas.read_csv()</span></code></a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -10182,7 +10204,7 @@ column names never appear in the output.</p>
 <dt class="sig sig-object py" id="siege_utilities.data.PandasEngine.read_parquet">
 <span class="sig-name descname"><span class="pre">read_parquet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/engines/dataframe_engine.html#PandasEngine.read_parquet"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.data.PandasEngine.read_parquet" title="Link to this definition"></a></dt>
 <dd><p>Read a Parquet file.</p>
-<p><a href="#id3"><span class="problematic" id="id4">**</span></a>kwargs: Forwarded to <a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.read_parquet.html#pandas.read_parquet" title="(in pandas v3.0.3)"><code class="xref py py-func docutils literal notranslate"><span class="pre">pandas.read_parquet()</span></code></a>.</p>
+<p><a href="#id3"><span class="problematic" id="id4">**</span></a>kwargs: Forwarded to <a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.read_parquet.html#pandas.read_parquet" title="(in pandas v3.0.4)"><code class="xref py py-func docutils literal notranslate"><span class="pre">pandas.read_parquet()</span></code></a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -10291,7 +10313,7 @@ pandas, SQL expression string for DuckDB/Spark, etc.).</p>
 <dt class="sig sig-object py" id="siege_utilities.data.PandasEngine.read_spatial">
 <span class="sig-name descname"><span class="pre">read_spatial</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/engines/dataframe_engine.html#PandasEngine.read_spatial"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.data.PandasEngine.read_spatial" title="Link to this definition"></a></dt>
 <dd><p>Read a spatial file.</p>
-<p><a href="#id5"><span class="problematic" id="id6">**</span></a>kwargs: Forwarded to <a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.read_file.html#geopandas.read_file" title="(in GeoPandas v1.1.3)"><code class="xref py py-func docutils literal notranslate"><span class="pre">geopandas.read_file()</span></code></a>.</p>
+<p><a href="#id5"><span class="problematic" id="id6">**</span></a>kwargs: Forwarded to <a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.read_file.html#geopandas.read_file" title="(in GeoPandas v1.1.4)"><code class="xref py py-func docutils literal notranslate"><span class="pre">geopandas.read_file()</span></code></a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -10499,7 +10521,7 @@ pandas, SQL expression string for DuckDB/Spark, etc.).</p>
 <dt class="sig sig-object py" id="siege_utilities.data.DuckDBEngine.read_spatial">
 <span class="sig-name descname"><span class="pre">read_spatial</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/engines/dataframe_engine.html#DuckDBEngine.read_spatial"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.data.DuckDBEngine.read_spatial" title="Link to this definition"></a></dt>
 <dd><p>Read a spatial file via DuckDB’s <code class="docutils literal notranslate"><span class="pre">ST_Read</span></code>.</p>
-<p><a href="#id7"><span class="problematic" id="id8">**</span></a>kwargs: Forwarded to <a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.read_file.html#geopandas.read_file" title="(in GeoPandas v1.1.3)"><code class="xref py py-func docutils literal notranslate"><span class="pre">geopandas.read_file()</span></code></a> (unused in the
+<p><a href="#id7"><span class="problematic" id="id8">**</span></a>kwargs: Forwarded to <a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.read_file.html#geopandas.read_file" title="(in GeoPandas v1.1.4)"><code class="xref py py-func docutils literal notranslate"><span class="pre">geopandas.read_file()</span></code></a> (unused in the
 current DuckDB path but accepted for interface compatibility).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -10723,7 +10745,7 @@ pandas, SQL expression string for DuckDB/Spark, etc.).</p>
 <dt class="sig sig-object py" id="siege_utilities.data.SparkEngine.read_spatial">
 <span class="sig-name descname"><span class="pre">read_spatial</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/engines/dataframe_engine.html#SparkEngine.read_spatial"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.data.SparkEngine.read_spatial" title="Link to this definition"></a></dt>
 <dd><p>Read a spatial file via GeoPandas and convert to a Spark DataFrame.</p>
-<p><a href="#id13"><span class="problematic" id="id14">**</span></a>kwargs: Forwarded to <a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.read_file.html#geopandas.read_file" title="(in GeoPandas v1.1.3)"><code class="xref py py-func docutils literal notranslate"><span class="pre">geopandas.read_file()</span></code></a>.</p>
+<p><a href="#id13"><span class="problematic" id="id14">**</span></a>kwargs: Forwarded to <a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.read_file.html#geopandas.read_file" title="(in GeoPandas v1.1.4)"><code class="xref py py-func docutils literal notranslate"><span class="pre">geopandas.read_file()</span></code></a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -10865,7 +10887,7 @@ per-row. Hence this engine raises rather than silently degrade.</p>
 <dt class="sig sig-object py" id="siege_utilities.data.PostGISEngine.read_csv">
 <span class="sig-name descname"><span class="pre">read_csv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/engines/dataframe_engine.html#PostGISEngine.read_csv"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.data.PostGISEngine.read_csv" title="Link to this definition"></a></dt>
 <dd><p>Read a CSV file.</p>
-<p><a href="#id15"><span class="problematic" id="id16">**</span></a>kwargs: Forwarded to <a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html#pandas.read_csv" title="(in pandas v3.0.3)"><code class="xref py py-func docutils literal notranslate"><span class="pre">pandas.read_csv()</span></code></a>.</p>
+<p><a href="#id15"><span class="problematic" id="id16">**</span></a>kwargs: Forwarded to <a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html#pandas.read_csv" title="(in pandas v3.0.4)"><code class="xref py py-func docutils literal notranslate"><span class="pre">pandas.read_csv()</span></code></a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -11008,7 +11030,7 @@ pandas, SQL expression string for DuckDB/Spark, etc.).</p>
 <dt class="sig sig-object py" id="siege_utilities.data.PostGISEngine.read_spatial">
 <span class="sig-name descname"><span class="pre">read_spatial</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/engines/dataframe_engine.html#PostGISEngine.read_spatial"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.data.PostGISEngine.read_spatial" title="Link to this definition"></a></dt>
 <dd><p>Read a spatial file or execute a spatial SQL query.</p>
-<p><a href="#id17"><span class="problematic" id="id18">**</span></a>kwargs: Forwarded to <a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.read_file.html#geopandas.read_file" title="(in GeoPandas v1.1.3)"><code class="xref py py-func docutils literal notranslate"><span class="pre">geopandas.read_file()</span></code></a>.</p>
+<p><a href="#id17"><span class="problematic" id="id18">**</span></a>kwargs: Forwarded to <a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.read_file.html#geopandas.read_file" title="(in GeoPandas v1.1.4)"><code class="xref py py-func docutils literal notranslate"><span class="pre">geopandas.read_file()</span></code></a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -11124,7 +11146,7 @@ Will be removed in v4.0.0.</p>
 <dd><p>Expected frequency table under independence.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -11146,7 +11168,7 @@ Will be removed in v4.0.0.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id21">
-<span class="sig-name descname"><span class="pre">expected_freq</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><span class="pre">pandas.DataFrame</span></a></span><a class="headerlink" href="#id21" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">expected_freq</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><span class="pre">pandas.DataFrame</span></a></span><a class="headerlink" href="#id21" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
@@ -11158,7 +11180,7 @@ Will be removed in v4.0.0.</p>
 <li><p><strong>statistic</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
 <li><p><strong>p_value</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
 <li><p><strong>dof</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-<li><p><strong>expected_freq</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>)</p></li>
+<li><p><strong>expected_freq</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -11974,9 +11996,30 @@ in v4.0.0.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.data.redistricting_data_hub.RDHClient.credentials_present">
+<span class="sig-name descname"><span class="pre">credentials_present</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/providers/redistricting_data_hub.html#RDHClient.credentials_present"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.data.redistricting_data_hub.RDHClient.credentials_present" title="Link to this definition"></a></dt>
+<dd><p>Return True if a username and password are both set.</p>
+<p>This is a <em>presence</em> check only – it does NOT contact RDH or verify
+that the credentials authenticate. A live check is impractical here:
+the RDH catalog endpoint is WAF-gated to allowlisted ingest hosts
+(#1115), so from other hosts an authenticated-style request returns
+the website HTML rather than the JSON API. Callers needing a true
+liveness check should call <a class="reference internal" href="#siege_utilities.data.redistricting_data_hub.RDHClient.list_datasets" title="siege_utilities.data.redistricting_data_hub.RDHClient.list_datasets"><code class="xref py py-meth docutils literal notranslate"><span class="pre">list_datasets()</span></code></a> and handle the
+<code class="docutils literal notranslate"><span class="pre">ValueError</span></code> it now raises on an API error envelope.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.data.redistricting_data_hub.RDHClient.validate_credentials">
 <span class="sig-name descname"><span class="pre">validate_credentials</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/providers/redistricting_data_hub.html#RDHClient.validate_credentials"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.data.redistricting_data_hub.RDHClient.validate_credentials" title="Link to this definition"></a></dt>
-<dd><p>Test that credentials are set (non-empty).</p>
+<dd><p>Backward-compatible alias for <a class="reference internal" href="#siege_utilities.data.redistricting_data_hub.RDHClient.credentials_present" title="siege_utilities.data.redistricting_data_hub.RDHClient.credentials_present"><code class="xref py py-meth docutils literal notranslate"><span class="pre">credentials_present()</span></code></a>.</p>
+<p>Retained for existing callers. The name is a misnomer kept for
+compatibility: it checks credential <em>presence</em>, not live
+authentication (see <a class="reference internal" href="#siege_utilities.data.redistricting_data_hub.RDHClient.credentials_present" title="siege_utilities.data.redistricting_data_hub.RDHClient.credentials_present"><code class="xref py py-meth docutils literal notranslate"><span class="pre">credentials_present()</span></code></a>). (#1115)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)">bool</a></p>
@@ -12671,7 +12714,7 @@ block/tract geometries, then aggregates demographics per district.</p>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a> | <a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a> | <a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -12699,7 +12742,7 @@ block/tract geometries, then aggregates demographics per district.</p>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -12722,7 +12765,7 @@ block/tract geometries, then aggregates demographics per district.</p>
 <dd class="field-even"><p>DataFrame with Census data or None if failed</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a> | None</p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a> | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -12734,8 +12777,8 @@ block/tract geometries, then aggregates demographics per district.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>boundaries</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>) – GeoDataFrame with geographic boundaries</p></li>
-<li><p><strong>data</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with attribute data</p></li>
+<li><p><strong>boundaries</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>) – GeoDataFrame with geographic boundaries</p></li>
+<li><p><strong>data</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with attribute data</p></li>
 <li><p><strong>boundary_id_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column name for boundary identifiers</p></li>
 <li><p><strong>data_id_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column name for data identifiers</p></li>
 </ul>
@@ -12750,7 +12793,7 @@ block/tract geometries, then aggregates demographics per district.</p>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -12779,7 +12822,7 @@ block/tract geometries, then aggregates demographics per district.</p>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a> | <a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a> | <a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -12800,7 +12843,7 @@ block/tract geometries, then aggregates demographics per district.</p>
 <dd class="field-even"><p>DataFrame or GeoDataFrame with county data</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a> | <a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a> | <a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -12820,7 +12863,7 @@ block/tract geometries, then aggregates demographics per district.</p>
 <dd class="field-even"><p>DataFrame or GeoDataFrame with metro data</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a> | <a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a> | <a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -12846,7 +12889,7 @@ block/tract geometries, then aggregates demographics per district.</p>
 <dd class="field-even"><p>DataFrame with synthetic population data</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -12867,7 +12910,7 @@ block/tract geometries, then aggregates demographics per district.</p>
 <dd class="field-even"><p>DataFrame with synthetic business data</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -12896,7 +12939,7 @@ Controls address format, coordinate bounds, units, and value ranges.</p></li>
 <dd class="field-even"><p>DataFrame with synthetic housing data</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -12954,7 +12997,7 @@ Controls address format, coordinate bounds, units, and value ranges.</p></li>
 <dd><p>Expected frequency table under independence.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -12976,7 +13019,7 @@ Controls address format, coordinate bounds, units, and value ranges.</p></li>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id31">
-<span class="sig-name descname"><span class="pre">expected_freq</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><span class="pre">pandas.DataFrame</span></a></span><a class="headerlink" href="#id31" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">expected_freq</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><span class="pre">pandas.DataFrame</span></a></span><a class="headerlink" href="#id31" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
@@ -12988,7 +13031,7 @@ Controls address format, coordinate bounds, units, and value ranges.</p></li>
 <li><p><strong>statistic</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
 <li><p><strong>p_value</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
 <li><p><strong>dof</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-<li><p><strong>expected_freq</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>)</p></li>
+<li><p><strong>expected_freq</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -13478,7 +13521,7 @@ and propagate ACS margins of error through cross-tabulation operations.</p>
 <dd><p>Expected frequency table under independence.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -13500,7 +13543,7 @@ and propagate ACS margins of error through cross-tabulation operations.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id41">
-<span class="sig-name descname"><span class="pre">expected_freq</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><span class="pre">pandas.DataFrame</span></a></span><a class="headerlink" href="#id41" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">expected_freq</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><span class="pre">pandas.DataFrame</span></a></span><a class="headerlink" href="#id41" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
@@ -13512,7 +13555,7 @@ and propagate ACS margins of error through cross-tabulation operations.</p>
 <li><p><strong>statistic</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
 <li><p><strong>p_value</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
 <li><p><strong>dof</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-<li><p><strong>expected_freq</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>)</p></li>
+<li><p><strong>expected_freq</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>

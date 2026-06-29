@@ -61,10 +61,8 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../installation_troubleshooting.html">Installation Troubleshooting</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../installation_troubleshooting.html#system-dependencies-for-geospatial">System Dependencies for Geospatial</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../installation_troubleshooting.html#ubuntu-debian">Ubuntu / Debian</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../installation_troubleshooting.html#macos-homebrew">macOS (Homebrew)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../installation_troubleshooting.html#windows">Windows</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation_troubleshooting.html#geospatial-extras-and-gdal">Geospatial Extras and GDAL</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../installation_troubleshooting.html#system-dependencies-only-for-the-two-cases-above">System Dependencies (only for the two cases above)</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../installation_troubleshooting.html#choosing-the-right-extras">Choosing the Right Extras</a></li>
@@ -1422,6 +1420,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.providers.redistricting_data_hub.RDHClient"><code class="docutils literal notranslate"><span class="pre">RDHClient</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.providers.redistricting_data_hub.RDHClient.__init__"><code class="docutils literal notranslate"><span class="pre">RDHClient.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.providers.redistricting_data_hub.RDHClient.close"><code class="docutils literal notranslate"><span class="pre">RDHClient.close()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.providers.redistricting_data_hub.RDHClient.credentials_present"><code class="docutils literal notranslate"><span class="pre">RDHClient.credentials_present()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.providers.redistricting_data_hub.RDHClient.validate_credentials"><code class="docutils literal notranslate"><span class="pre">RDHClient.validate_credentials()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.providers.redistricting_data_hub.RDHClient.list_datasets"><code class="docutils literal notranslate"><span class="pre">RDHClient.list_datasets()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.providers.redistricting_data_hub.RDHClient.download_dataset"><code class="docutils literal notranslate"><span class="pre">RDHClient.download_dataset()</span></code></a></li>
@@ -7098,6 +7097,7 @@
 <li class="toctree-l2"><a class="reference internal" href="data.html#siege_utilities.data.RDHClient"><code class="docutils literal notranslate"><span class="pre">RDHClient</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="data.html#siege_utilities.data.RDHClient.__init__"><code class="docutils literal notranslate"><span class="pre">RDHClient.__init__()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="data.html#siege_utilities.data.RDHClient.close"><code class="docutils literal notranslate"><span class="pre">RDHClient.close()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="data.html#siege_utilities.data.RDHClient.credentials_present"><code class="docutils literal notranslate"><span class="pre">RDHClient.credentials_present()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="data.html#siege_utilities.data.RDHClient.validate_credentials"><code class="docutils literal notranslate"><span class="pre">RDHClient.validate_credentials()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="data.html#siege_utilities.data.RDHClient.list_datasets"><code class="docutils literal notranslate"><span class="pre">RDHClient.list_datasets()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="data.html#siege_utilities.data.RDHClient.download_dataset"><code class="docutils literal notranslate"><span class="pre">RDHClient.download_dataset()</span></code></a></li>
@@ -7360,6 +7360,7 @@
 <li class="toctree-l3"><a class="reference internal" href="data.html#siege_utilities.data.redistricting_data_hub.RDHClient"><code class="docutils literal notranslate"><span class="pre">RDHClient</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="data.html#siege_utilities.data.redistricting_data_hub.RDHClient.__init__"><code class="docutils literal notranslate"><span class="pre">RDHClient.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="data.html#siege_utilities.data.redistricting_data_hub.RDHClient.close"><code class="docutils literal notranslate"><span class="pre">RDHClient.close()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="data.html#siege_utilities.data.redistricting_data_hub.RDHClient.credentials_present"><code class="docutils literal notranslate"><span class="pre">RDHClient.credentials_present()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="data.html#siege_utilities.data.redistricting_data_hub.RDHClient.validate_credentials"><code class="docutils literal notranslate"><span class="pre">RDHClient.validate_credentials()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="data.html#siege_utilities.data.redistricting_data_hub.RDHClient.list_datasets"><code class="docutils literal notranslate"><span class="pre">RDHClient.list_datasets()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="data.html#siege_utilities.data.redistricting_data_hub.RDHClient.download_dataset"><code class="docutils literal notranslate"><span class="pre">RDHClient.download_dataset()</span></code></a></li>
@@ -10010,7 +10011,7 @@ For structured diagnostics, use <a class="reference internal" href="#siege_utili
 <dd class="field-even"><p>GeoDataFrame with boundaries or None if failed</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a> | None</p>
+<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a> | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -10209,7 +10210,7 @@ context dict on failure.</p>
 <dd><p>Download data from the source.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a> | None</p>
+<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a> | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -10253,7 +10254,7 @@ context dict on failure.</p>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.spatial_data.SpatialDataError" title="siege_utilities.geo.spatial_data.SpatialDataError"><strong>SpatialDataError</strong></a> – On any download or processing failure.</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -10289,7 +10290,7 @@ context dict on failure.</p>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.spatial_data.SpatialDataError" title="siege_utilities.geo.spatial_data.SpatialDataError"><strong>SpatialDataError</strong></a> – On HTTP or processing failure.</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -10316,7 +10317,7 @@ structured diagnostics via <a class="reference internal" href="#siege_utilities.
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a> | None</p>
+<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a> | None</p>
 </dd>
 </dl>
 <div class="admonition note">
@@ -10337,7 +10338,7 @@ If both are provided, state_identifier takes precedence.</p>
 </ul>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a> | None</p>
+<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a> | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -10360,7 +10361,7 @@ If both are provided, state_identifier takes precedence.</p>
 <dd class="field-even"><p>GeoDataFrame with boundaries in <em>crs</em>, or None if failed.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a> | None</p>
+<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a> | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -10469,7 +10470,7 @@ If both are provided, state_identifier takes precedence.</p>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a> | None</p>
+<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a> | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -10573,7 +10574,7 @@ If both are provided, state_identifier takes precedence.</p>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a> | None</p>
+<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a> | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -10724,7 +10725,7 @@ Historical <code class="docutils literal notranslate"><span class="pre">List[str
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a> | None</p>
+<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a> | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -11587,7 +11588,7 @@ Suitability scores use 0-5 scale: 0-2.0 (poor), 2.1-3.0 (moderate),
 <dd class="field-even"><p>DataFrame with compatibility scores</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -11682,7 +11683,7 @@ Suitability scores use 0-5 scale: 0-2.0 (poor), 2.1-3.0 (moderate),
 <dd class="field-even"><p>DataFrame with compatibility scores</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -12160,7 +12161,7 @@ exception.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – Input DataFrame.</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – Input DataFrame.</p></li>
 <li><p><strong>lat_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the latitude column.</p></li>
 <li><p><strong>lon_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the longitude column.</p></li>
 <li><p><strong>crs</strong> – Optional CRS (pyproj CRS, EPSG int, or string).  When supplied,
@@ -12172,7 +12173,7 @@ Defaults to WGS84 (-90..90, -180..180).</p></li>
 <dd class="field-even"><p>DataFrame with only rows whose coordinates fall within the valid range.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -12185,7 +12186,7 @@ Defaults to WGS84 (-90..90, -180..180).</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – Input DataFrame.</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – Input DataFrame.</p></li>
 <li><p><strong>lat_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the latitude column.</p></li>
 <li><p><strong>lon_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the longitude column.</p></li>
 <li><p><strong>output_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the boolean column to add.</p></li>
@@ -12198,7 +12199,7 @@ Defaults to WGS84 (-90..90, -180..180).</p></li>
 <dd class="field-even"><p>Copy of <em>df</em> with <em>output_col</em> appended.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -16378,7 +16379,7 @@ the underlying exception (HTTPError, JSONDecodeError, etc.).</p>
 <dd><p>Download data from the source.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a> | None</p>
+<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a> | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -16527,7 +16528,7 @@ For structured diagnostics, use <a class="reference internal" href="#siege_utili
 <dd class="field-even"><p>GeoDataFrame with boundaries or None if failed</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a> | None</p>
+<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a> | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -16737,7 +16738,7 @@ context dict on failure.</p>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.spatial_data.SpatialDataError" title="siege_utilities.geo.spatial_data.SpatialDataError"><strong>SpatialDataError</strong></a> – On any download or processing failure.</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -16773,7 +16774,7 @@ context dict on failure.</p>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.spatial_data.SpatialDataError" title="siege_utilities.geo.spatial_data.SpatialDataError"><strong>SpatialDataError</strong></a> – On HTTP or processing failure.</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -16954,7 +16955,7 @@ structured diagnostics via <code class="xref py py-class docutils literal notran
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a> | None</p>
+<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a> | None</p>
 </dd>
 </dl>
 <div class="admonition note">
@@ -16975,7 +16976,7 @@ If both are provided, state_identifier takes precedence.</p>
 </ul>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a> | None</p>
+<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a> | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -17043,7 +17044,7 @@ If both are provided, state_identifier takes precedence.</p>
 <dd class="field-even"><p>GeoDataFrame with boundaries in <em>crs</em>, or None if failed.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a> | None</p>
+<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a> | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -17062,7 +17063,7 @@ If both are provided, state_identifier takes precedence.</p>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a> | None</p>
+<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a> | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -17086,7 +17087,7 @@ If both are provided, state_identifier takes precedence.</p>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a> | None</p>
+<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a> | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -17503,7 +17504,7 @@ Historical <code class="docutils literal notranslate"><span class="pre">List[str
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a> | None</p>
+<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a> | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -18489,7 +18490,7 @@ given geography level.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame containing GEOID column</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame containing GEOID column</p></li>
 <li><p><strong>geoid_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the GEOID column</p></li>
 <li><p><strong>geography_level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Geographic level for normalization</p></li>
 <li><p><strong>inplace</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, modify DataFrame in place</p></li>
@@ -18499,7 +18500,7 @@ given geography level.</p>
 <dd class="field-even"><p>DataFrame with normalized GEOID column</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -18547,7 +18548,7 @@ given geography level.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>row</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v3.0.3)"><em>pandas.Series</em></a>) – DataFrame row with Census columns (state, county, tract, etc.)</p></li>
+<li><p><strong>row</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v3.0.4)"><em>pandas.Series</em></a>) – DataFrame row with Census columns (state, county, tract, etc.)</p></li>
 <li><p><strong>geography_level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Target geography level</p></li>
 </ul>
 </dd>
@@ -18701,7 +18702,7 @@ to a valid GEOID via normalize_geoid().</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame containing GEOID column</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame containing GEOID column</p></li>
 <li><p><strong>geoid_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the GEOID column</p></li>
 <li><p><strong>geography_level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Expected geography level</p></li>
 <li><p><strong>strict</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True (default), require exact length match</p></li>
@@ -18711,7 +18712,7 @@ to a valid GEOID via normalize_geoid().</p>
 <dd class="field-even"><p>Boolean Series indicating validity of each GEOID</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v3.0.3)">pandas.Series</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v3.0.4)">pandas.Series</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -18727,7 +18728,7 @@ to a valid GEOID via normalize_geoid().</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with GEOID column</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with GEOID column</p></li>
 <li><p><strong>geoid_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the GEOID column</p></li>
 <li><p><strong>geography_level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Geography level</p></li>
 <li><p><strong>output_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – Name for normalized column (defaults to geoid_column)</p></li>
@@ -18737,7 +18738,7 @@ to a valid GEOID via normalize_geoid().</p>
 <dd class="field-even"><p>DataFrame with normalized GEOID column</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -18809,7 +18810,7 @@ component parts from the slug.</p>
 <p>Looks for common GEOID column names used in Census data.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame to search</p>
+<dd class="field-odd"><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame to search</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Name of GEOID column if found, None otherwise</p>
@@ -19079,7 +19080,7 @@ classifier.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – Input DataFrame.</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – Input DataFrame.</p></li>
 <li><p><strong>lat_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the latitude column.</p></li>
 <li><p><strong>lon_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the longitude column.</p></li>
 <li><p><strong>crs</strong> – Optional CRS (pyproj CRS, EPSG int, or string).  When supplied,
@@ -19091,7 +19092,7 @@ Defaults to WGS84 (-90..90, -180..180).</p></li>
 <dd class="field-even"><p>DataFrame with only rows whose coordinates fall within the valid range.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -19104,7 +19105,7 @@ Defaults to WGS84 (-90..90, -180..180).</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – Input DataFrame.</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – Input DataFrame.</p></li>
 <li><p><strong>lat_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the latitude column.</p></li>
 <li><p><strong>lon_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the longitude column.</p></li>
 <li><p><strong>output_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the boolean column to add.</p></li>
@@ -19117,7 +19118,7 @@ Defaults to WGS84 (-90..90, -180..180).</p></li>
 <dd class="field-even"><p>Copy of <em>df</em> with <em>output_col</em> appended.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -19463,7 +19464,7 @@ are too expensive or when an approximate spatial join is acceptable.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with latitude and longitude columns.</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with latitude and longitude columns.</p></li>
 <li><p><strong>lat_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the latitude column.</p></li>
 <li><p><strong>lon_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the longitude column.</p></li>
 <li><p><strong>resolution</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – H3 resolution (0-15). Default 8 (~0.74 km^2 hexes).</p></li>
@@ -19479,7 +19480,7 @@ are too expensive or when an approximate spatial join is acceptable.</p>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v3.0.3)">pandas.Series</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v3.0.4)">pandas.Series</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -19585,7 +19586,7 @@ misclassified due to hex granularity.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>points_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with latitude/longitude columns.</p></li>
+<li><p><strong>points_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with latitude/longitude columns.</p></li>
 <li><p><strong>polygons_gdf</strong> – GeoDataFrame (or any object with a <code class="docutils literal notranslate"><span class="pre">geometry</span></code> column
 and an iterable of rows). Each geometry must be a
 Polygon or MultiPolygon.</p></li>
@@ -19604,7 +19605,7 @@ for matched rows. Unmatched points are excluded.</p>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ImportError" title="(in Python v3.14)"><strong>ImportError</strong></a> – If h3 is not installed.</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -24117,9 +24118,30 @@ Contact <a class="reference external" href="mailto:info&#37;&#52;&#48;redistrict
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.providers.redistricting_data_hub.RDHClient.credentials_present">
+<span class="sig-name descname"><span class="pre">credentials_present</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/providers/redistricting_data_hub.html#RDHClient.credentials_present"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.providers.redistricting_data_hub.RDHClient.credentials_present" title="Link to this definition"></a></dt>
+<dd><p>Return True if a username and password are both set.</p>
+<p>This is a <em>presence</em> check only – it does NOT contact RDH or verify
+that the credentials authenticate. A live check is impractical here:
+the RDH catalog endpoint is WAF-gated to allowlisted ingest hosts
+(#1115), so from other hosts an authenticated-style request returns
+the website HTML rather than the JSON API. Callers needing a true
+liveness check should call <a class="reference internal" href="#siege_utilities.geo.providers.redistricting_data_hub.RDHClient.list_datasets" title="siege_utilities.geo.providers.redistricting_data_hub.RDHClient.list_datasets"><code class="xref py py-meth docutils literal notranslate"><span class="pre">list_datasets()</span></code></a> and handle the
+<code class="docutils literal notranslate"><span class="pre">ValueError</span></code> it now raises on an API error envelope.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.providers.redistricting_data_hub.RDHClient.validate_credentials">
 <span class="sig-name descname"><span class="pre">validate_credentials</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/providers/redistricting_data_hub.html#RDHClient.validate_credentials"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.providers.redistricting_data_hub.RDHClient.validate_credentials" title="Link to this definition"></a></dt>
-<dd><p>Test that credentials are set (non-empty).</p>
+<dd><p>Backward-compatible alias for <a class="reference internal" href="#siege_utilities.geo.providers.redistricting_data_hub.RDHClient.credentials_present" title="siege_utilities.geo.providers.redistricting_data_hub.RDHClient.credentials_present"><code class="xref py py-meth docutils literal notranslate"><span class="pre">credentials_present()</span></code></a>.</p>
+<p>Retained for existing callers. The name is a misnomer kept for
+compatibility: it checks credential <em>presence</em>, not live
+authentication (see <a class="reference internal" href="#siege_utilities.geo.providers.redistricting_data_hub.RDHClient.credentials_present" title="siege_utilities.geo.providers.redistricting_data_hub.RDHClient.credentials_present"><code class="xref py py-meth docutils literal notranslate"><span class="pre">credentials_present()</span></code></a>). (#1115)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)">bool</a></p>
@@ -25932,7 +25954,7 @@ variables. Silently ignored for non-ACS datasets.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -25980,7 +26002,7 @@ variables. Silently ignored for non-ACS datasets.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -26840,7 +26862,7 @@ for unknown variable metadata.</p>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -26904,7 +26926,7 @@ variables. Silently ignored for non-ACS datasets.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -26952,7 +26974,7 @@ variables. Silently ignored for non-ACS datasets.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -28089,7 +28111,7 @@ for unknown variable metadata.</p>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -28247,7 +28269,7 @@ include_moe=True</p>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -28283,7 +28305,7 @@ include_moe=True</p>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -28320,7 +28342,7 @@ include_moe=True</p>
 <dd class="field-even"><p>DataFrame with demographic data</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -28339,7 +28361,7 @@ include_moe=True</p>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -28359,7 +28381,7 @@ include_moe=True</p>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -28379,7 +28401,7 @@ include_moe=True</p>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -28399,7 +28421,7 @@ include_moe=True</p>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -28450,7 +28472,7 @@ include_moe=True</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>shapes_gdf</strong> (<em>gpd.GeoDataFrame</em>)</p></li>
-<li><p><strong>demographics_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>)</p></li>
+<li><p><strong>demographics_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>)</p></li>
 <li><p><strong>shapes_geoid_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
 <li><p><strong>demographics_geoid_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
 <li><p><strong>how</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
@@ -28519,7 +28541,7 @@ Suitability scores use 0-5 scale: 0-2.0 (poor), 2.1-3.0 (moderate),
 <dd class="field-even"><p>DataFrame with compatibility scores</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -28614,7 +28636,7 @@ Suitability scores use 0-5 scale: 0-2.0 (poor), 2.1-3.0 (moderate),
 <dd class="field-even"><p>DataFrame with compatibility scores</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -29884,7 +29906,7 @@ If None, includes all tables.</p></li>
 <dd class="field-even"><p>DataFrame with PL data at specified geography level</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -29920,7 +29942,7 @@ If None, includes all tables.</p></li>
 <dd class="field-even"><p>DataFrame with PL data</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 <p class="rubric">Example</p>
@@ -29949,7 +29971,7 @@ provides the finest geographic detail available.</p>
 <dd class="field-even"><p>DataFrame with block-level PL data</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -29971,7 +29993,7 @@ provides the finest geographic detail available.</p>
 <dd class="field-even"><p>DataFrame with tract-level PL data</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -30070,7 +30092,7 @@ If None, includes all tables.</p></li>
 <dd class="field-even"><p>DataFrame with PL data at specified geography level</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -30106,7 +30128,7 @@ If None, includes all tables.</p></li>
 <dd class="field-even"><p>DataFrame with PL data</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 <p class="rubric">Example</p>
@@ -30135,7 +30157,7 @@ provides the finest geographic detail available.</p>
 <dd class="field-even"><p>DataFrame with block-level PL data</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -30157,7 +30179,7 @@ provides the finest geographic detail available.</p>
 <dd class="field-even"><p>DataFrame with tract-level PL data</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -31042,7 +31064,7 @@ If None, clear all files.</p>
 <dd class="field-even"><p>DataFrame with crosswalk relationships</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 <p class="rubric">Example</p>
@@ -31142,7 +31164,7 @@ vintage to another, accounting for splits, merges, and complex changes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>crosswalk_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame from get_crosswalk()</p></li>
+<li><p><strong>crosswalk_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame from get_crosswalk()</p></li>
 <li><p><strong>source_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Source Census year</p></li>
 <li><p><strong>target_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Target Census year</p></li>
 <li><p><strong>geography_level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Geographic level (‘tract’, ‘county’, etc.)</p></li>
@@ -31192,7 +31214,7 @@ vintage to another, accounting for splits, merges, and complex changes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with data in source boundary vintage</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with data in source boundary vintage</p></li>
 <li><p><strong>geoid_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the GEOID column</p></li>
 <li><p><strong>value_columns</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – List of columns to transform. If None, all numeric columns.</p></li>
 <li><p><strong>weight_method</strong> (<a class="reference internal" href="#siege_utilities.geo.crosswalk.relationship_types.WeightMethod" title="siege_utilities.geo.crosswalk.relationship_types.WeightMethod"><em>WeightMethod</em></a>) – How to weight data for splits/merges</p></li>
@@ -31206,7 +31228,7 @@ vintage to another, accounting for splits, merges, and complex changes.</p>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If geoid_column not found in DataFrame</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -31222,7 +31244,7 @@ It handles all relationship types (unchanged, splits, merges) automatically.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with data in source boundary vintage</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with data in source boundary vintage</p></li>
 <li><p><strong>source_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Source Census year (e.g., 2010)</p></li>
 <li><p><strong>target_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Target Census year (e.g., 2020)</p></li>
 <li><p><strong>geography_level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Geographic level (‘tract’, ‘block_group’, ‘county’)</p></li>
@@ -31237,7 +31259,7 @@ It handles all relationship types (unchanged, splits, merges) automatically.</p>
 <dd class="field-even"><p>DataFrame with data transformed to target boundary vintage</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 <p class="rubric">Example</p>
@@ -31263,7 +31285,7 @@ and applies it to transform data to the target year’s boundaries.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with data</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with data</p></li>
 <li><p><strong>data_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Year of the data’s boundaries</p></li>
 <li><p><strong>target_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Year to normalize to (default: 2020)</p></li>
 <li><p><strong>geography_level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Geographic level</p></li>
@@ -31276,7 +31298,7 @@ and applies it to transform data to the target year’s boundaries.</p>
 <dd class="field-even"><p>DataFrame normalized to target year boundaries</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 <p class="rubric">Example</p>
@@ -31349,7 +31371,7 @@ splits = changes[changes[‘relationship_type’] == ‘split’]</p>
 <dd class="field-even"><p>DataFrame with split tracts and their target tracts</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -31370,7 +31392,7 @@ splits = changes[changes[‘relationship_type’] == ‘split’]</p>
 <dd class="field-even"><p>DataFrame with merged tracts and their resulting tract</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -31554,7 +31576,7 @@ If None, clear all files.</p>
 <dd class="field-even"><p>DataFrame with crosswalk relationships</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 <p class="rubric">Example</p>
@@ -31665,7 +31687,7 @@ vintage to another, accounting for splits, merges, and complex changes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>crosswalk_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame from get_crosswalk()</p></li>
+<li><p><strong>crosswalk_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame from get_crosswalk()</p></li>
 <li><p><strong>source_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Source Census year</p></li>
 <li><p><strong>target_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Target Census year</p></li>
 <li><p><strong>geography_level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Geographic level (‘tract’, ‘county’, etc.)</p></li>
@@ -31715,7 +31737,7 @@ vintage to another, accounting for splits, merges, and complex changes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with data in source boundary vintage</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with data in source boundary vintage</p></li>
 <li><p><strong>geoid_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the GEOID column</p></li>
 <li><p><strong>value_columns</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – List of columns to transform. If None, all numeric columns.</p></li>
 <li><p><strong>weight_method</strong> (<a class="reference internal" href="#siege_utilities.geo.crosswalk.relationship_types.WeightMethod" title="siege_utilities.geo.crosswalk.relationship_types.WeightMethod"><em>WeightMethod</em></a>) – How to weight data for splits/merges</p></li>
@@ -31729,7 +31751,7 @@ vintage to another, accounting for splits, merges, and complex changes.</p>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If geoid_column not found in DataFrame</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -31745,7 +31767,7 @@ It handles all relationship types (unchanged, splits, merges) automatically.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with data in source boundary vintage</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with data in source boundary vintage</p></li>
 <li><p><strong>source_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Source Census year (e.g., 2010)</p></li>
 <li><p><strong>target_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Target Census year (e.g., 2020)</p></li>
 <li><p><strong>geography_level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Geographic level (‘tract’, ‘block_group’, ‘county’)</p></li>
@@ -31760,7 +31782,7 @@ It handles all relationship types (unchanged, splits, merges) automatically.</p>
 <dd class="field-even"><p>DataFrame with data transformed to target boundary vintage</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 <p class="rubric">Example</p>
@@ -31786,7 +31808,7 @@ and applies it to transform data to the target year’s boundaries.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with data</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with data</p></li>
 <li><p><strong>data_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Year of the data’s boundaries</p></li>
 <li><p><strong>target_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Year to normalize to (default: 2020)</p></li>
 <li><p><strong>geography_level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Geographic level</p></li>
@@ -31799,7 +31821,7 @@ and applies it to transform data to the target year’s boundaries.</p>
 <dd class="field-even"><p>DataFrame normalized to target year boundaries</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 <p class="rubric">Example</p>
@@ -31872,7 +31894,7 @@ splits = changes[changes[‘relationship_type’] == ‘split’]</p>
 <dd class="field-even"><p>DataFrame with split tracts and their target tracts</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -31893,7 +31915,7 @@ splits = changes[changes[‘relationship_type’] == ‘split’]</p>
 <dd class="field-even"><p>DataFrame with merged tracts and their resulting tract</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -32599,7 +32621,7 @@ extensive (population) and intensive (median income) variable interpolation.</p>
 <dd><p>GeoDataFrame with interpolated values in target geometries.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -32694,7 +32716,7 @@ extensive (population) and intensive (median income) variable interpolation.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id170">
-<span class="sig-name descname"><span class="pre">data</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><span class="pre">geopandas.GeoDataFrame</span></a></span><a class="headerlink" href="#id170" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">data</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><span class="pre">geopandas.GeoDataFrame</span></a></span><a class="headerlink" href="#id170" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -32743,7 +32765,7 @@ extensive (population) and intensive (median income) variable interpolation.</p>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>data</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
+<li><p><strong>data</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
 <li><p><strong>extensive_variables</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
 <li><p><strong>intensive_variables</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
 <li><p><strong>source_crs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
@@ -32775,8 +32797,8 @@ polygons to target polygons based on the area of intersection.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>source_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>) – Source GeoDataFrame with attribute columns.</p></li>
-<li><p><strong>target_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>) – Target GeoDataFrame defining output geometries.</p></li>
+<li><p><strong>source_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>) – Source GeoDataFrame with attribute columns.</p></li>
+<li><p><strong>target_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>) – Target GeoDataFrame defining output geometries.</p></li>
 <li><p><strong>extensive_variables</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – Columns containing totals (population, etc.).
 These are split proportionally by area overlap.</p></li>
 <li><p><strong>intensive_variables</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – Columns containing rates/densities.
@@ -32809,8 +32831,8 @@ These are area-weighted averaged.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>source_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
-<li><p><strong>target_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
+<li><p><strong>source_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
+<li><p><strong>target_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
 <li><p><strong>variables</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
 <li><p><strong>allocate_total</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
 <li><p><strong>n_jobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
@@ -32830,8 +32852,8 @@ These are area-weighted averaged.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>source_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
-<li><p><strong>target_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
+<li><p><strong>source_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
+<li><p><strong>target_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
 <li><p><strong>variables</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
 <li><p><strong>allocate_total</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
 <li><p><strong>n_jobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
@@ -32857,8 +32879,8 @@ These are area-weighted averaged.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>source_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>) – Source polygons.</p></li>
-<li><p><strong>target_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>) – Target polygons.</p></li>
+<li><p><strong>source_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>) – Source polygons.</p></li>
+<li><p><strong>target_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>) – Target polygons.</p></li>
 <li><p><strong>crs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – Output CRS (default: source CRS).</p></li>
 </ul>
 </dd>
@@ -32866,7 +32888,7 @@ These are area-weighted averaged.</p></li>
 <dd class="field-even"><p>GeoDataFrame with overlap weights in <em>crs</em>.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -32898,7 +32920,7 @@ should be area-weighted averaged across overlapping sources.</p></li>
 <dd><p>GeoDataFrame with interpolated values in target geometries.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -32993,7 +33015,7 @@ should be area-weighted averaged across overlapping sources.</p></li>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id179">
-<span class="sig-name descname"><span class="pre">data</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><span class="pre">geopandas.GeoDataFrame</span></a></span><a class="headerlink" href="#id179" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">data</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><span class="pre">geopandas.GeoDataFrame</span></a></span><a class="headerlink" href="#id179" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -33042,7 +33064,7 @@ should be area-weighted averaged across overlapping sources.</p></li>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>data</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
+<li><p><strong>data</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
 <li><p><strong>extensive_variables</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
 <li><p><strong>intensive_variables</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
 <li><p><strong>source_crs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
@@ -33074,8 +33096,8 @@ polygons to target polygons based on the area of intersection.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>source_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>) – Source GeoDataFrame with attribute columns.</p></li>
-<li><p><strong>target_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>) – Target GeoDataFrame defining output geometries.</p></li>
+<li><p><strong>source_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>) – Source GeoDataFrame with attribute columns.</p></li>
+<li><p><strong>target_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>) – Target GeoDataFrame defining output geometries.</p></li>
 <li><p><strong>extensive_variables</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – Columns containing totals (population, etc.).
 These are split proportionally by area overlap.</p></li>
 <li><p><strong>intensive_variables</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – Columns containing rates/densities.
@@ -33108,8 +33130,8 @@ These are area-weighted averaged.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>source_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
-<li><p><strong>target_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
+<li><p><strong>source_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
+<li><p><strong>target_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
 <li><p><strong>variables</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
 <li><p><strong>allocate_total</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
 <li><p><strong>n_jobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
@@ -33129,8 +33151,8 @@ These are area-weighted averaged.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>source_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
-<li><p><strong>target_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
+<li><p><strong>source_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
+<li><p><strong>target_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>)</p></li>
 <li><p><strong>variables</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
 <li><p><strong>allocate_total</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
 <li><p><strong>n_jobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
@@ -33156,8 +33178,8 @@ These are area-weighted averaged.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>source_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>) – Source polygons.</p></li>
-<li><p><strong>target_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>) – Target polygons.</p></li>
+<li><p><strong>source_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>) – Source polygons.</p></li>
+<li><p><strong>target_gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>) – Target polygons.</p></li>
 <li><p><strong>crs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – Output CRS (default: source CRS).</p></li>
 </ul>
 </dd>
@@ -33165,7 +33187,7 @@ These are area-weighted averaged.</p></li>
 <dd class="field-even"><p>GeoDataFrame with overlap weights in <em>crs</em>.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)">geopandas.GeoDataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)">geopandas.GeoDataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -45886,7 +45908,7 @@ county_fips=’037’</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with year-suffixed columns</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with year-suffixed columns</p></li>
 <li><p><strong>value_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Base variable name (without year suffix)</p></li>
 <li><p><strong>start_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Start year for comparison. If None, uses earliest year found.</p></li>
 <li><p><strong>end_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – End year for comparison. If None, uses latest year found.</p></li>
@@ -45929,7 +45951,7 @@ metrics=[‘absolute’, ‘percent’, ‘cagr’]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with year-suffixed columns</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with year-suffixed columns</p></li>
 <li><p><strong>value_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Base variable name</p></li>
 <li><p><strong>metrics</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – Metrics to calculate</p></li>
 </ul>
@@ -45938,7 +45960,7 @@ metrics=[‘absolute’, ‘percent’, ‘cagr’]</p>
 <dd class="field-even"><p>DataFrame with changes between each pair of consecutive years</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -45952,7 +45974,7 @@ different absolute values.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with year-suffixed columns</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with year-suffixed columns</p></li>
 <li><p><strong>value_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Base variable name</p></li>
 <li><p><strong>base_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Year to use as index base. If None, uses earliest year.</p></li>
 <li><p><strong>index_value</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Value to set base year to (default: 100)</p></li>
@@ -45962,7 +45984,7 @@ different absolute values.</p>
 <dd class="field-even"><p>DataFrame with indexed columns (e.g., B19013_001E_index_2010)</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 <p class="rubric">Example</p>
@@ -45977,7 +45999,7 @@ different absolute values.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with year-suffixed columns</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with year-suffixed columns</p></li>
 <li><p><strong>value_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Base variable name</p></li>
 <li><p><strong>start_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Start year</p></li>
 <li><p><strong>end_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – End year</p></li>
@@ -46137,7 +46159,7 @@ different absolute values.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with change metrics</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with change metrics</p></li>
 <li><p><strong>change_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column containing change values (typically percentage change)</p></li>
 <li><p><strong>thresholds</strong> (<a class="reference internal" href="#siege_utilities.geo.timeseries.trend_classifier.TrendThresholds" title="siege_utilities.geo.timeseries.trend_classifier.TrendThresholds"><em>TrendThresholds</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>] </em><em>| </em><em>None</em>) – Threshold configuration. Can be:
 - TrendThresholds object
@@ -46151,7 +46173,7 @@ different absolute values.</p>
 <dd class="field-even"><p>DataFrame with new trend_category column</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 <p class="rubric">Example</p>
@@ -46180,7 +46202,7 @@ classification within the dataset.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with change metrics</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with change metrics</p></li>
 <li><p><strong>change_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column containing change values</p></li>
 <li><p><strong>output_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name for the category column</p></li>
 </ul>
@@ -46189,7 +46211,7 @@ classification within the dataset.</p>
 <dd class="field-even"><p>DataFrame with z-score category column and z-score values</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -46203,7 +46225,7 @@ deciles, etc.) which is useful when you want balanced category sizes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with change metrics</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with change metrics</p></li>
 <li><p><strong>change_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column containing change values</p></li>
 <li><p><strong>n_quantiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of quantiles (default: 5 for quintiles)</p></li>
 <li><p><strong>labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – Custom labels for quantiles. If None, uses:
@@ -46216,7 +46238,7 @@ deciles, etc.) which is useful when you want balanced category sizes.</p>
 <dd class="field-even"><p>DataFrame with quantile category column</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -46228,7 +46250,7 @@ deciles, etc.) which is useful when you want balanced category sizes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with trend categories</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with trend categories</p></li>
 <li><p><strong>trend_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the trend category column</p></li>
 <li><p><strong>geoid_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the GEOID column</p></li>
 </ul>
@@ -46249,7 +46271,7 @@ deciles, etc.) which is useful when you want balanced category sizes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with change metrics</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with change metrics</p></li>
 <li><p><strong>change_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column containing change values</p></li>
 <li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Outlier detection method:
 - ‘iqr’: Interquartile range method
@@ -46263,7 +46285,7 @@ deciles, etc.) which is useful when you want balanced category sizes.</p>
 <dd class="field-even"><p>DataFrame with is_outlier and outlier_type columns</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -46279,8 +46301,8 @@ deciles, etc.) which is useful when you want balanced category sizes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df1</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – First DataFrame with trend classification</p></li>
-<li><p><strong>df2</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – Second DataFrame with trend classification</p></li>
+<li><p><strong>df1</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – First DataFrame with trend classification</p></li>
+<li><p><strong>df2</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – Second DataFrame with trend classification</p></li>
 <li><p><strong>trend_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of trend category column</p></li>
 <li><p><strong>geoid_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of GEOID column</p></li>
 </ul>
@@ -46289,7 +46311,7 @@ deciles, etc.) which is useful when you want balanced category sizes.</p>
 <dd class="field-even"><p>DataFrame with comparison columns</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -46878,7 +46900,7 @@ deciles, etc.) which is useful when you want balanced category sizes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>crosswalk_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with columns: source_geoid, target_geoid, weight.</p></li>
+<li><p><strong>crosswalk_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with columns: source_geoid, target_geoid, weight.</p></li>
 <li><p><strong>source_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Earlier vintage year.</p></li>
 <li><p><strong>target_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Later vintage year.</p></li>
 <li><p><strong>geography_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Geography level name.</p></li>
@@ -46902,7 +46924,7 @@ deciles, etc.) which is useful when you want balanced category sizes.</p>
 Low-quality crosswalks have many small weights (fragmented boundaries).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>crosswalk_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with a weight column.</p>
+<dd class="field-odd"><p><strong>crosswalk_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with a weight column.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>AllocationEfficiencyMetrics.</p>
@@ -46922,7 +46944,7 @@ the origin GEOID forward through each step, accumulating weights.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>crosswalk_dfs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a><em>]</em><em>]</em>) – List of (source_year, target_year, crosswalk_df) tuples,
+<li><p><strong>crosswalk_dfs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a><em>]</em><em>]</em>) – List of (source_year, target_year, crosswalk_df) tuples,
 ordered chronologically.</p></li>
 <li><p><strong>origin_geoid</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Starting GEOID to track.</p></li>
 <li><p><strong>min_weight</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Minimum cumulative weight to continue tracking.</p></li>
@@ -46944,7 +46966,7 @@ ordered chronologically.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>crosswalk_dfs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a><em>]</em><em>]</em>) – List of (source_year, target_year, crosswalk_df) tuples.</p></li>
+<li><p><strong>crosswalk_dfs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a><em>]</em><em>]</em>) – List of (source_year, target_year, crosswalk_df) tuples.</p></li>
 <li><p><strong>geography_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Geography level name.</p></li>
 </ul>
 </dd>
@@ -46952,7 +46974,7 @@ ordered chronologically.</p></li>
 <dd class="field-even"><p>DataFrame with one row per transition and stability metrics.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -46966,7 +46988,7 @@ small weights, indicating significant boundary changes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>crosswalk_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with crosswalk relationships.</p></li>
+<li><p><strong>crosswalk_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with crosswalk relationships.</p></li>
 <li><p><strong>threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Maximum weight to consider “fragmented” (default 0.5).</p></li>
 <li><p><strong>top_n</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Return only the top N most volatile (None for all).</p></li>
 </ul>
@@ -47011,7 +47033,7 @@ metrics=[‘absolute’, ‘percent’, ‘cagr’]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with year-suffixed columns</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with year-suffixed columns</p></li>
 <li><p><strong>value_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Base variable name (without year suffix)</p></li>
 <li><p><strong>start_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Start year for comparison. If None, uses earliest year found.</p></li>
 <li><p><strong>end_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – End year for comparison. If None, uses latest year found.</p></li>
@@ -47056,7 +47078,7 @@ different absolute values.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with year-suffixed columns</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with year-suffixed columns</p></li>
 <li><p><strong>value_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Base variable name</p></li>
 <li><p><strong>base_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Year to use as index base. If None, uses earliest year.</p></li>
 <li><p><strong>index_value</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Value to set base year to (default: 100)</p></li>
@@ -47066,7 +47088,7 @@ different absolute values.</p>
 <dd class="field-even"><p>DataFrame with indexed columns (e.g., B19013_001E_index_2010)</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 <p class="rubric">Example</p>
@@ -47081,7 +47103,7 @@ different absolute values.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with year-suffixed columns</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with year-suffixed columns</p></li>
 <li><p><strong>value_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Base variable name</p></li>
 <li><p><strong>metrics</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – Metrics to calculate</p></li>
 </ul>
@@ -47090,7 +47112,7 @@ different absolute values.</p>
 <dd class="field-even"><p>DataFrame with changes between each pair of consecutive years</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -47102,7 +47124,7 @@ different absolute values.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with year-suffixed columns</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with year-suffixed columns</p></li>
 <li><p><strong>value_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Base variable name</p></li>
 <li><p><strong>start_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Start year</p></li>
 <li><p><strong>end_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – End year</p></li>
@@ -47709,7 +47731,7 @@ the origin GEOID forward through each step, accumulating weights.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>crosswalk_dfs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a><em>]</em><em>]</em>) – List of (source_year, target_year, crosswalk_df) tuples,
+<li><p><strong>crosswalk_dfs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a><em>]</em><em>]</em>) – List of (source_year, target_year, crosswalk_df) tuples,
 ordered chronologically.</p></li>
 <li><p><strong>origin_geoid</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Starting GEOID to track.</p></li>
 <li><p><strong>min_weight</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Minimum cumulative weight to continue tracking.</p></li>
@@ -47731,7 +47753,7 @@ ordered chronologically.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>crosswalk_dfs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a><em>]</em><em>]</em>) – List of (source_year, target_year, crosswalk_df) tuples.</p></li>
+<li><p><strong>crosswalk_dfs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a><em>]</em><em>]</em>) – List of (source_year, target_year, crosswalk_df) tuples.</p></li>
 <li><p><strong>geography_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Geography level name.</p></li>
 </ul>
 </dd>
@@ -47739,7 +47761,7 @@ ordered chronologically.</p></li>
 <dd class="field-even"><p>DataFrame with one row per transition and stability metrics.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -47752,7 +47774,7 @@ ordered chronologically.</p></li>
 Low-quality crosswalks have many small weights (fragmented boundaries).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>crosswalk_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with a weight column.</p>
+<dd class="field-odd"><p><strong>crosswalk_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with a weight column.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>AllocationEfficiencyMetrics.</p>
@@ -47770,7 +47792,7 @@ Low-quality crosswalks have many small weights (fragmented boundaries).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>crosswalk_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with columns: source_geoid, target_geoid, weight.</p></li>
+<li><p><strong>crosswalk_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with columns: source_geoid, target_geoid, weight.</p></li>
 <li><p><strong>source_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Earlier vintage year.</p></li>
 <li><p><strong>target_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Later vintage year.</p></li>
 <li><p><strong>geography_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Geography level name.</p></li>
@@ -47795,7 +47817,7 @@ small weights, indicating significant boundary changes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>crosswalk_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with crosswalk relationships.</p></li>
+<li><p><strong>crosswalk_df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with crosswalk relationships.</p></li>
 <li><p><strong>threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Maximum weight to consider “fragmented” (default 0.5).</p></li>
 <li><p><strong>top_n</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Return only the top N most volatile (None for all).</p></li>
 </ul>
@@ -47850,7 +47872,7 @@ adjusted = aligner.adjust_inflation(aligned, dollar_columns=[‘B19013_001E’],
 <dd><p>Aligned DataFrame with GEOIDs in the target vintage.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -47923,7 +47945,7 @@ adjusted = aligner.adjust_inflation(aligned, dollar_columns=[‘B19013_001E’],
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id506">
-<span class="sig-name descname"><span class="pre">data</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><span class="pre">pandas.DataFrame</span></a></span><a class="headerlink" href="#id506" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">data</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><span class="pre">pandas.DataFrame</span></a></span><a class="headerlink" href="#id506" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -47962,7 +47984,7 @@ adjusted = aligner.adjust_inflation(aligned, dollar_columns=[‘B19013_001E’],
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>data</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>)</p></li>
+<li><p><strong>data</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>)</p></li>
 <li><p><strong>source_vintage</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
 <li><p><strong>target_vintage</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
 <li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
@@ -48341,7 +48363,7 @@ deciles, etc.) which is useful when you want balanced category sizes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with change metrics</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with change metrics</p></li>
 <li><p><strong>change_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column containing change values</p></li>
 <li><p><strong>n_quantiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of quantiles (default: 5 for quintiles)</p></li>
 <li><p><strong>labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – Custom labels for quantiles. If None, uses:
@@ -48354,7 +48376,7 @@ deciles, etc.) which is useful when you want balanced category sizes.</p>
 <dd class="field-even"><p>DataFrame with quantile category column</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -48375,7 +48397,7 @@ classification within the dataset.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with change metrics</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with change metrics</p></li>
 <li><p><strong>change_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column containing change values</p></li>
 <li><p><strong>output_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name for the category column</p></li>
 </ul>
@@ -48384,7 +48406,7 @@ classification within the dataset.</p>
 <dd class="field-even"><p>DataFrame with z-score category column and z-score values</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -48396,7 +48418,7 @@ classification within the dataset.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with change metrics</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with change metrics</p></li>
 <li><p><strong>change_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column containing change values (typically percentage change)</p></li>
 <li><p><strong>thresholds</strong> (<a class="reference internal" href="#siege_utilities.geo.timeseries.trend_classifier.TrendThresholds" title="siege_utilities.geo.timeseries.trend_classifier.TrendThresholds"><em>TrendThresholds</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>] </em><em>| </em><em>None</em>) – Threshold configuration. Can be:
 - TrendThresholds object
@@ -48410,7 +48432,7 @@ classification within the dataset.</p>
 <dd class="field-even"><p>DataFrame with new trend_category column</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 <p class="rubric">Example</p>
@@ -48434,8 +48456,8 @@ thresholds=’conservative’</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df1</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – First DataFrame with trend classification</p></li>
-<li><p><strong>df2</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – Second DataFrame with trend classification</p></li>
+<li><p><strong>df1</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – First DataFrame with trend classification</p></li>
+<li><p><strong>df2</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – Second DataFrame with trend classification</p></li>
 <li><p><strong>trend_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of trend category column</p></li>
 <li><p><strong>geoid_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of GEOID column</p></li>
 </ul>
@@ -48444,7 +48466,7 @@ thresholds=’conservative’</p>
 <dd class="field-even"><p>DataFrame with comparison columns</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -48456,7 +48478,7 @@ thresholds=’conservative’</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with trend categories</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with trend categories</p></li>
 <li><p><strong>trend_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the trend category column</p></li>
 <li><p><strong>geoid_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the GEOID column</p></li>
 </ul>
@@ -48477,7 +48499,7 @@ thresholds=’conservative’</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame with change metrics</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame with change metrics</p></li>
 <li><p><strong>change_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column containing change values</p></li>
 <li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Outlier detection method:
 - ‘iqr’: Interquartile range method
@@ -48491,7 +48513,7 @@ thresholds=’conservative’</p>
 <dd class="field-even"><p>DataFrame with is_outlier and outlier_type columns</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -48555,7 +48577,7 @@ save_map                         – Save figure to file with sensible defaults<
 <dd><p>DataFrame of class-pair unit counts.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)">pandas.DataFrame</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)">pandas.DataFrame</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -48649,7 +48671,7 @@ save_map                         – Save figure to file with sensible defaults<
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id519">
-<span class="sig-name descname"><span class="pre">crosstab</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><span class="pre">pandas.DataFrame</span></a></span><a class="headerlink" href="#id519" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">crosstab</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><span class="pre">pandas.DataFrame</span></a></span><a class="headerlink" href="#id519" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -48695,7 +48717,7 @@ save_map                         – Save figure to file with sensible defaults<
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>bivariate_fig</strong> (<em>matplotlib.figure.Figure</em>)</p></li>
 <li><p><strong>bivariate_axes</strong> (<em>numpy.ndarray</em>)</p></li>
-<li><p><strong>crosstab</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>)</p></li>
+<li><p><strong>crosstab</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>)</p></li>
 <li><p><strong>crosstab_fig</strong> (<em>matplotlib.figure.Figure</em>)</p></li>
 <li><p><strong>crosstab_ax</strong> (<em>matplotlib.pyplot.Axes</em>)</p></li>
 <li><p><strong>companion_fig</strong> (<em>matplotlib.figure.Figure</em>)</p></li>
@@ -48723,7 +48745,7 @@ render using their platform’s native visualization.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.3)"><em>pandas.DataFrame</em></a>) – DataFrame (or GeoDataFrame) with a numeric column.</p></li>
+<li><p><strong>df</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.4)"><em>pandas.DataFrame</em></a>) – DataFrame (or GeoDataFrame) with a numeric column.</p></li>
 <li><p><strong>column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column name to classify.</p></li>
 <li><p><strong>scheme</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Classification scheme name.</p></li>
 <li><p><strong>k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of classes.</p></li>
@@ -48754,7 +48776,7 @@ _color: hex color string (if matplotlib available)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>values</strong> (<em>numpy.ndarray</em><em> | </em><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v3.0.3)"><em>pandas.Series</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>) – Numeric array, Series, or list.</p></li>
+<li><p><strong>values</strong> (<em>numpy.ndarray</em><em> | </em><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v3.0.4)"><em>pandas.Series</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>) – Numeric array, Series, or list.</p></li>
 <li><p><strong>scheme</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Classification scheme name (see AVAILABLE_SCHEMES).</p></li>
 <li><p><strong>k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of classes. Some schemes (percentiles, boxplot) ignore k.</p></li>
 </ul>
@@ -48783,7 +48805,7 @@ _color: hex color string (if matplotlib available)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>) – GeoDataFrame with geometry and two numeric columns.</p></li>
+<li><p><strong>gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>) – GeoDataFrame with geometry and two numeric columns.</p></li>
 <li><p><strong>var1</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column name for first variable (x-axis).</p></li>
 <li><p><strong>var2</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column name for second variable (y-axis).</p></li>
 <li><p><strong>title</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Title for the bivariate map.</p></li>
@@ -48817,7 +48839,7 @@ color index, rendered with a proper NxN legend grid.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>) – GeoDataFrame with geometry and two numeric columns.</p></li>
+<li><p><strong>gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>) – GeoDataFrame with geometry and two numeric columns.</p></li>
 <li><p><strong>var1</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column name for first variable (x-axis of legend).</p></li>
 <li><p><strong>var2</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column name for second variable (y-axis of legend).</p></li>
 <li><p><strong>title</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Map title.</p></li>
@@ -48850,7 +48872,7 @@ see each variable independently with the same classification.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>) – GeoDataFrame with geometry and two numeric columns.</p></li>
+<li><p><strong>gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>) – GeoDataFrame with geometry and two numeric columns.</p></li>
 <li><p><strong>var1</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column name for first variable (left map).</p></li>
 <li><p><strong>var2</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column name for second variable (right map).</p></li>
 <li><p><strong>n_classes</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of quantile classes (same as bivariate map).</p></li>
@@ -48877,7 +48899,7 @@ see each variable independently with the same classification.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>) – GeoDataFrame with two numeric columns.</p></li>
+<li><p><strong>gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>) – GeoDataFrame with two numeric columns.</p></li>
 <li><p><strong>var1</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column name for first variable (columns of crosstab).</p></li>
 <li><p><strong>var2</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column name for second variable (rows of crosstab).</p></li>
 <li><p><strong>n_classes</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of quantile classes per variable.</p></li>
@@ -48903,7 +48925,7 @@ If render=True: Tuple of (DataFrame, fig, ax).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>) – GeoDataFrame with geometry and a numeric column to visualize.</p></li>
+<li><p><strong>gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>) – GeoDataFrame with geometry and a numeric column to visualize.</p></li>
 <li><p><strong>column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column name to color by.</p></li>
 <li><p><strong>title</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Map title.</p></li>
 <li><p><strong>cmap</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Matplotlib colormap name.</p></li>
@@ -48937,7 +48959,7 @@ If render=True: Tuple of (DataFrame, fig, ax).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>) – GeoDataFrame with geometry and data columns.</p></li>
+<li><p><strong>gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>) – GeoDataFrame with geometry and data columns.</p></li>
 <li><p><strong>columns</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em><em>]</em>) – List of dicts, each with keys:
 - ‘column’ (required): Column name to visualize.
 - ‘title’ (optional): Subplot title.
@@ -48964,7 +48986,7 @@ If render=True: Tuple of (DataFrame, fig, ax).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>) – GeoDataFrame with geometry and a numeric column.</p></li>
+<li><p><strong>gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>) – GeoDataFrame with geometry and a numeric column.</p></li>
 <li><p><strong>column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column name to classify and visualize.</p></li>
 <li><p><strong>schemes</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – List of mapclassify scheme names (e.g. ‘quantiles’, ‘fisher_jenks’).</p></li>
 <li><p><strong>k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of classes for each scheme.</p></li>
@@ -49021,7 +49043,7 @@ complete, breakpoints are monotonic, and counts sum correctly.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.3)"><em>geopandas.GeoDataFrame</em></a>) – GeoDataFrame with two numeric columns.</p></li>
+<li><p><strong>gdf</strong> (<a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.1.4)"><em>geopandas.GeoDataFrame</em></a>) – GeoDataFrame with two numeric columns.</p></li>
 <li><p><strong>var1</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column name for first variable.</p></li>
 <li><p><strong>var2</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column name for second variable.</p></li>
 <li><p><strong>n_classes</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of quantile classes per variable.</p></li>
