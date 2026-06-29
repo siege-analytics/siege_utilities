@@ -181,11 +181,13 @@ class LegendManager:
             levels: Number of intensity levels (default 5)
             
         Returns:
-            ReportLab Table object or None if ReportLab not available
+            ReportLab Table object
         """
         if not REPORTLAB_AVAILABLE:
-            log.warning("ReportLab not available for legend table generation")
-            return None
+            raise ImportError(
+                "reportlab is required for legend table generation but is not installed. "
+                "Install it with: pip install reportlab"
+            )
 
         # Create legend data
         legend_data = [["Intensity", "Color", f"{value_name} Range"]]
