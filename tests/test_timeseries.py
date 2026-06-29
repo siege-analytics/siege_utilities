@@ -6,18 +6,12 @@ Tests longitudinal data fetching, change metrics, and trend classification.
 
 import pytest
 import pandas as pd
-import numpy as np
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-import tempfile
+from unittest.mock import MagicMock
 
 from siege_utilities.geo.timeseries import (
     # Longitudinal data
-    get_longitudinal_data,
     get_available_years,
     validate_longitudinal_years,
-    ACS5_AVAILABLE_YEARS,
-    DECENNIAL_YEARS,
     # Change metrics
     calculate_change_metrics,
     calculate_multi_period_changes,

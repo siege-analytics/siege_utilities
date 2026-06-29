@@ -5,11 +5,7 @@ Tests parsing, GEOID construction, caching, and data structure without
 making network calls (all downloads are mocked).
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
-from pathlib import Path
 
-import pandas as pd
 
 
 class TestPLFileDownloaderImport:

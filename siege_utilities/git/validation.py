@@ -13,7 +13,6 @@ Use these validators in all git operations to ensure secure command execution.
 import re
 import logging
 from pathlib import Path
-from typing import Optional
 
 # Get logger for this module
 log = logging.getLogger(__name__)
@@ -21,7 +20,6 @@ log = logging.getLogger(__name__)
 
 class GitSecurityError(Exception):
     """Raised when git input fails security validation."""
-    pass
 
 
 # Dangerous characters in git inputs

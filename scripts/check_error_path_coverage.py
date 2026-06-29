@@ -45,13 +45,40 @@ def _is_import_error_guard(node: ast.ExceptHandler) -> bool:
                 names.append(elt.id)
     if "ImportError" not in names and "ModuleNotFoundError" not in names:
         return False
-    # Check for the flag pattern: body is a single assignment of False.
-    if len(node.body) == 1:
-        stmt = node.body[0]
-        if isinstance(stmt, ast.Assign):
-            if isinstance(stmt.value, ast.Constant) and stmt.value.value is False:
-                return True
-    return False
+    # Availability-fallback pattern: the body is made up entirely of simple
+    # rebinds — assignments whose right-hand side is a literal constant, a
+    # bare name, or an attribute reference. This covers:
+    #   except ImportError: HAS_X = False
+    #   except ImportError: X = None; X_sql = None
+    #   except ImportError: Serializer = drf.ModelSerializer   # fallback class
+    # Such a handler only rebinds names to a fallback; it contains no
+    # error-handling logic (no calls, no re-raise, no computation), so it is a
+    # dependency guard and carries no error-path-test obligation.
+    #
+    # BOTH the target and the value are constrained:
+    #   * Target must be a bare NAME being rebound (``X = None``,
+    #     ``HAS_X = False``, ``Serializer = drf.ModelSerializer``). A subscript
+    #     or attribute target (``result['error'] = 'X not available'``,
+    #     ``self.err = ...``) is real error-handling logic that *records* a
+    #     failure into a structure — NOT a dependency rebind — so it keeps the
+    #     handler in scope as a real error site.
+    #   * Value (RHS) must be a literal constant, a bare name, or an attribute
+    #     reference. A value that *computes* a fallback (``x = build_stub()``)
+    #     keeps the handler in scope.
+    if not node.body:
+        return False
+    for stmt in node.body:
+        if not isinstance(stmt, (ast.Assign, ast.AnnAssign)):
+            return False
+        targets = stmt.targets if isinstance(stmt, ast.Assign) else [stmt.target]
+        if not all(isinstance(t, ast.Name) for t in targets):
+            return False
+        value = stmt.value
+        if value is None:  # bare annotation, e.g. ``x: int`` — not a rebind
+            return False
+        if not isinstance(value, (ast.Constant, ast.Name, ast.Attribute)):
+            return False
+    return True
 
 
 def _is_finally_cleanup(node: ast.ExceptHandler) -> bool:

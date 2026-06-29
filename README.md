@@ -6,7 +6,7 @@
 
 `siege_utilities` is the shared utilities library behind Siege Analytics workflows:
 
-- Geospatial + GeoDjango boundary/data services (tiered: `[geo-lite]` / `[geo]` / `[geodjango]`)
+- Geospatial + GeoDjango boundary/data services (`[geo]` pure-Python, no system GDAL; `[geodjango]` PostGIS; `[gdal]` native OSGeo bindings)
 - Google Workspace write APIs (Sheets, Docs, Slides, Drive) with multi-account management
 - Census API/data selection/crosswalk tooling
 - Isochrone analysis with configurable CRS and domain exceptions
@@ -32,7 +32,7 @@ They are designed to work together (the ZSH config sets up `SPARK_HOME`, `JAVA_H
 | 3.13 | **Supported** | Allow-failure while stabilizing |
 | 3.14 | **Experimental** | Not yet in CI (awaiting ecosystem wheels) |
 
-The library requires Python 3.11+. Geospatial extras (`[geo]`, `[geodjango]`) depend on C-extension packages (GDAL/GEOS/PROJ bindings) whose wheel availability varies by Python version — check PyPI for your target version before installing.
+The library requires Python 3.11+. The `[geo]` extra installs a pure-Python geospatial stack (GeoPandas, Shapely, Fiona, PyProj) whose wheels bundle their own GDAL/GEOS/PROJ — so `[geo]` needs **no system GDAL**. The native OSGeo bindings (`from osgeo import gdal`) are a separate opt-in `[gdal]` extra that requires a system libgdal matching the wheel version (see [Installation Options](#installation-options)). GeoDjango/PostGIS (`[geodjango]`) loads the system libgdal at runtime.
 
 ## Install
 
@@ -406,9 +406,8 @@ report_gen.generate_pdf_report(report_content, output_path="report.pdf")
 pip install siege-utilities
 
 # Add extras for what you need
-pip install siege-utilities[geo-lite]         # shapely, pyproj, geopy (no GDAL needed)
-pip install siege-utilities[geo]              # geo-lite + geopandas, fiona, rtree, tobler (needs GDAL)
-pip install siege-utilities[geodjango]        # geo + Django, DRF, PostGIS
+pip install siege-utilities[geo]              # geopandas, fiona, shapely, pyproj, tobler, pysal — NO system GDAL needed (bundled wheels)
+pip install siege-utilities[geodjango]        # geo use + Django, DRF, PostGIS (system libgdal at runtime)
 pip install siege-utilities[data]             # pandas, numpy, openpyxl, faker
 pip install siege-utilities[reporting]        # matplotlib, seaborn, folium, plotly, reportlab
 pip install siege-utilities[analytics]        # GA4, Facebook, Snowflake, scipy, scikit-learn
@@ -416,7 +415,14 @@ pip install siege-utilities[distributed]      # PySpark, Apache Sedona
 pip install siege-utilities[config-extras]    # Hydra, hydra-zen, omegaconf
 pip install siege-utilities[web]              # BeautifulSoup, lxml
 pip install siege-utilities[database]         # SQLAlchemy, psycopg2
-pip install siege-utilities[all]              # Everything
+pip install siege-utilities[all]              # Everything (no system GDAL; add [gdal] separately for osgeo)
+
+# Native OSGeo bindings (only if you import `osgeo` directly) — pin to your
+# system libgdal; this is the path CI exercises. A bare [geo,gdal] resolves
+# the newest gdal in >=3.6,<4 and fails to build against an older libgdal.
+sudo apt-get install -y gdal-bin libgdal-dev   # or: brew install gdal
+pip install siege-utilities[geo]
+pip install "gdal==$(gdal-config --version)"
 
 # Combine extras
 pip install siege-utilities[data,geo,reporting]

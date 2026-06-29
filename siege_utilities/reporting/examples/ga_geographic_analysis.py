@@ -13,17 +13,12 @@ Requirements:
 """
 
 import pandas as pd
-import numpy as np
-from pathlib import Path
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 import logging
 import tempfile
 
 # Geographic imports
 try:
-    import geopandas as gpd
-    from shapely.geometry import Point
     GEOPANDAS_AVAILABLE = True
 except ImportError:
     GEOPANDAS_AVAILABLE = False
@@ -31,7 +26,6 @@ except ImportError:
 # Plotting imports
 try:
     import matplotlib.pyplot as plt
-    import matplotlib.colors as mcolors
     from matplotlib.patches import Patch
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
@@ -39,15 +33,14 @@ except ImportError:
 
 try:
     import folium
-    from folium.plugins import HeatMap, MarkerCluster
+    from folium.plugins import HeatMap
     FOLIUM_AVAILABLE = True
 except ImportError:
     FOLIUM_AVAILABLE = False
 
 # siege_utilities imports
 try:
-    from siege_utilities.geo import get_geographic_boundaries, get_census_data_with_geometry
-    from siege_utilities.geo.geocoding import use_nominatim_geocoder
+    from siege_utilities.geo import get_geographic_boundaries
     from siege_utilities.geo.census_api_client import CensusAPIClient
     GEO_AVAILABLE = True
 except ImportError:

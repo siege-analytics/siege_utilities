@@ -37,7 +37,12 @@ __all__ = [
 class ContentPageTemplate:
     """Professional content page generator for siege utilities reports"""
     
-    def __init__(self, canvas_obj: canvas.Canvas, page_size: tuple = letter):
+    def __init__(self, canvas_obj: "canvas.Canvas", page_size: tuple = letter):
+        if not REPORTLAB_AVAILABLE:
+            raise ImportError(
+                "reportlab is required for PDF content pages but is not installed. "
+                "Install it with: pip install reportlab"
+            )
         self.canvas = canvas_obj
         self.page_size = page_size
         self.width, self.height = page_size
@@ -375,7 +380,7 @@ class ContentPageTemplate:
         self.canvas.drawString(page_x, 15, page_text)
 
 
-def create_content_page(canvas_obj: canvas.Canvas,
+def create_content_page(canvas_obj: "canvas.Canvas",
                        page_title: str,
                        page_number: int,
                        content_sections: List[Dict[str, Any]],

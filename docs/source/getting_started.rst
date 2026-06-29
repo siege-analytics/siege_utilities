@@ -11,17 +11,20 @@ Installation
 
 .. code-block:: bash
 
-   # Core (lightweight, no geospatial C deps)
+   # Core (lightweight, no geospatial deps)
    pip install siege-utilities
 
-   # Geo-lite (shapely, pyproj, geopy — no GDAL)
-   pip install siege-utilities[geo-lite]
-
-   # Full geospatial (requires GDAL/GEOS/PROJ system libraries)
+   # Geospatial — geopandas, shapely, pyproj, fiona, pysal, etc.
+   # Pure-Python (bundled-GDAL wheels); needs NO system GDAL.
    pip install siege-utilities[geo]
 
-   # GeoDjango spatial platform
+   # GeoDjango spatial platform (system libgdal at runtime + PostgreSQL)
    pip install siege-utilities[geodjango]
+
+   # Native OSGeo bindings (only if you import `osgeo` directly) — pin to your
+   # system libgdal; this is the path CI exercises.
+   pip install siege-utilities[geo]
+   pip install "gdal==$(gdal-config --version)"
 
 Quick Start: The Composition Chain
 ----------------------------------

@@ -158,7 +158,7 @@ def main():
                     log_funcs = [f for f in all_funcs if f.startswith('log_')]
                     file_funcs = [f for f in all_funcs if 'file' in f.lower()]
 
-                    print(f"📊 Function categories:")
+                    print("📊 Function categories:")
                     print(f"   🪵 Logging functions: {len(log_funcs)}")
                     print(f"   📁 File functions: {len(file_funcs)}")
 
@@ -221,12 +221,12 @@ def main():
         module_results[module_name] = result
 
         if result['success']:
-            print(f"   ✅ Imported successfully")
+            print("   ✅ Imported successfully")
             print(f"   📊 {len(result['functions'])} functions found")
 
             # Check function dependencies
             if result['functions']:
-                print(f"   🔍 Checking function dependencies...")
+                print("   🔍 Checking function dependencies...")
                 for func_name in result['functions'][:3]:  # Check first 3 functions
                     missing = check_function_dependencies(result['module'], func_name)
                     if missing:

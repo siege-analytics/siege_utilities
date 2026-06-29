@@ -12,8 +12,8 @@ This module provides comprehensive Facebook Business integration capabilities:
 import json
 import logging
 import pathlib
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List, Union
+from datetime import datetime
+from typing import Dict, Any, Optional, List
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ except ImportError:
 
 # Import logging functions from main package
 try:
-    from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
+    from siege_utilities.core.logging import log_info, log_warning, log_error, log_debug
 except ImportError:
     # Fallback if main package not available yet
     def log_info(message): pass
@@ -88,7 +88,7 @@ class FacebookBusinessConnector:
             FacebookAdsApi.init(access_token=access_token)
 
         self.api = FacebookAdsApi.get_default_api()
-        log_info(f"Initialized Facebook Business connector")
+        log_info("Initialized Facebook Business connector")
 
     def get_ad_accounts(self) -> List[Dict[str, Any]]:
         """

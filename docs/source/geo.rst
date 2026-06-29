@@ -12,23 +12,32 @@ The geographic utilities package provides comprehensive tools for working with g
    api/siege_utilities/geo/census_dataset_mapper
    api/siege_utilities/geo/census_data_selector
 
-Tiered Installation
--------------------
+Installation
+------------
 
-The geo package uses a three-tier extras system so you only install what you need:
+The geo package installs as a pure-Python stack — its wheels bundle their own
+GDAL/GEOS/PROJ, so it needs no system GDAL. The native OSGeo bindings are a
+separate opt-in extra:
 
 .. code-block:: bash
 
-   # Tier 1: Lightweight (no GDAL/GEOS system deps)
-   pip install siege-utilities[geo-lite]    # shapely, pyproj, geopy, censusgeocode
+   # Geospatial (geopandas, fiona, shapely, pyproj, rtree, tobler, osmnx, pysal)
+   pip install siege-utilities[geo]         # NO system GDAL required
 
-   # Tier 2: Full geospatial (requires GDAL/GEOS/PROJ)
-   pip install siege-utilities[geo]         # geo-lite + geopandas, fiona, rtree, tobler, osmnx
+   # GeoDjango spatial platform (system libgdal at runtime + PostgreSQL)
+   pip install siege-utilities[geodjango]   # geo use + Django, DRF-GIS, psycopg2
 
-   # Tier 3: GeoDjango spatial platform
-   pip install siege-utilities[geodjango]   # geo + Django, DRF-GIS, psycopg2
+   # Native OSGeo bindings (only if you import `osgeo` directly) — pin to your
+   # system libgdal; the path CI exercises. A bare [geo,gdal] resolves the
+   # newest gdal in >=3.6,<4 and fails to build against an older libgdal.
+   pip install siege-utilities[geo]
+   pip install "gdal==$(gdal-config --version)"
 
-**Runtime capability detection**:
+**Runtime capability detection** reports what is actually importable as a tier
+(``"geodjango"``, ``"geo"``, ``"geo-lite"``, or ``"none"``) — distinct from the
+pip extras above. The ``"geo-lite"`` tier means the lightweight subset
+(shapely/pyproj) is present but GeoPandas is not; it is a detected capability
+level, not a pip extra.
 
 .. code-block:: python
 
@@ -37,10 +46,10 @@ The geo package uses a three-tier extras system so you only install what you nee
    caps = geo_capabilities()
    # {'shapely': True, 'pyproj': True, 'geopandas': False, 'fiona': False, ...}
 
-Functions that require full ``[geo]`` dependencies will raise ``ImportError`` with
-installation instructions when called from a ``[geo-lite]`` environment. See
-``docs/MANAGED_ENVIRONMENTS.md`` for setup guides for Azure Databricks, Google Colab,
-and AWS SageMaker.
+Functions that require full ``[geo]`` dependencies raise ``ImportError`` with
+installation instructions when GeoPandas is unavailable (the ``"geo-lite"``
+capability tier). See ``docs/MANAGED_ENVIRONMENTS.md`` for setup guides for
+Azure Databricks, Google Colab, and AWS SageMaker.
 
 Isochrones and CRS
 ------------------
@@ -135,17 +144,14 @@ Installation
 
 .. code-block:: bash
 
-   # Lightweight (no GDAL required)
-   pip install siege-utilities[geo-lite]
-
-   # Full geospatial
+   # Geospatial — pure-Python (bundled-GDAL wheels), no system GDAL required
    pip install siege-utilities[geo]
 
-   # Full + Django/PostGIS
+   # Geospatial + Django/PostGIS (system libgdal at runtime)
    pip install siege-utilities[geodjango]
 
    # Development
-   pip install siege-utilities[geo,testing]
+   pip install siege-utilities[geo,dev]
 
 Quick Start
 ----------

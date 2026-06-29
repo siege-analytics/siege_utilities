@@ -7,7 +7,6 @@ strict year validation, and GEOID preservation.
 
 import pytest
 import pandas as pd
-import numpy as np
 import geopandas as gpd
 from shapely.geometry import box
 from unittest.mock import patch, MagicMock
@@ -251,6 +250,8 @@ class TestStrictYearsValidation:
 
         # Should only have fetched for 2020 (2099 filtered out)
         assert mock_client.fetch_data.call_count == 1
+        # The skip path must still return the data for the available year.
+        assert result is not None
 
     @patch('siege_utilities.geo.census_api_client.CensusAPIClient')
     def test_strict_years_raises_on_fetch_failure(self, mock_client_cls):
