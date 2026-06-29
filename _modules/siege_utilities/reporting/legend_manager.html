@@ -9052,11 +9052,13 @@
 <span class="sd">            levels: Number of intensity levels (default 5)</span>
 <span class="sd">            </span>
 <span class="sd">        Returns:</span>
-<span class="sd">            ReportLab Table object or None if ReportLab not available</span>
+<span class="sd">            ReportLab Table object</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">REPORTLAB_AVAILABLE</span><span class="p">:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;ReportLab not available for legend table generation&quot;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+                <span class="s2">&quot;reportlab is required for legend table generation but is not installed. &quot;</span>
+                <span class="s2">&quot;Install it with: pip install reportlab&quot;</span>
+            <span class="p">)</span>
 
         <span class="c1"># Create legend data</span>
         <span class="n">legend_data</span> <span class="o">=</span> <span class="p">[[</span><span class="s2">&quot;Intensity&quot;</span><span class="p">,</span> <span class="s2">&quot;Color&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">value_name</span><span class="si">}</span><span class="s2"> Range&quot;</span><span class="p">]]</span>
