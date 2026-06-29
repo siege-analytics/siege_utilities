@@ -50,6 +50,14 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 
+def _require_reportlab() -> None:
+    if not REPORTLAB_AVAILABLE:
+        raise ImportError(
+            "reportlab is required for PDF chart generation but is not installed. "
+            "Install it with: pip install reportlab"
+        )
+
+
 def _rl_image_from_data_uri(data_uri: str, width_pts: float, height_pts: float) -> "Image":
     """Build a ReportLab Image from a base64 ``data:`` URI.
 
@@ -288,6 +296,7 @@ class BaseChartEngine:
         Returns:
             ReportLab Image object
         """
+        _require_reportlab()
         try:
             # Save vector copy if requested (before closing the figure)
             if vector_export_path is not None:
@@ -357,6 +366,7 @@ class BaseChartEngine:
         Returns:
             ReportLab Image object
         """
+        _require_reportlab()
         try:
             # Create a simple placeholder using matplotlib
             if MATPLOTLIB_AVAILABLE:
@@ -398,6 +408,7 @@ class BaseChartEngine:
         Returns:
             List containing chart and caption
         """
+        _require_reportlab()
         if caption_style is None:
             caption_style = 'Caption' if 'Caption' in self.styles else 'Normal'
 
@@ -418,6 +429,7 @@ class BaseChartEngine:
         Returns:
             List of flowables for the section
         """
+        _require_reportlab()
         section = []
 
         # Add title

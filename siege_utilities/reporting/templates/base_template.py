@@ -63,6 +63,11 @@ class BaseReportTemplate:
             page_size: Page size ('letter' or 'A4')
             margins: Custom margins in inches (top, bottom, left, right)
         """
+        if not REPORTLAB_AVAILABLE:
+            raise ImportError(
+                "reportlab is required for PDF report generation but is not installed. "
+                "Install it with: pip install reportlab"
+            )
         self.output_filename = output_filename
         self.branding_config_path = branding_config_path
         self.page_size = self._get_page_size(page_size)
