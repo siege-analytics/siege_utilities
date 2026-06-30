@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.config.databases &mdash; Siege Utilities 3.23.0 documentation</title>
+  <title>siege_utilities.analytics.scoring &mdash; Siege Utilities 3.23.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
@@ -8873,7 +8873,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
-      <li class="breadcrumb-item active">siege_utilities.config.databases</li>
+      <li class="breadcrumb-item active">siege_utilities.analytics.scoring</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -8882,467 +8882,274 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <h1>Source code for siege_utilities.config.databases</h1><div class="highlight"><pre>
+  <h1>Source code for siege_utilities.analytics.scoring</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Simple database configuration management for siege_utilities.</span>
-<span class="sd">Handles database connection settings for Spark and other uses.</span>
+<span class="sd">Multi-dimensional entity health scoring.</span>
+
+<span class="sd">Composable weighted-dimension scorer for evaluating entities across</span>
+<span class="sd">configurable dimensions with segment-aware thresholds and trend detection.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">urllib.parse</span><span class="w"> </span><span class="kn">import</span> <span class="n">quote_plus</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s1">&#39;create_database_config&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;save_database_config&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;load_database_config&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;get_spark_database_options&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;test_database_connection&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;list_database_configs&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;create_spark_session_with_databases&#39;</span><span class="p">,</span>
-<span class="p">]</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
-<span class="c1"># Import logging functions from core logging module</span>
-<span class="k">try</span><span class="p">:</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.core.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">log_info</span><span class="p">,</span> <span class="n">log_warning</span><span class="p">,</span> <span class="n">log_error</span><span class="p">,</span> <span class="n">log_debug</span>
-<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-    <span class="c1"># Fallback if core logging not available yet</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">log_info</span><span class="p">(</span><span class="n">message</span><span class="p">):</span> <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">log_warning</span><span class="p">(</span><span class="n">message</span><span class="p">):</span> <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">log_error</span><span class="p">(</span><span class="n">message</span><span class="p">):</span> <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">log_debug</span><span class="p">(</span><span class="n">message</span><span class="p">):</span> <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Dimension">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.Dimension">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Dimension</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A scoring dimension with a name and weight (0-100).&quot;&quot;&quot;</span>
+
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">weight</span><span class="p">:</span> <span class="nb">float</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Dimension name must not be empty&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">&lt;=</span> <span class="mi">100</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Dimension weight must be in (0, 100], got </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span></div>
 
 
-<span class="n">_ENV_VAR_RE</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?$&#39;</span><span class="p">)</span>
 
+<div class="viewcode-block" id="ThresholdConfig">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ThresholdConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ThresholdConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Tier thresholds for score classification.</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_resolve_env_var</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Resolve ``$VAR`` or ``${VAR}`` references from the environment.&quot;&quot;&quot;</span>
-    <span class="n">m</span> <span class="o">=</span> <span class="n">_ENV_VAR_RE</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
-        <span class="n">env_name</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">resolved</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">env_name</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">resolved</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">EnvironmentError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Environment variable </span><span class="si">{</span><span class="n">env_name</span><span class="si">!r}</span><span class="s2"> is not set&quot;</span>
+<span class="sd">    Scores &gt;= green_min are Green, &gt;= yellow_min are Yellow, else Red.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">green_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">70.0</span>
+    <span class="n">yellow_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">40.0</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">yellow_min</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">green_min</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;yellow_min (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">yellow_min</span><span class="si">}</span><span class="s2">) must be less than &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;green_min (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">green_min</span><span class="si">}</span><span class="s2">)&quot;</span>
             <span class="p">)</span>
-        <span class="k">return</span> <span class="n">resolved</span>
-    <span class="k">return</span> <span class="n">value</span>
+
+<div class="viewcode-block" id="ThresholdConfig.classify">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ThresholdConfig.classify">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">classify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">score</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">score</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">green_min</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;Green&quot;</span>
+        <span class="k">if</span> <span class="n">score</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">yellow_min</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;Yellow&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;Red&quot;</span></div>
+</div>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_is_env_ref</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return True if *value* is an env-var reference like ``$VAR`` or ``${VAR}``.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">_ENV_VAR_RE</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+
+<div class="viewcode-block" id="EntityScore">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.EntityScore">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">EntityScore</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of scoring an entity.&quot;&quot;&quot;</span>
+
+    <span class="n">entity_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">composite_score</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">tier</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">dimension_scores</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+    <span class="n">segment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">trend</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">trend_direction</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></div>
 
 
-<div class="viewcode-block" id="create_database_config">
-<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.databases.create_database_config">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">create_database_config</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">connection_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">host</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">port</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-                           <span class="n">database</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">username</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">password</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Create a database connection configuration.</span>
 
-<span class="sd">    Args:</span>
-<span class="sd">        name: Friendly name for the connection</span>
-<span class="sd">        connection_type: Database type (postgres, mysql, oracle, etc.)</span>
-<span class="sd">        host: Database host</span>
-<span class="sd">        port: Database port</span>
-<span class="sd">        database: Database name</span>
-<span class="sd">        username: Username</span>
-<span class="sd">        password: Password</span>
-<span class="sd">        **kwargs: Additional connection parameters</span>
+<div class="viewcode-block" id="HealthScorer">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.HealthScorer">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">HealthScorer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Weighted multi-dimensional entity scorer.</span>
 
-<span class="sd">    Returns:</span>
-<span class="sd">        Database configuration dictionary</span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    dimensions : list[Dimension]</span>
+<span class="sd">        Scoring dimensions. Weights must sum to 100.</span>
+<span class="sd">    default_thresholds : ThresholdConfig, optional</span>
+<span class="sd">        Default tier thresholds. Can be overridden per-segment.</span>
+<span class="sd">    segment_thresholds : dict[str, ThresholdConfig], optional</span>
+<span class="sd">        Per-segment threshold overrides.</span>
 
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; import siege_utilities  # doctest: +SKIP</span>
-<span class="sd">        &gt;&gt;&gt; db_config = siege_utilities.create_database_config(  # doctest: +SKIP</span>
-<span class="sd">        ...     &quot;analytics_db&quot;,</span>
-<span class="sd">        ...     &quot;postgres&quot;,</span>
-<span class="sd">        ...     &quot;localhost&quot;,</span>
-<span class="sd">        ...     5432,</span>
-<span class="sd">        ...     &quot;analytics&quot;,</span>
-<span class="sd">        ...     &quot;user&quot;,</span>
-<span class="sd">        ...     &quot;password&quot;</span>
-<span class="sd">        ... )</span>
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If dimensions is empty or weights don&#39;t sum to 100.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">safe_host</span> <span class="o">=</span> <span class="n">quote_plus</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">host</span><span class="p">))</span>
-    <span class="n">safe_db</span> <span class="o">=</span> <span class="n">quote_plus</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">database</span><span class="p">))</span>
-
-    <span class="n">jdbc_urls</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s1">&#39;postgres&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;jdbc:postgresql://</span><span class="si">{</span><span class="n">safe_host</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">safe_db</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-        <span class="s1">&#39;mysql&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;jdbc:mysql://</span><span class="si">{</span><span class="n">safe_host</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">safe_db</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-        <span class="s1">&#39;oracle&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;jdbc:oracle:thin:@</span><span class="si">{</span><span class="n">safe_host</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">safe_db</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-        <span class="s1">&#39;sqlserver&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;jdbc:sqlserver://</span><span class="si">{</span><span class="n">safe_host</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s2">;databaseName=</span><span class="si">{</span><span class="n">safe_db</span><span class="si">}</span><span class="s2">&quot;</span>
-    <span class="p">}</span>
-
-    <span class="n">jdbc_drivers</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s1">&#39;postgres&#39;</span><span class="p">:</span> <span class="s1">&#39;org.postgresql.Driver&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;mysql&#39;</span><span class="p">:</span> <span class="s1">&#39;com.mysql.cj.jdbc.Driver&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;oracle&#39;</span><span class="p">:</span> <span class="s1">&#39;oracle.jdbc.driver.OracleDriver&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;sqlserver&#39;</span><span class="p">:</span> <span class="s1">&#39;com.microsoft.sqlserver.jdbc.SQLServerDriver&#39;</span>
-    <span class="p">}</span>
-
-    <span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
-        <span class="s1">&#39;connection_type&#39;</span><span class="p">:</span> <span class="n">connection_type</span><span class="p">,</span>
-        <span class="s1">&#39;host&#39;</span><span class="p">:</span> <span class="n">host</span><span class="p">,</span>
-        <span class="s1">&#39;port&#39;</span><span class="p">:</span> <span class="n">port</span><span class="p">,</span>
-        <span class="s1">&#39;database&#39;</span><span class="p">:</span> <span class="n">database</span><span class="p">,</span>
-        <span class="s1">&#39;username&#39;</span><span class="p">:</span> <span class="n">username</span><span class="p">,</span>
-        <span class="s1">&#39;password&#39;</span><span class="p">:</span> <span class="n">password</span><span class="p">,</span>  <span class="c1"># Note: In production, this should be encrypted</span>
-        <span class="s1">&#39;jdbc_url&#39;</span><span class="p">:</span> <span class="n">jdbc_urls</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">connection_type</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="sa">f</span><span class="s2">&quot;jdbc:</span><span class="si">{</span><span class="n">connection_type</span><span class="si">}</span><span class="s2">://</span><span class="si">{</span><span class="n">host</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">database</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">),</span>
-        <span class="s1">&#39;jdbc_driver&#39;</span><span class="p">:</span> <span class="n">jdbc_drivers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">connection_type</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="sa">f</span><span class="s2">&quot;com.</span><span class="si">{</span><span class="n">connection_type</span><span class="si">}</span><span class="s2">.jdbc.Driver&quot;</span><span class="p">),</span>
-        <span class="s1">&#39;connection_params&#39;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s1">&#39;ssl_mode&#39;</span><span class="p">:</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ssl_mode&#39;</span><span class="p">),</span>
-            <span class="s1">&#39;timeout&#39;</span><span class="p">:</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;timeout&#39;</span><span class="p">,</span> <span class="mi">30</span><span class="p">),</span>
-            <span class="s1">&#39;pool_size&#39;</span><span class="p">:</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;pool_size&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
-        <span class="p">},</span>
-        <span class="s1">&#39;spark_options&#39;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s1">&#39;fetchsize&#39;</span><span class="p">:</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;fetchsize&#39;</span><span class="p">,</span> <span class="s1">&#39;1000&#39;</span><span class="p">),</span>
-            <span class="s1">&#39;batchsize&#39;</span><span class="p">:</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;batchsize&#39;</span><span class="p">,</span> <span class="s1">&#39;10000&#39;</span><span class="p">)</span>
-        <span class="p">}</span>
-    <span class="p">}</span>
-
-    <span class="c1"># Add any additional custom parameters</span>
-    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;ssl_mode&#39;</span><span class="p">,</span> <span class="s1">&#39;timeout&#39;</span><span class="p">,</span> <span class="s1">&#39;pool_size&#39;</span><span class="p">,</span> <span class="s1">&#39;fetchsize&#39;</span><span class="p">,</span> <span class="s1">&#39;batchsize&#39;</span><span class="p">]:</span>
-            <span class="n">config</span><span class="p">[</span><span class="s1">&#39;connection_params&#39;</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
-
-    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Created database config: </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">connection_type</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">config</span></div>
-
-
-
-<div class="viewcode-block" id="save_database_config">
-<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.databases.save_database_config">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">save_database_config</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">config_directory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;config&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Save database configuration to JSON file.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        config: Database configuration dictionary</span>
-<span class="sd">        config_directory: Directory to save config files</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Path to saved config file</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; db_config = create_database_config(&quot;my_db&quot;, &quot;postgres&quot;, &quot;localhost&quot;, 5432, &quot;testdb&quot;, &quot;user&quot;, &quot;pass&quot;)  # doctest: +SKIP</span>
-<span class="sd">        &gt;&gt;&gt; file_path = siege_utilities.save_database_config(db_config)  # doctest: +SKIP</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="n">config_dir</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">config_directory</span><span class="p">)</span>
-    <span class="n">config_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-    <span class="n">db_name</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">db_name</span> <span class="ow">or</span> <span class="s1">&#39;/&#39;</span> <span class="ow">in</span> <span class="n">db_name</span> <span class="ow">or</span> <span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span> <span class="ow">in</span> <span class="n">db_name</span> <span class="ow">or</span> <span class="s1">&#39;..&#39;</span> <span class="ow">in</span> <span class="n">db_name</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid database name for filename: </span><span class="si">{</span><span class="n">db_name</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="n">config_file</span> <span class="o">=</span> <span class="n">config_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;database_</span><span class="si">{</span><span class="n">db_name</span><span class="si">}</span><span class="s2">.json&quot;</span>
-
-    <span class="n">safe_config</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
-    <span class="n">password</span> <span class="o">=</span> <span class="n">safe_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;password&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">password</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">_is_env_ref</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">password</span><span class="p">)):</span>
-        <span class="n">env_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;DB_</span><span class="si">{</span><span class="n">db_name</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="si">}</span><span class="s2">_PASSWORD&quot;</span>
-        <span class="n">log_warning</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Plaintext password replaced with env var reference $</span><span class="se">{{</span><span class="si">{</span><span class="n">env_name</span><span class="si">}</span><span class="se">}}</span><span class="s2">. &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;Set this variable in your environment before loading the config.&quot;</span>
-        <span class="p">)</span>
-        <span class="n">safe_config</span><span class="p">[</span><span class="s1">&#39;password&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;$</span><span class="se">{{</span><span class="si">{</span><span class="n">env_name</span><span class="si">}</span><span class="se">}}</span><span class="s2">&quot;</span>
-
-    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">config_file</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">safe_config</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-
-    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saved database config to: </span><span class="si">{</span><span class="n">config_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">config_file</span><span class="p">)</span></div>
-
-
-
-<div class="viewcode-block" id="load_database_config">
-<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.databases.load_database_config">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">load_database_config</span><span class="p">(</span><span class="n">db_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">config_directory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;config&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Load database configuration from JSON file.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        db_name: Database configuration name to load</span>
-<span class="sd">        config_directory: Directory containing config files</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Database configuration dictionary.</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        FileNotFoundError: If the database config file does not exist.</span>
-<span class="sd">        json.JSONDecodeError: If the file contains invalid JSON.</span>
-<span class="sd">        OSError: If the file cannot be read.</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; db_config = siege_utilities.load_database_config(&quot;analytics_db&quot;)  # doctest: +SKIP</span>
-<span class="sd">        &gt;&gt;&gt; print(f&quot;Database: {db_config[&#39;database&#39;]}&quot;)  # doctest: +SKIP</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="n">config_file</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">config_directory</span><span class="p">)</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;database_</span><span class="si">{</span><span class="n">db_name</span><span class="si">}</span><span class="s2">.json&quot;</span>
-
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">config_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Database config not found: </span><span class="si">{</span><span class="n">config_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">config_file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-        <span class="n">config</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-
-    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;username&#39;</span><span class="p">,</span> <span class="s1">&#39;password&#39;</span><span class="p">):</span>
-        <span class="n">val</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">_is_env_ref</span><span class="p">(</span><span class="n">val</span><span class="p">):</span>
-            <span class="n">config</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">_resolve_env_var</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
-
-    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded database config: </span><span class="si">{</span><span class="n">db_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">config</span></div>
-
-
-
-<div class="viewcode-block" id="get_spark_database_options">
-<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.databases.get_spark_database_options">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">get_spark_database_options</span><span class="p">(</span><span class="n">db_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">config_directory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;config&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Get Spark-compatible options for database connection.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        db_name: Database configuration name</span>
-<span class="sd">        config_directory: Directory containing config files</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Dictionary of Spark options.</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        FileNotFoundError: If the database config does not exist.</span>
-<span class="sd">        KeyError: If the config is missing required keys.</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; spark_options = siege_utilities.get_spark_database_options(&quot;analytics_db&quot;)  # doctest: +SKIP</span>
-<span class="sd">        &gt;&gt;&gt; df = spark.read.format(&quot;jdbc&quot;).options(**spark_options).option(&quot;dbtable&quot;, &quot;users&quot;).load()  # doctest: +SKIP</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="n">config</span> <span class="o">=</span> <span class="n">load_database_config</span><span class="p">(</span><span class="n">db_name</span><span class="p">,</span> <span class="n">config_directory</span><span class="p">)</span>
-
-    <span class="n">required_keys</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;jdbc_url&#39;</span><span class="p">,</span> <span class="s1">&#39;jdbc_driver&#39;</span><span class="p">,</span> <span class="s1">&#39;username&#39;</span><span class="p">,</span> <span class="s1">&#39;password&#39;</span><span class="p">)</span>
-    <span class="n">missing</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">required_keys</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">config</span><span class="p">]</span>
-    <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Database config </span><span class="si">{</span><span class="n">db_name</span><span class="si">!r}</span><span class="s2"> missing required keys: </span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="p">)</span>
-
-    <span class="n">spark_options</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;jdbc_url&#39;</span><span class="p">],</span>
-        <span class="s1">&#39;driver&#39;</span><span class="p">:</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;jdbc_driver&#39;</span><span class="p">],</span>
-        <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;username&#39;</span><span class="p">],</span>
-        <span class="s1">&#39;password&#39;</span><span class="p">:</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;password&#39;</span><span class="p">]</span>
-    <span class="p">}</span>
-
-    <span class="n">spark_options</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;spark_options&#39;</span><span class="p">,</span> <span class="p">{}))</span>
-
-    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Retrieved Spark options for database: </span><span class="si">{</span><span class="n">db_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">spark_options</span></div>
-
-
-
-<div class="viewcode-block" id="test_database_connection">
-<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.databases.test_database_connection">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">test_database_connection</span><span class="p">(</span><span class="n">db_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">config_directory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;config&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Test database connection (basic connectivity check).</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        db_name: Database configuration name</span>
-<span class="sd">        config_directory: Directory containing config files</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        True if connection successful, False otherwise</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; if siege_utilities.test_database_connection(&quot;analytics_db&quot;):  # doctest: +SKIP</span>
-<span class="sd">        ...     print(&quot;Database connection successful!&quot;)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="n">config</span> <span class="o">=</span> <span class="n">load_database_config</span><span class="p">(</span><span class="n">db_name</span><span class="p">,</span> <span class="n">config_directory</span><span class="p">)</span>
-
-    <span class="k">try</span><span class="p">:</span>
-        <span class="c1"># Try basic connection test with SQLAlchemy if available</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_engine</span><span class="p">,</span> <span class="n">text</span>
-
-            <span class="n">connection_type</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;connection_type&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-            <span class="n">host</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;host&#39;</span><span class="p">]</span>
-            <span class="n">port</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;port&#39;</span><span class="p">]</span>
-            <span class="n">database</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;database&#39;</span><span class="p">]</span>
-            <span class="n">username</span> <span class="o">=</span> <span class="n">quote_plus</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;username&#39;</span><span class="p">]))</span>
-            <span class="n">password</span> <span class="o">=</span> <span class="n">quote_plus</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;password&#39;</span><span class="p">]))</span>
-
-            <span class="kn">from</span><span class="w"> </span><span class="nn">urllib.parse</span><span class="w"> </span><span class="kn">import</span> <span class="n">quote_plus</span>
-
-            <span class="k">if</span> <span class="n">connection_type</span> <span class="o">==</span> <span class="s1">&#39;postgres&#39;</span><span class="p">:</span>
-                <span class="n">conn_string</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;postgresql://</span><span class="si">{</span><span class="n">quote_plus</span><span class="p">(</span><span class="n">username</span><span class="p">)</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">quote_plus</span><span class="p">(</span><span class="n">password</span><span class="p">)</span><span class="si">}</span><span class="s2">@</span><span class="si">{</span><span class="n">host</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">database</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="k">elif</span> <span class="n">connection_type</span> <span class="o">==</span> <span class="s1">&#39;mysql&#39;</span><span class="p">:</span>
-                <span class="n">conn_string</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;mysql+pymysql://</span><span class="si">{</span><span class="n">quote_plus</span><span class="p">(</span><span class="n">username</span><span class="p">)</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">quote_plus</span><span class="p">(</span><span class="n">password</span><span class="p">)</span><span class="si">}</span><span class="s2">@</span><span class="si">{</span><span class="n">host</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">database</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">log_warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Connection test not implemented for </span><span class="si">{</span><span class="n">connection_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                <span class="k">return</span> <span class="kc">False</span>
-
-            <span class="n">engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span><span class="n">conn_string</span><span class="p">)</span>
-            <span class="k">with</span> <span class="n">engine</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
-                <span class="c1"># Simple test query</span>
-                <span class="n">result</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;SELECT 1&quot;</span><span class="p">))</span>
-                <span class="n">result</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
-
-            <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Database connection test successful: </span><span class="si">{</span><span class="n">db_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="kc">True</span>
-
-        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-            <span class="n">log_warning</span><span class="p">(</span><span class="s2">&quot;SQLAlchemy not available for connection testing&quot;</span><span class="p">)</span>
-            <span class="n">log_info</span><span class="p">(</span><span class="s2">&quot;Install with: pip install sqlalchemy&quot;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="kc">False</span>
-
-    <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Database connection test failed for </span><span class="si">{</span><span class="n">db_name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">False</span></div>
-
-
-
-<div class="viewcode-block" id="list_database_configs">
-<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.databases.list_database_configs">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">list_database_configs</span><span class="p">(</span><span class="n">config_directory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;config&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    List all available database configurations.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        config_directory: Directory containing config files</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        List of dictionaries with database info</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; databases = siege_utilities.list_database_configs()  # doctest: +SKIP</span>
-<span class="sd">        &gt;&gt;&gt; for db in databases:  # doctest: +SKIP</span>
-<span class="sd">        ...     print(f&quot;{db[&#39;name&#39;]}: {db[&#39;connection_type&#39;]}&quot;)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="n">config_dir</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">config_directory</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">config_dir</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-        <span class="n">log_warning</span><span class="p">(</span><span class="s2">&quot;Config directory does not exist&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="p">[]</span>
-
-    <span class="n">databases</span> <span class="o">=</span> <span class="p">[]</span>
-
-    <span class="k">for</span> <span class="n">config_file</span> <span class="ow">in</span> <span class="n">config_dir</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;database_*.json&quot;</span><span class="p">):</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">config_file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-                <span class="n">config</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-
-            <span class="n">databases</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
-                <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span>
-                <span class="s1">&#39;connection_type&#39;</span><span class="p">:</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;connection_type&#39;</span><span class="p">],</span>
-                <span class="s1">&#39;host&#39;</span><span class="p">:</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;host&#39;</span><span class="p">],</span>
-                <span class="s1">&#39;database&#39;</span><span class="p">:</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;database&#39;</span><span class="p">],</span>
-                <span class="s1">&#39;config_file&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">config_file</span><span class="p">)</span>
-            <span class="p">})</span>
-
-        <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error reading database config </span><span class="si">{</span><span class="n">config_file</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">databases</span><span class="p">)</span><span class="si">}</span><span class="s2"> database configurations&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">databases</span></div>
-
-
-
-<div class="viewcode-block" id="create_spark_session_with_databases">
-<a class="viewcode-back" href="../../../packages/config.html#siege_utilities.config.databases.create_spark_session_with_databases">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">create_spark_session_with_databases</span><span class="p">(</span><span class="n">app_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;SiegeAnalytics&quot;</span><span class="p">,</span>
-                                        <span class="n">database_names</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                                        <span class="n">config_directory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;config&quot;</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Create Spark session configured for database access.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        app_name: Spark application name</span>
-<span class="sd">        database_names: List of database config names to prepare drivers for</span>
-<span class="sd">        config_directory: Directory containing config files</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Configured Spark session or None if PySpark not available</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        ValueError: If a database config declares a ``connection_type`` for which</span>
-<span class="sd">            no JDBC driver is registered. Supported types: ``postgres``, ``mysql``,</span>
-<span class="sd">            ``oracle``. The error names the offending type so callers can either</span>
-<span class="sd">            add a supported config or extend the dispatch.</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; spark = siege_utilities.create_spark_session_with_databases(  # doctest: +SKIP</span>
-<span class="sd">        ...     &quot;Analytics App&quot;,</span>
-<span class="sd">        ...     [&quot;analytics_db&quot;, &quot;staging_db&quot;]</span>
-<span class="sd">        ... )</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="k">try</span><span class="p">:</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">SparkSession</span>
-    <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
-            <span class="s2">&quot;PySpark is required for create_spark_session_with_databases. &quot;</span>
-            <span class="s2">&quot;Install with: pip install pyspark&quot;</span>
-        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
-
-    <span class="n">builder</span> <span class="o">=</span> <span class="n">SparkSession</span><span class="o">.</span><span class="n">builder</span><span class="o">.</span><span class="n">appName</span><span class="p">(</span><span class="n">app_name</span><span class="p">)</span>
-
-    <span class="n">packages</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="n">supported_connection_types</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;postgres&#39;</span><span class="p">,</span> <span class="s1">&#39;mysql&#39;</span><span class="p">,</span> <span class="s1">&#39;oracle&#39;</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">database_names</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">db_name</span> <span class="ow">in</span> <span class="n">database_names</span><span class="p">:</span>
-            <span class="n">config</span> <span class="o">=</span> <span class="n">load_database_config</span><span class="p">(</span><span class="n">db_name</span><span class="p">,</span> <span class="n">config_directory</span><span class="p">)</span>
-            <span class="k">if</span> <span class="s1">&#39;connection_type&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+<div class="viewcode-block" id="HealthScorer.__init__">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.HealthScorer.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dimensions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Dimension</span><span class="p">],</span>
+        <span class="n">default_thresholds</span><span class="p">:</span> <span class="n">ThresholdConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">segment_thresholds</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ThresholdConfig</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dimensions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one dimension is required&quot;</span><span class="p">)</span>
+
+        <span class="n">total_weight</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">weight</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dimensions</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">math</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">total_weight</span><span class="p">,</span> <span class="mf">100.0</span><span class="p">,</span> <span class="n">abs_tol</span><span class="o">=</span><span class="mf">0.01</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Dimension weights must sum to 100, got </span><span class="si">{</span><span class="n">total_weight</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_default_thresholds</span> <span class="o">=</span> <span class="n">default_thresholds</span> <span class="ow">or</span> <span class="n">ThresholdConfig</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_segment_thresholds</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">segment_thresholds</span> <span class="ow">or</span> <span class="p">{})</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;HealthScorer initialized with </span><span class="si">%d</span><span class="s2"> dimensions: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">),</span>
+            <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">d</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">(</span><span class="si">{</span><span class="n">d</span><span class="o">.</span><span class="n">weight</span><span class="si">}</span><span class="s2">%)&quot;</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">),</span>
+        <span class="p">)</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dimension_names</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">]</span>
+
+<div class="viewcode-block" id="HealthScorer.score">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.HealthScorer.score">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">score</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">entity_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">scores</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">segment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">previous_score</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EntityScore</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Score an entity across all dimensions.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        entity_id : str</span>
+<span class="sd">            Identifier for the entity being scored.</span>
+<span class="sd">        scores : dict[str, float]</span>
+<span class="sd">            Per-dimension scores (0-100). Must include all dimensions.</span>
+<span class="sd">        segment : str, optional</span>
+<span class="sd">            Segment for threshold selection.</span>
+<span class="sd">        previous_score : float, optional</span>
+<span class="sd">            Previous composite score for trend detection.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        EntityScore</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If scores dict is missing dimensions or values are out of range.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">missing</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dimension_names</span><span class="p">)</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">scores</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing scores for dimensions: </span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">scores</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimension_names</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown dimension: </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">value</span> <span class="o">&lt;=</span> <span class="mi">100</span><span class="p">):</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Database config </span><span class="si">{</span><span class="n">db_name</span><span class="si">!r}</span><span class="s2"> missing &#39;connection_type&#39; key&quot;</span>
-                <span class="p">)</span>
-            <span class="n">connection_type</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;connection_type&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-
-            <span class="k">if</span> <span class="n">connection_type</span> <span class="o">==</span> <span class="s1">&#39;postgres&#39;</span><span class="p">:</span>
-                <span class="n">packages</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;org.postgresql:postgresql:42.3.1&quot;</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="n">connection_type</span> <span class="o">==</span> <span class="s1">&#39;mysql&#39;</span><span class="p">:</span>
-                <span class="n">packages</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;mysql:mysql-connector-java:8.0.28&quot;</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="n">connection_type</span> <span class="o">==</span> <span class="s1">&#39;oracle&#39;</span><span class="p">:</span>
-                <span class="n">packages</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;com.oracle.database.jdbc:ojdbc8:21.1.0.0&quot;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Unsupported connection_type </span><span class="si">{</span><span class="n">connection_type</span><span class="si">!r}</span><span class="s2"> for &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;database </span><span class="si">{</span><span class="n">db_name</span><span class="si">!r}</span><span class="s2">. Supported types: &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">supported_connection_types</span><span class="p">)</span><span class="si">}</span><span class="s2">. &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;Previously this case silently loaded the PostgreSQL &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;JDBC driver, which produced misleading connection &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;errors at runtime.&quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;Score for </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> must be in [0, 100], got </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span>
                 <span class="p">)</span>
 
-    <span class="c1"># Add common packages if none specified</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">packages</span><span class="p">:</span>
-        <span class="n">packages</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;org.postgresql:postgresql:42.3.1&quot;</span><span class="p">]</span>  <span class="c1"># Default to PostgreSQL</span>
+        <span class="n">composite</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+            <span class="n">scores</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">*</span> <span class="n">d</span><span class="o">.</span><span class="n">weight</span> <span class="o">/</span> <span class="mf">100.0</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span>
+        <span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">packages</span><span class="p">:</span>
-        <span class="n">builder</span> <span class="o">=</span> <span class="n">builder</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="s2">&quot;spark.jars.packages&quot;</span><span class="p">,</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">packages</span><span class="p">))</span>
+        <span class="n">thresholds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_segment_thresholds</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">segment</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_thresholds</span>
+        <span class="p">)</span> <span class="k">if</span> <span class="n">segment</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_thresholds</span>
 
-    <span class="c1"># Add some basic optimizations</span>
-    <span class="n">builder</span> <span class="o">=</span> <span class="n">builder</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="s2">&quot;spark.sql.adaptive.enabled&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
-    <span class="n">builder</span> <span class="o">=</span> <span class="n">builder</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="s2">&quot;spark.sql.adaptive.coalescePartitions.enabled&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+        <span class="n">tier</span> <span class="o">=</span> <span class="n">thresholds</span><span class="o">.</span><span class="n">classify</span><span class="p">(</span><span class="n">composite</span><span class="p">)</span>
 
-    <span class="n">spark</span> <span class="o">=</span> <span class="n">builder</span><span class="o">.</span><span class="n">getOrCreate</span><span class="p">()</span>
-    <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Created Spark session: </span><span class="si">{</span><span class="n">app_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">trend</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">trend_direction</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">previous_score</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">trend</span> <span class="o">=</span> <span class="n">composite</span> <span class="o">-</span> <span class="n">previous_score</span>
+            <span class="k">if</span> <span class="n">trend</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">trend_direction</span> <span class="o">=</span> <span class="s2">&quot;improving&quot;</span>
+            <span class="k">elif</span> <span class="n">trend</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">trend_direction</span> <span class="o">=</span> <span class="s2">&quot;declining&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">trend_direction</span> <span class="o">=</span> <span class="s2">&quot;stable&quot;</span>
 
-    <span class="k">return</span> <span class="n">spark</span></div>
+        <span class="n">dimension_scores</span> <span class="o">=</span> <span class="p">{</span><span class="n">d</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">scores</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">}</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">EntityScore</span><span class="p">(</span>
+            <span class="n">entity_id</span><span class="o">=</span><span class="n">entity_id</span><span class="p">,</span>
+            <span class="n">composite_score</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="n">composite</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+            <span class="n">tier</span><span class="o">=</span><span class="n">tier</span><span class="p">,</span>
+            <span class="n">dimension_scores</span><span class="o">=</span><span class="n">dimension_scores</span><span class="p">,</span>
+            <span class="n">segment</span><span class="o">=</span><span class="n">segment</span><span class="p">,</span>
+            <span class="n">trend</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="n">trend</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">trend</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">trend_direction</span><span class="o">=</span><span class="n">trend_direction</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Scored </span><span class="si">%s</span><span class="s2">: </span><span class="si">%.1f</span><span class="s2"> (</span><span class="si">%s</span><span class="s2">)</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">entity_id</span><span class="p">,</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">composite_score</span><span class="p">,</span>
+            <span class="n">tier</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot; trend=</span><span class="si">{</span><span class="n">trend_direction</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">trend_direction</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+
+
+<div class="viewcode-block" id="HealthScorer.score_batch">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.HealthScorer.score_batch">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">score_batch</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">entities</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">EntityScore</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Score multiple entities.</span>
+
+<span class="sd">        Each dict must have &#39;entity_id&#39; and &#39;scores&#39; keys.</span>
+<span class="sd">        Optional: &#39;segment&#39;, &#39;previous_score&#39;.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        entities : list[dict]</span>
+<span class="sd">            List of entity dicts with keys: entity_id, scores,</span>
+<span class="sd">            and optionally segment, previous_score.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list[EntityScore]</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If any entity dict is missing required keys.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">entities</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;entity_id&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">entity</span> <span class="ow">or</span> <span class="s2">&quot;scores&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">entity</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Each entity dict must have &#39;entity_id&#39; and &#39;scores&#39; keys&quot;</span>
+                <span class="p">)</span>
+            <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">(</span>
+                    <span class="n">entity_id</span><span class="o">=</span><span class="n">entity</span><span class="p">[</span><span class="s2">&quot;entity_id&quot;</span><span class="p">],</span>
+                    <span class="n">scores</span><span class="o">=</span><span class="n">entity</span><span class="p">[</span><span class="s2">&quot;scores&quot;</span><span class="p">],</span>
+                    <span class="n">segment</span><span class="o">=</span><span class="n">entity</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;segment&quot;</span><span class="p">),</span>
+                    <span class="n">previous_score</span><span class="o">=</span><span class="n">entity</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;previous_score&quot;</span><span class="p">),</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Scored </span><span class="si">%d</span><span class="s2"> entities in batch&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">results</span></div>
+</div>
 
 </pre></div>
 
