@@ -5586,6 +5586,35 @@
 <li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.RiskAnalyzer.assess_batch"><code class="docutils literal notranslate"><span class="pre">RiskAnalyzer.assess_batch()</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#siege_utilities.analytics.DimensionScore"><code class="docutils literal notranslate"><span class="pre">DimensionScore</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.DimensionScore.score"><code class="docutils literal notranslate"><span class="pre">DimensionScore.score</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.DimensionScore.evidence"><code class="docutils literal notranslate"><span class="pre">DimensionScore.evidence</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.DimensionScore.__init__"><code class="docutils literal notranslate"><span class="pre">DimensionScore.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#siege_utilities.analytics.ComparisonResult"><code class="docutils literal notranslate"><span class="pre">ComparisonResult</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.ComparisonResult.dimensions"><code class="docutils literal notranslate"><span class="pre">ComparisonResult.dimensions</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.ComparisonResult.entities"><code class="docutils literal notranslate"><span class="pre">ComparisonResult.entities</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.ComparisonResult.scores"><code class="docutils literal notranslate"><span class="pre">ComparisonResult.scores</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.ComparisonResult.weighted_totals"><code class="docutils literal notranslate"><span class="pre">ComparisonResult.weighted_totals</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.ComparisonResult.gap_analysis"><code class="docutils literal notranslate"><span class="pre">ComparisonResult.gap_analysis</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.ComparisonResult.__init__"><code class="docutils literal notranslate"><span class="pre">ComparisonResult.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#siege_utilities.analytics.FeatureMatrix"><code class="docutils literal notranslate"><span class="pre">FeatureMatrix</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.FeatureMatrix.entities"><code class="docutils literal notranslate"><span class="pre">FeatureMatrix.entities</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.FeatureMatrix.features"><code class="docutils literal notranslate"><span class="pre">FeatureMatrix.features</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.FeatureMatrix.matrix"><code class="docutils literal notranslate"><span class="pre">FeatureMatrix.matrix</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.FeatureMatrix.coverage"><code class="docutils literal notranslate"><span class="pre">FeatureMatrix.coverage</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.FeatureMatrix.__init__"><code class="docutils literal notranslate"><span class="pre">FeatureMatrix.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="analytics.html#siege_utilities.analytics.ComparativeAnalyzer"><code class="docutils literal notranslate"><span class="pre">ComparativeAnalyzer</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.ComparativeAnalyzer.__init__"><code class="docutils literal notranslate"><span class="pre">ComparativeAnalyzer.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.ComparativeAnalyzer.compare"><code class="docutils literal notranslate"><span class="pre">ComparativeAnalyzer.compare()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.ComparativeAnalyzer.build_feature_matrix"><code class="docutils literal notranslate"><span class="pre">ComparativeAnalyzer.build_feature_matrix()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="analytics.html#module-siege_utilities.analytics.google_analytics">Submodules</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_analytics.GoogleAnalyticsConnector"><code class="docutils literal notranslate"><span class="pre">GoogleAnalyticsConnector</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_analytics.GoogleAnalyticsConnector.__init__"><code class="docutils literal notranslate"><span class="pre">GoogleAnalyticsConnector.__init__()</span></code></a></li>
@@ -9151,7 +9180,7 @@ Returns <code class="docutils literal notranslate"><span class="pre">[code]</spa
 <dd class="field-even"><p>Sorted by score descending.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a> of (<a class="reference internal" href="connectors.html#siege_utilities.connectors._protocol.UpsertError.code" title="siege_utilities.connectors._protocol.UpsertError.code">code</a>, <a class="reference internal" href="data.html#siege_utilities.data.RDHDataset.title" title="siege_utilities.data.RDHDataset.title">title</a>, <a class="reference internal" href="geo.html#siege_utilities.geo.GazetteerCandidate.score" title="siege_utilities.geo.GazetteerCandidate.score">score</a>)</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a> of (<a class="reference internal" href="connectors.html#siege_utilities.connectors._protocol.UpsertError.code" title="siege_utilities.connectors._protocol.UpsertError.code">code</a>, <a class="reference internal" href="data.html#siege_utilities.data.RDHDataset.title" title="siege_utilities.data.RDHDataset.title">title</a>, <a class="reference internal" href="analytics.html#siege_utilities.analytics.DimensionScore.score" title="siege_utilities.analytics.DimensionScore.score">score</a>)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9778,7 +9807,7 @@ Returns <code class="docutils literal notranslate"><span class="pre">[code]</spa
 <dd class="field-even"><p>Sorted by score descending.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a> of (<a class="reference internal" href="connectors.html#siege_utilities.connectors._protocol.UpsertError.code" title="siege_utilities.connectors._protocol.UpsertError.code">code</a>, <a class="reference internal" href="data.html#siege_utilities.data.RDHDataset.title" title="siege_utilities.data.RDHDataset.title">title</a>, <a class="reference internal" href="geo.html#siege_utilities.geo.GazetteerCandidate.score" title="siege_utilities.geo.GazetteerCandidate.score">score</a>)</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a> of (<a class="reference internal" href="connectors.html#siege_utilities.connectors._protocol.UpsertError.code" title="siege_utilities.connectors._protocol.UpsertError.code">code</a>, <a class="reference internal" href="data.html#siege_utilities.data.RDHDataset.title" title="siege_utilities.data.RDHDataset.title">title</a>, <a class="reference internal" href="analytics.html#siege_utilities.analytics.DimensionScore.score" title="siege_utilities.analytics.DimensionScore.score">score</a>)</p>
 </dd>
 </dl>
 </dd></dl>

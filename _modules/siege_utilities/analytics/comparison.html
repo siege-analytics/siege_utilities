@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.trino.federation &mdash; Siege Utilities 3.23.0 documentation</title>
+  <title>siege_utilities.analytics.comparison &mdash; Siege Utilities 3.23.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
@@ -8948,7 +8948,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
-      <li class="breadcrumb-item active">siege_utilities.trino.federation</li>
+      <li class="breadcrumb-item active">siege_utilities.analytics.comparison</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -8957,166 +8957,273 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <h1>Source code for siege_utilities.trino.federation</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Trino SQL helpers for federating to a foreign RDBMS via Trino connectors.</span>
+  <h1>Source code for siege_utilities.analytics.comparison</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Evidence-based comparative analysis.</span>
 
-<span class="sd">This is the OSS analog of</span>
-<span class="sd">:mod:`siege_utilities.databricks.lakehouse_federation` for the open-source</span>
-<span class="sd">unitycatalog.io (and any other catalog Trino can write a VIEW into).</span>
-
-<span class="sd">OSS Unity Catalog does NOT support live query federation natively</span>
-<span class="sd">(no ``CREATE FOREIGN TABLE``/``USING CONNECTION`` syntax — that is</span>
-<span class="sd">Databricks-specific). The OSS path is to configure Trino with the</span>
-<span class="sd">``postgresql`` connector (catalog config file), then expose the</span>
-<span class="sd">foreign table under a stable name in a different Trino catalog via</span>
-<span class="sd">``CREATE OR REPLACE VIEW``. Readers query the view; Trino does the</span>
-<span class="sd">federation transparently.</span>
-
-<span class="sd">This module generates the view-creation SQL. Catalog configuration</span>
-<span class="sd">(the ``etc/catalog/*.properties`` files Trino reads at startup) is</span>
-<span class="sd">out of scope — that is operator territory.</span>
-
-<span class="sd">See SU#521 (umbrella) and SU#519 (root context).</span>
+<span class="sd">Structured comparison framework for scoring and comparing N entities</span>
+<span class="sd">across M dimensions with mandatory evidence citation, feature matrix</span>
+<span class="sd">construction, and gap analysis.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">List</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.core.sql_safety</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_sql_identifier</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">statistics</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
 
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s2">&quot;build_trino_federation_view_sql&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;build_trino_schema_and_view_sync_sql&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;quote_ident&quot;</span><span class="p">,</span>
-<span class="p">]</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="quote_ident">
-<a class="viewcode-back" href="../../../packages/trino.html#siege_utilities.trino.quote_ident">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">quote_ident</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Quote an identifier in Trino dialect.</span>
+<div class="viewcode-block" id="DimensionScore">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.DimensionScore">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DimensionScore</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A score for one entity on one dimension.</span>
 
-<span class="sd">    Trino uses ANSI double quotes for identifiers (not backticks like</span>
-<span class="sd">    Databricks). Internal double-quote characters are escaped by</span>
-<span class="sd">    doubling. Callers must validate identifiers before passing them</span>
-<span class="sd">    here (the higher-level federation builders call</span>
-<span class="sd">    ``validate_sql_identifier`` before ``quote_ident``).</span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    score : int</span>
+<span class="sd">        Score on a 1-5 scale.</span>
+<span class="sd">    evidence : str</span>
+<span class="sd">        Citation supporting the score (URL, doc reference, test result).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="s1">&#39;&quot;&#39;</span> <span class="o">+</span> <span class="n">value</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;&quot;&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;&quot;&#39;</span></div>
 
+    <span class="n">score</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">evidence</span><span class="p">:</span> <span class="nb">str</span>
 
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_join_fq</span><span class="p">(</span><span class="n">parts</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="k">return</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">quote_ident</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">)</span>
-
-
-<div class="viewcode-block" id="build_trino_federation_view_sql">
-<a class="viewcode-back" href="../../../packages/trino.html#siege_utilities.trino.build_trino_federation_view_sql">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">build_trino_federation_view_sql</span><span class="p">(</span>
-    <span class="n">target_catalog</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">target_schema</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">target_view</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">postgres_catalog</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">source_schema</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">source_table</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build SQL for a Trino federation view over a PostgreSQL source.</span>
-
-<span class="sd">    Generates a ``CREATE OR REPLACE VIEW`` statement in</span>
-<span class="sd">    ``target_catalog.target_schema.target_view`` that selects every</span>
-<span class="sd">    column from the PostgreSQL table ``postgres_catalog.source_schema.source_table``</span>
-<span class="sd">    via Trino&#39;s ``postgresql`` connector.</span>
-
-<span class="sd">    All identifier fields are validated against the SU identifier</span>
-<span class="sd">    allow-list before interpolation. The output is double-quoted in</span>
-<span class="sd">    Trino&#39;s ANSI dialect (not backticks).</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        target_catalog: Trino catalog the view lives in (e.g. ``&quot;iceberg&quot;``</span>
-<span class="sd">            for an OSS UC-backed Iceberg catalog).</span>
-<span class="sd">        target_schema: Schema within the target catalog (e.g. ``&quot;analytics&quot;``).</span>
-<span class="sd">        target_view: View name (e.g. ``&quot;persons&quot;``).</span>
-<span class="sd">        postgres_catalog: Trino catalog alias for the PostgreSQL connector</span>
-<span class="sd">            (whatever the operator named the ``etc/catalog/postgresql.properties``</span>
-<span class="sd">            file, sans extension).</span>
-<span class="sd">        source_schema: PostgreSQL schema (e.g. ``&quot;public&quot;``).</span>
-<span class="sd">        source_table: PostgreSQL table name. Defaults to ``target_view``</span>
-<span class="sd">            when omitted, which is the common case (same name on both</span>
-<span class="sd">            sides).</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        A single SQL statement ending in ``;``.</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; build_trino_federation_view_sql(</span>
-<span class="sd">        ...     target_catalog=&quot;iceberg&quot;,</span>
-<span class="sd">        ...     target_schema=&quot;analytics&quot;,</span>
-<span class="sd">        ...     target_view=&quot;persons&quot;,</span>
-<span class="sd">        ...     postgres_catalog=&quot;postgresql&quot;,</span>
-<span class="sd">        ...     source_schema=&quot;public&quot;,</span>
-<span class="sd">        ... )</span>
-<span class="sd">        &#39;CREATE OR REPLACE VIEW &quot;iceberg&quot;.&quot;analytics&quot;.&quot;persons&quot; AS\\nSELECT * FROM &quot;postgresql&quot;.&quot;public&quot;.&quot;persons&quot;;&#39;</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">resolved_source</span> <span class="o">=</span> <span class="n">source_table</span> <span class="ow">or</span> <span class="n">target_view</span>
-    <span class="n">validate_sql_identifier</span><span class="p">(</span><span class="n">target_catalog</span><span class="p">,</span> <span class="s2">&quot;target_catalog&quot;</span><span class="p">)</span>
-    <span class="n">validate_sql_identifier</span><span class="p">(</span><span class="n">target_schema</span><span class="p">,</span> <span class="s2">&quot;target_schema&quot;</span><span class="p">)</span>
-    <span class="n">validate_sql_identifier</span><span class="p">(</span><span class="n">target_view</span><span class="p">,</span> <span class="s2">&quot;target_view&quot;</span><span class="p">)</span>
-    <span class="n">validate_sql_identifier</span><span class="p">(</span><span class="n">postgres_catalog</span><span class="p">,</span> <span class="s2">&quot;postgres_catalog&quot;</span><span class="p">)</span>
-    <span class="n">validate_sql_identifier</span><span class="p">(</span><span class="n">source_schema</span><span class="p">,</span> <span class="s2">&quot;source_schema&quot;</span><span class="p">)</span>
-    <span class="n">validate_sql_identifier</span><span class="p">(</span><span class="n">resolved_source</span><span class="p">,</span> <span class="s2">&quot;source_table&quot;</span><span class="p">)</span>
-    <span class="n">target_fq</span> <span class="o">=</span> <span class="n">_join_fq</span><span class="p">([</span><span class="n">target_catalog</span><span class="p">,</span> <span class="n">target_schema</span><span class="p">,</span> <span class="n">target_view</span><span class="p">])</span>
-    <span class="n">source_fq</span> <span class="o">=</span> <span class="n">_join_fq</span><span class="p">([</span><span class="n">postgres_catalog</span><span class="p">,</span> <span class="n">source_schema</span><span class="p">,</span> <span class="n">resolved_source</span><span class="p">])</span>
-    <span class="k">return</span> <span class="p">(</span>
-        <span class="sa">f</span><span class="s2">&quot;CREATE OR REPLACE VIEW </span><span class="si">{</span><span class="n">target_fq</span><span class="si">}</span><span class="s2"> AS</span><span class="se">\n</span><span class="s2">&quot;</span>
-        <span class="sa">f</span><span class="s2">&quot;SELECT * FROM </span><span class="si">{</span><span class="n">source_fq</span><span class="si">}</span><span class="s2">;&quot;</span>
-    <span class="p">)</span></div>
-
-
-
-<div class="viewcode-block" id="build_trino_schema_and_view_sync_sql">
-<a class="viewcode-back" href="../../../packages/trino.html#siege_utilities.trino.build_trino_schema_and_view_sync_sql">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">build_trino_schema_and_view_sync_sql</span><span class="p">(</span>
-    <span class="n">target_catalog</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">target_schema</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">postgres_catalog</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">source_schema</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">tables</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build ``CREATE SCHEMA`` + per-table ``CREATE VIEW`` statements.</span>
-
-<span class="sd">    Convenience for syncing many PostgreSQL tables into a Trino catalog</span>
-<span class="sd">    in one pass. The schema statement uses ``IF NOT EXISTS`` so the</span>
-<span class="sd">    list is safe to re-run. Each view statement is ``CREATE OR REPLACE``</span>
-<span class="sd">    so re-runs after upstream column additions stay correct.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        target_catalog: Trino catalog the schema + views live in.</span>
-<span class="sd">        target_schema: Schema within ``target_catalog``.</span>
-<span class="sd">        postgres_catalog: Trino PostgreSQL connector alias.</span>
-<span class="sd">        source_schema: PostgreSQL schema containing ``tables``.</span>
-<span class="sd">        tables: Iterable of PostgreSQL table names. Same names are</span>
-<span class="sd">            used for the Trino views.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        List of SQL statements: one ``CREATE SCHEMA`` followed by one</span>
-<span class="sd">        ``CREATE OR REPLACE VIEW`` per table, in the order given.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">statements</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
-        <span class="s2">&quot;CREATE SCHEMA IF NOT EXISTS &quot;</span>
-        <span class="o">+</span> <span class="n">_join_fq</span><span class="p">([</span><span class="n">target_catalog</span><span class="p">,</span> <span class="n">target_schema</span><span class="p">])</span>
-        <span class="o">+</span> <span class="s2">&quot;;&quot;</span>
-    <span class="p">]</span>
-    <span class="k">for</span> <span class="n">table</span> <span class="ow">in</span> <span class="n">tables</span><span class="p">:</span>
-        <span class="n">statements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-            <span class="n">build_trino_federation_view_sql</span><span class="p">(</span>
-                <span class="n">target_catalog</span><span class="o">=</span><span class="n">target_catalog</span><span class="p">,</span>
-                <span class="n">target_schema</span><span class="o">=</span><span class="n">target_schema</span><span class="p">,</span>
-                <span class="n">target_view</span><span class="o">=</span><span class="n">table</span><span class="p">,</span>
-                <span class="n">postgres_catalog</span><span class="o">=</span><span class="n">postgres_catalog</span><span class="p">,</span>
-                <span class="n">source_schema</span><span class="o">=</span><span class="n">source_schema</span><span class="p">,</span>
-                <span class="n">source_table</span><span class="o">=</span><span class="n">table</span><span class="p">,</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span> <span class="o">&lt;=</span> <span class="mi">5</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Score must be an integer in [1, 5], got </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="si">!r}</span><span class="s2">&quot;</span>
             <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">evidence</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">evidence</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Evidence citation must not be empty&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="ComparisonResult">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ComparisonResult">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ComparisonResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of comparing entities across dimensions.&quot;&quot;&quot;</span>
+
+    <span class="n">dimensions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">entities</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">scores</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">DimensionScore</span><span class="p">]]</span>
+    <span class="n">weighted_totals</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+    <span class="n">gap_analysis</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span></div>
+
+
+
+<div class="viewcode-block" id="FeatureMatrix">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.FeatureMatrix">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">FeatureMatrix</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Boolean feature support matrix with coverage scoring.&quot;&quot;&quot;</span>
+
+    <span class="n">entities</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">features</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">matrix</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]]</span>
+    <span class="n">coverage</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="ComparativeAnalyzer">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ComparativeAnalyzer">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ComparativeAnalyzer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;N-entity x M-dimension comparison engine.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    dimensions : list[str]</span>
+<span class="sd">        Dimension names for comparison.</span>
+<span class="sd">    weights : dict[str, float] | None</span>
+<span class="sd">        Optional dimension weights. If provided, must cover all</span>
+<span class="sd">        dimensions. If omitted, equal weights are used.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If dimensions is empty or weights don&#39;t match dimensions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ComparativeAnalyzer.__init__">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ComparativeAnalyzer.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dimensions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">weights</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dimensions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one dimension is required&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Dimension names must be unique&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">weights</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">missing</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">weights</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing weights for dimensions: </span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">extra</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">weights</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">extra</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Weights for unknown dimensions: </span><span class="si">{</span><span class="n">extra</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">equal_weight</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span> <span class="o">=</span> <span class="p">{</span><span class="n">d</span><span class="p">:</span> <span class="n">equal_weight</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dimensions</span><span class="p">}</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;ComparativeAnalyzer initialized with </span><span class="si">%d</span><span class="s2"> dimensions: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">),</span>
+            <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">),</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ComparativeAnalyzer.compare">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ComparativeAnalyzer.compare">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">compare</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">entity_scores</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">DimensionScore</span><span class="p">]],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ComparisonResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compare entities across all dimensions.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        entity_scores : dict[str, dict[str, DimensionScore]]</span>
+<span class="sd">            Outer key = entity name, inner key = dimension name.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ComparisonResult</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If any entity is missing a dimension score.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">entity_scores</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one entity is required&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">entity</span><span class="p">,</span> <span class="n">scores</span> <span class="ow">in</span> <span class="n">entity_scores</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">missing</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">)</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">scores</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Entity </span><span class="si">{</span><span class="n">entity</span><span class="si">!r}</span><span class="s2"> missing scores for: </span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+
+        <span class="n">weighted_totals</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">entity</span><span class="p">,</span> <span class="n">scores</span> <span class="ow">in</span> <span class="n">entity_scores</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">total</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+                <span class="n">scores</span><span class="p">[</span><span class="n">d</span><span class="p">]</span><span class="o">.</span><span class="n">score</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span><span class="p">[</span><span class="n">d</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span>
+            <span class="p">)</span>
+            <span class="n">weighted_totals</span><span class="p">[</span><span class="n">entity</span><span class="p">]</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">total</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+
+        <span class="n">gap_analysis</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_gap_analysis</span><span class="p">(</span><span class="n">entity_scores</span><span class="p">)</span>
+
+        <span class="n">entities</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">entity_scores</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">ComparisonResult</span><span class="p">(</span>
+            <span class="n">dimensions</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">),</span>
+            <span class="n">entities</span><span class="o">=</span><span class="n">entities</span><span class="p">,</span>
+            <span class="n">scores</span><span class="o">=</span><span class="n">entity_scores</span><span class="p">,</span>
+            <span class="n">weighted_totals</span><span class="o">=</span><span class="n">weighted_totals</span><span class="p">,</span>
+            <span class="n">gap_analysis</span><span class="o">=</span><span class="n">gap_analysis</span><span class="p">,</span>
         <span class="p">)</span>
-    <span class="k">return</span> <span class="n">statements</span></div>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Compared </span><span class="si">%d</span><span class="s2"> entities across </span><span class="si">%d</span><span class="s2"> dimensions. &quot;</span>
+            <span class="s2">&quot;Highest variance: </span><span class="si">%s</span><span class="s2"> (</span><span class="si">%.2f</span><span class="s2">)&quot;</span><span class="p">,</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">entities</span><span class="p">),</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">),</span>
+            <span class="n">gap_analysis</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">gap_analysis</span> <span class="k">else</span> <span class="s2">&quot;N/A&quot;</span><span class="p">,</span>
+            <span class="n">gap_analysis</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">gap_analysis</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_gap_analysis</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">entity_scores</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">DimensionScore</span><span class="p">]],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Identify dimensions with largest score variance across entities.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">entity_scores</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[(</span><span class="n">d</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">]</span>
+
+        <span class="n">variances</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">:</span>
+            <span class="n">dim_scores</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">scores</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span><span class="o">.</span><span class="n">score</span> <span class="k">for</span> <span class="n">scores</span> <span class="ow">in</span> <span class="n">entity_scores</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+            <span class="p">]</span>
+            <span class="n">variance</span> <span class="o">=</span> <span class="n">statistics</span><span class="o">.</span><span class="n">variance</span><span class="p">(</span><span class="n">dim_scores</span><span class="p">)</span>
+            <span class="n">variances</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">dim</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">variance</span><span class="p">,</span> <span class="mi">4</span><span class="p">)))</span>
+
+        <span class="n">variances</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">variances</span>
+
+<div class="viewcode-block" id="ComparativeAnalyzer.build_feature_matrix">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ComparativeAnalyzer.build_feature_matrix">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_feature_matrix</span><span class="p">(</span>
+        <span class="n">entity_features</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FeatureMatrix</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build a boolean feature support matrix with coverage scores.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        entity_features : dict[str, dict[str, bool]]</span>
+<span class="sd">            Outer key = entity name, inner key = feature name.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        FeatureMatrix</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If no entities or no features are provided.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">entity_features</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one entity is required&quot;</span><span class="p">)</span>
+
+        <span class="n">all_features</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">features</span> <span class="ow">in</span> <span class="n">entity_features</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">all_features</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">features</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">all_features</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one feature is required&quot;</span><span class="p">)</span>
+
+        <span class="n">sorted_features</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">all_features</span><span class="p">)</span>
+        <span class="n">entities</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">entity_features</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+        <span class="n">normalized</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">coverage</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">entities</span><span class="p">:</span>
+            <span class="n">features</span> <span class="o">=</span> <span class="n">entity_features</span><span class="p">[</span><span class="n">entity</span><span class="p">]</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="p">{</span><span class="n">f</span><span class="p">:</span> <span class="n">features</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">sorted_features</span><span class="p">}</span>
+            <span class="n">normalized</span><span class="p">[</span><span class="n">entity</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span>
+            <span class="n">supported</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">row</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span><span class="p">)</span>
+            <span class="n">coverage</span><span class="p">[</span><span class="n">entity</span><span class="p">]</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">supported</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">sorted_features</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Feature matrix: </span><span class="si">%d</span><span class="s2"> entities × </span><span class="si">%d</span><span class="s2"> features&quot;</span><span class="p">,</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">entities</span><span class="p">),</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">sorted_features</span><span class="p">),</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">FeatureMatrix</span><span class="p">(</span>
+            <span class="n">entities</span><span class="o">=</span><span class="n">entities</span><span class="p">,</span>
+            <span class="n">features</span><span class="o">=</span><span class="n">sorted_features</span><span class="p">,</span>
+            <span class="n">matrix</span><span class="o">=</span><span class="n">normalized</span><span class="p">,</span>
+            <span class="n">coverage</span><span class="o">=</span><span class="n">coverage</span><span class="p">,</span>
+        <span class="p">)</span></div>
+</div>
 
 </pre></div>
 
