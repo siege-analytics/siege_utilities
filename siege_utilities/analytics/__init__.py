@@ -102,6 +102,11 @@ _register([
     'RiskAssessment', 'RiskAnalyzer',
 ], '.risk')
 
+_register([
+    'DimensionScore', 'ComparisonResult', 'FeatureMatrix',
+    'ComparativeAnalyzer',
+], '.comparison')
+
 __all__ = list(_LAZY_IMPORTS.keys())
 
 
