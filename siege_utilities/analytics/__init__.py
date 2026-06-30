@@ -92,6 +92,11 @@ _register([
     'load_x_account_profile',
 ], '.x_twitter')
 
+# Scoring and analytics primitives
+_register([
+    'Dimension', 'ThresholdConfig', 'EntityScore', 'HealthScorer',
+], '.scoring')
+
 __all__ = list(_LAZY_IMPORTS.keys())
 
 
